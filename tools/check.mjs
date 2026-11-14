@@ -9,8 +9,8 @@
  * later is not a new script somebody forgets to call. Each part prints its own
  * numbers - what it read as well as what it found, because a part that read
  * nothing has proved nothing - and the exit code is 1 when any part is red.
- * Only `names`, `moves` and `text` need `npm ci` in audit/harness (they parse
- * with espree; `text` since E65 C10, for the screen map); the rest are bare
+ * Only `names`, `moves`, `text`, `comments` and `keys` need `npm ci` in audit/harness (they
+ * parse with espree; `text` since E65 C10, for the screen map); the rest are bare
  * Node, so release.yml runs `stamps notes` before installing anything.
  *
  * Parts:
@@ -110,7 +110,7 @@
  *             .md git lists under docs/, the handbooks among them; `npm ci` in
  *             audit/harness first, for espree. In this order:
  *             1. The self-check (scripts/tests-text.mjs selfCheck): each of the
- *                26 detectors on its fixture - red when one does not flag
+ *                27 detectors on its fixture - red when one does not flag
  *                exactly its fixture's items, or reads nothing of it - and its
  *                controls, each a broken copy the self-check must see: a
  *                detector stubbed to read nothing, T8 blind to its ledger,
@@ -125,10 +125,15 @@
  *                tools/text-audience.mjs; "screens: ...", "audience: ...", the
  *                audience map also on planted scripts with known answers).
  *             3. Every detector over the files, one line each: its T number,
- *                its mode, what it read, what it found and its counts. The six
+ *                its mode, what it read, what it found and its counts. The
  *                FAIL ones - T1 (pluralForms, configPlaceholders), T2
  *                (pairParity), T3 (familyFormats) and T6 (dashesIn), the last
- *                two with a baseline that only shrinks, T14 (tableWordProblems) - are red
+ *                two with a baseline that only shrinks, T9 (staleTranslations,
+ *                E57 C1: a Polish key whose English moved since its stamp in
+ *                tools/pl-reviewed.json and whose Polish did not; the file
+ *                missing is red, and tools/stale-pl.mjs's self-check runs
+ *                first, a planted English moved alone seen), T14
+ *                (tableWordProblems), T20 and T28 - are red
  *                on a finding their baseline does not hold and on a baseline row
  *                nothing fills ("take it out of the baseline"). The twenty
  *                report ones print their findings, 25 a detector, never red;
@@ -202,6 +207,21 @@
  *             hand, is red. Bare Node. The nine remnant-*.svg took the tool's
  *             spelling that day, after a pixel comparison in Chromium at 256,
  *             64 and 240 px read every pixel equal.
+ *   comments  the comments lint (E56 C1; tools/comments-lint.mjs, whose header says
+ *             what it reads, carried from the prep-54 line's 0271bfb2): its
+ *             self-check on a planted fixture and the budget's ratchet first, then
+ *             every module file of scripts/ counted - backticked names in comments
+ *             that no code, language key or stylesheet holds, and two JSDoc blocks
+ *             over one declaration - and held to tools/comment-budget.json: red
+ *             above a row, and red below it until the row is lowered in the same
+ *             commit (`node tools/comments-lint.mjs --write`), so the count only
+ *             falls. Needs espree (`npm ci` in audit/harness).
+ *   keys      the keys lint (E56 part 1; tools/keys-lint.mjs, whose header says
+ *             what it reads and what it does not hold): every key of
+ *             lang/en.json read by a string of the code, under a prefix a
+ *             builder of the code makes keys from, or under a row of its short
+ *             KEY_PREFIXES - after its two plants, the finder's fixture and one
+ *             unread key added to the real tree, are each seen. Needs espree.
  *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
  *             header says what it reads): its self-check, then every pair of
  *             tools/contrast-pairs.json in its theme from the tokens the sheets
@@ -233,7 +253,18 @@
  *             reads ships (module.json's paths, a script's ./x.mjs imports,
  *             every module file a reader names; REVIEW-111-e59 finding 1). A
  *             planted package with eight faults first. Red on 421f2395:
- *             macros/ and icons/pixel-sprite.svg. Bare Node and git.
+ *             macros/ and icons/pixel-sprite.svg. And (E26 prep, 14.11)
+ *             the zip tools/build-package.mjs builds is the same bytes under
+ *             a Windows git config and none, each file the commit's own,
+ *             with a control that the config reaches git; no "DM" in a
+ *             shipped language file or handbook. Bare Node and git.
+ *   fonts     what each fonts/*.woff2 says of itself in its name table
+ *             against fonts/README.md's licence table (E26 prep, 14.11.2026;
+ *             tools/font-names.mjs, whose header has the rules): a row each,
+ *             the licence the font's own licence URL names, and a modified
+ *             face that keeps no name its copyright reserves. A planted set
+ *             with three faults first. Red on 1463f22b: no licence table, and
+ *             Special Elite (Apache 2.0) called OFL. Bare Node.
  *   tooltips  the controls with no help (E102 C1, widened after REVIEW-102;
  *             tools/tooltip-census.mjs, whose header lists the kinds of
  *             control it reads and the ones it does not): its self-check of
@@ -242,9 +273,22 @@
  *             three lines, held to tools/tooltip-census.json by file, unit,
  *             kind and key - red on a new one with no row, on a row no site
  *             needs any more, on a row with no reason, on a count above
- *             origin/main's copy (when that copy can be read), on a stage's
+ *             origin/main's copy (when that copy can be read; a "help in
+ *             code" row whose held pattern is found there may stand for
+ *             main's held row of its file, unit and kind), on a stage's
  *             row once the stage shipped, and on a tipAttr/tipText key with no
  *             words in either language. Needs espree (`npm ci` in audit/harness).
+ *   rules     the handbooks' rule numbers against config.mjs and the code
+ *             (E57 C2; tools/rules-parity.mjs, whose header says how a rule
+ *             reads): run as a child process, since its composed numbers
+ *             import the module's scripts behind a stand-in of Foundry. Red
+ *             on any problem - a number a handbook gives that config.mjs or
+ *             the composing function does not, a Polish unit that does not
+ *             give its English unit's numbers in order, a sentence no anchor
+ *             reaches any longer - and on any of its planted faults not seen:
+ *             a number changed in a copy of each config table it reads, a
+ *             Polish number changed, and the trap card's "four to six" put
+ *             back into a copy of the GM handbook.
  */
 
 import fs from "node:fs";
@@ -461,6 +505,19 @@ async function prose() {
         ? [] : [`config-prose.mjs --check with no file exits ${bare.status ?? bare.signal} ${usage ? "" : "without its usage "}- it should print its usage and exit 2 (S13-60)`];
     return [...noFile, ...(r.wanted ? [] : ["config.mjs yielded no prose to cover"]),
         ...r.missing.map(k => `lang/pl.json lacks DRPG.Config.${k}`), ...r.extra.map(k => `lang/pl.json has DRPG.Config.${k}, which config.mjs does not`)];
+}
+
+/* ---------------------------------- rules ---------------------------------- */
+
+/* E57 C2: tools/rules-parity.mjs in a child process (its stand-in of Foundry must not reach the other parts' globals). */
+function rulesParity() {
+    const run = spawnSync(process.execPath, [path.join(REPO, "tools", "rules-parity.mjs"), "--json"], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+    let r;
+    try { r = JSON.parse(run.stdout); } catch { return [`tools/rules-parity.mjs --json did not answer JSON (exit ${run.status}): ${String(run.stderr).trim().split("\n").slice(0, 3).join(" ")}`]; }
+    const t = r.tally;
+    console.log(`rules: ${t.rules} rule(s), ${t.matches} sentence(s) and ${t.rows} row(s) read, ${t.words} number(s) in words (T7's, reported); `
+        + `self-check ${r.self.plants - r.self.missed.length}/${r.self.plants} plant(s) seen; ${r.problems.length} problem(s)`);
+    return [...r.problems, ...r.self.missed.map(m => `self-check: ${m}`), ...(t.rules > 0 && t.matches + t.rows > 0 ? [] : ["it read nothing"])];
 }
 
 /* ---------------------------------- names ---------------------------------- */
@@ -730,11 +787,36 @@ function tree() {
     return listed.slice(0, 20).map(f => `${f} is tracked - it is written by a run or an install, never committed`);
 }
 
+/* ------------------------------ fonts ------------------------------ */
+
+/* E26 prep (14.11.2026): tools/font-names.mjs reads the name tables; this part feeds it the files and the README. */
+async function fontsPart() {
+    const F = await import(url.pathToFileURL(path.join(REPO, "tools", "font-names.mjs")).href);
+    const dir = path.join(REPO, "fonts");
+    const problems = [];
+    const fonts = {};
+    for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".woff2")).sort()) {
+        try { fonts[file] = F.woff2Names(fs.readFileSync(path.join(dir, file))); }
+        catch (err) { problems.push(`${file}: its name table could not be read (${err.message})`); }
+    }
+    const rows = F.licenceRows(fs.readFileSync(path.join(dir, "README.md"), "utf8"));
+    for (const [file, row] of Object.entries(rows)) if (!fs.existsSync(path.join(dir, row.text))) problems.push(`${file}: its licence text fonts/${row.text} is not there`);
+    problems.push(...F.fontProblems(fonts, rows));
+    const named = Object.values(fonts).filter(n => n[1]).length;
+    if (!named) problems.push("no woff2 in fonts/ gave a family name - this part read nothing");
+    const self = F.fontSelfCheck();
+    if (self.seen !== self.want || self.got.length !== self.want) problems.push(`the self-check's planted fonts gave ${JSON.stringify(self.got)}`);
+    console.log(`fonts: ${Object.keys(fonts).length} woff2 file(s) in fonts/, ${named} with a family name (${[...new Set(Object.values(fonts).map(n => n[1]))].join(", ")}); `
+        + `${Object.keys(rows).length} licence row(s); self-check ${self.seen}/${self.want} planted fault(s) seen, ${self.got.length - self.seen} other(s); ${problems.length} problem(s)`);
+    return problems;
+}
+
 /* ------------------------------ package ------------------------------ */
 
 /*
  * THE PACKAGE SHIPS WHAT A TABLE READS (E59 C5a, 13.11.2026; D47, E59 plan M6). release.yml builds module.zip with
- * `git archive --format=zip -o module.zip HEAD`, which leaves out what .gitattributes marks `export-ignore`. This
+ * `git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD` (the two options since E26 prep), which
+ * leaves out what .gitattributes marks `export-ignore`. This
  * part lists that archive the same way (`git archive --format=tar --worktree-attributes HEAD`: the committed files,
  * and the working tree's .gitattributes, so an export rule is judged before its commit) and holds it to three rules:
  *   - its top level is the module's: PACKAGE_TOP;
@@ -758,7 +840,12 @@ const PACKAGE_NOTES = {
     "module.json": "Foundry reads it to install and load the module",
     "README.md": "the module's description, shown where the package is browsed",
     "LICENSE": "the module's licence, which ships with it",
-    "fonts/README.md": "the SIL Open Font License notice of the fonts beside it, which that licence asks to ship with them"
+    "fonts/README.md": "the fonts' licence table and their authors, which the licences ask to ship with the fonts",
+    /* E26 prep, 14.11.2026: each licence's own text, which the OFL (condition 2) and the Apache License 2.0 (4(a)) ask to
+       ship with every copy of the font; a table reads none of them. */
+    "fonts/OFL-PressStart2P.txt": "the SIL Open Font License 1.1 of pixel.woff2 and pixel-ext.woff2",
+    "fonts/OFL-VT323.txt": "the SIL Open Font License 1.1 of the VT323 files",
+    "fonts/LICENSE-SpecialElite.txt": "the Apache License 2.0 of the Special Elite files"
 };
 const PACKAGE_EXT = "mjs|js|css|json|svg|png|webp|jpe?g|gif|woff2?|ttf|otf|md|ogg|mp3|wav|webm";
 
@@ -883,6 +970,97 @@ function packageTracked() {
     return execFileSync("git", ["-C", REPO, "ls-tree", "-r", "--name-only", "HEAD"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n").filter(Boolean);
 }
 
+/*
+ * The same zip whatever the machine's git config (E26 prep, 14.11.2026): tools/build-package.mjs pins git archive's text
+ * conversions off. Built at HEAD under no extra config and under a Windows checkout's (`core.autocrlf=true`,
+ * `core.eol=crlf`), the two zips must be the same bytes, and every file of the pinned tar the commit's own blob, byte
+ * for byte (a `text eol=crlf` rule in .gitattributes would convert under any config, and only this sees it). The
+ * control: release.yml's plain command under the Windows config gives other bytes (measured at c31d9b0d), so the
+ * config does reach git archive here - without that, the comparison would hold by construction.
+ */
+function packageReproducible() {
+    const problems = [];
+    const B = { PINNED: ["-c", "core.autocrlf=false", "-c", "core.eol=lf"] };
+    let zipA, zipB, plainWin, tar;
+    const windows = ["-c", "core.autocrlf=true", "-c", "core.eol=crlf"];
+    try {
+        const run = (...args) => execFileSync("git", ["-C", REPO, ...args], { maxBuffer: 512 * 1024 * 1024 });
+        zipA = run(...B.PINNED, "archive", "--format=zip", "HEAD");
+        zipB = run(...windows, ...B.PINNED, "archive", "--format=zip", "HEAD");
+        plainWin = run(...windows, "archive", "--format=zip", "HEAD");
+        tar = run(...windows, ...B.PINNED, "archive", "--format=tar", "HEAD");
+    } catch (err) { return { problems: [`git archive failed (${String(err.message).split("\n")[0]})`], line: "not built" }; }
+    const builder = fs.readFileSync(path.join(REPO, "tools", "build-package.mjs"), "utf8");
+    if (!builder.includes(`export const PINNED = ${JSON.stringify(B.PINNED).replace(/,/g, ", ")};`)) problems.push("tools/build-package.mjs's PINNED is not the config this part builds with: change both");
+    if (!zipA.equals(zipB)) problems.push("module.zip built with tools/build-package.mjs's config differs under a Windows git config: the build is not reproducible");
+    if (plainWin.equals(zipA)) problems.push("the control: the plain git archive under a Windows config gave the pinned bytes - the config did not reach git, and this measured nothing");
+    const entries = tarEntries(tar).filter(e => e.name);
+    const blobs = execFileSync("git", ["-C", REPO, "cat-file", "--batch"], { input: entries.map(e => `HEAD:${e.name}`).join("\n") + "\n", maxBuffer: 512 * 1024 * 1024 });
+    let off = 0, differ = 0;
+    for (const e of entries) {
+        const nl = blobs.indexOf(10, off);
+        const size = Number(blobs.subarray(off, nl).toString("latin1").split(" ")[2]);
+        const blob = blobs.subarray(nl + 1, nl + 1 + size);
+        off = nl + 1 + size + 1;
+        if (!blob.equals(e.data)) { differ++; if (differ <= 5) problems.push(`${e.name}: the pinned package's copy is not the commit's bytes`); }
+    }
+    const crypto = createRequire(import.meta.url)("node:crypto");
+    const short = b => crypto.createHash("sha256").update(b).digest("hex").slice(0, 12);
+    return { problems, line: `reproducible: ${short(zipA)} under no config and a Windows one (plain command there ${short(plainWin)}), ${entries.length - differ}/${entries.length} file(s) the commit's bytes` };
+}
+
+/*
+ * release.yml's own build pins the conversions (E26 prep, 14.11.2026; the coordinator's ask). Its runner is Ubuntu,
+ * where autocrlf is off, so the plain `git archive` builds LF today; the two `-c` options make that hold whatever the
+ * runner's git config becomes. Every `git ... archive` command in a `run:` line of the workflow must carry
+ * `-c core.autocrlf=false` and `-c core.eol=lf` before `archive`, and there must be one; after a planted pair: the old
+ * line (caught) and the pinned one (clean).
+ */
+function archivePinProblems(text) {
+    const lines = text.replace(/\r\n/g, "\n").split("\n");
+    const runs = lines.map((l, i) => [i + 1, l]).filter(([, l]) => /^\s*(?:-\s*)?run:\s*\|?\s*git\b.*\barchive\b/.test(l) || /^\s*git\b.*\barchive\b/.test(l));
+    const out = [];
+    for (const [n, l] of runs) {
+        const head = l.slice(0, l.search(/\barchive\b/));
+        if (!/-c\s+core\.autocrlf=false\b/.test(head) || !/-c\s+core\.eol=lf\b/.test(head)) out.push(`line ${n}: \`${l.trim()}\` lacks -c core.autocrlf=false -c core.eol=lf before archive`);
+    }
+    return { runs: runs.length, out };
+}
+function releaseBuildPinned() {
+    const problems = [];
+    const old = archivePinProblems("      - name: Build the package\n        run: git archive --format=zip -o module.zip HEAD\n");
+    const pinned = archivePinProblems("        run: git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD\n");
+    if (old.out.length !== 1 || pinned.out.length !== 0 || pinned.runs !== 1) problems.push(`the release build's planted pair read ${JSON.stringify([old, pinned])}`);
+    let text = "";
+    try { text = fs.readFileSync(path.join(REPO, ".github", "workflows", "release.yml"), "utf8"); }
+    catch { return { problems: [...problems, ".github/workflows/release.yml could not be read"], line: "release build not read" }; }
+    const real = archivePinProblems(text);
+    if (!real.runs) problems.push(".github/workflows/release.yml runs no git archive - the build this part holds is gone or renamed");
+    problems.push(...real.out.map(p => `.github/workflows/release.yml ${p}`));
+    return { problems, line: `release.yml: ${real.runs} archive command(s), ${real.runs - real.out.length} pinned, after a planted pair` };
+}
+
+/*
+ * No "DM" in what a player or a GM reads (E26 prep, 14.11.2026; the E26 plan: old Polish macros said "DM"). The
+ * glossary's word is "GM" in both languages (docs/glossary.json, gm-a); macros/ left the repository on 13.11.2026, and
+ * this holds every shipped language file and handbook to the word, after a planted line. "DM" in a script's comment
+ * quotes the rule guide (observe.mjs, investigation.mjs: 14 files at c31d9b0d) and is not read at a table.
+ */
+const DM_WORD = /(?<![\w-])DM(?:-?\p{Ll}*)?(?![\w-])/u;
+function packageWords(entries) {
+    const problems = [];
+    const texts = entries.filter(e => /^lang\/[\w-]+\.json$/.test(e.name) || /^docs\/handbooks\/[\w.-]+\.md$/.test(e.name));
+    for (const e of texts) {
+        const lines = e.data.toString("utf8").split("\n");
+        const at = lines.findIndex(l => DM_WORD.test(l));
+        if (at >= 0) problems.push(`${e.name}:${at + 1} says "DM" - the glossary's word is "GM" (docs/glossary.json): ${lines[at].trim().slice(0, 100)}`);
+    }
+    const plant = ["Napisz do DM-a na kanale.", "a DMem", "the GM decides", "ADMIN", "DMX-1"].map(l => DM_WORD.test(l));
+    if (JSON.stringify(plant) !== JSON.stringify([true, true, false, false, false])) problems.push(`the "DM" word's planted lines read ${JSON.stringify(plant)}`);
+    if (!texts.length) problems.push("no language file or handbook in the archive - the DM rule read nothing");
+    return { problems, line: `"DM" in ${texts.length} shipped text file(s) after 5 planted lines` };
+}
+
 function pkg() {
     let entries;
     let tracked;
@@ -922,9 +1100,15 @@ function pkg() {
     if (!readers.some(r => /^scripts\/tests[\w-]*\.mjs$/.test(r.file))) problems.push("no reader matches scripts/tests*.mjs - the tests' exclusion reads nothing; rename it with the suite");
     const tops = [...new Set(files.map(f => (f.includes("/") ? `${f.split("/")[0]}/` : f)))];
     if (!files.length) problems.push("the archive listed no file - this part read nothing");
+    const same = packageReproducible();
+    problems.push(...same.problems);
+    const release = releaseBuildPinned();
+    problems.push(...release.problems);
+    const words = packageWords(entries);
+    problems.push(...words.problems);
     if (seen !== plantedCount || plantedGave !== plantedCount) problems.push(`the self-check's planted package gave ${JSON.stringify([...plant, ...missPlant])}`);
     console.log(`package: git archive HEAD (the working tree's .gitattributes): ${files.length} file(s), top level ${tops.join(" ")}; `
-        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; self-check ${seen}/${plantedCount} planted fault(s) seen, `
+        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; ${same.line}; ${release.line}; ${words.line}; self-check ${seen}/${plantedCount} planted fault(s) seen, `
         + `${plantedGave - seen} other(s); ${problems.length} problem(s)`);
     return problems;
 }
@@ -1173,6 +1357,17 @@ async function text() {
         }
     }
     const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables-pools.mjs")), glossary, shipped, budgets };
+    /* T9's stamps (E57 C1): tools/pl-reviewed.json, written by tools/stale-pl.mjs --stamp. Without the file every Polish key
+       reads unstamped and nothing is guarded, so a missing or unreadable file is red. Then the tool's own self-check: its
+       fixture, and this tree's files stamped whole with one English planted moved alone (stale, which must be seen) and
+       one moved with its Polish (rewritten, which must not be red). */
+    try { inputs.reviewed = JSON.parse(read("tools/pl-reviewed.json")); } catch (err) { problems.push(`T9: tools/pl-reviewed.json cannot be read (${err?.message ?? err}) - node tools/stale-pl.mjs --stamp writes it`); }
+    {
+        const stalePl = await import(url.pathToFileURL(path.join(REPO, "tools", "stale-pl.mjs")).href);
+        const self = stalePl.selfCheck();
+        problems.push(...self.problems.map(p => `T9: stale-pl self-check: ${p}`));
+        console.log(`text: T9 stale-pl self-check: ${self.problems.length ? "RED" : "the planted English moved alone was seen, the one moved with its Polish was not red"} (${self.planted.join(", ")})`);
+    }
     /* The screen map and the render (E65 C10): tools/text-map.mjs reads the scripts with espree (a SCREENS row that names
        no unit is red: the hand table is a file E65 writes), tools/text-render.mjs fills every string with its fixtures in
        memory; T15 reads the render, T19 the map's marks (decision 52). The files themselves only by the two tools. */
@@ -1267,6 +1462,9 @@ async function text() {
             + `the rest have no surface - a reading, no floor (FAIL from ${m.fail ?? "no stage"})`);
         /* A detector that reads a file E65 writes carries that file's faults (T27: the guide's pairs table, E65 C9): red. */
         if (Array.isArray(r.faults)) problems.push(...r.faults.map(f => `pairs: docs/text-style.md: ${f}`));
+        /* An allow row of a report detector that no longer holds what it names is red now (T13's UI_LITERAL_ALLOW, E57 rest):
+           a row stands for literals read at the code, and a stale one would let a new literal pass unread under it. */
+        if (m.mode !== "fail") problems.push(...r.found.filter(f => f.kind === "allow").map(f => `${m.test} (${name}): ${f.what}`));
         if (!(r.read > 0)) problems.push(`${name} read nothing of ${m.reads.join(" and ")}${LANG_DIR === null ? "" : ` (the language files of ${where})`} - it has proved nothing`);
         const live = b ? b.left : r.found;
         if (m.mode === "fail") {
@@ -1276,6 +1474,13 @@ async function text() {
             reports += live.length;
             for (const f of ALL ? live : live.slice(0, 25)) console.log(`text:   ${m.test} report: ${f.what}`);
             if (!ALL && live.length > 25) console.log(`text:   ${m.test} report: ${live.length - 25} more not printed (node tools/check.mjs text --all)`);
+        }
+        /* What a detector reports beside what its mode counts (T4: over a target, or over a limit no stage makes red; E57
+           T4, 14.11.2026): printed in either mode, never red. */
+        if (Array.isArray(r.reported)) {
+            console.log(`text:   ${m.test} reported beside it (never red): ${r.reported.length}`);
+            for (const f of ALL ? r.reported : r.reported.slice(0, 25)) console.log(`text:   ${m.test} report: ${f.what}`);
+            if (!ALL && r.reported.length > 25) console.log(`text:   ${m.test} report: ${r.reported.length - 25} more not printed (node tools/check.mjs text --all)`);
         }
         /* C6's report detectors (their findings carry `lang`): by surface and by top-level key group, then each one's own. */
         if (live.length && live.every(f => f.lang)) {
@@ -1416,6 +1621,16 @@ async function text() {
        must name). Since C7 (E66-28, 01.11.2026) a text the owner approved ("ok") must read its after in both languages: the
        landed line is red, naming the texts, while one still reads its before or was edited after the approval. */
     const pilotDoc = (() => { try { return JSON.parse(read(PILOT_FILE)); } catch { return null; } })();
+    /* Since E71 C0 (14.11.2026) every docs/dev/text-batch-*.json (text-render.mjs BATCH_FILES, read from the folder). The
+       owner's later word (BATCH_LATER) is held against every file's approved texts together, so a batch with none of them
+       is not red for B01a's; the control runs on each file with a pilot copy to plant in (B01a), and at least one must. */
+    const batchDocs = textRender.BATCH_FILES.map(f => { try { return JSON.parse(read(f)); } catch { return null; } });
+    const laterAll = Object.keys(textRender.BATCH_LATER ?? {});
+    const approvedAll = new Set(batchDocs.flatMap(d => (Array.isArray(d?.texts) ? d.texts : []).filter(t => t?.owner?.verdict === "ok").map(t => t.key)));
+    const strayLater = laterAll.filter(key => !approvedAll.has(key));
+    if (strayLater.length) problems.push(`batch: BATCH_LATER names ${strayLater.join(", ")}, no text of a batch file the owner approved`);
+    if (laterAll.length) console.log(`text: batch: the owner's later word supersedes the approved after of ${laterAll.length} text(s): ${laterAll.map(key => `${key} (${textRender.BATCH_LATER[key].page} ${textRender.BATCH_LATER[key].card}, ${textRender.BATCH_LATER[key].date})`).join(", ")}`);
+    let controls = 0;
     for (const BATCH_FILE of textRender.BATCH_FILES) {
         if (!exists(BATCH_FILE)) { problems.push(`batch: ${BATCH_FILE} is missing - the batch has nothing to render`); continue; }
         let batch = null;
@@ -1433,12 +1648,9 @@ async function text() {
         console.log(`text: batch: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
             + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the batch ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
         const texts = Array.isArray(batch?.texts) ? batch.texts : [];
-        /* A text the owner later asked to change (text-render.mjs BATCH_LATER; E47-FC) is not held to its approved after;
-           each is named, and a key there that is no approved text of this batch is a problem. */
-        const later = Object.keys(textRender.BATCH_LATER ?? {});
-        const strayLater = later.filter(key => !texts.some(t => t?.key === key && t?.owner?.verdict === "ok"));
-        if (strayLater.length) problems.push(`batch: ${BATCH_FILE}: BATCH_LATER names ${strayLater.join(", ")}, no text of this batch the owner approved`);
-        if (later.length) console.log(`text: batch: the owner's later word supersedes the approved after of ${later.length} text(s): ${later.map(key => `${key} (${textRender.BATCH_LATER[key].page} ${textRender.BATCH_LATER[key].card}, ${textRender.BATCH_LATER[key].date})`).join(", ")}`);
+        /* A text the owner later asked to change (text-render.mjs BATCH_LATER; E47-FC) is not held to its approved after
+           (named, and held to the batch files' approved texts, above the loop). */
+        const later = laterAll;
         const approved = texts.filter(t => t?.owner?.verdict === "ok" && !later.includes(t.key));
         const unlanded = approved.flatMap(t => {
             const one = textRender.batchState({ texts: [t] }, against);
@@ -1448,7 +1660,12 @@ async function text() {
             + `${approved.length - unlanded.filter(u => u.endsWith(" en")).length}, pl ${approved.length - unlanded.filter(u => u.endsWith(" pl")).length}; not landed ${unlanded.length}`);
         if (unlanded.length) problems.push(`batch: ${BATCH_FILE}: ${unlanded.length} approved after(s) not in the files (${unlanded.slice(0, 6).join(", ")}`
             + `${unlanded.length > 6 ? `, and ${unlanded.length - 6} more` : ""}) - every after the owner approved is the text of config.mjs and lang/ (E66-28)`);
+        /* The control plants its faults in a copy of B01a alone, the file that has a pilot copy to plant in; it holds the
+           schema, which every batch file is read by, so one file is enough (E71: the batches B02-B18 have no pilot copy). */
+        if (BATCH_FILE !== textRender.BATCH_FILES[0]) continue;
         const copyOf = texts.findIndex(t => t?.source === "pilot" && typeof t?.en?.before === "string");
+        if (copyOf < 0) continue;
+        controls++;
         const marked = texts.findIndex(t => t?.source === "written" && typeof t?.en?.before === "string" && /\{\w+\}/.test(t.en.before));
         const plain = texts.findIndex((t, i) => t?.source === "written" && typeof t?.en?.before === "string" && i !== marked);
         if (copyOf >= 0 && marked >= 0 && plain >= 0 && texts.length >= 4) {
@@ -1478,6 +1695,22 @@ async function text() {
             const unseen = want.filter(w => !seen.some(p => p.includes(w)));
             if (unseen.length) problems.push(`batch: the schema does not see ${unseen.map(w => JSON.stringify(w)).join(", ")} planted in a copy of ${BATCH_FILE} - it would pass a malformed batch`);
         } else problems.push(`batch: the schema's control has nothing to plant in (${texts.length} text(s); a pilot copy ${copyOf >= 0 ? "found" : "missing"}, a written text with a placeholder ${marked >= 0 ? "found" : "missing"})`);
+    }
+    if (!controls) problems.push(`batch: no batch file carries a pilot copy, so the schema's control planted nothing (${textRender.BATCH_FILES.join(", ") || "no file"})`);
+    /* And the two scopes E71 C0 gave the schema: Appendix C's list read for B01a alone, the folder read for every file. A
+       key Appendix C leaves out must be named in a B01a and passed in any other batch, and the glob must hold B01a. */
+    {
+        const b01 = batchDocs[textRender.BATCH_FILES.indexOf("docs/dev/text-batch-B01a.json")];
+        if (!b01) problems.push(`batch: the folder's read (BATCH_FILES) does not hold docs/dev/text-batch-B01a.json: ${textRender.BATCH_FILES.join(", ") || "no file"}`);
+        else {
+            const outKey = textRender.BATCH_OUT.prefixes.map(p => [...en.keys()].find(k => k.startsWith(p))).find(Boolean);
+            const sample = b01.texts.find(t => typeof t?.en?.before === "string" && t.source === "written");
+            const plant = name => ({ ...b01, batch: name, texts: [{ ...sample, key: outKey, en: { before: en.get(outKey), after: null }, pl: { before: pl.get(outKey) ?? "", after: null }, kept: null, owner: null, reviews: null }] });
+            const against = { en: new Map([...en, ...prose]), pl, surfaces: budgets?.surfaces ?? null, source: f => (exists(f) ? read(f) : null), count: T.wordCount };
+            const said = name => textRender.batchSchema(plant(name), against).some(p => p.includes("Appendix C leaves out"));
+            if (!outKey || !sample) problems.push("batch: the scope control found no key Appendix C leaves out, or no written B01a text, to plant");
+            else if (!said("B01a") || said("B99")) problems.push(`batch: Appendix C's list (BATCH_OUT) read ${said("B01a") ? "" : "not "}in B01a and ${said("B99") ? "" : "not "}in another batch - it must be read in B01a alone (${outKey})`);
+        }
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
     console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `
@@ -1510,6 +1743,26 @@ async function icons() {
     const blind = !control.problems.some(p => /no token picture to compare/.test(p));
     console.log(`icons: ${count} file(s) the token-icons tool owns; ${problems.length} problem(s); the empty set ${blind ? "NOT reported" : "reported"}`);
     return [...problems, ...(blind ? ["the check answers no problem for an empty set of pictures - it would read nothing and pass"] : [])];
+}
+
+/* -------------------------------- comments -------------------------------- */
+
+/* THE COMMENTS LINT (E56 C1): tools/comments-lint.mjs reads the files and holds the budget. */
+async function comments() {
+    const { commentsLint } = await import(url.pathToFileURL(path.join(REPO, "tools", "comments-lint.mjs")).href);
+    const { problems, summary } = await commentsLint(REPO);
+    console.log(summary);
+    return problems;
+}
+
+/* ---------------------------------- keys ---------------------------------- */
+
+/* THE KEYS LINT (E56 part 1): tools/keys-lint.mjs reads the tree and plants its own unread key first. */
+async function keys() {
+    const { keysLint } = await import(url.pathToFileURL(path.join(REPO, "tools", "keys-lint.mjs")).href);
+    const { problems, summary } = await keysLint(REPO);
+    console.log(summary);
+    return problems;
 }
 
 /* -------------------------------- contrast -------------------------------- */
@@ -1578,6 +1831,14 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
 /* `package` (E59 C5a) is registered on a line of its own, not in PARTS' list: three lines adding a part each rewrote that
    one line on 13.11.2026 (prep-54's comments, project-token-icon's icons and this), and a merge of any two conflicted. */
 PARTS.package = pkg;
+// E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
+PARTS.comments = comments;
+// E26 prep: on its own line, as `package` is.
+PARTS.fonts = fontsPart;
+// E57 C2: the same, its own line.
+PARTS.rules = rulesParity;
+// E56 part 1: on its own line, for the same reason.
+PARTS.keys = keys;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);

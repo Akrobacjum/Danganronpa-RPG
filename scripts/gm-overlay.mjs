@@ -70,7 +70,9 @@ export function clearLayer(layer) {
 export function overlayColour(name, fallback) {
     try {
         const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        return raw ? foundry.utils.Color.from(raw).valueOf() : fallback;
+        // a text that is no colour is a Color of NaN, which would reach PIXI as a line colour (R5470)
+        const parsed = raw ? foundry.utils.Color.from(raw).valueOf() : NaN;
+        return Number.isFinite(parsed) ? parsed : fallback;
     } catch {
         return fallback;
     }

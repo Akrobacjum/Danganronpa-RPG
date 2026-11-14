@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms } from "./utils.mjs";
+import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
@@ -97,7 +97,9 @@ function askRecipient(actor, item, { copying }) {
             name: foundry.utils.escapeHTML(item.name),
             room
         }),
-        note: game.i18n.localize(copying ? "DRPG.Handover.shareNote" : "DRPG.Handover.giveNote"),
+        // A key's copy has no analysis to carry (the needsCode line, R6917): its note of its own, not the Truth Bullet's.
+        note: game.i18n.localize(!copying ? "DRPG.Handover.giveNote"
+            : item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) ? "DRPG.Handover.shareKeyNote" : "DRPG.Handover.shareNote"),
         okLabel: game.i18n.localize(copying ? "DRPG.Handover.share" : "DRPG.Handover.give")
     });
 }
@@ -295,7 +297,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
        `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
        this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue - on one GM's
        browser: the queue is that browser's memory (a hand-over and a Present run on the primary; a GM's Give on another
-       GM's browser races it still, E38's, row 1.2.126; E60's fix round, FG6). */
+       GM's browser races it still, E38's, row 1.2.113; E60's fix round, FG6). */
     const { copiedRemnants } = await import("./truth-bullets.mjs");
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {
@@ -361,17 +363,6 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
     return { copy, data };
 }
 
-/**
- * Move an item from one character to another.
- *
- * Refused when the receiver is already carrying their limit. A GM handing
- * something over is making a ruling and may go over the cap; two players
- * swapping crowbars are not, and letting them would make the guide's limits
- * a formality anyone could route around.
- *
- * Created before deleted, deliberately. If the create fails the giver still has
- * their item; the other order can lose it entirely.
- */
 /**
  * Take something off a body.
  *
@@ -465,7 +456,7 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
        those words at rest (the first's were covered by its trace's reveal, below). A body the
        table does not know is dead gets the item's move alone, which the owner chose (Q2); the
        bullet is owed by the death's row in the GMs' store and given by the publication
-       (chapter.mjs `publishDeath`), dated when and where the item was taken. The taker knows
+       (death.mjs `publishDeath`), dated when and where the item was taken. The taker knows
        what they took; the GMs have the row. */
     for (const { held, name } of got) {
         const loot = await lootRecord(taker, held, name, trace);
@@ -489,7 +480,7 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
  * time of day - and what it adds is an end: a roll thrown and never taken counts for no Take of a later time of day,
  * where without it a console could throw one in a quiet hour and hold it for days. Pure, but for the clock's default.
  */
-export function lootMark(clock = getClock()) {
+function lootMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
 }
 
@@ -633,7 +624,7 @@ export function owedLoot(row) {
 /**
  * THE PUBLICATION GIVES WHAT A LOOT BEFORE IT OWED (E05 fix r2-F0b): each taker the Truth Bullet
  * of what they took, as a loot of a published body mints it, with the loot's own stamp and room.
- * Run by chapter.mjs `publishDeath` with the row it drops; a taker no longer in the world is
+ * Run by death.mjs `publishDeath` with the row it drops; a taker no longer in the world is
  * passed over. Answers how many were given.
  */
 export async function payOwedLoot(body, owed = []) {
@@ -667,6 +658,11 @@ function plainer(next, now) {
     return a >= 0 && (b < 0 || a < b);
 }
 
+/** Item names as a sentence names them: each in its own quotes (`Loot.itemQuoted`, EN17), the list in the page's language (EN2; R6900). */
+function quotedList(names) {
+    return listOf(names.map(item => game.i18n.format("DRPG.Loot.itemQuoted", { item })));
+}
+
 /**
  * THE COVER, ONLY WITH A STUDENT WATCHING (E68 C10; DA16, DA17, DA40). Counted here, on the primary GM, when it judges
  * the Take: the students who see the body's room as the GMs read them (frisk.mjs `roomWitnessesOnGm`, the taker and the
@@ -691,7 +687,7 @@ async function lootCover(taker, body, names, cover) {
     const { isDeceased } = await import("./chapter.mjs");
     const withItems = rolled && !cover.withHope && !cover.isCritical;
     const line = `<p><em>${game.i18n.format(withItems ? "DRPG.Loot.seenTaking" : "DRPG.Loot.seenAtBody", {
-        actor: esc(taker.name), body: esc(body.name), items: esc(names.join(", "))
+        actor: esc(taker.name), body: esc(body.name), items: esc(quotedList(names))
     })}</em></p>`;
     if (!isDeceased(body)) {
         await whisperToGms(line);
@@ -747,7 +743,7 @@ async function markBodyDisturbed(body, itemNames, visibility = "subtle") {
     if (existing) {
         // The same trace, saying that one more thing has gone.
         const row = await setRemnantSecretById(record.sceneId, record.tokenId, {
-            note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") })
+            note: game.i18n.format("DRPG.Loot.traceNote", { items: quotedList(taken) })
         });
         /* ONLY UP (E68 C10; the owner's Q8 and Q9): a later Take's roll makes the trace plainer or leaves it, never
            fainter, and it stays where it was laid - a trace does not move by itself. */
@@ -776,7 +772,7 @@ async function markBodyDisturbed(body, itemNames, visibility = "subtle") {
         chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay,
         type: "neutral",
         visibility,
-        note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") }),
+        note: game.i18n.format("DRPG.Loot.traceNote", { items: quotedList(taken) }),
         action: "loot",
         subject: body.name,
         // About the body, so it survives the chapter-end sweep.
@@ -926,6 +922,17 @@ async function mintLootBullet(taker, body, loot) {
     }
 }
 
+/**
+ * Move an item from one character to another.
+ *
+ * Refused when the receiver is already carrying their limit. A GM handing
+ * something over is making a ruling and may go over the cap; two players
+ * swapping crowbars are not, and letting them would make the guide's limits
+ * a formality anyone could route around.
+ *
+ * Created before deleted, deliberately. If the create fails the giver still has
+ * their item; the other order can lose it entirely.
+ */
 export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!game.user.isGM) return null;
 

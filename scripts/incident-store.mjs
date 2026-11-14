@@ -80,7 +80,7 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
-import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
+import { castStore, blackenedStore, castCopy, deathStore, deathCopy, maskStore, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { playerOwns, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
@@ -581,7 +581,10 @@ function castCopyFor(userId, cast, state = null) {
     const withheld = [...(afterFight ? [...INCIDENT_FIGHT, ...(copy.thirdId ? [] : ["thirdId", "thirdSide"])] : ["keyRemnants"]),
         "lastCrisis", "departed", "openingTrait", ...(killer ? [] : ["freeCleanup"]), "recent"];
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
-    if (!seen.indirect || killer) return { copy, withheld };
+    /* THE KILLER BEHIND A "?" (E69 C8, 13.11.2026; mask-gm.mjs): while the GMs hold a mask for this incident's killer, every
+       copy but the killers' holds no killer, as a trap's victim's does. The cast is sent again when the mask ends. */
+    const masked = !killer && Boolean(theirs.killerId && maskStore.get(theirs.killerId));
+    if ((!seen.indirect && !masked) || killer) return { copy, withheld };
     return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };
 }
 
@@ -1200,7 +1203,7 @@ function askForCast(primary = primaryGmId()) {
  * THE DEATHS A PLAYER MAY KNOW (E05 C10; audit S06-11)
  * --------------------------------------------------------------------------
  * A killing in an incident is the GMs' until the body is found or a GM makes
- * it known (chapter.mjs `killCharacter`, `publishDeath`), and a player's
+ * it known (death.mjs `killCharacter`, `publishDeath`), and a player's
  * browser reads the deaths it may know from a copy (gm-stores.mjs
  * `deathCopy`): their own character's, and the incident's they were in. Sent
  * by the GM that wrote the row, and on the player's ask - at load, and when a
@@ -1324,12 +1327,12 @@ export async function receiveDeaths(deaths, stamps) {
     return deathCopy.receive(mine, own);
 }
 
-/** GM: tell one player, by an addressed packet and no document, that they found this body alone. */
-export function tellFinder(userId, token, room) {
+/** GM: tell one player, by an addressed packet and no document, that they found this body - alone, or with `company` (1.2.113). */
+export function tellFinder(userId, token, room, { company = false } = {}) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     try {
-        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room },
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room, company: company === true },
             { recipients: [userId] });
         return true;
     } catch (err) {
@@ -1392,7 +1395,7 @@ function onDeathsSocket(payload, senderId) {
         if (game.user.isGM || payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
         const body = game.actors.get(payload.bodyId);
         if (!body) return;
-        ui.notifications.info(game.i18n.format("DRPG.Chapter.youFoundBody", {
+        ui.notifications.info(game.i18n.format(payload.company === true ? "DRPG.Chapter.youFoundBodyWith" : "DRPG.Chapter.youFoundBody", {
             name: String(payload.name || body.name), room: String(payload.room ?? "")
         }), { permanent: true });
         return;
@@ -1677,7 +1680,7 @@ export function blackenedIds(chapter = getClock()?.chapter ?? null) {
  * counts nowhere until the discovery or a GM's hand makes it known. So a row names its
  * victims (`recordBlackened`), and the trial counts a killer for a death the table knows;
  * the register itself stays whole for the discovery's rule of two witnesses
- * (chapter.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.
+ * (body.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.
  */
 export function trialBlackenedIds() {
     return blackenedIds().filter(id => countsAtTrial(blackenedStore.get(id), untoldDeath));

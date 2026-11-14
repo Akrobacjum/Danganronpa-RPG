@@ -202,7 +202,11 @@ jobs:
         run: node tools/stages.mjs check --release "$TAG"
 
       - name: Build the package
-        run: git archive --format=zip -o module.zip HEAD
+        # The two -c options pin git archive's text conversions off: Ubuntu's git has autocrlf off, so this builds LF
+        # today, and with them it does whatever the runner's config becomes (E26 prep, 14.11.2026; measured with git
+        # 2.43.0, `-c core.autocrlf=true` alone turned every text file of the zip CRLF). `node tools/check.mjs package`
+        # fails when this line loses either option; tools/build-package.mjs builds the same bytes.
+        run: git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD
 
       - name: Point the published manifest at this release's own zip
         # Only the copy uploaded next to the zip changes; the zip itself carries

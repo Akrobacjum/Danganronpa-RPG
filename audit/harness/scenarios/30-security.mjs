@@ -5646,6 +5646,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: the GM's copy of a bullet's fields is not written into the Truth Bullet answer key",
         inLedger === 0 && guardRan.bullets > 0, JSON.stringify({ inLedger, bullets: guardRan.bullets }));
 
+    /* The bullet's edits' last leftover (E40 C3, 13.11.2026). The guard's copy keeps every guarded field, one the bullet
+       never had as null (truth-bullets.mjs `guardedValues`), and the GM's put-right above wrote that copy back whole, so
+       Botan's bullet ends the phase holding `remnantRef: null` - a key world-secrets.mjs says no Item may carry, which the
+       cluster's state check reads after this scenario. The checks of the phase need the key in that copy (taken out of
+       the put-right, the three whole-list checks read "no record to restore", measured 13.11.2026), so it goes here, once
+       they have run, by the GM's own `unsetFlag`. Nothing after this reads the bullet. */
+    const leftover = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        const had = b ? Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent" : "no bullet";
+        if (had === null) await b.unsetFlag("${MOD}", "remnantRef");
+        return { had, now: b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet" };`);
+    note("the bullet's remnantRef left by the put-right, taken off (E40 C3)", JSON.stringify(leftover));
+
     /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).
      *
@@ -6913,6 +6925,77 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Object.values(dash).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
             && dash.theirs.forOwnership && dash.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(dash).slice(0, 2000), { flow: "dash" });
+
+    /* A CONSOLE'S EAVESDROP AND ECHOES (E69 C6, C7, 13.11.2026). From p1's console: `listen.eavesdrop` for Botan's
+       character, and for Aiko with no roll named and no eavesdrop of this time of day to repeat; `listen.stop` for Botan's;
+       `listen.echoes` for Botan's - each refused, no eavesdrop kept on the GM. The legal roads are 33's E69-C. */
+    phase("a console's eavesdrop and Echoes", { flow: "eavesdrop" });
+    const readEars = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.eavesdropStore.entries() ?? {}).sort() : [];`;
+    const ears = {
+        theirs: await forge("listen.eavesdrop", { actorId: ids.botan, room: "Gym", total: 30, isCritical: true }, readEars),
+        noRoll: await forge("listen.eavesdrop", { actorId: ids.aiko, room: "Gym", total: 30, isCritical: true }, readEars),
+        stopTheirs: await forge("listen.stop", { actorId: ids.botan }, readEars),
+        echoesTheirs: await forge("listen.echoes", { actorId: ids.botan }, readEars)
+    };
+    check("SECURITY: a console's eavesdrop is refused for another's character and with no roll and nothing to repeat, its Stop and its Echoes for another's character - no eavesdrop kept - and each refusal is logged on the GM and told to p1",
+        Object.values(ears).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && ears.theirs.forOwnership && ears.stopTheirs.forOwnership && ears.echoesTheirs.forOwnership
+            && /nothing was carried out: |not standing in any room/.test(ears.noRoll.reasons[0] ?? "") && !ears.noRoll.forOwnership,
+        JSON.stringify(ears).slice(0, 2000), { flow: "eavesdrop" });
+
+    /* THE KILLER BEHIND A "?", FROM A CONSOLE (E69 C8, 13.11.2026; mask-gm.mjs). The GM hides Aiko (p1's) as the killer of
+       Botan (p2's), as an opening on Hope does (`maskKiller`, the incident's state handed in). p2, the victim, and p3, a
+       witness, then read what a console reads: Aiko's tokens' name, picture and the module's flags on them, and every
+       packet of the module's socket that reached them while the mask went up. None may name Aiko by her name or her actor
+       id. What does: a token document keeps its actorId (Foundry's limit, known leak foundry-masked-token-actor). p2's
+       console's reveal is refused. Put back: the mask, p1's microphone. */
+    phase("the killer behind a \"?\", read from a console", { flow: "mask" });
+    const killerName = await gm.eval(`return game.actors.get("${ids.aiko}").name;`);
+    const startListen = `globalThis.__maskPackets = []; game.socket.on("${SOCKET}", p => globalThis.__maskPackets.push(JSON.stringify(p))); return true;`;
+    await p2.eval(startListen);
+    await p3.eval(startListen);
+    const maskWas = await gm.eval(`const perms = foundry.utils.deepClone(game.users.get("${p1.userId}")._source.permissions ?? {});
+        const K = await import("${repoUrl}/scripts/mask-gm.mjs");
+        const done = await K.maskKiller({ active: true, stage: "incident", killerId: "${ids.aiko}", victimId: "${ids.botan}", indirect: false });
+        return { perms, done };`, { timeout: 30000 });
+    await settle(1200);
+    const consoleView = `const tokens = game.scenes.contents.flatMap(s => s.tokens.filter(t => t.actorId === "${ids.aiko}"));
+        return { tokens: tokens.map(t => ({ name: t.name, src: t.texture?.src ?? null, flags: JSON.stringify(t.flags?.["${MOD}"] ?? {}) })),
+            packets: globalThis.__maskPackets.slice(), viaActor: tokens.map(t => game.actors.get(t.actorId)?.name ?? null) };`;
+    const maskView = { p2: await p2.eval(consoleView), p3: await p3.eval(consoleView) };
+    const names = view => JSON.stringify({ tokens: view?.tokens ?? [], packets: view?.packets ?? [] });
+    const named = view => names(view).includes(killerName) || names(view).includes(ids.aiko);
+    // p2's console asks the reveal of a character p2 does not own: the GMs' masks must not move.
+    const readMasks = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return Object.keys(S.maskStore.entries() ?? {}).sort();`;
+    const masksBefore = await gm.eval(readMasks);
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "mask.reveal", userId: "${p2.userId}", requestId: "forge-mask-reveal", actorId: "${ids.aiko}" },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+    await settle(900);
+    const masksAfter = await gm.eval(readMasks);
+    const revealRefusals = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "mask.reveal"')).map(e => e.message);`);
+    maskView.revealTheirs = { masksBefore, masksAfter, unchanged: JSON.stringify(masksBefore) === JSON.stringify(masksAfter) && masksBefore.includes(ids.aiko),
+        forOwnership: revealRefusals.some(r => /sender does not own/.test(r)) };
+    await gm.eval(`const K = await import("${repoUrl}/scripts/mask-gm.mjs"); await K.endMask("${ids.aiko}", "suite");
+        const V = await import("${repoUrl}/scripts/voice.mjs"); await V.settleTrialVoices();
+        const user = game.users.get("${p1.userId}"); const was = ${JSON.stringify(maskWas?.perms ?? {})};
+        if ((user._source.permissions ?? {}).BROADCAST_AUDIO === false && was.BROADCAST_AUDIO !== false) {
+            const gone = (await import("${repoUrl}/scripts/utils.mjs")).forcedDeletion();
+            await user.update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(was, "BROADCAST_AUDIO") ? was.BROADCAST_AUDIO : gone });
+        }
+        for (const m of game.messages.filter(m => m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000 && m.content?.includes("?"))) await m.delete();
+        return true;`, { timeout: 30000 });
+    await settle(800);
+    check("SECURITY: behind the \"?\" a victim's and a witness's console read Aiko's tokens as \"?\" with the mystery man, and neither her name nor her id in the tokens' name, picture, the module's flags on them or any packet that reached them; p2's console's reveal is refused",
+        maskWas?.done === true && ["p2", "p3"].every(k => maskView[k]?.tokens?.length > 0
+            && maskView[k].tokens.every(t => t.name === "?" && t.src === "icons/svg/mystery-man.svg") && !named(maskView[k]))
+            && maskView.revealTheirs.unchanged && maskView.revealTheirs.forOwnership,
+        JSON.stringify({ maskWas, p2: maskView.p2, p3: maskView.p3, revealTheirs: maskView.revealTheirs }).slice(0, 3000), { flow: "mask" });
+    /* The known leak, a Foundry limit: the token document keeps its actor, so a console resolves the "?" to the killer. */
+    check("a masked token's actor is read from a player's console - on p2 and p3 the \"?\" token's actorId resolves to the killer's name",
+        !["p2", "p3"].some(k => (maskView[k]?.viaActor ?? []).includes(killerName)),
+        JSON.stringify({ p2: maskView.p2?.viaActor, p3: maskView.p3?.viaActor }),
+        { knownLeak: "foundry-masked-token-actor", measured: maskWas?.done === true });
 
     /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
        tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */

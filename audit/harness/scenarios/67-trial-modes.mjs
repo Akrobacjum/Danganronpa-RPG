@@ -417,7 +417,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         globalThis.__s67mConsole = el ?? null;
         return Boolean(el);`, { timeout: 30000 });
     /* Aiko's sheet as Daggerheart's would hand it to the module's render hook (tier 2's `drawnSheet`: the harness's
-       actor sheet draws no inventory), its row's Present drawn by sheet.mjs `addPresentButton`; a sheet rendered again
+       actor sheet draws no inventory), its row's Present drawn by sheet-inventory.mjs `addPresentButton`; a sheet rendered again
        in the window below is either the hook heard again or the actor sheet's own render asked. */
     const sheetOpen = await p1.eval(`${until} const a = game.actors.get("${IDS.aiko}");
         const element = document.createElement("div"); element.className = "drpg-s67m-sheet";

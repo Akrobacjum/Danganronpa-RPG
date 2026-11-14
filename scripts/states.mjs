@@ -25,8 +25,8 @@
  * expressible as one. Both are enforced by reading the resource directly, so
  * the status marker and the rule can never disagree about who is wounded:
  *
- *   Breakdown  `stateAdvantage()` below, folded into the roll dialog's own
- *              advantage sum alongside Calls and situational modifiers.
+ *   Breakdown  roll-dialog.mjs `stateGrant` (character.mjs `isBrokenDown`), folded into
+ *              the roll window's own advantage sum alongside Calls and situational modifiers.
  *   Wounded    `actionBudget()` in actions.mjs, which already subtracted the
  *              action - the guide's rule was in force before it had an icon.
  */
@@ -114,7 +114,7 @@ export function registerStates() {
  * published (`deceased`) and a Monocub made (`monocub`), see `heldNone`.
  *
  * A FLAG TAKEN AWAY IS A CHANGE TOO (E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3). A
- * revive (chapter.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the
+ * revive (death.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the
  * key a deletion arrives under is the flag's own (a ForcedDeletion, as the harness writes it) or
  * `-=deceased` (a `-=` spelling; which one v14's `unsetFlag` hands this hook is LIVE-E30-03's, not
  * measured): read only by its own name, a revived student showed no Wounded or Breakdown until the
@@ -131,7 +131,7 @@ export function touchesTracks(changes) {
  * Whether an update's `changes` set or delete the module's flag `key`: by its name, by `-=key`, or by the module's
  * whole flags deleted (`-=<module>`). Pure.
  */
-export function namesFlag(changes, key) {
+function namesFlag(changes, key) {
     const flags = changes?.flags;
     if (!flags || typeof flags !== "object") return false;
     if (`-=${MODULE_ID}` in flags) return true;
@@ -294,7 +294,7 @@ function shouldHave(actor, state) {
 
 /**
  * Whether `actor` is in `state` (one of `STATES`) as the rule has it, the reading `syncOnce` writes the status from:
- * the sheet's state badges read it (sheet.mjs `paintStateBadges`, E95 C5), so a sheet drawn before the status lands
+ * the sheet's state badges read it (sheet-sidebar.mjs `paintStateBadges`, E95 C5), so a sheet drawn before the status lands
  * says what the reserves already say.
  */
 export function stateHeld(actor, state) {
@@ -316,13 +316,6 @@ function heldNone(actor) {
 }
 
 /**
- * Bring one character's two conditions into line with their tracks.
- *
- * A Monokuma is skipped outright: they have no action economy to lose and no
- * Hope to spend, and `setMonokuma` zeroes both tracks on purpose - which would
- * otherwise light up both states permanently on every GM's own sheet.
- */
-/**
  * One pass at a time, per actor.
  *
  * The hook that drives this fires on every Health and Sanity write, and an incident
@@ -334,6 +327,13 @@ function heldNone(actor) {
  */
 const running = new Map();
 
+/**
+ * Bring one character's two conditions into line with their tracks.
+ *
+ * A Monokuma is skipped outright: they have no action economy to lose and no
+ * Hope to spend, and `setMonokuma` zeroes both tracks on purpose - which would
+ * otherwise light up both states permanently on every GM's own sheet.
+ */
 export async function syncStates(actor) {
     /*
      * A GM'S (E33 C1a, 06.10.2026; R220's census). Every road here is a GM's - the primary's hook
@@ -478,7 +478,7 @@ export async function syncAll() {
  * nobody - a GM, the owner, another player, an Observer - on any character. From E24 C1b
  * (08.11) to E95 C4 the wrapper hid Breakdown only from a user who may not read the
  * Sanity and drew Wounded for all. The sheet says both instead, to every reader
- * (sheet.mjs `paintStateBadges`). A view on this browser, not a data change: the
+ * (sheet-sidebar.mjs `paintStateBadges`). A view on this browser, not a data change: the
  * statuses stay on the actor every client holds, every rule reads them as before, and a
  * console reads them. The token HUD's status palette lists statuses, not the token's
  * drawn icons, and is not changed. A table's check (LIVE-E95-05, AUDIT 9.2).

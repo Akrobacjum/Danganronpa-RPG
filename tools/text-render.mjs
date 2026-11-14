@@ -58,9 +58,11 @@ const fixed = (en, pl) => Object.freeze({ en: [en], pl: [pl] });
  */
 export const PLACEHOLDERS = Object.freeze({
     person: { names: ["name", "who", "actor", "target", "victim", "killer", "player", "student", "giver", "finder", "accused", "roller", "mastermind", "owner",
-        "third", "gm", "user", "by", "account", "speaker"], values: both([WOMAN, MAN]), note: "a woman's name, then a man's: the Polish past tense agrees with it" },
+        "third", "gm", "user", "by", "account", "speaker",
+        // E57 C12 (14.11.2026): the names the text lines' keys brought (T15's unknown 33), each read off its sentence.
+        "cub", "thief", "body"], values: both([WOMAN, MAN]), note: "a woman's name, then a man's: the Polish past tense agrees with it" },
     people: { names: ["names", "actors", "students", "players", "killers", "holders"], list: true, values: both([[WOMAN, MAN, THIRD], [WOMAN, MAN], [THIRD]]) },
-    room: { names: ["room", "from", "to", "killerRoom", "victimRoom", "hall", "lair", "gather", "sealed", "region", "next"],
+    room: { names: ["room", "from", "to", "killerRoom", "victimRoom", "hall", "lair", "gather", "sealed", "region", "next", "into", "far"],
         values: Object.freeze({ en: ["Workshop", "Library", "Cinema"], pl: ["Warsztat", "Biblioteka", "Kino"] }), note: "one room of each Polish gender: m, f, n" },
     rooms: { names: ["rooms", "places"], list: true, values: Object.freeze({ en: [["Workshop", "Library", "Cinema"], ["Library"]], pl: [["Warsztat", "Biblioteka", "Kino"], ["Biblioteka"]] }) },
     scene: { names: ["scene", "floor", "title"], values: fixed("School, floor 1", "Szkoła, piętro 1") },
@@ -75,10 +77,16 @@ export const PLACEHOLDERS = Object.freeze({
         "low", "objections", "objection", "rebuttal", "first", "second", "found", "back", "of", "a", "b", "hand", "force", "plant", "plantUnseen", "take", "picks",
         "session", "shown", "slider", "auto", "notices", "turn", "bodies", "actions", "traces", "placed", "living", "all", "s", "add", "refresh", "remove", "bar",
         "overflow", "rows", "set", "claimed", "expected", "legal", "projects", "plants", "x", "pools",
+        // E57 T13 group 3 (14.11.2026): the Remnants migration's toast, DRPG.Remnant.migrated - a count of tokens each.
+        "moved", "filled", "already",
         // E66 C4 (01.11.2026): the numbers config.mjs `PROSE_NUMBERS` and the builders put where a digit stood.
-        "drain", "mult", "worth", "fewest"], values: both(RENDER_NS) },
+        "drain", "mult", "worth", "fewest",
+        // E57 C12: "Alive: {alive}/{total}", the fog's diagnosis in pixels, a reserve's maximum, a lock's bands, a Bounty's Hope, a count.
+        "alive", "amplitude", "core", "d", "openings", "span", "y", "hpMax", "sanity", "sanityMax", "clean", "cover", "reward", "entered", "grid", "section"],
+        // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): the sequences' living count (`Sequence.daySub`), "alive" above.
+        values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },
-    trait: { names: ["trait"], from: "trait" },
+    trait: { names: ["trait", "proposed"], from: "trait" },
     traits: { names: ["traits", "sources"], list: true, from: "traits" },
     grant: { names: ["what"], from: "grant", note: "each real DRPG.Calls.grants.* fragment" },
     call: { names: ["call"], from: "call" },
@@ -90,11 +98,17 @@ export const PLACEHOLDERS = Object.freeze({
         // E66 C4: a number with its unit, written by a `DRPG.Unit.*` family or the Eclipse's reach.
         "reach", "short", "long", "wounded",
         // E66 fix r1 F7: the vote's noun, `Events.voteMetaGmBallots` counted on the total (events.mjs `voteMetaLine`).
-        "ballots"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
+        "ballots",
+        // E57 C12: a straw poll's answer and question, a solved dive's finding, a split's counts, a project's life, a badge's end, a
+        // silenced warning, the case map's node and reference, a zone's letter, the module's name in a diagnosis.
+        "answer", "question", "finding", "counts", "life", "until", "warning", "node", "ref", "zone", "module",
+        // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): a timed effect's end and a trace's life, phrases the
+        // code builds; and rooms.mjs `roomPhrase`'s phrases, a room with its preposition (R6912).
+        "at", "into", "leaving", "returning"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },
-    code: { names: ["fn", "id", "path", "field", "row", "sub", "given", "roll"], values: both(["openRoomSetupDialog"]), note: "a name in code: the GM's console" }
+    code: { names: ["fn", "id", "path", "field", "row", "sub", "given", "roll", "setting"], values: both(["openRoomSetupDialog"]), note: "a name in code: the GM's console" }
 });
 
 /* Read 31.10 off the files' sentences: one fixture value, more than one sense. */
@@ -511,7 +525,15 @@ ${body.join("\n")}
  * after, an owner's verdict on no page or on a text not written. Where the texts stand in the files is
  * `batchState`'s reading, printed and never red (C7 lands the afters); `batchSheet` renders it for the readers.
  */
-export const BATCH_FILES = Object.freeze(["docs/dev/text-batch-B01a.json"]);
+/*
+ * Every batch file, by name (E71 C0, 14.11.2026): docs/dev/text-batch-<batch>.json, read from the folder so a batch line
+ * adds its file without touching a list (four lines write batches at once). Sorted, so B01a, the model batch with the
+ * pilot copies the check's control plants in, comes first.
+ */
+export const BATCH_DIR = "docs/dev";
+export const BATCH_NAME = /^text-batch-[\w-]+\.json$/;
+export const BATCH_FILES = Object.freeze(fs.readdirSync(path.join(REPO, BATCH_DIR)).filter(f => BATCH_NAME.test(f)).sort()
+    .map(f => `${BATCH_DIR}/${f}`));
 const BATCH_TOP = Object.freeze(["$comment", "batch", "stage", "texts"]);
 const BATCH_FIELDS = Object.freeze(["key", "group", "surface", "screen", "readers", "source", "pilot", "facts", "kept", "en", "pl",
     "removed", "needsCode", "disagreements", "reviews", "owner"]);
@@ -577,7 +599,13 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // 1.2.112, 13.11.2026: the owner's text fix - a Dash and Facilities bank their crossings beside a Sprint's, so the
     // Move's hint and description say "a free crossing" where B01a's afters named Sprint alone.
     ...["DRPG.Config.ACTIONS.move.hint", "DRPG.Config.ACTIONS.move.description"].map(key => [key, Object.freeze({ by: "1.2.112",
-        date: "13.11.2026", page: "1.2.112 rule fixes", card: "Move", text: "darmowe przejscie z Dasha i Facilities, nie tylko Sprint" })])
+        date: "13.11.2026", page: "1.2.112 rule fixes", card: "Move", text: "darmowe przejscie z Dasha i Facilities, nie tylko Sprint" })]),
+    // 1.2.113, 13.11.2026: the owner's rule fix of 13.11 (4ef5cceb) refuses Breath on Relief's rest, which B01a's approved
+    // after ("the same benefits as the usual" in Polish) no longer told; the effect now says the rest offers no Breath. Asked
+    // by the coordinator from the audit of 1.2.113: `text` quotes the finding A113-C4-5, not an owner's word - the
+    // owner has not read the new sentence yet.
+    ["DRPG.Config.HOPE_CALLS.relief.effect", Object.freeze({ by: "1.2.113", date: "13.11.2026", page: "audit-113 FINDINGS",
+        card: "A113-C4-5", text: "Relief's effect text says nothing about Breath being refused" })]
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */
@@ -636,7 +664,8 @@ export function batchSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
         if (!isText(t.key)) { out.push(`${at}: the key is not a text`); return; }
         if (seen.has(t.key)) out.push(`${at}: the key twice`);
         seen.add(t.key);
-        if (isOut(t.key)) out.push(`${at}: a key Appendix C leaves out of B01a (topic A's, E68's, MONOCUB, TRIAL or a table-name label)`);
+        /* Appendix C is B01a's own list (E66 C6); a later batch (E71's B02-B18) takes the keys B01a left out. */
+        if (doc.batch === "B01a" && isOut(t.key)) out.push(`${at}: a key Appendix C leaves out of B01a (topic A's, E68's, MONOCUB, TRIAL or a table-name label)`);
         const now = { en: pilotValue(en, t.key), pl: pilotValue(pl, t.key) };
         if (now.en === undefined) out.push(`${at}: not a key of lang/en.json or config.mjs's English prose${BATCH_RENAMED}`);
         if (now.pl === undefined) out.push(`${at}: not a key of lang/pl.json${BATCH_RENAMED}`);

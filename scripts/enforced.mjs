@@ -65,7 +65,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { warn, error, isPrimaryGm, whisperToGms, esc } from "./utils.mjs";
+import { warn, error, isPrimaryGm, whisperToGms, esc, listOf } from "./utils.mjs";
 import { drpgWindow, box } from "./ui-kit.mjs";
 
 /**
@@ -327,7 +327,7 @@ async function rtcDockOn(row) {
  * @param {object} [was]     the record so far (`rtcDockBefore`); `{}` or nothing before the first hold
  * @returns {object}
  */
-export function rtcDockRecord(client, row, was) {
+function rtcDockRecord(client, row, was) {
     const had = was && typeof was === "object" ? was : {};
     const fields = { ...(had.fields ?? {}) }, users = { ...(had.users ?? {}) };
     let added = false;
@@ -356,7 +356,7 @@ export function rtcDockRecord(client, row, was) {
  *
  * @returns {[string, *][]}
  */
-export function rtcDockGiveBack(client, record) {
+function rtcDockGiveBack(client, record) {
     const out = [];
     for (const [key, value] of Object.entries(record?.fields ?? {})) {
         if (value !== null && value !== undefined && client?.[key] !== value) out.push([key, value]);
@@ -529,7 +529,7 @@ const LOST_PERMISSIONS = { FILES_BROWSE: "DRPG.Enforced.lost.browse", FILES_UPLO
  *
  * @returns {{ role: string, permissions: string[] }[]}
  */
-export function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind === "permissions")) {
+function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind === "permissions")) {
     const roles = CONST.USER_ROLES;
     const before = name => Array.isArray(stored?.[name]) ? stored[name]
         : Array.isArray(inForce?.[name]) ? inForce[name] : [roles.ASSISTANT, roles.GAMEMASTER];
@@ -567,7 +567,7 @@ function holdPermissions(row, { tell = false, first = false } = {}) {
         if (tell) await whisperToGms(`<p>${game.i18n.localize("DRPG.Enforced.filesPutBack")}</p>`);
         else if (first) {
             const lost = permissionsLost(stored, inForce, held, row).map(({ role, permissions }) =>
-                `${game.i18n.localize(LOST_ROLES[role])}: ${permissions.map(name => game.i18n.localize(LOST_PERMISSIONS[name])).join(", ")}`);
+                `${game.i18n.localize(LOST_ROLES[role])}: ${listOf(permissions.map(name => game.i18n.localize(LOST_PERMISSIONS[name])))}`);
             if (lost.length) await whisperToGms(`<p>${game.i18n.format("DRPG.Enforced.filesFirstHold", { lost: lost.join("; ") })}</p>`);
         }
         return true;
@@ -878,7 +878,7 @@ export async function giveBackFoundry({ user = game.user } = {}) {
 }
 
 /** Let the module hold its settings again (a GM): the switch off; each browser's `onChange` holds them. */
-export async function holdFoundryAgain() {
+async function holdFoundryAgain() {
     if (!game.user?.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, false);
     await onGivenBackChanged();

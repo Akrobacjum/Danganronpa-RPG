@@ -30,6 +30,7 @@ import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
+import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher } from "./spectator-dead.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 
@@ -227,7 +228,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
 /*
  * THE ROLE (E47-C8, 09.11.2026; the owner's 09.11 ask). Student, Monokuma or Not in the class, as the sheet's own
  * `sheetMode` reads the two flags (a Monokuma first: a character carrying both is a Monokuma). The select acts when it
- * is changed, never on Apply, through the sheet header's roads (sheet.mjs `injectClassControls`), which are a GM's
+ * is changed, never on Apply, through the sheet header's roads (sheet-header.mjs `injectClassControls`), which are a GM's
  * alone - each refuses a player itself (`game.user.isGM`), and a player's own write of either flag is put back by the
  * GMs' audit (sheet-audit.mjs `GM_FLAGS`, E24 fix G1):
  *   to Monokuma           monokuma.mjs `markFromSheet` - a player's character is asked first, Cancel the default;
@@ -292,8 +293,8 @@ export async function changeRole(actor, to, roads = {}) {
 function refundButton(actor) {
     const row = crossingStore.get(actor.id);
     if (!row || row.refunded) return "";
-    const outside = game.i18n.localize("DRPG.Movement.outsideRooms");
-    const note = game.i18n.format("DRPG.Panel.refundCrossingNote", { from: row.from ?? outside, to: row.to ?? outside });
+    // Leaving where the crossing put them, back to where it started: phrases with their prepositions (rooms.mjs `roomPhrase`).
+    const note = game.i18n.format("DRPG.Panel.refundCrossingNote", { leaving: roomPhrase("out", row.to ?? null), returning: roomPhrase("into", row.from ?? null) });
     // On the kit's secondary role (E47-C8): a button that answers nothing of the window's, beside the row's procedures.
     return ` ${roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-refund": actor.id, "data-tooltip": note }, label: game.i18n.localize("DRPG.Panel.refundCrossing") })}`;
 }
@@ -404,7 +405,7 @@ function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOf
      * ITEMS ON EVERY ROW (E47-C8; the owner's 09.11 ask: "no single Items button that then asks which student - each
      * row its own Items button beside the name"). The round trip the footer's Items made (D-F5-2): this window closes,
      * the hub runs to its own Close, the table comes back. The Level Up is the sheet's GM button's road
-     * (`openAdvancementFor`, sheet.mjs `injectAdvanceButton`), a window of its own, so the same round trip.
+     * (`openAdvancementFor`, sheet-header.mjs `injectAdvanceButton`), a window of its own, so the same round trip.
      */
     wireAliveRow(dialog, "data-drpg-items", actor => roads.openItemManager(actor), { onHandOff, reopen });
     // The sheet is a window of its own that does not end in an answer, so the table stays where it is (E6), beside it.
@@ -641,7 +642,11 @@ export async function applyAliveStates(chosen = {}) {
             const living = !isDeadForGm(actor);
             let died = null;
             if (want.state === "alive") {
-                await setMonocub(actor, false);
+                /* ONE STEP (A113-C2-4, 13.11.2026): the flag cleared with no Spectator made and no toast of its own, so
+                   the revive, which takes the Monocub's token as it stands, is the one move and the one toast. Until
+                   then `setMonocub(actor, false)` made the Spectator and said "no longer a Monocub", and the revive
+                   took it away and said "revived". */
+                await setMonocub(actor, false, { quiet: true, watcher: false });
                 // A correction (E62 C3b, SB-C3 #17): the Spectator goes with no return drawn.
                 await reviveCharacter(actor, { silent: true });
             } else if (want.state === "dead") {

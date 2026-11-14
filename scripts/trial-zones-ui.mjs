@@ -17,7 +17,7 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
 import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
-import { ZONE_MODES, isZoneMode, zoneOf } from "./zone-machine.mjs";
+import { ZONE_MODES, isZoneMode, zoneOf, conferCamps } from "./zone-machine.mjs";
 import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDebate, startLogicDive, findingsNow, addFinding, editFinding,
     deleteFinding, confirmFinding } from "./trial-zones.mjs";
 import { trialParticipants } from "./vote.mjs";
@@ -52,7 +52,10 @@ function zoneLine(side, zone, sides) {
 export function zonePanelHtml({ floor, sides = null } = {}) {
     const zone = zoneOf(floor);
     if (!zone) return "";
-    const s = sides ?? sidesNow({ floor });
+    // While the camps confer, the panel names the camps as they were kept at the Sides' end - the rooms they talk in -
+    // and nobody outside them (the owner's 13.11.2026; zone-machine.mjs `conferCamps`).
+    const camps = conferCamps(floor);
+    const s = camps ? { ...camps, none: [], line: [] } : sides ?? sidesNow({ floor });
     const L = key => game.i18n.localize(key);
     const mode = L(`DRPG.Floor.mode.${floor.mode}`);
     const phase = game.i18n.format(`DRPG.Zones.panel.${floor.mode}.${zone.phase}`, {
@@ -104,9 +107,10 @@ export function replayWarning(set) {
     const when = localeFormat("dateTime", Number(set.endedAt || set.usedAt));
     const at = Number.isInteger(set.stoppedAt) ? set.stoppedAt + 1 : null;
     const outcome = game.i18n.localize(`DRPG.Zones.dive.outcome.${set.outcome ?? "played"}`);
-    return at
-        ? game.i18n.format("DRPG.Zones.dive.replayStopped", { when, n: at, outcome })
-        : game.i18n.format("DRPG.Zones.dive.replay", { when, outcome });
+    if (at) return game.i18n.format("DRPG.Zones.dive.replayStopped", { when, n: at, outcome });
+    // Started and never ended or stopped (the needsCode line, R6910): replay's "it ended {when} (played)" was not true.
+    if (!set.endedAt) return game.i18n.format("DRPG.Zones.dive.replayUnfinished", { when });
+    return game.i18n.format("DRPG.Zones.dive.replay", { when, outcome });
 }
 
 /**
@@ -119,7 +123,7 @@ export function namesIn(text, names = game.actors?.filter?.(a => a.type === "cha
 }
 
 /** Why a set as typed cannot be saved, in the GM's words, or null: a name; 1-5 questions, each with two answers and a truth. */
-export function setRefusal(set) {
+function setRefusal(set) {
     if (!String(set?.name ?? "").trim()) return game.i18n.localize("DRPG.Zones.dive.editor.noName");
     const qs = Array.isArray(set?.questions) ? set.questions : [];
     const max = Number(TRIAL.modes.zones.dive.maxQuestions) || 5;
@@ -132,7 +136,7 @@ export function setRefusal(set) {
 }
 
 /** Save a set (any GM): `id` null for a new one. Answers its id, or null when refused (told). */
-export async function saveDiveSet(id, set) {
+async function saveDiveSet(id, set) {
     if (!game.user.isGM) return null;
     const refused = setRefusal(set);
     if (refused) {
@@ -219,7 +223,7 @@ export async function editDiveSet(id = null) {
 }
 
 /** A set deleted, after the GM's yes. */
-export async function deleteDiveSet(id) {
+async function deleteDiveSet(id) {
     if (!game.user.isGM || !diveSetStore.get(id)) return false;
     const yes = await drpgConfirm({ title: game.i18n.localize("DRPG.Zones.dive.editor.deleteTitle"),
         body: `<p>${esc(game.i18n.format("DRPG.Zones.dive.editor.deleteBody", { name: diveSetStore.get(id)?.name ?? "-" }))}</p>`,
@@ -427,7 +431,7 @@ let pickOpenFor = null;
  * A zone mode on the floor and this player's student taking part with no token in the hall: a window to pick Zone A or
  * Zone B (bridge "trial.side"), once per mode's opening. Called from trial-floor.mjs `renderTrialFloor` on every client.
  */
-export async function offerSidePick(floor) {
+async function offerSidePick(floor) {
     const zone = zoneOf(floor);
     if (!zone || game.user.isGM) return;
     const key = `${floor.mode}|${zone.openedAt}`;
@@ -470,7 +474,7 @@ function lineColour() {
 }
 
 /** Take the drawing down. */
-export function clearZoneDrawing() {
+function clearZoneDrawing() {
     try {
         drawn?.destroy?.({ children: true });
     } catch (err) {

@@ -121,7 +121,7 @@ export async function runSteps({ steps = [], record = {}, save = null, stop = nu
 }
 
 /** The groups of a run (`runSteps`' answer) in the order a report says them. */
-export const REPORT_GROUPS = Object.freeze(["done", "kept", "failed", "notRun"]);
+const REPORT_GROUPS = Object.freeze(["done", "kept", "failed", "notRun"]);
 
 /**
  * The GMs' report of a run (`runSteps`' answer), one shape for every procedure: its `lines` first, then a sentence

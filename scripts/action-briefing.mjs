@@ -31,7 +31,7 @@ import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
-import { error, plural, esc } from "./utils.mjs";
+import { error, plural, esc, listOf } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
 import { detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
@@ -301,7 +301,9 @@ function thresholdFacts(actor, actionKey, def) {
             try {
                 const place = locateActor(actor);
                 const here = place?.room ? projectsAvailableIn(place) : [];
-                if (here.some(p => isIndirectMurder(p))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
+                /* By the project's id (the leak-pm line, 14.11.2026): asked with the row, `isIndirectMurder` read projectMeta
+                   under "[object Object]" and the line never showed (72-canary, red at 19ae74fb on the killer's browser). */
+                if (here.some(p => isIndirectMurder(p.id))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
             } catch { /* no projects here */ }
             break;
         }
@@ -324,7 +326,7 @@ function thresholdFacts(actor, actionKey, def) {
 }
 
 /* MOVE'S WINDOW IS GONE (E100 item 1, 12.11.2026; the owner on the player-screens review, #2). `briefing` drew it: one
-   button, Got it, over "drag your token". The sentence is on the Monocub's Move tile (sheet.mjs `actionButton`) and in
+   button, Got it, over "drag your token". The sentence is on the Monocub's Move tile (sheet-actions.mjs `actionButton`) and in
    the HUD's Move row (player-status.mjs); `moveLine` above still prices the next crossing for both. R4100. */
 
 // The erase ladder for THIS character: the cleaning tool's tier and the
@@ -343,7 +345,7 @@ export function tamperThresholdFacts(actor, cleanup) {
         // row. The watchers are said once, by `briefingFacts`, with the cover's number (`DRPG.Tamper.watched`).
         return [{ text: game.i18n.format("DRPG.Action.dcTamper", {
             rows: ladderRows(column),
-            relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: reliefs.join(", ") }) : ""
+            relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: listOf(reliefs) }) : ""
         }), when: "cover" },
         { text: game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }), when: "frame" }];
     } catch (err) {

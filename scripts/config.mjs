@@ -58,14 +58,6 @@ export const SOCKET = `module.${MODULE_ID}`;
  * Never spell these out inline - a typo in a flag name fails silently.
  */
 export const FLAGS = {
-    /**
-     * A Level Up the GM has handed to the player (N-2, Dawid 20.09).
-     *
-     * `{ kind, by, at }`. It is an OFFER, not an advancement: nothing is written
-     * to the character until they choose, and the GM's client checks this flag
-     * again before it applies anything, because the player's picks arrive over a
-     * socket and a socket carries claims rather than facts.
-     */
     /** Character: the student's Ultimate talent, shown under their name. */
     ultimate: "ultimate",
     /**
@@ -98,7 +90,7 @@ export const FLAGS = {
      * in the GM's incident cast now (`murder.mjs`, `CAST_FIELDS`). An actor flag
      * is world data every client receives, so for the whole of Stage 6 these
      * two named the accomplice, the killer and the weapon to anybody reading
-     * `game.actors`. The keys stay so `migrateIncidentSecrets` can lift a live
+     * `game.actors`. The keys stay so `liftIncidentSecrets` (migrate.mjs) can lift a live
      * offer and scrub the rest off a world that updated mid-chapter.
      *
      * The offer itself is unchanged: `{ thirdId, killerId, chapter, day }`,
@@ -245,7 +237,7 @@ export const FLAGS = {
      * Level Up and in no incident's cast (E24 C3a, 08.11.2026; audit S03-36, the
      * owner's Q-E24-5). `studentActors` leaves it out, and with it everything that
      * reads the one roster. A GM's flag: written only by a GM's toggle on the
-     * sheet's header (sheet.mjs `injectClassControls`), never set by itself, and a
+     * sheet's header (sheet-header.mjs `injectClassControls`), never set by itself, and a
      * player's write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
      * Who is a student is the table's to know, so it holds no secret.
      */
@@ -526,9 +518,9 @@ export function staleStamp(at, now) {
 /**
  * The character sheet's size, in one place (UI-13). Daggerheart opens it at
  * its own default; `minHeight` is what the Hope Calls panel needs under the
- * Legacy theme (grown once, upwards only - sheet.mjs `growForCalls`), and
+ * Legacy theme (grown once, upwards only - sheet-fit.mjs `growForCalls`), and
  * `glass` is the size the Stained Glass theme draws the sheet for, scaled by
- * the interface slider (settings.mjs `scaleWindow`).
+ * the interface slider (window-scale.mjs `scaleWindow`).
  */
 export const SHEET_SIZE = { minHeight: 980, glass: { width: 1120, height: 1160 } };
 
@@ -626,7 +618,7 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * TIER 0'S ONE IS A SINGLE USE, NOT A DURABILITY (the owner's amend of
  * 25.09.2026; E13 C8): a tier 0 tool or weapon is spent by the first roll it
  * is used in, whatever the roll (use-items.mjs `rollSpends`), and the sheet
- * draws it no track (sheet.mjs `wearMarkup`). The number stays 1 because the
+ * draws it no track (sheet-item.mjs `wearMarkup`). The number stays 1 because the
  * spending goes through `wearItem` like any wear - one point, and the point
  * that fills it breaks it - so a Reroll gives it back as it gives a wear back,
  * and the Rot, which never takes the last point, still passes it by.
@@ -678,7 +670,7 @@ export const ITEM_CATEGORIES = {
          * this line changed.
          */
         limit: 3,
-        hint: "Healing items restore Health, sanity-relief items clear Sanity."
+        hint: "A Healing item restores Health and a Sanity Relief item restores Sanity; each works once and then stays in the inventory, broken."
     },
     // "Murder Weapon" rather than "Crime Tool" - Dawid's wording, 2026-08-17.
     // Changed here rather than in the item window alone, because this table is
@@ -690,13 +682,13 @@ export const ITEM_CATEGORIES = {
         label: "Murder Weapon",
         plural: "Murder Weapons",
         limitGroup: "gear",
-        hint: "Makes a murder incident easier."
+        hint: "Readied in an incident, it gives advantage on Self-Defense and Role Reversal; a weapon blow with it takes more Health the higher its tier, and without one readied that blow is at disadvantage. One used to strike breaks when the clean-up ends."
     },
     cleaningTool: {
         label: "Cleaning Tool",
         plural: "Cleaning Tools",
         limitGroup: "gear",
-        hint: "Makes covering up a murder easier."
+        hint: "Readied, it makes cleaning up easier: advantage on every clean-up roll but Move the Body, and its tier off the number to beat, never below the minimum. One used for a murder breaks once the body is found."
     },
     /**
      * A tool, in the ordinary sense: something you work with.
@@ -710,14 +702,13 @@ export const ITEM_CATEGORIES = {
         label: "Tool",
         plural: "Tools",
         limitGroup: "gear",
-        hint: "Held ready, it gives advantage on project work - sabotage included - and "
-            + "its tier comes off the threshold. It can break."
+        hint: "Readied, it gives advantage on Work and Sabotage, and its tier comes off the number to beat. Rolls with Despair wear it down until it breaks; one of the lowest tier breaks after any roll."
     },
     truthBullet: {
         label: "Truth Bullet",
         plural: "Truth Bullets",
         limit: null,
-        hint: "Evidence. No carry limit."
+        hint: "Evidence for the Class Trial: no carry limit, and Contraband cannot destroy it."
     },
     /**
      * A key to somebody's bedroom.
@@ -732,7 +723,7 @@ export const ITEM_CATEGORIES = {
         label: "Room Key",
         plural: "Room Keys",
         limit: null,
-        hint: "Opens one bedroom. Copy it to let somebody else in."
+        hint: "Opens one bedroom. Give it to somebody to let them in: they get a copy and you keep yours."
     }
 };
 
@@ -798,8 +789,7 @@ export const TIER_EFFECTS = {
  * labels feed the table names ("DRPG Usables (Healing) - Tier 2") through
  * USABLE_GOALS in tables-pools.mjs, so renaming one here renames what a fresh world
  * installs.
- */
-/**
+ *
  * `chip` is the short form, for the tag on an inventory row.
  *
  * Separate from `label` rather than replacing it: the long names go into item
@@ -898,33 +888,11 @@ export const USABLE_EFFECTS = {
  * The guide never says a weapon has to be drawn - but "Jeśli zdobyła przedmiot,
  * którego może użyć jako broń" and the crime tool being consumed after a murder
  * both assume a specific object is in hand, and the incident engine had no way
- * to be told WHICH. Equipping is that answer: one per category, and it is what
- * `bestWeaponTier` reads first.
+ * to be told WHICH. Equipping is that answer: one per category, and the murder's
+ * weapon is the one readied (murder-rules.mjs `equippedWeapon`, through `equippedFor`).
  */
 export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
 
-/**
- * Categories that share one carry limit between them.
- *
- * THREE SLOTS FOR EVERYTHING YOU HOLD IN YOUR HANDS (Dawid, 27.08, G-43).
- *
- * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
- * proportions. The total stands; the division goes. Which three you have is
- * decided by what the dice turned up and what you chose to keep - a player who
- * found two knives no longer has to leave one behind while a slot sits empty
- * beside it, and the new Tool category does not quietly make the number five.
- *
- * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
- * `canCarry` asks changes shape: it stops being "how many of these" and becomes
- * "how much of this budget is spent". Categories with no group keep the old
- * behaviour exactly - Usables still cap at three of their own, Truth Bullets and
- * keys are still uncapped - so nothing outside this group notices.
- *
- * It is also what makes item ROLES safe. With separate counters, moving an
- * item's home moved which counter it drew from, so a screwdriver filed under
- * Tools could serve as a weapon without spending the weapon slot. With one
- * counter every item costs one slot whatever its home and whatever it can do.
- */
 /**
  * How much one stash holds (D10b).
  *
@@ -959,6 +927,28 @@ export const TOOL_IN_HAND = {
     tierReducesThreshold: true
 };
 
+/**
+ * Categories that share one carry limit between them.
+ *
+ * THREE SLOTS FOR EVERYTHING YOU HOLD IN YOUR HANDS (Dawid, 27.08, G-43).
+ *
+ * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
+ * proportions. The total stands; the division goes. Which three you have is
+ * decided by what the dice turned up and what you chose to keep - a player who
+ * found two knives no longer has to leave one behind while a slot sits empty
+ * beside it, and the new Tool category does not quietly make the number five.
+ *
+ * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
+ * `canCarry` asks changes shape: it stops being "how many of these" and becomes
+ * "how much of this budget is spent". Categories with no group keep the old
+ * behaviour exactly - Usables still cap at three of their own, Truth Bullets and
+ * keys are still uncapped - so nothing outside this group notices.
+ *
+ * It is also what makes item ROLES safe. With separate counters, moving an
+ * item's home moved which counter it drew from, so a screwdriver filed under
+ * Tools could serve as a weapon without spending the weapon slot. With one
+ * counter every item costs one slot whatever its home and whatever it can do.
+ */
 export const LIMIT_GROUPS = {
     /*
      * TWO SLOTS, NOT THREE (D10c).
@@ -1049,6 +1039,16 @@ export const REMNANT_TYPES = {
 };
 
 /**
+ * "EVERYONE" AS A TRUTH BULLET'S RECIPIENT (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to
+ * everyone' option"): the value Give a Truth Bullet's recipient select and a Planned Truth Bullet's `recipient` hold for
+ * every living student - death.mjs `livingStudentsForGm`, the roster less the dead for the GMs, so no Monocub (a dead
+ * student back), no Spectator, no Monokuma and no NPC (monokuma.mjs `studentActors`): the planned Autopsies' roster
+ * (case-realize.mjs). No actor id is 8 letters long, so it never names one. Each gets a copy of their own
+ * (gm-items.mjs `giveToEveryone`).
+ */
+export const RECIPIENT_EVERYONE = "everyone";
+
+/**
  * Truth Bullet types - same keys as REMNANT_TYPES, since every Truth Bullet
  * traces back to exactly one Remnant type. Kept as a separate table because a
  * Truth Bullet's hint is what ends up on a player's inventory card, and a
@@ -1068,7 +1068,7 @@ export const TRUTH_BULLET_TYPES = {
     },
     neutral: {
         label: "Neutral Truth Bullet",
-        hint: "A trace of undetermined origin. Analyze it to find out what it really is.",
+        hint: "A Remnant of undetermined origin. Analyze it to find out what it really is.",
         /*
          * THE SENTENCE FOR A BULLET THAT HAS BEEN ANALYSED AND IS STILL NEUTRAL
          * (ACT-10, 20.09).
@@ -1098,8 +1098,8 @@ export const TRUTH_BULLET_TYPES = {
            answer; the sentence says what the mark does, which is the same on both: the
            chapter's sweep keeps the bullet (chapter.mjs `sparedBySweep` reads `faintOf`;
            scenario 62's E checks), and it can be analysed again. */
-        hint: "Doubtful connection to the case. Its Faint mark keeps it when the chapter's evidence "
-            + "is cleared, and it can be analysed again."
+        hint: "Doubtful connection to the case. Its Faint mark keeps it when the chapter's evidence is cleared, "
+            + "and students can analyze it again."
     },
     prep: {
         label: "Prep Truth Bullet",
@@ -1115,12 +1115,12 @@ export const TRUTH_BULLET_TYPES = {
     resolution: {
         label: "Tamper Truth Bullet",
         // Anybody's Tamper leaves one, not the killer's alone (E09 C14; S13-15, as `prep` above).
-        hint: "Left by somebody tidying up - the too-clean patch, the thing put back slightly wrong."
+        hint: "Left by somebody tidying up: the too-clean patch, the thing put back slightly wrong."
     },
     autopsy: {
         label: "Autopsy Truth Bullet",
-        hint: "The state of the body - when it was discovered, and the cause of death. Handed out "
-            + "at the start of every Investigation."
+        hint: "The state of the body: when it was discovered, and the cause of death. Handed out at the start "
+            + "of every Investigation."
     },
     final: {
         label: "Final Truth Bullet",
@@ -1397,7 +1397,7 @@ export const KEY_REMNANTS = {
      * option 1). `unfoundBar` is the guide's four; a case whose opening gave
      * three Key Remnants (`MURDER_OPENING`, a critical) is charged below three,
      * so a table that found all three owes nothing. The rule is
-     * investigation.mjs `keyFeeOf`, which also says what counts as found.
+     * key-remnants.mjs `keyFeeOf`, which also says what counts as found.
      *
      * PER MONOKUMA, NOT SPLIT BETWEEN THEM (trap 116). The guide writes "obaj
      * Monokuma" with two GMs in mind, which reads either way at four. It is
@@ -1606,7 +1606,7 @@ export const ACTIONS = {
             { min: 14, result: "A subtle hint - e.g. “You are far from the target.”" },
             { min: 18, result: "A direct hint - e.g. “Search the pool room.”" }
         ],
-        hintCritical: { result: "They ask you one question - e.g. “Did the victim really die in this room?”" },
+        hintCritical: { result: "You ask the GM one question - e.g. “Did the victim really die in this room?”" },
         hintFailure: "No help.",
         /**
          * The third thing behind this tile: finding a hiding place.
@@ -1727,9 +1727,9 @@ export const ACTIONS = {
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
-        hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
-            + "Keep Watch. Each costs an action.",
+        variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        hint: "Listen at a wall, hear Echoes, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick "
+            + "the Lock or Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -1892,10 +1892,9 @@ export const ACTIONS = {
             + "Move; each crossing after that takes a free crossing if you hold one (Sprint, Dash, Facilities), or "
             + "an action.",
         description: "Moving inside your room is free. Each time of day, crossing into another room uses your Free "
-            + "Move, then your free crossings, then actions; with none left, the crossing is undone. An Overflow can "
+            + "Move, then free crossings, then actions; with none left, the crossing is undone. An Overflow can "
             + "block the Free Move, and the GMs can turn the charge off.",
-        instruction: "Drag your token. Crossing into another room is what counts - the cost "
-            + "is applied when you arrive."
+        instruction: "Drag your token. Crossing into another room is what counts; the cost is applied when you arrive."
     },
     sabotage: {
         kind: "variant",
@@ -1916,7 +1915,7 @@ export const ACTIONS = {
             { min: 12, result: "Success. The target needs a simple repair project.", remnant: "subtle" },
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
         ],
-        critical: { result: "Success. The target needs a hidden-difficulty repair project.", remnant: "obvious" },
+        critical: { result: "Success. The target needs a Desperate repair project.", remnant: "obvious" },
         /*
          * THE SIMPLE REPAIR IS 2 PROGRESS (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
          * opcje", "Zostaje to co wdrazamy i tylko to"). A hit below the complex band made a Trivial repair, 3: one
@@ -1934,7 +1933,7 @@ export const ACTIONS = {
  * THE ACTION GRID'S ORDER (E103, 13.11.2026; the owner: "Zmieniamy tylko kolejnosc akcji u gracza"): the first row
  * Search, Observe, Analyze, Infiltrate (`listen`), Palm; the second Projects, Facilities (`rest`), Dynamic, then Tamper
  * and Direct Murder, which the owner's words did not name and which keep the last two places (the stage's default, owner
- * to confirm). Every `universal` key of ACTIONS once, nothing else; sheet.mjs `injectActionPanel` draws them in this
+ * to confirm). Every `universal` key of ACTIONS once, nothing else; sheet-actions.mjs `injectActionPanel` draws them in this
  * order. Until E103: Search, Observe, Analyze, Projects, Dynamic | Facilities, Infiltrate, Palm, Tamper, Direct Murder.
  */
 export const ACTION_GRID = Object.freeze(["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper", "directMurder"]);
@@ -2000,7 +1999,7 @@ export const INDIRECT_MURDER = {
         threshold: 16,
         success: "The others cannot see that you are doing anything. You may lie freely.",
         successWithDespair: "The others see nothing, and the project gains +1 progress.",
-        failure: "The others get a general description of what you are doing - e.g. 'fiddling with test tubes'.",
+        failure: "The others in the room see roughly what you are doing, though not what it is for, and your Work goes on.",
         /** With nobody else in the room, the project simply gains this instead. */
         aloneBonus: 1
     },
@@ -2018,7 +2017,7 @@ export const INDIRECT_MURDER = {
     /** The guide splits an indirect murder into at least two sub-projects. */
     subProjects: [
         { label: "Prepare the Weapon", scale: ["everyday", "complex"], progress: [4, 6],
-          note: "May require a specific room with the right equipment, unless you obtained the tool." },
+          note: "May need a room with the right equipment, unless the killer already has the tool." },
         { label: "Set the Trap", scale: ["trivial", "everyday"], progress: [3, 4],
           note: "Always requires a specific room." }
     ]
@@ -2102,14 +2101,14 @@ export const BROKEN_ITEMS = {
  * covers the other half, the witnesses watching you do it in the first place.
  */
 export const SABOTAGE_CONCEAL = {
-    label: "Cover what you are doing",
+    label: "Hide what you are doing",
     trait: "shadow",
     threshold: 16,
     success: "Nobody works out what you are really doing. You may lie freely about it.",
-    successWithDespair: "Nobody works out what you are doing - but you fumble, and the sabotage is harder.",
+    successWithDespair: "Nobody works out what you are doing, but you fumble, and your sabotage roll takes a penalty.",
     /** Despair on a successful concealment still costs you: -1 on the sabotage. */
     despairPenalty: -1,
-    failure: "The others see roughly what you are up to - 'prying at the lock', 'pulling wires out'.",
+    failure: "The others in the room see roughly what you are doing to the project, but the Sabotage goes on.",
     /** Failing does not stop you. It only means everyone watched you do it. */
     aloneNote: "Nobody else is in the room, so there is nothing to hide."
 };
@@ -2156,8 +2155,8 @@ export const REST = {
     long: { actionCost: 2, picks: 2, perSession: true },
     short: { actionCost: 1, picks: 1, perTimeOfDay: true },
     options: {
-        sleep: { label: "Sleep", long: "Restores all Health", short: "Restores half Health" },
-        meal: { label: "Meal", long: "Restores all Sanity", short: "Restores half Sanity" },
+        sleep: { label: "Sleep", long: "Restores all Health", short: "Restores half your lost Health, rounded up" },
+        meal: { label: "Meal", long: "Restores all Sanity", short: "Restores half your lost Sanity, rounded up" },
         breath: { label: "Breath", long: "Grants 2 Hope", short: "Grants 1 Hope" }
     }
 };
@@ -2172,6 +2171,9 @@ export const REST = {
  * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
  *
  *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
+ *           A good roll is also an eavesdrop on that room's voice (E69 C6, eavesdrop-gm.mjs).
+ *   echoes  Echoes (E69 C7): no roll; the nearest room by crossings with a living student of another player, read on
+ *           the GM (echoes-gm.mjs); struck through in an Eclipse (Q-E69-3's default).
  *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (`traits`: the player proposes one on
  *           E68's card and a GM picks, trait-ruling.mjs `definitionOf`'s generic `tail`, as R213 holds every list of
  *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
@@ -2184,6 +2186,8 @@ export const REST = {
  */
 export const INFILTRATE = Object.freeze({
     listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
+    // Echoes (E69 C7; the owner's 10.11 (b)): one action, no roll - the nearest room with a living student of another player.
+    echoes: Object.freeze({ traits: Object.freeze([]), cost: 1 }),
     tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
         unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
     dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
@@ -2477,18 +2481,23 @@ export const HOPE_CALLS = {
          *
          * Both waivers are deliberate (decision 4). The once-per-time-of-day
          * limit and the marked room are what make a Short Rest a decision about
-         * where you are and what you have already done - and a Call for five
+         * where you are and what you have already done - and a Call for `cost`
          * Hope that could only be spent when you did not need it would be a Call
          * nobody buys. The moment you want this is exactly the moment both gates
          * are shut.
          *
-         * The benefits themselves are `applyRest`'s, unchanged, so "as though
-         * they had taken a rest" is literally what happens rather than a second
-         * table that agrees with the first until somebody edits one.
+         * The benefits themselves are `applyRest`'s, so "as though they had taken
+         * a rest" is literally what happens rather than a second table that
+         * agrees with the first until somebody edits one - with one exception
+         * since 1.2.112 (4ef5cceb): Breath is refused, because it would give
+         * back less Hope than Relief costs (rest.mjs `BREATH_REFUSED`, greyed
+         * in the picker, refused by `applyRest`). The effect text says so
+         * (the audit of 1.2.113, A113-C4-5; R5981).
          */
         freeRest: "short",
-        effect: "Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time "
-            + "of day stays available. Back out of choosing what to restore, and the Hope you paid comes back."
+        effect: "Take a Short Rest at once, in any room, without an action; your usual Short Rest this time of day "
+            + "stays available. It offers no Breath, which returns less Hope than it costs. Back out of choosing "
+            + "what to restore to get your Hope back."
     },
     determination: {
         /*
@@ -2528,7 +2537,7 @@ export const HOPE_CALLS = {
      */
     bribe: {
         label: "Bribe", icon: "fa-money-bills", cost: 1, target: "monocub", bribe: true,
-        effect: "Offer a Monocub {cost} Hope for a favour. You pay only if they accept; nobody else knows."
+        effect: "Offer a Monocub {cost} Hope for a favor. You pay only if they accept; nobody else knows."
     }
 };
 
@@ -2694,15 +2703,15 @@ export const OVERFLOW = {
 export const DESPAIR_CALLS = {
     obstacle: {
         label: "Obstacle", icon: "fa-road-barrier", cost: 1, target: "player", grants: "disadvantage",
-        effect: "Disadvantage on a player's roll."
+        effect: "Gives a student in any room disadvantage on their next roll."
     },
     forTheGame: {
         label: "Approval", icon: "fa-gift", cost: 1, target: "player", grants: "advantage",
-        effect: "Advantage on a player's roll."
+        effect: "Gives a student in any room advantage on their next roll."
     },
     behindClosedDoors: {
         label: "Behind Closed Doors", icon: "fa-door-closed", cost: 2, target: "room", sealsRoom: true,
-        effect: "Seal a room for one time of day."
+        effect: "Seals a room until the time of day ends; a successful Pick the Lock still gets a student in, and those inside stay."
     },
     thisWillHurt: {
         /*
@@ -2723,11 +2732,11 @@ export const DESPAIR_CALLS = {
          * worth the wait.
          */
         label: "Pain", icon: "fa-heart-crack", cost: 4, target: "player", damage: { hitPoints: 2 },
-        effect: "A player loses {hp} Health."
+        effect: "A student in any room loses up to {hp} Health."
     },
     paranoia: {
         label: "Paranoia", icon: "fa-brain", cost: 2, target: "player", damage: { stress: 2 },
-        effect: "A player loses {stress} Sanity."
+        effect: "A student in any room loses up to {stress} Sanity."
     },
     chained: {
         // Not in the guide's table - added at the table's request. Priced
@@ -2735,13 +2744,13 @@ export const DESPAIR_CALLS = {
         // than losing 2 Sanity; level with Game Integrity at 3, because a room
         // you are already in may be where you wanted to be anyway.
         label: "Chained", icon: "fa-link", cost: 3, target: "player", chains: true,
-        effect: "One player cannot leave their room until the end of the time of day."
+        effect: "A student, wherever they are, cannot leave their room until the time of day ends."
     },
     silence: {
         // Priced above Chained: cutting off every Hope Call denies advantage,
         // experiences, rerolls and the free critical at once.
         label: "Silence", icon: "fa-comment-slash", cost: 4, target: "player", silences: true,
-        effect: "One player cannot spend Hope Calls until the end of the time of day."
+        effect: "A student in any room cannot make Hope Calls until the time of day ends."
     },
     fuelTheCub: {
         // Guide, p. 16: a Monocub "prosi DMa" for the Hope that Meddle costs, and
@@ -2755,7 +2764,7 @@ export const DESPAIR_CALLS = {
         grantsHope: 1,
         // The tile's two Calls (the owner, 12.11.2026: the GM's Calls keep their number of tiles): this one, or a Bounty.
         choices: ["fuelTheCub", "bounty"],
-        effect: "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
+        effect: "Turns {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
     },
     /*
      * THE TWO PROJECT CALLS, AND WHAT HAPPENED TO THE THIRD (Dawid, 29.08).
@@ -2797,11 +2806,11 @@ export const DESPAIR_CALLS = {
      */
     gameProtection: {
         label: "Game Integrity", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
-        effect: "Remove {progress} progress from a project."
+        effect: "Removes {progress} progress from a project that is not finished or frozen; a secret one goes unnamed on the public card."
     },
     favoriteProject: {
         label: "Patronage", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
-        effect: "Add {progress} progress to a project."
+        effect: "Adds {progress} progress to a project that is not finished or frozen; a secret one goes unnamed on the public card."
     },
     /*
      * FEED THE OVERFLOW (Z14, Dawid 29.08) - what replaced the project wipe.
@@ -2824,7 +2833,7 @@ export const DESPAIR_CALLS = {
     feedOverflow: {
         label: "Feed the Overflow", icon: "fa-water", cost: 1, target: "none",
         feedsOverflow: 1,
-        effect: "Pour {overflow} Despair into the overflow that darkens the world."
+        effect: "Pours {overflow} Despair into the Overflow."
     },
     contraband: {
         /*
@@ -2841,7 +2850,7 @@ export const DESPAIR_CALLS = {
          * described and did not buy.
          */
         label: "Contraband", icon: "fa-trash-can", cost: 4, target: "item",
-        effect: "Destroy any one item."
+        effect: "Destroys one item a student carries, or one left on a body; it cannot destroy a Truth Bullet."
     },
     publicAnnouncement: {
         /*
@@ -2863,7 +2872,7 @@ export const DESPAIR_CALLS = {
          */
         label: "Public Announcement", icon: "fa-bullhorn", cost: 6, target: "room",
         gathersEveryone: true, defers: true,
-        effect: "Call everyone to one room at the start of the next time of day."
+        effect: "Calls every living student and every Monocub to a room; they are moved there at the start of the next time of day, or after the Eclipse if one comes first."
     },
     motive: {
         /*
@@ -2888,7 +2897,7 @@ export const DESPAIR_CALLS = {
          * countdown lives on the HUD where the cast can watch it.
          */
         label: "Motive", icon: "fa-envelope", cost: 6, target: "none", setsMotive: true,
-        effect: "Announce a motive: a demand, a deadline in times of day, and the price of ignoring it."
+        effect: "Announces a Motive to everyone: a demand, a deadline in times of day, and the price of missing it. The clock counts the deadline down."
     },
     newRule: {
         /*
@@ -2899,7 +2908,7 @@ export const DESPAIR_CALLS = {
          * nine beside it then, six since E24 - did not suffer for the company.
          */
         label: "New Rule", icon: "fa-gavel", cost: 9, target: "none", announces: true,
-        effect: "Introduce one new killing game rule of your choice."
+        effect: "Announces a new rule of the killing game, written by the Monokuma who makes the Call. It stays on every character sheet for the rest of the season."
     },
     /*
      * BOUNTY (E72 C16, 12.11.2026; the owner's DC27 = 2, DC40; the inventory's row 75). The one Call that is not public:
@@ -2912,8 +2921,7 @@ export const DESPAIR_CALLS = {
         label: "Bounty", icon: "fa-sack-dollar", cost: 1, reward: 1, target: "player", bounty: true,
         // No tile of its own (the owner, 12.11.2026): chosen in Fuel a Monocub's tile (calls.mjs `despairCallsFor`).
         inside: "fuelTheCub",
-        effect: "A secret Bounty: one Hope for the first Monocub whose Confusion hinders the named student. Only the Monocubs "
-            + "and the GMs know; the Despair goes at the next time of day."
+        effect: "A secret Bounty on a living student: {reward} Hope for the first Monocub whose Confusion hinders them. Only the Monocubs and the GMs know. If nobody claims it by the next time of day, it lapses and the Despair goes back to the pool."
     }
 };
 
@@ -2995,7 +3003,9 @@ export const PROSE_NUMBERS = Object.freeze({
     turns: { of: entry => entry?.hinders?.turns, unit: "nextTurnAcc" },
     mult: { of: () => INCIDENT.finishingBlowPerHp },
     actions: { of: () => STARTING.actions, unit: "action" },
-    worth: { of: () => STARTING.experienceValue }
+    worth: { of: () => STARTING.experienceValue },
+    // E57 T7: the Bounty's Hope, which its sentence once wrote as a word ("one Hope").
+    reward: { of: entry => entry?.reward }
 });
 
 /** What a sentence's `{hp}` and `{stress}` read: a Call's `damage`, a crisis action's on a Hope roll, or on a failure its Despair's. */
@@ -3246,7 +3256,7 @@ export const TRAP_TRIGGERS = {
     },
     project: {
         label: "Somebody works on a named project",
-        hint: "Pushing that project forward is what does it - the scaffold, the crane.",
+        hint: "Pushing that project forward is what does it: the scaffold, the crane.",
         icon: "fa-hammer",
         watch: "action",
         actionKey: "project",
@@ -3270,7 +3280,7 @@ export const TRAP_TRIGGERS = {
      */
     stash: {
         label: "Somebody hunts for a hidden stash here",
-        hint: "Any attempt, hit or miss. It answers the looking, not the finding.",
+        hint: "Any attempt, hit or miss: the search itself sets it off.",
         icon: "fa-box-archive",
         watch: "stash"
     },
@@ -3512,20 +3522,20 @@ export const MONOCUB = {
             // where it was 94 (65.3%).
                 thresholds: [
                 { min: 11, grants: "bonus",
-                  help: "You grant the player +1 on their next roll.",
-                  hinder: "You inflict −1 on the player's next roll.",
+                  help: "They get +1 on their next roll.",
+                  hinder: "They get -1 on their next roll.",
                   helpTarget: "Something steadies your hand: +1 on your next roll.",
-                  hinderTarget: "Something rattles you: −1 on your next roll." },
+                  hinderTarget: "Something rattles you: -1 on your next roll." },
                 { min: 16, grants: "advantage",
-                  help: "You grant the player advantage on their next roll.",
-                  hinder: "You inflict disadvantage on the player's next roll.",
+                  help: "They get advantage on their next roll.",
+                  hinder: "They get disadvantage on their next roll.",
                   helpTarget: "Something steadies your hand: advantage on your next roll.",
                   hinderTarget: "Something rattles you: disadvantage on your next roll." }
             ],
             critical: {
-                help: "The player gets the action back.", hinder: "The player wastes the action.",
-                helpTarget: "A moment's luck: you get the action back.",
-                hinderTarget: "A moment's confusion: the action is wasted."
+                help: "They get back the action they spent.", hinder: "They lose an action.",
+                helpTarget: "A moment's luck: you get an action back.",
+                hinderTarget: "A moment's confusion: you lose an action."
             },
             failure: "The attempt fails."
         },
@@ -3666,12 +3676,10 @@ export const MURDER_OPENING = {
         /** Night favours the killer. */
         nightAdvantage: true,
         keyRemnants: { hope: 5, despair: 4, critical: 3 },
-        hope: "The incident begins.",
-        despair: "The incident begins. The victim loses all their Sanity and loses access to "
-            + "Role Reversal for this incident.",
-        critical: "The incident begins.",
-        failure: "No incident, and the victim never learns anything was attempted. The action is "
-            + "spent; the attempt can be made again in another time of day.",
+        hope: "The incident begins, and the killer stays hidden behind a “?” until they reveal themselves or the time of day ends.",
+        despair: "The incident begins, and the victim sees who the killer is. The victim has no Sanity left, and Role Reversal is closed to them for this incident.",
+        critical: "The incident begins, and the killer stays hidden behind a “?” until they reveal themselves or the time of day ends.",
+        failure: "No incident, and the victim never learns of the attempt. The action stays spent; the killer can try again in another time of day.",
         /**
          * The same roll, thrown by somebody who is both sides of it.
          *
@@ -3698,9 +3706,7 @@ export const MURDER_OPENING = {
                 + "else's work.",
             critical: "It is done, and left so cleanly that the room barely argues with any "
                 + "story the class decides to tell about it.",
-            failure: "They could not go through with it. Nobody died, and nobody else ever "
-                + "learns it was considered. The action is spent; it can be attempted again "
-                + "in another time of day."
+            failure: "They could not go through with it. Nobody died, and nobody else learns it was considered. The action stays spent; they can try again in another time of day."
         }
     },
     /**
@@ -3725,12 +3731,10 @@ export const MURDER_OPENING = {
          * roll-draw.mjs) still ask the flag: one value to flip back.
          */
         nightDisadvantage: false,
-        hope: "Something is wrong with this room, and you have no idea why. Spend your "
-            + "Free Move, if you still have it, and you live.",
-        despair: "You work out what has been set up here, and you can tell the others. "
-            + "The project behind it stays active.",
-        critical: "You spot the trap and know whose hands built it.",
-        failure: "You notice nothing. The trap closes.",
+        hope: "The victim senses something is wrong in this room, but not why. Their roll leaves an Incident Remnant (Evident).",
+        despair: "The victim works out what was set up here and can tell the others; the project behind it stays active. Their roll leaves an Incident Remnant (Evident).",
+        critical: "The victim spots the trap and knows who built it. Their roll leaves an Incident Remnant (Evident).",
+        failure: "The victim notices nothing, and the trap closes. The victim cannot take Role Reversal, and nobody who walks in can take Double Role Reversal.",
         /**
          * Noticing leaves a trace of the attempt.
          *
@@ -3765,6 +3769,17 @@ export const INCIDENT = {
 };
 
 /**
+ * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
+ * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
+ * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
+ * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
+ * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
+ * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
+ * whose threshold falls to free as the victim runs out of Health.
+ */
+export const DEFENSE = Object.freeze({ cap: 1 });
+
+/**
  * Crisis actions, by who may take them. Guide pp. 20–25.
  *
  * Every one of these is a roll with three good branches and one bad, and most
@@ -3776,17 +3791,6 @@ export const INCIDENT = {
  * victim takes something of the killer's and makes evidence of it" is a
  * sentence a human has to finish.
  */
-/**
- * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
- * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
- * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
- * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
- * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
- * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
- * whose threshold falls to free as the victim runs out of Health.
- */
-export const DEFENSE = Object.freeze({ cap: 1 });
-
 export const CRISIS_ACTIONS = {
     /**
      * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
@@ -3957,7 +3961,7 @@ export const CRISIS_ACTIONS = {
         remnant: { hope: "evident", despair: "evident", critical: "evident" },
         criticalReinforced: true,
         hope: "You keep your feet. Survive and Role Reversal are open to you now.",
-        despair: "You keep your feet, but only barely - Role Reversal is open to you now.",
+        despair: "You keep your feet, but only barely. Role Reversal is open to you now.",
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
         failure: "Nothing happens. On a Despair failure you lose an extra {drain} Health or Sanity.",
@@ -4185,8 +4189,8 @@ export const CRISIS_ACTIONS = {
          * from the betrayal AFTER the incident, not from two people bleeding
          * inside it. See `afterIncident` in murder-rules.mjs.
          */
-        failure: "Only you get out. The victim stays where they are, and your one free choice "
-            + "is spent - whatever happens next, it happens without you.",
+        failure: "Only you get out. The victim stays where they are, and your one free choice is spent. Whatever "
+            + "happens next, it happens without you.",
         remnant: { hope: "obvious", despair: "evident" },
         // A failed escape leaves a trace too. It used to live under
         // `remnant.failure`, which nothing ever read: the failure branch looks up
@@ -4310,7 +4314,7 @@ export const TRIAL = {
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
      * 17.10.2026: the bullet is chosen AFTER the objection, and the card waits "pending" for it). The floor is the
      * objector's while they choose, and the minute above starts only when the bullet is on the card
-     * (trial-floor.mjs `fillObjection`), so the minute is the minute they argue with it. Past these seconds the
+     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so the minute is the minute they argue with it. Past these seconds the
      * Objection is withdrawn, the floor goes back to the debate and the price stays paid (trial-floor.mjs
      * `advanceIfDue`): an interruption that stopped the room and showed nothing is not free. The owner's default D4.
      */
@@ -4366,7 +4370,9 @@ export const TRIAL = {
          * in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, closed early once everybody
          * stands on one side after `earlyAfterSeconds` (chosen here, so stands left in one zone do not close a question at
          * its first second), then `pauseSeconds` with the count shown before the judgement; a set holds 1 to
-         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form, then 2 x the larger camp's turns of
+         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form (Sides), `conferSeconds` for each camp to talk
+         * apart in a voice room of its own (Camps confer; the owner's 13.11.2026 order, 120 s the coordinator's default),
+         * then 2 x the larger camp's turns of
          * `budgetSeconds` / turns, held to `minTurn`-`maxTurn` (3:2 40 s, 4:3 37.5 s, 8:7 20 s); a thesis up to
          * `thesisLength`. The texts' lengths: `questionLength`, `answerLength`. Chosen from the plan, not measured at a
          * table (LIVE-E73-02).
@@ -4374,7 +4380,7 @@ export const TRIAL = {
         zones: {
             straw: { seconds: 45 },
             dive: { seconds: 60, pauseSeconds: 5, earlyAfterSeconds: 10, maxQuestions: 5 },
-            scrum: { setupSeconds: 45, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
+            scrum: { setupSeconds: 45, conferSeconds: 120, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
             questionLength: 200, answerLength: 80
         }
     },
@@ -4588,30 +4594,6 @@ export const CLEANUP = {
     remnantType: "resolution",
 
     /**
-     * G-20: what a critical may turn a trace INTO, instead of erasing it.
-     *
-     * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
-     * already on the map: what kind of thing it is, and how easy it is to see.
-     * Erasing is still on the table and is still usually stronger - nothing at
-     * all beats a decoy. What this buys is the option to leave something that
-     * argues for the wrong story rather than a room that has been scrubbed
-     * suspiciously clean.
-     *
-     * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
-     * here, a critical would turn any piece of evidence into any other - and
-     * the four types left out are left out for one reason each:
-     *
-     *   key       the GM placed it for the case to be solvable at all
-     *   final     the same, for the Mastermind
-     *   autopsy   issued from the GM panel, never found in a room
-     *   neutral   a state a Truth Bullet is in, not a kind of trace
-     *
-     * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
-     * business - its own Stage 6 action, with its own roll and its own price -
-     * and folding it in here would make a critical clean-up strictly better than
-     * an action somebody has to spend Sanity on.
-     */
-    /**
      * TRANSFORM AS AN ACTION OF ITS OWN (Z5), not only a critical's reward.
      *
      * The season run's verdict on Stage 6 was that erasing is a bad bet and
@@ -4675,20 +4657,35 @@ export const CLEANUP = {
         limits: { name: 60, text: 400 }
     },
 
+    /**
+     * G-20: what a critical may turn a trace INTO, instead of erasing it.
+     *
+     * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
+     * already on the map: what kind of thing it is, and how easy it is to see.
+     * Erasing is still on the table and is still usually stronger - nothing at
+     * all beats a decoy. What this buys is the option to leave something that
+     * argues for the wrong story rather than a room that has been scrubbed
+     * suspiciously clean.
+     *
+     * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
+     * here, a critical would turn any piece of evidence into any other - and
+     * the four types left out are left out for one reason each:
+     *
+     *   key       the GM placed it for the case to be solvable at all
+     *   final     the same, for the Mastermind
+     *   autopsy   issued from the GM panel, never found in a room
+     *   neutral   a state a Truth Bullet is in, not a kind of trace
+     *
+     * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
+     * business - its own Stage 6 action, with its own roll and its own price -
+     * and folding it in here would make a critical clean-up strictly better than
+     * an action somebody has to spend Sanity on.
+     */
     transform: {
         types: ["faint", "prep", "incident", "resolution"],
         visibilities: ["obvious", "evident", "subtle", "hidden"]
     },
 
-    /**
-     * Both tools are destroyed when Stage 6 closes, not per attempt.
-     *
-     * The crime tool half is the guide's: a weapon that was used in an incident
-     * is gone. The cleaning tool follows it for the
-     * same reason - one crime scene, one set of gloves - rather than being spent
-     * on each individual wipe, which would make a Tier 3 kit worth exactly one
-     * roll and the carry limit of two meaningless.
-     */
     /**
      * The crime tool goes when Stage 6 closes. The cleaning tool does NOT.
      *
@@ -4719,8 +4716,9 @@ export const CLEANUP = {
      *   misleadingTrail  leave something that points at somebody else.
      *   moveBody         the body is evidence too, and it can be carried.
      *
-     * All three cost 1 Sanity and need the killer in the room, per
-     * RESOLUTION_STRESS_COST and `isCleaner`.
+     * In the killer's own clean-up all three cost 1 Sanity and need the killer in the room, per
+     * RESOLUTION_STRESS_COST and `isCleaner`; anybody else's Tamper costs 1 action and no Sanity (E64:
+     * cleanup.mjs `tamperPriceSkip`; the handbooks line's reading, 14.11.2026).
      */
     actions: {
         eraseTrace: {
@@ -4807,12 +4805,12 @@ export const CLEANUP = {
      * than the wipe alone.
      */
     conceal: {
-        label: "Cover what you are doing",
+        label: "Hide what you are doing",
         trait: "shadow",
         threshold: 16,
         success: "Nobody works out what you are doing. You may lie freely about it.",
-        successWithDespair: "Nobody works out what you are doing, but it costs you.",
-        failure: "The others see roughly what you are up to.",
+        successWithDespair: "Nobody works out what you are doing, but it costs you Sanity.",
+        failure: "The others in the room see you are up to something. It costs you Sanity, more with Despair, and the clean-up goes on.",
         stress: { successDespair: 1, failureHope: 1, failureDespair: 2 },
         refundStress: { critical: 1 },
         aloneNote: "Nobody else is in the room, so there is nothing to hide."
@@ -4945,6 +4943,26 @@ export const SFX_CATEGORIES = {
 
 
 /**
+ * How far a repeated sound is allowed to wander.
+ *
+ * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
+ * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
+ * where the second number does its work.
+ *
+ * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
+ * but it is not enough - it sounds a bit like there are two versions of the
+ * sound, they differ so little." The number went to 0.14 and the shape of the
+ * draw changed with it, because a wider spread alone would not have answered
+ * that sentence: half of a uniform draw lands in the middle and is inaudible.
+ *
+ * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
+ * lot for anything with a pitch and nothing at all for a click - which is what
+ * the eleven events that bend actually are. A GM who maps a tonal sting to one
+ * of them will hear it wander against the music; the answer then is to leave
+ * that event out of the bending list, not to flatten the eleven.
+ *
+ * WHAT CAME BEFORE (the note that stood here first, at 0.08; the numbers above replaced it):
+ *
  * How far a varied sound may bend, as a fraction of its normal rate.
  *
  * ONE KNOB, NOT THREE. "Pitch and speed" sound like two controls and are one:
@@ -4982,30 +5000,11 @@ export const SFX_CATEGORIES = {
  * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
  * reasoning settles - which is the lesson of the paragraph this one replaced.
  */
-/**
- * How far a repeated sound is allowed to wander.
- *
- * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
- * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
- * where the second number does its work.
- *
- * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
- * but it is not enough - it sounds a bit like there are two versions of the
- * sound, they differ so little." The number went to 0.14 and the shape of the
- * draw changed with it, because a wider spread alone would not have answered
- * that sentence: half of a uniform draw lands in the middle and is inaudible.
- *
- * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
- * lot for anything with a pitch and nothing at all for a click - which is what
- * the eleven events that bend actually are. A GM who maps a tonal sting to one
- * of them will hear it wander against the music; the answer then is to leave
- * that event out of the bending list, not to flatten the eleven.
- */
 export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };
 
 export const SFX_SLIDERS = {
     sound: { label: "Sound", hint: "The sound effects - windows, chat, doors, the trial floor. Not the music." },
-    music: { label: "Music", hint: "The playlists. Foundry's own playlist volume, not a second one beside it.", proxiesFoundryMusic: true }
+    music: { label: "Music", hint: "The playlists. This is Foundry's own playlist volume.", proxiesFoundryMusic: true }
 };
 
 /** The sliders this module actually stores a volume for - see above. */
@@ -5097,7 +5096,7 @@ export const SFX_EVENTS = {
      * One event, and the only one in the file with a rule of its own. */
     safeword: {
         label: "The safeword",
-        hint: "Somebody stopped the scene. Heard by everyone whatever the Sound slider says, at Foundry's Interface volume, from their first click on the page after it loads; the card shows on every screen either way. Make it sound like nothing else in the game.",
+        hint: "Somebody stopped the scene. Everyone hears it whatever the Sound slider says, at Foundry's Interface volume, after their first click on the page. Everyone sees the card regardless. Give it a file unlike any other.",
         category: "safety",
         ignoresVolume: true
     },
@@ -5105,7 +5104,7 @@ export const SFX_EVENTS = {
     /* ---- Interface ------------------------------------------------------ */
     windowOpen: {
         label: "Window opens",
-        hint: "Any window this module draws, and a character sheet. Heard by whoever opened it.",
+        hint: "One of this module's windows, a character sheet, or an item sheet opens. Heard by whoever opened it.",
         category: "ui",
         vary: true
     },
@@ -5117,14 +5116,14 @@ export const SFX_EVENTS = {
     },
     windowButton: {
         label: "Button in a window",
-        hint: "A button pressed anywhere except a character sheet. Stays quiet when the press opens or closes a window - you hear the window instead.",
+        hint: "A button pressed in any window but a character sheet; disabled buttons, header buttons, and the Sound window's Test stay silent. A press that opens or closes a window plays the window's sound instead.",
         category: "ui",
         yieldsTo: ["windowOpen", "windowClose"],
         vary: true
     },
     sheetButton: {
         label: "Button on a character sheet",
-        hint: "The sheet's own controls - actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.",
+        hint: "A press on a character sheet's own controls, such as its actions, items, and pips. A press that opens or closes a window plays the window's sound instead.",
         category: "ui",
         yieldsTo: ["windowOpen", "windowClose"],
         vary: true
@@ -5139,19 +5138,19 @@ export const SFX_EVENTS = {
     /* ---- Chat ----------------------------------------------------------- */
     chatSend: {
         label: "Message sent",
-        hint: "Heard by the sender, on the browser that sent it.",
+        hint: "A messenger message is sent. Heard by the sender alone, unless their Messenger sounds are off.",
         category: "chat",
         vary: true
     },
     chatReceive: {
         label: "Message arrives",
-        hint: "Heard by everyone the thread belongs to - its player and every GM - and never by the sender.",
+        hint: "A message lands in a player's thread. Heard by that player and every GM, never by the sender, and not with Messenger sounds off.",
         category: "chat",
         vary: true
     },
     gmAsk: {
         label: "A player calls for a GM",
-        hint: "Heard by the GMs. The request lands in a thread, and a thread is easy to miss in the middle of a busy time of day.",
+        hint: "A card asks the GMs for a ruling or an answer. Heard by the GMs instead of the Message arrives sound.",
         category: "chat"
     },
     hopeCall: {
@@ -5161,40 +5160,40 @@ export const SFX_EVENTS = {
     },
     despairCall: {
         label: "Despair Call",
-        hint: "A Monokuma spends one. Heard by whoever it lands on, and by the whole table when it is announced publicly.",
+        hint: "A Monokuma spends a Despair Call. Heard by the whole table.",
         category: "chat"
     },
     newRule: {
         label: "A new rule",
-        hint: "A Monokuma adds one to the handbook. Heard by the whole table.",
+        hint: "A rule joins Monokuma's rules, from a Monokuma's New Rule Call or from a Blackened who got away with it at a trial. Heard by the whole table.",
         category: "chat"
     },
     motive: {
         label: "A motive",
-        hint: "A Monokuma announces one, and again when its deadline arrives. Heard by the whole table - a motive nobody heard is not a motive.",
+        hint: "A Monokuma announces a motive, and again when its deadline comes. Heard by the whole table.",
         category: "chat"
     },
     publicAnnouncement: {
         label: "An assembly is called",
-        hint: "Everyone is summoned to one room for the next time of day, the order is called off, or the assembly is held. Heard by the whole table.",
+        hint: "An assembly in one room is called for the next time of day, called off, or held. Heard by the whole table.",
         category: "chat"
     },
 
     /* ---- World ---------------------------------------------------------- */
     roomDiscovered: {
         label: "New room discovered",
-        hint: "A room entered for the first time. Heard by the student who walked in.",
+        hint: "A student walks into a room for the first time. Heard by their player, and by the GMs when the class first finds it. Silent with the room fog off.",
         category: "world"
     },
     roomEntered: {
         label: "Room entered",
-        hint: "A room already on the map. Heard by whoever crossed the border.",
+        hint: "A character walks into a room they already know. Heard by whoever plays that character. Silent with the room fog off.",
         category: "world",
         vary: true
     },
     refused: {
         label: "Crossing refused",
-        hint: "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried - the one mistake a player makes regularly.",
+        hint: "A wall, a locked door, a sealed room, or a rule sends a token back. Heard by whoever moved it, also when a GM sends it back.",
         category: "world",
         vary: true
     },
@@ -5205,7 +5204,7 @@ export const SFX_EVENTS = {
     },
     wallBreached: {
         label: "A wall is breached",
-        hint: "A Breach the Wall is finished. Heard by the students in the two rooms it joins and in the rooms beside them.",
+        hint: "A Breach the Wall is finished. Heard by the players of the students in the two rooms it joins and in the rooms beside them, except the builder's.",
         category: "world"
     },
     actionSpent: {
@@ -5216,50 +5215,50 @@ export const SFX_EVENTS = {
     },
     projectDone: {
         label: "A project is finished",
-        hint: "The bar filled. Heard by whoever proposed it and by the GMs, never publicly, because a project can be secret - a repair and an armed trap have louder announcements of their own.",
+        hint: "A project's bar fills. Heard by the player who proposed it, or else by whoever filled it. Not for a repair or a trap, which have cards of their own.",
         category: "world"
     },
     /* The owner's "Krytyk" slot (E48 K7; amend [14], 10.11): the key it always had, so a file mapped to it stays mapped; its
        words say when it plays now that the critical's notice cuts in (popup.mjs `cutCritical`). */
     critical: {
         label: "Critical",
-        hint: "Plays when a roll is a critical, as its notice cuts in. Heard by whoever rolled it.",
+        hint: "Plays when an action roll is a critical, as its notice cuts in. Heard by whoever rolled it.",
         category: "world"
     },
     searchNothing: {
         label: "A search finds nothing",
-        hint: "Heard by the searcher. The only common failure in the game that is otherwise completely silent.",
+        hint: "A Search roll misses, or a Find Passage finds no passage. Heard by the player who searched.",
         category: "world",
         vary: true
     },
     observeFail: {
         label: "Observe fails",
-        hint: "Heard by the observer. It costs Sanity and looks exactly like a success until the card is read.",
+        hint: "An Observe misses. Heard by the observer's player.",
         category: "world"
     },
     projectFound: {
         label: "A secret project is noticed",
-        hint: "Heard by the student who spotted it and by the GMs. A non-obvious Observe found something in the room that somebody had been keeping to themselves - a rarer event than a trace, and one the table should hear land.",
+        hint: "An Observe that looks past the obvious uncovers a secret project in the room. Heard by the observer's player.",
         category: "world"
     },
     sabotageFailed: {
         label: "Sabotage fails",
-        hint: "Heard by the saboteur, and only when nobody saw - a failed sabotage still leaves its trace, so this is evidence bought for no gain rather than nothing happening.",
+        hint: "A Sabotage misses. Heard by the saboteur's player, unless Sabotage witnessed plays instead.",
         category: "world"
     },
     sabotageSeen: {
         label: "Sabotage witnessed",
-        hint: "Despair with somebody else in the room. Heard by the whole table, because the whole table is told.",
+        hint: "A Sabotage rolls with Despair while somebody else is in the room. Heard by the players of everyone in that room.",
         category: "world"
     },
     toolBroke: {
-        label: "A tool breaks",
-        hint: "Heard by its owner. It changes the next roll, so it has to be noticed at the moment it happens.",
+        label: "A tool wears or breaks",
+        hint: "A Despair wears down or breaks the tool a roll used, or a single-use thing is used up. Heard by its owner's player.",
         category: "world"
     },
     stolen: {
-        label: "Something was stolen from you",
-        hint: "Heard by the victim, and only when the thief was clumsy enough to be noticed.",
+        label: "A student's things were gone through",
+        hint: "A student notices a Palm or a Frisk on them, or finds their stash disturbed. Heard by their player.",
         category: "world"
     },
     eclipseStart: {
@@ -5274,31 +5273,30 @@ export const SFX_EVENTS = {
     },
     despairOverflow: {
         label: "Despair overflows",
-        hint: "Heard by the whole table, when the spilled Despair reaches its threshold and "
-            + "the world gets worse for one time of day.",
+        hint: "The spilled Despair reaches the Overflow threshold and draws an effect. Heard by the whole table.",
         category: "world"
     },
 
     /* ---- Incident ------------------------------------------------------- */
     death: {
         label: "A student dies",
-        hint: "Heard by the GMs and by everyone whose character was part of the incident. Nobody else learns of a death this way.",
+        hint: "Heard by the GMs and the players in the incident, also when the GMs keep the death secret. The dead student's player hears Death fade instead, when it plays for them. An execution has its own sound.",
         category: "incident"
     },
     deathFade: {
         label: "Death fade",
-        hint: "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction.",
+        hint: "Heard only by the dead student's player, as their screen fades out. With no file of its own it plays the sound of A student dies. Not for a GM's correction or an execution.",
         category: "incident",
         fallsBackTo: "death"
     },
     bodyFound: {
         label: "A body is found",
-        hint: "Heard by the whole table. The moment the chapter changes genre.",
+        hint: "Heard by the whole table when the GM announces a body. Also by a student's player alone, once per body, when the student walks in on it outside an Eclipse and had no part in that death.",
         category: "incident"
     },
     cleanupFailed: {
         label: "Cleaning up fails",
-        hint: "Heard by the killer. The price is spent either way, and a failure leaves a Tamper Remnant of its own beside the one they were scrubbing.",
+        hint: "A Tamper, Erase a Trace, or Reshape a Trace roll misses. Heard by the player who rolled it.",
         category: "incident"
     },
     breakdown: {
@@ -5317,47 +5315,47 @@ export const SFX_EVENTS = {
         category: "incident"
     },
     meddle: {
-        label: "A Monocub interferes",
-        hint: "Heard by the Monocub and by whoever they landed it on, and it says nothing about WHICH Monocub. The only thing that changes your next roll without you having done anything, which is why the target needs telling.",
+        label: "Confusion",
+        hint: "A Monocub's Confusion takes hold. Heard by the Monocub's player and the target's; the target is not told which Monocub.",
         category: "incident"
     },
     yourTurn: {
-        label: "Your turn in an incident",
-        hint: "Heard by whoever is up. An incident is turn-based and the only other signal is a redrawn HUD.",
+        label: "Your turn",
+        hint: "A student's turn comes up in an incident, a Testimony, a Panic Round, or a Closing Argument. Heard by their player.",
         category: "incident"
     },
     truthBullet: {
         label: "Truth Bullet found",
-        hint: "Heard by whoever found it.",
+        hint: "A new Truth Bullet lands in a student's inventory. Heard by their player.",
         category: "incident"
     },
     analyzeHit: {
         label: "Evidence identified",
-        hint: "A successful Analyze. Heard by the student who ran it.",
+        hint: "An Analyze identifies a Truth Bullet. Heard by the player who ran it.",
         category: "incident"
     },
     analyzeMiss: {
-        label: "Analysis fails",
-        hint: "Heard by the student who ran it. The bullet is locked until the next chapter, the longest-lasting consequence any failed roll in this game has.",
+        label: "Analyze fails",
+        hint: "An Analyze misses, and nobody can analyze that Truth Bullet again this chapter. Heard by the player who ran it.",
         category: "incident"
     },
     /* E94 C2: the start-of-day board's chime (MK-R2 #4), played once as the board rises on each browser. */
     dayStart: {
         label: "Start of the day",
-        hint: "The start-of-day board rises. Heard by the whole table, not with the sequences off.",
+        hint: "The start-of-day board rises. Heard by the whole table, but not with Full-screen sequences off.",
         category: "incident"
     },
     /* E94 C3: the end-of-day board's chime, played once as the board rises, before the start-of-day board. */
     dayEnd: {
         label: "End of the day",
-        hint: "The end-of-day board rises. Heard by the whole table, not with the sequences off.",
+        hint: "The end-of-day board rises. Heard by the whole table, but not with Full-screen sequences off.",
         category: "incident"
     },
     /* E62 C2: one flash of the Investigation's entry (MK-R1 #11, MK-R3): played at each of its six onsets, its pitch
        varied so the six do not sound alike; none under reduced motion or with the table's sequences off. */
     paneFlash: {
         label: "Pane flash",
-        hint: "The panes flash as the Investigation begins. Heard by the whole table.",
+        hint: "The panes flash as the Investigation begins. Heard by the whole table, but not with Full-screen sequences off or under reduced motion.",
         category: "incident",
         vary: true
     },
@@ -5365,12 +5363,12 @@ export const SFX_EVENTS = {
        frame 1); played on each browser from the phase's own event by sequence.mjs, not from a card. */
     trialStart: {
         label: "The Class Trial starts",
-        hint: "The Class Trial's title lands. Heard by the whole table, also with the sequences off.",
+        hint: "The Class Trial's title lands. Heard by the whole table, even with Full-screen sequences off.",
         category: "incident"
     },
     debateOpen: {
         label: "Nonstop Debate opens",
-        hint: "Heard by the whole table. It changes what everyone's Truth Bullet button does.",
+        hint: "The trial floor opens for a Nonstop Debate. Heard by the whole table.",
         category: "incident"
     },
     objection: {
@@ -5380,17 +5378,17 @@ export const SFX_EVENTS = {
     },
     closingStart: {
         label: "Closing Argument",
-        hint: "The Closing Argument opens: who will sum up the case? Heard by the whole table.",
+        hint: "The Closing Argument opens and waits for someone to sum up the case. Heard by the whole table.",
         category: "incident"
     },
     panicStart: {
         label: "Panic Round",
-        hint: "A Panic Round starts: everyone in turn, a few seconds each. Heard by the whole table.",
+        hint: "A Panic Round starts. Heard by the whole table.",
         category: "incident"
     },
     keyReveal: {
         label: "Monokuma's Reveal",
-        hint: "Monokuma reveals a Key Remnant nobody found. Heard by everyone taking part in the trial.",
+        hint: "Monokuma reveals a Key Remnant nobody found. Heard by every player in the trial who gets its Truth Bullet.",
         category: "incident"
     },
     /* The zone modes (E73 C2-C4; the owner's 11.10: every new event a Sound row or a written reason). */
@@ -5411,18 +5409,18 @@ export const SFX_EVENTS = {
     },
     zoneEntered: {
         label: "Zone entered",
-        hint: "Your token enters Zone A or Zone B during a Straw Poll, Logic Dive or Scrum Debate. Heard by whoever crossed. With no file of its own it plays the Room entered sound.",
+        hint: "A student enters Zone A or Zone B during a Straw Poll, Logic Dive, or Scrum Debate. Heard by their player. With no file of its own it plays the Room entered sound.",
         category: "incident",
         vary: true
     },
     rebuttal: {
         label: "Rebuttal",
-        hint: "The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.",
+        hint: "A Rebuttal starts. Heard by the whole table. When an Overrule brings one back, the Overrule's sound plays instead.",
         category: "incident"
     },
     overrule: {
         label: "Overrule",
-        hint: "The GM overrules an Objection: the trial goes back to where it was, the price stays. Heard by the whole table.",
+        hint: "The GM overrules an Objection and the trial goes back to where it was. Heard by the whole table.",
         category: "incident"
     },
     voteOpen: {
@@ -5434,13 +5432,13 @@ export const SFX_EVENTS = {
        E61 C2, beside the cut-in's own slot below (the plan's Q-E61-7 default; the key stays, so a saved map keeps its file). */
     verdict: {
         label: "The vote's result",
-        hint: "Heard by the whole table when the vote is counted. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        hint: "Heard by the whole table when the vote is counted.",
         category: "incident"
     },
     /* E61 C2: the verdict's cut-in, the stamp's hit (MK-R1 #10: one slot, the stamp part of it), from the GM's verdict card. */
     verdictCut: {
         label: "Verdict cut-in",
-        hint: "The verdict's stamp lands. Heard by the whole table, also with the sequences off.",
+        hint: "The verdict's stamp lands. Heard by the whole table, even with Full-screen sequences off.",
         category: "incident"
     },
     execution: {
@@ -5461,7 +5459,7 @@ export const SFX_EVENTS = {
     },
     levelUp: {
         label: "Level Up",
-        hint: "Heard by the survivor it happened to. The only reward in the whole game.",
+        hint: "A student gets a Level Up. Heard by their player.",
         category: "incident"
     }
 };
@@ -5592,6 +5590,7 @@ export const DRPG = {
     PRICE_CHAINS,
     PROJECT_OBSERVE,
     PROSE_NUMBERS,
+    RECIPIENT_EVERYONE,
     RESOLUTION_HEALTH_COST,
     ROOM_IMAGE_LIMITS,
     ROOM_OWNER_FLAG,

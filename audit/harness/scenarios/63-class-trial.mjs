@@ -430,7 +430,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("the vote window's privacy note is true of the GMs' store: gm2 keeps who chose whom after the count, no player's browser holds a row or the store's setting, and the note says so and that the table sees the totals (C14)",
         J(privacy.gm2.rows) === J(chose) && privacy.gm2.kept === true
             && J(privacy.players) === J(Array(4).fill({ rows: [], kept: false }))
-            && ["who chose whom", "no player's browser", "the totals"].every(words => privacy.gm2.note.includes(words)), J(privacy));
+            && ["Who voted for whom", "stays with the GMs", "the totals"].every(words => privacy.gm2.note.includes(words)), J(privacy));
 
     /* ------------------------------ F. the verdict's window ------------------------------ */
 
@@ -785,13 +785,14 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         // game waits on since E23 C5a (`drpg-prompt`, kept above the sheet: stacking.mjs).
         J(picked.shown?.classes) === J(["drpg-advance", "drpg-panel", "drpg-prompt", "drpg-ui"]) && picked.shown?.legends === 0 && picked.shown?.forLine === false
             && picked.shown?.reason?.length > 0 && picked.shown.intro.includes(picked.shown.reason), J({ shown: picked.shown }));
-    /* E10 C14 (S13-26): the privacy note's "until the next vote is opened", against the store - the second vote's open
+    /* E10 C14 (S13-26): the privacy note's "until the next vote opens" (its words since the texts-e71 early pass; E71
+       line C, 14.11.2026, read them here), against the store - the second vote's open
        dropped every row of the first (round 1), and its own rows are the ones gm2 keeps now. */
     const nextVote = await gm2.eval(`const { ballotStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
         return { rounds: [...new Set(Object.values(ballotStore.entries() ?? {}).map(row => row?.round ?? null))].sort(),
             note: ${text("DRPG.Vote.privacyNote")} };`);
     verdict("the next vote's open dropped the first vote's rows from gm2's copy - it keeps round 2's alone - as the privacy note says (C14)",
-        J(nextVote.rounds) === J([2]) && nextVote.note.includes("until the next vote is opened"), J(nextVote));
+        J(nextVote.rounds) === J([2]) && nextVote.note.includes("until the next vote opens"), J(nextVote));
 
     /* ------------------------------ every client clean, every phase measured ------------------------------ */
 

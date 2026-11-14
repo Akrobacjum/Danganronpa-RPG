@@ -258,7 +258,8 @@ export async function dropRemnant(actor, {
         const { whisperToGms } = await import("./utils.mjs");
         await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Remnant.noTokenGm", {
             actor: foundry.utils.escapeHTML(actor?.name ?? "?"),
-            action: foundry.utils.escapeHTML(action)
+            // The action's name, as the Remnant card's Action row says it; the id stood here until the needsCode line (R6915).
+            action: foundry.utils.escapeHTML(actionLabelOf(action) ?? action)
         })}</p>` });
         return null;
     }
@@ -401,15 +402,9 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
 
     const {
         x, y, scene = null, sceneId = null, type = "prep", visibility = "evident",
-        faint = false, reinforced = false, note = "", action = "manual",
-        subject = "", pointsAt = null, tiedToCrime = null,
-        sourceActor = null, sourceName = "",
-        room = null, chapter = null, day = null, timeOfDay = null,
-        // The opaque identity of the object this trace handed over, when it
-        // handed one over. GM-side only, like everything else in the ledger:
-        // it is how `tieTraceForItem` finds this trace again if that object
-        // turns out to be the murder weapon.
-        itemIdentity = null
+        faint = false, action = "manual",
+        subject = "", tiedToCrime = null,
+        sourceActor = null, sourceName = ""
     } = data;
 
     const target = scene ?? (sceneId ? game.scenes.get(sceneId) : null);
@@ -1204,7 +1199,7 @@ export async function clearSeasonRemnants() {
 }
 
 /** What the reset window counts of the traces: the trace tokens on every scene (season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonRemnants() {
+function tallySeasonRemnants() {
     const n = game.scenes.reduce((sum, scene) => sum + scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).length, 0);
     return [plural("DRPG.Season.resetRemnants", { n })];
 }
@@ -1427,7 +1422,7 @@ export function traceLabel(entry = null) {
  * @param {boolean} [options.propagate=true]  `false` leaves the Truth Bullets already copied
  *   from the trace as their finders found them: the ledger takes the patch, and the token is
  *   still kept neutral (`propagatePublic`). A killer's reshape, approved, and the Reroll that
- *   takes a clean-up back pass it (cleanup.mjs `reshapeTrace`, `undoLastCleanup`; E09 C9).
+ *   takes a clean-up back pass it (cleanup-reshape.mjs `reshapeTrace`, cleanup.mjs `undoLastCleanup`; E09 C9).
  *   `true` sends the copies the fields this write changed, and nothing else (E09 fix r2-G1).
  */
 export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true } = {}) {
@@ -2127,7 +2122,6 @@ export async function reportRemnants(scene = null) {
  *   Reinforced     the killer cannot remove it at all
  * ========================================================================== */
 
-/** Set the sweep-related flags on one Remnant token. GM only. */
 /**
  * The trace that handed over this object is part of the murder now.
  *
@@ -2180,6 +2174,9 @@ export async function tieTraceForItem(identity) {
  * The tie is left alone when it is left OUT (`undefined`), and written as given otherwise - `null`
  * included, which is the Investigation Dashboard's "-": a GM taking a verdict back (E09 C4). The
  * other three keep `null` for "leave alone"; none of them has a third state.
+ */
+/**
+ * Set the sweep-related flags on one Remnant token. GM only.
  */
 export async function setRemnantFlags(tokenDoc,
     { faint = null, tiedToCrime, reinforced = null, type = null, visibility = null } = {}) {
@@ -2366,7 +2363,7 @@ export async function tieChapterTraces(chapter, { waitFor = null } = {}) {
  * So a tie to the crime written while the death it tells of is not the table's says in its ledger
  * row what it waits for (`tieWaitsFor`): the running fight (`fightKey`) or a death the GMs keep
  * (the victim's id). A copy made meanwhile is undecided (`tieForCopy`). A kept death takes the
- * fight's waits over (chapter.mjs `incidentVictimDied`, `handTiesOn`) and its publication sends
+ * fight's waits over (death.mjs `incidentVictimDied`, chapter.mjs `handTiesOn`) and its publication sends
  * them (`publishDeath`, `publishTiesFor`); a death made public at once sends the fight's; the close
  * sends what a fight left with no death (murder-rules.mjs `closeIncident`; 1.2.70 sent it sooner,
  * at the swing), and a revival hands a kept death's back to the fight still running, or sends
@@ -2453,13 +2450,6 @@ export async function handTiesOn(from, to) {
     return rows.length;
 }
 
-/**
- * Table of every Remnant on the scene, with its three flags editable.
- *
- * Deliberately a table rather than a per-token control: the question the GM is
- * actually asking at chapter end is "which of these survive", and that is a
- * question about the whole scene at once.
- */
 /**
  * Count the Faint traces that would go, confirm, then clear them.
  *
@@ -2710,13 +2700,12 @@ export async function migrateRemnants() {
         }
     }
 
-    const line = `Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
+    log(`Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
         + `${counts.already} already done, ${counts.noRow} left alone (no ledger row on this browser), `
         + `${carried.length} Faint Prep promotion(s) carried${carried.length ? ` (${carried.join("; ")})` : ""}, `
         + `${notCarried.length} not carried over a later correction${notCarried.length ? ` (${notCarried.join("; ")})` : ""}, `
         + `${stripped} tokens stripped, ${publicSeeded} \`public\` record(s) backfilled, `
-        + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`;
-    log(line);
+        + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`);
     if (carried.length) {
         warn(`Faint Prep promotions carried from their tokens into the ledger (a GM who had set one back on purpose `
             + `sets it again in the Investigation dashboard): ${carried.join("; ")}`);
@@ -2731,8 +2720,12 @@ export async function migrateRemnants() {
         warn(`Traces left as they were - answer-key flags, no type, and no ledger row on this browser to carry them into: ${leftAlone.join("; ")}`);
     }
     if (failed.length) warn(`Remnants still carrying their answer key after the migration: ${failed.join("; ")}`);
-    if (carried.length || notCarried.length || leftAlone.length || failed.length) ui.notifications.warn(line);
-    else ui.notifications.info(line);
+    /* The GM's toast in the GM's language (E57 T13, 14.11.2026): the four counts, and how many of the tokens the console's
+       lines above name; the English line, with every token's details, stays the console's. */
+    const toast = game.i18n.format("DRPG.Remnant.migrated", { moved: counts.moved, filled: counts.filled, kept: counts.kept, already: counts.already });
+    const look = carried.length + notCarried.length + leftAlone.length + failed.length;
+    if (look) ui.notifications.warn(`${toast} ${plural("DRPG.Remnant.migratedCheck", { n: look })}`);
+    else ui.notifications.info(toast);
     return { ...counts, stripped, failed, carried, notCarried, leftAlone, publicSeeded, deltaCleaned };
 }
 

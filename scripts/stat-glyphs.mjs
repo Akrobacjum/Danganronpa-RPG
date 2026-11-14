@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Each statistic (config.mjs TRAITS: Eye, Head, Body, Leg, Hand, Shadow) wears a glyph wherever the six are listed by
  * name: in the wrench's window before its name (dh-settings.mjs, the Details tab's six fields), and on the character
- * sheet's header inside Daggerheart's mark at the left of its name (sheet.mjs `markTraitGlyphs`, the owner's answer of
+ * sheet's header inside Daggerheart's mark at the left of its name (sheet-header.mjs `markTraitGlyphs`, the owner's answer of
  * 12.11.2026). The glyph does not replace the name; it is decorative (`aria-hidden`, `inert`: the name beside it is what
  * a screen reader reads); nothing stored, no field name and no value changes.
  *
@@ -25,7 +25,7 @@
 import { TRAITS, TRAIT_BY_DH } from "./config.mjs";
 
 /** The class every statistic's glyph wears, beside its Font Awesome class. */
-export const STAT_GLYPH_CLASS = "drpg-stat-glyph";
+const STAT_GLYPH_CLASS = "drpg-stat-glyph";
 
 /** Each statistic's Font Awesome class: what Monokuma Legacy draws (Stained Glass masks it with `stat-<key>`). */
 export const STAT_ICONS = Object.freeze({
@@ -38,7 +38,7 @@ export function statOfTrait(dhKey) {
 }
 
 /** A new glyph element for the statistic `key`, in `doc`. */
-export function statGlyph(key, doc = document) {
+function statGlyph(key, doc = document) {
     const i = doc.createElement("i");
     i.className = `fa-solid ${STAT_ICONS[key]} ${STAT_GLYPH_CLASS}`;
     i.dataset.drpgStat = key;

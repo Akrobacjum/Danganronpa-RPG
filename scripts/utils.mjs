@@ -1,13 +1,20 @@
 /**
  * Danganronpa RPG - shared helpers.
+ *
+ * E54 (the plan's W1): `windowWidthFor` and `eachPane` live in windows.mjs, re-exported here; this file keeps the rest.
  */
 
 import { MODULE_ID, epochClock, fillProse } from "./config.mjs";
 import { SETTINGS, pageLanguage, documentLanguage } from "./settings.mjs";
+// E57 C3: config prose in the world's language - the tables and the English kept of them; its own line.
+import * as CONFIG_SOURCE from "./config.mjs";
+import { configEnglish, configProseOf } from "./i18n-config.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 import { cardMarkup, chatCard } from "./chat-card.mjs";
+export { windowWidthFor, eachPane } from "./windows.mjs";
+
 // A card's warning line, for the procedures that take utils.mjs alone (steps.mjs, R161).
 export { cardWarn } from "./chat-card.mjs";
 
@@ -149,13 +156,22 @@ const worldFiles = new Map();
  * has only its Polish), this is `game.i18n.format` in the page's language. `{name}` placeholders are filled from
  * `data` as `game.i18n.format` fills them; a placeholder `data` lacks stays as written.
  *
- * NO SITE CALLS IT IN E66. The helper and its setting are D196's, pinned here; the documents that should be written
- * through it - S02-74, config prose written into world documents in the creating client's language - are E57's
- * (row 1.2.124), which switches them over. The interface windows, cards and the sheet stay in each browser's own
- * language and never go through it.
+ * E57 C3 (14.11.2026; S02-74) switched the documents over: an item's tier line (inventory.mjs `tierDescription`, which
+ * `grantItem` and the tier 3 rewrite write). CONFIG PROSE, `DRPG.Config.*`, is read from config.mjs itself: lang/en.json
+ * holds none of it, so `game.i18n` on an English page answers the raw key, and a Polish page has swapped the tables to
+ * Polish in place. In the page's language it is the tables as they stand; in English, the English i18n-config.mjs kept
+ * when the page swapped it (`configEnglish`), or the table where it was never swapped; in another language, that
+ * language's file, as for any key. `lang` (E57 C3) stands in for the setting where a caller or a test names one. The
+ * interface windows, cards and the sheet stay in each browser's own language and never go through it.
  */
-export async function worldLocalize(key, data = {}) {
-    const lang = documentLanguage();
+export async function worldLocalize(key, data = {}, { lang = documentLanguage() } = {}) {
+    const fill = template => template.replace(/{[^}]+}/g, k => (Object.hasOwn(data ?? {}, k.slice(1, -1)) ? String(data[k.slice(1, -1)]) : k));
+    const config = String(key).startsWith("DRPG.Config.");
+    const here = config ? configProseOf(CONFIG_SOURCE, key) : undefined;
+    if (config && typeof here === "string") {
+        if (!lang || lang === pageLanguage()) return fill(here);
+        if (lang === "en") return fill(configEnglish(key) ?? here);
+    }
     if (!lang || lang === pageLanguage()) return game.i18n.format(key, data);
     let file = worldFiles.get(lang);
     if (!file) {
@@ -167,8 +183,8 @@ export async function worldLocalize(key, data = {}) {
     const json = await file;
     if (!json) worldFiles.delete(lang);
     const template = json ? (json[key] ?? foundry.utils.getProperty(json, key)) : undefined;
-    if (typeof template !== "string") return game.i18n.format(key, data);
-    return template.replace(/{[^}]+}/g, k => (Object.hasOwn(data ?? {}, k.slice(1, -1)) ? String(data[k.slice(1, -1)]) : k));
+    if (typeof template !== "string") return typeof here === "string" ? fill(here) : game.i18n.format(key, data);
+    return fill(template);
 }
 
 /** The window event camera-view.mjs `measureCameraDock` sends when the camera dock's lift (`--drpg-av-lift`) changes,
@@ -445,7 +461,6 @@ export function primaryGmId({ arriving = null, leaving = null, users = game.user
     return pool[0] ?? null;
 }
 
-/** The player user who owns this actor, if any. */
 /**
  * "an evident trace", not "a evident trace".
  *
@@ -470,6 +485,30 @@ export function article(word) {
 export function easedBy(thresholds, relief) {
     if (!relief) return thresholds;
     return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
+}
+
+/**
+ * THE FIRST OF `keys` THE LANGUAGE FILE HOLDS, localized; the last key's localize (its raw key) when it holds none.
+ * For a name read from a set that grows elsewhere: the trial's floor names a mode on the HUD and the Event panel by
+ * `DRPG.Hud.trial.<mode>` and falls back to the console's `DRPG.Floor.mode.<mode>`, so a mode added without its short
+ * name shows its long one rather than a key (the owner's report of 13.11.2026: "DRPG.Hud.trial.scrum"; R5900 holds every
+ * mode to its short name in both files).
+ *
+ * @param {string[]} keys
+ * @returns {string}
+ */
+export function localizeFirst(keys) {
+    const list = keys.filter(Boolean);
+    return game.i18n.localize(list.find(key => game.i18n.has(key)) ?? list.at(-1) ?? "");
+}
+
+/**
+ * A trial floor mode's name on the HUD's row, the Event panel's card and a Monocub's voice line (hud.mjs `trialSlotFace`,
+ * events.mjs `trialFloorCard`, voice.mjs `cubLine`): its short name, else the console's. Here, not in hud.mjs, because
+ * hud.mjs imports events.mjs and voice.mjs (R161).
+ */
+export function trialModeLabel(mode) {
+    return localizeFirst([`DRPG.Hud.trial.${mode}`, `DRPG.Floor.mode.${mode}`]);
 }
 
 /**
@@ -1166,70 +1205,6 @@ export function registerTextGuard() {
 }
 
 /**
- * The window width that shows a table of `widest` pixels without clipping: ui-kit.mjs `fitKitWidth`'s, for every `fit`
- * window (E21 C2a; this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and not in
- * the kit because R168 reads it here, and the kit may import this file (R161).
- *
- * IT USED TO TAKE A `settled` FLAG - "this window has been fitted before, so
- * somebody may have put it somewhere" - and cap the answer at the room to the
- * right of the window's current left edge (D17, 29.08: a re-fit sent with no
- * `left` pulled a window at the right of the screen 104px further in). That
- * term is gone (W-9): ApplicationV2 re-clamps `left` to `clientWidth - width`
- * on every width change, so a window that grows is moved back onto the screen
- * for free, and all the term did was make a window opened near the right edge
- * permanently narrower than the same window opened in the middle. The `fitted`
- * set that remembered which windows had been sized went with it: nothing read
- * it once the flag was gone.
- */
-export function windowWidthFor(root, content, widest) {
-    const styles = getComputedStyle(content);
-    // The content's padding only. Its border used to be added here as well, and
-    // `frame` below already holds it - `clientWidth` stops inside the border - so
-    // a bordered content box was sized two borders too wide (E31, 25.09.2026;
-    // audit S01-64; R168). No rule of this module's stylesheets borders
-    // `.window-content`, so the error was 0 px here; Foundry's own CSS is not
-    // measured.
-    const padding = (parseFloat(styles.paddingLeft) || 0)
-        + (parseFloat(styles.paddingRight) || 0);
-
-    // The window frame itself is wider than its content box. Measuring the
-    // difference rather than guessing a constant: the frame carries its own
-    // border and padding, and a hard-coded fudge factor is what makes a window
-    // look right in one theme and clipped in another.
-    const frame = Math.max(0, root.getBoundingClientRect().width - content.clientWidth);
-
-    // Two pixels of slack so a table measured at exactly its container's width
-    // does not round into a scrollbar it does not need.
-    const wanted = Math.ceil(widest + padding + frame) + 2;
-    const viewport = window.innerWidth || 1200;
-
-    /*
-     * TWO CEILINGS, AND THE SECOND ONE IS NEW (W-9, Dawid 18.09).
-     *
-     * 94 % of the viewport was the only one, so on a 5120x1440 screen the case
-     * dashboard opened 4813px wide with its cells stretched across the whole of
-     * it. The absolute cap is read from the stylesheet rather than written here
-     * (`--drpg-window-max`, which a window may raise for itself: the project
-     * manager's), because two copies of one number is how they part company.
-     *
-     * AND THE LEFT EDGE IS NOT PART OF THE ANSWER ANY MORE. `viewport - here`
-     * measured the room to the right of where the window happened to be - but
-     * ApplicationV2 re-clamps `left` to `clientWidth - width` on every width
-     * change, so a window that is about to grow is about to be moved back onto
-     * the screen anyway. All that term did was make a window opened near the
-     * right edge permanently narrower than the same window opened in the middle.
-     */
-    /* READ OFF THE WINDOW, which inherits the body's cap unless it states its own (22.09):
-       the project manager's matrix is a column per player, and at sixteen players the
-       table alone is wider than 1400 - so that one window carries a higher cap, and the
-       stylesheet's `max-width` reads the same token off the same element. */
-    const cap = parseFloat(getComputedStyle(root ?? document.body)
-        .getPropertyValue("--drpg-window-max")) || 1400;
-    const ceiling = Math.min(Math.round(viewport * 0.94), Math.round(cap));
-    return Math.min(wanted, ceiling);
-}
-
-/**
  * A `<style>` element carrying the select picker's row states - a workaround,
  * not a stylistic choice, and worth the paragraph:
  *
@@ -1253,6 +1228,8 @@ export function injectSelectPickerSkin() {
         + ".drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection))";
     const style = document.createElement("style");
     style.id = "drpg-select-picker-skin";
+    // The chosen option (`:checked`, last) in the attention colour, as every selection since E48 K1 (E59 C2, R6755: it
+    // was gold, Hope's). Said here, not in the sheet: a comment inside the string is text T13 reads as a screen's English.
     style.textContent = `
         ${GROUP} select option {
             background: var(--drpg-ink, #1d1a21);
@@ -1263,7 +1240,7 @@ export function injectSelectPickerSkin() {
             background: color-mix(in srgb, var(--drpg-bone, #e4ded8) 12%, var(--drpg-ink, #1d1a21));
         }
         ${GROUP} select option:checked {
-            background: color-mix(in srgb, var(--drpg-gold, #ffd23f) 18%, var(--drpg-ink, #1d1a21));
+            background: color-mix(in srgb, var(--drpg-attention, #e4ded8) 18%, var(--drpg-ink, #1d1a21));
         }
     `;
     document.head.append(style);
@@ -1404,32 +1381,6 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
             open();
         });
     }
-}
-
-/**
- * The kit's tab panes, each shown in turn (E44 C4a, 04.11.2026). `measure(pane)` runs with that pane shown and every
- * other hidden, by the same `hidden` the tabs switch (ui-kit.mjs `kitTabs`, `wireKitTabs`), and every pane is put
- * back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, which hands it on and
- * measures with it (`fitKitWidth`, E21 C2a; this file's `fitWindowToTabs` until then), because utils.mjs may not import
- * the kit (R161: the kit imports this file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.
- *
- * @param {HTMLElement} root
- * @param {(pane: HTMLElement) => any} measure
- * @returns {Object<string, any>}
- */
-export function eachPane(root, measure) {
-    const panes = [...(root?.querySelectorAll?.("[data-drpg-pane]") ?? [])];
-    const was = panes.map(p => p.hidden);
-    const out = {};
-    try {
-        for (const shown of panes) {
-            for (const p of panes) p.hidden = p !== shown;
-            out[shown.dataset.drpgPane] = measure(shown);
-        }
-    } finally {
-        panes.forEach((p, i) => { p.hidden = was[i]; });
-    }
-    return out;
 }
 
 /**

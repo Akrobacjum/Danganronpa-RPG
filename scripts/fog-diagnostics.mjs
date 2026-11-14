@@ -673,7 +673,7 @@ function finding(kind, data = {}, fact = null) {
  * mark and the Next line done. These kinds count beside the errors; the rest of the warnings (a Foundry default
  * name, a sealed room beside another, a secret door) are advice the row does not wait on.
  */
-export const ROOM_CHECK_PROBLEM_KINDS = Object.freeze(["adrift", "isolated", "piecesDiffer"]);
+const ROOM_CHECK_PROBLEM_KINDS = Object.freeze(["adrift", "isolated", "piecesDiffer"]);
 
 /** How many of Check rooms' findings the rooms row and Pre-season's scene line wait on: every error, and the warnings above (R1526). */
 export function roomCheckProblems(findings) {

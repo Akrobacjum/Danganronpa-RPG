@@ -23,7 +23,7 @@
  */
 import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
 import { bodiesFoundIn } from "./settings.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, autopsiesDue, bodiesInOrder } from "./case-schema.mjs";
 import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyCount } from "./investigation.mjs";
 import { remnantById, dropRemnantSecret } from "./remnants.mjs";
@@ -194,7 +194,7 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
 
 /**
  * THE QUESTION AT A BODY (C11; Q4: both roads, the primary GM alone, once a chapter). On the browser that wrote the
- * discovery (`writer`, the primary - chapter.mjs `runDiscovery` runs there on both roads), a payload not the suite's
+ * discovery (`writer`, the primary - body.mjs `runDiscovery` runs there on both roads), a payload not the suite's
  * rehearsal, a chapter with a case built (a schema row or a Key slot not yet on the map) whose realization has not
  * run and that was not asked yet: a small window, "Show the preview" or "Not now". Nothing is handed `waitUntil`: the
  * gather does not wait for it, and the window opens after the stamp. Answering writes `askedAt`, so a second body asks
@@ -215,7 +215,7 @@ export function registerCaseAsk() {
 }
 
 /** Whether `chapter` has something a realization would do and was not asked about (pure over the world's reads). */
-export function shouldAskAtBody(chapter) {
+function shouldAskAtBody(chapter) {
     const { rows, meta } = caseRows(chapter);
     const m = caseMetaOf(meta);
     if (m.askedAt !== null || m.run !== null) return false;
@@ -231,8 +231,8 @@ export async function askAtBody(chapter) {
         title: L("DRPG.CaseRealize.askTitle"),
         classes: ["drpg-panel", "drpg-window-case-ask"],
         body: `<p>${esc(L("DRPG.CaseRealize.askBody"))}</p>`,
-        footer: { close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow") },
-            secondary: [{ action: "preview", label: L("DRPG.CaseRealize.showPreview") }], default: "later" },
+        footer: { close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow"), tooltip: tipText("DRPG.Tips.Case.notNowTooltip") },
+            secondary: [{ action: "preview", label: L("DRPG.CaseRealize.showPreview"), tooltip: tipText("DRPG.Tips.Case.showPreviewTooltip") }], default: "later" },
         rejectClose: false
     });
     if (answer === "preview") return openRealization({ chapter });
@@ -253,7 +253,7 @@ export async function askAtBody(chapter) {
  * (`sending`). Answers how many students got one, over all sent.
  */
 const sending = new Set();
-export async function sendPlannedAutopsy(chapter) {
+async function sendPlannedAutopsy(chapter) {
     if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter) || sending.has(chapter)) return 0;
     const { rows, meta } = caseRows(chapter);
     const due = autopsiesDue({ count: autopsyCount(chapter), rows, sent: caseMetaOf(meta).autopsySent,

@@ -34,22 +34,6 @@ import { tipAttr } from "./ui-kit.mjs";
  * TAMPER
  * ========================================================================== */
 
-/**
- * Cleaning up, and lying with the evidence, as an ordinary action.
- *
- * NOTHING HERE IS NEW MACHINERY. Both branches end in cleanup.mjs, in the very
- * functions Stage 6 calls, with `viaAction: true` saying which door they came
- * through - see the note at the top of that file. This is the menu, the two
- * lists the menu needs, and nothing else. A second implementation of "erase a
- * trace" would be a second set of thresholds to keep in step with the first.
- *
- * BOTH LISTS ARE FETCHED BEFORE THE MENU OPENS, because both decide whether a
- * row can be offered at all, and a menu that offers you something and then says
- * "actually, no" is the friction `chooseVariant`'s struck-through rows exist to
- * remove. One of the two costs a socket round trip: which traces are yours is a
- * question only a GM's client can answer (trap 85).
- */
-
 /** The Tamper menu: cover, reshape, frame, and - for the killer on their own night - the body. */
 async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup }) {
     return chooseVariant({
@@ -76,7 +60,7 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
             // different answer to it. Struck through for the same reason too:
             // there is nothing to relabel if there is nothing here of yours.
             // Red (E22 C5c; A4, audit S02-25): since N-3 a reshape is a GM's to
-            // approve (cleanup.mjs `proposeReshape`), and its hint says so and
+            // approve (cleanup-reshape.mjs `proposeReshape`), and its hint says so and
             // that a refusal gives nothing back. The tile is not red - the other
             // rows resolve by themselves (Q-E21-1 (a)).
             {
@@ -177,6 +161,21 @@ async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, v
     return cleanup.attemptStageSix(actor, "misleadingTrail", whoId, { viaAction });
 }
 
+/**
+ * Cleaning up, and lying with the evidence, as an ordinary action.
+ *
+ * NOTHING HERE IS NEW MACHINERY. Both branches end in cleanup.mjs, in the very
+ * functions Stage 6 calls, with `viaAction: true` saying which door they came
+ * through - see the note at the top of that file. This is the menu, the two
+ * lists the menu needs, and nothing else. A second implementation of "erase a
+ * trace" would be a second set of thresholds to keep in step with the first.
+ *
+ * BOTH LISTS ARE FETCHED BEFORE THE MENU OPENS, because both decide whether a
+ * row can be offered at all, and a menu that offers you something and then says
+ * "actually, no" is the friction `chooseVariant`'s struck-through rows exist to
+ * remove. One of the two costs a socket round trip: which traces are yours is a
+ * question only a GM's client can answer (trap 85).
+ */
 export async function performTamper(actor, def, options) {
     /*
      * WHAT THE CHAIN WOULD TAKE, ASKED BEFORE THE MENU OPENS (T-1).
@@ -226,8 +225,9 @@ export async function performTamper(actor, def, options) {
      *                            trace list is the WHOLE ROOM, because the
      *                            guide opens their eyes to their own scene.
      *                            Carrying the body is offered.
-     *   anybody, any afternoon   an action, or a Sanity mark once the actions
-     *                            are gone. The trace list is only what this
+     *   anybody, any afternoon   an action, and with none left no Tamper
+     *                            (E64: cleanup.mjs `tamperPriceSkip`; it was
+     *                            a Sanity mark until 1.2.105). The trace list is only what this
      *                            character has actually found (see
      *                            `cleanableTracesForPlayer`). No body.
      */

@@ -14,7 +14,7 @@
  * name, so a system rename cannot quietly disable this.
  */
 
-import { MODULE_ID, FLAGS, TRAITS, TRAIT_BY_DH } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
@@ -518,7 +518,7 @@ function isStudentRoll(actor) {
  * downstream could tell which character's Calls to honour. Every other handle
  * the config offers is tried before giving up.
  */
-function actorOf(app) {
+export function actorOf(app) {
     const config = app?.config;
     if (!config) return null;
 
@@ -529,7 +529,11 @@ function actorOf(app) {
         if (actor) return actor;
     }
 
-    // The roll data usually carries the actor's own data model.
+    // Where Daggerheart 2.12's window keeps it (d20RollDialog.mjs:43-45 at 2.12.8, `config.actor`, which its MoveContext
+    // sets; its roll data has no `parent`). Until 13.11.2026 only 2.10.5's road below was tried. R5764; exported for it.
+    if (config.actor?.documentName === "Actor") return config.actor;
+
+    // 2.10.5's road: the roll data carried the actor's own data model.
     const parent = config.data?.parent;
     if (parent?.documentName === "Actor") return parent;
     if (parent?.actor) return parent.actor;
@@ -1133,10 +1137,10 @@ export function explainAdvantage(sign, count, capped, sources) {
                     : "DRPG.RollDialog.forcedByState";
     }
 
-    const list = sources
+    // A negative with "-", the module's one dash (U+2212 until the needsCode line); the list in the page's language (EN2).
+    const list = listOf(sources
         .map(source => `${game.i18n.localize(`DRPG.RollDialog.source.${source.key}`)} ${
-            source.value > 0 ? "+" : "\u2212"}${Math.abs(source.value)}`)
-        .join(", ");
+            source.value > 0 ? "+" : "-"}${Math.abs(source.value)}`));
 
     // THREE SHAPES, NOT TWO. Several sources can still come to one die - a Call
     // against a doubly hostile room is exactly that - and the counting sentence

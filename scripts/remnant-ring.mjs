@@ -37,7 +37,7 @@ import { myBulletForRemnant } from "./visibility.mjs";
 import { projectIdOf } from "./projects-map.mjs";
 import { debug, error, esc, cssColour, forgetCssColours } from "./utils.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { drpgConfirm } from "./ui-kit.mjs";
+import { drpgConfirm, tipAttr } from "./ui-kit.mjs";
 // The ledger's key, for the repaint after a change to it (E90). utils.mjs imports settings.mjs already: no new cycle.
 import { SETTINGS } from "./settings.mjs";
 import { glassOn as motionGlassOn } from "./motion.mjs";
@@ -69,10 +69,12 @@ const glassOn = motionGlassOn;
 
 /**
  * Which token each type borrows. Same assignments the `.drpg-tb-badge.type.*`
- * rules use, so a Remnant reads identically on the map and in the pack.
+ * rules use, so a Remnant reads identically on the map and in the pack. A Key's is
+ * Evidence's since E59 C2 (14.11.2026; R6755): its badge left gold for Evidence in
+ * E48 K1 and this ring stayed gold, which is Hope's alone.
  */
 const TYPE_TOKEN = {
-    key: "--drpg-gold",
+    key: "--drpg-evidence",
     prep: "--drpg-eye",
     incident: "--drpg-crimson",
     resolution: "--drpg-tb-resolution",
@@ -346,14 +348,14 @@ export function gmRemnantCard(tokenOrActor, esc) {
     ].filter(Boolean).join("");
 
     const rows = [
-        [t("DRPG.Investigation.visibility"), `<select data-drpg-band data-drpg-was="${esc(data.visibility ?? "")}" aria-label="${
+        [t("DRPG.Investigation.visibility"), `<select data-drpg-band data-drpg-was="${esc(data.visibility ?? "")}"${tipAttr("DRPG.Tips.Case.difficultyTooltip")} aria-label="${
             esc(t("DRPG.Investigation.visibility"))}">${bandOptions(data.visibility)}</select>`],
         [t("DRPG.Remnant.cardWhere"), esc(data.room ?? "-")],
         [t("DRPG.Remnant.cardWhen"), esc(when || "-")],
         /* WHO LEFT IT, AS A SELECT (E97 C1; Q2, Q6): the GMs' alone - this card is drawn for a GM (`playerRemnantCard`
            is the other's) - written through `setRemnantAuthor` on change, `wireCardEditing` asking first when it
            replaces a name. */
-        [t("DRPG.Remnant.cardWho"), `<select data-drpg-author data-drpg-was="${esc(data.sourceActor ?? "")}" aria-label="${
+        [t("DRPG.Remnant.cardWho"), `<select data-drpg-author data-drpg-was="${esc(data.sourceActor ?? "")}"${tipAttr("DRPG.Tips.Case.leftByTooltip")} aria-label="${
             esc(t("DRPG.Remnant.authorLabel"))}">${authorOptions(data.sourceActor ?? null, studentActors(), data.sourceName ?? "")}</select>`],
         [t("DRPG.Remnant.cardAction"), esc(actionLabelOf(data.action) ?? "-")],
         [t("DRPG.Remnant.cardSubject"), esc(data.subject ?? "-")]
@@ -534,7 +536,7 @@ function ringShown(token) {
  * ledger change passed over. Exported for the suite (E90-T3), which runs it on the canvas on screen. Answers how many
  * tokens it painted.
  */
-export function ringPassNow({ ledger = false, placeables = canvas?.tokens?.placeables ?? [] } = {}) {
+function ringPassNow({ ledger = false, placeables = canvas?.tokens?.placeables ?? [] } = {}) {
     count(ledger ? "remnantRing.ledgerPass" : "remnantRing.sightPass");
     let painted = 0;
     for (const token of placeables) {

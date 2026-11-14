@@ -150,7 +150,7 @@ export function restSpent(actor, kind, clock = null) {
  * reads as spent - the S07-23 refusal, once, for a character who has not rested since the update (sheet-audit.mjs
  * `restCovers` judges new writes by `restStamp` alone). Pure.
  */
-export function legacyRestStamp(kind, clock) {
+function legacyRestStamp(kind, clock) {
     return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
@@ -223,10 +223,10 @@ function currentClock() {
 }
 
 /**
- * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, or not
+ * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, more than the purse holds (1.2.113), or not
  * allowed in this room. Both reasons used to be printed above a pair of buttons that stayed live regardless, so the
  * player could pick the one the list had just told them they could not have. Out of action-rest.mjs `performRest`
- * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (`restShutReason`).
+ * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (action-facilities.mjs `facilitiesRows`).
  */
 export function restVariants(actor) {
     const place = locateActor(actor);
@@ -237,6 +237,14 @@ export function restVariants(actor) {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
         const barred = kind === "short" && sleepless;
+        /* THE PRICE GREYS THE ROW TOO (1.2.113, 13.11.2026; the owner's ask (c)). A rest its character cannot pay for - a
+           Wounded student's one action and no Burst against the Long Rest's two, or no action at all - was open here and
+           refused only by `takeRest`'s warning after the pick (measured at aabf28b8; nothing was spent). The same test
+           (`canPayFor`) and the same sentence (`DRPG.Actions.notEnough`) as that warning, so the row and the refusal say
+           one thing; `takeRest` keeps its check. Last among the reasons: the insomnia, the allowance and the room say
+           more than the purse. Tier 2 "1.2.113 the Rest window greys a rest ..." reads both rows over four purses. */
+        const cost = REST[kind].actionCost;
+        const unpaid = !canPayFor(actor, cost);
         // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
         // character's scene, the school's for one with no token (E12 fix r1-G4).
         const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
@@ -245,28 +253,18 @@ export function restVariants(actor) {
             icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
             label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
             hint: `${plural("DRPG.Action.willCost",
-                { n: REST[kind].actionCost, left: actionsLeft(actor) })} · ${
+                { n: cost, left: actionsLeft(actor) })} · ${
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
                     : elsewhere}`,
-            disabled: spent || !allowed || barred,
+            disabled: spent || !allowed || barred || unpaid,
             why: barred ? game.i18n.localize("DRPG.Rest.insomnia") : spent
                 ? game.i18n.localize(kind === "long"
                     ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
-                : elsewhere
+                : !allowed || !unpaid ? elsewhere
+                    : plural("DRPG.Actions.notEnough", { actor: actor.name, left: actionsLeft(actor), needed: cost }, "left")
         };
     });
-}
-
-/**
- * Why neither rest can be taken now, row by row ("Short rest: ... · Long rest: ..."), or null while one can: the Rest
- * tile's tooltip (sheet.mjs `roomBlockFor`; E16 part 2 C4, audit S02-26). The tile stays pressable, as every dimmed
- * tile does, and its window shows the same two rows greyed.
- */
-export function restShutReason(actor) {
-    const rows = restVariants(actor);
-    if (rows.some(row => !row.disabled)) return null;
-    return rows.map(row => `${row.label}: ${row.why}`).join(" · ");
 }
 
 /* ==========================================================================
@@ -493,14 +491,14 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 const marks = held.hitPoints;
                 const healed = full ? marks : Math.ceil(marks / 2);
                 update["system.resources.hitPoints.value"] = marks - healed;
-                applied.push(`${opt.label}: ${healed} Health recovered`);
+                applied.push(game.i18n.format("DRPG.Rest.applied.health", { label: opt.label, n: healed }));
             }
 
             if (pick === "meal") {
                 const marks = held.stress;
                 const cleared = full ? marks : Math.ceil(marks / 2);
                 update["system.resources.stress.value"] = marks - cleared;
-                applied.push(`${opt.label}: ${cleared} Sanity cleared`);
+                applied.push(game.i18n.format("DRPG.Rest.applied.sanity", { label: opt.label, n: cleared }));
             }
 
             if (pick === "breath" && (relief || hopeBlocked)) {
@@ -512,7 +510,7 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 const max = maxOf("hope") || STARTING.hopeMax;
                 const next = Math.min(max, held.hope + gain);
                 update["system.resources.hope.value"] = next;
-                applied.push(`${opt.label}: +${gain} Hope`);
+                applied.push(game.i18n.format("DRPG.Rest.applied.hope", { label: opt.label, n: gain }));
             }
         }
 

@@ -49,7 +49,7 @@ export { sendOffersTo } from "./bridge-runs-acts.mjs";
 export { dynamicRulingOf } from "./bridge-runs-records.mjs";
 export { BRIDGE_ACTIONS } from "./bridge-table.mjs";
 export {
-    requestOpeningResult, requestOfferRecord, requestCardPost, requestBodyLoot, requestPassageShare,
+    requestOpeningResult, requestOfferRecord, requestCardPost, requestGiveBullet, requestBodyLoot, requestPassageShare,
     requestPassageCross, requestLairLock, requestLairSeal, requestRefundCrossing, requestPassageFind, requestObject, requestEvidence, requestWithdraw,
     requestRepoint, requestTrialGm, requestClaim, requestTrialSide, requestTrialKeyword, requestPresent, requestTurn, requestReadyOpen, requestReadyAnswer,
     requestReadyEnd, requestArmCall, sendDespairToPrimary, requestOverflowAdd, requestOverflowClear, requestDespairSet,

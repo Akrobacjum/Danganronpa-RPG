@@ -439,8 +439,9 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
  * the open or in secret as any project, D37). The owner's three of 15.10 since C5 (the owner, 15.10; the stage's Q2 of
  * 19.10: "Tak"): Seal the passage, Hand, and Close the breach, Body - the statistics of their counterparts, which the GM
  * may change at the approval - both Complex; Repair an item, Hand, whose size is the item's tier's (`byTier`: tier 0-1
- * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, is E68's
- * `PROJECT_KINDS`, which this table goes into.
+ * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, was to be a
+ * kind of E68's project table, which this table would go into; E68 shipped (1.2.104) with no such table, and the presets
+ * are read from here (action-project.mjs).
  */
 export const PASSAGE_PRESETS = Object.freeze({
     secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
@@ -805,8 +806,9 @@ async function unforceRoom(scene, forced, breachId, stores, { reseal = true } = 
  *   - in a room beside either (`neighbouringRooms`, the map's doors), `breachHeard`: a crash, never a name, from the
  *     breached room beside them as Listen names a room ("Unexplored room 1" for one they have not been in);
  * each to its owners and the GMs with the sound `wallBreached` (the players' only, the string form). Then the room's
- * card, as for a forced door: to the bedroom's owner (and the GMs) when the room beyond is somebody's bedroom, with no
- * builder's name, else to the GMs; a lifted seal is said on it. Answers how many cards were written.
+ * card, as for a forced door: to the GMs, and to the bedroom's owner when the room beyond is somebody's bedroom, with no
+ * builder's name - on walking back into it, or at once in it, never twice where they saw it (doors-gm.mjs `noteBedroom`;
+ * privacy line 1, the owner's rule #1, 13.11.2026); a lifted seal is said on it. Answers how many cards were written.
  */
 export async function tellBreach(made) {
     const scene = game.scenes?.get(made?.sceneId ?? "");
@@ -844,8 +846,15 @@ export async function tellBreach(made) {
     const seal = made.forced.unsealed ? ` ${game.i18n.localize("DRPG.Passage.card.breachUnsealed")}` : "";
     const { roomFlag } = await import("./rooms.mjs");
     const owner = studentOf(roomFlag(scene, beyond, ROOM_OWNER_FLAG));
-    if (owner && owner.id !== builder?.id) await whisperToOwner(owner, `<p>${game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(beyond) })}${seal}</p>`);
-    else await whisperToGms(`<p>${game.i18n.format("DRPG.Passage.card.breachForced", { room: esc(beyond) })}${seal}</p>`);
+    /* THE BEDROOM'S OWNER ON WALKING BACK IN (privacy line 1, 13.11.2026; the owner's rule #1). Until then the owner was
+       whispered the bedroom's card at once, wherever they stood, with the GMs' copy. Now an owner standing in either room
+       was sent its card above and is told nothing more; one elsewhere is told on walking into the bedroom, or at once in
+       it (doors-gm.mjs `noteBedroom`). The GMs are told at once, as for a room that is nobody's. */
+    if (owner && owner.id !== builder?.id) {
+        const saw = [from, beyond].includes(where(owner)) ? new Set([owner.id]) : new Set();
+        await (await import("./doors-gm.mjs")).noteBedroom({ scene, room: beyond, kind: "breached", told: saw, by: builder, unsealed: made.forced.unsealed ?? null });
+    }
+    await whisperToGms(`<p>${game.i18n.format("DRPG.Passage.card.breachForced", { room: esc(beyond) })}${seal}</p>`);
     return told + 1;
 }
 
@@ -978,7 +987,7 @@ export function passageResetTally({ stores = PASSAGE_STORES, scenes = game.scene
  * (D36). A project's breach (E15 part 2 C3) is a hole in a world's wall, not a row the cut can take: every one is
  * closed first, its wall given back, read off the walls themselves, before anything of the group's own goes.
  */
-export async function clearSeasonPassages() {
+async function clearSeasonPassages() {
     await closeEveryBreach();
     await passagesAfterReset();
 }
@@ -2531,8 +2540,8 @@ async function noteFindFact({ actorId, rollId, by, place = null }) {
  * measured: a fifth of a cell is a slip of the hand, half a cell reaches into the room beyond the
  * thickest wall the seeded maps draw. A stretch shorter than `PICK_SHORTEST` is a double click.
  */
-export const PICK_RADIUS = 20;
-export const PICK_REACH = 50;
+const PICK_RADIUS = 20;
+const PICK_REACH = 50;
 export const PICK_SHORTEST = 8;
 const PROBES = [0.35, 0.6, 0.85, 1];
 
@@ -2821,7 +2830,7 @@ async function tuck(dialog, away) {
 }
 
 /** The pick's stretch on the overlay's layer "pick": the start, the snapped pointer and the line between; nothing for none. */
-export function drawPickLayer({ first = null, at = null, ok = true } = {}) {
+function drawPickLayer({ first = null, at = null, ok = true } = {}) {
     const layer = overlayLayer("pick");
     if (!layer) return;
     clearLayer(layer);

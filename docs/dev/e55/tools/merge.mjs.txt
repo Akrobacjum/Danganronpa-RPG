@@ -1,0 +1,108 @@
+// E55 S3 (14.11.2026): the merger the S3 commits ran (named .txt so the lint does not read it). It moves declarations only;
+// every comment was placed by hand from its diff, and a merge that parts a rule from its reason or breaks a list was not made.
+// Merge rules stated more than once with the identical selector list under the identical at-rules, within one sheet.
+// node merge.mjs <file> [--dry] [--only <substring>]... [--limit N]
+// A group of statements S1..Sk (k>=2) is merged into the statement that holds the most declarations (the "home"): every
+// other statement's declarations are moved into it, and the emptied statements are deleted (with their own leading
+// comment, which is kept and moved before the home's selector, marked by its origin). Safe only when, for every moved
+// declaration, no rule standing between its old and its new place (in the whole sheet, any at-rule) declares the same
+// property with a selector of equal specificity and the same importance; such a group is skipped and listed.
+import fs from "node:fs";
+const file = process.argv[2]; const DRY = process.argv.includes("--dry");
+const only = process.argv.flatMap((a,i)=>a==="--only"?[process.argv[i+1]]:[]);
+const limitAt = process.argv.indexOf("--limit"); const LIMIT = limitAt>0 ? Number(process.argv[limitAt+1]) : Infinity;
+let text = fs.readFileSync(file,"utf8");
+const blank = t => t.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g," "));
+function walk(t){ const out=[]; const rec=(s,e,ctx)=>{ let i=s,seg=s; const decls=[];
+  while(i<e){ const ch=t[i]; if(ch==='"'||ch==="'"){const c=t.indexOf(ch,i+1); i=c<0||c>=e?e:c+1; continue;}
+    if(ch==="{"){ let d=0,j=i,q=null; for(;j<e;j++){const c=t[j]; if(q){if(c===q)q=null;continue;} if(c==='"'||c==="'")q=c; else if(c==="{")d++; else if(c==="}"&&--d===0)break;}
+      const prelude=t.slice(seg,i).replace(/\s+/g," ").trim(); const b={prelude,ctx,open:i,close:j,pstart:seg,nested:false};
+      out.push(b); const inner=rec(i+1,j,[...ctx,prelude]); b.decls=inner.decls; b.hasNested=inner.nested; i=j+1; seg=i; continue; }
+    if(ch===";"){decls.push([seg,i+1]); seg=i+1;} i++; }
+  if(t.slice(seg,e).trim()) decls.push([seg,e]);
+  return {decls, nested: out.some(b=>b.open>s&&b.close<e&&b.ctx.length===ctx.length+1)}; };
+  rec(0,t.length,[]); return out; }
+function splitTop(s,sep=","){const o=[];let d=0,p="",q=null;for(const ch of s){if(q){if(ch===q)q=null;p+=ch;continue;}if(ch==='"'||ch==="'")q=ch;if(ch==="("||ch==="[")d++;if(ch===")"||ch==="]")d--;if(ch===sep&&!d){o.push(p);p="";}else p+=ch;}o.push(p);return o.map(x=>x.trim()).filter(Boolean);}
+function spec(sel){ // [a,b,c]
+  let a=0,b=0,c=0; let s=sel;
+  // functional pseudos
+  s=s.replace(/:(is|not|has|matches)\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)/g,(m,f,arg)=>{ const best=splitTop(arg).map(spec).sort(cmp).at(-1)||[0,0,0]; a+=best[0];b+=best[1];c+=best[2]; return " "; });
+  s=s.replace(/:where\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)/g," ");
+  s=s.replace(/:nth-[a-z-]+\([^)]*\)/g,()=>{b++;return " ";});
+  s=s.replace(/\[[^\]]*\]/g,()=>{b++;return " ";});
+  s=s.replace(/::[a-zA-Z-]+(\([^)]*\))?/g,()=>{c++;return " ";});
+  s=s.replace(/:(before|after|first-line|first-letter)\b/g,()=>{c++;return " ";});
+  s=s.replace(/#[\w-]+/g,()=>{a++;return " ";});
+  s=s.replace(/\.[\w-]+/g,()=>{b++;return " ";});
+  s=s.replace(/:[\w-]+(\([^)]*\))?/g,()=>{b++;return " ";});
+  for(const t of s.split(/[\s>+~]+/)) if(/^[a-zA-Z][\w-]*$/.test(t)) c++;
+  return [a,b,c]; }
+function fam(p){ if(p.startsWith("--")) return p; const q=p.replace(/^-(webkit|moz|ms)-/,""); return q.split("-")[0]; }
+// the subject compound of a complex selector (after the last combinator outside brackets), without pseudo-elements
+function subject(sel){ let d=0,last=0; for(let i=0;i<sel.length;i++){const c=sel[i]; if(c==="("||c==="[")d++; else if(c===")"||c==="]")d--; else if(!d&&/[\s>+~]/.test(c)) last=i+1;} return sel.slice(last).replace(/::?(before|after)\b.*$/,""); }
+function pseudoOf(sel){ const m=/::?(before|after)\b/.exec(sel); return m?m[1]:""; }
+// can two selectors match one element? false only when provably not: other pseudo-elements, different ids or tags on the subject
+function mayOverlap(a,b){ if(pseudoOf(a)!==pseudoOf(b)) return false;
+  const sa=subject(a).replace(/:(is|not|has|where)\((?:[^()]|\([^()]*\))*\)/g,""), sb=subject(b).replace(/:(is|not|has|where)\((?:[^()]|\([^()]*\))*\)/g,"");
+  const ia=/#([\w-]+)/.exec(sa)?.[1], ib=/#([\w-]+)/.exec(sb)?.[1]; if(ia&&ib&&ia!==ib) return false;
+  const ta=/^([a-zA-Z][\w-]*)/.exec(sa)?.[1], tb=/^([a-zA-Z][\w-]*)/.exec(sb)?.[1]; if(ta&&tb&&ta!==tb) return false;
+  return true; }
+function cmp(x,y){for(let i=0;i<3;i++) if(x[i]!==y[i]) return x[i]-y[i]; return 0;}
+const bt=blank(text); const blocks=walk(bt).filter(b=>b.prelude&&!b.prelude.startsWith("@")&&!b.ctx.some(c=>/keyframes|font-face/i.test(c)));
+blocks.forEach((b,i)=>{ b.idx=i; b.sels=splitTop(b.prelude).map(s=>s.replace(/\s+/g," ").trim()); b.specs=b.sels.map(spec);
+  b.props=b.decls.map(([s,e])=>{const raw=bt.slice(s,e).replace(/;\s*$/,""); const c=raw.indexOf(":"); if(c<=0) return null; const p=raw.slice(0,c).trim(); if(!/^-{0,2}[a-zA-Z][\w-]*$/.test(p)) return null; return {p,imp:/!\s*important\s*$/i.test(raw),s,e};}).filter(Boolean); });
+const groups=new Map();
+for(const b of blocks){ if(b.hasNested) continue; const k=b.ctx.join("|")+"||"+b.sels.join(", "); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(b); }
+const plan=[]; const skipped=[];
+for(const [k,l] of groups){ if(l.length<2) continue; if(only.length&&!only.some(o=>k===o||k.endsWith("||"+o))) continue;
+  const home=[...l].sort((x,y)=>y.props.length-x.props.length||y.idx-x.idx)[0];
+  let conflict=null;
+  for(const b of l){ if(b===home) continue;
+    const [lo,hi]=b.idx<home.idx?[b.idx,home.idx]:[home.idx,b.idx];
+    for(const d of b.props){ for(const r of blocks.slice(lo+1,hi)){ if(l.includes(r)) continue; const rd=r.props.filter(x=>fam(x.p)===fam(d.p)); if(!rd.length) continue;
+        for(const x of rd) r.sels.forEach((rsel,ri)=>{ b.sels.forEach((msel,mi)=>{ if(!conflict && cmp(r.specs[ri],b.specs[mi])===0 && x.imp===d.imp && mayOverlap(rsel,msel)) conflict=`${d.p} vs "${r.prelude.slice(0,90)}"`; }); });
+        if(conflict) break; } if(conflict) break; }
+    if(conflict) break; }
+  if(conflict){ skipped.push([k,conflict]); continue; }
+  plan.push({k,l,home}); }
+const take=plan.slice(0,LIMIT);
+console.log(`${file}: ${plan.length} group(s) mergeable, ${skipped.length} skipped${LIMIT<Infinity?`, taking ${take.length}`:""}`);
+for(const {k,l} of take) console.log("  merge", l.length, k.slice(0,140));
+if(process.argv.includes("--why")) for(const [k,c] of skipped) console.log("  skip", k.slice(0,110), "::", c);
+if(DRY) process.exit(0);
+// edits: collect text pieces
+const edits=[]; // [start,end,replacement]
+for(const {l,home} of take){
+  const moved=[]; const comments=[];
+  for(const b of l){ if(b===home) continue;
+    // the statement's own body text (raw, with comments inside), its declarations
+    const body=text.slice(b.open+1,b.close).replace(/^\s*\n/,"").replace(/\s+$/,"");
+    // leading comment: raw text between previous code end and the prelude start that is a comment
+    let ps=b.pstart; while(/\s/.test(bt[ps])) ps++;
+    const lead=text.slice(b.pstart,ps); const leadC=lead.trim();
+    moved.push({body,leadC,origin:b.prelude,idx:b.idx});
+    // delete from the line start of the lead comment (or prelude) to the end of the closing line
+    let start=b.pstart; // includes whitespace/comments before
+    // keep whitespace before comment: find first non-space in raw text
+    const header=true; // comments are never moved by the tool: placed by hand from the diff
+    let fs=header?ps:b.pstart; while(/\s/.test(text[fs])) fs++;
+    let ls=text.lastIndexOf("\n",fs-1)+1; let le=text.indexOf("\n",b.close); le=le<0?text.length:le+1;
+    if(text.slice(ls,fs).trim()) { console.log("SHARED LINE", b.prelude.slice(0,80)); process.exit(4); }
+    if(header) moved.at(-1).leadC="";
+    edits.push([ls,le,""]);
+  }
+  // an earlier statement's declarations go first in the home (they lost to the home's before), a later one's last
+  const fmt=m=>{ const first=(m.body.match(/^\s*/)||[""])[0].length;
+    let t=m.body.split("\n").map(x=>x.trim()?"    "+x.slice(Math.min(first,(x.match(/^\s*/)||[""])[0].length)):"").join("\n");
+    if(!/;\s*$/.test(t) && !/\*\/\s*$/.test(t)) t+=";";
+    return `\n    /* moved from ${m.origin.slice(0,60)} (E55 S3) */\n${t}`; };
+  const before=moved.filter(m=>m.idx<home.idx).map(fmt).join(""), after=moved.filter(m=>m.idx>home.idx).map(fmt).join("");
+  if(before) edits.push([home.open+1,home.open+1,before]);
+  if(after){ let back=home.close-1; while(back>home.open&&/\s/.test(text[back])) back--;
+    const needSemi = text[back]!==";" && text[back]!=="{" && !text.slice(back-1,back+1).endsWith("*/");
+    edits.push([back+1,back+1,(needSemi?";":"")+after]); }
+}
+edits.sort((a,b)=>b[0]-a[0]||b[1]-a[1]);
+for(let i=1;i<edits.length;i++) if(edits[i][1]>edits[i-1][0]&&edits[i][0]!==edits[i-1][0]) { console.log("OVERLAP"); process.exit(3); }
+for(const [s,e,r] of edits) text=text.slice(0,s)+r+text.slice(e);
+fs.writeFileSync(file,text);

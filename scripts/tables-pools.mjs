@@ -644,9 +644,6 @@ export const POOL_ROLES = {
     "Steam cleaner": ["cleaningTool"]
 };
 
-/** No item may carry more than this many roles beside its home. */
-export const MAX_EXTRA_ROLES = 1;
-
 /**
  * The lowest tier at which an item may do two jobs.
  *

@@ -52,7 +52,7 @@ export const ACTION_OVERFLOW_CHECK = "overflow.check";
 export const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 export const ACTION_AUDIT_DECIDE = "audit.decide";
-/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */
+/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; key-remnants.mjs `askToChargeForUnfoundKeys`). */
 export const ACTION_KEYS_CHARGE = "keys.charge";
 /** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
 export const ACTION_VOTE_RUN = "vote.run";
@@ -92,7 +92,7 @@ export const ACTION_READY_END = "ready.end";
 export const ACTION_TRIAL_ENTER = "trial.enter";
 /** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; trial-progress.mjs `recordOnPrimary`). */
 export const ACTION_TRIAL_RECORD = "trial.record";
-/** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
+/** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup-reshape.mjs `ruleReshape`, cleanup.mjs `askReshapeRuling`). */
 export const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
 export const ACTION_TRAIT_RULING = "trait.ruling";
@@ -118,6 +118,14 @@ export const ACTION_FACILITY_USE = "facility.use";
 export const ACTION_DASH = "dash.settle";
 /** player -> primary GM: a tail begun, its two rolls on the GMs' record (E69 C3; tail-gm.mjs `startTail`). */
 export const ACTION_TAIL_START = "tail.start";
+/** player -> primary GM: an eavesdrop begun after a good Listen roll, or a free repeat (E69 C6; eavesdrop-gm.mjs `startEavesdrop`). */
+export const ACTION_LISTEN_EAVESDROP = "listen.eavesdrop";
+/** player -> primary GM: Stop listening, the eavesdrop of the sender's character ended (E69 C6; eavesdrop-gm.mjs `endEavesdrop`). */
+export const ACTION_LISTEN_STOP = "listen.stop";
+/** player -> primary GM: Echoes, the nearest room with a living student of another player (E69 C7; echoes-gm.mjs). */
+export const ACTION_LISTEN_ECHOES = "listen.echoes";
+/** player -> primary GM: a killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
+export const ACTION_MASK_REVEAL = "mask.reveal";
 /** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
 export const ACTION_DOOR_SHUT = "door.shut";
 /** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */
@@ -192,3 +200,6 @@ export const ACTION_REROLL = "reroll.ask";
 export const ACTION_CARD = "card.post";
 /** GM -> primary GM: a GM's click on a card to the GMs, claimed before it rules and marked ruled after (E18 C3; `claimCard`). */
 export const ACTION_CARD_CLAIM = "card.claim";
+
+/** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
+export const ACTION_BULLET_GIVE = "bullet.give";

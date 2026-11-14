@@ -56,7 +56,7 @@ import { sceneUncoveredShare, roomCheckProblems } from "./fog-diagnostics.mjs";
 import { sceneVisionReady } from "./fog.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
+import { foundryGivenBack, openGiveBackFoundry, permissionsInForce } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
@@ -68,9 +68,10 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // conversion, and the permissions in force where `core.permissions` names none.
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
-import { permissionsInForce } from "./enforced.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
@@ -175,14 +176,6 @@ function roleName(role) {
  * WHAT THE SEASON STILL NEEDS
  * ========================================================================== */
 
-/**
- * One row per thing a season needs, each able to say whether it is done.
- *
- * `missing` returns the names it is waiting on, so a row can say "3: Aoi, Leon,
- * Sakura" rather than "not ready" - the GM's next action is on that list, and a
- * count with no names is a second lookup.
- */
-
 /** Is this student carrying anything that counts as their opening item? */
 function hasOpeningItem(actor) {
     const carriable = carriableCategories();
@@ -221,7 +214,7 @@ async function fixCursorPermission() {
     return before.length - after.length;
 }
 
-/** The rooms-per-student line under the room count step: the Doors tab's own sentence (vault-store.mjs `roomRatioLine`, E20 C1). */
+/** The rooms-per-student line under the room count step: Room setup's own sentence, on its Rooms tab since E101 (vault-store.mjs `roomRatioLine`, E20 C1). */
 function roomCountLine(census, living) {
     return `<div class="notes">${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
 }
@@ -260,6 +253,12 @@ function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
 }
 
 /**
+ * One row per thing a season needs, each able to say whether it is done.
+ *
+ * `missing` returns the names it is waiting on, so a row can say "3: Aoi, Leon,
+ * Sakura" rather than "not ready" - the GM's next action is on that list, and a
+ * count with no names is a second lookup.
+ *
  * The checklist's rows. Every argument is the world's unless handed in (E20 C1: R1501, R1503 and
  * R1505 hand an empty cast, scenes of plain objects, an assignment map and a record of room checks):
  * `roster` the students, `scenes` the scenes the room rows count, `roomScene` the scene they judge,
@@ -640,7 +639,10 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         }] : []),
         /* DICE SO NICE (E51 C8, 31.10.2026; audit S17-49; E51-48). The module draws every player's throw on the GM
            (roll-draw.mjs) and keeps each player's dice look (dice-sync.mjs) for it; a table without it rolls, and sees
-           no dice. Optional. Open is Foundry's module list, where it is switched on - offered only where this Foundry
+           no dice. Required: module.json requires it and the module does not start without it, so its title says nothing of
+           "optional" (E71 group D, 14.11.2026; R6551). The flag below stays `optional` as R1132 holds the First session
+           rows: where the checklist is drawn the module runs, so the row is done and the Next line has nothing to wait
+           on. Open is Foundry's module list, where it is switched on - offered only where this Foundry
            has the window under the name v13 gives it (`foundry.applications.sidebar.apps.ModuleManagement`, from
            memory, not read on v14); the row says its state either way. */
         {
@@ -1143,6 +1145,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     let resetAsked = false;
 
     const result = await drpgWindow({
+        help: WINDOW_HELP.seasonSetup,
         classes: ["drpg-panel", "drpg-window-season"],
         /* THE TABLES' WIDTH, 58rem (E49 A1d, the owner's approval of 11.11.2026: the footer in one row and the window on
            the screen at 1366x768). With Reset the season the footer holds four buttons; at "wide" (44rem, 704 px) they
@@ -1568,13 +1571,15 @@ function diceLookSection(findings, esc) {
     const title = game.i18n.localize("DRPG.DiceLook.diag.title");
     // Its console line ("ask them to run game.drpg.diagnoseDiceLook()") is Diagnostics' since E101 item 2 (`foundryReport`).
     return checkPart("dice", title, `${rows.length ? checkList(rows, { label: title }) : ""}
-            <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
+            <p><button type="button" data-drpg-dice-look${tipAttr("DRPG.Tips.Setup.diceLookTooltip")}>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
 }
 
 /**
  * Pre-season's lines of the contract (E52 C2, E52-05): each failed row with a cross, its target, file:symbol and what
  * the table gets instead - the rows the primary GM's notice names; the rows nobody could read on one line, never
- * green; a check only when every row holds.
+ * green; a check only when every row holds. The target and an unread row's reason in the table's language since
+ * E57's rest (patches.mjs `targetOf`, `unreadOf`: `shownTarget`, `shownUnread`; R7030), the register's English kept
+ * for a run made by an older caller.
  *
  * @param {{rows: object[], failed: object[], unknown: object[]}} contract  patches.mjs `runContract`
  * @param {function(*): string} esc
@@ -1583,13 +1588,13 @@ function diceLookSection(findings, esc) {
 function contractSection(contract, esc) {
     const failed = contract?.failed ?? [], unknown = contract?.unknown ?? [];
     // A failed row a warning (E46-C5b): the table gets what it names instead, and the load's notice said so.
-    const rows = failed.map(r => ({ key: r.id ?? null, state: "warning", title: `${r.target} (${r.where}): ${r.instead ?? r.fallback}` }));
+    const rows = failed.map(r => ({ key: r.id ?? null, state: "warning", title: `${r.shownTarget ?? r.target} (${r.where}): ${r.instead ?? r.fallback}` }));
     if (!rows.length && !unknown.length) rows.push({ key: "allOk", state: "done", title: plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 }) });
     // The unread rows as one counted line, their list folded under it (E52 C4, C3's gap): about two dozen on
     // every world (table-only checks, hooks not seen firing yet) drowned the failed rows above. Never a check.
     const fold = unknown.length
         ? `<details class="drpg-check-unknown"><summary>${esc(plural("DRPG.Contract.checksUnknown", { n: unknown.length }))}</summary>${
-            unknown.map(r => `<div>${esc(`${r.target} (${r.where}): ${r.note}`)}</div>`).join("")}</details>`
+            unknown.map(r => `<div>${esc(`${r.shownTarget ?? r.target} (${r.where}): ${r.shownUnread ?? r.note}`)}</div>`).join("")}</details>`
         : "";
     const title = game.i18n.localize("DRPG.Contract.checksTitle");
     return checkPart("contract", title, `${rows.length ? checkList(rows, { label: title }) : ""}${fold}`);

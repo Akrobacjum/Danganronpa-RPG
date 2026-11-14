@@ -40,7 +40,7 @@
  * line, and the footnote a sentence, saying it gives the passage at the next season's reset and nothing now.
  */
 
-import { error } from "./utils.mjs";
+import { error, listOf } from "./utils.mjs";
 import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
@@ -60,7 +60,7 @@ const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", 
     built: "DRPG.Passage.tab.howBuilt", shared: "DRPG.Passage.tab.howShared" };
 
 /** A passage's rooms as the tab and its windows name it: "Kitchen - Dining Hall", or that none is named. */
-export function passageTitle(passage) {
+function passageTitle(passage) {
     const rooms = (passage?.rooms ?? []).filter(r => typeof r === "string" && r);
     return rooms.length ? rooms.join(" - ") : t("DRPG.Passage.tab.noRooms");
 }
@@ -141,13 +141,13 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     const notes = [];
     const pending = (undeliveredOf(passage.id, { stores, actors, users, ...(told ? { told } : {}) }) ?? []).filter(actorId => !mm(actorId));
     if (pending.length) {
-        notes.push(`<span class="drpg-passage-state" data-state="pending">${esc(tf("DRPG.Passage.tab.pending", { names: pending.map(a => nameOf(a, actors)).join(", ") }))}</span>`);
+        notes.push(`<span class="drpg-passage-state" data-state="pending">${esc(tf("DRPG.Passage.tab.pending", { names: listOf(pending.map(a => nameOf(a, actors))) }))}</span>`);
     }
     for (const [actorId] of knows) {
         const players = playersOf(actors?.get?.(actorId), users);
         if (players.length > 1) {
             notes.push(`<span class="drpg-passage-state" data-state="shared">${esc(tf("DRPG.Passage.tab.shared",
-                { student: nameOf(actorId, actors), players: players.map(u => u.name).join(", ") }))}</span>`);
+                { student: nameOf(actorId, actors), players: listOf(players.map(u => u.name)) }))}</span>`);
         }
     }
     const stateWord = { secret: "DRPG.Passage.tab.stateSecret", closed: "DRPG.Passage.tab.stateClosed", broken: "DRPG.Passage.tab.stateBroken" }[state];

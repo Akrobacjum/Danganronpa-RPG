@@ -43,6 +43,7 @@ into the message. One harness at a time on a machine (tier-2 timing reads flake 
 | own tier 2 | `node run-tests.mjs --tier 2 --only <name> ...` | the commit's own tests, and the related ones below |
 | scenarios | `node run-all.mjs scenarios --only NN` | a scenario the commit edits, and the older ones below; at most two, the rest left to CI |
 | the curtain | `node audit/glass-sweep.mjs` | a change to `audit/glass-harness.html`, `audit/glass-sweep.mjs`, `scripts/glass.mjs` or `styles/narrow.css` |
+| the sheet's column | `node audit/sheet-column.mjs` | a change to what sheet.mjs writes into the sheet's sidebar or to its rules in the stylesheets, and a Daggerheart upgrade (render `audit/sheet-column/` again first) |
 
 Related tier-2 tests: those whose source names a function, store, setting or bridge row the commit changed (`git grep`
 of the changed symbols in `scripts/tests-tier2.mjs`, about fifteen at most, named in the message). Older scenarios: those

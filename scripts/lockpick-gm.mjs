@@ -13,7 +13,9 @@
  *
  * WHEN IT ENDS (the plan: "valid until leaving that room and lost without an entry this time of day"). The picker's
  * settled crossing out of the room, once they have walked in (crossing-settle.mjs `CROSSING_SETTLED`); the time of day's
- * end, for a pass not used in it (one in use is kept until its holder leaves); a new pick, which replaces it; a Reroll
+ * end, for a pass not used in it (one in use is kept until its holder leaves) - with an Eclipse, as it starts, the one
+ * boundary the grants, seals and barricades end at (A113-C2-6, 13.11.2026; at its end until then), and given back as it
+ * stood by an End without advancing within the take-back's five minutes (`endPassesAtEclipseStart`); a new pick, which replaces it; a Reroll
  * of the pick below its number, while it is not used (infiltrate-reroll.mjs); the season reset (the store's "actions"
  * group).
  *
@@ -88,6 +90,38 @@ export async function passesAtNewTimeOfDay() {
 }
 
 /**
+ * An Eclipse's start, the one boundary of "this time of day" (A113-C2-6): every pass not used ends, as at a new time of
+ * day, and what ended is kept in the GMs' take-back record (clock.mjs `keepEndedAtStart`) for an Eclipse ended without
+ * advancing to put back (`putBackPassesAtTakeBack`). Answers how many ended.
+ */
+export async function endPassesAtEclipseStart(clock = getClock()) {
+    const { boundaryStamp, keepEndedAtStart } = await import("./clock.mjs");
+    const ended = [];
+    for (const [actorId, row] of Object.entries(lockpickStore.entries() ?? {})) {
+        if (row?.entered) continue;
+        const kept = foundry.utils.deepClone(row);
+        if (await endPass(actorId)) ended.push({ actorId, row: kept });
+    }
+    await keepEndedAtStart("eclipsePasses", boundaryStamp(clock), ended);
+    return ended.length;
+}
+
+/** The passes `endPassesAtEclipseStart` ended at the boundary `stamp`, each given back as it stood unless its holder
+    holds one again. Answers how many came back. GM only (eclipse.mjs `endEclipse`'s take-back). */
+export async function putBackPassesAtTakeBack(stamp) {
+    if (!game.user?.isGM) return 0;
+    const { takeEndedAtStart } = await import("./clock.mjs");
+    let n = 0;
+    for (const { actorId, row } of await takeEndedAtStart("eclipsePasses", stamp)) {
+        if (!row || lockpickStore.get(actorId)) continue;
+        await lockpickStore.patch(actorId, row);
+        tellOwners(game.actors.get(actorId));
+        n++;
+    }
+    return n;
+}
+
+/**
  * GM: one user's own characters' passes, and only those, with a stamp per character they own (0 for one this browser
  * never held, which takes nothing away on the owner's side).
  */
@@ -105,7 +139,7 @@ export function passesFor(userId) {
 }
 
 /** Primary GM: send one user their passes. Addressed, and only while they are here; nothing while the suite holds the stores. */
-export function sendPassesTo(userId) {
+function sendPassesTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     const { passes, stamps } = passesFor(userId);
@@ -128,7 +162,7 @@ export async function retellPasses() {
 }
 
 /** Owner: take the primary's answer where it is newer (`lockpickCopy`), for this user's own characters only. */
-export async function receivePasses(passes, stamps) {
+async function receivePasses(passes, stamps) {
     const mine = {}, own = {};
     for (const [actorId, s] of Object.entries(stamps ?? {})) {
         if (!game.actors.get(actorId)?.isOwner) continue;
@@ -174,6 +208,10 @@ export function registerLockpicks() {
     });
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) passesAtNewTimeOfDay().catch(err => error("The unused passes could not be ended", err));
+    });
+    // And as an Eclipse starts, the one boundary of "this time of day" (A113-C2-6; timed-effects.mjs `endAtEclipseStart`).
+    Hooks.on("drpgEclipseChanged", active => {
+        if (active === true && isPrimaryGm()) endPassesAtEclipseStart().catch(err => error("The unused passes could not be ended as the Eclipse began", err));
     });
     if (game.user.isGM) return;
     askForPasses();

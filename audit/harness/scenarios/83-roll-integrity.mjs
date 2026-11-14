@@ -693,22 +693,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         /* E68 fix CI a5ebfeaa: the Take as p3 makes it, from the body's list (anonymity.mjs `buildBodyLoot`) and its row's
            Take, which since E68 C10 throws the Hand roll ("loot") and, with Aiko and Botan in the room, the cover's Shadow
            ("lootCover") before it asks (`takeFromBody`). Until then this road called `requestBodyLoot` with no roll, which
-           the GM's client now refuses "rollUnknown": a Take the module's control could no longer send. */
+           the GM's client now refuses "rollUnknown": a Take the module's control could no longer send.
+           Since 1.2.113 (A113-C5-7) the Take is Take from the Body's window (`openBodyLoot`), opened with the lockpick's row
+           ticked and its Take pressed by p3's page (the harness answers a window with its default button); the same road
+           after it. */
         const l16 = await p3.eval(`const A = await import("${SCRIPT("anonymity")}");
             const body = game.actors.get("${ids.daichi}"), taker = game.actors.get("${chie}");
             const until = async (test, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (await test()) return true; await new Promise(r => setTimeout(r, 100)); } return false; };
             await until(() => game.drpg.isDeadForGm(body) && body.items.has("${e35Set.pick}"), 8000);
-            const root = document.createElement("div"); root.id = "drpg83-loot";
-            root.innerHTML = '<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>';
-            document.body.append(root);
-            try {
-                await A.buildBodyLoot(root, body, taker);
-                const take = root.querySelector('.drpg-loot-list li .drpg-loot-pick[value="${e35Set.pick}"]')?.closest("li")?.querySelector(".drpg-loot-take") ?? null;
-                const open = take ? !take.disabled : null;
-                take?.click();
-                const left = await until(() => !body.items.has("${e35Set.pick}"), 30000);
-                return { ok: Boolean(take && open && left), open, left };
-            } finally { root.remove(); }`, { timeout: 60000 });
+            const took = typeof A.openBodyLoot === "function" ? await A.openBodyLoot(body, { taker, check: ["${e35Set.pick}"] }) : null;
+            const left = await until(() => !body.items.has("${e35Set.pick}"), 30000);
+            return { ok: Boolean(took && left), took, left };`, { timeout: 60000 });
         const r16 = await mark.since();
         const l16Held = await holds(`({ daichi: ${heldOf(ids.daichi, "lockpick")}, chie: ${heldOf(chie, "lockpick")} })`);
         road("L16", "Chie takes the lockpick off Daichi's body", dead && l16.ok !== false && J(l16Held) === J({ daichi: [], chie: [[1, false]] }),
@@ -962,7 +957,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* --------------- F1c. the sheet's reserve field, from p1's console --------------- */
 
-    /* E24 C1b (C1a's Open 1): the sheet's reserve field writes through sheet.mjs `writeReserve` - `trustedWrite` with
+    /* E24 C1b (C1a's Open 1): the sheet's reserve field writes through sheet-sidebar.mjs `writeReserve` - `trustedWrite` with
        the reason `sheetReserve`, which resource-guard.mjs `HAND_EDITS` leaves unstamped (no `drpgAutomated`), so it is
        a hand edit as Daggerheart's own field was. p1's console calls it for Aiko's Health, one less than is left. Under
        Lock player resources (the season's default) p1's own guard takes the marks out of the write: nothing lands and

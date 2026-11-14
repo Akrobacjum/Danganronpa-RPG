@@ -74,7 +74,9 @@
  */
 
 import { debug, cssColour, forgetCssColours } from "./utils.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+/* Stained Glass on: motion.mjs `glassOn`, the setting first, then the class (the class lands at ready, and tokens are
+   drawn before that). own-ring.mjs held a copy of it, the same text, until E56 C9. */
+import { glassOn } from "./motion.mjs";
 /* The frame is the Remnant frame's, so its light is too: the three additive passes the
    curtain's seams and the evidence frames share (motion.mjs `SEAM_GLOW`), drawn by fog-reveal.mjs
    `ringHalo` for both rings since E88 C1. */
@@ -104,17 +106,6 @@ const LEGACY_BONE_DIM_FALLBACK = 0x989492;
 
 /** The zoom the rings were last struck at - see the `canvasPan` guard below. */
 let ringZoom = 0;
-
-/** True when this browser wears Stained Glass. The SETTING first, then the class:
-    the class lands at ready and tokens are drawn before that. */
-function glassOn() {
-    try {
-        return getSetting(SETTINGS.theme) === "stainedGlass"
-            || document.body.classList.contains("drpg-theme-stained-glass");
-    } catch {
-        return document.body.classList.contains("drpg-theme-stained-glass");
-    }
-}
 
 export function registerOwnRing() {
     // The refresh's flags go to `paint` (E88 C2): a refresh may keep a drawing that still stands; a call without flags

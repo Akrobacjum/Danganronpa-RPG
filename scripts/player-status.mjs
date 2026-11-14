@@ -25,7 +25,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFr
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, actingStudents } from "./monokuma.mjs";
-import { sheetMode, moveSlots, moveFeetHtml, moveLegend } from "./sheet.mjs";
+import { sheetMode, moveSlots, moveFeetHtml, moveLegend, moveDragSaid } from "./sheet.mjs";
 import { isMonocub, purseOf } from "./monocub.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -34,7 +34,6 @@ import { error, plural, markLanguage } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 // The r112 review's P2 (13.11.2026): Move's drag sentence only where Move is a drag. Its own line, so the import above
 // merges with the e72 line's next to it.
-import { moveDragSaid } from "./sheet.mjs";
 
 const WIDGET_ID = "drpg-player-status";
 
@@ -297,8 +296,7 @@ function box() {
  *
  * The classes are the sheet's own, so the masks, the filled/empty states and
  * the pixel rendering all come from the rules that already style them.
- */
-/**
+ *
  * @param {{from: number, to: number}|null} [options.spent]  Which pips went out
  *   since this tray last drew this pool - see `spentSince`. The tray keeps its
  *   own memory separate from the sheet's, so both surfaces flash the same
@@ -382,7 +380,7 @@ export function eclipseMoveRow(moves) {
         return { available: true, feet: 2, solid: true, tooltip: game.i18n.localize("DRPG.Actions.eclipseFreePlacement") };
     }
     const n = Math.max(0, Number(moves) || 0);
-    // Two feet whatever is left (E49 B2: sheet.mjs `moveSlots`; until then one per crossing left, one outlined at none).
+    // Two feet whatever is left (E49 B2: sheet-header.mjs `moveSlots`; until then one per crossing left, one outlined at none).
     return { available: n > 0, feet: 2, solid: n > 0, tooltip: plural("DRPG.Actions.eclipseMovesLeft", { n }) };
 }
 
@@ -418,7 +416,7 @@ export function stillPlacing(students, { left = eclipseMovesLeft, used = eclipse
  * A dead student who is no Monocub has nothing on this strip to spend: death does not empty the action pool and the
  * time of day's refill passes a body by, so until E17 C8 the strip went on saying "1/2", a full foot and, in each
  * Eclipse, two crossings, all of which the module refuses (audit S10-30). The strip is then one row of state. Dead
- * as this browser may know it (sheet.mjs `sheetMode`'s `strip`, E45 C1: on the viewer's own character and on a GM's
+ * as this browser may know it (sheet-mode.mjs `sheetMode`'s `strip`, E45 C1: on the viewer's own character and on a GM's
  * screen the flag or the player's own copy of a death not yet published, as `isDeadForGm` reads it), as
  * the Hope row below has always asked. A Monocub keeps every row: Confusion costs an action and a point of Hope.
  */
@@ -472,10 +470,10 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
         }),
 
         // The sheet marks the Move with footprints rather than pips, and since E49 B2 with the same two feet in the same
-        // places as the sheet (sheet.mjs `moveSlots`): the free Move, and the Eclipse's second crossing, dimmed outside one.
+        // places as the sheet (sheet-header.mjs `moveSlots`): the free Move, and the Eclipse's second crossing, dimmed outside one.
         safeRow(() => {
             const foot = document.createElement("span");
-            /* A MONOCUB'S FEET ARE LIT, AS ON ITS SHEET (E103, 13.11.2026; sheet.mjs `moveSlots`, `freeMovePip`): its
+            /* A MONOCUB'S FEET ARE LIT, AS ON ITS SHEET (E103, 13.11.2026; sheet-header.mjs `moveSlots`, `freeMovePip`): its
                crossings cost nothing, in an Eclipse too (movement.mjs `cubStep`), so neither the free Move's flag nor the
                Eclipse's count dims the row, nothing flashes, and the tooltip is the Monocub's sentence. Until E103 the
                strip drew a Monocub's feet as a student's. */

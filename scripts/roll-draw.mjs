@@ -157,8 +157,9 @@ export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototyp
  * be read (a bound or native function), the build is "changed": the roll thrown on the player's browser
  * and the GM told once per version. Not having one (no Actor class here) is not judged: the build's
  * review decides alone.
+ *
+ * Exported for patches.mjs `moveContextRow` (DH212 5), which reads the same road the seam does.
  */
-/** Exported for patches.mjs `moveContextRow` (DH212 5), which reads the same road the seam does. */
 export function reviewTraitRoad(rollTrait, MoveContext) {
     if (typeof rollTrait !== "function") return { ok: true, why: "" };
     const text = Function.prototype.toString.call(rollTrait);

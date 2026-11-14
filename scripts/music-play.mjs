@@ -473,7 +473,7 @@ async function apply() {
     }
 
     // Coming back out of one, and only what THIS branch took. `HELD_FLAG` is
-    // shared with the GM-cue path (`startInterruption`, `adoptRunningInterruption`),
+    // shared with the GM-cue path (`playTrack`, `onManualStart`, `adoptRunningInterruption`),
     // so `playlistsHolding()` here would resume playlists a running cue is still
     // holding. `resetMusic` owns the after-a-reload case and guards it with
     // `!anythingPlaying()`, which this branch has no equivalent of.

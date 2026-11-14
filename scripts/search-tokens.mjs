@@ -767,7 +767,7 @@ async function runTakePlant(payload, sender, ctx) {
  * thing in their hands. These five are what the Search reads (action-rolls.mjs, the plant's
  * draw); `handedOut` keeps the row whole, for a return to put back.
  */
-export function plantForFinder(plant) {
+function plantForFinder(plant) {
     if (!plant) return null;
     const { name, img, description, roles, drpgItemId } = plant;
     return { name, img, description, roles, drpgItemId };

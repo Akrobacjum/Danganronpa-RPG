@@ -77,7 +77,7 @@ export const NOTICE_TONES = Object.freeze(["hope", "fear", "critical"]);
  * Where an entry came from (the A7 design, P1-1). `author` is the other user an entry came from, on any source
  * since E81 fix r1-G1: what the per-author bound counts (`trimSection`).
  */
-export const NOTICE_SOURCES = Object.freeze(["mine", "public", "player", "messenger", "evidence", "summary", "safeword", "notDone"]);
+const NOTICE_SOURCES = Object.freeze(["mine", "public", "player", "messenger", "evidence", "summary", "safeword", "notDone"]);
 const STATES = ["open", "read", "unread"];
 const MARKS = [null, "rerolled", "settled", "deleted"];
 /* How far a notice has come: two tabs' copies of one entry, or of one card, keep the further (E81 fix r1-G5). */

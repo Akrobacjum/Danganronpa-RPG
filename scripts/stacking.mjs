@@ -63,7 +63,7 @@ export const KEEP_ON_TOP = `.application.${PROMPT_CLASS}`;
  * while deciding. Raising a prompt over every window was measured at the table
  * as a GM's clicks landing on the wrong window.
  */
-export const OVERTAKEN = ".application.sheet.actor";
+const OVERTAKEN = ".application.sheet.actor";
 
 /**
  * A window's box on the screen: its laid-out rectangle, else the position Foundry keeps for it (a window
@@ -104,7 +104,7 @@ export function promptsOver(sheet, root = document) {
  * own counter, so the next window Foundry raises still lands above the rest rather than fighting a
  * number of the module's. Answers how many were raised.
  */
-export function raisePromptsOver(sheet) {
+function raisePromptsOver(sheet) {
     if (!sheet?.isConnected) return 0;
     const raised = promptsOver(sheet);
     for (const el of raised) foundry.applications.instances.get(el.id)?.bringToFront?.();

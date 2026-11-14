@@ -97,7 +97,9 @@ export function colourOf(name, fallback) {
     try {
         const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
         if (!raw) return fallback;
-        return foundry.utils.Color.from(raw).valueOf();
+        // a text that is no colour is a Color of NaN, which would reach PIXI as a tint (`accentColour`'s check; R5470)
+        const parsed = foundry.utils.Color.from(raw).valueOf();
+        return Number.isFinite(parsed) ? parsed : fallback;
     } catch {
         return fallback;
     }

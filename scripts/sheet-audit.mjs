@@ -219,7 +219,7 @@ const PAYMENTS = new Set(["price", "call", "meddle"]);
 /** How long credit is kept: a Reroll's window, the longest a module refund comes after its price. */
 const CREDIT_KEPT_MS = TIMING.rerollWindowMinutes * 60_000;
 /** How long an item used waits for its consumption by the same user (the plan's 2.5, chosen). */
-export const JUDGE_WAIT_MS = 2000;
+const JUDGE_WAIT_MS = 2000;
 /** How recent a Daggerheart roll must be to cover the Hope the relay writes for it (the plan's 2.5, chosen). */
 const ROLL_COVER_MS = 60_000;
 
@@ -347,7 +347,7 @@ function docData(doc) {
  * an item (`onItem`, G3) counts only where Daggerheart applies it to the student: transferred, which a new effect
  * is unless it says otherwise (Daggerheart 2.10.5 `baseEffect.mjs`, actor.mjs `allApplicableEffects`, read).
  */
-export function touchesHeld(data, { onItem = false } = {}) {
+function touchesHeld(data, { onItem = false } = {}) {
     if (!data || (onItem && data.transfer === false)) return false;
     if ([...(data.statuses ?? [])].some(id => MODULE_STATUSES.has(id))) return true;
     // Daggerheart 2.10.5 keeps an effect's changes in `system.changes` (read in its source, 05.10.2026); older ones at the top.
@@ -762,7 +762,7 @@ export async function armedCallsHeld(actor) {
  * `rotEverything`, fix r2-H19), a GM's ruling on an item used (use-items.mjs `grantItemEffect`, H19) and an
  * Objection's evidence (trial.mjs `seizeFloor`, H20); the object a tie of a trace to the crime names
  * (bridge-guards.mjs `guardTieTraceHolder`, H21); and through this list itself a Reroll's plant (reroll.mjs
- * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22); and through
+ * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (death.mjs `bulletsHeldBy`, H22); and through
  * `itemAsHeld` the count a Reroll gives a used item's charge back to (murder-rules.mjs `undoLastCrisis`, H23).
  */
 export async function itemsAsHeld(actor) {
@@ -905,7 +905,7 @@ export function creationRefusal(actor, itemId) {
  * undecided row of an item the GMs held that a player deleted (`itemFindings`: flagged, the change `items.<id>` to
  * null, the GMs' copy kept as `data`; a row of the card of changes made with no GM watching alike), while the item is
  * still off the sheet - the copy `decideNow`'s Undo makes again under its id - read as an item (`itemLike`, with the
- * uuid it had). For a road that takes such an item for good (chapter.mjs `keepBulletDeletions`). Empty on a browser
+ * uuid it had). For a road that takes such an item for good (death.mjs `keepBulletDeletions`). Empty on a browser
  * that holds no rows.
  */
 export function deletedHeldBy(actor) {

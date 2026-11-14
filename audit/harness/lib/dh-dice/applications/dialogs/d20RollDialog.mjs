@@ -1,62 +1,57 @@
 /*
- * HARNESS GLUE, NOT DAGGERHEART'S CODE (E33 C2a, 07.10.2026; the window since E33 C2b, 07.10.2026).
- * dhRoll.mjs, d20Roll.mjs and dualityRoll.mjs beside this import it as their `DefaultDialog`; at a
- * table that is Daggerheart's roll window, module/applications/dialogs/d20RollDialog.mjs (2.10.5).
- * Until C2b this was the window pressed at once - `configure` answered the config untouched - so the
- * module's hooks on the window (roll-dialog.mjs) never ran on a roll the harness threw, and a Call's
- * die, a Breakdown's, a room's or an Experience was never on the roll that the GM counted (the plan's
- * E29 Q5 (b)). Scenario 13's one flagged roll is not that gap: it is thrown past the crisis menu that
- * arms its die, and it keeps its flags on this window (e33run/scratch/c2b/logs/s13-after.log).
+ * HARNESS GLUE, NOT DAGGERHEART'S CODE (E33 C2a, 07.10.2026; the window since E33 C2b, 07.10.2026; modelled on 2.12.8's
+ * window since 13.11.2026, the owner's consent to re-copy dh-dice, "zgoda na dh-dice").
+ * dhRoll.mjs, d20Roll.mjs and dualityRoll.mjs beside this import it as their `DefaultDialog`; at a table that is
+ * Daggerheart's roll window, module/applications/dialogs/d20RollDialog.mjs - here read at tag 2.12.8 (commit 71c318de25,
+ * 235 lines), and every `:n` below is that file's line. Until 13.11.2026 this modelled 2.10.5's window: the experiences
+ * emptied at construction (2.10.5 :12), `reactionOverride` and the chip on a DualityRoll alone (:13, :136), the actor
+ * off the roll data's `parent` (:53-55). 2.12.8 has none of those.
  *
- * A STAND-IN, SHAPED AS THE WINDOW. Read in Daggerheart's source; Foundry's own ApplicationV2 is the
- * shim's (lib/shim.mjs `buildApplications`), whose render and close fire `renderApplicationV2` and
- * `closeApplicationV2` with Foundry's arguments, so the module's hooks run on this as they are -
- * every other window hook of the module too, as at a table. What it models, line by line:
- *   - the constructor (:7-23): `roll`, `config`, `config.experiences` emptied (:12), `reactionOverride`
- *     from the config's actionType (:13), `selectedEffects`. Not the action and item it looks up (:16-22).
- *   - DEFAULT_OPTIONS (:25-47): a `form` with the window's classes, its five actions and its form
- *     options (:42-46, below). `title` (:49-51) and `actor` (:53-55, the roll data's `parent`).
- *   - `_prepareContext` (:69-141): the costs defaulted (:84); the experiences from the roll data's
- *     `system` (:113-121, not a companion's); advantage, extra formula; `formula` - the roll's own
- *     `constructFormula`, run on every render as there (:133), which is where the window's choices
- *     reach the dice; the abilities when the actor has traits (:134); `showReaction` (:136). Not the
- *     costs' and uses' calculation (:85-107), rally dice, effects.
- *   - the markup the hooks read, from templates/dialogs/dice-roll/ - `_renderHTML` below cites each
- *     element and the roll-dialog.mjs reader it is drawn for. Not Handlebars, labels, icons, layout.
- *   - the actions, as written there: `updateIsAdvantage` (:173-189), `selectExperience` (:191-209),
- *     `toggleReaction` (:211-221), `toggleSelectedEffect` (:223-226), `submitRoll` (:228-230); a click
- *     reaches them through one listener on the window (Foundry's, as the shim's DialogV2 has it), so a
- *     capture listener the module puts on a chip (`lockChip`) refuses it and a disabled button never
- *     fires. `_onClose` (:233-235): unsubmitted, `config` is false. `configure` (:237-243).
- *   - Foundry queues a window's renders, so one asked for inside a render hook (`forceAdvantage`,
- *     `capExperiences`) runs after it, and a render asked of a closed window is none. As remembered of
- *     Foundry, whose source is not on this machine - not read, not measured.
- *   - THE FORM'S SUBMIT ON A CHANGE (since E33 C3, 07.10.2026): `form.handler` and `submitOnChange`
- *     (:42-46). Foundry listens for `change` on a form window and, under `submitOnChange`, runs the
- *     handler with the form's data - as remembered of Foundry's ApplicationV2 and FormDataExtended
- *     (every named control but a button or a disabled one, a checkbox as its state), not read: their
- *     source is not on this machine. Of `updateRollConfiguration` (:150-171) this runs :151 (the
- *     form's data expanded), :169 (`config.extraFormula` - the input roll-dialog.mjs `lockBonus`
- *     writes and says it changed) and :170 (a render). Not :153 (the message mode: this window's
- *     select holds one value, 'public' where Daggerheart's defaults to the core setting, :74), not
- *     :155-158 (the costs and uses), not :159-161 (the dice: `lockDice` disables every select of
- *     them) and not :162-168 (the statistic: `lockTrait` disables its select unless a Determination
- *     Call is armed, and a roll the harness throws has no actor, so no select). Nobody here types or
- *     picks, so the handler runs only on a change the module says it made. The Roll button carries
- *     `type="button"` and its click submits nothing; the template's has no `type`
- *     (rollSelection.hbs:195), and whether a table's Roll click submits the form - copying the input
- *     once more - is Foundry's: not modelled.
+ * WHY NOT THE FILE ITSELF. 2.12.8's window renders two Handlebars templates (PARTS, :56-65) through Foundry's
+ * HandlebarsApplicationMixin and reads Foundry's form data; the shim has neither (lib/shim.mjs `buildApplications`), so
+ * the file cannot run here as it stands. What runs here is its code where the harness allows - the constructor, the
+ * getters, the context and the five actions copied from it, each marked where it differs - and markup written by hand
+ * for the elements the module's hooks read. Foundry's own ApplicationV2 is the shim's, whose render and close fire
+ * `renderApplicationV2` and `closeApplicationV2` with Foundry's arguments, so the module's hooks run on this as at a table.
  *
- * THE PLAYER. Nobody sits at the harness's window: once its renders have settled, it clicks the
- * experience chips the config arrived with (client-entry.mjs `diceRoll` puts `__forceExperiences`
- * there) - a chip the module locked refuses the click, as at a table - and then Roll. The roll data's
- * `parent` is not in the shim's `getRollData`, so on a roll the harness throws `actor` is undefined:
- * no Statistic select (:134) and an experience's cost is Hope (:203). tests-tier2.mjs `rollWindow`
- * opens this with a `parent` given.
+ * WHAT IS 2.12.8'S, LINE BY LINE:
+ *   - the constructor (:7-13): `roll`, `config`, `originalActionType` (:11), `selectedEffects` (:12). The config's
+ *     experiences are left as they came, as 2.12.8 leaves them.
+ *   - DEFAULT_OPTIONS (:15-37), `title` (:39-41), `actor` (:43-45, `config.actor`), `item` and `action` (:47-53).
+ *   - `_prepareContext` (:67-134): the message mode (:72), the selected effects (:79-80), the roll's context (:105-131) -
+ *     the experiences off `config.data.experiences` (:110-116), advantage and disadvantage (:117-118), `isLite` (:124),
+ *     the extra formula (:125), `formula`, the roll's own `constructFormula` run on every render (:126), which is where
+ *     the window's choices reach the dice, the abilities when the actor has traits (:127), `showReaction` - every roll but
+ *     a FateRoll whose config does not skip it (:129) - and `isReaction`, the config's actionType (:130). NOT: the costs'
+ *     and uses' calculation (:82-104; client-entry.mjs `wrapWindowCosts` greys the Roll from the costs instead, LIVE-E16-01)
+ *     and the rally die (:108).
+ *   - the actions: `updateIsAdvantage` (:166-182), `selectExperience` (:184-202), `toggleReaction` (:204-212: the
+ *     actionType flipped between the original and its other), `toggleSelectedEffect` (:214-217), `submitRoll`
+ *     (:219-221). `_onClose` (:224-226): unsubmitted, `config` is false. `configure` (:228-234).
+ *   - THE FORM'S SUBMIT ON A CHANGE (`form.handler`, `submitOnChange`, :32-36): Foundry runs the handler with the form's
+ *     data on a `change` - as remembered of Foundry's ApplicationV2 and FormDataExtended (every named control but a button
+ *     or a disabled one, a checkbox as its state), not read: their source is not on this machine. Of
+ *     `updateRollConfiguration` (:143-164) this runs :144 (the data expanded), :146 (the message mode), :155-161 (the
+ *     statistic and the title it gives a roll from no item), :162 (`config.extraFormula`, the input roll-dialog.mjs
+ *     `lockBonus` writes and says it changed) and :163 (a render). Not :148-151 (the costs and uses merged) and not
+ *     :152-154 (the dice merged into the roll: `lockDice` disables their selects).
+ *   - the markup the hooks read, from templates/dialogs/dice-roll/ at 2.12.8 (header.hbs, rollSelection.hbs, which
+ *     differ from 2.10.5's in the chip's `isReaction` alone) - `_renderHTML` cites each element and the roll-dialog.mjs
+ *     reader it is drawn for. Not Handlebars, labels, icons, layout.
+ *   - Foundry queues a window's renders, so one asked for inside a render hook (`forceAdvantage`, `capExperiences`) runs
+ *     after it, and a render asked of a closed window is none. As remembered of Foundry, not read, not measured.
+ *
+ * THE PLAYER (harness, not Daggerheart). Nobody sits at the harness's window: once its renders have settled, it clicks
+ * the experience chips a test named - `__forceExperiences`, which client-entry.mjs `diceRoll` hands to MoveContext as
+ * the config's experiences - and then Roll. Those are a player's clicks, not a caller's choice, so `configure` takes
+ * them off the config before the window is built and clicks them (a chip the module locked refuses the click, as at a
+ * table): the one place this differs from 2.12.8's `configure`, marked there. A caller's experiences reach 2.12.8's
+ * window selected; none of the module's callers sends any to a window today (scripts/: the GM's draw sends them with
+ * the window skipped).
  */
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-const TRAITS = ["agility", "strength", "finesse", "instinct", "presence", "knowledge"];   // config/actorConfig.mjs `abilities`
+const TRAITS = ["agility", "strength", "finesse", "instinct", "presence", "knowledge"];   // config/actorConfig.mjs `abilities` (the ids :137 maps)
 const FACES = [4, 6, 8, 10, 12, 20];                                                       // CONFIG.DH.GENERAL.dieFaces
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 /* The form's data as Foundry's FormDataExtended gives it, as remembered (the header): every named control but a button or a disabled one. */
@@ -72,8 +67,7 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
         super(options);
         this.roll = roll;
         this.config = config;
-        this.config.experiences = [];
-        this.reactionOverride = config.actionType === 'reaction';
+        this.originalActionType = config.actionType;
         this.selectedEffects = this.config.bonusEffects;
     }
 
@@ -101,7 +95,15 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
     }
 
     get actor() {
-        return this.config?.data?.parent;
+        return this.config.actor ?? null;
+    }
+
+    get item() {
+        return this.config.item ?? null;
+    }
+
+    get action() {
+        return this.config.action ?? null;
     }
 
     render(options = {}) {
@@ -118,25 +120,32 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
     }
 
     async _prepareContext() {
-        const context = { rollConfig: this.config, hasRoll: !!this.config.roll, canRoll: true };
-        context.selectedMessageMode = this.config.selectedMessageMode ?? 'public';
+        const context = { rollConfig: this.config, hasRoll: !!this.config.hasRoll, canRoll: true };   // :69-71 (:68 is Foundry's)
+        context.selectedMessageMode = this.config.selectedMessageMode ?? game.settings.get('core', 'messageMode');   // :72
+        context.hasSelectedEffects = Boolean(this.selectedEffects && Object.keys(this.selectedEffects).length);   // :79
         context.selectedEffects = this.selectedEffects;
-        this.config.costs ??= [];
-        context.costs = this.config.costs;
+        // :82-104 not run (the header): the costs as the config holds them, so the cost rows' markup has its inputs.
+        context.costs = this.config.costs ?? [];
         if (this.roll) {
             context.roll = this.roll;
             context.rollType = this.roll?.constructor.name;
-            // 2.12 reads the experiences off the roll data MoveContext picks (`config.data.experiences`, 2.12.8's
-            // d20RollDialog.mjs:110; E76 C3c), 2.10.5 off its `system` (:113): the first that has them.
-            const experiences = this.config.data?.experiences ?? this.config.data?.system?.experiences ?? {};
-            context.experiences = Object.keys(experiences).map(id => ({ id, ...experiences[id] }));
+
+            const experiences = this.config.data?.experiences ?? {};
+            context.experiences = Object.keys(experiences).map(id => ({
+                id,
+                ...experiences[id]
+            }));
+
             context.selectedExperiences = this.config.experiences;
             context.advantage = this.config.roll?.advantage;
+            context.disadvantage = this.config.roll?.disadvantage;
+            context.isLite = this.config.roll?.lite;
             context.extraFormula = this.config.extraFormula;
             context.formula = this.roll.constructFormula(this.config);
-            if (this.actor?.system?.traits) context.abilities = TRAITS;
-            context.showReaction = !this.config.skips?.reaction && context.rollType === 'DualityRoll';
-            context.reactionOverride = this.reactionOverride;
+            if (this.actor?.system?.traits) context.abilities = TRAITS;   // :127, the ids alone (`getTraitModifiers` :136-141 labels them)
+
+            context.showReaction = !this.config.skips?.reaction && context.rollType !== 'FateRoll';
+            context.isReaction = this.config.actionType === 'reaction';
         }
         return context;
     }
@@ -145,9 +154,9 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
         const roll = c.roll ?? {};
         const option = (value, selected, label = value) => `<option value="${esc(value)}"${selected ? ' selected' : ''}>${esc(label)}</option>`;
         const off = c.advantage ? '' : ' disabled';
-        // header.hbs:4-9 - `forceReaction` reads [data-action="toggleReaction"] and its <i>.
+        // header.hbs:4-9 (2.12.8: `isReaction`) - `forceReaction` reads [data-action="toggleReaction"] and its <i>.
         const header = c.showReaction
-            ? `<header class="dialog-header"><div class="reaction-chip${c.reactionOverride ? ' selected' : ''}" data-action="toggleReaction"><span><i class="${c.reactionOverride ? 'fa-solid' : 'fa-regular'} fa-circle"></i></span></div></header>`
+            ? `<header class="dialog-header"><div class="reaction-chip${c.isReaction ? ' selected' : ''}" data-action="toggleReaction"><span><i class="${c.isReaction ? 'fa-solid' : 'fa-regular'} fa-circle"></i></span></div></header>`
             : '<header class="dialog-header"></header>';
         // rollSelection.hbs:38, :48 - `lockDice` reads select[name^="roll.dice."].
         const dice = c.rollType === 'DualityRoll'
@@ -176,7 +185,9 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
             + `<select class="roll-mode-select" name="selectedMessageMode">${option(c.selectedMessageMode, true)}</select>`
             + `<button type="button" class="submit-btn" data-action="submitRoll"${c.canRoll ? '' : ' disabled'}><i class="fa-solid fa-dice"></i></button></div>`;
         // rollSelection.hbs:2 - `showWaitingCalls` writes into .roll-dialog-container.
-        return `${header}<div class="roll-dialog-container">${dice}${chips ? `<fieldset class="experience-container">${chips}</fieldset>` : ''}${modifiers}${costs}${controls}</div>`;
+        // rollSelection.hbs:3-4, 180-181 - the dice, the chips and the modifiers only on a roll (`hasRoll`) that is not lite.
+        const rolled = c.hasRoll && !c.isLite ? `${dice}${chips ? `<fieldset class="experience-container">${chips}</fieldset>` : ''}${modifiers}` : '';
+        return `${header}<div class="roll-dialog-container">${rolled}${costs}${controls}</div>`;
     }
 
     async _replaceHTML(html, element) {
@@ -202,9 +213,19 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
         });
     }
 
-    /* :150-171, the lines the header names: the extra formula copied into the config, then a render. */
+    /* :143-164, the lines the header names: the message mode, the statistic, the extra formula, then a render. */
     static updateRollConfiguration(_event, _, formData) {
         const { ...rest } = foundry.utils.expandObject(formData.object);
+
+        this.config.selectedMessageMode = rest.selectedMessageMode;
+
+        if (rest.hasOwnProperty('trait')) {
+            this.config.roll.trait = rest.trait;
+            if (!this.config.source.item && this.config.roll.trait)
+                this.config.title = game.i18n.format('DAGGERHEART.UI.Chat.dualityRoll.abilityCheckTitle', {
+                    ability: game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${this.config.roll.trait}.name`)   // :159's `abilities[...]?.label`
+                });
+        }
         this.config.extraFormula = rest.extraFormula;
         this.render();
     }
@@ -239,9 +260,9 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
                     ...this.config.costs,
                     {
                         extKey: button.dataset.key,
-                        key: this.config?.data?.parent?.isNPC ? 'fear' : 'hope',
+                        key: this.config?.actor?.isNPC ? 'fear' : 'hope',
                         value: 1,
-                        name: (this.config.data?.experiences ?? this.config.data?.system?.experiences)?.[button.dataset.key]?.name
+                        name: this.config.data?.experiences?.[button.dataset.key]?.name
                     }
                 ];
         this.render();
@@ -249,12 +270,10 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
 
     static toggleReaction() {
         if (this.config.roll) {
-            this.reactionOverride = !this.reactionOverride;
-            this.config.actionType = this.reactionOverride
-                ? 'reaction'
-                : this.config.actionType === 'reaction'
-                    ? 'action'
-                    : this.config.actionType;
+            const overrideType = this.originalActionType === 'reaction' ? 'trait' : 'reaction';
+            this.config.actionType =
+                this.config.actionType === this.originalActionType ? overrideType : this.originalActionType;
+
             this.render();
         }
     }
@@ -273,7 +292,9 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
     }
 
     static async configure(roll, config = {}, options = {}) {
+        // HARNESS, not :228-234: the player's picks taken off the config and clicked once the window stands (the header).
         const picks = [...(config.experiences ?? [])];
+        config.experiences = [];
         return new Promise(resolve => {
             const app = new this(roll, config, options);
             app.addEventListener('close', () => resolve(app.config), { once: true });

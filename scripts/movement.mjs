@@ -44,9 +44,9 @@ import { overflowCrossings } from "./overflow.mjs";
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf, listOf } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
-    isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation } from "./rooms.mjs";
+    isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation, roomPhrase } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 // The secret passages this browser may know (E79 C3), static for the veto's sake as the imports
 // above. passages.mjs is a leaf that never reads this file back (R560 holds its imports).
@@ -634,6 +634,18 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
         gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo, roomAtSpot(tokenDoc, was)));
     }
     gmSeen.set(tokenDoc.id, sentTo ?? positionOf(tokenDoc));
+    /* A GM'S OWN MOVE INTO ANOTHER ROOM IS AN ARRIVAL TOO (the audit of 1.2.113, A113-C4-3). A player's lawful
+       crossing reaches the owner's notices through the settled crossing the GMs record (arrival-notices.mjs); a GM's drag,
+       placement or gather records no crossing, so it is told from here, on the primary. A put-back the module writes is
+       not an arrival. */
+    if (was && isPrimaryGm() && game.users?.get(userId)?.isGM && tokenDoc.actor
+        && !options?.[REVERT] && !options?.[SENT_BACK] && !options?.[WALL_PUT_BACK]) {
+        const from = roomAtSpot(tokenDoc, was), to = roomAtSpot(tokenDoc, gmSeen.get(tokenDoc.id));
+        if (to && to !== from) {
+            import("./arrival-notices.mjs").then(m => m.noticesOnArrival(tokenDoc.actor, to, tokenDoc.parent))
+                .catch(err => error(`Could not tell "${tokenDoc.name}" what waited in ${to}`, err));
+        }
+    }
 }
 
 /**
@@ -692,7 +704,7 @@ function removeDrop(tokenDoc, standing) {
             return;
         }
         log(`A player placed a token of ${name} in ${room} on "${scene}", which the rules refuse (${standing.reason}); it was removed.`);
-        whisperToGms({ tone: "warning", body: `<p data-drpg-dropgone="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.dropRemoved", { name, room, scene }))}</p>`
+        whisperToGms({ tone: "warning", body: `<p data-drpg-dropgone="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.dropRemoved", { name, at: roomPhrase("at", roomOfToken(tokenDoc) ?? null), scene }))}</p>`
             + `<p>${esc(standing.reason ?? "")}</p>` })
             .catch(err => error("Could not tell the GMs of a token removed", err));
     }, 0);
@@ -1163,7 +1175,7 @@ function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
  * not against the larger count: an honest ask often reaches the primary before the move it asks about, and judged
  * against the asks that move would read as past the allowance. Written in a step of the character's `crossingKey`, and
  * held on the primary until then (`seenTally`), for a second move judged before the first's write runs. A
- * Monokuma is not counted; a free-placement Eclipse counts and puts nothing back; a GM's move, an honoured put-back
+ * Monokuma is not counted, nor a Monocub (`crossesFree`, 1.2.113); a free-placement Eclipse counts and puts nothing back; a GM's move, an honoured put-back
  * and a move the rules refused are no sighting. Tier 2 E17-T4.
  */
 const seenTally = new Map();
@@ -1174,7 +1186,8 @@ const seenTally = new Map();
  */
 function eclipseSighting(student, from, tokenDoc, { adjacent = true } = {}) {
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
-    if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
+    // A Monocub counts no Eclipse crossing (`crossesFree`), so no sighting either, nor a put-back past the allowance.
+    if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma) || crossesFree(student)) return null;
     const to = roomOfToken(tokenDoc), id = eclipseId(clock);
     if (!from || !to || from === to || !id) return null;
     // A watcher keeps to the post through the Eclipse (E74 C6; DA34, the plan's "judgeEclipseCrossing refuses the watcher"):
@@ -1437,8 +1450,9 @@ function tellUnlawful(tokenDoc, now) {
     const name = tokenDoc.actor?.name ?? tokenDoc.name ?? "";
     const room = roomOfToken(tokenDoc) ?? outside;
     const from = now.last?.room ?? outside;
+    const phrases = { into: roomPhrase("into", roomOfToken(tokenDoc) ?? null), from: roomPhrase("out", now.last?.room ?? null) };
     log(`${name} reached ${room} on "${tokenDoc.parent?.name}" by a crossing the rules refuse (${now.reason}); no witness and no third party until they stand somewhere they could have reached from ${from}.`);
-    whisperToGms({ tone: "warning", body: `<p data-drpg-unlawful="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.unlawfulArrival", { name, room, from }))}</p>`
+    whisperToGms({ tone: "warning", body: `<p data-drpg-unlawful="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.unlawfulArrival", { name, ...phrases }))}</p>`
         + `<p>${esc(now.reason ?? "")}</p>` })
         .catch(err => error("Could not tell the GMs of an unlawful arrival", err));
 }
@@ -1449,7 +1463,7 @@ function tellDropped(tokenDoc) {
     const room = roomOfToken(tokenDoc) ?? game.i18n.localize("DRPG.Movement.outsideRooms");
     const scene = tokenDoc.parent?.name ?? "";
     log(`A player placed a token of ${name} in ${room} on "${scene}", where ${name} stood nowhere before; judged from nowhere.`);
-    whisperToGms({ tone: "warning", body: `<p data-drpg-dropped="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.droppedFromNowhere", { name, room, scene }))}</p>` })
+    whisperToGms({ tone: "warning", body: `<p data-drpg-dropped="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.droppedFromNowhere", { name, at: roomPhrase("at", roomOfToken(tokenDoc) ?? null), scene }))}</p>` })
         .catch(err => error("Could not tell the GMs of a token a player placed", err));
 }
 
@@ -1601,15 +1615,6 @@ function onPreUpdateToken(tokenDoc, changes, options) {
 }
 
 /**
- * Dead, and not a Monocub - so this token is a body rather than a person.
- *
- * Death is asked of settings.mjs (E05 C9) and the Monocub flag read directly
- * rather than through `monocub.mjs`: this runs inside the synchronous
- * `preUpdateToken` veto, where there is no chance to await an import. On the
- * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
- * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
- */
-/**
  * Whether this token is a body that does not walk (E62 C3b fix; the e93 review's F3): its actor a corpse (`isCorpse`), or
  * a Monocub's corpse beside the token it walks (spectator.mjs `isMonocubCorpse`). The veto, the GMs' judge and the body
  * tile's follow (body-tile.mjs `followBody`) ask it.
@@ -1619,6 +1624,15 @@ export function isCorpseToken(tokenDoc) {
     return Boolean(actor && isCorpse(actor)) || isMonocubCorpse(tokenDoc);
 }
 
+/**
+ * Dead, and not a Monocub - so this token is a body rather than a person.
+ *
+ * Death is asked of settings.mjs (E05 C9) and the Monocub flag read directly
+ * rather than through `monocub.mjs`: this runs inside the synchronous
+ * `preUpdateToken` veto, where there is no chance to await an import. On the
+ * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
+ * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
+ */
 export function isCorpse(actor) {
     try {
         if (!isDeadForGm(actor) && !isMutedDead(actor)) return false;
@@ -1751,7 +1765,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
 
     // A Monocub pays nothing and counts no Eclipse crossing (E72 C10): only the connected rooms hold it, as a free
     // placement holds nobody.
-    if (isMonocubActor(actor)) return cubStep(scene, from, to, floors, { free: eclipse && allowance === null, passage, keyed });
+    if (crossesFree(actor)) return cubStep(scene, from, to, floors, { free: eclipse && allowance === null, passage, keyed });
 
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.
@@ -1879,7 +1893,7 @@ export function notConnectedText(from, to, connected, known = roomsKnownToMe()) 
     if (known && !known.has(to)) return game.i18n.format("DRPG.Move.cannotReach", { from });
     const shown = known ? connected.filter(r => known.has(r)) : connected;
     return shown.length
-        ? game.i18n.format("DRPG.Move.notConnected", { from, to, rooms: shown.join(", ") })
+        ? game.i18n.format("DRPG.Move.notConnected", { from, to, rooms: listOf(shown) })
         : game.i18n.format("DRPG.Move.notConnectedShort", { from, to });
 }
 
@@ -1935,6 +1949,19 @@ function cubStep(scene, from, to, floors, { free = false, passage = false, keyed
 /** A Monocub, by its flag (the veto is synchronous: no import of monocub.mjs here). */
 function isMonocubActor(actor) {
     return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.monocub));
+}
+
+/**
+ * WHO CROSSES FOR FREE: A MONOCUB (E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11; 1.2.113, 13.11.2026). The
+ * one rule every road of a crossing's price reads: no Free Move, Sprint, Burst or action taken, and no Eclipse crossing
+ * counted. The veto (`crossingVerdict`, through `cubStep`), the charge of a door's route (`chargeRoute`), the price of a
+ * tunnel's 'Go through' on the primary (`settleCrossingOnGm`) and the primary's Eclipse sighting of a door move
+ * (`eclipseSighting`) each ask it. Until 1.2.113 only the first two did: tier 2 "1.2.113 a Monocub's 'Go through'" at
+ * a43e865e read a Monocub's tunnel take its Free Move and refuse the next for no budget, its tunnel counted in an Eclipse,
+ * and its door move past the Eclipse's allowance put back. `actor` may be the judge's stand-in (anything with `getFlag`).
+ */
+function crossesFree(actor) {
+    return isMonocubActor(actor);
 }
 
 /**
@@ -2367,7 +2394,7 @@ export const TUNNEL_CROSSING = "drpgTunnelCrossing";
  * the cast's placing at a season's start and on the return from the trial (`teleportInto`) and a Clean-up's body
  * (cleanup.mjs) hand `region.teleportTokens` no option of the module's, and whether v14's puts `teleport` or a displace
  * into the update it writes is not read (LIVE-H81-03). So the writer's own browser marks the tokens around the call,
- * and the sheet's trigger (sheet.mjs `onTunnelStep`) reads no move of a marked token as a step onto a tunnel's end. The
+ * and the sheet's trigger (sheet-sidebar.mjs `onTunnelStep`) reads no move of a marked token as a step onto a tunnel's end. The
  * mark is read in the update's own hooks, which Foundry runs on the writer's browser before its update answers; a
  * teleport that answers before its update is written would not be covered - not read on v14 either.
  */
@@ -2405,7 +2432,7 @@ export function isPlacing(tokenDoc) {
  * token - the crossing's own (`TUNNEL_CROSSING`), a put-back (`REVERT`, which the gather's own fallback writes too),
  * and an update that says it is a teleport or a displace. The module's region teleports (the gather, the cast's
  * placing, a Clean-up's body) say neither: their writer's browser marks their tokens instead (`whilePlacing`, read in
- * sheet.mjs `onTunnelStep`; H81 fix C3, the review's H81-C3-R1, which found the claim "every placing write of the
+ * sheet-sidebar.mjs `onTunnelStep`; H81 fix C3, the review's H81-C3-R1, which found the claim "every placing write of the
  * module is one" false for those three). Which options v14's region teleport and a GM's own drag or teleport at a v14
  * table carry is not read: LIVE-H81-03. `ends` are
  * passages.mjs `tunnelEndsFor`'s for the token's character (none: it knows no tunnel); `from` and `to` are
@@ -2723,8 +2750,8 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
 async function chargeRoute(tokenDoc, actor, { before, previous, crossings }, { record = null } = {}) {
     /* A MONOCUB MOVES FREE (E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11, Q-E72-5's default): no Move, no
        action and no Eclipse count, the Eclipse too. The veto (`crossingVerdict`) still holds the walls, the stairs, a seal,
-       the courtroom and a murder's room. */
-    if (isMonocubActor(actor)) {
+       the courtroom and a murder's room. One rule with the tunnel's price and the Eclipse's sightings (`crossesFree`). */
+    if (crossesFree(actor)) {
         if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
         return true;
     }
@@ -3281,6 +3308,9 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
     // would be telling the player their budget is somewhere it is not.
     // And a fourth (E37 C6; E37-28): a banked Burst pays before an action (`takeMove`), and the card said "That cost an
     // action" for it, with the actions it had left untouched.
+    // "sprint" is any banked free crossing - a Sprint's, a Dash's, a Facilities room action's or Infiltrate's, one counter
+    // that keeps no record of what filled it (actions.mjs `grantFreeMoves`) - so the card says "a free crossing", as Move's
+    // briefing has since 73b6c5ba (the audit of 1.2.113, A113-C4-1).
     const price = cost === "free"
         ? game.i18n.localize("DRPG.Move.wasFree")
         : cost === "sprint"
@@ -3325,7 +3355,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 /*
  * THE PRICE OF 'GO THROUGH', ON THE PRIMARY GM (E80 C2, 18.10.2026; the stage's write road "price"). A door's
  * price is taken on the mover's own browser as its token lands (`chargeForCrossing`); a tunnel's crossing is
- * the primary's write, so the primary takes the price first - the Eclipse's count where an Eclipse runs, nothing
+ * the primary's write, so the primary takes the price first - nothing for a Monocub (`crossesFree`), the Eclipse's count where an Eclipse runs, nothing
  * where the GM handles movement by hand, else the free Move, a Sprint, a Burst or an action (`takeMove`, quiet:
  * nothing is said or played on the GM's screen) - moves the token after, and gives exactly that back when the
  * move is not written (`refundCrossingOnGm`). Tier 2 "A10-18" reads each.
@@ -3334,7 +3364,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 /**
  * THE ONE QUEUE'S KEY FOR A CHARACTER'S CROSSINGS ON THE PRIMARY (E17 C0, 26.10.2026; A10, session 0). One key per
  * character, so a crossing waits only for that character's: the Eclipse's count (eclipse.mjs `applyRecordedMove`,
- * `unrecordMove`), a tunnel's 'Go through' (passages-gm.mjs `crossTunnel`, keyed ``passage.cross/${actorId}`` until
+ * `uncountCrossingInStep`), a tunnel's 'Go through' (passages-gm.mjs `crossTunnel`, keyed ``passage.cross/${actorId}`` until
  * this commit) and the primary's charge of a door's route (`settleRoute`). `settleCrossingOnGm` and
  * `refundCrossingOnGm` run inside `crossTunnel`'s step and count through the in-step functions, as a second step of a
  * key its holder awaits would never start. Tier 0 R991 holds the census, tier 1 R992 the keys.
@@ -3349,6 +3379,8 @@ export function crossingKey(actorId) {
  * written (E80 fix r1-G2): posted with the count, it stayed when the write failed.
  */
 export async function settleCrossingOnGm(actor, to) {
+    // A Monocub's crossing is free, the Eclipse's count too (`crossesFree`): nothing taken, nothing to give back or tell.
+    if (crossesFree(actor)) return { cost: "none" };
     if (isEclipse()) {
         const { countCrossingInStep } = await import("./eclipse.mjs");
         const out = await countCrossingInStep(actor.id, { to, card: false, made: true });

@@ -726,6 +726,8 @@ export function soundFromMessage(message) {
     const key = typeof carried === "string" ? carried : carried?.key;
     let forGm = typeof carried === "string" ? false : Boolean(carried?.gm);
     if (!key) return null;
+    // The users the card's sound leaves out (A113-C2-5: the victim's player, whose fade was the moment's sound).
+    if (Array.isArray(carried?.not) && carried.not.includes(game.user?.id)) return null;
 
     // A card a GM posted at a player's asking is the player's (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
     const byPlayer = !cardWriter(message)?.isGM;

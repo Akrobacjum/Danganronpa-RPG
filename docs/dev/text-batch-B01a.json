@@ -2287,7 +2287,7 @@
       "facts": [
         {
           "fact": "Use an Item is either side's: Hand against 15; it is taken with an item row's Use button on the sheet during an incident, and the crisis menu does not list it (hidden).",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-inventory.mjs",
           "fn": "addUseButton",
           "note": null
         },
@@ -4466,7 +4466,7 @@
       "facts": [
         {
           "fact": "The hint of the Dynamic Action tile in the action grid (the sheet builds it, since ACTIONS holds only the tile's place); the tile costs one action.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-actions.mjs",
           "fn": "dynamic",
           "note": null
         },

@@ -27,7 +27,7 @@
  */
 import { ACTIONS, HOPE_CALLS, DESPAIR_CALLS, CRISIS_ACTIONS } from "./config.mjs";
 
-export const CARD_TONES = Object.freeze(["info", "warning", "secret"]);
+const CARD_TONES = Object.freeze(["info", "warning", "secret"]);
 
 /** The faces a card may name directly (Font Awesome names, each one FACES maps to a glass glyph), and each tone's own. */
 export const CARD_FACES = Object.freeze(["circle-info", "triangle-exclamation", "user-secret", "list-check", "scale-balanced", "gavel", "envelope", "bug"]);
@@ -69,7 +69,7 @@ export function chatCard({ glyph = null, title = null, body = "", foot = null, t
 }
 
 /** Whether `content` is a card's spec (an object) rather than markup: what the posting helpers ask. */
-export function isCardSpec(content) {
+function isCardSpec(content) {
     return content !== null && typeof content === "object" && !Array.isArray(content);
 }
 

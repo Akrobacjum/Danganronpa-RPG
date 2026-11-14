@@ -43,6 +43,18 @@ const PLAYER_REGIONS = "playerRegions";
 /** `SETTINGS.sceneRoles` (settings.mjs), by its key, for the same reason. */
 const SCENE_ROLES = "sceneRoles";
 
+/**
+ * WHERE A TOKEN STANDS, AS A PHRASE WITH ITS OWN PREPOSITION (the needsCode line, 14.11.2026; docs/text-style.md section
+ * 14, as `Explain.phase.eclipseReach`): `kind` "at" (EN "in Library", PL „w pokoju Biblioteka”), "into" („do pokoju
+ * ...”) or "out" („z pokoju ...”), and with no room each kind's own words outside the rooms („poza pokojami”, „poza
+ * pokoje”, „spoza pokoi”). The hosts wrote „do pokoju {room}” and the code put `Movement.outsideRooms` there:
+ * „do pokoju poza pokojami” (Q-B-6; R6912). Taken by Movement.ruleSentBack, dropRemoved, unlawfulArrival,
+ * droppedFromNowhere and Panel.refundCrossingNote.
+ */
+export function roomPhrase(kind, room) {
+    return room ? game.i18n.format(`DRPG.Movement.${kind}.room`, { room }) : game.i18n.localize(`DRPG.Movement.${kind}.none`);
+}
+
 /*
  * BEHAVIOURS THAT MAKE A REGION A PASSAGE, NOT A ROOM. A Teleport sends a token to another
  * place and a level change to another floor: a region carrying either is where a token leaves
@@ -51,7 +63,7 @@ const SCENE_ROLES = "sceneRoles";
  * behaviour may be a room, and the migration leaves every region with behaviours for the GM to
  * decide (`markRooms`).
  */
-export const NOT_ROOM_BEHAVIOURS = new Set(["teleportToken", "changeLevel"]);
+const NOT_ROOM_BEHAVIOURS = new Set(["teleportToken", "changeLevel"]);
 
 /** A region's behaviours as a list, whatever collection holds them. */
 function behavioursOf(region) {
@@ -400,7 +412,7 @@ export function placeRoomNames() {
  * and, whatever that list says, x, y, elevation and level - whether v14's list names `level`
  * was not read (LIVE-E12-03), and a floor change missed here is a move nothing judges.
  */
-export const MOVE_FIELDS = Object.freeze([...new Set([
+const MOVE_FIELDS = Object.freeze([...new Set([
     ...(globalThis.foundry?.documents?.BaseToken?.MOVEMENT_FIELDS ?? ["width", "height", "depth", "shape"]),
     "x", "y", "elevation", "level"
 ])]);
@@ -620,6 +632,7 @@ export const CAMERA_READERS = Object.freeze({
        a token that is not drawn here, and asks this browser's token visibility again - it decides nothing a roll, a
        stash or a trace reads. */
     "visibility.mjs#recheckAtRest": "draw",
+    "remnant-ghosts.mjs#drawGhosts": "draw",
     /* The rooms of a scene changed (E89 fix FG2, SEC-1): it reads the scene on screen only to skip a region of a scene
        not drawn here, and asks this browser's token visibility again - it decides nothing a roll, a stash or a trace
        reads. */
@@ -628,8 +641,8 @@ export const CAMERA_READERS = Object.freeze({
     "utils.mjs#workingScene": "window",
     "gm-panel.mjs#nextStep": "window",
     "investigation.mjs#openNewTrace": "window",
-    "investigation.mjs#openKeyRemnantHere": "window",
-    "investigation.mjs#placeKeyRow": "window",
+    "key-remnants.mjs#openKeyRemnantHere": "window",
+    "key-remnants.mjs#placeKeyRow": "window",
     /* A planned Remnant's room against the working scene's, to say in one line that it is gone (13.11.2026), as New Remnant
        then reads the same scene. */
     "investigation.mjs#placeIncident": "window",

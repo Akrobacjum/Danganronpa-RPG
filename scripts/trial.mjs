@@ -1173,7 +1173,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
  * The run of `trial.evidence` (gm-bridge.mjs) on the primary GM: put `itemId` on `actorId`'s pending Objection.
  * Only the objector's own Objection, still pending, inside its seconds (trial-floor.mjs `pendingFor`), with a Truth
  * Bullet the character holds as the GMs hold it; anything else is refused and changes nothing. The card is filled
- * from the bullet as its holder knows it (`holderView`), and the minute starts here (`fillObjection`).
+ * from the bullet as its holder knows it (`holderView`), and the minute starts here (trial-floor.mjs `fillObjectionInStep`).
  *
  * The card's words are the bullet as the GMs hold it (E79 fix r4-G2; the round-4 review's SEC4-1): `itemAsHeld`
  * decides only that the item is a bullet, and the shown fields were read off the document, where a player's write

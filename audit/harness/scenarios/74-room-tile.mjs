@@ -242,11 +242,12 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         await new Promise(r => setTimeout(r, 1500));
         const words = await Promise.all(game.messages.contents.slice(before).map(m => S.wordsOf(m)));
         return { cards: words.map(String).filter(text => text.includes("74 Porch")), tile: read(), painted: take(), ...at() };`, { timeout: 30000 });
+    /* The card's words are DRPG.Move.entered, "You are now in {room}." since texts-e71 (E71, 2dbf3c88; "You enter {room}." before). */
     check("B1: p1's crossing into the Porch paints p1's tile once, when the route has settled - Dorm A still on it as the update is "
         + "written - with the Porch's words and picture, and the card names the Porch and its price without the words",
     J(crossB.painted) === J(["74 Porch"]) && J(crossB.written) === J(["Dorm A"]) && J(crossB.settled) === J([[true, "74 Porch"]])
         && crossB.tile?.state === "room" && crossB.tile.prose === WORDS.Porch && crossB.tile.art === `url("${IMAGES.Porch}")`
-        && crossB.cards.length === 1 && crossB.cards[0].includes("You enter 74 Porch.") && !crossB.cards[0].includes("S74 Porch"),
+        && crossB.cards.length === 1 && crossB.cards[0].includes("You are now in 74 Porch.") && !crossB.cards[0].includes("S74 Porch"),
     J({ setB, crossB }));
 
     /* One action, the free move spent: from the Porch through Dorm A (a step with waypoints pending, as 66 W stands it in)
@@ -739,7 +740,7 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         && J(eclipseH.cross.painted) === J(["74 Porch"]) && eclipseH.end === false,
     J(eclipseH));
 
-    /* Aiko marked dead where she stands (chapter.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which
+    /* Aiko marked dead where she stands (death.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which
        asks for the dead) with actions to walk on, and p1 takes her back into Dorm A; then alive again.
        Since E62 C3b (13.11.2026, the owner's Q-C3b-7, confirmed "E62 c3b wszystko sie zgadza"; merged into 1.2.112 at
        3b0d8075) the death leaves Aiko's own token the corpse, which no player moves, and gives her Spectator a token
@@ -1075,7 +1076,11 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
        header with its title, the rows' container; a row from parts/countdowns.hbs whose countdown is no project, which
        hideUndiscovered keeps), hides it as countdowns.mjs:93 does - for anybody but a GM while it holds no countdown -
        and calls the render hook the tray's render calls, twice on the same element (a line is never drawn twice). Three renders
-       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after. */
+       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after.
+       A113-C1-1 (13.11.2026): the rows' container is drawn as Daggerheart 2.12.8's countdowns-view.hbs:24-28 draws it, only
+       `{{#if countdownTypesWithVisibleEntries.length}}` - so not at all with no countdown - where until then it stood
+       always and U1 was green on markup 2.12.8 never draws. The line is looked for anywhere in the tray. Red at ceb9e9c8:
+       with no container `showTrayToPlayer` drew no line (U1, U2). */
     const TRAYU = renders => `const out = [], want = game.i18n.localize("DRPG.Project.trayEmpty");
         const ROW = '<div class="countdown-category-container"><div class="countdown-container" data-countdown="S74NOPROJECT0001"><div class="countdown-main-container">'
             + '<img src=""><div class="countdown-content"><header>S74 countdown</header><div class="countdown-tools"><div class="countdown-tool-controls">'
@@ -1087,12 +1092,12 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
             for (const rows of ${J(renders)}) {
                 el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i><span class="window-title"></span>'
                     + '<div class="header-type-toggles"></div><a class="header-control" data-action="toggleViewMode"></a></header>'
-                    + '<div class="countdowns-container">' + ROW.repeat(rows) + '</div></div>';
+                    + (rows ? '<div class="countdowns-container">' + ROW.repeat(rows) + '</div>' : '') + '</div>';
                 el.querySelector(".window-title").textContent = game.i18n.localize("DAGGERHEART.UI.Countdowns.title");
                 el.hidden = !game.user.isGM && el.querySelectorAll(".countdown-container").length === 0;
                 Hooks.callAll("renderDhCountdowns", { render() {} }, el);
                 Hooks.callAll("renderDhCountdowns", { render() {} }, el); // the same element heard twice: one line, not two
-                const line = el.querySelectorAll(".countdowns-container .drpg-projects-empty");
+                const line = el.querySelectorAll(".drpg-projects-empty");
                 out.push({ hidden: el.hidden, title: el.querySelector(".window-title")?.textContent ?? null, rows: el.querySelectorAll(".countdown-container").length,
                     empty: line.length === 1 && line[0].textContent === want ? "line" : line.length, gear: Boolean(el.querySelector(".drpg-projects-gear")) });
             }
@@ -1107,6 +1112,51 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     J({ trayP1, trayGm }));
     check("U2: on p1 the line goes when a countdown is drawn and comes back, once, when Daggerheart draws the tray again with none left",
         J(trayP1.out.slice(1)) === J([shownU(trayP1, 1, 0, false), shownU(trayP1, 0, "line", false)]), J(trayP1.out));
+
+    /* The tray's title where Daggerheart 2.12.8 draws none (13.11.2026; the owner's table on 1.2.112). 2.12.8's
+       countdowns-view.hbs (Foundryborne/daggerheart head e9c61d7) draws the header with the clock icon, the type toggles and
+       the header controls and no `.window-title`; the module's name for the tray, the override on
+       DAGGERHEART.UI.Countdowns.title, was then read by nothing. projects-tray.mjs `addTrayTitle` writes one inside the
+       header on every render, after the icon and after the fold caret. Each page draws that header, renders twice on the
+       same element, then draws it afresh (as the tray's re-render does) and renders once more; and once more with 2.6.5's
+       header, whose title must stay the one Daggerheart drew. Red before the fix: no title on the 2.12.8 header. */
+    const TRAYV = `const el = document.createElement("div");
+        el.id = "s74-countdowns-212";
+        document.body.append(el);
+        const draw = title => { el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i>'
+            + (title ? '<span class="window-title">' + title + '</span>' : '')
+            + '<div class="header-type-toggles"></div><div class="header-controls"><a class="header-control" data-action="toggleViewMode"></a></div></header>'
+            + '<div class="countdowns-container"></div></div>'; };
+        const read = () => { const head = el.querySelector(".countdowns-header"), titles = head.querySelectorAll(".window-title");
+            return { titles: titles.length, text: titles[0]?.textContent ?? null, lang: titles[0]?.getAttribute("lang") ?? null,
+                foldLang: head.querySelector(".drpg-projects-fold")?.getAttribute("lang") ?? null, order: [...head.children].map(c => c.matches(".drpg-projects-fold") ? "fold" : c.matches("i") ? "icon"
+                    : c.matches(".window-title") ? "title" : c.matches(".drpg-projects-gear") ? "gear" : c.className || c.tagName) }; };
+        try {
+            const out = {};
+            draw(null);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.twice = read();
+            draw(null);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.redrawn = read();
+            draw("Daggerheart's own");
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.older = read();
+            return { want: game.i18n.localize("DAGGERHEART.UI.Countdowns.title"), lang: out.twice.foldLang, out };
+        } finally { el.remove(); }`;
+    const titleP1 = await p1.eval(TRAYV, { timeout: 15000 });
+    const titleGm = await gm.eval(TRAYV, { timeout: 15000 });
+    const titled = (read, order) => J({ titles: 1, text: read.want, lang: read.lang, foldLang: read.lang, order });
+    check("U3: on Daggerheart 2.12.8's header, which draws no title, the tray is named Projects inside the header - once over two renders, again "
+        + "after the header is drawn afresh - after the fold caret and the clock icon, in the module's language; 2.6.5's own title is kept, "
+        + "and no second one added; the GM's the same with the gear after",
+    titleP1.want === "Projects" && typeof titleP1.lang === "string" && titleP1.lang.length > 0 && J(titleP1.out.twice) === titled(titleP1, ["fold", "icon", "title", "header-controls"])
+        && J(titleP1.out.redrawn) === titled(titleP1, ["fold", "icon", "title", "header-controls"])
+        && J(titleP1.out.older) === J({ titles: 1, text: "Daggerheart's own", lang: null, foldLang: titleP1.lang, order: ["fold", "icon", "title", "header-controls"] })
+        && J(titleGm.out.twice) === titled(titleGm, ["fold", "icon", "title", "header-controls", "gear"])
+        && J(titleGm.out.redrawn) === titled(titleGm, ["fold", "icon", "title", "header-controls", "gear"]),
+    J({ titleP1, titleGm }));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

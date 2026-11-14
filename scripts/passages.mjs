@@ -209,7 +209,7 @@ export function knownPassages() {
  * The known passages on one scene, `[{ id, ...row }]`, on one floor when one is named (a row on no floor in
  * particular is on each). `known` is the suite's (R556): rows of its own in the copy's shape.
  */
-export function secretRowsOn(sceneId, level = null, { known = knownPassages() } = {}) {
+function secretRowsOn(sceneId, level = null, { known = knownPassages() } = {}) {
     return Object.entries(isPlain(known) ? known : {})
         .filter(([, row]) => row?.sceneId === sceneId && onLevelOf(row, level))
         .map(([id, row]) => ({ id, ...row }));
@@ -242,7 +242,7 @@ export function secretSegmentsOn(sceneId, level = null, { known = knownPassages(
 
 /**
  * Every secret passage this character knows, on every scene, `[{ id, sceneId, level, x1, y1, x2, y2 }]`: the
- * sheet's 'Known passages' (E79 C7, sheet.mjs `knownPassageRows`). The rows that name it, or every row for the
+ * sheet's 'Known passages' (E79 C7, sheet-sidebar.mjs `knownPassageRows`). The rows that name it, or every row for the
  * Mastermind (`mastermind`, as `openSegmentsFor` takes it). The stretch is handed out so the list can ask which
  * rooms a passage joins, whether it is open and where to pan; the wall's id is not, and neither is anything
  * else of the row (R560: only the records' files name a passage's geometry). A tunnel (E80 C1) is
@@ -290,7 +290,7 @@ export function passageSpot(passage, level = null) {
 
 /**
  * This browser's camera to a passage (E80 fix r1-G2; the review's E80-C1-01): the tab's Show (passages-tab.mjs
- * `showPassage`) and the sheet's 'Known passages' click (sheet.mjs `panToPassage`). `spotOf(level)` answers where
+ * `showPassage`) and the sheet's 'Known passages' click (sheet-sidebar.mjs `panToPassage`). `spotOf(level)` answers where
  * the passage is shown for a camera on that floor (`passageSpot`, or passages-gm.mjs `passageMiddle` for the GMs'
  * row): asked first with no floor, for the scene, then - with the passage's scene on screen - with the floor on
  * screen. The scene is viewed when another is on screen, and at the spot's floor when that is not the floor on
@@ -448,7 +448,7 @@ export function cutSegment(wall, open, tolerance = PASSAGE_TOLERANCE) {
  * leaf imports no more (R560). Whether Foundry 14 holds a GM's own drag to the walls at all is not
  * measured here (foundryvtt.com cannot be read from this machine): LIVE-E79-08.
  */
-export function passageSegmentsFor(config, { known, gm = game.user?.isGM } = {}) {
+function passageSegmentsFor(config, { known, gm = game.user?.isGM } = {}) {
     if (Array.isArray(config?.drpgPassages)) {
         return config.drpgPassages.map(seg => segmentOf(seg?.id ?? null, { passageWallId: seg?.wallId, passageSeg: seg }))
             .filter(seg => seg?.wallId);

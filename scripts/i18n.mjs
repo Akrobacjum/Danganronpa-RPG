@@ -42,7 +42,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import * as CONFIG_TABLES_SOURCE from "./config.mjs";
-import { walkConfigProse } from "./i18n-config.mjs";
+import { walkConfigProse, keepEnglish } from "./i18n-config.mjs";
 import { LANGUAGES, SETTINGS, moduleLanguage, pageLanguage, setPageLanguage, documentLanguage, setSetting } from "./settings.mjs";
 import { log, error, isPrimaryGm } from "./utils.mjs";
 
@@ -55,7 +55,7 @@ let pending = null;
 let applied = false;
 
 /** Start fetching the file. Called first thing at `init`; harmless to call twice. */
-export function prefetchLanguage() {
+function prefetchLanguage() {
     const lang = moduleLanguage();
     setPageLanguage(lang);
     if (lang === "en" || pending) return pending;
@@ -113,12 +113,13 @@ export async function applyModuleLanguage() {
  * Only where the file carries the key: an untranslated field keeps its
  * English, which is the right fallback for a half-finished file.
  */
-export function localizeConfig() {
+function localizeConfig() {
     let swapped = 0;
     walkConfigProse(CONFIG_TABLES_SOURCE, (key, value, set) => {
         if (!game.i18n.has(key)) return;
         const next = game.i18n.localize(key);
-        if (next && next !== value && next !== key) { set(next); swapped += 1; }
+        // The English first (E57 C3): a document written in an English world from this page reads it.
+        if (next && next !== value && next !== key) { keepEnglish(key, value); set(next); swapped += 1; }
     });
     return swapped;
 }
@@ -147,15 +148,3 @@ export async function seedDocumentLanguage() {
     return true;
 }
 
-/**
- * Reload after the setting changes. Everything on screen was built with the
- * previous language, and a live re-render of forty windows is a worse
- * experience than one reload - which is also what Foundry does for its own.
- */
-export async function confirmLanguageReload() {
-    try {
-        const SettingsConfig = foundry.applications?.settings?.SettingsConfig ?? globalThis.SettingsConfig;
-        if (SettingsConfig?.reloadConfirm) return SettingsConfig.reloadConfirm({ world: false });
-    } catch { /* fall through */ }
-    return foundry.utils.debouncedReload?.();
-}

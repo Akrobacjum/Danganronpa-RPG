@@ -35,12 +35,12 @@ import { MODULE_ID, FLAGS, PRICE_CHAINS, STARTING } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
 import { canPayFor, freeActionsLeft, actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { trustedWrite, HOPE_REFUND } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { plural, whisperToOwner, debug } from "./utils.mjs";
 
 /** The chain for one priced thing, or null when it has none. */
-export function chainFor(key) {
+function chainFor(key) {
     return PRICE_CHAINS[key] ?? null;
 }
 

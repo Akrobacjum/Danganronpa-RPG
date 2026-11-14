@@ -631,7 +631,7 @@ function despairBarLines(lines, root) {
     } else {
         const bar = document.querySelector("#drpg-despair");
         const before = getComputedStyle(pip, "::before");
-        // One mask on every client since D3 (despair.mjs `buildRow`: the count is
+        // One mask on every client since D3 (despair.mjs `despairRowOf`: the count is
         // public; only the overflow caption hides its number from a player), so
         // the useful question is whether the skull landed at all. No mask plus a
         // background is a solid square on screen.
@@ -668,8 +668,8 @@ function callIconLines(lines, root) {
 }
 
 /*
- * A stylesheet or a face, with or without a query. The stylesheet asks for `pixel.woff2?v=2` and `pixel-ext.woff2?v=3`
- * (danganronpa.css's `@font-face`), and the `/\.woff2$/` this replaced (E52 C5, audit S01-51) missed both, then said
+ * A stylesheet or a face, with or without a query. The stylesheet asks for `pixel.woff2?v=N` and `pixel-ext.woff2?v=N`
+ * (danganronpa.css's `@font-face`; v=4 and v=5 on 14.11.2026), and the `/\.woff2$/` this replaced (E52 C5, audit S01-51) missed both, then said
  * no face had been fetched at all.
  */
 const STYLE_FILE = /\.(css|woff2)(\?|$)/;
@@ -953,8 +953,6 @@ export function diagnoseWindows({ toChat = true } = {}) {
  */
 export function traceClicks({ seconds = 20, toChat = true, onReport = null } = {}) {
     const lines = [];
-    const t0 = performance.now();
-    const at = () => `${String(Math.round(performance.now() - t0)).padStart(5)}ms`;
 
     const name = el => {
         if (!el) return "(nothing)";
@@ -1509,7 +1507,8 @@ export function diagnoseCharacters({ toChat = true, roster = studentActors(), as
     };
 
     roll(t("ultimate"), missingUltimate, t("ultimateFix"));
-    roll(t("experiences", { n: STARTING.experiences }), missingExperiences, t("experiencesFix"));
+    // A family on {n} (the needsCode line, R6907): „{n} doświadczenia” was right for 2-4 alone.
+    roll(plural("DRPG.Diagnostics.cast.experiences", { n: STARTING.experiences }), missingExperiences, t("experiencesFix"));
     roll(t("item"), missingItem, t("itemFix", { tier: STARTING.startingItemTier }));
     roll(t("pool"), unwatched, t("poolFix"));
 

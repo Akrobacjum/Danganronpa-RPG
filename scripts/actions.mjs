@@ -314,14 +314,6 @@ export function hasFreeMove(actor) {
 }
 
 /**
- * Take a Move. Uses the free one if it is still available, otherwise spends an
- * action. Returns what it ended up costing, or null when it could not happen:
- * "free", "sprint", "burst" (a Burst paid for the action, since E80 C2, so that
- * `giveMoveBack` hands back the same thing) or "action". `quiet` is
- * `spendAction`'s: the primary GM paying for a player's 'Go through' (movement.mjs
- * `settleCrossingOnGm`) plays and says nothing on the GM's screen.
- */
-/**
  * The ref a crossing's price is stamped with (`takeMove`; E17 fix e1-G2, 26.10.2026; the review's E17P1-SEC-6). The primary
  * reads a door crossing's price off the player's next write of the purse (movement.mjs `noteCrossingPrice`), and took the
  * first write that lowered any of it - a Search's action paid within the wait was the crossing's, which the GM's Refund
@@ -331,6 +323,14 @@ export function hasFreeMove(actor) {
  */
 export const MOVE_SPEND = "move";
 
+/**
+ * Take a Move. Uses the free one if it is still available, otherwise spends an
+ * action. Returns what it ended up costing, or null when it could not happen:
+ * "free", "sprint", "burst" (a Burst paid for the action, since E80 C2, so that
+ * `giveMoveBack` hands back the same thing) or "action". `quiet` is
+ * `spendAction`'s: the primary GM paying for a player's 'Go through' (movement.mjs
+ * `settleCrossingOnGm`) plays and says nothing on the GM's screen.
+ */
 export async function takeMove(actor, { quiet = false } = {}) {
     if (!actor) return null;
 
@@ -488,7 +488,7 @@ export async function resetAllActions({ keepGrants = false } = {}) {
  * starting sheet has been restored. Then each student's stamps (season-wipe.mjs `wipeStudent`'s `actions` part).
  * Search tokens need no step of their own beyond the `searchTokens` group: an empty store reads as a full room.
  */
-export async function clearSeasonActions(ctx) {
+async function clearSeasonActions(ctx) {
     await resetAllActions();
     await ctx.everyStudent("actions");
     // The GM room actions closed this time of day (E93 C1): a list of another mark is none already, so this only

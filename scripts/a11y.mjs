@@ -242,7 +242,7 @@ function liveRegions(root) {
  * person is already typing in, is left alone - and never onto a text field the
  * act of focusing would start to overwrite.
  */
-export function focusIntoWindow(el) {
+function focusIntoWindow(el) {
     try {
         if (!el?.querySelector) return;
         if (el.contains(document.activeElement)) return;

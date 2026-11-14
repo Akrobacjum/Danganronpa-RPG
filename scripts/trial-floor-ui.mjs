@@ -28,6 +28,8 @@ import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 /* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
    `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
@@ -551,7 +553,7 @@ export async function endClassTrial() {
     const notChapter = (trialProgress().verdictApplied
         ? box("info", `${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}`) : "")
         + (sentenced.length ? box("warning", `${game.i18n.format("DRPG.Floor.endTrialExecutes", {
-            names: sentenced.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}`) : "");
+            names: listOf(sentenced.map(actor => foundry.utils.escapeHTML(actor.name))) })}`) : "");
 
     /* AND IT SAYS WHERE THE TABLE GOES (E13 C3b, 12.10.2026; the owner's answer f of 09.10). With a
        trial hall linked, leaving the trial takes the table out of the hall, and the students' tokens
@@ -865,14 +867,19 @@ const BAR_LABELS = {
  * A bar button's label. -30 s and +30 s carry the step they move the clock by, `TRIAL.modes.gm.adjustSeconds` (a Panic
  * Round's `panicAdjustSeconds` by the other pair of keys), not "30" written in (E66 C4, 01.11.2026; E66-18).
  */
-export function barLabel(op, step = TRIAL.modes.gm.adjustSeconds) {
+export function barLabel(op, step = TRIAL.modes.gm.adjustSeconds, floor = null) {
+    // A Scrum Debate's Skip ends its phase early (the owner's 13.11.2026): "Sides set" in Sides, "End the confer" in Camps confer.
+    const scrum = floor?.mode === FLOOR_MODES.scrum ? floor.zone?.phase : null;
+    if (op === "skip" && (scrum === "setup" || scrum === "confer")) {
+        return game.i18n.localize(scrum === "setup" ? "DRPG.Zones.confer.sidesSet" : "DRPG.Zones.confer.conferOver");
+    }
     if (op !== "minus" && op !== "plus") return game.i18n.localize(BAR_LABELS[op]);
     const key = step === TRIAL.modes.gm.adjustSeconds ? BAR_LABELS[op] : op === "minus" ? "DRPG.Floor.bar.minusSeconds" : "DRPG.Floor.bar.plusSeconds";
     return game.i18n.format(key, { seconds: step });
 }
 
 /** Whether an Objection or its rebuttal holds the floor in a running Class Trial: Enter presses nothing then. */
-export function exchangeRuns(floor = trialFloor()) {
+function exchangeRuns(floor = trialFloor()) {
     return getClock().phase === "classTrial" && Boolean(floor) && floor.mode !== FLOOR_MODES.debate;
 }
 
@@ -1089,7 +1096,7 @@ function trialBar({ floor, running, barNext }) {
     const now = serverNow();
     const buttons = barOpsFor(floor).map(op => {
         const refused = barRefusal(op, floor, { running, now });
-        const label = barLabel(op, adjustStep(floor));
+        const label = barLabel(op, adjustStep(floor), floor);
         const next = op === barNext ? " drpg-bar-next" : "";
         const target = op === "overrule" && !refused ? overruleTargetId(floor) : null;
         return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${target ? ` data-drpg-target="${esc(target)}"` : ""}${refused
@@ -1217,7 +1224,7 @@ export function trialConsoleHtml(view) {
             ? (progress.voteClosed ? "" : `<p>${game.i18n.localize("DRPG.Vote.notRunning")}</p>`)
             : pending.length
                 ? box("info", `${game.i18n.format("DRPG.Vote.stillOut", {
-                    n: pending.length, who: esc(pending.map(v => v.name).join(", "))
+                    n: pending.length, who: esc(listOf(pending.map(v => v.name)))
                 })}`)
                 : `<p>${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
         // How many are back and the bar a conviction needs, as the vote window
@@ -1612,6 +1619,7 @@ export async function manageClassTrial() {
 
     // The frame only (M6; E21 C4): the console's layout is E47's; its footer by roles (`trialFooter`).
     const action = await drpgWindow({
+        help: WINDOW_HELP.trialConsole,
         classes: ["drpg-panel", "drpg-window-trial"],
         // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content): 1280 px (`consoleWidth`, E73's mockup B).
         // The console stands the screen's height (components.css), so it opens at the top, 8 px down, the edge the kit
@@ -1927,7 +1935,7 @@ export async function openVoteDialog() {
         const recipients = ballotRecipients();
         const who = recipients.length
             ? `<p>${plural("DRPG.Vote.recipients", {
-                n: recipients.length, who: esc(recipients.map(r => `${r.name} (${r.user.name})`).join(", "))
+                n: recipients.length, who: esc(listOf(recipients.map(r => `${r.name} (${r.user.name})`)))
             })}</p>`
             : box("warning", `${game.i18n.localize("DRPG.Vote.nobodyConnected")}`);
         return `<p class="notes">${game.i18n.localize("DRPG.Vote.sendFirst")}</p>${who}`;
@@ -1939,7 +1947,7 @@ export async function openVoteDialog() {
         const outstanding = waiting?.length
             ? box("info", `${game.i18n.format("DRPG.Vote.stillOut", {
                 n: waiting.length,
-                who: foundry.utils.escapeHTML(waiting.map(p => p.name).join(", "))
+                who: foundry.utils.escapeHTML(listOf(waiting.map(p => p.name)))
             })}`)
             : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
         const status = waiting === null

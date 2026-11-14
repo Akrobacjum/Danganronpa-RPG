@@ -62,7 +62,7 @@ import { playSfx } from "./sfx.mjs";
  * @param {string} token  A custom property name, e.g. "--drpg-t-enter".
  * @returns {number}
  */
-export function motionMs(token) {
+function motionMs(token) {
     try {
         const raw = getComputedStyle(tokenSource())
             .getPropertyValue(token).trim();
@@ -77,7 +77,7 @@ export function motionMs(token) {
 }
 
 /** A curve from the stylesheet, as a string `Element.animate()` accepts. */
-export function motionEase(token) {
+function motionEase(token) {
     try {
         return getComputedStyle(tokenSource())
             .getPropertyValue(token).trim() || "ease";

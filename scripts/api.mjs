@@ -78,6 +78,7 @@ import {
 import { diagnoseLive } from "./live.mjs";
 import { openTimes } from "./open-cost.mjs";
 import { diagnoseDiceLook } from "./dice-look.mjs";
+import { checkState } from "./state-check.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
 import {
@@ -941,7 +942,7 @@ export const DrpgApi = {
      *  when a thread has been cleared and a lie is left waiting on nobody.
      *
      *  THE CARD'S ROAD (E09 fix r2-G2, 08.10.2026). These were the ruling itself
-     *  (cleanup.mjs `applyReshapeRuling`, `declineReshapeRuling`), run on whichever
+     *  (cleanup-reshape.mjs `applyReshapeRuling`, `declineReshapeRuling`), run on whichever
      *  GM typed them, so an assistant GM's console claimed the proposal on its own
      *  browser beside the primary's: in scenario 62 before the fix, gm2's console
      *  Approve and the GM's own, made at once, both answered true and the player was
@@ -1173,6 +1174,9 @@ export const DrpgApi = {
     /** Why do the dice look different between browsers (E60 C5b)? Run it on each browser: it reads that browser and,
      *  on a GM, every user's Dice So Nice flags; `{ messageId, test: true }` reads that roll and throws a test here. */
     diagnoseDiceLook,
+    /** This world's invariants read now (E40 C2): what no world data may hold, no passage or Frisk flag on a document, the
+     *  clock's phase and counters - `{ ok, problems }`, each problem on the console. GM only; reads, writes nothing. */
+    checkState,
     /** The players' rolls the GM drew whose statistic, modifiers or advantage it did not
      *  expect (E08+E28 C12b), newest first, from the last Reroll window's minutes. GM only. */
     rollFlags,

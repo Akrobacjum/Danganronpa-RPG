@@ -13,6 +13,8 @@ import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS
     BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
+// E57 C3 (D34): an item's tier line in the world's document language; its own line.
+import { worldLocalize } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 
 /** Flag keys stored on every item this module creates. */
@@ -111,6 +113,19 @@ export const ITEM_FLAGS = {
 };
 
 /**
+ * Does finding this thing leave a trace? The rule of D-28.08: a trace is
+ * evidence of having handled an OBJECT, so it is read off what was found -
+ * the category plus the roles the table entry declared - and never off the
+ * intention. One copy, used by the Search and by the Reroll that replays it.
+ * The roles are config.mjs `ACTIONS.search.leavesRemnant.onlyFor`, read here
+ * rather than spelt a second time (E41 C1b; audit S02-64).
+ */
+export function leavesTraceFor(category, roles = []) {
+    const all = new Set([category, ...(roles ?? [])]);
+    return ACTIONS.search.leavesRemnant.onlyFor.some(role => all.has(role));
+}
+
+/**
  * The flags a COPY of an item has to carry to still be the same object.
  *
  * An item that changes hands is not moved, it is recreated on the other person
@@ -124,19 +139,6 @@ export const ITEM_FLAGS = {
  * per-item state has one place to be added to instead of two to be
  * remembered in.
  */
-/**
- * Does finding this thing leave a trace? The rule of D-28.08: a trace is
- * evidence of having handled an OBJECT, so it is read off what was found -
- * the category plus the roles the table entry declared - and never off the
- * intention. One copy, used by the Search and by the Reroll that replays it.
- * The roles are config.mjs `ACTIONS.search.leavesRemnant.onlyFor`, read here
- * rather than spelt a second time (E41 C1b; audit S02-64).
- */
-export function leavesTraceFor(category, roles = []) {
-    const all = new Set([category, ...(roles ?? [])]);
-    return ACTIONS.search.leavesRemnant.onlyFor.some(role => all.has(role));
-}
-
 export function preservedFlags(item) {
     const flags = {};
     if (isBroken(item)) {
@@ -713,6 +715,55 @@ export function carriedFor(actor, role) {
 }
 
 /**
+ * An item's tier line as its description is written (E57 C3, D34; S02-74): "Tier N. " and what the tier does for its
+ * kind (`USABLE_KIND_EFFECTS`, else `TIER_EFFECTS`), in the world's document language (`lang`, utils.mjs
+ * `worldLocalize`), not the language of the browser that made the item: a description is read by everyone. The shape is
+ * the one `grantItem` wrote before C3, "<p>Tier 2. ...</p>", and an empty sentence leaves "Tier 2. " as it did.
+ */
+export async function tierDescription({ category, kind = null, tier, lang = undefined }) {
+    const options = lang === undefined ? {} : { lang };
+    const key = USABLE_KIND_EFFECTS[kind]?.[tier] !== undefined ? `DRPG.Config.USABLE_KIND_EFFECTS.${kind}.${tier}`
+        : TIER_EFFECTS[category]?.[tier] !== undefined ? `DRPG.Config.TIER_EFFECTS.${category}.${tier}` : null;
+    const effect = key ? await worldLocalize(key, {}, options) : "";
+    return `<p>${await worldLocalize("DRPG.Items.tierN", { n: tier }, options)}. ${effect}</p>`;
+}
+
+/**
+ * THE OLD TIER 3 WORDING ON ITEMS ALREADY MADE (E14 fix e1-G5, 24.10.2026; the review's E14R-08). C5 changed what a tier
+ * 3 usable does (3 of its kind, no choice and no Hope: the owner of 15.10), and `grantItem` writes the effect into an
+ * item's description once, when it is made - so a world upgraded with tier 3 usables made before C5 kept "Restores 2
+ * Health or 2 Sanity - your choice - plus 2 Hope." over a use that restores 3 of the item's kind. Run once at the
+ * primary GM's ready (module.mjs, beside the tables' `refreshTableCopy`): every tier 3 usable, on a sheet or in the sidebar, whose description is the module's own old sentence as `grantItem` wrote
+ * it, in English or in Polish (`OLD_TIER_THREE`), is given today's for its kind (`USABLE_KIND_EFFECTS`, else
+ * `TIER_EFFECTS`), by a GM's ruling. Any other text - a GM's, a table's - is left. Answers how many were rewritten.
+ */
+const OLD_TIER_THREE = Object.freeze([
+    "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.",
+    "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+]);
+
+export async function refreshTierThreeWording() {
+    if (!game.user?.isGM) return 0;
+    const stale = new Set(OLD_TIER_THREE.map(text => `<p>Tier 3. ${text}</p>`));
+    let rewritten = 0;
+    for (const items of [game.items, ...Array.from(game.actors ?? [], actor => actor.items)]) {
+        for (const item of items ?? []) {
+            if (item.getFlag(MODULE_ID, ITEM_FLAGS.category) !== "usable" || Number(item.getFlag(MODULE_ID, ITEM_FLAGS.tier)) !== 3) continue;
+            if (!stale.has(item.system?.description)) continue;
+            try {
+                const description = await tierDescription({ category: "usable", kind: item.getFlag(MODULE_ID, ITEM_FLAGS.kind) ?? null, tier: 3 });
+                await trustedWrite(item, { "system.description": description }, { reason: "gmRuling" });
+                rewritten++;
+            } catch (err) {
+                error(`Could not bring "${item.name}"'s tier 3 wording up to date`, err);
+            }
+        }
+    }
+    if (rewritten) log(`Brought ${rewritten} tier 3 usable(s) up to today's wording.`);
+    return rewritten;
+}
+
+/**
  * Create a found item on the character.
  *
  * Refuses when the category is full rather than silently exceeding the limit -
@@ -730,41 +781,6 @@ export function carriedFor(actor, role) {
  *   still created on `actor`.
  * @returns {Promise<Item|null>}
  */
-/**
- * THE OLD TIER 3 WORDING ON ITEMS ALREADY MADE (E14 fix e1-G5, 24.10.2026; the review's E14R-08). C5 changed what a tier
- * 3 usable does (3 of its kind, no choice and no Hope: the owner of 15.10), and `grantItem` writes the effect into an
- * item's description once, when it is made - so a world upgraded with tier 3 usables made before C5 kept "Restores 2
- * Health or 2 Sanity - your choice - plus 2 Hope." over a use that restores 3 of the item's kind. Run once at the
- * primary GM's ready (module.mjs, beside the tables' `refreshTableCopy`): every tier 3 usable, on a sheet or in the sidebar, whose description is the module's own old sentence as `grantItem` wrote
- * it, in English or in Polish (`OLD_TIER_THREE`), is given today's for its kind (`USABLE_KIND_EFFECTS`, else
- * `TIER_EFFECTS`), by a GM's ruling. Any other text - a GM's, a table's - is left. Answers how many were rewritten.
- */
-export const OLD_TIER_THREE = Object.freeze([
-    "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.",
-    "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
-]);
-
-export async function refreshTierThreeWording() {
-    if (!game.user?.isGM) return 0;
-    const stale = new Set(OLD_TIER_THREE.map(text => `<p>Tier 3. ${text}</p>`));
-    let rewritten = 0;
-    for (const items of [game.items, ...Array.from(game.actors ?? [], actor => actor.items)]) {
-        for (const item of items ?? []) {
-            if (item.getFlag(MODULE_ID, ITEM_FLAGS.category) !== "usable" || Number(item.getFlag(MODULE_ID, ITEM_FLAGS.tier)) !== 3) continue;
-            if (!stale.has(item.system?.description)) continue;
-            const effect = USABLE_KIND_EFFECTS[item.getFlag(MODULE_ID, ITEM_FLAGS.kind)]?.[3] ?? TIER_EFFECTS.usable?.[3] ?? "";
-            try {
-                await trustedWrite(item, { "system.description": `<p>Tier 3. ${effect}</p>` }, { reason: "gmRuling" });
-                rewritten++;
-            } catch (err) {
-                error(`Could not bring "${item.name}"'s tier 3 wording up to date`, err);
-            }
-        }
-    }
-    if (rewritten) log(`Brought ${rewritten} tier 3 usable(s) up to today's wording.`);
-    return rewritten;
-}
-
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
     roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false, reason = "gmRuling", ref = null,
@@ -842,14 +858,14 @@ export async function grantItem(actor, {
     }
 
     const type = category === "usable" ? "consumable" : "loot";
-    const effect = USABLE_KIND_EFFECTS[kind]?.[tier] ?? TIER_EFFECTS[category]?.[tier] ?? "";
 
     // The tier line is a fallback for things that HAVE a tier. A Truth Bullet
     // does not, and passing `tier: null` through the old unconditional template
     // wrote "Tier null." into the description of every bullet issued without
     // player text.
     const hasTier = tier !== null && tier !== undefined;
-    const fallbackDescription = hasTier ? `<p>Tier ${tier}. ${effect}</p>` : "";
+    // In the world's document language (E57 C3), and only where no description was given.
+    const fallbackDescription = !description && hasTier ? await tierDescription({ category, kind, tier }) : "";
 
     try {
         const [item] = await trustedCreate(actor, [{
@@ -909,6 +925,18 @@ export async function grantItem(actor, {
 }
 
 /**
+ * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
+ * can be held ready (not broken), else the first working piece stowed beside it, else null (E14 part 1 C5; S08-36).
+ * Pure over the actor's items.
+ */
+export function readyForShape(actor, item, group) {
+    if (item && !isBroken(item)) return item;
+    return (actor?.items ?? []).find(other => other.id !== item?.id && !isBroken(other) && !isStashed(other)
+        && ITEM_CATEGORIES[other.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group
+        && !other.getFlag(MODULE_ID, "equipped")) ?? null;
+}
+
+/**
  * ONE IN A HAND, ONE STOWED, NEVER TWO STOWED - on the way IN as well (D4,
  * Dawid 13.09; audit ITEM-04).
  *
@@ -933,18 +961,6 @@ export async function grantItem(actor, {
  * is readied. With no other piece that can be held ready, or a hand already holding one (never put down: E91 C8's
  * guard), two stay stowed and the GM's log says so, as before.
  */
-/**
- * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
- * can be held ready (not broken), else the first working piece stowed beside it, else null (E14 part 1 C5; S08-36).
- * Pure over the actor's items.
- */
-export function readyForShape(actor, item, group) {
-    if (item && !isBroken(item)) return item;
-    return (actor?.items ?? []).find(other => other.id !== item?.id && !isBroken(other) && !isStashed(other)
-        && ITEM_CATEGORIES[other.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group
-        && !other.getFlag(MODULE_ID, "equipped")) ?? null;
-}
-
 export async function keepGearShape(actor, item, { quiet = false } = {}) {
     try {
         const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);

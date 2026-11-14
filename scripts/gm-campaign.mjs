@@ -29,6 +29,8 @@ import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 
 /**
@@ -215,6 +217,7 @@ export async function openClockDialog({ roads = {} } = {}) {
     const clock = getClock();
     let endAsked = false;
     const result = await drpgWindow({
+        help: WINDOW_HELP.editCampaign,
         title: game.i18n.localize("DRPG.Panel.jump"),
         classes: ["drpg-panel", "drpg-window-clock"],
         body: `<form>${formGrid(campaignRows(clock, { extra: [morningLineRow()] }))}</form>${endChapterPart()}`,

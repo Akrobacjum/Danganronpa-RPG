@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, whisperToGms, localeFormat } from "./utils.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
@@ -34,6 +34,8 @@ import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
 import { tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -49,7 +51,7 @@ const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
  * world's items, `Scene.<id>...` by the scene. A row whose actor was deleted in this
  * world reads as another world's and is left in the old key, where it was.
  */
-export function uuidInThisWorld(uuid) {
+function uuidInThisWorld(uuid) {
     const [kind, id] = String(uuid ?? "").split(".");
     if (kind === "Actor") return Boolean(game.actors?.has(id));
     if (kind === "Item") return Boolean(game.items?.has(id));
@@ -494,7 +496,7 @@ export const blackenedStore = defineGmStore({
  * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). `loot` is split, a stamp per
  * record (E05 fix r2-G3): it was one list, and two GMs each adding a loot kept only the
  * later write - see handover.mjs `oweLootBullet`. Written by the kill
- * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's
+ * (death.mjs `killCharacter`), dropped by the publication, a revival or the reset's
  * "deaths" group; a dropped row's tombstone is what a player's copy weighs its loss
  * against. No old key: a death before 1.2.64 was published at the kill.
  */
@@ -746,7 +748,7 @@ export const offerStore = defineGmStore({
  * would otherwise be one row, and the second verdict's would take the first's place. Written
  * by a wrong verdict (level-up.mjs `deferAdvancement`), applied and dropped by the class's
  * next correct verdict or the Final Trial's (`runAdvancementBatch`, the owner's Q7), dropped
- * by a kill (chapter.mjs `killCharacter`) and cut by the reset's "advancement" group - the
+ * by a kill (death.mjs `killCharacter`) and cut by the reset's "advancement" group - the
  * two ways it lapses. No player copy and no old key: a 1.2.63 world applied it at once.
  */
 export const deferredOfferStore = defineGmStore({
@@ -967,6 +969,22 @@ export const rifleStore = defineGmStore({
 });
 
 /**
+ * A SECRET PASSAGE'S "FINISHED" HELD FOR ITS FINDER (PV, 13.11.2026; the owner's rule #3: the card on the finder's next
+ * entry to that room). A row per finder and project, keyed `<userId>:<countdownId>`: `{ name, room, sceneId, at }`,
+ * written by the primary at the passage's completion for each finder by Observe (`foundBy`) none of whose characters
+ * stands in its room (projects.mjs `COMPLETION_EFFECTS` `opensPassage`), and posted and dropped by the primary when one
+ * of that user's characters next stands there (projects-seen.mjs `tellFoundOnEntry`, at a move and at its ready).
+ * Synced, so another GM who becomes the primary posts it alike; backed up, as the card is owed. The subject is the
+ * user: the project itself is gone by then (a finished Secret Passage is removed). Cut by the reset's "projects" group.
+ * No player copy - the finder's browser holds nothing until the card - and no old key.
+ */
+export const foundDoneStore = defineGmStore({
+    name: "foundDone", key: SETTINGS.gmFoundDone,
+    kind: "ledger", resetGroup: "projects", backup: true, sync: true,
+    exists: key => Boolean(game.users?.has(String(key).split(":")[0]))
+});
+
+/**
  * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3), its 05.11 limits). A row per GM's action of a
  * room, keyed `g:<sceneId>:<room>:<actionId>` - one person per time of day, closed for everyone once anyone used it, a
  * failed roll too - and per completed project's action and character, `p:<projectId>:<actorId>` - once per person per
@@ -995,6 +1013,34 @@ export const watchStore = defineGmStore({
 });
 
 /**
+ * THE DISCOVERIES WAITING FOR THE GM'S WORD (1.2.113; the owner's decision A of 13.11.2026: "When the body has been seen by
+ * the required number of students, the module should ask the GM before it moves the players to the body, plays the sound,
+ * etc."). A row per room where the witnesses reached the count, keyed `<sceneId>:<room>`: `{ room, sceneId, victimId,
+ * deathId, witnessIds, chapter, epoch, at }` - `victimId` the body the walk found first, named by the announcement.
+ * Written by the primary's walk check (body.mjs `checkBodyFound`), read by its prompt (`askPendingBodies`) and the
+ * GM's discovery window, dropped by the discovery that announces its room or when its body is no longer one to find.
+ * Synced, so the GM who becomes the primary asks it; backed up. Cut by the reset's "deaths" group, with the deaths it
+ * waits on. No player copy: which body waits, and who saw it, is the GMs'.
+ */
+export const pendingBodyStore = defineGmStore({
+    name: "pendingBodies", key: SETTINGS.gmPendingBodies,
+    kind: "ledger", resetGroup: "deaths", backup: true, sync: true
+});
+
+/**
+ * THE BODIES EACH CHARACTER HAS HEARD (1.2.113; the owner's decision B of 13.11.2026: the finders get the discovery sound
+ * "even when they are alone in the room ... It is enough that they enter a room with a body"). A row per character and
+ * body, keyed `<actorId>:<bodyId>`: `{ deathId, at }`, the death heard - a body revived and killed again is heard again.
+ * Written by the primary (body.mjs `checkBodySound`, and the announcement for everyone it gathers), read by it alone.
+ * Synced and backed up, so a reload or another primary plays nothing twice. Cut by the reset's "deaths" group. No player
+ * copy.
+ */
+export const bodyHeardStore = defineGmStore({
+    name: "bodiesHeard", key: SETTINGS.gmBodiesHeard,
+    kind: "ledger", resetGroup: "deaths", backup: true, sync: true
+});
+
+/**
  * THE BARRICADES STANDING (E74 C2, 12.11.2026; the owner's audit entry E74, DA25, DA47). A row per barricaded room, keyed
  * `<sceneId>:<room>`: `{ sceneId, room, authorId, strength, at, userId }` - `strength` the Body roll's total off the GMs'
  * record (Force the Door contests it, a later commit), `authorId` the character inside who put it up. Written, read and
@@ -1005,6 +1051,22 @@ export const watchStore = defineGmStore({
 export const barricadeStore = defineGmStore({
     name: "barricades", key: SETTINGS.gmBarricades,
     kind: "ledger", resetGroup: "actions", backup: false, sync: true
+});
+
+/**
+ * THE BEDROOM NOTES WAITING (privacy line 1, 13.11.2026; the owner's rule #1: a player learns what their character could
+ * know in the fiction, when they could know it). A row per bedroom's owner, scene and room, keyed `<ownerId>:<sceneId>:<room>`
+ * (doors-gm.mjs `bedroomNoteKey`): `{ ownerId, sceneId, room, picked, forced, breached, mended, unsealed }` - each of the four
+ * the time it happened (Date.now()) while the owner stood elsewhere, `unsealed` the seal period a breach lifted a seal in.
+ * Written by the GM that runs the door or the completion (doors-gm.mjs `noteBedroom`), read and dropped by the primary on the
+ * owner's crossing into that room (`tellBedroomNotes`, from traps.mjs `onCrossed` and arrival-notices.mjs's roads, as the
+ * stash notice's `unseen` mark of `rifleStore` is). Synced; not backed up, as the rifles are not. Cut by the reset's "actions" group. No player copy: what
+ * waits for whom, and when it happened, is the GMs'. No old key.
+ */
+export const bedroomNoteStore = defineGmStore({
+    name: "bedroomNotes", key: SETTINGS.gmBedroomNotes,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
 });
 
 /**
@@ -1065,6 +1127,46 @@ export const lockpickStore = defineGmStore({
  */
 export const lockpickCopy = defineGmCopy({
     name: "lockpicks", key: SETTINGS.mineLockpicks, from: "lockpicks", resetGroup: "actions", fallback: {},
+    combine: offersCombine
+});
+
+/**
+ * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a), the plan's C6). A row per listener, keyed by the listener's
+ * actor id - one channel at a time: `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, `from` the room
+ * the listener stands in, `into` the neighbouring room whose voice channel they hear, `mark` the time of day it began in
+ * (a repeat on `into` is free for the rest of it), `active` whether they are in that channel now, `endedAt` when it ended
+ * (the microphone stays blocked a moment after, `EAVESDROP_GRACE_MS`). Written, read and dropped by the primary alone
+ * (eavesdrop-gm.mjs); synced, so a new primary keeps the listener where they are; backed up, and its owners told again
+ * after a restore (R182). Cut by the reset's "actions" group. No old key.
+ */
+export const eavesdropStore = defineGmStore({
+    name: "eavesdrops", key: SETTINGS.gmEavesdrops,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    afterRestore: () => import("./eavesdrop-gm.mjs").then(m => m.retellEavesdrops()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c), the plan's C8). A row per killer behind a "?", keyed by the
+ * killer's actor id: `{ killerId, victimId, userIds, mark, tokens, at }` - `userIds` the killer's owners, whose
+ * microphone the mask blocks, `mark` the time of day it began in (it ends with it), `tokens` each masked token's
+ * `{ sceneId, tokenId, look }`, what it looked like (mask-gm.mjs `lookOf`), written back at the end. Written, read and
+ * dropped by the primary alone (mask-gm.mjs); synced, so a new primary ends it; backed up. Cut by the reset's "actions"
+ * group. No player copy - a player reads only the token's flag, which names nobody - and no old key.
+ */
+export const maskStore = defineGmStore({
+    name: "masks", key: SETTINGS.gmMasks,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S EAVESDROPS (E69 C6): `{ actorId: { sceneId, from, into, mark, active } }` for the characters this user owns,
+ * as the primary GM sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the voice
+ * tile (its Stop listening, the microphone's reason) and the Listen window (a free repeat).
+ */
+export const eavesdropCopy = defineGmCopy({
+    name: "eavesdrops", key: SETTINGS.mineEavesdrops, from: "eavesdrops", resetGroup: "actions", fallback: {},
     combine: offersCombine
 });
 
@@ -1132,7 +1234,7 @@ export const clockBeatStore = defineGmStore({
  */
 export const takeBackStore = defineGmStore({
     name: "takeBack", key: SETTINGS.gmTakeBack,
-    kind: "record", fields: ["lastAdvance"], resetGroup: "clock", backup: false, sync: true
+    kind: "record", fields: ["lastAdvance", "eclipseTimed", "eclipsePasses"], resetGroup: "clock", backup: false, sync: true
 });
 
 /**
@@ -1363,7 +1465,7 @@ export const rerollJournalStore = defineGmStore({
  * `tokenId`, `attempt`, the Sanity before and after, `free`, `erased` (the trace's whole
  * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack` - and, for a
  * reshape put to the GMs, its `proposal` (written before the card goes) and `ruled` (who ruled,
- * on which GM's browser, which way; E09 C10, cleanup.mjs `claimRuling`). Until
+ * on which GM's browser, which way; E09 C10, cleanup-reshape.mjs `claimRuling`). Until
  * 1.2.67 a Map on the GM's browser that resolved the attempt, so a GM's reload lost it while
  * the player's Reroll still said the clean-up was replayed. Synced between the GMs and not
  * backed up: a row is worth one Reroll, minutes long - the Reroll's bookmark's trade. Cut by
@@ -1503,12 +1605,12 @@ export const diceLookStore = defineGmStore({
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the
  * others filed under `archive` when the clock left them. A row is a chapter's already, so
- * nothing is filed when the chapter ends (investigation.mjs `keyPlan`), and a stamp per
+ * nothing is filed when the chapter ends (key-remnants.mjs `keyPlan`), and a stamp per
  * field lets a GM writing one slot and another GM another both keep theirs (`setKeyPlan`
  * writes only what it changes). No `exists`: a row outlives the trace it names, as the
  * world key's entries did - a chapter's plan stays until a reset's cut takes it. A reset
  * that keeps the plan (E05 fix r1-G5, M3) keeps ONE chapter's rows, not every chapter's:
- * investigation.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
+ * key-remnants.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
  * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
  * no season stamped on it, so any chapter left standing would otherwise have read as planned
@@ -1516,7 +1618,7 @@ export const diceLookStore = defineGmStore({
  * until E09 C7, the case rows since). No old key: the first
  * rows come out of the world by `liftKeyPlan`. Beside a chapter's slots, one case row since
  * E09 C6, `${chapter}:case`: `{ keys }`, the closed case's Key Remnant count
- * (investigation.mjs `recordCaseKeys`), which no slot reader takes - kept under the
+ * (key-remnants.mjs `recordCaseKeys`), which no slot reader takes - kept under the
  * chapter the case opened in, and dropped by a reset that keeps the plan, since E09 fix
  * r1-G3.
  */
@@ -1686,7 +1788,7 @@ export const discoveryStore = defineGmStore({
  * rows on this browser (`discoveryMine`) are taken in weak on every load (`claim`):
  * the only copy of the ledger outside the GMs', which the primary's rebuild asks for.
  */
-export function fogCombine(held, offered, { cut = 0 } = {}) {
+function fogCombine(held, offered, { cut = 0 } = {}) {
     if (sectionProblem(offered?.value)) return null;
     const before = mergeSections(held?.value ?? null, null, discoveryStore.spec);
     const merged = mergeSections(before, offered.value, discoveryStore.spec);
@@ -1790,11 +1892,6 @@ export function spectatorFogSection(section, watcherId, { mastermindId = null } 
         out.t[key] = { "": 0, ...Object.fromEntries([...rooms].map(([room, c]) => [room, c.s])) };
     }
     return out;
-}
-
-/** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
-export function gmStoreLegacyChanged(name) {
-    return gmStoreByName(name)?.legacyChanged() ?? false;
 }
 
 /** Take what changed in a store's old key since the upgrade, by the rules on the handle's `reclaim`. */
@@ -2148,7 +2245,7 @@ export async function backupCase({ ask = false } = {}) {
             title: game.i18n.localize("DRPG.Case.backupTitle"),
             // The early copy's warning a kit box since E47-C3 (E21's carried warning site, homed in E47).
             body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
-                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>`) : ""}`,
+                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: listOf(waiting) }))}</p>`) : ""}`,
             rejectClose: false
         });
         if (!yes) return null;
@@ -2451,10 +2548,18 @@ export async function gmStoreHealth() {
        `trapProjects` skips a trap with no trigger, so it never arms or fires. And a note a user's flag
        says is written that this browser does not hold (pre-session-note.mjs `notesMissing`). Both went
        unreported on a browser that lost its storage with no other GM to hand the rows back. */
+    /* SINCE LEAK-PM (14.11.2026) the secret projects, not the murders: a secret murder's `indirectMurder` mark is the GMs'
+       row's now (projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET`), so world data no longer says which countdown is a
+       murder, and a GM browser that lost its rows cannot count murders from it. What it still reads is which projects are
+       secret (projectMeta's `secret`, else the countdown's map: projects-secrecy.mjs `isSecret`): each secret project with
+       no row here is counted - its name, who is in on it, its room and, for a murder, its killer, condition and trigger.
+       The coordinator's default of 14.11.2026 (Q-PM-2). */
     const meta = getSetting(SETTINGS.projectMeta) ?? {};
-    const murders = Object.keys(meta).filter(id => meta[id]?.indirectMurder === true);
-    const noSecrets = murders.filter(id => !projectSecretStore.has(id));
-    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: murders.length });
+    const countdowns = game.settings.get("daggerheart", "Countdowns")?.countdowns ?? {};
+    const { isSecret } = await import("./projects.mjs");
+    const secrets = [...new Set([...Object.keys(meta), ...Object.keys(countdowns)])].filter(id => isSecret(id));
+    const noSecrets = secrets.filter(id => !projectSecretStore.has(id));
+    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: secrets.length });
     const { notesMissing } = await import("./pre-session-note.mjs");
     const lostNotes = notesMissing();
     if (lostNotes.length) add("notes", "missing", "DRPG.Case.row.notes", { n: lostNotes.length });
@@ -2506,7 +2611,7 @@ export async function gmStoreHealth() {
     const clamped = gmStoreHandles().reduce((n, h) => n + (h.census()?.clamped ?? 0), 0);
     if (clamped) add("clamped", "info", "DRPG.Case.row.clamped", { n: clamped });
     const skew = Object.entries(gmStoreSkew());
-    if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`).join(", ") });
+    if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: listOf(skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`)) });
     const status = gmStoreStatus();
     add("bytes", status.total > 3 * 1024 * 1024 ? "conflict" : "info", "DRPG.Case.row.bytes",
         { stores: Math.round(status.stores / 1024), total: Math.round(status.total / 1024) });
@@ -2518,7 +2623,7 @@ export async function gmStoreHealth() {
     const counts = {
         traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },
         bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length },
-        projectSecrets: { of: murders.length, missing: noSecrets.length },
+        projectSecrets: { of: secrets.length, missing: noSecrets.length },
         notes: { missing: lostNotes.length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };
@@ -2698,6 +2803,7 @@ export async function openCaseWindow() {
         ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
         : game.i18n.localize("DRPG.Case.row.neverBackedUp");
     const choice = await drpgWindow({
+        help: WINDOW_HELP.theCase,
         title: game.i18n.localize("DRPG.Case.tile"),
         classes: ["drpg-panel", "drpg-window-case-copy"],
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.

@@ -216,7 +216,7 @@ export function crisisSituational(actor, key, state = murderState(), held = acto
  * their four choices, and taking it spent their one free choice (`thirdActed`) on a roll
  * none of the four is - the grid's TP13, red at ac5ae66 (e32run/g5f). The guide gives the newcomer
  * that one choice and nothing else; the sheet's item button already treated a third as
- * outside the fight (sheet.mjs `inCrisis`). The panel and the GM's judgement
+ * outside the fight (sheet-inventory.mjs `inCrisis`). The panel and the GM's judgement
  * (`crisisRefusal`) both ask this.
  */
 function forSide(def, side) {
@@ -347,7 +347,12 @@ export function availableCrisisActions(actor, state = murderState()) {
  */
 function nightNoteKey(indirect) {
     if (!atNight()) return "DRPG.Murder.dayNote";
-    return indirect ? "DRPG.Murder.nightNoteIndirect" : "DRPG.Murder.nightNoteDirect";
+    // The roll's own night rule, as the throw reads it (`MURDER_OPENING`'s flags; E64 took the victim's away): a note
+    // that names a modifier the roll does not get misleads the GM (E71 line A).
+    const def = MURDER_OPENING[indirect ? "victim" : "killer"] ?? {};
+    if (indirect && def.nightDisadvantage) return "DRPG.Murder.nightNoteIndirect";
+    if (!indirect && def.nightAdvantage) return "DRPG.Murder.nightNoteDirect";
+    return "DRPG.Murder.nightNoteNone";
 }
 
 /** Is it night? Whichever side rolls Stage 4 is modified by the answer - and the GM's draw expects it (roll-draw.mjs `expectedFor`). */
@@ -598,6 +603,22 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
 }
 
 /**
+ * THE MONOCUBS IN THE ROOM AT THE OPENING (E72 C2, 12.11.2026; audit S18-57): marked crime witnesses (monocub.mjs
+ * `markWitnessesAt`), a trap's scene as a fight's. After the stage is written and told, and in its own try: a mark that
+ * fails must not roll the incident back.
+ */
+async function markCubWitnesses(state) {
+    try {
+        const victim = game.actors.get(state?.victimId ?? "");
+        if (!victim) return;
+        const { markWitnessesAt } = await import("./monocub.mjs");
+        await markWitnessesAt(victim);
+    } catch (err) {
+        error("Could not mark the Monocubs who saw the incident open", err);
+    }
+}
+
+/**
  * Tell the victim the incident has started.
  *
  * Everything about Stage 4 was reported to the GMs and to nobody else, so the
@@ -618,28 +639,15 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
  * (`victimUnderAttackBy`). A trap's victim is still told only that the trap closed: its
  * builder is not in the room, and their copy of the cast holds no name (`castFor`).
  */
-/**
- * THE MONOCUBS IN THE ROOM AT THE OPENING (E72 C2, 12.11.2026; audit S18-57): marked crime witnesses (monocub.mjs
- * `markWitnessesAt`), a trap's scene as a fight's. After the stage is written and told, and in its own try: a mark that
- * fails must not roll the incident back.
- */
-async function markCubWitnesses(state) {
-    try {
-        const victim = game.actors.get(state?.victimId ?? "");
-        if (!victim) return;
-        const { markWitnessesAt } = await import("./monocub.mjs");
-        await markWitnessesAt(victim);
-    } catch (err) {
-        error("Could not mark the Monocubs who saw the incident open", err);
-    }
-}
-
 async function tellVictimTheIncidentBegan(state) {
     try {
         const victim = game.actors.get(state?.victimId ?? "");
         if (!victim) return;
-        const key = state.indirect ? "victimTrapSprung" : "victimUnderAttackBy";
-        const data = state.indirect ? {} : { killer: esc(game.actors.get(state.killerId ?? "")?.name ?? "?") };
+        // A killer behind a "?" (E69 C8) is "someone" to the victim: the whisper names nobody.
+        const { maskStands } = await import("./mask-gm.mjs");
+        const masked = !state.indirect && maskStands(state.killerId);
+        const key = state.indirect ? "victimTrapSprung" : masked ? "victimSomeoneMoves" : "victimUnderAttackBy";
+        const data = state.indirect || masked ? {} : { killer: esc(game.actors.get(state.killerId ?? "")?.name ?? "?") };
         await whisperToOwner(victim, `<p>${game.i18n.format(`DRPG.Murder.${key}`, data)}</p>`);
     } catch (err) {
         // The incident has already started in world state; a message that fails
@@ -751,10 +759,20 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
     const patch = { stage: "incident", keyRemnants: keys, turn: 1, turnSide: "victim" };
 
+    /* THE MURDER'S PRIVACY (E69 C8, 13.11.2026; mask-gm.mjs): an opening on Hope or a critical hides the killer behind a
+       "?". The mask is written BEFORE the stage, whose write sends the victim the cast: the copy it sends then holds no
+       killer (incident-store.mjs `castCopyFor`). A stage that lost its race takes the mask back. */
+    const { opensMask, maskKiller, endMask } = await import("./mask-gm.mjs");
+    const masks = opensMask({ success, band, indirect: state.indirect, selfInflicted: state.selfInflicted });
+    if (masks) await maskKiller(state);
+
     // A Despair success costs the victim their Sanity and their way out - the Sanity
     // after the stage is written (E32 C4), so an opening that lost its race marks no sheet.
     if (band === "despair") patch.deniedToVictim = ["roleReversal"];
-    if (!await writeState(patch, { expect: opening })) return null;
+    if (!await writeState(patch, { expect: opening })) {
+        if (masks) await endMask(state.killerId, "lost");
+        return null;
+    }
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {
@@ -2575,7 +2593,8 @@ function landedNote(actor, changes) {
  * Guide, the Samoobrona row: Hope unlocks "obie akcje kryzysowe rozwiązania
  * ofiary", Despair only "odwrócenie ról", and a critical unlocks both AND stops
  * the drain - "Ofiara przestaje tracić hp i stress". Either success also
- * "blokuje akcję kryzysową: Samoobrona", so there is exactly one attempt at it.
+ * "blokuje akcję kryzysową: Samoobrona": a success ends it, and a miss leaves it usable (the handbooks line's
+ * reading, 14.11.2026; this comment said "exactly one attempt").
  *
  * Written as config rather than as a special case here, so a second gated
  * action later is a table entry and not another branch - see `unlocks` and
@@ -2605,7 +2624,7 @@ async function applyUnlocks(state, def, key, band, done) {
         for (const id of opened) unlocked.add(id);
         patch.unlocked = Array.from(unlocked);
         done.push(game.i18n.format("DRPG.Murder.unlockedActions", {
-            names: opened.map(id => CRISIS_ACTIONS[id]?.label ?? id).join(", ")
+            names: listOf(opened.map(id => CRISIS_ACTIONS[id]?.label ?? id))
         }));
     }
 

@@ -82,7 +82,7 @@ export async function openCrisisMenu(actor) {
      * the turn comes round. Until E32+E07 C16 the sentence was the panel's old
      * heading, "Incident - waiting for them", which says what the screen is and
      * not what the player can do (audit S02-33); the tile is dimmed off-turn now
-     * and says the same sentence on hover (sheet.mjs `actionButton`).
+     * and says the same sentence on hover (sheet-actions.mjs `actionButton`).
      */
     const yours = isTheirTurn(actor);
     if (!yours) {

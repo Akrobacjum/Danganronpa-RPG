@@ -138,6 +138,8 @@ import { toggleSpectatorTalk } from "./spectator-ui.mjs";
 import { tileRow } from "./narrow.mjs";
 import { objectionControl, renderHud } from "./hud.mjs";
 import { trialFloor } from "./trial-floor.mjs";
+import { myEavesdrop, eavesdropsUnderWay } from "./eavesdrop-gm.mjs";
+import { myMask, requestReveal } from "./mask-gm.mjs";
 
 import { setTip } from "./ui-kit.mjs";
 
@@ -301,7 +303,7 @@ export function applyDockHidden(hidden) {
  *
  * @returns {HTMLElement}
  */
-export function ensureVoiceTile() {
+function ensureVoiceTile() {
     let tile = document.getElementById(TILE_ID);
     if (!tile) {
         tile = buildVoiceTile();
@@ -640,7 +642,7 @@ function inRoom(watch, userId, gone = null) {
  * @param {object} [watch]
  * @param {object} [gone]  a participant the Room has just said left
  */
-export function voiceStep(watch = live, gone = null) {
+function voiceStep(watch = live, gone = null) {
     if (!watch) return;
     if (watch.shown && !inRoom(watch, watch.shown, gone)) clearSpeaker(watch);
     watch.speakers = watch.speakers.filter(id => inRoom(watch, id, gone));
@@ -884,7 +886,7 @@ function paintWord(watch, face) {
  * voice-client.mjs began or ended a move of the Room (`drpgVoiceApplying`): every tile in the document says it,
  * without waiting for an event of the Room, which still says "connected" while the move takes it down (E79 C15).
  */
-export function onVoiceApplying() {
+function onVoiceApplying() {
     for (const tile of document.querySelectorAll(".drpg-voice-tile")) {
         const watch = watches.get(tile);
         if (watch) paintWord(watch, painted.get(tile)?.face === true);
@@ -1048,6 +1050,8 @@ export function paintControls(watch = live, gone = null) {
         paintSpeakerButton(watch.tile, { count: channelCount(watch, gone), muteAll: watch.muteAll() });
         paintObjection(watch.tile);
         paintSpectatorTalk(watch.tile);
+        paintStopListening(watch.tile);
+        paintReveal(watch.tile);
         paintFloorMark(watch.tile, watch.shown ? watch.userOf(watch.shown) : null);
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
@@ -1132,6 +1136,132 @@ export function paintSpectatorTalk(tile, { watching = spectatorViewer(), talking
     return button;
 }
 
+/**
+ * STOP LISTENING (E69 C6, 13.11.2026; the owner's 10.11 (a): "a 'Stop listening' button"; eavesdrop-gm.mjs). A mini button
+ * after the speaker's, shown while this browser's own character listens at a door (`myEavesdrop`, the owner's copy of
+ * the GMs' row) and nowhere else: a press asks the primary GM to end it (`listen.stop`, bridge-asks.mjs
+ * `requestEavesdropStop`), whose move back and the copy's change take the button away. Legacy wears the ear, Stained
+ * Glass the struck ear (tests-glyphs.mjs `PXI_RULES`, the owner's drawing of 11.11). Written only where it differs.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} [given]  the suite's: `listening` (`{ actorId, into }` or null) and the click's `onStop`
+ * @returns {HTMLElement|null} the button the tile shows, or `null`
+ */
+export function paintStopListening(tile, { listening = myEavesdrop(), onStop = stopListening } = {}) {
+    const controls = tile?.querySelector(".drpg-voice-tile-controls");
+    if (!controls) return null;
+    let button = controls.querySelector(".drpg-voice-stop-listening");
+    if (!listening) {
+        button?.remove();
+        return null;
+    }
+    if (!button) {
+        button = miniButton("drpg-voice-stop-listening", "listen", "");
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => stopToggles.get(button)?.()).catch(err => error("Could not stop listening", err));
+        });
+        const speaker = controls.querySelector(".drpg-voice-speaker");
+        if (speaker) speaker.after(button);
+        else controls.append(button);
+    }
+    stopToggles.set(button, () => onStop(listening));
+    const label = game.i18n.format("DRPG.Listen.eavesdrop.stop", { room: listening.into ?? "" });
+    if (button.getAttribute("aria-label") !== label) {
+        button.setAttribute("aria-label", label);
+        button.dataset.tooltipText = label;
+    }
+    return button;
+}
+
+/**
+ * REVEAL YOURSELF (E69 C8, 13.11.2026; mask-gm.mjs). A mini button after the speaker's while this browser's own character
+ * stands behind a "?" (`myMask`, read off its own token's flag), so a killer who chose to stay hidden can still reveal
+ * themselves before the time of day ends: a press asks the primary GM (`mask.reveal`). Legacy's query mark, `query`.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} [given]  the suite's: `masked` (an actor or null) and the click's `onReveal`
+ * @returns {HTMLElement|null}
+ */
+export function paintReveal(tile, { masked = myMask(), onReveal = requestReveal } = {}) {
+    const controls = tile?.querySelector(".drpg-voice-tile-controls");
+    if (!controls) return null;
+    let button = controls.querySelector(".drpg-voice-reveal");
+    if (!masked) {
+        button?.remove();
+        return null;
+    }
+    if (!button) {
+        button = miniButton("drpg-voice-reveal", "query", "");
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => revealToggles.get(button)?.()).catch(err => error("Could not reveal", err));
+        });
+        const speaker = controls.querySelector(".drpg-voice-speaker");
+        if (speaker) speaker.after(button);
+        else controls.append(button);
+    }
+    revealToggles.set(button, () => onReveal(masked));
+    const label = game.i18n.localize("DRPG.Mask.reveal");
+    if (button.getAttribute("aria-label") !== label) {
+        button.setAttribute("aria-label", label);
+        button.dataset.tooltipText = label;
+    }
+    return button;
+}
+
+/* What a press of a tile's Reveal yourself calls, kept per button. */
+const revealToggles = new WeakMap();
+
+/* What a press of a tile's Stop listening calls, kept per button. */
+const stopToggles = new WeakMap();
+
+/** A press of Stop listening: the primary GM ends the eavesdrop (`listen.stop`). */
+async function stopListening(listening) {
+    if (!listening?.actorId) return false;
+    const { requestEavesdropStop } = await import("./bridge-asks.mjs");
+    const res = await requestEavesdropStop({ actorId: listening.actorId });
+    return Boolean(res.ok);
+}
+
+/**
+ * THE EAVESDROPPERS, FOR A GM (E69 C6; the owner's 10.11 (d): "the GM sees it in the voice panel"). At the top of a GM's
+ * list 'Who you hear', one line per eavesdrop under way - the listener, the room listened from and the room listened
+ * into (eavesdrop-gm.mjs `eavesdropsUnderWay`) - whichever channel the GM is in; none on a player's list. The ear (Legacy)
+ * or the ear with its arrow (Stained Glass, `PXI_RULES`) before each. Answers how many lines it drew.
+ *
+ * @param {HTMLElement} list
+ * @param {object} [given]  the suite's: `gm` and `rows`
+ */
+export function paintEavesdroppers(list, { gm = game.user?.isGM === true, rows = gm ? eavesdropsUnderWay() : [] } = {}) {
+    if (!list) return 0;
+    let box = list.querySelector(".drpg-voice-listening");
+    if (!gm || !rows.length) {
+        box?.remove();
+        return 0;
+    }
+    if (!box) {
+        box = document.createElement("ul");
+        box.className = "drpg-voice-listening";
+        box.setAttribute("aria-label", game.i18n.localize("DRPG.Listen.eavesdrop.gmTitle"));
+        const rowsBox = list.querySelector(".drpg-voice-list-rows");
+        if (rowsBox) rowsBox.before(box);
+        else list.append(box);
+    }
+    const lines = rows.map(row => game.i18n.format("DRPG.Listen.eavesdrop.gmLine", { name: row.name, from: row.from, into: row.into }));
+    const shown = [...box.children].map(li => li.textContent);
+    if (shown.length === lines.length && shown.every((text, i) => text === lines[i])) return lines.length;
+    box.replaceChildren(...lines.map(text => {
+        const li = document.createElement("li");
+        li.className = "drpg-voice-listening-mark";
+        li.append(pixelGlyph("listen"), textNode("span", "", text));
+        return li;
+    }));
+    return lines.length;
+}
+
 /* What a press of a tile's Spectator switch calls: the suite's spy or `toggleSpectatorTalk`, kept per button. */
 const spectatorToggles = new WeakMap();
 
@@ -1198,7 +1328,7 @@ function mutedFor(mutes, settings, userId) {
  * @param {number} volume
  * @returns {number}
  */
-export function sliderOfVolume(volume) {
+function sliderOfVolume(volume) {
     const value = volumeOf(volume) ?? 1, helper = foundry.audio?.AudioHelper;
     return volumeOf(typeof helper?.volumeToInput === "function" ? helper.volumeToInput(value) : value) ?? value;
 }
@@ -1427,6 +1557,8 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
         .sort((a, b) => String(a.who.name).localeCompare(String(b.who.name)));
 
     putAttr(list.querySelector(".drpg-voice-list-muteall"), "aria-pressed", String(watch.muteAll() === true));
+    // Every eavesdrop under way, on a GM's list (E69 C6).
+    paintEavesdroppers(list, { gm });
     // "Nobody else is in your channel" only when nobody is: a participant mapped to no user has no row, and is still
     // there (E78 fix r1-G1).
     putHidden(list.querySelector(".drpg-voice-list-alone"), people.length > 0 || channelCount(watch) > 0);
@@ -1582,7 +1714,7 @@ export function closeVoiceList(watch = live, { focus = true } = {}) {
 }
 
 /** The speaker button's click: the list opened, or closed when it is open. */
-export function toggleVoiceList(watch = live) {
+function toggleVoiceList(watch = live) {
     if (watch?.list && !watch.list.hidden) return closeVoiceList(watch);
     return Boolean(openVoiceList(watch));
 }
@@ -1686,6 +1818,11 @@ export function registerVoiceTile() {
         else if (live?.list && !live.list.hidden) paintList(live);
     });
     Hooks.on("drpgVoiceApplying", () => onVoiceApplying());
+    // Listen's eavesdrop (E69 C6): the owner's copy changed (Stop listening, the microphone's reason), a GM's rows.
+    Hooks.on("drpgEavesdropCopy", () => paintControls());
+    // The murder's privacy (E69 C8): this browser's character went behind a "?" or came out.
+    Hooks.on("drpgMaskChanged", () => paintControls());
+    Hooks.on("drpgEavesdropChanged", () => { if (live?.list && !live.list.hidden) paintList(live); });
     /* THE TRIAL'S LINES FOLLOW THE TRIAL (E70 fix p1-G1, 28.10.2026; the review's E70P1-R03). A Monocub's line and the
        dead's (voice.mjs `micHold`: "cubSpeak", "cubListen", "cubVote", "ownCase", "deadMuted") are read off the clock,
        the floor and the trial's record, and nothing here repainted on those: a debate opened, or the vote, and the

@@ -82,7 +82,7 @@ const THROWS_NO_DICE = new Set(["move", "rest", "directMurder"]);
  * NO ACTION HAS A BRIEFING WINDOW OF ITS OWN (E100 item 1, 12.11.2026; the owner on the player-screens review, #2).
  * Move was the last: a window with one button, Got it, that said "drag your token". Every other action carries its
  * briefing inside the window it opens anyway (`briefingBlock`); Move's sentence stands on the Monocub's Move tile
- * (sheet.mjs `actionButton`) and in the HUD's Move row (player-status.mjs), and `performAction(actor, "move")` opens
+ * (sheet-actions.mjs `actionButton`) and in the HUD's Move row (player-status.mjs), and `performAction(actor, "move")` opens
  * nothing. `NEEDS_OWN_BRIEFING` went with the window.
  */
 

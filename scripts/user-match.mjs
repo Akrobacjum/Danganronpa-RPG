@@ -75,7 +75,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isDeadWatcher } from "./spectator-dead.mjs";
-import { esc, warn, isPrimaryGm, whisperToGms } from "./utils.mjs";
+import { esc, warn, isPrimaryGm, whisperToGms, listOf } from "./utils.mjs";
 
 /** One pass this long after the last event that asks for one. */
 const PASS_DELAY_MS = 500;
@@ -267,14 +267,14 @@ async function tellGms(plan, asked) {
     for (const [why, key, ids] of [["none", "DRPG.Users.match.none", plan.none], ["several", "DRPG.Users.match.several", plan.several],
         ["same", "DRPG.Users.match.same", plan.same]]) {
         const now = ids.filter(id => fresh(id, why));
-        if (now.length) lines.push(game.i18n.format(key, { names: now.map(nameOf).join(", ") }));
+        if (now.length) lines.push(game.i18n.format(key, { names: listOf(now.map(nameOf)) }));
     }
     for (const { userId, owners } of plan.owned) {
-        if (fresh(userId, "owned")) lines.push(game.i18n.format("DRPG.Users.match.owned", { account: nameOf(userId), owner: owners.map(nameOf).join(", ") }));
+        if (fresh(userId, "owned")) lines.push(game.i18n.format("DRPG.Users.match.owned", { account: nameOf(userId), owner: listOf(owners.map(nameOf)) }));
     }
     for (const { userId, owns } of plan.owns) {
         if (fresh(userId, "owns")) lines.push(game.i18n.format("DRPG.Users.match.owns",
-            { account: nameOf(userId), students: owns.map(id => esc(game.actors.get(id)?.name ?? id)).join(", ") }));
+            { account: nameOf(userId), students: listOf(owns.map(id => esc(game.actors.get(id)?.name ?? id))) }));
     }
     if (!lines.length) return;
     try {

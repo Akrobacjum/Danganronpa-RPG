@@ -193,7 +193,7 @@ function readMap() {
     }
 }
 
-export function lastReadAt(playerUserId) {
+function lastReadAt(playerUserId) {
     return readMap()[playerUserId] ?? 0;
 }
 

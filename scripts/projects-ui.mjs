@@ -30,9 +30,11 @@ import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
+// The scale option's count (E71, 12.11.2026): its own line, so the utils import above stays as other lines edit it.
+import { plural } from "./utils.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
-    labelTrayControls, markTrayMore
+    leaveIconOnly, keepNarrativeShown, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
+    addTrayTitle, labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
@@ -55,7 +57,11 @@ export function registerProjectsUi() {
 /**
  * The tray is renamed "Projects" through i18n overrides on the system's own
  * keys, not by injecting a heading - an injected one sat outside the tray's
- * own layout and vanished on hover when the tray re-rendered.
+ * own layout and vanished on hover when the tray re-rendered. Daggerheart
+ * 2.12.8's header draws no title at all (its countdowns-view.hbs read at head
+ * e9c61d7), so where it has none `addTrayTitle` writes one inside the header,
+ * from the same overridden key, on every render: inside the header the render
+ * rebuilds, it cannot be left behind by a re-render as the old heading was.
  *
  * Three things happen here, all re-applied on every render since the tray
  * rebuilds its header each time:
@@ -70,7 +76,8 @@ export function registerProjectsUi() {
  *     (projects.mjs) always makes "narrative" ones. There is only ever one
  *     category in this tray, so a filter for it is a control with nothing to
  *     do - and reads as a mysterious pair of buttons that just narrow what
- *     you can see for no visible reason.
+ *     you can see for no visible reason. With them gone, a user whose own flag
+ *     hides that category is given it back - see `keepNarrativeShown`.
  *   - "Toggle Icon Only" is removed, and anyone already in that view is taken
  *     out of it - see `leaveIconOnly`. It strips the name and the progress off
  *     every row, and a project is its name: what is left is four identical
@@ -87,6 +94,8 @@ function onRenderCountdowns(app, element) {
         root.querySelector(".header-type-toggles")?.remove();
         root.querySelector('[data-action="toggleViewMode"]')?.remove();
         leaveIconOnly(app, root);
+        // With the type toggles gone, a user's flag that hides "narrative" - every project's type - is put back (A113-C1-2).
+        keepNarrativeShown(app);
 
         localiseRawKeys(root);
         hideUndiscovered(root);
@@ -98,6 +107,8 @@ function onRenderCountdowns(app, element) {
         // The minus and the plus named, and the list's foot faded while rows stand below it (E23 C3a).
         labelTrayControls(root);
 
+        // The tray's name, where Daggerheart 2.12.8's header draws none (13.11.2026; projects-tray.mjs `addTrayTitle`).
+        addTrayTitle(root);
         // Folding the tray away is everybody's, not the GM's - a player with
         // four projects on a 1080p screen wants the map back, and the tray sits
         // directly under their own status strip.
@@ -920,7 +931,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         .map(([key, s]) => {
             const selected = given ? s.progress === currentTarget : key === "everyday";
             return `<option value="${s.progress}"${selected ? " selected" : ""}>${
-                s.label} - ${s.progress} progress</option>`;
+                plural("DRPG.Project.scaleOption", { label: s.label, n: s.progress })}</option>`;
         }).join("");
 
     // An edited project may sit on a target no scale names - a repair inherits

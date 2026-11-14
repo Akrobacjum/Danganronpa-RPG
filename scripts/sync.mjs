@@ -243,7 +243,7 @@ const COALESCE_MS = TIMING.coalesceMs;
  * a setting's change and the GM's broadcast is no server's. The reading is LIVE-E17-11
  * (audit/AUDIT-1.2.42.md 9.2, item 316), to be written here.
  */
-export const COALESCE_MAX_WAIT_MS = COALESCE_MS * 3;
+const COALESCE_MAX_WAIT_MS = COALESCE_MS * 3;
 
 /**
  * A trailing debounce per kind (E17 C6; R995): `push(kind, data)` returns at once, and
@@ -410,7 +410,7 @@ export const REFRESHES = Object.freeze({
     sheets: () => import("./clock.mjs").then(m => m.refreshSheets()),
     /* THE MONOKUMAS' SHEETS ONLY (E88 C4, 27.10.2026; E88-09, E37's line taken early). A pool, its name, who
        holds one and which pool a Monokuma spends are read on a sheet by the Monokuma's Despair panel alone
-       (sheet.mjs `monokumaPool`, asked where `isMonokuma` built the panel); a student's sheet reads none of
+       (sheet-actions.mjs `monokumaPool`, asked where `isMonokuma` built the panel); a student's sheet reads none of
        them, and every one open was rendered on each Despair spent. Scenario 86 at 7baff238: a pass on every
        browser for each write. A student's sheet is still rendered by its own actor's update (a Despair Call's
        Hope, a Reroll's), which is not this road. `SYNC.despair`'s row (R1013, R1198; 81 part E). */

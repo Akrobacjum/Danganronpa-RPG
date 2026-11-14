@@ -134,7 +134,7 @@ export async function everyPart(...parts) {
 }
 
 /** The lifetimes a world setting may have (settings.mjs `WORLD_LIFETIMES`). */
-export const LIFETIMES = Object.freeze(["season", "campaign", "table"]);
+const LIFETIMES = Object.freeze(["season", "campaign", "table"]);
 
 /**
  * WHAT THE LIFETIMES SAY AGAINST THE REGISTRY (E42 C4, 1.2.97; E42-16; D36 = option 2). Pure: `registered` is the

@@ -133,7 +133,7 @@ export const FOUNDRY_WINDOWS = [
     { key: "maptools", id: "drpg-win-maptools", node: "scene-controls", title: "DRPG.FoundryTools.mapTitle", home: { x: 379, y: 187 } }
 ];
 /** How far in from the screen's edges, and out from the corner cluster's box, a window stands. */
-export const WINDOW_MARGIN = 8;
+const WINDOW_MARGIN = 8;
 /** Foundry's `ui.sidebar.toggleExpanded` as it was before the wrapper, so closing the window collapses through Foundry's own. */
 const ORIGINAL = { toggleExpanded: null };
 let guard = null, themeWatch = null, cluster = null;

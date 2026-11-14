@@ -162,7 +162,7 @@ export async function clearSeals() {
  * restrictions, and each student's Call armed for a roll - the board's, as a seal is (D12), unset before the clock's
  * step so nothing armed is spent on a roll of the new season (season-wipe.mjs `wipeStudent`'s `seals` part).
  */
-export async function clearSeasonSeals(ctx) {
+async function clearSeasonSeals(ctx) {
     await clearSeals();
     await ctx.everyStudent("seals");
 }
@@ -172,7 +172,7 @@ export async function clearSeasonSeals(ctx) {
  * called in; the new season's first advance would otherwise find the stamp stale and teleport the whole new cast into
  * last season's room. Written directly - `cancelGather` posts a card and a sound into a chat that is being deleted.
  */
-export async function clearSeasonAssembly() {
+async function clearSeasonAssembly() {
     await game.settings.set(MODULE_ID, SETTINGS.pendingGather, {});
 }
 

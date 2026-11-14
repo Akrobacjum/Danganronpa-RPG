@@ -2,7 +2,7 @@
  * Danganronpa RPG - the stash's reach.
  * ---------------------------------------------------------------------------
  * What a character does at a stash, and what a GM judges of it: whether this is
- * their own stash, here (`myStashHere`, `atOwnVault`); putting an item away and
+ * their own stash, here (`myStashHere`); putting an item away and
  * taking one out (`stow`, `retrieve`) with the refusals both give
  * (`tellNotHere`, `refuseTheDead`); the stashes open to a character in a room
  * (`openStashesHere`, `openStashHere`); the rifle - its window, its key and its
@@ -30,7 +30,7 @@ import { locateActor, sceneOfActor } from "./movement.mjs";
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
 import { iAmTheMastermind, isDeadForGm, getClock } from "./settings.mjs";
-import { whisperToOwner, whisperToGms, log, error, esc } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, error, esc, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { placeScenes } from "./rooms.mjs";
@@ -53,12 +53,6 @@ export async function myStashHere(actor) {
     const place = locateActor(actor);
     if (!place?.room) return null;
     return stashIn(place.room, actor.id, place.scene) ? place.room : null;
-}
-
-/** Whether this character stands in one of its own stashes (`myStashHere`). Not on `game.drpg`, and nothing in the
- *  module calls it (E52 C6, S01-52: this comment named it there as a compatibility entry). */
-export async function atOwnVault(actor) {
-    return Boolean(await myStashHere(actor));
 }
 
 /**
@@ -140,7 +134,7 @@ export async function stow(actor, item) {
 export function tellNotHere(actor, room = null) {
     const rooms = room ? [room] : stashRoomsFor(actor, sceneOfActor(actor)).map(entry => entry.room);
     ui.notifications.warn(rooms.length
-        ? game.i18n.format("DRPG.Vault.notHere", { room: rooms.join(", ") })
+        ? game.i18n.format("DRPG.Vault.notHere", { room: listOf(rooms, { type: "disjunction" }) })
         : game.i18n.localize("DRPG.Vault.noStashOnScene"));
 }
 
@@ -288,7 +282,7 @@ export async function rifleStashDialog(actor) {
     const stocked = stashes.filter(entry => entry.items.length);
     if (!stocked.length) {
         ui.notifications.warn(game.i18n.format("DRPG.Vault.stashEmpty", {
-            who: stashes.map(entry => entry.owner.name).join(", ")
+            who: listOf(stashes.map(entry => entry.owner.name))
         }));
         return false;
     }
@@ -324,7 +318,7 @@ export async function rifleStashDialog(actor) {
         classes: ["drpg-panel"],
         body: `<form>
             <p>${game.i18n.format("DRPG.Vault.rifleIntro", {
-                who: esc(stocked.map(entry => entry.owner.name).join(", ")),
+                who: esc(listOf(stocked.map(entry => entry.owner.name))),
                 room: esc(room)
             })}</p>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
@@ -582,6 +576,18 @@ export async function stealFromVault({ thiefId, ownerId, itemId } = {}) {
     const ownerHere = locateActor(owner);
     const watched = ownerHere?.room === where.room && (ownerHere?.scene?.id ?? null) === (where.scene?.id ?? null);
     if (owner.id !== thief.id && !watched) await rifleStore.patch(reach, { unseen: true });
+    /*
+     * WHAT THE GMS READ OF IT (the audit of 1.2.113, A113-C6-4). The thief's card above reaches the GMs too, and it read the
+     * same whether the owner watched the reach or a notice now waits for them; nothing else showed the GMs a notice
+     * pending. A GMs-only card says which (`data-drpg-stash-gm`: "watched" or "pending"), naming the thief, the owner and
+     * the room. No player reads it: whispered to the GMs alone. None for the owner's own reach.
+     */
+    if (owner.id !== thief.id) {
+        const kind = watched ? "watched" : "pending";
+        await whisperToGms(`<p data-drpg-stash-gm="${kind}">${esc(game.i18n.format(watched ? "DRPG.Vault.gmWatched" : "DRPG.Vault.gmPending", {
+            thief: thief.name, owner: owner.name, room: where.room ?? ""
+        }))}</p>`).catch(err => error("Could not tell the GMs whether a stash's owner saw a reach", err));
+    }
 
     log(`${thief.name} took "${name}" from ${owner.name}'s stash${watched ? ", in front of its owner" : ""}.`);
     return copy ?? true;
@@ -589,15 +595,32 @@ export async function stealFromVault({ thiefId, ownerId, itemId } = {}) {
 
 /**
  * THE NOTICE OF A STASH GONE THROUGH (1.2.112; the owner's decision of 13.11.2026), on the primary GM: `owner` has just
- * crossed into `room` on `scene` (traps.mjs `onCrossed`, which hears a player's crossing through its relay). Every row
+ * crossed into `room` on `scene` (traps.mjs `onCrossed`, which hears a player's paid crossing through its relay), or come
+ * to stand in it by another road (arrival-notices.mjs: a settled crossing - free, in an Eclipse - or a GM's placement;
+ * the audit of 1.2.113, A113-C4-3). Every row
  * of the GMs' rifle store for a reach into that owner's stash in that room with a notice pending (`stealFromVault`'s
  * `unseen`) is cleared, and the owner is whispered once "somebody has been in your stash" - never who, never when - as
  * the old disturbed notice was (`DRPG.Vault.noticed`, the "stolen" sound). Dropped unsaid when the stash is no longer
  * there or the owner is dead. Answers whether a notice went. Tier 2's "a stash gone through while its owner was away is
  * told ..." reads it.
  */
-export async function tellStashDisturbed(owner, room, scene) {
-    if (!owner || !room || !scene || !game.user.isGM) return false;
+export function tellStashDisturbed(owner, room, scene) {
+    if (!owner || !room || !scene || !game.user.isGM) return Promise.resolve(false);
+    /* ONE OWNER AT A TIME (the audit of 1.2.113, A113-C4-3). Since that fix two roads deliver the notice - the paid
+       crossing's hook (traps.mjs `onCrossed`) at once, and the arrival roads (arrival-notices.mjs: the settled crossing,
+       a GM's placement) - and a paid crossing raises both. Each read the pending rows before either cleared them, and the
+       owner was told twice. Chained per owner, the second reads the rows the first cleared and tells nothing. */
+    const run = (telling.get(owner.id) ?? Promise.resolve()).then(() => tellStashDisturbedNow(owner, room, scene));
+    const tail = run.catch(() => false);
+    telling.set(owner.id, tail);
+    tail.then(() => { if (telling.get(owner.id) === tail) telling.delete(owner.id); });
+    return run;
+}
+
+/** ownerId -> the notice being told to that owner (`tellStashDisturbed`): the next waits for it. */
+const telling = new Map();
+
+async function tellStashDisturbedNow(owner, room, scene) {
     const { rifleStore } = await import("./gm-stores.mjs");
     await rifleStore.whenHydrated();
     const tail = `:${owner.id}:${scene.id}:${room}`;
@@ -608,6 +631,8 @@ export async function tellStashDisturbed(owner, room, scene) {
     if (!pending.length) return false;
     await rifleStore.patchMany(Object.fromEntries(pending.map(key => [key, { unseen: false }])));
     if (isDeadForGm(owner) || !stashIn(room, owner.id, scene)) return false;
+    // Whose reaches the notice settles, for the GMs alone (A113-C6-4): the thief's id is a row's key up to its first colon.
+    const thieves = [...new Set(pending.map(key => game.actors.get(key.slice(0, key.indexOf(":")))?.name).filter(Boolean))];
     try {
         await whisperToOwner(owner, `<p>${game.i18n.localize("DRPG.Vault.noticed")}</p>`, {
             flags: { [MODULE_ID]: { sfx: "stolen" } }
@@ -616,6 +641,9 @@ export async function tellStashDisturbed(owner, room, scene) {
         error("Could not tell the owner their stash had been gone through", err);
         return false;
     }
+    await whisperToGms(`<p data-drpg-stash-gm="told">${esc(game.i18n.format("DRPG.Vault.gmTold", {
+        owner: owner.name, room, names: listOf(thieves)
+    }))}</p>`).catch(err => error("Could not tell the GMs which reaches a stash's notice settled", err));
     log(`${owner.name} was told somebody had been in their stash in ${room}.`);
     return true;
 }

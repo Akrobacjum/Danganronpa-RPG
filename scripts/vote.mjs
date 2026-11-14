@@ -48,7 +48,7 @@ import { ballotStore, verdictStore } from "./gm-stores.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import {
-    announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow
+    announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow, listOf
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence, findingsHtml } from "./trial-progress.mjs";
 import { drpgWindow, box } from "./ui-kit.mjs";
@@ -293,8 +293,7 @@ export function candidatesFor(voterActorId) {
  * are the primary GM's (`runVoteOp`): this asks for them through `vote.run` and
  * tells the GM who pressed what came of it. Answers how many ballots went out,
  * or null.
- */
-/**
+ *
  * @param {object} [options]
  * @param {number} [options.picks]  How many names each ballot must carry.
  *   Guide, p. 32: "Jeśli jest dwóch blackened jednej nocy, należy wskazać obu."
@@ -1080,7 +1079,7 @@ async function closeRound(progress) {
     const share = n => Math.round(100 * n / Math.max(1, issued));
     const esc = foundry.utils.escapeHTML;
     // The two that count ballots are plural families on {total} (E66 C3, the census); the one-name line is a ratio.
-    const accusing = { names: accused.map(r => esc(named(r.id))).join(", "), n: Math.min(...accused.map(r => r.n)), total: issued };
+    const accusing = { names: listOf(accused.map(r => esc(named(r.id)))), n: Math.min(...accused.map(r => r.n)), total: issued };
     const sentence = noMajority
         ? plural("DRPG.Vote.noMajority", { majority, total: issued }, "total")
         : tied

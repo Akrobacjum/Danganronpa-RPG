@@ -1,0 +1,4857 @@
+{
+  "$comment": [
+    "B03, a batch of stage E71 (line A, claude/e71-a), with E25's content part: each text written from the facts of the functions that run its rule (O6, M1), the English by one agent, the Polish by another from the facts, the code and the old Polish without the new English (DB26), then read by the EN, cold EN, PL and (rules batches) mechanics reviewers and revised once; `reviews` holds what each reviewer still holds open after that revision, `owner` is null (no owner's page yet). Written on claude/e71-a 14.11.2026; the afters are the text of lang/ and config.mjs from the commit that adds this file."
+  ],
+  "batch": "B03",
+  "stage": "E71",
+  "texts": [
+    {
+      "key": "DRPG.Murder.openingReaskSent",
+      "group": "window",
+      "surface": "toast",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The tracker's ask-again sends the opening roll again to the side that owes it: a trap's victim, otherwise the killer.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "reaskOpening",
+          "note": null
+        },
+        {
+          "fact": "A player who is not connected gets no invitation: the roll is thrown for them on the GM's browser.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "rollOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The invitation to throw the opening roll was sent again.",
+        "after": "The opening roll was offered again: to the victim of a trap, otherwise to the killer."
+      },
+      "pl": {
+        "before": "Zaproszenie do rzutu otwarcia wysłano ponownie.",
+        "after": "Prośba o rzut otwarcia poszła jeszcze raz: przy pułapce do ofiary, w przeciwnym razie do zabójcy."
+      },
+      "removed": [
+        "\"invitation to throw\" becomes \"offered\": the same fact, shorter (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openingReaskWait",
+      "group": "window",
+      "surface": "toast",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The ask-again is refused within its cooldown on this browser (TIMING.reaskCooldownMs, 10 seconds).",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "reaskOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The invitation was sent a moment ago - give them a few seconds.",
+        "after": "The opening roll was offered a moment ago. Wait a few seconds before asking again."
+      },
+      "pl": {
+        "before": "Zaproszenie poszło przed chwilą - daj kilka sekund.",
+        "after": "Prośba poszła przed chwilą. Odczekaj kilka sekund i spróbuj znowu."
+      },
+      "removed": [
+        "The dash aside \"- give them a few seconds\" becomes its own sentence that says what to do (X4, O7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.victimNoticedNext",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a trap's opening, a victim who succeeds noticed it: the incident stays at its opening stage and nothing moves it on by itself.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "The victim may spend their Free Move if they still have it (MURDER_OPENING.victim.hope).",
+          "file": "scripts/config.mjs",
+          "fn": "MURDER_OPENING",
+          "note": null
+        },
+        {
+          "fact": "Ending the incident is the GM's call, from the tracker's End the murder.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "incidentButtons",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "The victim noticed. Nothing happens by itself now: they may use their Free Move, if they still have it, and the incident stays open until you end it from the tracker.",
+        "after": "The victim noticed the trap. Nothing moves on by itself: they may use their Free Move if they still have it, and the incident stays open until you end it from the tracker."
+      },
+      "pl": {
+        "before": "Ofiara zauważyła. Nic nie dzieje się samo: może użyć swojego Free Move, jeśli jeszcze go ma, a incydent pozostaje otwarty, dopóki nie zakończysz go z trackera.",
+        "after": "Ofiara zauważa pułapkę. Incydent zatrzymuje się na otwarciu i sam z siebie nie ruszy dalej. Ofiara może użyć Free Move, jeśli jeszcze go ma; incydent zakończysz przyciskiem „Zakończ morderstwo” w oknie śledzenia incydentu."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openIntro",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-window",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An incident opens on exactly one roll, then runs in turns; a direct murder opens on the killer's roll, a trap on the victim's.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "An opening roll, then turns. Direct: the killer rolls; a trap: the victim.",
+        "after": "An incident opens on one roll, then runs in turns. In a direct murder the killer rolls; in a trap, the victim."
+      },
+      "pl": {
+        "before": "Rzut otwarcia, potem tury. Direct: rzuca zabójca; pułapka: ofiara.",
+        "after": "Incydent zaczyna się jednym rzutem otwarcia, potem idą tury. Przy Direct Murder rzuca zabójca, przy pułapce ofiara."
+      },
+      "removed": [
+        "The label-colon shapes \"Direct: ...; a trap: ...\" become a sentence (X6, X7); the early pass's wording of the facts is kept."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.needOne",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-window",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Murder window is refused with a warning when no student is alive; one living student is enough, since one person can hold both seats.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "openMurderDialog",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "There must be at least one living student.",
+        "after": "A murder needs at least one living student, who can hold both seats."
+      },
+      "pl": {
+        "before": "Musi być co najmniej jeden żywy uczeń.",
+        "after": "Morderstwa nie otworzysz bez żywego ucznia. Wystarczy jeden: może zająć oba pola."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openSelfNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-window",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "One name in both seats opens a death by their own hand; the trap box is cleared and locked.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "openMurderDialog",
+          "note": null
+        },
+        {
+          "fact": "No fight runs for it: the opening roll decides whether they go through with it, and on a success the incident goes straight to the clean-up (stage resolution).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "One name in both seats: this opens as a death by their own hand. There is no Stage 5 - the opening roll decides whether they go through with it, and the incident goes straight to Stage 6.",
+        "after": "The same student as killer and victim makes this a death by their own hand, and the trap box is cleared and locked. There is no fight: the opening roll decides whether they go through with it, and if they do, the incident goes straight to the clean-up."
+      },
+      "pl": {
+        "before": "Jedno nazwisko w obu polach: to otwiera się jako śmierć z własnej ręki. Nie ma Stage 5 - rzut otwarcia decyduje, czy się na to zdecydują, a incydent idzie prosto do Stage 6.",
+        "after": "Ten sam uczeń w obu polach to śmierć z własnej ręki; pole „Pułapka” zostaje odznaczone i zablokowane. Walki nie ma: rzut otwarcia rozstrzyga, czy uczeń się na to zdecyduje, a po udanym rzucie incydent przechodzi od razu do sprzątania."
+      },
+      "removed": [
+        "\"Stage 5\" and \"Stage 6\" become \"the fight\" and \"the clean-up\", the handbook's words (S02-39, S13-45); the dash aside goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "Cold reading: I understood that choosing the same student as killer and victim makes it a suicide, but 'one name in both seats opens a death' is not how anyone at a table says it (proposed: Choose the same student as both killer and victim and this becomes a death by their own hand.) - executor: Taken in part: \"One name in both seats\" becomes \"The same student as killer and victim\"; the sentence keeps the trap box being cleared and locked (fact 0), which the Polish carries and the pl reviewer asked the English to carry."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.killerNotAlive",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-window",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A killer the caller named who is not among the living is not in the Killer list, which then shows another student; the window says so.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "openMurderDialog",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name} is named as the killer and is not among the living, so the Killer list shows somebody else. Pick who this murder is for.",
+        "after": "{name} was named as the killer but is not among the living, so the Killer list shows someone else. Choose the killer."
+      },
+      "pl": {
+        "before": "Wskazanego zabójcy ({name}) nie ma wśród żywych, więc lista Zabójca pokazuje kogoś innego. Wybierz, czyje to morderstwo.",
+        "after": "Postaci {name} nie ma wśród żywych, więc na liście Zabójca stoi ktoś inny. Wybierz, kto zabija."
+      },
+      "removed": [
+        "\"Pick who this murder is for\" becomes \"Choose the killer\": what the GM does with the list (O7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openedSelf",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A death by their own hand opens on the killer's opening roll, sent to that one student's player.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name} is moving on themselves. The opening roll has gone to them.",
+        "after": "{name} means to take their own life. The opening roll has gone to them."
+      },
+      "pl": {
+        "before": "{name} rusza na siebie. Rzut otwarcia trafia do tej samej osoby.",
+        "after": "{name} targa się na własne życie. Prośba o rzut otwarcia trafia do gracza tej postaci."
+      },
+      "removed": [
+        "\"is moving on themselves\" becomes \"means to take their own life\": the idiom read oddly on one person (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openedSelfNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No fight runs for a death by their own hand.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openMurder",
+          "note": null
+        },
+        {
+          "fact": "If the opening roll succeeds, the incident goes straight to the clean-up (stage resolution, endedBy selfInflicted); a failure ends it with nobody dead.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "The death is recorded only when the incident closes, so the student is alive to arrange the scene.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "endMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Stage 5 is skipped: there is no confrontation to run. If the roll lands, the incident goes straight to Stage 6 - the arrangements they make before dying. They stay alive until you close the incident.",
+        "after": "There is no fight to run. If the roll succeeds, the incident goes straight to the clean-up, where they arrange the scene before dying; if it fails, it ends and nobody dies. They stay alive until you close the incident."
+      },
+      "pl": {
+        "before": "Stage 5 pominięty: nie ma konfrontacji do rozegrania. Jeśli rzut się uda, incydent idzie prosto do Stage 6 - przygotowań przed śmiercią. Ta osoba żyje, dopóki nie zamkniesz incydentu.",
+        "after": "Walki nie ma. Jeśli rzut otwarcia się uda, incydent przechodzi od razu do sprzątania; jeśli nie, kończy się i nikt nie ginie. Śmierć zostaje zapisana dopiero przy zamknięciu incydentu, więc do tego czasu uczeń żyje i może przygotować scenę."
+      },
+      "removed": [
+        "\"Stage 5 is skipped\" and \"Stage 6\" become \"no fight\" and \"the clean-up\" (S02-39, S13-45); the dash aside goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.selfWentThrough",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the owner of a student whose opening by their own hand succeeded; no fight follows.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "The clean-up opens on their sheet: they can see and clean their own Remnants while alive.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "<strong>You went through with it.</strong> There is no fight to have. Stage 6 is open on your sheet: whatever you leave the room as, you leave it as now.",
+        "after": "<strong>You went through with it.</strong> There is no fight. The clean-up is open on your sheet: while you are alive, you can see and clean your own Remnants."
+      },
+      "pl": {
+        "before": "<strong>Stało się.</strong> Nie ma walki do stoczenia. Stage 6 jest otwarty na twoim arkuszu: pokój zostawisz taki, jaki zostawisz go teraz.",
+        "after": "<strong>Stało się.</strong> Walki nie ma. Na twoim arkuszu otwiera się sprzątanie: dopóki żyjesz, widzisz własne Remnanty i możesz je posprzątać."
+      },
+      "removed": [
+        "\"Stage 6\" becomes \"the clean-up\", the player handbook's word (S02-39, S13-45).",
+        "\"the room will be found as you leave it now\" becomes what the clean-up lets the student do (fact 1), as the Polish says it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.resolutionNoteSelf",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A death by their own hand lands at the clean-up (stage resolution); they can see and clean their own Remnants.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "The death is recorded when the incident closes.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "endMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Stage 6, with nobody left to hide it from but the class. They can see and clean their own Remnants, and they are still alive to do it - closing the incident is what makes the death real.",
+        "after": "The clean-up begins. They can see and clean their own Remnants while still alive; the death is recorded when you close the incident."
+      },
+      "pl": {
+        "before": "Stage 6, bez nikogo, przed kim trzeba by to ukryć - poza klasą. Widzą i sprzątają własne Remnanty, i wciąż żyją, by to zrobić - zamknięcie incydentu czyni śmierć prawdziwą.",
+        "after": "Przy śmierci z własnej ręki incydent przechodzi do sprzątania. Uczeń widzi własne Remnanty i może je posprzątać; śmierć zostaje zapisana dopiero przy zamknięciu incydentu."
+      },
+      "removed": [
+        "\"Stage 6, with nobody left to hide it from but the class\" goes: a flourish, not a fact (T29); the early pass's Remnant is kept."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.trackerStateSelf",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "For a death by their own hand the tracker's bar shows the stage and no turn or side: there are no turns.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "incidentTrackerHtml",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{stage} · no turns - Stage 5 does not run",
+        "after": "{stage} · no turns"
+      },
+      "pl": {
+        "before": "{stage} · bez tur - Stage 5 nie biegnie",
+        "after": "{stage} · bez tur"
+      },
+      "removed": [
+        "\"Stage 5 does not run\" goes: the stage number is jargon, and the facts line already says By their own hand (S13-45, O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterSelf",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "after-incident",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The after-incident list names the kind of death; by their own hand nobody else was in the room.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "By their own hand - nobody else was in the room, and the class has only the scene to go on.",
+        "after": "By their own hand: nobody else was in the room, and the class has only the scene to go on."
+      },
+      "pl": {
+        "before": "Z własnej ręki - nikogo innego nie było w pokoju, a klasa ma tylko scenę.",
+        "after": "Z własnej ręki: w pokoju nie było nikogo innego."
+      },
+      "removed": [
+        "The dash becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterIntroSelf",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "after-incident",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The after-incident window opens once the incident state is wiped by the close; what it lists is derived, nothing is asked.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name}, by their own hand. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
+        "after": "{name}, by their own hand. The incident is closed; below is what follows from it, and nothing here asks for an answer."
+      },
+      "pl": {
+        "before": "{name}, z własnej ręki. Wszystko poniżej wynika z tego, co właśnie się stało, a moduł przestał śledzić sam incydent.",
+        "after": "{name}, z własnej ręki. Wszystko poniżej wynika z tego, jak skończył się incydent; moduł już go nie śledzi, a to okno o nic nie pyta."
+      },
+      "removed": [
+        "\"the module has stopped tracking the incident itself\" becomes \"The incident is closed\" (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.dayNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When the murder opens outside Night the GM card says the opening roll is not changed by night.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "nightNoteKey",
+          "note": null
+        },
+        {
+          "fact": "At Night a direct murder's opening has advantage; a trap's opening has no night disadvantage since E64 (nightDisadvantage false).",
+          "file": "scripts/config.mjs",
+          "fn": "MURDER_OPENING",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Not night, so the opening roll is unmodified.",
+        "after": "It is not night, so night does not change the opening roll."
+      },
+      "pl": {
+        "before": "Nie noc, więc rzut otwarcia bez modyfikatora.",
+        "after": "To nie noc, więc pora dnia nie zmienia rzutu otwarcia."
+      },
+      "removed": [],
+      "needsCode": [
+        "nightNoteKey sends DRPG.Murder.nightNoteIndirect (disadvantage at night) for a trap at Night, while MURDER_OPENING.victim.nightDisadvantage is false: a trap at Night should get this sentence or one of its own."
+      ],
+      "disagreements": [
+        "DRPG.Murder.nightNoteIndirect (batch B03b) says a trap's opening has disadvantage at night; config has it off since E64. For the owner: the code picks the wrong note."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.trackerCastGone",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The tracker warns when an incident's killer or victim id names no actor; {who} lists the side words.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "incidentTrackerHtml",
+          "note": null
+        },
+        {
+          "fact": "Only End the murder helps; nothing else can move the incident on.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "incidentButtons",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "This incident names somebody the world does not have any more ({who}). Nothing can move it on - press End the murder.",
+        "after": "A character this incident names no longer exists ({who}). Nothing can move it on: press End the murder."
+      },
+      "pl": {
+        "before": "Ten incydent wskazuje kogoś, kogo nie ma już w świecie ({who}). Nic nie popchnie go dalej - naciśnij „Zakończ morderstwo”.",
+        "after": "Ten incydent wskazuje kogoś, kogo nie ma już w świecie ({who}). Pomoże tylko „Zakończ morderstwo”."
+      },
+      "removed": [
+        "\"somebody the world does not have any more\" becomes \"no longer exists\"; the dash becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.ranOut",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A victim with no Health and no Sanity left ends the incident (endedBy ranOut) and dies; the line goes on the crisis card everyone in the incident reads, and to the GMs.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "checkVictimSpent",
+          "note": null
+        },
+        {
+          "fact": "Only a critical Finishing Blow gives the first clean-up attempt without Sanity; running out gives none.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "finishIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{name} is out of Health and out of Sanity. The incident ends and they are dead - no Finishing Blow was needed, and none was earned.",
+        "after": "{name} has no Health and no Sanity left, and is dead. The incident ends without a Finishing Blow, so no clean-up attempt is free."
+      },
+      "pl": {
+        "before": "{name} nie ma już Health ani Sanity. Incydent kończy się śmiercią - Finishing Blow nie był potrzebny i nikt go nie zdobył.",
+        "after": "{name} nie ma już Health ani Sanity i ginie, więc incydent się kończy. Pierwsza próba sprzątania kosztuje Sanity, bo nie było krytycznego Finishing Blow."
+      },
+      "removed": [
+        "\"out of Health\" becomes the reserve as it stands, \"no Health left\" (D5); the dash aside goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "\"none was earned\" did not say what; D13 makes it the free first clean-up attempt of a critical Finishing Blow, now said."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.rerollLost",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Reroll's replay of a crisis action that cannot rewind is not applied, and the GMs are told (unless the action killed).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "The asker's Reroll puts the first dice back and returns the Hope.",
+          "file": "scripts/reroll.mjs",
+          "fn": "settleCrisis",
+          "note": null
+        },
+        {
+          "fact": "If a close began while the documents were being put back, they are put back and nothing is rewound; the GMs are told, and a GM checks the action's Remnant and the sheets.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "undoLastCrisis",
+          "note": "Read in the comment on the rewind's hold (the incident's openedAt and the moves it names)."
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "A Reroll of a crisis action was not replayed: there was no record of it here, or the incident closed or moved on first. Its first roll goes back on the card and the Hope is returned. If the incident closed while it was being taken back, check that action's Remnant and the sheets by hand.",
+        "after": "A Reroll of a crisis action could not be carried out: its record was missing, or the incident closed or moved on first. The first roll stands and the Hope is returned. If the incident closed meanwhile, check that action's Remnant and the sheets by hand."
+      },
+      "pl": {
+        "before": "Rerolla akcji kryzysowej nie odtworzono: nie było tu jej zapisu albo incydent wcześniej się zamknął lub poszedł dalej. Pierwszy rzut wraca na kartę, a Hope wraca do gracza. Jeśli incydent zamknął się w trakcie cofania, sprawdź ręcznie Remnant tej akcji i karty postaci.",
+        "after": "Rerolla akcji kryzysowej nie dało się przeprowadzić: brakuje jej zapisu albo incydent zdążył się zamknąć lub pójść dalej. Zostaje pierwszy rzut, a Hope wraca do gracza. Jeśli incydent się w tym czasie zamknął, sprawdź ręcznie Remnant tej akcji i arkusze."
+      },
+      "removed": [
+        "\"no record of it here\" loses \"here\", which pointed at the GM's browser (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity: the English after keeps the missing record, the early close and the check by hand, which kept drops; the Polish follows kept - the English should be cut to match. - executor: Kept: the mechanics reviewer shows from undoLastCrisis that the three causes and the check by hand are true and a GM needs them; they are now a kept fact (2), and the Polish carries them too, instead of the English being cut."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterTitle",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "after-incident",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Title of the after-incident window, with a body and without.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The incident is over - what now",
+        "after": "After the incident"
+      },
+      "pl": {
+        "before": "Incydent zakończony - co teraz",
+        "after": "Po incydencie"
+      },
+      "removed": [
+        "The dash and the question go: a title is the window's subject (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterIntro",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "after-incident",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The after-incident window opens once the incident state is wiped; what it lists is derived.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{killer} against {victim}. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
+        "after": "{killer} against {victim}. The incident is closed; below is what follows from it."
+      },
+      "pl": {
+        "before": "{killer} przeciw {victim}. Wszystko poniżej wynika z tego, co właśnie się stało, a moduł przestał śledzić sam incydent.",
+        "after": "{killer} przeciw {victim}. Wszystko poniżej wynika z tego, jak skończył się incydent, a moduł już go nie śledzi."
+      },
+      "removed": [
+        "\"the module has stopped tracking the incident itself\" becomes \"The incident is closed\" (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterDirect",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "after-incident",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The list names a direct murder, fought face to face.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A direct murder - whoever was in the room saw it happen.",
+        "after": "A direct murder: whoever was in the room saw it happen."
+      },
+      "pl": {
+        "before": "Direct Murder - kto był w pokoju, widział, jak do tego doszło.",
+        "after": "Direct Murder: walka twarzą w twarz."
+      },
+      "removed": [
+        "The dash becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterIndirect",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "after-incident",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The list names a trap; its projects' actions left Remnants.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A trap - nobody saw it, and setting it left Remnants of its own.",
+        "after": "A trap: nobody saw it, and setting it left Remnants of its own."
+      },
+      "pl": {
+        "before": "Pułapka - nikt tego nie widział, a jej zastawianie zostawiło własne Remnanty.",
+        "after": "Pułapka: praca nad jej projektami zostawiła Remnanty."
+      },
+      "removed": [
+        "The dash becomes a colon (X4); the early pass's Remnants kept."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.escapeIntro",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Escape Together ends an incident with the victim and the newcomer gone and nobody dead: no body, no autopsy, no Class Trial.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterEscape",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{victim} and {third} walked out on {killer}. Nobody died, so there is no body to announce, no autopsy to issue and no Class Trial to hold. The incident ends.",
+        "after": "{victim} and {third} got away from {killer}. Nobody died: there is no body to announce, no autopsy to issue, and no Class Trial to hold."
+      },
+      "pl": {
+        "before": "{victim} i {third} wyszli, zostawiając postać {killer}. Nikt nie zginął, więc nie ma ciała do ogłoszenia, sekcji do wydania ani Class Trial do przeprowadzenia. Incydent się kończy.",
+        "after": "{victim} i {third} uciekają razem i zostawiają postać {killer}. Nikt nie ginie, więc nie ma ciała, sekcji zwłok ani Class Trial. Incydent się kończy."
+      },
+      "removed": [
+        "\"The incident ends.\" goes: the window's title and the close say it (O3); the Oxford comma added (EN2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterSurvived",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A close at the clean-up with the victim alive (a Survive) leaves no body and records no Blackened; the Remnants stay.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterNoBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{victim} survived the attack by {killer}. Nobody died, so there is no body to announce, no autopsy to issue and no Class Trial to hold, and nobody is Blackened for it. What the fight left behind is still where it fell.",
+        "after": "{victim} lived through the fight with {killer}. Nobody died and nobody is Blackened: there is no body to announce, no autopsy to issue, and no Class Trial to hold. What the fight left behind is still where it fell."
+      },
+      "pl": {
+        "before": "{victim} przeżywa atak, którego sprawcą jest {killer}. Nikt nie zginął, więc nie ma ciała do ogłoszenia, sekcji do wydania ani Class Trial do przeprowadzenia, i nikt nie zostaje za to Blackened. To, co zostawiła walka, leży tam, gdzie upadło.",
+        "after": "{killer} atakuje, ale {victim} przeżywa. Nie ma ciała i nikt nie zostaje Blackened, a Remnanty zostają tam, gdzie są."
+      },
+      "removed": [
+        "The Oxford comma added (EN2); the Blackened clause moved forward; the old verb phrase becomes \"lived through the fight with\"."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.afterInterrupted",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A close before the clean-up is an interruption: nobody died, no body, no autopsy, no Blackened.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterNoBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The incident was interrupted before anything was decided - nobody died. There is no body, no autopsy and nobody Blackened for it; what the fight left behind is still where it fell.",
+        "after": "The incident was interrupted before anything was decided. Nobody died and nobody is Blackened: there is no body and no autopsy. What the fight left behind is still where it fell."
+      },
+      "pl": {
+        "before": "Incydent przerwano, zanim cokolwiek się rozstrzygnęło - nikt nie zginął. Nie ma ciała, sekcji ani nikogo Blackened; to, co zostawiła walka, leży tam, gdzie upadło.",
+        "after": "Incydent skończył się przed sprzątaniem, więc nikt nie zginął. Nie ma ciała, sekcji zwłok ani nikogo Blackened."
+      },
+      "removed": [
+        "The dash aside and the semicolon chain become sentences (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.useItemGone",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Use an Item is refused on the player's browser when the item named is not on the actor any more.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "takeCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "That is not on you any more - nothing to use.",
+        "after": "You no longer carry that item."
+      },
+      "pl": {
+        "before": "Tego już przy tobie nie ma - nie ma czego użyć.",
+        "after": "Nie masz już tego przedmiotu."
+      },
+      "removed": [
+        "The dash aside \"nothing to use\" goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.useItemWorked",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a critical or a success with Hope the item is used, and the crisis card says so to everyone in the incident and the GMs.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterCrisisRoll",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The item goes in.",
+        "after": "The item works."
+      },
+      "pl": {
+        "before": "Przedmiot idzie w ruch.",
+        "after": "Przedmiot zostaje użyty."
+      },
+      "removed": [
+        "\"goes in\" becomes \"works\", the handbook's word."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.useItemFumbled",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A success with Despair (or a use backed out of) uses nothing and leaves a Remnant; the line goes on the card several people read.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterCrisisRoll",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "It stays in your pocket, and somebody saw you reaching for it.",
+        "after": "The item stays in their pocket, and somebody saw them reaching for it."
+      },
+      "pl": {
+        "before": "Zostaje w kieszeni, a ktoś widział, jak po niego sięgasz.",
+        "after": "Przedmiot nie zostaje użyty, a próba zostawia Remnant."
+      },
+      "removed": [
+        "\"your\" and \"you\" become \"their\" and \"them\": the card has more than one reader (P1, P2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.actionBlocked",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A critical Pin Them Down or Keep Your Distance blocks two of the victim's actions for their next turns; the menu shows this as the row's reason, and the action is refused with it.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisRefusal",
+          "note": null
+        },
+        {
+          "fact": "Only killer actions hinder or block, and only the victim's side.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "They have shut this one down for now.",
+        "after": "The killer has blocked this action for now."
+      },
+      "pl": {
+        "before": "Na razie masz to zablokowane.",
+        "after": "Zabójca blokuje ci tę akcję na najbliższe tury."
+      },
+      "removed": [
+        "\"They\" becomes \"The killer\": the only side that blocks (O4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.actionHindered",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A hindered action rolls at disadvantage; Pin Them Down and Keep Your Distance hinder the victim's actions.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "availableCrisisActions",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "They have made this harder - you roll at disadvantage.",
+        "after": "The killer made this harder: you roll at disadvantage."
+      },
+      "pl": {
+        "before": "To jest teraz trudniejsze - rzucasz z utrudnieniem.",
+        "after": "Przy tej akcji rzucasz z utrudnieniem: zabójca użył Pin Them Down albo Keep Your Distance."
+      },
+      "removed": [
+        "\"They\" becomes \"The killer\"; the dash becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.nothingLeftToSpend",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A resolution action with a roll is refused when the actor has no Sanity and no Health left.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisRefusal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "There is nothing left to spend. Sanity and Health are both gone.",
+        "after": "You have no Sanity or Health left to spend."
+      },
+      "pl": {
+        "before": "Nie ma już czego wydawać. Sanity i Health wyczerpane.",
+        "after": "Nie masz już Sanity ani Health, więc tej akcji z rzutem nie wykonasz."
+      },
+      "removed": [
+        "Two sentences become one, the reserve said as what is left (D5, O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.yourTurn",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Title of the crisis menu and the line on the sheet's fight tile and budget row when it is this seat's turn.",
+          "file": "scripts/events.mjs",
+          "fn": "incidentTurnText",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Incident - your turn",
+        "after": "Your turn in the incident"
+      },
+      "pl": {
+        "before": "Incydent - twoja tura",
+        "after": "Twoja tura w incydencie"
+      },
+      "removed": [
+        "The dash goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.theirTurn",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The victim's seat reads this while the killers' side acts; a killer's seat reads the acting killer's name instead.",
+          "file": "scripts/events.mjs",
+          "fn": "incidentTurnText",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Incident - waiting for them",
+        "after": "Waiting for the other side"
+      },
+      "pl": {
+        "before": "Incydent - czekamy na drugą stronę",
+        "after": "Teraz tura drugiej strony"
+      },
+      "removed": [
+        "The dash goes (X4); \"them\" becomes \"the other side\"."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.noKillerLeft",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Once every killer of a direct murder is dead, the turn moves past them and the GMs are told and offered to end the murder.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "killerFell",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Every killer in this incident is dead. The victim acts alone from here, turn after turn, until the incident is closed.",
+        "after": "Every killer in this incident is dead. The victim takes every turn until you close the incident."
+      },
+      "pl": {
+        "before": "Nie żyje już żaden zabójca w tym incydencie. Od teraz ofiara działa sama, tura po turze, dopóki incydent nie zostanie zamknięty.",
+        "after": "W tym incydencie nie żyje już żaden zabójca, więc tury przypadają tylko ofierze. Możesz teraz zakończyć morderstwo."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.hinderedActions",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Pin Them Down and Keep Your Distance hinder two of the victim's actions for 2 turns (hinders.turns).",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS",
+          "note": null
+        },
+        {
+          "fact": "The counters drop as the victim's own turns end, so they cover the victim's next turns.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "passTurn",
+          "note": null
+        },
+        {
+          "fact": "The line goes on the crisis card everyone in the incident and the GMs read.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyHindrance",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": {
+          "one": "Their opponent rolls {actions} at disadvantage for {turns} turn.",
+          "other": "Their opponent rolls {actions} at disadvantage for {turns} turns."
+        },
+        "after": {
+          "one": "The victim rolls {actions} at disadvantage for {turns} turn of their own.",
+          "other": "The victim rolls {actions} at disadvantage for {turns} turns of their own."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Przeciwnik ma utrudnienie na {actions} przez {turns} turę.",
+          "few": "Przeciwnik ma utrudnienie na {actions} przez {turns} tury.",
+          "many": "Przeciwnik ma utrudnienie na {actions} przez {turns} tur.",
+          "other": "Przeciwnik ma utrudnienie na {actions} przez {turns} tur."
+        },
+        "after": {
+          "one": "Przez {turns} turę ofiara rzuca z utrudnieniem przy {actions}.",
+          "few": "Przez {turns} tury ofiara rzuca z utrudnieniem przy {actions}.",
+          "many": "Przez {turns} tur ofiara rzuca z utrudnieniem przy {actions}.",
+          "other": "Przez {turns} tur ofiara rzuca z utrudnieniem przy {actions}."
+        }
+      },
+      "removed": [
+        "\"Their opponent\" becomes \"The victim\": only the killer's side hinders (P1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.blockedActions",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a critical the same two actions are blocked instead of hindered, for the same turns.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyHindrance",
+          "note": null
+        },
+        {
+          "fact": "The counters drop as the victim's own turns end.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "passTurn",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": {
+          "one": "Their opponent cannot use {actions} for {turns} turn.",
+          "other": "Their opponent cannot use {actions} for {turns} turns."
+        },
+        "after": {
+          "one": "The victim cannot use {actions} for {turns} turn of their own.",
+          "other": "The victim cannot use {actions} for {turns} turns of their own."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Przeciwnik nie może użyć {actions} przez {turns} turę.",
+          "few": "Przeciwnik nie może użyć {actions} przez {turns} tury.",
+          "many": "Przeciwnik nie może użyć {actions} przez {turns} tur.",
+          "other": "Przeciwnik nie może użyć {actions} przez {turns} tur."
+        },
+        "after": {
+          "one": "Przez {turns} turę ofiara nie może użyć {actions}.",
+          "few": "Przez {turns} tury ofiara nie może użyć {actions}.",
+          "many": "Przez {turns} tur ofiara nie może użyć {actions}.",
+          "other": "Przez {turns} tur ofiara nie może użyć {actions}."
+        }
+      },
+      "removed": [
+        "\"Their opponent\" becomes \"The victim\" (P1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.rolesSwapped",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Role Reversal (or Double Role Reversal) swaps killerId and victimId, moves the turn to the new killer, and clears unlocked, spent, drainStopped and the hindrances.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "swapRoles",
+          "note": null
+        },
+        {
+          "fact": "Each turn the victim loses the incident's drain, Sanity first and Health once Sanity runs out.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "drain",
+          "note": null
+        },
+        {
+          "fact": "The line goes into the crisis card (`done`), whispered to the GMs and the incident's audience at the action's stage - the killer, the victim and a third party - and the actor: several readers.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The roles are reversed. The killer is the one bleeding now.",
+        "after": "The roles are reversed: the former killer is now the victim and loses Sanity each turn, then Health once Sanity runs out. The turn passes to the new killer, and unlocked and spent actions and hindrances start over."
+      },
+      "pl": {
+        "before": "Role odwrócone. Teraz krwawi zabójca.",
+        "after": "Role się odwracają: dawny zabójca jest teraz ofiarą i co turę traci Sanity, a gdy Sanity się skończy, Health. Tura przechodzi do nowego zabójcy, a odblokowane i zużyte akcje oraz utrudnienia liczą się od nowa."
+      },
+      "removed": [
+        "\"The killer is the one bleeding now\" named the old killer by the seat they no longer hold; the after says \"the former killer is now the victim\" and what they lose (D5: the reserves by name)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.resolutionNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Sent to the GMs alone when a Finishing Blow ends the fight, when the victim runs out, and when a GM moves the incident to its Resolution.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "finishIncident",
+          "note": null
+        },
+        {
+          "fact": "At the Resolution the killer is let back into the cast and works the scene: clean-up attempts on the Remnants.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "beginResolution",
+          "note": null
+        },
+        {
+          "fact": "A Reinforced Remnant is refused by every clean-up.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupRefusal",
+          "note": null
+        },
+        {
+          "fact": "The Murder Weapon that was swung breaks when the incident closes, not when the clean-up begins (endResolution calls destroyTools with CLEANUP.destroysTools, [\"crimeTool\"]).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "endResolution",
+          "note": null
+        },
+        {
+          "fact": "The tracker names the stage \"Resolution\" (DRPG.Murder.stage.resolution).",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "recentTurnsHtml",
+          "note": "The stage label is read where the tracker's state line is built in the same file."
+        },
+        {
+          "fact": "The cleaning tool used breaks only when the body is discovered (CLEANUP.destroysToolsOnDiscovery, [\"cleaningTool\"]), not at the incident's close.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "destroyCleaningTools",
+          "note": "Called from chapter.mjs at the discovery."
+        }
+      ],
+      "kept": [
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Stage 6. The killer now sees the Remnants on the map and can use resolution actions. Reinforced Remnants stay put. A Murder Weapon that was used is destroyed.",
+        "after": "The clean-up begins. The killer now sees the Remnants on the map and can clean them up, except Reinforced ones, which stay. The Murder Weapon that was swung breaks when the incident closes."
+      },
+      "pl": {
+        "before": "Stage 6. Zabójca widzi teraz Remnanty na mapie i może używać akcji Stage 6. Reinforced Remnanty zostają. Użyte narzędzie zbrodni zostaje zniszczone.",
+        "after": "Zaczyna się sprzątanie. Zabójca widzi teraz Remnanty na mapie i może próbować je sprzątać; Reinforced Remnantów nie usunie żadne sprzątanie. Użyte narzędzie zbrodni psuje się dopiero przy zamknięciu incydentu."
+      },
+      "removed": [
+        "\"Stage 6\" becomes \"the clean-up\", the name the other cards of this batch and the player handbook give the stage (O14, S02-39, S13-45); the tracker's own stage label still reads \"Resolution\" (fact 4, not kept here).",
+        "\"can use resolution actions\" becomes \"can clean them up\": at the clean-up the killer's actions are the clean-up's.",
+        "The cleaning tool is not named: it breaks at the body's discovery (fact 5), not here."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before said a used Murder Weapon \"is destroyed\" at this point; the code breaks it when the incident closes (cleanup.mjs `endResolution`, called from murder-rules.mjs `closeIncident`). The after says when it breaks.",
+        "The first Polish after said the cleaning tool also breaks at the close; the code breaks it at the body's discovery (cleanup.mjs `destroyCleaningTools`, CLEANUP.destroysToolsOnDiscovery). Fact 3 is corrected and the Polish names the weapon alone."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity: the Polish keeps the cleaning tool breaking and both staying on the killer (kept fact 3); the English after names only the Murder Weapon - the Polish stays. - executor: Not taken: the code breaks the cleaning tool at the body's discovery, not at the close (cleanup.mjs destroyCleaningTools, CLEANUP.destroysToolsOnDiscovery), as the mechanics reviewer shows; fact 3 is corrected and the Polish now names the Murder Weapon alone, as the English does."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.thirdIntro",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the player of the student who walked in, with the title \"You walk in on it\".",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "thirdPartyEnters",
+          "note": null
+        },
+        {
+          "fact": "The third party gets one choice (`thirdActed`): Escape Together, Partners in Crime, Double Role Reversal or Averted Eyes.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "availableCrisisActions",
+          "note": null
+        },
+        {
+          "fact": "The three no-roll choices cost nothing; Escape Together is a rolled resolution action and costs 1 Sanity like any other.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "One free choice: get them out with you, take a side, or turn away.",
+        "after": "You get one choice: get the victim out with you, take a side, or turn away."
+      },
+      "pl": {
+        "before": "Jeden darmowy wybór: wyprowadź ofiarę ze sobą, stań po którejś stronie albo odwróć wzrok.",
+        "after": "Możesz wybrać jedno: Escape Together, Partners in Crime, Double Role Reversal albo Averted Eyes."
+      },
+      "removed": [
+        "\"free\" is gone: Escape Together, one of the choices, is rolled and costs Sanity (fact 2); the crisis menu says each choice's price."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before called the choice free; Escape Together costs 1 Sanity (murder-rules.mjs `applyCrisisAction` spends it for every rolled resolution action). The after does not say free."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.thirdEscapedAlone",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A failed Escape Together takes the third party out alone: their seat is emptied and they are put on `departed`, so they cannot walk back in.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "thirdLeaves",
+          "note": null
+        },
+        {
+          "fact": "The victim stays in the incident, which goes on.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "The line goes into the crisis card (`done`), whispered to the GMs and the incident's audience at the action's stage - the killer, the victim and a third party - and the actor: several readers.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{name} gets out alone. The victim stays where they are, and {name} takes no part in this any more.",
+        "after": "{name} gets out alone and leaves the incident. The victim stays."
+      },
+      "pl": {
+        "before": "{name} ucieka w pojedynkę. Ofiara zostaje tam, gdzie jest, a {name} nie bierze już w tym udziału.",
+        "after": "{name} ucieka w pojedynkę i nie może już wrócić do incydentu. Ofiara zostaje, a incydent trwa dalej."
+      },
+      "removed": [
+        "\"takes no part in this any more\" becomes \"leaves the incident\"; the second {name} goes with the repeated clause."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.drainStopped",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A critical Self-Defense sets drainStopped: the victim's per-turn drain no longer applies.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyUnlocks",
+          "note": null
+        },
+        {
+          "fact": "Each turn with drainStopped set, the drain prints this line instead of taking Sanity or Health; the other side's blows still deal damage.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "drain",
+          "note": null
+        },
+        {
+          "fact": "A Role Reversal clears drainStopped for the new victim.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "swapRoles",
+          "note": null
+        },
+        {
+          "fact": "The line goes into the crisis card (`done`), whispered to the GMs and the incident's audience at the action's stage - the killer, the victim and a third party - and the actor: several readers.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The bleeding stops - no further Health or Sanity is lost this incident.",
+        "after": "The bleeding stops: the victim no longer loses Sanity or Health each turn. The other side's blows still do damage."
+      },
+      "pl": {
+        "before": "Krwawienie ustaje - w tym incydencie nie tracisz już Health ani Sanity.",
+        "after": "Krwawienie ustaje: ofiara nie traci już co turę Sanity ani Health. Ciosy drugiej strony wciąż zadają obrażenia."
+      },
+      "removed": [
+        "The dash aside goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before said no further Health or Sanity is lost this incident; only the per-turn drain stops (murder-rules.mjs `drain`), a Strike still takes Health, and a Role Reversal clears the stop (`swapRoles`). The after says each turn."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.indirectBegins",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the GMs when the victim's opening roll of a trap misses: the incident begins.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "The trap's drain is 2 a turn (INCIDENT.drain.indirect), Sanity first, then Health.",
+          "file": "scripts/config.mjs",
+          "fn": "INCIDENT",
+          "note": null
+        },
+        {
+          "fact": "A trap's victim rolls every crisis roll with advantage.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisSituational",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "The trap closes. The incident begins with the victim alone, losing 2 a turn.",
+        "after": "The trap closes. The incident begins with the victim alone: they lose 2 a turn, Sanity first, then Health, and roll every crisis roll with advantage."
+      },
+      "pl": {
+        "before": "Pułapka się zamyka. Incydent zaczyna się z samotną ofiarą, tracącą 2 na turę.",
+        "after": "Pułapka się zamyka i incydent się zaczyna. Ofiara jest sama i traci 2 na turę, najpierw Sanity, potem Health, ale każdy jej rzut kryzysowy ma przewagę."
+      },
+      "removed": [],
+      "needsCode": [
+        "The 2 is INCIDENT.drain.indirect typed into the prose (kept from the before); a placeholder would need the sender to pass it."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.tierZeroTitle",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "tier-zero",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The GM's window that rates a Tier 0 object swung in a crisis action.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "rateTierZero",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Tier 0 weapon - your ruling",
+        "after": "Rate a Tier 0 weapon"
+      },
+      "pl": {
+        "before": "Broń Tier 0 - twoja decyzja",
+        "after": "Ocena broni Tier 0"
+      },
+      "removed": [
+        "The dash and \"your ruling\" go (X4): the window's question says the ruling."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.tierZeroIntro",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "tier-zero",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Asked on the GM when a Tier 0 Murder Weapon is swung: it may count as Tier 0, 1 or 2 (tierZeroNegotiable min 0, max 2).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "chooseWeapon",
+          "note": null
+        },
+        {
+          "fact": "{actor} is the one swinging, {item} the object.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "rateTierZero",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{actor} is swinging <strong>{item}</strong>, a Tier 0 object. A Tier 0 item may count as Tier 1 or 2 when the killer is being creative - how good is this use?",
+        "after": "{actor} swings “{item}”, a Tier 0 object. Used creatively, it may count as Tier 1 or 2: rate this use."
+      },
+      "pl": {
+        "before": "{actor} zamachuje się przedmiotem <strong>{item}</strong>, Tier 0. Przedmiot Tier 0 może liczyć się jako Tier 1 albo 2, gdy zabójca jest pomysłowy - jak dobre jest to użycie?",
+        "after": "{actor} zamachuje się przedmiotem „{item}” (Tier 0). Oceń to użycie: przedmiot może liczyć się jako Tier 0, 1 albo 2."
+      },
+      "removed": [
+        "\"when the killer is being creative - how good is this use?\" becomes \"Used creatively ... rate this use\" (X4, X21).",
+        "The item's name is in quotes (EN17) instead of bold."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.tierZeroNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "tier-zero",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A weapon's damage is 1 + ceil(tier/2) to Health, and 1 + tier on a critical: Tier 0 takes 1, Tier 1 takes 2, Tier 2 takes 2, or 3 on a critical.",
+          "file": "scripts/config.mjs",
+          "fn": "weaponDamage",
+          "note": null
+        },
+        {
+          "fact": "Closing the window counts the object as Tier 0.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "rateTierZero",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Tier 0 deals 1 damage, Tier 1 deals 2, Tier 2 deals 2 and 3 on a critical. Dismissing this leaves it at Tier 0.",
+        "after": "Tier 0 takes 1 Health, Tier 1 takes 2, and Tier 2 takes 2, or 3 on a critical. Closing the window leaves it at Tier 0."
+      },
+      "pl": {
+        "before": "Tier 0 zadaje 1 obrażenie, Tier 1 zadaje 2, Tier 2 zadaje 2, a 3 na krytyku. Odrzucenie tego zostawia Tier 0.",
+        "after": "Tier 0 zadaje 1 obrażenie Health, Tier 1 zadaje 2, a Tier 2 zadaje 2, przy krytyku 3. Zamknięcie okna zostawia Tier 0."
+      },
+      "removed": [
+        "\"deals 1 damage\" becomes \"takes 1 Health\": the hit lands on Health (D5)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.improvised",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An unarmed the weapon crisis action that lands gives the one who strikes an improvised Murder Weapon, Tier 2 with Hope, Tier 1 with Despair, readied at once.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "grantImprovisedWeapon",
+          "note": null
+        },
+        {
+          "fact": "Only the killer's side takes the weapon crisis action.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS",
+          "note": null
+        },
+        {
+          "fact": "The line goes into the crisis card (`done`), whispered to the GMs and the incident's audience at the action's stage - the killer, the victim and a third party - and the actor: several readers.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Snatched a weapon out of the struggle: “{item}” (Tier {tier}).",
+        "after": "The killer snatches a weapon out of the struggle: “{item}” (Tier {tier})."
+      },
+      "pl": {
+        "before": "Wyrwana z szamotaniny broń: „{item}” (Tier {tier}).",
+        "after": "W szamotaninie napastnik chwyta przedmiot „{item}” i od razu trzyma go w ręku: to narzędzie zbrodni Tier {tier}."
+      },
+      "removed": [
+        "The sentence gets its subject, \"The killer\", for a card several people read (P1, X6). The early pass's quotes on the item stay."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.cannotLeave",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "While the incident runs, a participant's token cannot leave; a GM's own move is not held.",
+          "file": "scripts/movement.mjs",
+          "fn": "lockedInIncident",
+          "note": null
+        },
+        {
+          "fact": "What ends it for them: Survive, Escape Together (a miss gets the third out alone), a Finishing Blow, or Averted Eyes for a third party.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyThirdPartyChoice",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
+        "after": "You cannot leave during an incident. Only a crisis action gets you out: Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes."
+      },
+      "pl": {
+        "before": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
+        "after": "Dopóki trwa incydent, twój token nie opuści pokoju. Wyjście daje Survive, Escape Together (przy pudle wychodzi tylko trzecia osoba), Finishing Blow, a trzeciej osobie także Averted Eyes."
+      },
+      "removed": [
+        "The dash aside becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.oneAtATime",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A GM who opens a murder while one is running is refused with this toast.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "refuseSecondIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "There is already an incident running. It has to finish before another can start.",
+        "after": "An incident is already running. End it before you open another."
+      },
+      "pl": {
+        "before": "Incydent już trwa. Musi się skończyć, zanim zacznie się kolejny.",
+        "after": "Trwa już incydent. Kolejny otworzysz, gdy ten się skończy."
+      },
+      "removed": [
+        "\"It has to finish\" becomes what the GM can do (O7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.actionsLocked",
+      "group": "window",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "During an incident the other action tiles refuse with this sentence, as a toast and on the sheet's dimmed tile; {tile} is the participant's tile, Fight Back or Crisis Actions.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performAction",
+          "note": null
+        },
+        {
+          "fact": "Hope Calls go another way and still work.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "spendHopeCall",
+          "note": "Named in the comment beside the refusal; the Call itself is calls.mjs's."
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You are in an incident. Everything you can do is behind {tile}; Hope Calls still work.",
+        "after": "During an incident you act through {tile}. Hope Calls still work."
+      },
+      "pl": {
+        "before": "Jesteś w incydencie. Wszystko, co możesz zrobić, kryje się pod kafelkiem {tile}; Hope Calls wciąż działają.",
+        "after": "Jesteś w incydencie, więc działasz tylko kafelkiem „{tile}”. Hope Calls wciąż działają."
+      },
+      "removed": [
+        "\"You are in an incident. Everything you can do is behind {tile}\" becomes one sentence (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openingYours",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the player whose student makes the opening roll, as the roll window opens.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "rollOpening",
+          "note": null
+        },
+        {
+          "fact": "Closing the window re-offers it up to TIMING.openingAttempts times, then the GMs are told.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "throwOpeningRoll",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "This roll is yours, and it is the only one. It cannot be skipped.",
+        "after": "This opening roll is yours, and it cannot be skipped. If you close the window, it opens again, and after a few refusals the GMs are told."
+      },
+      "pl": {
+        "before": "Ten rzut jest twój i jest jedyny. Nie da się go pominąć.",
+        "after": "To twój rzut otwarcia. Jeśli zamkniesz okno, otworzy się znowu, a po kilku odmowach GM-owie dostaną o tym wiadomość."
+      },
+      "removed": [
+        "\"and it is the only one\" goes: the card's title names the roll."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openingRequired",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Shown when the roller closes the opening roll's window and it is offered again.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "throwOpeningRoll",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "This roll cannot be skipped. Throw it.",
+        "after": "This roll cannot be skipped. Roll it."
+      },
+      "pl": {
+        "before": "Tego rzutu nie da się pominąć. Rzuć.",
+        "after": "Tego rzutu nie pominiesz: okno rzutu otwiera się znowu."
+      },
+      "removed": [
+        "\"Throw it\" becomes \"Roll it\", the button's word (E100)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.openingDeclined",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the GMs when the roller closed the opening roll's window every time it was offered.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "throwOpeningRoll",
+          "note": null
+        },
+        {
+          "fact": "The tracker's button that sends it again is \"Ask for the opening roll again\" (DRPG.Murder.openingReask).",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "openingReask",
+          "note": "The key's last segment, as the tracker's footer reads it."
+        },
+        {
+          "fact": "While the incident waits on its opening roll, the tracker's footer also offers End the murder.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "incidentButtons",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "{name} did not throw the opening roll. Stage 4 cannot be skipped: ask again from the Incident tracker, or end the incident.",
+        "after": "{name} did not make the opening roll, and it cannot be skipped. Press Ask for the opening roll again on the Incident tracker, or end the incident."
+      },
+      "pl": {
+        "before": "{name} odmawia rzutu otwarcia. Stage 4 nie da się pominąć: poproś o niego ponownie z trackera incydentu albo zakończ incydent.",
+        "after": "{name} odmawia rzutu otwarcia. Za każdym razem zamyka okno. Poproś o rzut jeszcze raz przyciskiem „Poproś o rzut otwarcia ponownie” w oknie śledzenia incydentu albo zakończ incydent."
+      },
+      "removed": [
+        "\"Stage 4\" goes (S02-39, S13-45); the button is named as the tracker shows it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 3 (O14): the tracker is named three ways in this batch - „w oknie śledzenia incydentu” (victimNoticedNext), „w oknie Śledzenie incydentu” here and in ranOutTwoKillersNote; the declined form reads naturally (proposed: {name} odmawia rzutu otwarcia: za każdym razem zamyka okno. Poproś o rzut jeszcze raz przyciskiem „Poproś o rzut otwarcia ponownie” w oknie śledzenia incydentu.) - executor: Taken in part: the tracker is named „w oknie śledzenia incydentu”, as everywhere in this batch now; N12's approved first sentence „{name} odmawia rzutu otwarcia.” stays whole, so the window's closing is a sentence of its own, not after a colon."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.leftRemnants",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Sent only when one action leaves more than one Remnant: a trap's victim on a critical (indirectVictim count), the Remnants Reinforced.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "Said only on Hope or a critical, never the exact band.",
+          "file": "scripts/remnants.mjs",
+          "fn": "traceFeedback",
+          "note": null
+        },
+        {
+          "fact": "The line goes into the crisis card (`done`), whispered to the GMs and the incident's audience at the action's stage - the killer, the victim and a third party - and the actor: several readers.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": {
+          "one": "Leaves a Remnant behind, and the killer cannot wipe it.",
+          "other": "Leaves {n} Remnants behind, and the killer cannot wipe them."
+        },
+        "after": {
+          "one": "This leaves a Remnant the killer cannot wipe.",
+          "other": "This leaves {n} Remnants the killer cannot wipe."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Zostawia Remnant, a zabójca nie może go wytrzeć.",
+          "few": "Zostawia {n} Remnanty, a zabójca nie może ich wytrzeć.",
+          "many": "Zostawia {n} Remnantów, a zabójca nie może ich wytrzeć.",
+          "other": "Zostawia {n} Remnantów, a zabójca nie może ich wytrzeć."
+        },
+        "after": {
+          "one": "Zostaje Reinforced Remnant, którego nie usunie żadne sprzątanie.",
+          "few": "Zostają {n} Reinforced Remnanty, których nie usunie żadne sprzątanie.",
+          "many": "Zostaje {n} Reinforced Remnantów, których nie usunie żadne sprzątanie.",
+          "other": "Zostaje {n} Reinforced Remnantów, których nie usunie żadne sprzątanie."
+        }
+      },
+      "removed": [
+        "The sentence gets its subject, \"This\" (X6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.keyRemnantsStale",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the GMs after a Role Reversal: keyRemnantsStale is set, and the Key Remnant count from the opening roll is kept.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "swapRoles",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": {
+          "one": "The roles reversed, so the case changed: the {n} Key Remnant was planned around a killer who is now the victim. Write {n} new one before the Investigation - the count came off the opening roll and has not changed.",
+          "other": "The roles reversed, so the case changed: the {n} Key Remnants were planned around a killer who is now the victim. Write {n} new ones before the Investigation - the count came off the opening roll and has not changed."
+        },
+        "after": {
+          "one": "The roles reversed, so the Key Remnant was planned around a killer who is now the victim. Write a new one before the Investigation; the opening roll set the count at {n}, and it stays.",
+          "other": "The roles reversed, so the {n} Key Remnants were planned around a killer who is now the victim. Write {n} new ones before the Investigation; the opening roll set the count, and it stays."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnant zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowy przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
+          "few": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnanty zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowe przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
+          "many": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnantów zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
+          "other": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnantów zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła."
+        },
+        "after": {
+          "one": "Role się odwróciły, a {n} Key Remnant zaplanowano wokół dawnego zabójcy, który jest teraz ofiarą. Liczba z rzutu otwarcia zostaje: napisz {n} nowy Key Remnant przed Investigation.",
+          "few": "Role się odwróciły, a {n} Key Remnanty zaplanowano wokół dawnego zabójcy, który jest teraz ofiarą. Liczba z rzutu otwarcia zostaje: napisz {n} nowe Key Remnanty przed Investigation.",
+          "many": "Role się odwróciły, a {n} Key Remnantów zaplanowano wokół dawnego zabójcy, który jest teraz ofiarą. Liczba z rzutu otwarcia zostaje: napisz {n} nowych Key Remnantów przed Investigation.",
+          "other": "Role się odwróciły, a {n} Key Remnantów zaplanowano wokół dawnego zabójcy, który jest teraz ofiarą. Liczba z rzutu otwarcia zostaje: napisz {n} nowych Key Remnantów przed Investigation."
+        }
+      },
+      "removed": [
+        "\"so the case changed\" goes (it repeats the rest); the dash aside becomes a semicolon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "Cold reading: the 'one' form renders as 'the 1 Key Remnant was planned' and 'Write 1 new one', which no native speaker says (proposed one-form: The roles reversed, so the Key Remnant was planned around a killer who is now the victim. Write a new one before the Investigation; the opening roll set the count, and it stays.) - executor: Taken in part: the one form no longer says \"the 1 Key Remnant\" or \"Write 1 new one\", but keeps {n} (N2, T2: the Polish .one holds it) in \"set the count at {n}\"."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.betrayalNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "after-incident",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Shown in the GM's after-incident window when a third party who walked in can still betray the killer.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": null
+        },
+        {
+          "fact": "The offer lasts until the day ends, and the killer must still be alive.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "betrayalTarget",
+          "note": null
+        },
+        {
+          "fact": "During an Eclipse the betrayal is declared and opens when the Eclipse ends.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performBetrayal",
+          "note": null
+        },
+        {
+          "fact": "Outside an Eclipse the betrayal is the one killing that needs no declaration in advance.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "afterIncident",
+          "note": "Read in the comment above the betrayal's offer (the guide's „jedyny wyjątek od zasady deklaracji zabójstwa”)."
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "{third} walked in on this and is still standing. They may turn on {killer} until the day ends. Outside an Eclipse it is the one killing in the game that needs no declaration in advance; in one it is declared, and opens when the Eclipse ends.",
+        "after": "{third} walked in on this and is still standing, and may turn on {killer} until the day ends. Outside an Eclipse it is the one killing that needs no declaration in advance; during one it is declared and opens when the Eclipse ends."
+      },
+      "pl": {
+        "before": "{third} wchodzi na to i wciąż stoi. Do końca dnia może zwrócić się przeciw: {killer}. Poza Eclipse to jedyne zabójstwo w grze, które nie wymaga wcześniejszego zgłoszenia; w Eclipse zgłasza się je, a otwiera, gdy Eclipse się skończy.",
+        "after": "Do końca dnia {third} może zwrócić się przeciw postaci {killer}, jeśli {killer} wciąż żyje. Poza Eclipse to jedyne zabójstwo, którego nie trzeba wcześniej zgłaszać; podczas Eclipse zdradę tylko się zgłasza, a zaczyna się, gdy Eclipse się skończy."
+      },
+      "removed": [
+        "Two sentences become one, and \"in the game\" goes (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.betrayalIntro",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "betrayal",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The betrayer's confirmation window: the incident (if still open) closes and a new murder opens with the third as killer and the old killer as victim, from its opening roll.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openBetrayal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{third} kills {killer}. This closes as a second murder, with {third} as the killer and {killer} as the victim - a fresh incident from the opening roll, not a continuation of the one that just ended.",
+        "after": "{third} turns on {killer}. This opens a second murder, with {third} as the killer and {killer} as the victim, from a new opening roll."
+      },
+      "pl": {
+        "before": "{third} zabija: {killer}. To zamyka się jako drugie morderstwo, z {third} jako zabójcą i {killer} jako ofiarą - świeży incydent od rzutu otwarcia, nie ciąg dalszy tego, który właśnie się skończył.",
+        "after": "{third} zwraca się przeciw postaci {killer}. Jeśli incydent jeszcze trwa, kończy się, a nowe morderstwo zaczyna się od rzutu otwarcia: zabójcą jest {third}, ofiarą {killer}."
+      },
+      "removed": [
+        "\"not a continuation of the one that just ended\" goes (X3): \"a second murder\" and \"a new opening roll\" say it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.betrayalRule",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "betrayal",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The betrayal opens its own incident, so the day has two killings.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openBetrayal",
+          "note": null
+        },
+        {
+          "fact": "The offer lasts until the day ends.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "betrayalTarget",
+          "note": null
+        },
+        {
+          "fact": "Each incident records its own Blackened.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "endMurder",
+          "note": "Read off the close of each incident (`recordBlackened` per incident); the rule for the Class Trial is the handbook's."
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Two bodies in one day, so the Class Trial has two killings to untangle. Whoever is Blackened for the first is not automatically Blackened for the second. You have until the end of the day to decide.",
+        "after": "Two bodies in one day give the Class Trial two killings to untangle, and the Blackened of the first is not automatically the Blackened of the second. You can decide until the day ends."
+      },
+      "pl": {
+        "before": "Dwa ciała jednego dnia, więc Class Trial ma do rozplątania dwa zabójstwa. Kto jest Blackened za pierwsze, nie jest automatycznie Blackened za drugie. Masz czas do końca dnia, by zdecydować.",
+        "after": "Zdrada otwiera osobny incydent, więc tego dnia są dwa zabójstwa, a każde ma własnego Blackened. Możesz zdecydować do końca dnia."
+      },
+      "removed": [
+        "Three sentences become two (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.betrayalConfirmEclipse",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "betrayal",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "During an Eclipse a betrayal costs the action's cost, is parked, and opens when the Eclipse ends.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performBetrayal",
+          "note": null
+        },
+        {
+          "fact": "A parked betrayal refused when the Eclipse ends gives no refund.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openParkedBetrayal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "An Eclipse is running, so the betrayal is declared now and opens when the Eclipse ends, like any action declared in one. It costs an action, and the action stays spent even if the betrayal cannot open then.",
+        "after": "During an Eclipse the betrayal is declared now and opens when the Eclipse ends. It costs an action, which stays spent even if the betrayal cannot open then."
+      },
+      "pl": {
+        "before": "Trwa Eclipse, więc zdrada zostaje zadeklarowana teraz i rozpocznie się, gdy Eclipse się skończy - jak każda akcja zadeklarowana w jej trakcie. Kosztuje akcję, a akcja przepada, nawet jeśli zdrada nie będzie mogła się wtedy rozpocząć.",
+        "after": "Trwa Eclipse: wydajesz akcję teraz, a zdrada zacznie się, gdy Eclipse się skończy. Jeśli wtedy nie będzie mogła się zacząć, akcja nie wraca."
+      },
+      "removed": [
+        "\"like any action declared in one\" goes (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.betrayalAnnounce",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the GMs once the betrayal's incident opens; {killer} is the old killer, now the victim.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openBetrayal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A second incident opens on {killer} - the betrayal.",
+        "after": "The betrayal opens a second incident on {killer}."
+      },
+      "pl": {
+        "before": "Otwiera się drugi incydent, przeciw: {killer} - zdrada.",
+        "after": "Zdrada otwiera drugi incydent: ofiarą jest teraz {killer}, zabójca z pierwszego."
+      },
+      "removed": [
+        "The dash aside goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.betrayalWhy.failed",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The reason when openMurder did not open the betrayal's incident for any other cause.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openBetrayal",
+          "note": null
+        },
+        {
+          "fact": "It is told to the betrayer's player (a card) or the GM (a toast).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "refuseBetrayal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "the GM's client could not open it",
+        "after": "the new incident did not start"
+      },
+      "pl": {
+        "before": "przeglądarka GM-a nie mogła jej otworzyć",
+        "after": "nie udało się otworzyć incydentu"
+      },
+      "removed": [
+        "\"the GM's client\" goes (O19, T29): the player is told what did not happen, not which browser."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.victimUnderAttackBy",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the victim's player when a direct murder's opening succeeds; the killer is named unless masked.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "tellVictimTheIncidentBegan",
+          "note": null
+        },
+        {
+          "fact": "The fight starts on turn 1 with the victim's side.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "The victim's tile is \"Fight Back\" (DRPG.Murder.tileFightBack).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisTileLabel",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. On your character sheet, under Actions, press Fight back.",
+        "after": "<strong>{killer} is moving on you.</strong> The incident has begun, and the first turn is yours: press Fight Back under Actions on your character sheet."
+      },
+      "pl": {
+        "before": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+        "after": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął, a pierwsza tura jest twoja. Na arkuszu postaci, w zakładce Akcje, naciśnij „Broń się”."
+      },
+      "removed": [
+        "Two sentences after the heading become one; the tile is named in Title Case, as its label is now."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.victimSomeoneMoves",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Sent instead of the named line when the killer is masked.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "tellVictimTheIncidentBegan",
+          "note": null
+        },
+        {
+          "fact": "The fight starts on turn 1 with the victim's side.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "<strong>Someone is moving on you.</strong> The incident has begun and the first turn is yours. On your character sheet, under Actions, press Fight back.",
+        "after": "<strong>Someone is moving on you.</strong> The incident has begun, and the first turn is yours: press Fight Back under Actions on your character sheet."
+      },
+      "pl": {
+        "before": "<strong>Ktoś rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+        "after": "<strong>Ktoś rusza na ciebie.</strong> Incydent się zaczął, a pierwsza tura jest twoja. Na arkuszu postaci, w zakładce Akcje, naciśnij „Broń się”."
+      },
+      "removed": [
+        "As victimUnderAttackBy."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.victimTrapSprung",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Sent to a trap's victim when their opening roll misses.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "The fight starts on turn 1 with the victim's side.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours - on your character sheet, under Actions, press Fight back.",
+        "after": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun, and the first turn is yours: press Fight Back under Actions on your character sheet."
+      },
+      "pl": {
+        "before": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+        "after": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął, a pierwsza tura jest twoja. Na arkuszu postaci, w zakładce Akcje, naciśnij „Broń się”."
+      },
+      "removed": [
+        "The dash becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.tileCrisis",
+      "group": "window",
+      "surface": "tile-label",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The sheet's tile for the killer's side and a third party during an incident.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisTileLabel",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Crisis actions",
+        "after": "Crisis Actions"
+      },
+      "pl": {
+        "before": "Akcje kryzysowe",
+        "after": "Akcje kryzysowe"
+      },
+      "removed": [
+        "Title Case for a tile's name (EN6), as the other tiles."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.tileFightBack",
+      "group": "window",
+      "surface": "tile-label",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The sheet's tile for the victim during an incident.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisTileLabel",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Fight back",
+        "after": "Fight Back"
+      },
+      "pl": {
+        "before": "Broń się",
+        "after": "Broń się"
+      },
+      "removed": [
+        "Title Case for a tile's name (EN6); the three victim cards name it so."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.noRollItWorks",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The row's lead in the crisis menu for a free take, before \" - \" and the row's sentence.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "On the crisis card of a free take instead of a score.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "No roll - it works",
+        "after": "Works with no roll"
+      },
+      "pl": {
+        "before": "Bez rzutu - to się udaje",
+        "after": "Udaje się bez rzutu"
+      },
+      "removed": [
+        "The dash goes (X4); the menu puts its own \" - \" after the lead."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.gmPicksTrait",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "For a row that lists several statistics, the player proposes one under the row and a GM approves or changes it.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "crisisFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Rolls: {traits} - you propose one below, the GM approves or changes it.",
+        "after": "Rolls {traits}: you propose one below, and the GM approves or changes it."
+      },
+      "pl": {
+        "before": "Rzut: {traits} - proponujesz jedną poniżej, GM ją zatwierdza albo zmienia.",
+        "after": "Możliwe statystyki to {traits}. Zaproponuj jedną poniżej, a GM ją zatwierdzi albo zmieni."
+      },
+      "removed": [
+        "The colon-dash chain becomes one colon (X4, X7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.youPickTrait",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "With Resolve armed, the player picks the statistic in the roll window.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "crisisFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Rolls: {traits} - Resolve is armed, so you pick one in the roll window.",
+        "after": "Rolls {traits}: with Resolve armed, you pick one in the roll window."
+      },
+      "pl": {
+        "before": "Rzut: {traits} - masz uzbrojone Resolve, więc wybierasz sam w oknie rzutu.",
+        "after": "Możliwe statystyki to {traits}. Masz uzbrojone Resolve, więc to ty wybierasz jedną w oknie rzutu."
+      },
+      "removed": [
+        "The colon-dash chain becomes one colon (X4, X7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.criticalChoiceIntro",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A critical Strike lets the killer put both points (criticalAmount 2) on one reserve of the victim's, Health or Sanity; closing the window means Health.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "askCriticalTarget",
+          "note": null
+        },
+        {
+          "fact": "R1448 reads this key for any mark word beside Health or Sanity.",
+          "file": "scripts/tests-tier0.mjs",
+          "fn": "criticalChoiceIntro",
+          "note": "A constraint on the wording, not a pin: no \"mark\"."
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The blow lands exactly where you wanted it. Both points come off the same reserve - their body, or their nerve.",
+        "after": "The blow lands exactly where you wanted it. Choose where both points go: all to their Health or all to their Sanity. Closing the window picks Health."
+      },
+      "pl": {
+        "before": "Cios trafia dokładnie tam, gdzie miał trafić. Oba punkty schodzą z tego samego zapasu - z ciała albo z nerwów.",
+        "after": "Krytyczny cios: oba punkty zabierasz ofierze z jednego zapasu, Health albo Sanity. Jeśli zamkniesz okno, będzie to Health."
+      },
+      "removed": [
+        "\"their body, or their nerve\" becomes the reserves' names, as the two buttons say (D5)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.ranOutTwoKillers",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The GM is asked whether to end the incident when the victim runs out and two killers share the side.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "checkVictimSpent",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{victim} has nothing left. {killers} are both in this.",
+        "after": "{victim} is out of Health and Sanity, and {killers} are both in this."
+      },
+      "pl": {
+        "before": "{victim} nie ma już nic. {killers} oboje w tym siedzą.",
+        "after": "{victim} nie ma już Health ani Sanity, a po stronie zabójców stoją {killers}. Zakończyć incydent?"
+      },
+      "removed": [
+        "\"has nothing left\" names the reserves (D5)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.ranOutTwoKillersNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Ending moves the incident to its Resolution; Cancel lets the turns go on, and the tracker can end it later.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "checkVictimSpent",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "End it now and the incident moves to the clean-up. Keep going and the turn order carries on - nobody loses a turn they were owed, and you can end it from the tracker whenever you like.",
+        "after": "End it now and the incident moves to the clean-up. Or let the turns go on, so no one loses a turn they were owed, and end it from the tracker later."
+      },
+      "pl": {
+        "before": "Zakończ teraz, a incydent przejdzie do sprzątania. Kontynuuj, a kolejność tur idzie dalej - nikt nie traci należnej tury, a zakończyć możesz ze śledzenia incydentu, kiedy zechcesz.",
+        "after": "Po „Zakończ incydent” zaczyna się sprzątanie. Po „Anuluj” tury idą dalej, a incydent zakończysz później w oknie śledzenia incydentu."
+      },
+      "removed": [
+        "The dash aside goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 3 (O14, repetition): „„Zakończ incydent” przenosi incydent” repeats the noun, and the tracker should be named as in the rest of the batch (proposed: „Zakończ incydent” przenosi go do Rozstrzygnięcia. Po „Anuluj” tury idą dalej, a zakończyć możesz później w oknie śledzenia incydentu.) - executor: Taken in part: the noun is not repeated and the tracker is named as in the rest of the batch; the stage is „sprzątanie”, not „Rozstrzygnięcie”, as in the English and the batch's other cards (O14)."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.crowded",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A fourth person walking into a direct incident cancels it: no death, no Blackened, no checklist.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crowdedOut",
+          "note": null
+        },
+        {
+          "fact": "Whispered to the GMs and the incident's audience (killer, victim, third party); the newcomer is not told.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crowdedOut",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out - the incident is canceled.",
+        "after": "{name} walked in after {third}. With four people in the room, the incident is canceled."
+      },
+      "pl": {
+        "before": "{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany.",
+        "after": "{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany."
+      },
+      "removed": [
+        "\"is not a murder anybody can carry out\" goes (O9); the dash aside goes (X4). \"canceled\" keeps the early pass's spelling."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.crowdedNote",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Nobody dies; the damage taken and the Remnants already placed stay.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crowdedOut",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor.",
+        "after": "Nobody dies. What the fight already did stands: the Health and Sanity lost, and the Remnants it left."
+      },
+      "pl": {
+        "before": "Nikt nie ginie. To, co walka już zrobiła, zostaje: rany, Sanity i cokolwiek zostawiła na podłodze.",
+        "after": "Nikt nie ginie, ale utracone Health i Sanity nie wracają, a postawione Remnanty zostają na miejscu."
+      },
+      "removed": [
+        "\"the wounds, the Sanity\" becomes the reserves lost (D5); \"anything it left on the floor\" is the Remnants."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.freeResolution",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A critical Self-Defense lets the victim's side take an action it just unlocked this turn with no roll (freeResolution, stamped with the turn).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyUnlocks",
+          "note": null
+        },
+        {
+          "fact": "Only the unlocked actions not taken away by the incident are opened; Role Reversal can be denied.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyUnlocks",
+          "note": null
+        },
+        {
+          "fact": "The free take still costs the resolution action's Sanity.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "The line goes into the crisis card (`done`), whispered to the GMs and the incident's audience at the action's stage - the killer, the victim and a third party - and the actor: several readers.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        3
+      ],
+      "en": {
+        "before": "You stopped them cold. Take Survive or Role Reversal this turn - no roll, it works.",
+        "after": "This turn the victim can take Survive or Role Reversal, whichever is open, with no roll, and it works."
+      },
+      "pl": {
+        "before": "Nie ruszą się z miejsca. Weź w tej turze Survive albo Role Reversal - bez rzutu, działa.",
+        "after": "W tej turze weź Survive albo Role reversal: działa bez rzutu. Akcja zablokowana albo odebrana w tym incydencie odpada."
+      },
+      "removed": [
+        "\"You stopped them cold\" and \"you\" go: several people read the card (P2), so the victim is named by the role.",
+        "The Sanity it still costs is left to the crisis menu, which lists it (fact 2)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before named both actions; when Role Reversal is denied (a Despair opening, an accomplice, a trap) only Survive opens (`applyUnlocks`). The after says \"whichever is open\"."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 3 (EN6, glossary role-reversal): the kept N27 sentence writes „Role reversal” and the new second sentence „Role Reversal” in the same text; the glossary's form is „Role Reversal” - for the coordinator whether N27's spelling may be aligned. - executor: Kept: N27 is the owner's approved after and the check requires it word for word; the two spellings are a question for the owner (notes). The new second sentence names no action, so it adds no third spelling."
+          ]
+        },
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "M4 (Polish): an action can be shut for the free take by more than the incident's denial - a critical Keep Your Distance blocks Role Reversal (applyHindrance, store \"blocked\") and crisisRefusal refuses a blocked action, free or not; the English's \"whichever is open\" covers it, „jeśli incydent go odebrał” does not (proposed: „W tej turze ofiara może wziąć Survive albo Role Reversal, które z nich jest dostępne, bez rzutu - i to działa.”); the same text also writes „Role reversal” and „Role Reversal” two ways (O14). - executor: Taken in part: the second sentence now covers both causes, a block (a critical Keep Your Distance) and the incident's denial; the proposed whole text is not taken, because it would replace N27, the owner's approved after, which the check requires word for word (notes); the two spellings are in the notes for the owner."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.castMissingHere",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A GM's browser with no cast for the running incident refuses to pass a turn or let a third in.",
+          "file": "scripts/incident-store.mjs",
+          "fn": "castHeldHere",
+          "note": null
+        },
+        {
+          "fact": "The case's health check offers \"Enter the cast by hand\" (DRPG.Case.enterCast).",
+          "file": "scripts/gm-stores.mjs",
+          "fn": "enterCastByHand",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "This browser holds no cast for the running incident, so its turn cannot be worked out here. Enter the cast by hand (the case's health check), or let the GM whose browser holds it act.",
+        "after": "This browser lacks the incident's cast and cannot work out the turn. Press Enter the cast by hand in the health check, or let a GM who holds it act."
+      },
+      "pl": {
+        "before": "Ta przeglądarka nie ma obsady trwającego incydentu, więc nie da się tu ustalić jego tury. Wpisz obsadę ręcznie (kontrola zdrowia sprawy) albo pozwól działać GM-owi, którego przeglądarka ją ma.",
+        "after": "Ta przeglądarka nie zna obsady trwającego incydentu, więc nie oddasz tu tury ani nie wpuścisz trzeciej osoby. Użyj „Wpisz obsadę ręcznie” w oknie „Sprawa w tej przeglądarce”."
+      },
+      "removed": [
+        "The button is named as the health check shows it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Murder.castNotArrived",
+      "group": "window",
+      "surface": "toast",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Shown while the other GMs' copies of the cast have not hydrated on this browser.",
+          "file": "scripts/incident-store.mjs",
+          "fn": "castHeldHere",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The other GMs' copies of the incident's cast have not arrived on this browser yet: try again in a moment.",
+        "after": "The other GMs' copies of the incident's cast have not reached this browser yet. Try again in a moment."
+      },
+      "pl": {
+        "before": "Kopie obsady incydentu od pozostałych GM-ów jeszcze nie dotarły do tej przeglądarki: spróbuj za chwilę.",
+        "after": "Obsada incydentu od pozostałych GM-ów jeszcze tu nie dotarła. Spróbuj za chwilę."
+      },
+      "removed": [
+        "The colon becomes a full stop."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mask.ask",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The question is asked on the killer's own browser, once a load for each mask, with Reveal yourself and Stay hidden.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "askReveal",
+          "note": null
+        },
+        {
+          "fact": "A mask opens on a direct murder, not indirect and not self-inflicted, whose opening succeeds with Hope or is a critical.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "opensMask",
+          "note": null
+        },
+        {
+          "fact": "While masked, the killer's tokens on every scene show the name \"?\", Foundry's mystery man, no ring and no name or bars; GMs and Spectators see the name drawn over the \"?\".",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "maskPatch",
+          "note": null
+        },
+        {
+          "fact": "The killer is moved to a silent voice room of their own, so they neither speak to the room nor hear it, and their microphone is blocked.",
+          "file": "scripts/voice.mjs",
+          "fn": "maskedRow",
+          "note": null
+        },
+        {
+          "fact": "The mask ends when the killer reveals themselves or at the next time of day, whichever comes first; the incident's end does not end it.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "masksAtNewTimeOfDay",
+          "note": null
+        },
+        {
+          "fact": "Another player's browser closes the sheet of a character whose token is masked; a GM and a Spectator see through.",
+          "file": "scripts/anonymity.mjs",
+          "fn": "maskedSheetClosed",
+          "note": null
+        }
+      ],
+      "kept": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "en": {
+        "before": "Your opening went well: the victim and everyone in the room see you as \"?\", and your microphone is off. Reveal yourself now, or stay hidden until the time of day ends.",
+        "after": "Your opening went well: the other players see you only as \"?\", and you can neither speak nor hear anyone. Reveal yourself now, or stay hidden until the time of day ends."
+      },
+      "pl": {
+        "before": "Twoje otwarcie się udało: ofiara i wszyscy w pokoju widzą cię jako „?”, a twój mikrofon jest wyłączony. Ujawnij się teraz albo zostań w ukryciu do końca pory dnia.",
+        "after": "Otwarcie udało się z Hope albo przy krytyku, więc jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, chyba że wcześniej się ujawnisz; nie przerywa go też koniec incydentu."
+      },
+      "removed": [
+        "\"the victim and everyone in the room\" becomes \"the other players\": the \"?\" stands on every scene for every player (fact 2).",
+        "\"your microphone is off\" becomes \"you can neither speak nor hear anyone\": the silent room also cuts what the killer hears (fact 3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before said only the victim and the room see the \"?\" and only the microphone is off; maskPatch masks every token on every scene, and maskedRow puts the killer in a silent room where they hear nobody either. The after follows the code."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mask.card",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The card is sent when the killer is masked, after the voice and the tokens are changed.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "maskKiller",
+          "note": null
+        },
+        {
+          "fact": "The card is whispered to the killer's owners only, not to the GMs.",
+          "file": "scripts/utils.mjs",
+          "fn": "whisperToOwnerOnly",
+          "note": null
+        },
+        {
+          "fact": "While masked, the killer's tokens on every scene show the name \"?\", Foundry's mystery man, no ring and no name or bars; GMs and Spectators see the name drawn over the \"?\".",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "maskPatch",
+          "note": null
+        },
+        {
+          "fact": "The killer is moved to a silent voice room of their own, so they neither speak to the room nor hear it, and their microphone is blocked.",
+          "file": "scripts/voice.mjs",
+          "fn": "maskedRow",
+          "note": null
+        },
+        {
+          "fact": "The mask ends when the killer reveals themselves or at the next time of day, whichever comes first; the incident's end does not end it.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "masksAtNewTimeOfDay",
+          "note": null
+        },
+        {
+          "fact": "While the mask stands, the killer's voice tile shows a Reveal yourself button.",
+          "file": "scripts/voice-tile.mjs",
+          "fn": "paintReveal",
+          "note": null
+        }
+      ],
+      "kept": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "en": {
+        "before": "You are hidden behind a \"?\" and your microphone is off, until you reveal yourself or the time of day ends. Reveal yourself is on your voice tile.",
+        "after": "You are hidden behind a \"?\" and can neither speak nor hear anyone until you reveal yourself or the time of day ends. Your voice tile has a Reveal yourself button."
+      },
+      "pl": {
+        "before": "Ukrywasz się za „?”, a twój mikrofon jest wyłączony, dopóki się nie ujawnisz albo nie skończy się pora dnia. Ujawnij się jest na twoim kaflu głosu.",
+        "after": "Jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, także po końcu incydentu. Wcześniej możesz się ujawnić przyciskiem „Ujawnij się” na swoim kafelku głosu."
+      },
+      "removed": [
+        "\"your microphone is off\" becomes \"can neither speak nor hear anyone\" (fact 3).",
+        "\"Reveal yourself is on your voice tile\" becomes \"Your voice tile has a Reveal yourself button\": the same fact, read as a button."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before said only that the microphone is off; voice.mjs maskedRow puts the killer in a silent room of their own, so they hear nobody either."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mask.ended",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The card is sent only when the mask ends at a new time of day, not on a reveal.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "endMask",
+          "note": null
+        },
+        {
+          "fact": "The card is whispered to the killer's owners only, not to the GMs.",
+          "file": "scripts/utils.mjs",
+          "fn": "whisperToOwnerOnly",
+          "note": null
+        },
+        {
+          "fact": "At the end the tokens' look is put back, the microphone block lifted and the voices placed again.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "endMask",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2
+      ],
+      "en": {
+        "before": "You are no longer hidden: the time of day is over.",
+        "after": "You are no longer hidden, and your voice is back: the time of day has ended."
+      },
+      "pl": {
+        "before": "Nie jesteś już w ukryciu: pora dnia się skończyła.",
+        "after": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Body.noToken",
+      "group": "window",
+      "surface": "toast",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The warning is a toast on the GM's browser that made the death public, when the student's token is on no scene with rooms (or its put-back is still on its way).",
+          "file": "scripts/body-tile.mjs",
+          "fn": "leaveBody",
+          "note": null
+        },
+        {
+          "fact": "No warning for a death in the Class Trial.",
+          "file": "scripts/body-tile.mjs",
+          "fn": "noTokenWarns",
+          "note": null
+        },
+        {
+          "fact": "No body tile is laid and nothing tries again; the loot is then read at the student's token.",
+          "file": "scripts/body-tile.mjs",
+          "fn": "leaveBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2
+      ],
+      "en": {
+        "before": "The GMs cannot place {name}'s token on a scene with rooms (there is none, or a put-back of it is still on its way), so no body was left on the map; what they carried is searched beside their token.",
+        "after": "{name}'s token is on no scene with rooms, so no body was left on the map. Their belongings can be searched at their token instead."
+      },
+      "pl": {
+        "before": "GM-owie nie mogą umieścić tokenu postaci {name} na scenie z pokojami (nie ma go albo jego cofnięcie jest jeszcze w drodze), więc na mapie nie zostało ciało; to, co miała przy sobie, przeszukuje się obok jej tokenu.",
+        "after": "Token postaci {name} nie stoi na żadnej scenie z pokojami, więc na mapie nie będzie ciała. Rzeczy tej postaci przeszukuje się przy jej tokenie."
+      },
+      "removed": [
+        "\"there is none, or a put-back of it is still on its way\": the reason the code has for the missing token is cut (T29); the fact stays in the facts.",
+        "\"The GMs cannot place\" becomes the plain fact that the token is on no scene with rooms."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "nikt tak nie mówi",
+          "points": [
+            "Step 3 (O17, calque): „jego cofnięcie jest jeszcze w drodze” mirrors „its put-back is still on its way”; nobody at a Polish table says it (proposed: Token postaci {name} nie stoi na żadnej scenie z pokojami albo jeszcze na nią nie wrócił, więc na mapie nie będzie ciała. Rzeczy tej postaci przeszukuje się przy jej tokenie.) - executor: Taken in part: the calque is gone; „albo jeszcze na nią nie wrócił” is left out, because the English cuts the token's put-back as the code's reason (T29) and both languages carry the same facts."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.lairNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Mastermind whose own token stands in their room sees every character's token on the map, as a GM does, and loses it on leaving.",
+          "file": "scripts/visibility.mjs",
+          "fn": "roomChangeTokens",
+          "note": null
+        },
+        {
+          "fact": "The Mastermind's player can lock or open the room from their sheet, with the GM's room lock.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "lockLair",
+          "note": null
+        },
+        {
+          "fact": "The sheet's lock line is drawn only on the Mastermind's player's browser.",
+          "file": "scripts/sheet-sidebar.mjs",
+          "fn": "lairBlock",
+          "note": null
+        },
+        {
+          "fact": "tokenShownTo answers the Eclipse before the lair, so during an Eclipse the Mastermind in their room sees no other token.",
+          "file": "scripts/visibility.mjs",
+          "fn": "tokenShownTo",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        3
+      ],
+      "en": {
+        "before": "The room with the cameras: from here the Mastermind sees the whole map.",
+        "after": "While the Mastermind stands in this room, they see every character's token on the map, as the GMs do, except during an Eclipse. From their sheet they can lock or open its door."
+      },
+      "pl": {
+        "before": "Pokój z kamerami: stąd Mastermind widzi całą mapę.",
+        "after": "Gdy token Masterminda stoi w tym pokoju, Mastermind widzi na mapie tokeny wszystkich postaci, jak GM, poza Eclipse; po wyjściu traci ten widok. Gracz Masterminda może zamknąć i otworzyć ten pokój ze swojego arkusza postaci."
+      },
+      "removed": [
+        "\"The room with the cameras\" is the fiction's name for what the next sentence states; cut (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before said the Mastermind sees the whole map from here; settings.mjs and visibility.mjs give them the cast's tokens while their own token stands in the room, and the GM handbook says the same. The after follows the code (an early-pass key, rewritten in full)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.dialogIntro",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Mastermind window picks who is the Mastermind among the students, GM only.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "openMastermindDialog",
+          "note": null
+        },
+        {
+          "fact": "The pick reaches the chosen student's player privately as a yes, with their room.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "notifyDoorAccess",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Pick before the season, with the player's agreement.",
+        "after": "Pick them before the season starts, with that player's agreement."
+      },
+      "pl": {
+        "before": "Wybierz przed sezonem, za zgodą gracza.",
+        "after": "Wybierz, który uczeń jest Mastermindem."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.hopeReadout",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The readout shows the Mastermind's current Hope, redrawn after each donation from a Monokuma's pool.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "mastermindHopeBox",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Hope right now: {held}.",
+        "after": "The Mastermind has {held} Hope."
+      },
+      "pl": {
+        "before": "Hope teraz: {held}.",
+        "after": "Mastermind ma teraz {held} Hope."
+      },
+      "removed": [
+        "The label-colon shape \"Hope right now:\" becomes a sentence (X7), and the resource is said as what the Mastermind has (M7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.confirmStart",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Starting refuses with no Mastermind set, then asks; on yes it sets the Final Trial and announces it to the whole table with a banner and a line.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "toggleFinalTrialFlag",
+          "note": null
+        },
+        {
+          "fact": "The switch to start is offered on the Class Trial console only while no trial runs.",
+          "file": "scripts/trial-floor-ui.mjs",
+          "fn": "trialButtons",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Announce the Final Trial? This is public - everyone sees it start.",
+        "after": "Start the Final Trial? Everyone at the table sees it announced."
+      },
+      "pl": {
+        "before": "Ogłosić Final Trial? To publiczne - wszyscy zobaczą, że się zaczyna.",
+        "after": "Zacząć Final Trial? Ogłoszenie zobaczy cały stół."
+      },
+      "removed": [
+        "The dash aside \"This is public - everyone sees it start\" becomes one sentence (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.confirmEnd",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Ending sets the Final Trial off and posts nothing to the table; only the verdict's own card is public.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "toggleFinalTrialFlag",
+          "note": null
+        },
+        {
+          "fact": "Nothing already given is undone by ending it.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "setFinalTrial",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Clear the Final Trial flag? Nothing already applied is undone.",
+        "after": "End the Final Trial? The table is not told, and nothing already done changes."
+      },
+      "pl": {
+        "before": "Zdjąć flagę Final Trial? Nic, co już zastosowano, nie zostanie cofnięte.",
+        "after": "Zakończyć Final Trial? Stół nie dostanie ogłoszenia; publiczna jest tylko karta werdyktu. Nic, co już zaszło, się nie cofnie."
+      },
+      "removed": [
+        "\"Clear the Final Trial flag\" becomes \"End the Final Trial\", the button's own words: the flag is the code's (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.ended",
+      "group": "window",
+      "surface": "toast",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The toast follows the GM's End the Final Trial, on their own browser.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "toggleFinalTrialFlag",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The Final Trial flag is cleared.",
+        "after": "The Final Trial has ended."
+      },
+      "pl": {
+        "before": "Flaga Final Trial zdjęta.",
+        "after": "Final Trial się zakończył."
+      },
+      "removed": [
+        "\"flag is cleared\": the flag is the code's word (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.finalTruthReminder",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "investigation",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The reminder stands on the Investigation dashboard's Final Truth tab while no Final Truth Remnant of this season's chapter is on any scene.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "finalTruthPlacedThisChapter",
+          "note": null
+        },
+        {
+          "fact": "The form under it places one.",
+          "file": "scripts/investigation.mjs",
+          "fn": "caseFinalPanel",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "No Final Truth Remnant this chapter. Add one below - it points at the Mastermind.",
+        "after": "No Final Truth Remnant this chapter yet. Add one below: it points to the Mastermind."
+      },
+      "pl": {
+        "before": "W tym rozdziale nie ma Final Truth Remnant. Dodaj go poniżej - wskazuje Masterminda.",
+        "after": "Na żadnej scenie nie ma jeszcze Final Truth Remnantu z tego rozdziału. Możesz go postawić formularzem poniżej."
+      },
+      "removed": [
+        "The dash aside becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.verdictIntro",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Final Trial's verdict window is a GM's; the accused list starts with Nobody named, then every student, with the count's first accused selected.",
+          "file": "scripts/verdict.mjs",
+          "fn": "openFinalVerdictDialog",
+          "note": null
+        },
+        {
+          "fact": "The Mastermind's identity is held on GM browsers only.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "readStore",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Only you know whether the vote named the Mastermind. Say who was accused and pick the outcome.",
+        "after": "Whether the vote named the Mastermind is yours to judge. Check who it accused, then pick the outcome."
+      },
+      "pl": {
+        "before": "Tylko ty wiesz, czy głosowanie wskazało Masterminda. Powiedz, kogo oskarżono, i wybierz wynik.",
+        "after": "Czy głosowanie wskazało Masterminda, oceniasz ty. Wskaż, kogo oskarżyło głosowanie: lista zaczyna się od „Nikt niewskazany”, a zaznaczony jest już pierwszy oskarżony z liczenia głosów. Potem wybierz wynik."
+      },
+      "removed": [
+        "\"Only you know\" goes: the chosen student's player is told privately too (mastermind.mjs `notifyDoorAccess`, DRPG.Mastermind.confirmed), so the text says the ruling is the GM's (fact 1 not kept).",
+        "\"Say who was accused\" becomes \"Check who it accused\": the count's first accused is already selected (fact 0)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "Fact 1 reads the pick as held on GM browsers only; notifyDoorAccess tells the chosen student's player, so no text says only the GMs know."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.alreadyDeadNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When the Mastermind is already dead, the note shows and They named the Mastermind is disabled.",
+          "file": "scripts/verdict.mjs",
+          "fn": "openFinalVerdictDialog",
+          "note": null
+        },
+        {
+          "fact": "With the Mastermind dead, nobody is executed and the reveal card is posted, whoever is accused.",
+          "file": "scripts/verdict.mjs",
+          "fn": "giveFinalVerdict",
+          "note": null
+        }
+      ],
+      "kept": [
+        1
+      ],
+      "en": {
+        "before": "The Mastermind died earlier this season. The same rule applies whoever was accused: reveal the truth, execute nobody new.",
+        "after": "The Mastermind died earlier this season, so whoever was accused, the truth is revealed and nobody new is executed."
+      },
+      "pl": {
+        "before": "Mastermind zginął wcześniej w tym sezonie. Zasada jest ta sama, kogokolwiek oskarżono: ujawnij prawdę, nie stracaj nikogo nowego.",
+        "after": "Mastermind już nie żyje. Kogokolwiek oskarżono, nikt nie zostanie stracony, a stół dostanie kartę z ujawnioną prawdą."
+      },
+      "removed": [
+        "The rule restated as orders (\"reveal the truth, execute nobody new\") becomes what happens; the disabled button shows itself."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.verdictNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Named and alive: the Mastermind is sentenced and executed when the trial ends, or at once if the verdict comes after End the trial.",
+          "file": "scripts/verdict.mjs",
+          "fn": "finalVerdictExecution",
+          "note": null
+        },
+        {
+          "fact": "The public card says THE MASTERMIND IS DEFEATED and The killing game is over; otherwise THE TRUTH IS REVEALED and The game they were playing was never what it seemed.",
+          "file": "scripts/verdict.mjs",
+          "fn": "finalVerdictCard",
+          "note": null
+        },
+        {
+          "fact": "Wrong, or the Mastermind already dead: nobody new dies.",
+          "file": "scripts/verdict.mjs",
+          "fn": "giveFinalVerdict",
+          "note": null
+        },
+        {
+          "fact": "Either way the Final Trial ends and the Mastermind pick is cleared.",
+          "file": "scripts/verdict.mjs",
+          "fn": "finalVerdictMastermind",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Correct: the Mastermind is executed when the trial ends and the killing game is over. Wrong, or already dead: nobody new is executed - the table is shown that the game was never what it looked like.",
+        "after": "If the vote named the Mastermind, they are executed when the trial ends, or at once if it already has, and the killing game is over. Otherwise, or if the Mastermind is already dead, nobody new is executed and the table learns the game was never what it seemed. Either way, the Final Trial ends and the pick is cleared."
+      },
+      "pl": {
+        "before": "Trafnie: Mastermind zostaje stracony, gdy rozprawa się skończy, a killing game dobiega końca. Błędnie albo Mastermind już nie żyje: nikt nowy nie ginie - stół widzi, że gra nigdy nie była tym, na co wyglądała.",
+        "after": "Trafnie, a Mastermind żyje: zostaje skazany i ginie, gdy rozprawa się skończy (od razu, jeśli już się skończyła), a stół widzi, że killing game dobiegła końca. Błędnie albo Mastermind już nie żyje: nikt nowy nie ginie, a stół widzi, że prawda wyszła na jaw. Tak czy inaczej Final Trial się kończy, a wybór Masterminda znika."
+      },
+      "removed": [
+        "The label-colon chain \"Correct: ... Wrong, or already dead: ...\" becomes two if-sentences (X7), and the dash aside goes (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.outcomeAlreadyDead",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "vote",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The outcome word fills the GMs' summary's {outcome} when the Mastermind was already dead.",
+          "file": "scripts/verdict.mjs",
+          "fn": "finalSummary",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "already dead - revealed, not executed",
+        "after": "already dead, nobody new executed"
+      },
+      "pl": {
+        "before": "już martwy - ujawniony, nie stracony",
+        "after": "już nie żyje, prawda ujawniona, bez egzekucji"
+      },
+      "removed": [
+        "\"revealed, not executed\": the dash and the \"X, not Y\" shape go (X3, X4); \"revealed\" read as if the Mastermind were revealed, while the card reveals the truth."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.outcomeEscaped",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "vote",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The outcome word fills the GMs' summary's {outcome} when the vote did not name the living Mastermind.",
+          "file": "scripts/verdict.mjs",
+          "fn": "finalSummary",
+          "note": null
+        },
+        {
+          "fact": "Nobody new dies on that outcome.",
+          "file": "scripts/verdict.mjs",
+          "fn": "giveFinalVerdict",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "wrong guess - revealed, not executed",
+        "after": "not named, nobody executed"
+      },
+      "pl": {
+        "before": "błędne wskazanie - ujawniony, nie stracony",
+        "after": "błędne wskazanie, prawda ujawniona, bez egzekucji"
+      },
+      "removed": [
+        "\"wrong guess - revealed, not executed\": the dash and the \"X, not Y\" shape go (X3, X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.confirmed",
+      "group": "window",
+      "surface": "toast",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The toast follows Apply with a new pick, on the GM's own browser.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "applyMastermindChoice",
+          "note": null
+        },
+        {
+          "fact": "The chosen student's player is told privately that they hold the part, with the room; every other player gets no.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "notifyDoorAccess",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{name} is the Mastermind. Only the GMs know, and nothing was written to the world.",
+        "after": "{name} is the Mastermind. Only the GMs and {name}'s player know."
+      },
+      "pl": {
+        "before": "{name} jest Mastermindem. Wiedzą tylko GM-owie i nic nie zapisano w świecie.",
+        "after": "{name} jest Mastermindem. Wiadomość o tym, razem z nazwą pokoju Masterminda, dostaje tylko gracz tej postaci."
+      },
+      "removed": [
+        "\"nothing was written to the world\": how the secret is stored is cut (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before said only the GMs know; notifyDoorAccess tells the chosen student's player privately. The after follows the code."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.cleared",
+      "group": "window",
+      "surface": "toast",
+      "screen": "mastermind",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Apply with Nobody clears the pick, and the room with it.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "clearMastermind",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The Mastermind is cleared. Nobody is set.",
+        "after": "Nobody is the Mastermind now, and the Mastermind's room is unset."
+      },
+      "pl": {
+        "before": "Mastermind wyczyszczony. Nikt nie jest ustawiony.",
+        "after": "Nikt nie jest już Mastermindem i nie ma pokoju Masterminda."
+      },
+      "removed": [
+        "\"The Mastermind is cleared. Nobody is set.\" says one fact twice (O2); the room going with it is added."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.finalAnnounce",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "mastermind",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The line is posted with THE FINAL TRIAL banner through announce with no whisper list, so the whole table reads it.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "toggleFinalTrialFlag",
+          "note": null
+        },
+        {
+          "fact": "announce with no whisper list posts to the whole table.",
+          "file": "scripts/utils.mjs",
+          "fn": "announce",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "This is the last one. Everything you have been told about this place is on the table, and so is whoever has been telling it to you.",
+        "after": "This is the last Class Trial. Everything the students have been told about this place is on trial, and so is whoever told them."
+      },
+      "pl": {
+        "before": "To ostatni. Na stole leży wszystko, co wam powiedziano o tym miejscu - i ten, kto wam to mówił.",
+        "after": "To ostatnia rozprawa. Na stół trafia wszystko, co uczniom powiedziano o tym miejscu, i ten, kto im to mówił."
+      },
+      "removed": [
+        "\"you\" to the whole table becomes \"the students\" (P1, P2).",
+        "\"on the table\" becomes \"on trial\": \"table\" is the people playing (D33d)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "P2 should apply: the code sends the line to everyone (announce with no whisper list), GMs and the Mastermind's player included, so the after is in the third person. If the owner wants the world's voice to address the class here as a genre line, the before's \"you\" is the alternative."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.finalRemnantsNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "investigation",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Final Truth Remnant is placed reinforced.",
+          "file": "scripts/config.mjs",
+          "fn": "REMNANT_TYPES",
+          "note": null
+        },
+        {
+          "fact": "A reinforced Remnant cannot be removed.",
+          "file": "scripts/remnants.mjs",
+          "fn": "removeRemnant",
+          "note": null
+        },
+        {
+          "fact": "It is typed final and points to the Mastermind.",
+          "file": "scripts/mastermind.mjs",
+          "fn": "placeFinalRemnant",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "The Remnants the endgame turns on. Their type reinforces them, so nobody can clean one away.",
+        "after": "The Remnants that point to the Mastermind. Each one is Reinforced, so nobody can remove it."
+      },
+      "pl": {
+        "before": "Remnanty, na których obraca się finał. Ich typ je wzmacnia, więc nikt nie może żadnego usunąć.",
+        "after": "Final Truth Remnanty wskazują Masterminda. Każdy jest Reinforced, więc nikt nie może go usunąć."
+      },
+      "removed": [
+        "\"the endgame turns on\" becomes \"point to the Mastermind\", the thing the GM plans it for.",
+        "\"Their type reinforces them\" becomes \"Each one is reinforced\": how it comes about is cut (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Mastermind.finalAddNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "investigation",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Save places the Final Truth Remnant at a random point inside the picked room, on that room's scene (the option's scene, else the scene that holds the room).",
+          "file": "scripts/mastermind.mjs",
+          "fn": "placeFinalRemnant",
+          "note": null
+        },
+        {
+          "fact": "With no room picked, Save places nothing.",
+          "file": "scripts/investigation.mjs",
+          "fn": "placeFinalFromDashboard",
+          "note": null
+        },
+        {
+          "fact": "Closing the dashboard without Save, with a room picked, asks whether to place it.",
+          "file": "scripts/investigation.mjs",
+          "fn": "offerFinalOnClose",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Save places it on the scene you are looking at, somewhere inside the room you pick. With no room picked, Save places none.",
+        "after": "Save places it at a random spot in the room you pick, on that room's scene. With no room picked, Save places none."
+      },
+      "pl": {
+        "before": "Zapisz stawia go na scenie, na którą patrzysz, gdzieś wewnątrz wybranego pokoju. Bez wybranego pokoju Zapisz niczego nie stawia.",
+        "after": "Przycisk „Zapisz” stawia go w losowym miejscu wybranego pokoju, na scenie tego pokoju. Bez wybranego pokoju „Zapisz” niczego nie stawia."
+      },
+      "removed": [
+        "Fact 2 (the question on close) is left to the question itself (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before said Save places it on the scene the GM is looking at; since E12 C5 placeFinalRemnant uses the room's own scene. The after follows the code."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    }
+  ]
+}

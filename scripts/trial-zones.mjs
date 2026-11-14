@@ -21,18 +21,19 @@
  * lies in (the GM handbook's section 15 says so).
  *
  * A MOVE BETWEEN ZONES IS NO CROSSING. The hall is a place for nobody (rooms.mjs `roomPieces`): no veto, no charge, no
- * fog, no Eclipse move, no Remnant, no `auditMove`, no `move.sentBack`, no `passage.cross` reads it. Tier 2 "E73 C2: a
- * move between the zones" holds that, and the entry's own sound and outline are this file's (`onZoneEntered`).
+ * fog, no Eclipse move, no Remnant, no `auditMove`, no `move.sentBack`, no `passage.cross` reads it. Scenario 68 M
+ * holds that (E39, 14.11.2026; this line named a tier-2 test "E73 C2: a move between the zones" that the suite never
+ * held), and the entry's own sound and outline are this file's (`onZoneEntered`).
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
 import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
-import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf } from "./zone-machine.mjs";
+import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf, zoneStart } from "./zone-machine.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { isPrimaryGm, serialWrite, serverNow, error, log, esc } from "./utils.mjs";
+import { isPrimaryGm, serialWrite, serverNow, error, esc } from "./utils.mjs";
 
 /** The floor as stored, for the readers here that may not import trial-floor.mjs (it imports this file). */
 function storedFloor() {
@@ -126,7 +127,7 @@ export function snapshotStands(hall = trialScene(), participants = trialParticip
  * The hall's tokens back on their stands, in one write of the hall on the primary GM (`stands` as `snapshotStands`
  * kept them): only a token still there and not on its stand. Answers how many it moved.
  */
-export async function returnToStands(stands, hall = trialScene()) {
+async function returnToStands(stands, hall = trialScene()) {
     if (!isPrimaryGm() || !hall || !stands || typeof stands !== "object") return 0;
     const rows = Object.entries(stands).flatMap(([id, at]) => {
         const token = hall.tokens?.get?.(id);
@@ -141,6 +142,39 @@ export async function returnToStands(stands, hall = trialScene()) {
         return 0;
     }
     return rows.length;
+}
+
+/**
+ * Whether the voices can be split into the camps' rooms here: the world's regional voice on and avclient-livekit active
+ * (voice-client.mjs `avclientActive`). Without either the voice decision is a no-op (voice.mjs), and a Scrum's Confer
+ * runs as a timer alone. The facts can be handed in (R5914).
+ */
+export async function voicesSplit({ enabled, active } = {}) {
+    const on = enabled ?? Boolean(game.settings.get(MODULE_ID, SETTINGS.voiceEnabled));
+    if (!on) return false;
+    if (active !== undefined) return Boolean(active);
+    const { avclientActive } = await import("./voice-client.mjs");
+    return Boolean(avclientActive());
+}
+
+/**
+ * A SCRUM DEBATE'S CONFER BEGUN, on the primary after the floor is written (trial-floor.mjs `commitFloor`, the machine's
+ * `conferBegun`): where the voices cannot be split (`voicesSplit`), one whisper to the GMs that the camps confer however
+ * the table does - once per Confer, from the primary alone, so a second GM is not told twice. Answers whether it told.
+ */
+export async function conferNotice({ split } = {}) {
+    if (!isPrimaryGm()) return false;
+    const can = split ?? await voicesSplit();
+    if (can) return false;
+    try {
+        const { whisperToGms } = await import("./utils.mjs");
+        // A GMs' warning is a warning card (E49 B5a's census, R3510).
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.localize("DRPG.Zones.scrum.noVoice"))}</p>` });
+    } catch (err) {
+        error("Could not tell the GMs that the camps' voices are not split", err);
+        return false;
+    }
+    return true;
 }
 
 /** A finding's id, new each time. */
@@ -204,12 +238,36 @@ export function zoneStartRefusal(floor = storedFloor(), { inTrial = game.setting
     return null;
 }
 
+/**
+ * WHY THIS START WOULD BE REFUSED, read as the primary's machine will read it (the needsCode line, 14.11.2026; R6909):
+ * zone-machine.mjs `zoneStart` on the event the start makes - for a Logic Dive the set's question as `diveStartEvent`
+ * would take it, read without marking the set played. A key of the machine's (`Zones.noAnswers`, `noQuestion`,
+ * `noSet`), or null. The floor and the trial are `zoneStartRefusal`'s, and a set that is gone or empty the primary's:
+ * those stay `Zones.notStarted`. Until this, the machine's refusal came back as null and the GM read notStarted's list.
+ */
+export async function zoneArgsRefusal(op, args = {}) {
+    if (op === "dive") {
+        if (!String(args.set ?? "")) return "DRPG.Zones.noSet";
+        const event = await diveEventOf(args.set, Number(args.from) > 0 ? Math.round(Number(args.from)) - 1 : -1);
+        return event ? zoneStart(null, event, { zonesReady: true })?.refused ?? null : null;
+    }
+    const mode = op === "straw" ? ZONE_MODES.straw : op === "scrum" ? ZONE_MODES.scrum : null;
+    if (!mode) return null;
+    return zoneStart(null, { type: "zone", mode, question: args.text ?? "", answers: { a: args.a ?? "", b: args.b ?? "" }, thesis: args.thesis ?? "" },
+        { zonesReady: true })?.refused ?? null;
+}
+
 /** A zone mode started on whichever GM asks: refused here with the reason first, judged again on the primary. */
 async function startZone(op, args) {
     if (!game.user.isGM) return null;
     const refused = zoneStartRefusal();
     if (refused) {
         ui.notifications.warn(refused);
+        return null;
+    }
+    const why = await zoneArgsRefusal(op, args);
+    if (why) {
+        ui.notifications.warn(game.i18n.localize(why));
         return null;
     }
     const { floorStep } = await import("./trial-floor.mjs");
@@ -257,6 +315,14 @@ export async function skipQuestion() {
  * set, an empty one or an index past its end.
  */
 export async function diveStartEvent(setId, from = -1) {
+    const event = await diveEventOf(setId, from);
+    if (!event) return null;
+    await diveSetStore.patch(setId, { usedAt: Date.now() });
+    return event;
+}
+
+/** `diveStartEvent`'s reading alone, the set left unmarked (`zoneArgsRefusal` asks it on whichever GM pressed Start). */
+async function diveEventOf(setId, from = -1) {
     await diveSetStore.whenHydrated();
     const set = diveSetStore.get(String(setId ?? ""));
     const questions = Array.isArray(set?.questions) ? set.questions : [];
@@ -264,7 +330,6 @@ export async function diveStartEvent(setId, from = -1) {
     const index = Number(from) >= 0 ? Number(from) : Number.isInteger(set.stoppedAt) ? set.stoppedAt : 0;
     const q = questions[index];
     if (!q) return null;
-    await diveSetStore.patch(setId, { usedAt: Date.now() });
     return { type: "zone", mode: ZONE_MODES.dive, question: q.question, answers: { a: q.a, b: q.b }, set: { id: setId, index, total: questions.length } };
 }
 
@@ -391,7 +456,3 @@ export function zoneCardWords(words = {}) {
     return Object.fromEntries(Object.entries(words ?? {}).map(([k, v]) => [k, esc(String(v ?? ""))]));
 }
 
-/** Log a line about the zones (the primary's). */
-export function zoneLog(line) {
-    log(`Zones: ${line}`);
-}

@@ -738,7 +738,7 @@ export function wireCallActions(body, message = null) {
      * EVERY BUTTON OF THE CARD IS HELD WHILE ONE CLICK RUNS (E09 C10, 08.10.2026). Only
      * the button pressed used to be, so Approve and then Decline on one card, pressed
      * before the first had answered, were both asked. The rulings themselves refuse a
-     * second one now (cleanup.mjs `claimRuling`); this keeps the second click from
+     * second one now (cleanup-reshape.mjs `claimRuling`); this keeps the second click from
      * being asked at all.
      */
     let busy = false;
@@ -1073,7 +1073,7 @@ async function ruleApproveReshape(action, data) {
     const applied = await askReshapeRuling("approve", { by: data.by, trace: data.trace, attempt: data.attempt ?? "" });
     /* `false` is a ruling that went through - a Reroll had taken the attempt back,
        and the card says so - where `null` leaves the card open to be answered. The
-       same split `ruleApproveMurder` draws. */
+       same split `ruleApproveMurderOrRefuseMurder` draws. */
     if (applied === false) return settled("DRPG.Cleanup.reshapeVoided");
     return applied ? settled("DRPG.Bridge.settledApproved") : null;
 }

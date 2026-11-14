@@ -238,8 +238,8 @@ function prune(node) {
  * `call`: a Burst or a free Move used, the free Move given back, the armed Calls a roll spent).
  * The other five name three new ones, for what is the player's to write and the GMs' audit does
  * not judge: `equip` (an item readied or put down, use-items.mjs
- * `toggleEquipped`), `ultimate` (sheet.mjs `commitUltimate`, `setUltimate`) and `sheetText` (the
- * backstory, sheet.mjs `tidyBiography`). A player's write of any of the three is listed in
+ * `toggleEquipped`), `ultimate` (sheet-header.mjs `commitUltimate`, `setUltimate`) and `sheetText` (the
+ * backstory, sheet-sidebar.mjs `tidyBiography`). A player's write of any of the three is listed in
  * `sheetWrites` and stands, as it was before it had a name (tier 2's "a player's write on the
  * road is judged as E29's table says"); none is in `JUDGED` below, so none leaves the browser.
  *

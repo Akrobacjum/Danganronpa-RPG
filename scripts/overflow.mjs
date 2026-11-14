@@ -125,7 +125,7 @@ export async function setOverflowRules({ threshold, effects } = {}) {
         next.effects[key] = {
             ...base,
             on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),
-            // Some of the eight have no size at all - Despair, Silence and Fog
+            // Some of the thirteen have no size at all - Despair, Silence and Fog
             // are on or off - so an edit that carries no number leaves `by`
             // exactly as the catalogue had it rather than writing NaN.
             by: base.by === undefined ? undefined : Number.isFinite(by) ? heldBy(by) : current.effects[key].by
@@ -283,15 +283,6 @@ export function overflowThreshold() {
  */
 export const OVERFLOW_KEY = "overflow";
 
-/**
- * Feed the counter. GM only.
- *
- * TWO CALLERS, AND THEY MEAN DIFFERENT THINGS. `adjustDespair` sends whatever
- * would not fit in a full pool - income the Monokuma never chose to lose. The
- * Feed the Overflow Call sends a point they chose to spend. The counter does
- * not distinguish them, and should not: what darkens the world is the quantity
- * of Despair loose in it, not the mood in which it got there.
- */
 /** Whether this GM is not the primary while another GM, connected, is (`addOverflow`; E37 C7 `takeOverflow`, `checkOverflow`). */
 function primaryElsewhere() {
     if (isPrimaryGm()) return false;
@@ -345,6 +336,15 @@ async function askPrimaryToCheck(ahead, target) {
     return res.reason === "noAnswer" || res.reason === "noGm" ? HERE : null;
 }
 
+/**
+ * Feed the counter. GM only.
+ *
+ * TWO CALLERS, AND THEY MEAN DIFFERENT THINGS. `adjustDespair` sends whatever
+ * would not fit in a full pool - income the Monokuma never chose to lose. The
+ * Feed the Overflow Call sends a point they chose to spend. The counter does
+ * not distinguish them, and should not: what darkens the world is the quantity
+ * of Despair loose in it, not the mood in which it got there.
+ */
 export async function addOverflow(amount, { reason = "spill" } = {}) {
     if (!game.user.isGM) return null;
     const n = Math.round(Number(amount));
@@ -388,7 +388,7 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
      * the sandbox on 30.08 before this line existed.
      *
      * ARMED FOR THE TIME OF DAY THAT HAS NOT STARTED, not for the one running.
-     * That is not caution, it is the only correct target: three of the eight
+     * That is not caution, it is the only correct target: three of the thirteen
      * debuffs are CONSUMED at a boundary - `shift` by `SearchTokens.reset`,
      * `panic` by `resetAllActions`, `darkness` by the Eclipse's own crossing
      * allowance - and all three have already run for the hour in progress. Fired
@@ -1121,7 +1121,6 @@ export function overflowCrossings(allowance) {
  * checkbox somebody will eventually mis-wire.
  * ========================================================================== */
 
-/** The pane's HTML, for the Despair Flow window's Overflow tab (gm-team-dialog.mjs, `kitTabs`). */
 /**
  * The one line of `overflowSection` that moves on its own.
  *

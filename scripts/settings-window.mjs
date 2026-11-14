@@ -38,7 +38,7 @@
  * LIVE-E49-02's): each setting whose value changed is written by `game.settings.set` - which runs its `onChange`, once -
  * and a setting left as it was is not written at all; when one written carries `requiresReload`, the reload is asked
  * once after the last write, through Foundry's own `SettingsConfig.reloadConfirm({ world })` (`world` when a world
- * setting asked: Foundry then reloads every client), as i18n.mjs `confirmLanguageReload` asks it. Nothing of a setting
+ * setting asked: Foundry then reloads every client), in `askReload` below. Nothing of a setting
  * row is written before Save; Cancel and the window's close write nothing. The volumes and the Voice section are not
  * setting rows (`data-drpg-setting`) and keep their own writes, at once, as the Look window had them: a volume is heard
  * while it moves, and a device is tried as it is picked; the section says so in a line of its own.
@@ -92,7 +92,9 @@ export const GAME_SECTIONS = Object.freeze([
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),
     /* "sequences" (1.2.109, E61-62's full-screen sequences) where 1.2.109 put it, beside the rooms' fog: kept in the r112
        merge with E101's moves (13.11.2026). */
-    section("game", "gm", "fa-map-location-dot", ["regionFog", "sequences"]),
+    /* "documentLanguage" (E57 C3, D34): the language the module writes world documents in, shown since a document is
+       written through it. */
+    section("game", "gm", "fa-map-location-dot", ["regionFog", "sequences", "documentLanguage"]),
     /* E101 (the owner's yes of 12.11.2026 to the GM screens' review): the five rows that patch Foundry, Daggerheart or
        another module rather than set a rule of the game came here from audio, rules and gm - Voice in Foundry's window,
        Replace Daggerheart's Fear, the module's windows for Foundry's tools, no file browser for players, the token
@@ -120,7 +122,7 @@ function registered(key) {
 }
 
 /** Whether `user` may write world settings: Foundry's own permission (the Assistant GM up). */
-export function mayModifyWorld(user = game.user) {
+function mayModifyWorld(user = game.user) {
     try {
         return typeof user?.can === "function" ? Boolean(user.can("SETTINGS_MODIFY")) : Boolean(user?.isGM);
     } catch {
@@ -211,7 +213,7 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
    (E49 A1d's shots: as a line of the section it fell under the section's last row). The window's render keeps it
    following the field before Save. Since E101 table note 5 the total alone (the owner: a player reads what it does, not
    how the factors ride on each other): under Stained Glass this screen's factor times the slider, under Legacy the
-   slider; the Look window's longer line (look.mjs `scaleNote`) is not drawn here. */
+   slider; the Look window's longer line (look.mjs `scaleNote`) was drawn nowhere and went with the needsCode line (R6904). */
 function scaleNow(slider) {
     const total = Math.round((isStainedGlass() ? slider * autoScale() : slider) * 100);
     return game.i18n.format("DRPG.SettingsWindow.scaleNow", { total });
@@ -260,7 +262,7 @@ function extrasOf(key, { voice = false } = {}) {
 }
 
 /** The sections of `sections` that `user` is drawn, each with its keys and extras: one with nothing to draw is left out. */
-export function sectionsFor(sections, user = game.user, { voice = false } = {}) {
+function sectionsFor(sections, user = game.user, { voice = false } = {}) {
     return sections.map(s => ({ ...s, shown: keysFor(s, user), extra: s.place === "game" && !mayModifyWorld(user) ? { html: "", count: 0 } : extrasOf(s.key, { voice }) }))
         .filter(s => s.shown.length || s.extra.count);
 }
@@ -360,7 +362,7 @@ export function placeVoice(root, fieldset) {
 }
 
 /** The rows of the other theme's settings disabled, the rest enabled, for `theme` (the window's select before Save). */
-export function syncTheme(root, theme) {
+function syncTheme(root, theme) {
     for (const row of root?.querySelectorAll?.("[data-drpg-theme-only]") ?? []) {
         const off = row.dataset.drpgThemeOnly !== theme;
         row.classList.toggle("is-off", off);
@@ -386,7 +388,7 @@ function fieldValue(field, reg) {
 }
 
 /** Foundry's reload question after a setting with `requiresReload` (SettingsConfig `reloadConfirm`), else a plain reload. */
-export async function askReload({ world = false } = {}) {
+async function askReload({ world = false } = {}) {
     try {
         const SettingsConfig = foundry.applications?.settings?.SettingsConfig ?? globalThis.SettingsConfig;
         if (SettingsConfig?.reloadConfirm) return SettingsConfig.reloadConfirm({ world });

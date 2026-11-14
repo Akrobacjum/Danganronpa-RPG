@@ -22,25 +22,25 @@
  * the Mastermind or a GM's lock let through a seal is one more crossing: the card never says how they passed (DA42).
  *
  * THE ENDS. With a card: the tailer neither in the room the target left nor in the one it reached (lost, the range), a
- * new day, a body announced (chapter.mjs `BODY_ANNOUNCED_HOOK`, before the gather), a Dash of the target above the
+ * new day, a body announced (body.mjs `BODY_ANNOUNCED_HOOK`, before the gather), a Dash of the target above the
  * tail's total - a critical tail only to a critical Dash. Silent: the tailer or the target dead, an incident running -
  * nothing is sent later for a tail ended so. A new tail of the same tailer replaces the old one.
  */
 
 import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, whisperToOwnerOnly, log, error, esc } from "./utils.mjs";
+import { isPrimaryGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
 import { tailStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 
 /** The day a tail is counted in: the chapter's and the clock's day, as one mark. */
-export function tailDay(clock = getClock()) {
+function tailDay(clock = getClock()) {
     return `${clock?.chapter ?? 0}:${clock?.day ?? 1}`;
 }
 
 /** Every tail under way, `[tailerId, row]`. */
-export function tailsUnderWay() {
+function tailsUnderWay() {
     return Object.entries(tailStore.entries() ?? {}).filter(([, row]) => row?.targetId);
 }
 
@@ -71,7 +71,7 @@ export async function startTail({ tailer, target, total = 0, isCritical = false,
 }
 
 /** End the tail of `tailerId`: with a card of `why` ("lost", "day", "body", "dash") to the tailer's owners, or silently. */
-export async function endTail(tailerId, why = null) {
+async function endTail(tailerId, why = null) {
     const row = tailStore.get(tailerId);
     if (!row) return false;
     await tailStore.drop(tailerId);
@@ -131,7 +131,7 @@ export async function onTailCrossing(event = {}) {
         }
         const who = row.critical && !event.eclipse ? await standingIn(there?.scene, event.to, new Set([tailerId, target.id])) : [];
         const text = who.length
-            ? game.i18n.format("DRPG.Infiltrate.tail.movedWith", { name: target.name, room: event.to, who: who.join(", ") })
+            ? game.i18n.format("DRPG.Infiltrate.tail.movedWith", { name: target.name, room: event.to, who: listOf(who) })
             : game.i18n.format("DRPG.Infiltrate.tail.moved", { name: target.name, room: event.to });
         await whisperToOwnerOnly(tailer, `<p>${esc(text)}</p>`);
         sent++;
@@ -151,7 +151,7 @@ export async function tailsAfterDash(actor, total = 0, isCritical = false) {
 }
 
 /** End every tail under way with the card `why` (a body announced, a new day), or silently. Answers how many ended. */
-export async function endAllTails(why = null, { onlyBefore = null } = {}) {
+async function endAllTails(why = null, { onlyBefore = null } = {}) {
     let n = 0;
     for (const [tailerId, row] of tailsUnderWay()) {
         if (onlyBefore && row.day === onlyBefore) continue;

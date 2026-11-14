@@ -1,0 +1,160 @@
+<!-- Daggerheart 2.12.8 templates/sheets/actors/character/sidebar.hbs with its partials resource-bar.hbs and inventory-item-compact.hbs, rendered by Handlebars 4.7.8 (MIT, LICENSE-daggerheart beside this file). The context: a level-1 student with Health 0 of 4 and Stress 0 of 6 marked, no armour, the unarmed row the system draws with no weapon, none of the system's equipped items (the module draws its own rows), and two experiences at +2. audit/sheet-column.mjs. -->
+<aside class="character-sidebar-sheet">
+    <div class="portrait ">
+        <img src="" alt="Aiko" data-action='editImage' data-edit="img">
+        <a class="death-roll-btn" data-tooltip="DAGGERHEART.UI.Tooltip.makeDeathMove" ><i class="fa-solid fa-skull death-save"></i></a>
+    </div>
+    <div class="info-section pip-display">
+        <div class="resources-section">
+                <div class="slot-value">
+                    <div class="slot-bar">
+                            <span class='slot  ' data-action="toggleHitPoints" data-value="1">
+                            </span>
+                            <span class='slot  ' data-action="toggleHitPoints" data-value="2">
+                            </span>
+                            <span class='slot  ' data-action="toggleHitPoints" data-value="3">
+                            </span>
+                            <span class='slot  ' data-action="toggleHitPoints" data-value="4">
+                            </span>
+
+                    </div>
+                    <div class="slot-label">
+                        <span class="label">HP</span>
+                        <span class="value">0 / 4</span>
+                    </div>
+                </div>
+                <div class="slot-value">
+                    <div class="slot-bar">
+                            <span class='slot  ' data-action="toggleStress" data-value="1">
+                            </span>
+                            <span class='slot  ' data-action="toggleStress" data-value="2">
+                            </span>
+                            <span class='slot  ' data-action="toggleStress" data-value="3">
+                            </span>
+                            <span class='slot  ' data-action="toggleStress" data-value="4">
+                            </span>
+                            <span class='slot  ' data-action="toggleStress" data-value="5">
+                            </span>
+                            <span class='slot  ' data-action="toggleStress" data-value="6">
+                            </span>
+
+                    </div>
+                    <div class="slot-label">
+                        <span class="label">Stress</span>
+                        <span class="value">0 / 6</span>
+                    </div>
+                </div>
+        </div>
+        <div class="status-section pip-display">
+            <div class="status-number">
+                <div class='status-value'>
+                    <p>10</p>
+                </div>
+                <div class="status-label">
+                    <h4>Evasion</h4>
+                </div>
+            </div>
+
+                <div class="status-number armor-slots">
+                    <div class='status-value'>
+                        <p>-</p>
+                    </div>
+                    <div class="status-label">
+                        <h4>Armor Slots</h4>
+                    </div>
+                </div>
+
+            <div class="status-number">
+                <div class='status-value'>
+                    <p>1</p>
+                </div>
+                <div class="status-label">
+                    <h4>Proficiency</h4>
+                </div>
+            </div>
+        </div>
+        <div class="threshold-section">
+            <h4 class="threshold-label">Minor</h4>
+            <h4 class="threshold-value">5</h4>
+            <h4 class="threshold-label">Major</h4>
+            <h4 class="threshold-value">10</h4>
+            <h4 class="threshold-label">Severe</h4>
+        </div>
+    </div>
+
+    <div class="shortcut-items-section">
+        <section class="equipment-section">
+            <div class="title">
+                <side-line-div class="invert"></side-line-div>
+                <h3>Equipment</h3>
+                <side-line-div></side-line-div>
+            </div>
+            <ul class="items-sidebar-list">
+                    <li
+                        class="inventory-item inventory-item-compact"
+                        data-item-id="attack"  data-action-id="attack"  data-item-uuid="Actor.a.attack" data-type="attack" data-no-compendium-edit="" draggable="true"
+                        >
+                        <div class="img-portrait" data-action='useItem'
+                        data-tooltip="#attack#Actor.a"  >
+                            <img src="" class="item-img " />
+                        </div>
+
+                        <span class="item-name">Unarmed Attack</span>
+
+                            <div class="item-labels">
+                                <div class="label">
+                                        <span>Melee</span>
+                                            <span>-</span>
+                                        <span>Physical</span>
+                                </div>
+                            </div>
+
+                        <div class="controls">
+                                    <a data-action="triggerContextMenu" data-tooltip="DAGGERHEART.UI.Tooltip.moreOptions">
+                                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                                    </a>
+                        </div>
+                    </li>            </ul>
+        </section>
+        <section class="loadout-section" data-in-vault="false">
+            <div class="title">
+                <side-line-div class="invert"></side-line-div>
+                <h3>Loadout</h3>
+                <side-line-div></side-line-div>
+            </div>
+            <ul class="items-sidebar-list">
+            </ul>
+        </section>
+        <section class="experience-section">
+            <div class="title">
+                <side-line-div class="invert"></side-line-div>
+                <h3>Experience</h3>
+                <side-line-div></side-line-div>
+            </div>
+            <div class="experience-list">
+                    <div class="experience-row" data-tooltip-text="">
+                        <span class="experience-value">
+                            +2
+                        </span>
+                        <span class="experience-name">Ultimate Baker</span>
+                        <div class="controls">
+                            <a data-action="sendExpToChat" data-type="experience" data-id="a">
+                                <i class="fa-regular fa-message"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="experience-row" data-tooltip-text="">
+                        <span class="experience-value">
+                            +2
+                        </span>
+                        <span class="experience-name">Hall Monitor of the Third Floor</span>
+                        <div class="controls">
+                            <a data-action="sendExpToChat" data-type="experience" data-id="b">
+                                <i class="fa-regular fa-message"></i>
+                            </a>
+                        </div>
+                    </div>
+            </div>
+        </section>
+    </div>
+</aside>
