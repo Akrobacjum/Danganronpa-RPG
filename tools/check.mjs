@@ -1328,6 +1328,13 @@ async function text() {
             for (const f of ALL ? live : live.slice(0, 25)) console.log(`text:   ${m.test} report: ${f.what}`);
             if (!ALL && live.length > 25) console.log(`text:   ${m.test} report: ${live.length - 25} more not printed (node tools/check.mjs text --all)`);
         }
+        /* What a detector reports beside what its mode counts (T4: over a target, or over a limit no stage makes red; E57
+           T4, 14.11.2026): printed in either mode, never red. */
+        if (Array.isArray(r.reported)) {
+            console.log(`text:   ${m.test} reported beside it (never red): ${r.reported.length}`);
+            for (const f of ALL ? r.reported : r.reported.slice(0, 25)) console.log(`text:   ${m.test} report: ${f.what}`);
+            if (!ALL && r.reported.length > 25) console.log(`text:   ${m.test} report: ${r.reported.length - 25} more not printed (node tools/check.mjs text --all)`);
+        }
         /* C6's report detectors (their findings carry `lang`): by surface and by top-level key group, then each one's own. */
         if (live.length && live.every(f => f.lang)) {
             const handbook = f => /^docs\//.test(String(f.key));

@@ -1892,7 +1892,7 @@ export const ACTIONS = {
             + "Move; each crossing after that takes a free crossing if you hold one (Sprint, Dash, Facilities), or "
             + "an action.",
         description: "Moving inside your room is free. Each time of day, crossing into another room uses your Free "
-            + "Move, then your free crossings, then actions; with none left, the crossing is undone. An Overflow can "
+            + "Move, then free crossings, then actions; with none left, the crossing is undone. An Overflow can "
             + "block the Free Move, and the GMs can turn the charge off.",
         instruction: "Drag your token. Crossing into another room is what counts - the cost "
             + "is applied when you arrive."
@@ -2496,9 +2496,9 @@ export const HOPE_CALLS = {
          * (the audit of 1.2.113, A113-C4-5; R5981).
          */
         freeRest: "short",
-        effect: "Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time "
-            + "of day stays available. This rest offers no Breath: it would give back less Hope than Relief costs. "
-            + "Back out of choosing what to restore, and the Hope you paid comes back."
+        effect: "Take a Short Rest at once, in any room, without an action; your usual Short Rest this time of day "
+            + "stays available. It offers no Breath, which returns less Hope than it costs. Back out of choosing "
+            + "what to restore to get your Hope back."
     },
     determination: {
         /*

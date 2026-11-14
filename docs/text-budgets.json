@@ -124,11 +124,13 @@
         },
         {
             "surface": "button",
-            "keys": "(Button|\\.button)$"
+            "keys": "((?<!By)Button|\\.button)$",
+            "note": "Not ...ByButton (E57 T4, 14.11.2026): DRPG.Trial.presentByButton and objectionByButton are sentences that send a player to a button - a player's card (whisperToOwner) and a toast - read by their senders, below."
         },
         {
             "surface": "tab",
-            "keys": "\\.tab[A-Z][A-Za-z]*$"
+            "keys": "\\.tab(?!(?:Note|Line)$)[A-Z][A-Za-z]*$",
+            "note": "Not .tabNote or .tabLine (E57 T4, 14.11.2026): DRPG.Facility.editor's are a tab's note under its fields (room-setup.mjs, <p class=\"notes\">), not a tab's name; no surface names a window's note, so they stay unclassified."
         },
         {
             "surface": "window-title",

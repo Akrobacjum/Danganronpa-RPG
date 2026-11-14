@@ -1223,13 +1223,23 @@ export const groupOf = key => String(key).split(".").slice(0, 2).join(".");
  * pilot: a count here is a reading of the rebuilt budgets, not a verdict on the
  * module's texts. `read` is the strings that have a surface; the rest are
  * `unclassified`, counted.
+ *
+ * WHAT IS RED (E57 T4, 14.11.2026). `found` holds only a string over the limit of
+ * a surface whose `fail` is a stage: B1 (DB11, the owner's) makes the target the
+ * report's and the limit the one that fails, and only for the player's and the
+ * settings' texts. Everything else over a number - over a target, or over a limit
+ * whose surface's `fail` is null (a button, a tab, a window title, a tooltip, the
+ * GM's card) - is `reported`, which check.mjs prints in either mode. Until then
+ * `found` held both, so T4 at FAIL would have made red the 313 of its 325 findings
+ * at 6cd30a92 that were over a target alone, which the owner's pilot of 01.11.2026
+ * approved texts beyond (docs/text-style.md B2).
  */
 export function lengthOver(bag = {}) {
     const budgets = bag.budgets;
     const surfaces = budgets?.surfaces && typeof budgets.surfaces === "object" ? budgets.surfaces : {};
     const map = surfacesOf(bag, "lengthOver");
     const allow = allowedFor(budgets, "T4");
-    const found = [], bySurface = {};
+    const found = [], reported = [], bySurface = {};
     let read = 0, unclassified = 0, allowed = 0;
     for (const u of uiUnits(bag)) {
         const id = map.surfaceOf(u.key), s = id ? surfaces[id] : null;
@@ -1243,10 +1253,10 @@ export function lengthOver(bag = {}) {
         if (!over) continue;
         row[over]++;
         const fail = over === "limit" ? (s.fail ?? null) : null;
-        found.push({ key: u.key, kind: `${u.lang}-${over}`, surface: id, lang: u.lang, words: n, fail,
+        (fail ? found : reported).push({ key: u.key, kind: `${u.lang}-${over}`, surface: id, lang: u.lang, words: n, fail,
             what: `${u.where}: ${n} words, over the ${id} ${over} of ${over === "limit" ? s.limit : s.target} (docs/text-budgets.json, rebuilt 30.10)${fail ? `; red from ${fail}` : ""}` });
     }
-    return { found, read, counts: { unclassified, allowed, ...(map.counts ?? {}) }, bySurface, sources: ["budgets"] };
+    return { found, reported, read, counts: { unclassified, allowed, ...(map.counts ?? {}) }, bySurface, sources: ["budgets"] };
 }
 
 /* ---------------------------------- T5 ------------------------------------- */
@@ -2561,7 +2571,9 @@ export const MODES = Object.freeze({
     tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) }),
     glossaryHits: Object.freeze({ test: "T8", mode: "report", fail: "E25", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
     retiredHits: Object.freeze({ test: "T28", mode: "fail", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
-    lengthOver: Object.freeze({ test: "T4", mode: "report", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
+    /* FAIL since E57 T4 (14.11.2026): red only over a limit on a surface with a `fail` stage (B1, DB11); the rest it reports
+       beside it (`reported`). At 0 after two config texts and one Polish were shortened and two key rules narrowed. */
+    lengthOver: Object.freeze({ test: "T4", mode: "fail", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     /* FAIL since E57 C12 (14.11.2026): its one finding after the text lines, SFX_EVENTS.despairCall.hint, reworded. */
@@ -2893,8 +2905,11 @@ export const FIXTURES = Object.freeze({
     lengthOver: {
         /* Rebuilt budgets of its own: a label (2, limit 3), the diagnostics (3, no limit), a toast (3, limit 5) by
            ui.notifications, a card (3, limit 5) by the room's audience or announce; the diagnostics' key rule first. */
-        flags: ["DRPG.Fx.card en-limit", "DRPG.Fx.count.other en-limit", "DRPG.Fx.diag.report en-target", "DRPG.Fx.long.label en-target",
-            "DRPG.Fx.longer.label en-limit", "DRPG.Fx.toast en-target", "DRPG.Fx.toast pl-limit", "DRPG.Fx.toastLong en-limit"],
+        /* Red (`flags`) only over a limit on a surface with a `fail` stage (B1, DB11: the target is the report's, the limit
+           fails); the rest is the report (`reported`): over a target, and over the card's limit, whose `fail` is null (E57 T4,
+           14.11.2026). */
+        flags: ["DRPG.Fx.count.other en-limit", "DRPG.Fx.longer.label en-limit", "DRPG.Fx.toast pl-limit", "DRPG.Fx.toastLong en-limit"],
+        reported: ["DRPG.Fx.card en-limit", "DRPG.Fx.diag.report en-target", "DRPG.Fx.long.label en-target", "DRPG.Fx.toast en-target"],
         input: {
             budgets: {
                 surfaces: {
@@ -3716,6 +3731,11 @@ export function selfCheck(detectors = DETECTORS, tools = {}, schemas = {}) {
         if (fx.pending) {
             const held = (r?.pending ?? []).map(itemOf).sort(), notDue = [...fx.pending].sort();
             if (!same(held, notDue)) out.push(`${name} holds back ${held.length ? held.join(", ") : "nothing"} of its fixture as not yet due, not ${notDue.join(", ")} - the stage rule is broken`);
+        }
+        /* What a detector reports beside its red findings (T4: over a target, or over a limit no stage makes red; E57 T4). */
+        if (fx.reported) {
+            const told = (r?.reported ?? []).map(itemOf).sort(), toldWant = [...fx.reported].sort();
+            if (!same(told, toldWant)) out.push(`${name} reports ${told.length ? told.join(", ") : "nothing"} of its fixture beside its findings, not ${toldWant.join(", ")} - a text over its target would be red, or one over its limit silent`);
         }
         /* What a detector lists apart from its findings (T27's pairs whose before is gone, E65 C9), the counts its fixture
            names, and the faults it carries of the file it read (`faults`, the fixture's own: T27's names one). */

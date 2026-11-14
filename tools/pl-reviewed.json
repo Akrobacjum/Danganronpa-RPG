@@ -49,6 +49,13 @@
       "dropped": 0,
       "baseline": false,
       "note": "E57 C12: T8's and T11's lang findings (the glossary's refuse; Straw Poll feminine)"
+    },
+    {
+      "date": "2026-11-14",
+      "keys": 1,
+      "dropped": 0,
+      "baseline": false,
+      "note": ""
     }
   ],
   "keys": {
@@ -1575,7 +1582,7 @@
     "DRPG.Config.ACTIONS.listen.label": "7f849ac1:7f849ac1:b",
     "DRPG.Config.ACTIONS.listen.thresholds.0.result": "0346f833:98b2385b:b",
     "DRPG.Config.ACTIONS.listen.thresholds.1.result": "50ebbee6:32796800:b",
-    "DRPG.Config.ACTIONS.move.description": "c9cc6e63:05d91be6:b",
+    "DRPG.Config.ACTIONS.move.description": "514cd88a:05d91be6",
     "DRPG.Config.ACTIONS.move.hint": "155d5232:3d2ed217:b",
     "DRPG.Config.ACTIONS.move.instruction": "9cb47af1:379bf16a:b",
     "DRPG.Config.ACTIONS.move.label": "7f2c2a34:7f2c2a34:b",

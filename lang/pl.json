@@ -7409,7 +7409,7 @@
         },
         "relief": {
           "label": "Relief",
-          "effect": "Weź od razu Short Rest; nie kosztuje akcji i nie wymaga specjalnego pokoju. Twój Short Rest z tej pory dnia zostaje nietknięty. W tym odpoczynku nie ma Breath: oddałby mniej Hope, niż kosztuje Relief. Jeśli zamkniesz okno wyboru, Call się anuluje, a Hope do ciebie wraca."
+          "effect": "Weź od razu Short Rest; nie kosztuje akcji i nie wymaga specjalnego pokoju. Twój Short Rest z tej pory dnia zostaje nietknięty. W tym odpoczynku nie ma Breath: oddałby mniej Hope, niż kosztuje Relief. Jeśli zamkniesz okno wyboru, Call się anuluje i Hope wraca."
         },
         "determination": {
           "label": "Resolve",
