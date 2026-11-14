@@ -66383,6 +66383,36 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{the table renamed, and each region's table afterwards: the Kitchen's two pieces on the new name, the Garden on its own table}");
     }],
 
+    ["a secret project revealed before it is completed still stamps its room action's completion, so the action's lifetime counts from then (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 3): a reveal moves the action from the GMs' half to projectMeta and leaves the GMs' row's field null, and the project's step read its row as `{ ...metaFor, ...secretsOf }`, so the null hid the action from the completion row (`COMPLETION_EFFECTS` facility, `has: meta => Boolean(meta.facility)`) and nothing stamped `completedAt` - an action of three times of day then stood for good; since, a null of the GMs' half is no value (projects-secrecy.mjs `bothHalves`)", async () => {
+        /* Red at 1c820482: completedAt null after the completion, and the action standing three times of day later. Read on
+           this GM's browser; the scenario 99-actions holds the player's browser on the roads a table takes. */
+        const P = await import("./projects.mjs");
+        const F = await import("./facilities.mjs");
+        const { actor, where } = await playerInRoom();
+        must(actor && where?.room, "no connected player's character stands in a named room - this would measure nothing");
+        const read = {};
+        let id = null;
+        try {
+            id = (await P.createProject({ name: "SUITE reveal then complete", target: 2, room: where.room, secret: true }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE reveal soup", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "timesOfDay", n: 1 } });
+            await P.revealProject(id);
+            await settle();
+            await P.addProgress(id, 2);
+            await settle();
+            const stamp = F.projectFacilityOf(id).completedAt;
+            const clock = getClock(), later = { ...clock, day: (clock.day ?? 1) + 1 };
+            read.stamp = Boolean(stamp) && stamp.at === F.facilityOrdinal().at;
+            read.now = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+            read.nextDay = (await F.projectActionsAt(where, game.user, later)).some(r => r.project.id === id);
+        } finally {
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ stamp: true, now: true, nextDay: false }),
+            "{the completion stamped now; the action stands now; and not a day later (its lifetime is one time of day)}");
+    }],
+
     ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
         /*
          * E12 C5, 11.10.2026; plan-E12 section 4's C5, audit S16-07. The gather's room was looked up

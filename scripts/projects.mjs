@@ -51,7 +51,7 @@ import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, toldSight
+    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, toldSight, bothHalves
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
@@ -1520,7 +1520,7 @@ async function changeStep(countdownId, change, by) {
     if (!project) return { result: null, after: [] };
     const after = [];
     // Both halves, before anything below can delete them: a repair's row goes with it in this step.
-    const meta = { ...metaFor(countdownId), ...secretsOf(countdownId) };
+    const meta = bothHalves(countdownId);
     const up = countsUp(countdownId);
     // The name the step reports (S17-31): a secret project's countdown carries `HIDDEN_NAME`, its name is the GMs' store's.
     const named = (isSecret(countdownId) ? secretsOf(countdownId).secretName : null) ?? project.name;
@@ -2171,7 +2171,7 @@ export function sabotageOfRequest(saboteur, requestId) {
  * @param {(id: string) => object} [options.meta]
  * @returns {string|null}
  */
-export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = id => ({ ...metaFor(id), ...secretsOf(id) }) } = {}) {
+export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = bothHalves } = {}) {
     if (!repairId) return "there is no repair to take back";
     if (!targetId) return "no frozen project was named";
     if (meta(targetId)?.frozenBy !== repairId) return "that repair is not what froze the project";
@@ -2309,7 +2309,7 @@ async function announceTrapReady(countdownId, name, { watched = false, armed = f
     if (!isIndirectMurder(countdownId)) return null;
 
     // The room from projectMeta, the killer, the trigger and the condition from the GMs' store (E05).
-    const meta = { ...metaFor(countdownId), ...secretsOf(countdownId) };
+    const meta = bothHalves(countdownId);
     /*
      * `meta.by` IS AN ACTOR ID, and this line used to compare it to a NAME -
      * `a.name === meta.by` - against a field that nothing in the module ever
@@ -2494,7 +2494,7 @@ export function projectEditChange(patch = {}) {
 export async function patchProjectMeta(countdownId, data) {
     if (!game.user?.isGM) return null;
     await applyProjectChange(countdownId, { meta: data ?? {} }, { by: { kind: "gm" } });
-    return { ...metaFor(countdownId), ...secretsOf(countdownId) };
+    return bothHalves(countdownId);
 }
 
 /**

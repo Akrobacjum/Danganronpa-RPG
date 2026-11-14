@@ -195,6 +195,20 @@ export function secretsOf(countdownId) {
 }
 
 /**
+ * A PROJECT'S ROW, BOTH HALVES (the Facilities report of 14.11.2026, 1.2.115): projectMeta's, with the GMs' half's fields
+ * over it - but a field the GMs' half holds as null is no value. A reveal moves the fields of
+ * `PROJECT_SECRET_WHILE_SECRET` to projectMeta and lets the GMs' row's go by setting them null (`setProjectMeta`), and
+ * `{ ...metaFor, ...secretsOf }` let that null hide the field projectMeta now holds: a secret project revealed before it
+ * was completed had no action for its completion row, so `completedAt` was never stamped and its lifetime never counted
+ * (the tier-2 "a secret project revealed before it is completed still stamps ..."). On a player's browser the GMs' half
+ * is `{}` (`secretsOf`), so this is projectMeta's row.
+ */
+export function bothHalves(countdownId) {
+    const held = Object.entries(secretsOf(countdownId)).filter(([, value]) => value !== null && value !== undefined);
+    return { ...metaFor(countdownId), ...Object.fromEntries(held) };
+}
+
+/**
  * Patch parts of a trap's trigger on the GMs' side, and nothing else of it: `armed`, `firedAt`,
  * `condition`, each stamped on its own (the store splits `trigger`), so the primary stamping a trap
  * fired and another GM re-arming it both keep theirs. traps.mjs's three writers come here; a GM
@@ -251,7 +265,7 @@ export async function setProjectMeta(countdownId, data) {
         for (const field of taken) delete next[field];
         await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...projectMeta(), [countdownId]: next });
     }
-    return { ...metaFor(countdownId), ...secretsOf(countdownId) };
+    return bothHalves(countdownId);
 }
 
 /**
