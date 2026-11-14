@@ -56,11 +56,11 @@ export function caseSummaryHtml(payload, { esc = s => String(s ?? "").replace(/[
  * SHOW SUMMARY (E99 C7; D2's answer: the GM presses it after the verdict; Q-E99-9: once per trial). On a GM: the
  * chapter's graph, the trial's ticks, what the students found and the verdict's `correct`, composed by
  * `composeCaseSummary`; a preview of exactly what goes out (Close, the default; Send, never under Enter); Send posts one
- * public card that is the summary (Q-E99-6: a chat card, no notice), with its sound (`SFX_EVENTS.caseSummary`, Q-E99-7),
- * and marks it sent in the trial's record (`summaryShown`, a time; trial-progress.mjs `TRIAL_RECORD`), so a second press
+ * public card that is the summary (Q-E99-6: a chat card, no notice), which every browser plays as the case summary's
+ * board with its sound (`SFX_EVENTS.caseSummary`, Q-E99-7; sequence.mjs `playCaseSummary`, fix-113p), and marks it sent in the trial's record (`summaryShown`, a time; trial-progress.mjs `TRIAL_RECORD`), so a second press
  * in the same trial says so and sends nothing, and a second trial in the chapter has a summary of its own (Q-E99-9).
- * Until the round of 12.11 the mark was a row of the GMs' ticks store per chapter. The animated board is E61's verdict board's (not in this
- * tree yet): the card is its static form.
+ * Until the round of 12.11 the mark was a row of the GMs' ticks store per chapter. The animated board, which E99 left to
+ * E61 and E61 did not build, is sequence.mjs's since 1.2.113 (the owner's item 451, 09.11.2026); the card is its record.
  */
 export async function showCaseSummary() {
     if (!game.user?.isGM) return null;
@@ -91,12 +91,16 @@ export async function showCaseSummary() {
     });
     if (answer !== "send") return null;
     if (trialProgress()?.summaryShown) return null;
-    await setTrialProgress({ summaryShown: Date.now() });
+    const at = Date.now();
+    await setTrialProgress({ summaryShown: at });
     await ChatMessage.create({
         // On the chat kit (chat-card.mjs `chatCard`, E49 B5a's one road for a card): the title in the card's head
         content: chatCard({ glyph: "scale-balanced", title: game.i18n.format("DRPG.CaseSummary.title", { chapter }), body: html }),
         speaker: { alias: L("DRPG.CaseSummary.speaker") },
-        flags: { [MODULE_ID]: { caseSummary: true, sfx: "caseSummary" } }
+        /* the board every browser plays from this card (sequence.mjs `playCaseSummary`, fix-113p): the payload above,
+           whose words the card is, and the time that names it once; the card's sound is the board's since, so the card
+           carries no `sfx` */
+        flags: { [MODULE_ID]: { caseSummary: true, caseBoard: { at, ...payload } } }
     });
     return L("DRPG.CaseSummary.sent");
 }

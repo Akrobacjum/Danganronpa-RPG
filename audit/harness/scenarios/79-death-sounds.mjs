@@ -11,7 +11,7 @@
  * Measured at 9ad2174e before the fix: the incident's kill gave p3 deathFade + death, and the living convict's execution
  * gave the GM death + execution + trialClose and p3 deathFade + execution + trialClose; the kept convict's execution and
  * the Kill outside an incident were one sound a moment already. The roads:
- *   incident   the running incident's victim killed by the engine (chapter.mjs `killCharacter`, kept by the GMs: the death's
+ *   incident   the running incident's victim killed by the engine (death.mjs `killCharacter`, kept by the GMs: the death's
  *              sound to the incident's audience by `playSfxForUsers`, the Spectator's fade on p3);
  *   incidentPublic  the GM's Kill with the box unticked inside the incident (`secret: false`: the GMs' card's `death`, whispered
  *              to the incident's audience, the victim's player among them);

@@ -16,7 +16,7 @@
  * Spectator moves by dragging its own token, which movement.mjs `crossingVerdict`, `judgeMove` and movement-audit.mjs
  * `auditMove` let through walls; whether Foundry's own wall stop on a player's drag lets it through on v14 is LIVE-E92-02.
  *
- * The sheet's mode is sheet.mjs `sheetMode`'s ("spectator"): no action grid, no Calls, no row buttons, no Level Up.
+ * The sheet's mode is sheet-mode.mjs `sheetMode`'s ("spectator"): no action grid, no Calls, no row buttons, no Level Up.
  */
 
 import { MODULE_ID } from "./config.mjs";

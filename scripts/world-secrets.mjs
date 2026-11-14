@@ -224,11 +224,14 @@ export const WORLD_SECRET_RULES = Object.freeze({
         }),
         /* E99 C7: the case's summary is one public card (case-summary.mjs `showCaseSummary`): what it says is the
            allowlisted payload in its words (R3671), and its document says nothing more - it speaks under its own name,
-           never as a student, and carries its kind and its sound alone, no node id, tick or author. */
+           never as a student, and carries its kind and its sound alone, no node id, tick or author. Since 1.2.113
+           (fix-113p) it carries the board's copy of that same payload (`caseBoard`: names, words, roles and the links as
+           indices of its own list, and the time that names it) in place of the sound, which the board plays; `sfx`
+           stays allowed for the cards sent before. */
         Object.freeze({
             when: "caseSummary",
             fields: Object.freeze(["speaker.actor", "speaker.token"]),
-            flagsOnly: Object.freeze(["caseSummary", "sfx"]),
+            flagsOnly: Object.freeze(["caseSummary", "caseBoard", "sfx"]),
             since: "E99 C7", why: "the case summary's card holds only what its words say: no student speaks it, and no flag carries a node, a tick or who made them"
         }),
         /* E06 C8: a veiled card's document is addressed to the whole table, and a veiled thread

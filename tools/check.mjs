@@ -242,7 +242,18 @@
  *             reads ships (module.json's paths, a script's ./x.mjs imports,
  *             every module file a reader names; REVIEW-111-e59 finding 1). A
  *             planted package with eight faults first. Red on 421f2395:
- *             macros/ and icons/pixel-sprite.svg. Bare Node and git.
+ *             macros/ and icons/pixel-sprite.svg. And (E26 prep, 14.11)
+ *             the zip tools/build-package.mjs builds is the same bytes under
+ *             a Windows git config and none, each file the commit's own,
+ *             with a control that the config reaches git; no "DM" in a
+ *             shipped language file or handbook. Bare Node and git.
+ *   fonts     what each fonts/*.woff2 says of itself in its name table
+ *             against fonts/README.md's licence table (E26 prep, 14.11.2026;
+ *             tools/font-names.mjs, whose header has the rules): a row each,
+ *             the licence the font's own licence URL names, and a modified
+ *             face that keeps no name its copyright reserves. A planted set
+ *             with three faults first. Red on 1463f22b: no licence table, and
+ *             Special Elite (Apache 2.0) called OFL. Bare Node.
  *   tooltips  the controls with no help (E102 C1, widened after REVIEW-102;
  *             tools/tooltip-census.mjs, whose header lists the kinds of
  *             control it reads and the ones it does not): its self-check of
@@ -741,11 +752,36 @@ function tree() {
     return listed.slice(0, 20).map(f => `${f} is tracked - it is written by a run or an install, never committed`);
 }
 
+/* ------------------------------ fonts ------------------------------ */
+
+/* E26 prep (14.11.2026): tools/font-names.mjs reads the name tables; this part feeds it the files and the README. */
+async function fontsPart() {
+    const F = await import(url.pathToFileURL(path.join(REPO, "tools", "font-names.mjs")).href);
+    const dir = path.join(REPO, "fonts");
+    const problems = [];
+    const fonts = {};
+    for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".woff2")).sort()) {
+        try { fonts[file] = F.woff2Names(fs.readFileSync(path.join(dir, file))); }
+        catch (err) { problems.push(`${file}: its name table could not be read (${err.message})`); }
+    }
+    const rows = F.licenceRows(fs.readFileSync(path.join(dir, "README.md"), "utf8"));
+    for (const [file, row] of Object.entries(rows)) if (!fs.existsSync(path.join(dir, row.text))) problems.push(`${file}: its licence text fonts/${row.text} is not there`);
+    problems.push(...F.fontProblems(fonts, rows));
+    const named = Object.values(fonts).filter(n => n[1]).length;
+    if (!named) problems.push("no woff2 in fonts/ gave a family name - this part read nothing");
+    const self = F.fontSelfCheck();
+    if (self.seen !== self.want || self.got.length !== self.want) problems.push(`the self-check's planted fonts gave ${JSON.stringify(self.got)}`);
+    console.log(`fonts: ${Object.keys(fonts).length} woff2 file(s) in fonts/, ${named} with a family name (${[...new Set(Object.values(fonts).map(n => n[1]))].join(", ")}); `
+        + `${Object.keys(rows).length} licence row(s); self-check ${self.seen}/${self.want} planted fault(s) seen, ${self.got.length - self.seen} other(s); ${problems.length} problem(s)`);
+    return problems;
+}
+
 /* ------------------------------ package ------------------------------ */
 
 /*
  * THE PACKAGE SHIPS WHAT A TABLE READS (E59 C5a, 13.11.2026; D47, E59 plan M6). release.yml builds module.zip with
- * `git archive --format=zip -o module.zip HEAD`, which leaves out what .gitattributes marks `export-ignore`. This
+ * `git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD` (the two options since E26 prep), which
+ * leaves out what .gitattributes marks `export-ignore`. This
  * part lists that archive the same way (`git archive --format=tar --worktree-attributes HEAD`: the committed files,
  * and the working tree's .gitattributes, so an export rule is judged before its commit) and holds it to three rules:
  *   - its top level is the module's: PACKAGE_TOP;
@@ -769,7 +805,12 @@ const PACKAGE_NOTES = {
     "module.json": "Foundry reads it to install and load the module",
     "README.md": "the module's description, shown where the package is browsed",
     "LICENSE": "the module's licence, which ships with it",
-    "fonts/README.md": "the SIL Open Font License notice of the fonts beside it, which that licence asks to ship with them"
+    "fonts/README.md": "the fonts' licence table and their authors, which the licences ask to ship with the fonts",
+    /* E26 prep, 14.11.2026: each licence's own text, which the OFL (condition 2) and the Apache License 2.0 (4(a)) ask to
+       ship with every copy of the font; a table reads none of them. */
+    "fonts/OFL-PressStart2P.txt": "the SIL Open Font License 1.1 of pixel.woff2 and pixel-ext.woff2",
+    "fonts/OFL-VT323.txt": "the SIL Open Font License 1.1 of the VT323 files",
+    "fonts/LICENSE-SpecialElite.txt": "the Apache License 2.0 of the Special Elite files"
 };
 const PACKAGE_EXT = "mjs|js|css|json|svg|png|webp|jpe?g|gif|woff2?|ttf|otf|md|ogg|mp3|wav|webm";
 
@@ -894,6 +935,97 @@ function packageTracked() {
     return execFileSync("git", ["-C", REPO, "ls-tree", "-r", "--name-only", "HEAD"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n").filter(Boolean);
 }
 
+/*
+ * The same zip whatever the machine's git config (E26 prep, 14.11.2026): tools/build-package.mjs pins git archive's text
+ * conversions off. Built at HEAD under no extra config and under a Windows checkout's (`core.autocrlf=true`,
+ * `core.eol=crlf`), the two zips must be the same bytes, and every file of the pinned tar the commit's own blob, byte
+ * for byte (a `text eol=crlf` rule in .gitattributes would convert under any config, and only this sees it). The
+ * control: release.yml's plain command under the Windows config gives other bytes (measured at c31d9b0d), so the
+ * config does reach git archive here - without that, the comparison would hold by construction.
+ */
+function packageReproducible() {
+    const problems = [];
+    const B = { PINNED: ["-c", "core.autocrlf=false", "-c", "core.eol=lf"] };
+    let zipA, zipB, plainWin, tar;
+    const windows = ["-c", "core.autocrlf=true", "-c", "core.eol=crlf"];
+    try {
+        const run = (...args) => execFileSync("git", ["-C", REPO, ...args], { maxBuffer: 512 * 1024 * 1024 });
+        zipA = run(...B.PINNED, "archive", "--format=zip", "HEAD");
+        zipB = run(...windows, ...B.PINNED, "archive", "--format=zip", "HEAD");
+        plainWin = run(...windows, "archive", "--format=zip", "HEAD");
+        tar = run(...windows, ...B.PINNED, "archive", "--format=tar", "HEAD");
+    } catch (err) { return { problems: [`git archive failed (${String(err.message).split("\n")[0]})`], line: "not built" }; }
+    const builder = fs.readFileSync(path.join(REPO, "tools", "build-package.mjs"), "utf8");
+    if (!builder.includes(`export const PINNED = ${JSON.stringify(B.PINNED).replace(/,/g, ", ")};`)) problems.push("tools/build-package.mjs's PINNED is not the config this part builds with: change both");
+    if (!zipA.equals(zipB)) problems.push("module.zip built with tools/build-package.mjs's config differs under a Windows git config: the build is not reproducible");
+    if (plainWin.equals(zipA)) problems.push("the control: the plain git archive under a Windows config gave the pinned bytes - the config did not reach git, and this measured nothing");
+    const entries = tarEntries(tar).filter(e => e.name);
+    const blobs = execFileSync("git", ["-C", REPO, "cat-file", "--batch"], { input: entries.map(e => `HEAD:${e.name}`).join("\n") + "\n", maxBuffer: 512 * 1024 * 1024 });
+    let off = 0, differ = 0;
+    for (const e of entries) {
+        const nl = blobs.indexOf(10, off);
+        const size = Number(blobs.subarray(off, nl).toString("latin1").split(" ")[2]);
+        const blob = blobs.subarray(nl + 1, nl + 1 + size);
+        off = nl + 1 + size + 1;
+        if (!blob.equals(e.data)) { differ++; if (differ <= 5) problems.push(`${e.name}: the pinned package's copy is not the commit's bytes`); }
+    }
+    const crypto = createRequire(import.meta.url)("node:crypto");
+    const short = b => crypto.createHash("sha256").update(b).digest("hex").slice(0, 12);
+    return { problems, line: `reproducible: ${short(zipA)} under no config and a Windows one (plain command there ${short(plainWin)}), ${entries.length - differ}/${entries.length} file(s) the commit's bytes` };
+}
+
+/*
+ * release.yml's own build pins the conversions (E26 prep, 14.11.2026; the coordinator's ask). Its runner is Ubuntu,
+ * where autocrlf is off, so the plain `git archive` builds LF today; the two `-c` options make that hold whatever the
+ * runner's git config becomes. Every `git ... archive` command in a `run:` line of the workflow must carry
+ * `-c core.autocrlf=false` and `-c core.eol=lf` before `archive`, and there must be one; after a planted pair: the old
+ * line (caught) and the pinned one (clean).
+ */
+function archivePinProblems(text) {
+    const lines = text.replace(/\r\n/g, "\n").split("\n");
+    const runs = lines.map((l, i) => [i + 1, l]).filter(([, l]) => /^\s*(?:-\s*)?run:\s*\|?\s*git\b.*\barchive\b/.test(l) || /^\s*git\b.*\barchive\b/.test(l));
+    const out = [];
+    for (const [n, l] of runs) {
+        const head = l.slice(0, l.search(/\barchive\b/));
+        if (!/-c\s+core\.autocrlf=false\b/.test(head) || !/-c\s+core\.eol=lf\b/.test(head)) out.push(`line ${n}: \`${l.trim()}\` lacks -c core.autocrlf=false -c core.eol=lf before archive`);
+    }
+    return { runs: runs.length, out };
+}
+function releaseBuildPinned() {
+    const problems = [];
+    const old = archivePinProblems("      - name: Build the package\n        run: git archive --format=zip -o module.zip HEAD\n");
+    const pinned = archivePinProblems("        run: git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD\n");
+    if (old.out.length !== 1 || pinned.out.length !== 0 || pinned.runs !== 1) problems.push(`the release build's planted pair read ${JSON.stringify([old, pinned])}`);
+    let text = "";
+    try { text = fs.readFileSync(path.join(REPO, ".github", "workflows", "release.yml"), "utf8"); }
+    catch { return { problems: [...problems, ".github/workflows/release.yml could not be read"], line: "release build not read" }; }
+    const real = archivePinProblems(text);
+    if (!real.runs) problems.push(".github/workflows/release.yml runs no git archive - the build this part holds is gone or renamed");
+    problems.push(...real.out.map(p => `.github/workflows/release.yml ${p}`));
+    return { problems, line: `release.yml: ${real.runs} archive command(s), ${real.runs - real.out.length} pinned, after a planted pair` };
+}
+
+/*
+ * No "DM" in what a player or a GM reads (E26 prep, 14.11.2026; the E26 plan: old Polish macros said "DM"). The
+ * glossary's word is "GM" in both languages (docs/glossary.json, gm-a); macros/ left the repository on 13.11.2026, and
+ * this holds every shipped language file and handbook to the word, after a planted line. "DM" in a script's comment
+ * quotes the rule guide (observe.mjs, investigation.mjs: 14 files at c31d9b0d) and is not read at a table.
+ */
+const DM_WORD = /(?<![\w-])DM(?:-?\p{Ll}*)?(?![\w-])/u;
+function packageWords(entries) {
+    const problems = [];
+    const texts = entries.filter(e => /^lang\/[\w-]+\.json$/.test(e.name) || /^docs\/handbooks\/[\w.-]+\.md$/.test(e.name));
+    for (const e of texts) {
+        const lines = e.data.toString("utf8").split("\n");
+        const at = lines.findIndex(l => DM_WORD.test(l));
+        if (at >= 0) problems.push(`${e.name}:${at + 1} says "DM" - the glossary's word is "GM" (docs/glossary.json): ${lines[at].trim().slice(0, 100)}`);
+    }
+    const plant = ["Napisz do DM-a na kanale.", "a DMem", "the GM decides", "ADMIN", "DMX-1"].map(l => DM_WORD.test(l));
+    if (JSON.stringify(plant) !== JSON.stringify([true, true, false, false, false])) problems.push(`the "DM" word's planted lines read ${JSON.stringify(plant)}`);
+    if (!texts.length) problems.push("no language file or handbook in the archive - the DM rule read nothing");
+    return { problems, line: `"DM" in ${texts.length} shipped text file(s) after 5 planted lines` };
+}
+
 function pkg() {
     let entries;
     let tracked;
@@ -933,9 +1065,15 @@ function pkg() {
     if (!readers.some(r => /^scripts\/tests[\w-]*\.mjs$/.test(r.file))) problems.push("no reader matches scripts/tests*.mjs - the tests' exclusion reads nothing; rename it with the suite");
     const tops = [...new Set(files.map(f => (f.includes("/") ? `${f.split("/")[0]}/` : f)))];
     if (!files.length) problems.push("the archive listed no file - this part read nothing");
+    const same = packageReproducible();
+    problems.push(...same.problems);
+    const release = releaseBuildPinned();
+    problems.push(...release.problems);
+    const words = packageWords(entries);
+    problems.push(...words.problems);
     if (seen !== plantedCount || plantedGave !== plantedCount) problems.push(`the self-check's planted package gave ${JSON.stringify([...plant, ...missPlant])}`);
     console.log(`package: git archive HEAD (the working tree's .gitattributes): ${files.length} file(s), top level ${tops.join(" ")}; `
-        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; self-check ${seen}/${plantedCount} planted fault(s) seen, `
+        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; ${same.line}; ${release.line}; ${words.line}; self-check ${seen}/${plantedCount} planted fault(s) seen, `
         + `${plantedGave - seen} other(s); ${problems.length} problem(s)`);
     return problems;
 }
@@ -1601,6 +1739,8 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
 PARTS.package = pkg;
 // E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
 PARTS.comments = comments;
+// E26 prep: on its own line, as `package` is.
+PARTS.fonts = fontsPart;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);

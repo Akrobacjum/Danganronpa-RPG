@@ -295,7 +295,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
        `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
        this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue - on one GM's
        browser: the queue is that browser's memory (a hand-over and a Present run on the primary; a GM's Give on another
-       GM's browser races it still, E38's, row 1.2.126; E60's fix round, FG6). */
+       GM's browser races it still, E38's, row 1.2.113; E60's fix round, FG6). */
     const { copiedRemnants } = await import("./truth-bullets.mjs");
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {
@@ -454,7 +454,7 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
        those words at rest (the first's were covered by its trace's reveal, below). A body the
        table does not know is dead gets the item's move alone, which the owner chose (Q2); the
        bullet is owed by the death's row in the GMs' store and given by the publication
-       (chapter.mjs `publishDeath`), dated when and where the item was taken. The taker knows
+       (death.mjs `publishDeath`), dated when and where the item was taken. The taker knows
        what they took; the GMs have the row. */
     for (const { held, name } of got) {
         const loot = await lootRecord(taker, held, name, trace);
@@ -622,7 +622,7 @@ export function owedLoot(row) {
 /**
  * THE PUBLICATION GIVES WHAT A LOOT BEFORE IT OWED (E05 fix r2-F0b): each taker the Truth Bullet
  * of what they took, as a loot of a published body mints it, with the loot's own stamp and room.
- * Run by chapter.mjs `publishDeath` with the row it drops; a taker no longer in the world is
+ * Run by death.mjs `publishDeath` with the row it drops; a taker no longer in the world is
  * passed over. Answers how many were given.
  */
 export async function payOwedLoot(body, owed = []) {

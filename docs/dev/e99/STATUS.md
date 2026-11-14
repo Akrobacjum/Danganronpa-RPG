@@ -349,8 +349,8 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
 | Q-E99-3 | Remnants on the schema a student found | as proposed (R3671) |
 | Q-E99-4 | the whole solution on a right vote | as proposed (R3671) |
 | Q-E99-5 | greyed in a Final Trial | as proposed: Show summary greyed before the verdict and in a Final Trial |
-| Q-E99-6 | a GM's public chat card, no notice | as proposed; the animated board is E61's and not in this tree |
-| Q-E99-7 | its own Sound slot "Case summary", played with the board | built in round 6: `SFX_EVENTS.caseSummary` (incident; EN and PL), carried by the card (`sfx`), so every client plays it with the card (R3916) |
+| Q-E99-6 | a GM's public chat card, no notice | as proposed; the animated board, left to E61 and not built there, is built in 1.2.113 (fix-113p): Send's card carries the payload (`caseBoard`) and every browser plays it as a board on the sequence engine (sequence.mjs `playCaseSummary`; R6050, R6051), the card stays the record |
+| Q-E99-7 | its own Sound slot "Case summary", played with the board | built in round 6: `SFX_EVENTS.caseSummary` (incident; EN and PL), carried by the card (`sfx`), so every client plays it with the card (R3916); since 1.2.113 (fix-113p) played with the board, the card carries no `sfx` (R6051) |
 | Q-E99-8 | every GM ticks and sends | as proposed (R3672; 63 S: gm2 and gm3) |
 | Q-E99-9 | once per trial; the button reads as done; a GM may replay the board on their own browser | once per trial built in round 6: the trial's record `summaryShown` (a time, nothing of the content; the entry blanks it, so a second trial has its own) replaces the ticks store's per-chapter row; a second press, by any GM, says "Already sent for this trial." and sends nothing (R3916, R1257; 63 S). E99 next (below) adds the rest but the board: the button reads "Summary sent", greyed, on every GM's console, and the ticks are the trial's too; there is no board to replay (E61) |
 | Q-E99-10 | objection and rebuttal listed with no start; the Reveal where it is | as proposed (R3670) |
