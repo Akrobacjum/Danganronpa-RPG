@@ -258,7 +258,8 @@ export async function dropRemnant(actor, {
         const { whisperToGms } = await import("./utils.mjs");
         await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Remnant.noTokenGm", {
             actor: foundry.utils.escapeHTML(actor?.name ?? "?"),
-            action: foundry.utils.escapeHTML(action)
+            // The action's name, as the Remnant card's Action row says it; the id stood here until the needsCode line (R6915).
+            action: foundry.utils.escapeHTML(actionLabelOf(action) ?? action)
         })}</p>` });
         return null;
     }

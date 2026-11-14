@@ -38003,6 +38003,17 @@ const INVARIANTS = [
             "[report takes free and branches on it; each caller passes free; destroyTools: joined by hand, listOf, quoted]");
     }],
 
+    ["R6915 - the GMs' card of a trace that found no token names the action as the Remnant card does (needsCode, 14.11.2026, after E54): remnants.mjs `dropRemnant` fills `Remnant.noTokenGm`'s {action} with `actionLabelOf(action)`, the action's name in the page's language, not its id", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #36, held for E54's split. Red at 9fb06bdb:
+         * the card read \"search\" or \"resolution\", the raw id, while the Remnant card's Action row says the name.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "remnants.mjs")?.[1] ?? ""), "dropRemnant") ?? "";
+        must(body.includes("DRPG.Remnant.noTokenGm"), "dropRemnant no longer tells the GMs of a missing token - this reads nothing");
+        equal(stableJson([/action: foundry\.utils\.escapeHTML\(action\)/.test(body), /action: foundry\.utils\.escapeHTML\(actionLabelOf\(action\)/.test(body)]),
+            stableJson([false, true]), "[the raw id passed; actionLabelOf passed]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
