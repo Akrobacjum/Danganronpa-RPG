@@ -47,7 +47,7 @@ B01a alone; line B owns that change (the coordinator, 14.11.2026). Until it land
 | Batch | State | Commit |
 | --- | --- | --- |
 | B10a | not started | |
-| B10b | not started | |
+| B10b | rewritten, reviewed (EN, cold EN, PL), folded, landed: 100 texts (9 of them MONOCUB config prose), 101 families kept; T6 loses its six MONOCUB baseline rows (S02-66, empties E25): the minus signs are "-" now | see git log |
 | B11 | not started | |
 | B12 | rewritten, reviewed (EN, cold EN, PL), folded, landed: 197 texts, 157 families kept | see git log |
 | B13 | rewritten, reviewed (EN, cold EN, PL), folded, landed: 35 texts, 144 families kept (docs/dev/e71/kept-C.json) | 968a0a27 |

@@ -1258,6 +1258,435 @@
     "S18: DRPG.Bridge.what.* siblings outside the slice still carry T29 shapes in a player's toast: trial.record, floor.now, vote.run, trial.gm (\"run on the primary GM\"), and bullet.give's Polish „Dowód prawdy” for Truth Bullet (O14); the Polish trial.withdraw „Twojego” has a capital inside the phrase.",
     "S18: The Reroll's lines are composed on the GM's client in the GM's language (reroll.mjs replayAction pushes localized strings; calls.mjs askReroll posts them), so a Polish player at an English GM's table reads them in English. A code question, not a text one."
    ]
+  },
+  "B10b": {
+   "kept": [
+    {
+     "key": "DRPG.Chapter.deathTitle",
+     "why": "The window's subject and the Students list's Kill button, named so in the GM handbook (section 3); a name, within the title and button limits."
+    },
+    {
+     "key": "DRPG.Chapter.whoDied",
+     "why": "A plain question over the picker of openDeathDialog; no rule applies."
+    },
+    {
+     "key": "DRPG.Chapter.died",
+     "why": "One plain sentence of the death card (killCharacter): name and chapter, past tense for what happened (O15); the Polish reads naturally and has no gendered form."
+    },
+    {
+     "key": "DRPG.Chapter.stageSixYes",
+     "why": "A verb with its object (O11), the stage's name in English as in every Stage 6 text."
+    },
+    {
+     "key": "DRPG.Chapter.deadShort",
+     "why": "A one-word mark beside a name (vote.mjs, verdict.mjs, gm-items.mjs); the Polish has no gendered form."
+    },
+    {
+     "key": "DRPG.Chapter.deadPanelTitle",
+     "why": "The dead panel's heading on the player's own sheet (sheet.mjs injectActionPanel), second person to its one reader."
+    },
+    {
+     "key": "DRPG.Chapter.deadCannotAct",
+     "why": "A refusal naming the student and the rule (calls.mjs callBarred, action-rolls.mjs performAction); no gendered Polish form, within the toast target."
+    },
+    {
+     "key": "DRPG.Chapter.nobodyFoundYou",
+     "why": "Second person to the dead student's own player (sheet.mjs injectActionPanel); one plain sentence."
+    },
+    {
+     "key": "DRPG.Chapter.whereBody",
+     "why": "A short label of the room select (openBodyDiscoveryDialog)."
+    },
+    {
+     "key": "DRPG.Chapter.whoseBody",
+     "why": "A label of the victim select with its optional mark (openBodyDiscoveryDialog); T18 is a candidate on a form label, not telegraph prose."
+    },
+    {
+     "key": "DRPG.Chapter.victimAnnounced",
+     "why": "A name with its state in brackets in the victim select (openBodyDiscoveryDialog); the Polish neuter agrees with „ciało”."
+    },
+    {
+     "key": "DRPG.Chapter.bodyPrimaryOnly",
+     "why": "Already in the T29 shape the guide gives for endPrimaryOnly: the limit and what to do, without its reason; 21 words, under the toast limit."
+    },
+    {
+     "key": "DRPG.Chapter.bodyBanner",
+     "why": "The discovery card's banner (runDiscovery), display type in capitals as the coordinator rules; a name of the genre's moment."
+    },
+    {
+     "key": "DRPG.Chapter.bodyTitle",
+     "why": "A short title and button label (runDiscovery, openBodyDiscoveryDialog, investigation.mjs, murder-rules.mjs); the duplicate key in lang (STATUS) is the code's to settle."
+    },
+    {
+     "key": "DRPG.Chapter.bodyFound",
+     "why": "The world-voice line of the discovery card; the Polish is pair N7 as approved."
+    },
+    {
+     "key": "DRPG.Chapter.bodyFoundNamed",
+     "why": "The world-voice line with the victim's name; the Polish is pair N8 as approved."
+    },
+    {
+     "key": "DRPG.Chapter.bodyCalled",
+     "why": "The pilot's approved pair 31 (world voice), landed as approved; its Polish dash is the X4 exception the guide records."
+    },
+    {
+     "key": "DRPG.Chapter.promoted",
+     "why": "A count family with its predicate in each form (PL7), Remnant inflected (DB4); a plain result toast (askPromotion)."
+    },
+    {
+     "key": "DRPG.Chapter.promoteIntro",
+     "why": "Says what the Prep Remnants are and what to do (O7) in three short whole sentences; Remnant in both languages."
+    },
+    {
+     "key": "DRPG.Chapter.endTitle",
+     "why": "The window's, the button's and the report card's name (gm-campaign.mjs, chapterEndForm, endChapterNow), named so in the GM handbook."
+    },
+    {
+     "key": "DRPG.Chapter.moved",
+     "why": "A plain line of the GMs' report (CHAPTER_END_STEPS clock): the clock's new chapter and session."
+    },
+    {
+     "key": "DRPG.Chapter.optKeys",
+     "why": "A verb with its object and the count in brackets (chapterEndForm); Key Remnanty inflected (DB4)."
+    },
+    {
+     "key": "DRPG.Chapter.doneFaint",
+     "why": "A count family, Remnant inflected in each Polish form (CHAPTER_END_STEPS faint)."
+    },
+    {
+     "key": "DRPG.Chapter.doneKeys",
+     "why": "A count family, Key Remnant inflected in each Polish form (CHAPTER_END_STEPS keys)."
+    },
+    {
+     "key": "DRPG.Chapter.optEndTrial",
+     "why": "A verb with its object and what follows (chapterEndForm; closeTrial returns the phase to Daily Life)."
+    },
+    {
+     "key": "DRPG.Chapter.doneNextMorning",
+     "why": "One whole sentence of the morning step's result (CHAPTER_END_STEPS morning): actions and Search Tokens refilled, Search Token inflected."
+    },
+    {
+     "key": "DRPG.Chapter.endPrimaryOnly",
+     "why": "The guide's own T29 example, applied: the limit and what to do; 21 words, under the toast limit."
+    },
+    {
+     "key": "DRPG.Chapter.step.reveal",
+     "why": "A gerund fragment named in the end's report lists (stepWords in endFailed, endStands, dropped, doneEarlier); fits the nominative list after a colon."
+    },
+    {
+     "key": "DRPG.Chapter.step.sweep",
+     "why": "A gerund fragment of the end's report lists (stepWords); plain."
+    },
+    {
+     "key": "DRPG.Chapter.step.faint",
+     "why": "A gerund fragment of the end's report lists (stepWords); Faint Remnantów inflected."
+    },
+    {
+     "key": "DRPG.Chapter.step.keys",
+     "why": "A gerund fragment of the end's report lists (stepWords); Key Remnantów inflected."
+    },
+    {
+     "key": "DRPG.Chapter.step.clock",
+     "why": "A gerund fragment of the end's report lists (stepWords); plain."
+    },
+    {
+     "key": "DRPG.Chapter.step.trial",
+     "why": "A gerund fragment of the end's report lists (stepWords); the Polish names the Class Trial."
+    },
+    {
+     "key": "DRPG.Chapter.step.morning",
+     "why": "A gerund fragment of the end's report lists (stepWords); plain."
+    },
+    {
+     "key": "DRPG.Chapter.step.hold",
+     "why": "A gerund fragment of the end's report lists (stepWords; runSteps names a failed step though askedSteps never asks for it); plain."
+    },
+    {
+     "key": "DRPG.Monocub.panelTitle",
+     "why": "The panel's heading over the Monocub's tiles (sheet.mjs injectMonocubPanel): the glossary's name, a noun, nothing to cut."
+    },
+    {
+     "key": "DRPG.Monocub.meddleCost",
+     "why": "The tile tooltip's price (sheet.mjs abilityButton, a row with both an action and Hope): numbers from placeholders (O5), the Polish counted on the actions in every form (PL7), no rule to state beyond the price (M3)."
+    },
+    {
+     "key": "DRPG.Monocub.nobodyDead",
+     "why": "No code shows it since E72 C6 (f837c2f3 retired the old Monocubs window, monocub.mjs's closing comment); a plain true sentence in both languages. Left as it is: removing the key is a code stage's (see notes)."
+    },
+    {
+     "key": "DRPG.Monocub.manageTitle",
+     "why": "No code shows it since E72 C6 (f837c2f3: the Monocubs window went, the Students window holds its rows); a plain noun title. Left: removing the key is a code stage's (see notes)."
+    },
+    {
+     "key": "DRPG.Monocub.dialogIntro",
+     "why": "No code shows it since E72 C6 (f837c2f3); the early pass already wrote it to N38 and X4 (no dash, no 'X, not Y'). Left: removing the key is a code stage's (see notes)."
+    },
+    {
+     "key": "DRPG.Monocub.isOne",
+     "why": "No code shows it since E72 C6 (f837c2f3); a one-word label, the glossary's name. Left: removing the key is a code stage's (see notes)."
+    },
+    {
+     "key": "DRPG.Monocub.hope",
+     "why": "The Students window's column head over each Monocub's Hope (gm-students.mjs aliveTableHtml): the resource's name, indeclinable (DB4)."
+    },
+    {
+     "key": "DRPG.Monocub.giveHope",
+     "why": "The Mastermind window's legend over the Despair-to-Hope box (mastermind.mjs openMastermindDialog, despair.mjs convertDespairToHope): verb with its object, Monokuma masculine in Polish (PL4), Hope and Despair as names."
+    },
+    {
+     "key": "DRPG.Monocub.who",
+     "why": "The prompt over the list of Monocubs in a Fuel or Bribe Call (call-pickers.mjs pickMonocub): a short question label, nothing to cut, the Polish masculine as Monocub is."
+    },
+    {
+     "key": "DRPG.Monocub.help",
+     "why": "A footer button of Confusion's and Tinker's window and the card's 'Confusion - Help' (monocub.mjs cubAbilityDialog, cubCardHtml): one verb, the choice itself (E100 point 6's button rule)."
+    },
+    {
+     "key": "DRPG.Monocub.hinder",
+     "why": "A footer button of Confusion's and Tinker's window and the card's 'Confusion - Hinder' (monocub.mjs cubAbilityDialog, cubCardHtml): one verb; Polish 'Przeszkódź' is the right imperative."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.meddle.label",
+     "why": "Confusion's tile label (config.mjs MONOCUB, drawn by sheet.mjs abilityButton): the Call's name, English in both languages (PL-k, glossary confusion)."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.redeem.label",
+     "why": "Redeem's tile label (sheet.mjs abilityButton): the glossary's name, English in Polish (PL-k, DB38)."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.askHope.label",
+     "why": "Ask for Hope's tile label (sheet.mjs abilityButton): the glossary's name in Title Case, English in Polish (PL-k, DB38)."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.tinker.label",
+     "why": "Tinker's tile label (sheet.mjs abilityButton): the glossary's name, English in Polish (PL-k, DB38)."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.bet.label",
+     "why": "Ghost Bet's tile label (sheet.mjs abilityButton): the glossary's name, English in Polish (PL-k, DB38)."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.meddle.thresholds.0.helpTarget",
+     "why": "The target's own card at the lower tier (monocub.mjs scoreMeddle, whispered to the target, veiled): second person to the one reader, anonymous as DESP-06 wants, the +1 the tier arms."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.meddle.thresholds.1.helpTarget",
+     "why": "The target's own card at the upper tier (monocub.mjs scoreMeddle): second person, anonymous, advantage on the next roll as armCall arms it; the Polish nominative after the colon."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.meddle.thresholds.1.hinderTarget",
+     "why": "The target's own card at the upper tier (monocub.mjs scoreMeddle): second person, anonymous, disadvantage on the next roll as armCall arms it."
+    },
+    {
+     "key": "DRPG.Config.MONOCUB.abilities.meddle.failure",
+     "why": "Read by no code: scoreMeddle whispers DRPG.Monocub.meddleFailed on a miss and never reads the row's failure (see notes); a plain true sentence."
+    },
+    {
+     "key": "DRPG.Advance.chatTitle",
+     "why": "The Level Up card's heading to the owner (level-up.mjs tellPlayer), {n} the character's advances count; the Polish \"nr\" for \"#\"; a title, no sentence."
+    },
+    {
+     "key": "DRPG.Advance.apply",
+     "why": "The picker's primary button (level-up.mjs openAdvancement): one verb that writes the picks; the window says what is applied."
+    },
+    {
+     "key": "DRPG.Advance.cancel",
+     "why": "The cancelling word (glossary cancel-word, \"Cancel\" / \"Anuluj\"), read by passages-tab.mjs revokeQuestion's footer."
+    },
+    {
+     "key": "DRPG.Advance.introOne",
+     "why": "The picker's intro for one pick (level-up.mjs buildContent): the reason, then the instruction, second person to whoever picks; no number typed (one is the form's own word)."
+    },
+    {
+     "key": "DRPG.Advance.who.player",
+     "why": "A row label of the Level Up menu's who-picks group (level-up.mjs openAdvancementFor), beside \"I will pick\": names the role (EN12, PL-s), no sentence."
+    },
+    {
+     "key": "DRPG.Advance.standing",
+     "why": "The sheet button's tooltip count and the Students window's (sheet.mjs injectAdvanceButton, gm-students.mjs aliveTableHtml): a plural family with the noun in each Polish form (PL7), no verb needed."
+    },
+    {
+     "key": "DRPG.Advance.takeBack",
+     "why": "The Level Up menu's row for each standing offer (level-up.mjs openAdvancementFor): a verb with its object and the kind after a colon (section 14's host)."
+    },
+    {
+     "key": "DRPG.Advance.whichKind",
+     "why": "The Level Up menu's prompt (level-up.mjs openAdvancementFor), the GM's: one question, the name bold as the code marks it; the Polish present tense."
+    },
+    {
+     "key": "DRPG.Advance.kind.standardHint",
+     "why": "The Standard row's hint in the GM's Level Up menu (level-up.mjs openAdvancementFor): short, says when the kind is meant."
+    },
+    {
+     "key": "DRPG.Advance.kind.reinforcedHint",
+     "why": "The Reinforced row's hint in the GM's Level Up menu (level-up.mjs openAdvancementFor); see notes on its reason text."
+    },
+    {
+     "key": "DRPG.Advance.choice",
+     "why": "The legend over each pick when there are several (level-up.mjs buildContent), {n} the pick's place; a label."
+    },
+    {
+     "key": "DRPG.Advance.noExperiences",
+     "why": "The picker's dim note when the sheet has no experience (level-up.mjs buildContent), the raise option drawn disabled beside it: says why, no rule beyond it."
+    },
+    {
+     "key": "DRPG.Advance.notOnSheet",
+     "why": "The GM's warning when a pick names a statistic or experience the sheet lacks (level-up.mjs applyAdvancement): what was wrong and that nothing was written, as the code returns before any write."
+    },
+    {
+     "key": "DRPG.Advance.experienceNeedsName",
+     "why": "The applying GM's warning (level-up.mjs applyAdvancement) when a new experience has no name: that pick is skipped and the rest go on, as the loop does; the passive names the module's skip, not the reader's."
+    },
+    {
+     "key": "DRPG.Advance.nothingToApply",
+     "why": "The warning when no pick is left to write (level-up.mjs applyAdvancement): result first, true to the early return."
+    },
+    {
+     "key": "DRPG.Advance.queueTitle",
+     "why": "The class's Level Up window's title (level-up.mjs askWhoPicks): a noun phrase, Level Upy as the glossary inflects them."
+    },
+    {
+     "key": "DRPG.Advance.queuePicks",
+     "why": "Each row's pick count in the class's window (level-up.mjs askWhoPicks): a plural family, the noun in each Polish form."
+    },
+    {
+     "key": "DRPG.Advance.pickMe",
+     "why": "A row's radio label in the class's window (level-up.mjs askWhoPicks): the GM's own choice, two words."
+    },
+    {
+     "key": "DRPG.Advance.pickPlayer",
+     "why": "A row's radio label in the class's window (level-up.mjs askWhoPicks), beside \"I pick\": names the role."
+    },
+    {
+     "key": "DRPG.Advance.queueGive",
+     "why": "The class's window's primary button (level-up.mjs askWhoPicks): a verb with its object; the Polish \"Przyznaj\" as the menu's Grant."
+    },
+    {
+     "key": "DRPG.Chapter.endIntro",
+     "why": "The GM's End the chapter window opens on it (chapter.mjs chapterEndForm): result-first, second person to the one GM, a plain instruction for the checkboxes below (O1, O7); nothing false, no forbidden shape."
+    },
+    {
+     "key": "DRPG.Monocub.tickFirst",
+     "why": "No script reads it since f837c2f3 (E72 C6, the old Monocubs window removed): nothing shows it, so there is no screen to write it against; its removal is a code change (notes)."
+    },
+    {
+     "key": "DRPG.Monocub.student",
+     "why": "No script reads it since f837c2f3 (E72 C6, the old Monocubs window removed); the Students window's role word is DRPG.Panel.role.student. Nothing to rewrite; its removal is a code change (notes)."
+    },
+    {
+     "key": "DRPG.Monocub.unopted",
+     "why": "The GM's toast when setMonocub clears the flag on a real change: one plain sentence in the present, true to the code."
+    },
+    {
+     "key": "DRPG.Monocub.giveHopeColumn",
+     "why": "A column heading of the Students window (gm-students.mjs aliveTableHtml's give column): a noun phrase with the arrow, within a tab's budget, the same in both languages by DB4's resource names."
+    },
+    {
+     "key": "DRPG.Monocub.tierMissed",
+     "why": "The roll card's line when the total misses the first tier (monocub.mjs cubCardHtml): short, result first, the threshold from its placeholder, natural in both languages."
+    },
+    {
+     "key": "DRPG.Monocub.meddleFailed",
+     "why": "The veiled line to the Monocub when Confusion or Tinker misses (monocub.mjs scoreMeddle, scoreTinker): result first, short, natural in both languages."
+    },
+    {
+     "key": "DRPG.Monocub.critHinderNothingTarget",
+     "why": "The target's card for a critical Hinder with no action left (monocub.mjs scoreMeddle): second person to the one reader, true, natural; names no Monocub."
+    },
+    {
+     "key": "DRPG.Monocub.hopeShort",
+     "why": "The picker row's hint in a GM's Despair Call (call-pickers.mjs pickMonocub): a number and the resource's name, nothing to edit."
+    },
+    {
+     "key": "DRPG.Monocub.meddleCostShort",
+     "why": "The cost line of a Monocub's tile and of its window's header (sheet.mjs abilityButton, monocub.mjs cubAbilityDialog): two counts from placeholders, plural forms right in both languages."
+    },
+    {
+     "key": "DRPG.Monocub.invite",
+     "why": "The Students window's button for a dead student (gm-students.mjs aliveTableHtml): a verb with its role, within a button's budget (O11)."
+    },
+    {
+     "key": "DRPG.Advance.buttonTooltip",
+     "why": "The Level Up control's name on the sheet and the Students window when no offer stands: the glossary's name, nothing more."
+    },
+    {
+     "key": "DRPG.Advance.whoPicks",
+     "why": "The GM's question over the two rows of who chooses (level-up.mjs openAdvancementFor): a real question with a choice under it, the actor from its placeholder."
+    },
+    {
+     "key": "DRPG.Advance.who.gm",
+     "why": "The first choice row under the question: the GM's own answer in the first person, short, natural in both languages."
+    },
+    {
+     "key": "DRPG.Advance.whichImprovement",
+     "why": "The aria-label of a pick's select in the Level Up picker (level-up.mjs buildContent): a short question a screen reader says."
+    },
+    {
+     "key": "DRPG.Advance.whichTrait",
+     "why": "A label over a statistic select in the Level Up picker, the Dynamic action and the trait field (level-up.mjs buildDetail, action-dynamic.mjs, action-menus.mjs): a short question, the glossary's 'statistic'."
+    },
+    {
+     "key": "DRPG.Advance.whichExperience",
+     "why": "The label over the experience select in the Level Up picker (level-up.mjs buildDetail): a short question."
+    },
+    {
+     "key": "DRPG.Advance.newExperienceName",
+     "why": "The label over the new experience's name field (level-up.mjs buildDetail): a noun phrase."
+    },
+    {
+     "key": "DRPG.Advance.newExperiencePlaceholder",
+     "why": "The name field's placeholder (level-up.mjs buildDetail): a lower-case hint of what to type, natural in both languages."
+    },
+    {
+     "key": "DRPG.Advance.unknownKind",
+     "why": "A GM's error toast when a Level Up kind is missing from LEVEL_UP (level-up.mjs offerAdvancement): what is wrong and its id, which a GM who reports it needs."
+    },
+    {
+     "key": "DRPG.Advance.failed",
+     "why": "A GM's error toast when the Level Up write throws (level-up.mjs): what failed and where the GM finds the reason, one technical limit in plain words (T29)."
+    },
+    {
+     "key": "DRPG.Monokuma.toggle",
+     "why": "The sheet header's GM control and its confirm window's title and yes (sheet.mjs, monokuma.mjs markFromSheet): a verb with its object."
+    },
+    {
+     "key": "DRPG.Monokuma.unmarked",
+     "why": "The GM's toast when the mark is cleared (monokuma.mjs setMonokuma): one plain sentence, the student (DB24)."
+    },
+    {
+     "key": "DRPG.Monokuma.isMonokuma",
+     "why": "The role word in the Students window's Role list (gm-students.mjs ROLE_WORDS): the glossary's name."
+    },
+    {
+     "key": "DRPG.Monokuma.pool",
+     "why": "The pool column's heading and the select's aria-label in Despair Flow (gm-team-dialog.mjs buildContent): a noun phrase."
+    },
+    {
+     "key": "DRPG.Monokuma.noPool",
+     "why": "The empty choice of the pool select (gm-team-dialog.mjs buildContent), in the dashed form the module's selects use for no choice."
+    }
+   ],
+   "notes": [
+    "S05: Scope per the coordinator's message: DRPG.Mastermind.* left out entirely (37 keys); the 71 DRPG.Chapter.* keys are all here.",
+    "S05: \"the Players window\" is stale: the window is titled Students (DRPG.Panel.whoIsAlive) and the GM handbook says the Students window. Fixed in keptUntilFound, deathsStillSecret, bodyNotPublished; outside this slice DRPG.Vote.executionFailed (\"mark the death in the Players window\") says it too and needs the same fix.",
+    "S05: Chapter.typeless keeps \"not analysed\" because R357 (scripts/tests-tier1.mjs) holds it to DRPG.Investigation.unidentified; the Polish now carries „bez analizy”, the same term, so R357 reads true in Polish as well. STATUS also lists typeless as frozen by e64-inv: land it after that merge.",
+    "S05: unnamedVictim and bodyAnnouncedAlready change together (the refusal quotes the option's words).",
+    "S05: Chapter.stageSixWhat's fact 1 (what Stage 6 lets the killer do) is the old text's, not reread in murder.mjs beginResolution or cleanup.mjs for this batch.",
+    "S05: Truth Bullet plurals in Polish counted forms: written „Truth Bullety” (few) and „Truth Bulletów” (many), as lang/pl.json already does in 13 and 4 places; uncounted „Truth Bullets” left as the rest of the file writes it.",
+    "S06: Dead keys: DRPG.Monocub.nobodyDead, manageTitle, dialogIntro and isOne are read by no code since E72 C6 (f837c2f3, the old Monocubs window retired; monocub.mjs's closing comment). Left as they are; removing them is a code stage's (no deleted keys here).",
+    "S06: Dead config prose: DRPG.Config.MONOCUB.abilities.meddle.failure (\"The attempt fails.\") is read by nothing; monocub.mjs scoreMeddle whispers DRPG.Monocub.meddleFailed on a miss. Default: leave it; a code stage can drop the row's field.",
+    "S06: Outside the slice: DRPG.Monocub.tierBeaten \"Beat {n}: {what}.\" / \"Przebite {n}: {what}.\" has the same \"beat\" wording as tierLine, while utils.mjs resolveThreshold counts total >= min. Suggested: \"{n} or more: {what}.\" / \"{n} lub więcej: {what}.\". Its Polish is the host of the help*/hinder* fragments, written here in the nominative after its colon.",
+    "S06: Outside the slice: DRPG.Monocub.meddledOn's Polish still \"Confusion użyte na: {name}.\" (N14 waits, STATUS); the receipts written here (\"Ta osoba dostaje ...\") read under it.",
+    "S06: DRPG.Monocub.nobodyHere is also the toast for an empty target list of Ghost Bet (CUB_TARGETS.student) in monocub.mjs cubAbilityDialog, where it names Confusion; the class always has students there, so it is not met in play. Default: no change.",
+    "S06: DRPG.Advance.kind.reinforcedHint \"For an exceptional chapter.\" offers a Reinforced in the GM's menu for any reason, while its picker and card say the wrong-vote reason (needsCode on reason.reinforced). Left unchanged pending that.",
+    "S06: DRPG.Advance.title changes shape (\"Level Up for {actor}\"): a test that reads the window's title by its old string would need the new one; not run here.",
+    "S06: The Polish of DRPG.Advance.who.playerHint is unchanged (it is the guide's PL-d example); only the English after differs.",
+    "S16: DRPG.Monocub.tickFirst and DRPG.Monocub.student are read by no script since f837c2f3 (E72 C6): dead keys; deleting them is a code stage's change (needs a key removal in both lang files).",
+    "S16: Monocub affordability: sheet.mjs abilityButton and monocub.mjs performCubAbility test the row's cost/hopeCost while the GM charges priceOf; a move done to order with no Hope is refused on the Monocub's browser (needsCode on cannotMeddle and needHope).",
+    "S16: None of these keys is posted as Monokuma's own line; DRPG.Monokuma.* here are GM toasts and Despair Flow texts, written in the interface voice.",
+    "S16: DRPG.Monokuma.panelNote is marked for removal in the GM review (E101); rewritten here so it is right until then.",
+    "S16: DRPG.Monocub.silencedNoteShort now reads exactly as DRPG.Monocub.silenceOn (DB7's „Jesteś świadkiem: …”), on purpose."
+   ]
   }
  }
 }
