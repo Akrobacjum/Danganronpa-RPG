@@ -371,12 +371,28 @@ export async function hasPendingBedroomNote(actor) {
 }
 
 /**
- * `owner` has just crossed into `room` on `scene` (traps.mjs `onCrossed`, on the primary): the note waiting for that
- * bedroom is dropped and told, one card. Dropped unsaid when the owner is dead or the room is no longer theirs. Answers
- * whether a card went.
+ * `owner` has just crossed into `room` on `scene` (traps.mjs `onCrossed`, on the primary), or come to stand in it by
+ * another road (arrival-notices.mjs: a settled crossing - crossing rooms free, an Eclipse - or a GM's placement; the
+ * E74 plan's DA30 "also in an Eclipse, from crossingSettled", joined since the audit of 1.2.113, A113-C4-3): the note
+ * waiting for that bedroom is dropped and told, one card. Dropped unsaid when the owner is dead or the room is no longer
+ * theirs. Answers whether a card went.
+ *
+ * ONE OWNER AT A TIME. A paid crossing reaches here twice, at once by its hook and `SETTLE_MS` later by its settled
+ * crossing; chained per owner, the second reads the row the first dropped and tells nothing.
  */
-export async function tellBedroomNotes(owner, room, scene) {
-    if (!owner || !room || !scene || !game.user?.isGM) return false;
+export function tellBedroomNotes(owner, room, scene) {
+    if (!owner || !room || !scene || !game.user?.isGM) return Promise.resolve(false);
+    const run = (noting.get(owner.id) ?? Promise.resolve()).then(() => tellBedroomNotesNow(owner, room, scene));
+    const tail = run.catch(() => false);
+    noting.set(owner.id, tail);
+    tail.then(() => { if (noting.get(owner.id) === tail) noting.delete(owner.id); });
+    return run;
+}
+
+/** ownerId -> the bedroom note being told to that owner (`tellBedroomNotes`): the next waits for it. */
+const noting = new Map();
+
+async function tellBedroomNotesNow(owner, room, scene) {
     await bedroomNoteStore.whenHydrated();
     const key = bedroomNoteKey(owner.id, scene.id, room);
     const row = bedroomNoteStore.get(key);

@@ -1202,7 +1202,7 @@ async function freeRestEffect(actor, call, choice, done) {
         free: true, ignoreRoom: true, ignoreLimit: true, quiet: true
     });
     // Backing out of the "what do you want back" picker is a real
-    // cancel: nothing was restored, so the five Hope come back.
+    // cancel: nothing was restored, so the Call's price (`cost`) comes back.
     // NothingToDo, not a fault, when the player chose not to (live check,
     // 17.09 - the refund arrived under a "Tell the GM" error toast). A rest
     // that FAILED is a fault and is logged as one: `takeRest` answers false

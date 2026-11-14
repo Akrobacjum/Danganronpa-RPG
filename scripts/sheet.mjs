@@ -5024,7 +5024,9 @@ export function budgetLine(actor, state = murderState()) {
     // Fog took it (E24 C3b; E24-24): said, so a Move that is not there reads as the weather's and not as spent.
     else if (overflowBlocksFreeMove()) parts.push(game.i18n.localize("DRPG.SheetNotes.fogBudget"));
 
-    // What Hope has already bought, next to what the day gave you.
+    // What is already banked, next to what the day gave you: a Burst bought with Hope, and the free crossings a Sprint,
+    // a Dash, a Facilities room action or Infiltrate banked into one counter (actions.mjs `grantFreeMoves`), which keeps
+    // no record of what filled it - so the line names the crossing, not what paid for it (the audit of 1.2.113, A113-C4-2).
     //
     // On the budget line rather than on the tiles, for the same reason the
     // action count is: the question a player is asking here is "what can I get

@@ -118,8 +118,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         phase("projects");
         /* Q-E92-6 (DRPG-D1: "Widzi wszystkie projekty w tym prywatne"). The GM makes a public project in the Gym, a room
            nobody here found, and a secret one there with words of its own, shared with nobody. p3 (the Spectator) knows
-           both - their names and progress - but not the secret one's words, which stay the GMs' (the coordinator's 12.11:
-           "secret projects stay secret (GMs' half untouched)"); p1 (a student) knows neither and holds no words; the
+           both - their names and progress - and the secret one's words (the owner's answer, read again by the audit of
+           1.2.113, A113-C5-3: the coordinator's 12.11 note that withheld them was written before it); p1 (a student) knows
+           neither and holds no words; the
            countdown's ownership names p3 an observer and, since S17-31 (1.2.111), p1 as well: the map tells no player
            apart, and what keeps p1 out is the module (canSee, read below). */
         const made = await gm.eval(`const P = ${imp("projects.mjs")};
@@ -138,8 +139,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             const o = S.rawCountdown("${made?.sec}")?.ownership ?? {};
             return { p3: o["${p3User}"] ?? null, p1: o["${IDS.p1}"] ?? null };`);
         const sight = { p3: await knows(p3), p1: await knows(p1), own };
-        check("projects: the Spectator knows every project in a room nobody found, the secret one too but not its words; a student knows neither",
-            sight.p3?.pub === true && sight.p3.sec === true && sight.p3.seeSec === true && sight.p3.words === false
+        check("projects: the Spectator knows every project in a room nobody found, the secret one too and its words; a student knows neither",
+            sight.p3?.pub === true && sight.p3.sec === true && sight.p3.seeSec === true && sight.p3.words === true
             && sight.p1?.pub === false && sight.p1.sec === false && sight.p1.seeSec === false && sight.p1.words === false
             && own?.p3 === 2 && own.p1 === 2, JSON.stringify(sight));
         // And a student's browser holds nothing more for it: p1's world data read against world-secrets.mjs.

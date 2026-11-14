@@ -634,6 +634,18 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
         gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo, roomAtSpot(tokenDoc, was)));
     }
     gmSeen.set(tokenDoc.id, sentTo ?? positionOf(tokenDoc));
+    /* A GM'S OWN MOVE INTO ANOTHER ROOM IS AN ARRIVAL TOO (the audit of 1.2.113, A113-C4-3). A player's lawful
+       crossing reaches the owner's notices through the settled crossing the GMs record (arrival-notices.mjs); a GM's drag,
+       placement or gather records no crossing, so it is told from here, on the primary. A put-back the module writes is
+       not an arrival. */
+    if (was && isPrimaryGm() && game.users?.get(userId)?.isGM && tokenDoc.actor
+        && !options?.[REVERT] && !options?.[SENT_BACK] && !options?.[WALL_PUT_BACK]) {
+        const from = roomAtSpot(tokenDoc, was), to = roomAtSpot(tokenDoc, gmSeen.get(tokenDoc.id));
+        if (to && to !== from) {
+            import("./arrival-notices.mjs").then(m => m.noticesOnArrival(tokenDoc.actor, to, tokenDoc.parent))
+                .catch(err => error(`Could not tell "${tokenDoc.name}" what waited in ${to}`, err));
+        }
+    }
 }
 
 /**
@@ -3295,6 +3307,9 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
     // would be telling the player their budget is somewhere it is not.
     // And a fourth (E37 C6; E37-28): a banked Burst pays before an action (`takeMove`), and the card said "That cost an
     // action" for it, with the actions it had left untouched.
+    // "sprint" is any banked free crossing - a Sprint's, a Dash's, a Facilities room action's or Infiltrate's, one counter
+    // that keeps no record of what filled it (actions.mjs `grantFreeMoves`) - so the card says "a free crossing", as Move's
+    // briefing has since 73b6c5ba (the audit of 1.2.113, A113-C4-1).
     const price = cost === "free"
         ? game.i18n.localize("DRPG.Move.wasFree")
         : cost === "sprint"

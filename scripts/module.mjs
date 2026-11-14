@@ -31,6 +31,7 @@ import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
 import { registerEavesdrops } from "./eavesdrop-gm.mjs";
 import { registerMasks } from "./mask-gm.mjs";
+import { registerArrivalNotices } from "./arrival-notices.mjs";
 import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerCaseAsk } from "./case-realize.mjs";
 import { registerActionResource } from "./resources.mjs";
@@ -261,6 +262,9 @@ Hooks.once("init", () => {
     safely("the eavesdrops", registerEavesdrops);
     // The murder's privacy (E69 C8): the killer behind a "?", its end at a new time of day, the killer's question.
     safely("the masks", registerMasks);
+    // The owner's notices on walking in - a stash gone through, a bedroom's note - on the primary GM, from a settled crossing
+    // (and from a GM's move of the token, movement.mjs `noteGmPosition`; the audit of 1.2.113, A113-C4-3).
+    safely("the notices on walking in", registerArrivalNotices);
     safely("the timed effects", registerTimedEffects);
     // E97 C11: the case's question at a body, on the primary GM, once a chapter
     safely("the case's question at a body", registerCaseAsk);
