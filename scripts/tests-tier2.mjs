@@ -96089,6 +96089,82 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             again: [[], 0], beside: ["done", [["picking"]]], besideEntered: [], inside: ["done", [["warned"]], "done", [["forcedBy"]]], insideEntered: [[], 0] }),
             "{away: [answer, the owner's cards] for a careless pick, a forced door, a breach, a repair, the owner in a room apart; entered: the cards on walking into the bedroom, each by its sentences in order; again: [a second crossing's, notes left]; beside: a pick with the owner in the picker's room; besideEntered; inside: a covered careless pick and a forced door with the owner in the bedroom; insideEntered: [cards, notes left]} - a bedroom's owner told on walking in");
     }],
+    ["A113-C5-1b - a bedroom's note is told on every road that stands its owner back in the bedroom: with crossing rooms free, a settled crossing tells it once, and the paid crossing's hook after it tells nothing more; a GM's placement tells it too (doors-gm.mjs `noteBedroom`, `tellBedroomNotes`; arrival-notices.mjs; traps.mjs `onCrossed`; the E74 plan's DA30 \"also in an Eclipse, from crossingSettled\", the owner's rule #1 of 13.11.2026)", async () => {
+        /*
+         * b70b3b23 (pv-doors) holds a bedroom's note in the GMs' store and tells it from traps.mjs `onCrossed` alone - the
+         * paid crossing's hook, which never fires with crossing rooms free, in an Eclipse or for a GM's placement. The
+         * coordinator's follow-up of 14.11.2026 joins it to the stash notice's arrival roads (A113-C4-3). With "Crossing
+         * rooms costs a Move" off and the owner in a room apart: a note held (a repair, `noteBedroom`); the owner's settled
+         * crossing into the bedroom, raised as crossing-settle.mjs raises it; the paid crossing's hook for the same entry;
+         * a second note and a GM's placement of the owner into the bedroom; out and in again. Read: the cards the owner's
+         * player was sent after each, and the notes left. Red at 42aa321b: the settled crossing and the placement told nothing.
+         */
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { esc, isPrimaryGm } = await import("./utils.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
+        needs(world.atLeast("namedRooms", 2), "a bedroom and a room apart");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const scene = canvas.scene;
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owner = game.actors.find(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a)
+            && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        must(owner, "no living student of a player with a token on the scene on screen - this would measure nothing");
+        const token = scene.tokens.find(t => t.actorId === owner.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 2, `the scene on screen has ${rooms.length} rooms - too few for a bedroom and a room apart`);
+        const [B, far] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y };
+        const feesWere = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const flagsWere = roomRegions(scene, B).map(piece => [piece, piece.getFlag(MODULE_ID, ROOM_OWNER_FLAG) ?? null]);
+        const text = esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room: B }));
+        const noteKeys = () => Object.keys(S.bedroomNoteStore?.entries?.() ?? {}).filter(k => k.startsWith(`${owner.id}:`));
+        const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
+        const read = [];
+        try {
+            await wordsSent(async packets => {
+                const cards = () => packets.filter(w => w.to.some(id => readers(owner).includes(id)) && w.html.includes(text)).length;
+                await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+                for (const [piece] of flagsWere) await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+                await token.update(M.positionIn(far, token), PLACE);
+                await wait();
+                read.push(["held", await D.noteBedroom({ scene, room: B, kind: "mended" }), cards()]);
+                Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: far, to: B, via: null, eclipse: null, sceneId: scene.id });
+                await wait();
+                read.push(["settled", cards(), noteKeys().length]);
+                Hooks.callAll("drpgRoomCrossed", { actor: owner, from: far, to: B, tokenDoc: token });
+                await wait();
+                read.push(["paid after", cards()]);
+                await D.noteBedroom({ scene, room: B, kind: "mended" });
+                await token.update(M.positionIn(B, token), PLACE);
+                await wait();
+                read.push(["placed", cards(), noteKeys().length]);
+                await token.update(M.positionIn(far, token), PLACE);
+                await wait();
+                await token.update(M.positionIn(B, token), PLACE);
+                await wait();
+                read.push(["placed again", cards()]);
+            });
+        } finally {
+            for (const key of noteKeys()) await S.bedroomNoteStore.drop(key);
+            for (const [piece, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, ROOM_OWNER_FLAG);
+                else await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, value);
+            }
+            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, feesWere);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["held", "held", 0], ["settled", 1, 0], ["paid after", 1], ["placed", 2, 0], ["placed again", 2]]),
+            "a bedroom's note was not told on a settled crossing or a GM's placement, told twice for one entry, or left in the store "
+            + "([the note: noteBedroom's answer, cards], [after the settled crossing: cards, notes left], [after the paid crossing's hook], "
+            + "[after a second note and a GM's placement: cards, notes left], [after out and in again])");
+    }],
     ["A113-C4-3 - a stash's owner is told on every road that stands them in its room: a settled crossing (crossing rooms free, an Eclipse) and a GM's placement tell them as a paid crossing does, and once (traps.mjs `onCrossed`, arrival-notices.mjs, stash-reach.mjs `tellStashDisturbed`; 1.2.112's notice, the owner's decision of 13.11.2026)", async () => {
         /*
          * The audit of 1.2.113 (A113-C4-3): the notice fired only from `drpgRoomCrossed`, raised at the end of a paid

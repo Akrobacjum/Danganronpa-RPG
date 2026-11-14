@@ -635,7 +635,7 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     }
     gmSeen.set(tokenDoc.id, sentTo ?? positionOf(tokenDoc));
     /* A GM'S OWN MOVE INTO ANOTHER ROOM IS AN ARRIVAL TOO (the audit of 1.2.113, A113-C4-3). A player's lawful
-       crossing reaches the owner's notice through the settled crossing the GMs record (arrival-notices.mjs); a GM's drag,
+       crossing reaches the owner's notices through the settled crossing the GMs record (arrival-notices.mjs); a GM's drag,
        placement or gather records no crossing, so it is told from here, on the primary. A put-back the module writes is
        not an arrival. */
     if (was && isPrimaryGm() && game.users?.get(userId)?.isGM && tokenDoc.actor

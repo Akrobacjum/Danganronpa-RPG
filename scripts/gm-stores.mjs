@@ -1013,8 +1013,8 @@ export const barricadeStore = defineGmStore({
  * (doors-gm.mjs `bedroomNoteKey`): `{ ownerId, sceneId, room, picked, forced, breached, mended, unsealed }` - each of the four
  * the time it happened (Date.now()) while the owner stood elsewhere, `unsealed` the seal period a breach lifted a seal in.
  * Written by the GM that runs the door or the completion (doors-gm.mjs `noteBedroom`), read and dropped by the primary on the
- * owner's crossing into that room (`tellBedroomNotes`, from traps.mjs `onCrossed`, as the stash notice's `unseen` mark of
- * `rifleStore` is). Synced; not backed up, as the rifles are not. Cut by the reset's "actions" group. No player copy: what
+ * owner's crossing into that room (`tellBedroomNotes`, from traps.mjs `onCrossed` and arrival-notices.mjs's roads, as the
+ * stash notice's `unseen` mark of `rifleStore` is). Synced; not backed up, as the rifles are not. Cut by the reset's "actions" group. No player copy: what
  * waits for whom, and when it happened, is the GMs'. No old key.
  */
 export const bedroomNoteStore = defineGmStore({
