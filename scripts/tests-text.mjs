@@ -1278,9 +1278,11 @@ export const X_RULES = Object.freeze([
     { id: "X1", what: "reassurance by denying a loss", en: /\b(?:[Nn]othing (?:was|is|has been|got|gets) (?:spent|lost|used|wasted|taken)|[Nn]o \p{L}+ (?:was|were|is|are) (?:spent|lost|used|wasted))\b/u,
         pl: new RegExp(W("[Nn]ic nie (?:wydano|stracono|zużyto|przepadło|zostało (?:wydane|stracone|zużyte))|[Nn]ie (?:wydano|stracono|zużyto) (?:nic|niczego)"), "u") },
     { id: "X2", what: "a design rationale", en: /\b(?:by design|on purpose|deliberately|intentionally)\b/iu, pl: new RegExp(W("celowo|z założenia|zamierzenie"), "iu") },
-    { id: "X3", what: "the antithesis \"X, not Y\"", en: /, not (?:\S+ ){0,4}\S+[.;!?](?:\s|$)/u,
+    /* E57 (14.11.2026): a participle after "not" ("not counting", "nie znając", "nie klikając") is no antithesis, and the verbs the
+       text lines' Polish put after ", nie" (trafia, wracają, zapisuje, tracisz, weźmie) join the 31.10 list. */
+    { id: "X3", what: "the antithesis \"X, not Y\"", en: /, not (?!\p{L}+ing\b)(?:\S+ ){0,4}\S+[.;!?](?:\s|$)/u,
         /* A Polish ", nie" before a verb is a negation, not an antithesis: the verbs read 31.10 after it are left out. */
-        pl: /, (?:a )?nie (?!(?:można|wolno|ma|mają|jest|są|było|będzie|zostanie|został\p{L}*|trzeba|może|mogą|da|działa|liczy)(?![\p{L}]))(?:\S+ ){0,3}\S+[.;!?](?:\s|$)/u },
+        pl: /, (?:a )?nie (?!(?:można|wolno|ma|mają|jest|są|było|będzie|zostanie|został\p{L}*|trzeba|może|mogą|da|działa|liczy|trafia|wracają|zapisuje|tracisz|weźmie|\p{L}+ąc)(?![\p{L}]))(?:\S+ ){0,3}\S+[.;!?](?:\s|$)/u },
     /* X4 reads a SENTENCE (E57, 14.11.2026): after the text lines it flagged every spaced dash, 95 of them, most a title's or a label
        pair's separator ("Room setup - {scene}", "{action} - {trait}") or the minus button named ("The - and + buttons"), none an
        aside tacked on to a sentence. A dash is the rule's when, in one sentence, four words stand before it and three after it,
@@ -2987,6 +2989,7 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.x1ok": "You keep your action.",                       // passes
                 "DRPG.Fx.x2": "The light flickers on purpose.",               // X2
                 "DRPG.Fx.x3": "The debate runs from the console, not here.",  // X3
+                "DRPG.Fx.x3part": "The module takes 40 KB, not counting its history.",   // a participle, no antithesis: passes (E57)
                 "DRPG.Fx.x4": "Tick to opt in - the timing is yours.",        // X4
                 "DRPG.Fx.x4title": "Room setup - {scene}",                      // a title's separator, no sentence on its left: passes (E57)
                 "DRPG.Fx.x4minus": "The - and + buttons change the count.",     // the minus button named: passes (E57)
@@ -3021,6 +3024,8 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.x1": "GM odmówił. Nic nie wydano.",                   // X1
                 "DRPG.Fx.x1ok": "Nie tracisz akcji.",                          // passes
                 "DRPG.Fx.x3": "Debatę prowadzi GM z konsoli, nie stąd.",       // X3
+                "DRPG.Fx.x3part": "GM wybiera Remnant, nie znając wyniku.",     // a participle: passes (E57)
+                "DRPG.Fx.x3verb": "Truth Bullety, które przepadły, nie wracają.",   // a verb read 14.11: passes (E57)
                 "DRPG.Fx.x3ok": "Tego, nie można cofnąć.",                     // a negated verb: passes
                 "DRPG.Fx.x10": "Incydent po prostu się kończy.",               // X10
                 "DRPG.Fx.x12": "Jesteś w: {room}.",                            // X12
