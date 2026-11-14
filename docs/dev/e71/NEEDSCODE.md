@@ -29,6 +29,7 @@ Verdicts:
 | Q-NC-13 | `Tables.tierPoolCreated` is reached only for a room table whose base is a category's name. Keep the branch? | tables-editor.mjs createPoolFrom, poolNameRefusal | Keep |
 | Q-NC-14 | The sequences' display capitals read by X16 as emphasis (Q-B-7). | **Answered**: line B added ten X16 allow rows for the `DRPG.Sequence.*` keys (4c82415c on claude/e71-b, merged here): exitTitle, moodLabel, morningLine, publicEvents, stampGuilty, stampInnocent, tableDay, trialTitle, votesCounted, yourDay. This line added none. | - |
 | Q-NC-15 | A Level Up the GM *offers* from its own window (the player picks) still shows the player the kind's reason ("A wrong vote let the Blackened go free." for any Reinforced). The offer's record (`recordOffer`: kind, extra, deferred, only) and its bridge row (`requestOfferRecord`) carry no reason; carrying one is a change on a GM-to-GM bridge row and the offers' store. Do it? | level-up.mjs offerAdvancement, recordOffer, playerPickerBody; bridge-asks.mjs requestOfferRecord | Not done here: a store and bridge change wants its own stage and a security read |
+| Q-NC-16 | The Loaded Die's effect (`Config.HOPE_CALLS.freeCrit.effect`, owner-approved in B01a) says "your next roll"; roll-dialog.mjs `grantsFor` arms it on an action roll only (CALL-03), and the handbooks say "next action roll". Reword it? | the handbooks line's H1; the batch check holds the approved text | Keep the approved words until the owner rewords them |
 
 ## The table
 
@@ -239,52 +240,55 @@ placeholders raw.
 On this table (158 rows: 146 needsCode, 12 from the STATUS files): defects fixed 77 rows (one in part: #75's offer path
 is Q-NC-15), defects waiting for E54 0 (all six done after it landed), questions 35 rows (26 of them Q-NC-1, O5's
 numbers; 9 more under Q-NC-6 to Q-NC-13), not defects 19, done by a text line 13, for the handbook line 13, open 1
-(S12). Questions asked of the owner: 10 (Q-NC-1, Q-NC-6 to Q-NC-15).
+(S12). Questions asked of the owner: 11 (Q-NC-1, Q-NC-6 to Q-NC-16; Q-NC-14 answered by line B's rows).
+
+The handbooks line's 36 rows (H1-H36): fixed 13 (H2, H6, H7, H12, H14, H16's comments, H21, H25, H28's comment, H31,
+H33 and H34 in part), done already 10, not defects 5, questions 6 (H1 as Q-NC-16), the rest 1.2.114.
 
 
 ## The handbooks line's list (claude/handbooks-113, docs/dev/e57/STATUS-HANDBOOKS.md "Code and UI text that look wrong")
 
-Taken in after the coordinator's message of 14.11.2026; the scope was frozen the same morning (the owner's budget):
-triage only, a verdict and a reason each, nothing fixed here. **1.2.114** marks what goes to the next train. Read off
+Taken in after the coordinator's messages of 14.11.2026: a verdict and a reason each, the small defects fixed red
+first until the line's end (5e45bd11, 6ac9297b). **1.2.114** marks what goes to the next train. Read off
 the STATUS file at 370ae1e4; the code paths were not all re-read end to end, so a row's reason is the handbooks line's
 reading checked against this branch where a row names a key this line touched.
 
 | # | What the handbooks line found | Verdict |
 | --- | --- | --- |
-| H1 | config.mjs `HOPE_CALLS.freeCrit` prose says "your next roll"; roll-dialog.mjs `grantsFor` loads it on an action roll only | UI text untrue (the handbooks say "next action roll"): **1.2.114** |
-| H2 | config.mjs:4726 comment: Tamper costs 1 Sanity (true for the killer's own clean-up alone) | stale comment: **1.2.114** |
+| H1 | config.mjs `HOPE_CALLS.freeCrit` prose says "your next roll"; roll-dialog.mjs `grantsFor` loads it on an action roll only | **Q** (Q-NC-16): the Loaded Die's effect says "your next roll" and is an owner-approved B01a text, which the batch check holds; the code arms an action roll only. Default: keep the approved text until the owner rewords it: **1.2.114** |
+| H2 | config.mjs:4726 comment: Tamper costs 1 Sanity (true for the killer's own clean-up alone) | **DEF** fixed: comment (6ac9297b) |
 | H3 | `DRPG.Class.deadStill` tells the dead they speak at the table; voice.mjs puts them with the Spectators | UI text: **1.2.114** |
-| H4 | `SFX_EVENTS.sabotageSeen.hint` "Heard by the whole table"; the card goes to the room and the GMs | UI text: **1.2.114** |
+| H4 | `SFX_EVENTS.sabotageSeen.hint` "Heard by the whole table"; the card goes to the room and the GMs | **DONE**: the English hint says the players of everyone in that room (B02); the Polish names the GMs' silent card |
 | H5 | `DRPG.Remnant.deathTied` points to "Not tied"; the Investigation cell says "No" | UI text: **1.2.114** |
-| H6 | trial and Investigation keys still say "analysed" (EN1), `Trial.presentWithoutNote` among them | UI text: **1.2.114** (Investigation.unidentified and Chapter.typeless done by line C) |
-| H7 | `DRPG.Murder.thresholdShort` PL „Pobij {n}” where the rest says „Przebij” | UI text: **1.2.114** |
+| H6 | trial and Investigation keys still say "analysed" (EN1), `Trial.presentWithoutNote` among them | **DEF** fixed: `Chapter.revealKeeps` "analyzed" (5e45bd11); line C did `Investigation.unidentified`, `Chapter.typeless`, `Trial.presentWithoutNote`; en.json holds no "analysed" now |
+| H7 | `DRPG.Murder.thresholdShort` PL „Pobij {n}” where the rest says „Przebij” | **DEF** fixed: „Przebij {n}” (5e45bd11, R6919), with the brochure's and the player handbook's quotes |
 | H8 | `DRPG.Murder.nightNoteIndirect` for a trap victim at Night | **DONE**: line A, 5ce68aec, R6402 |
-| H9 | `DRPG.Chapter.keptUntilFound` names "the Players window"; it is Students | UI text: **1.2.114** |
+| H9 | `DRPG.Chapter.keptUntilFound` names "the Players window"; it is Students | **DONE**: the text says "the Students window" now |
 | H10 | a critical cover roll restores 1 Sanity though a success costs none (cleanup.mjs) | rules question for the owner, default keep: **1.2.114** |
 | H11 | Move the Body's DC floored at 0, not CLEANUP.minDc 8 (no tier reaches it) | not a defect as it plays (no tier reaches it); rules question, default keep: **1.2.114** |
-| H12 | murder-rules.mjs comment: Self-Defense "exactly one attempt"; a miss leaves it usable | stale comment: **1.2.114** |
+| H12 | murder-rules.mjs comment: Self-Defense "exactly one attempt"; a miss leaves it usable | **DEF** fixed: comment (6ac9297b) |
 | H13 | `INDIRECT_MURDER.subProjects` "unless you obtained the tool": no code checks it | rules question (code or text), default keep: **1.2.114** |
-| H14 | config.mjs usable hint "clear Sanity" (D5/M7); Bribe "favour" (EN1); `ITEM_CATEGORIES.usable.hint` the same | UI text: **1.2.114** |
+| H14 | config.mjs usable hint "clear Sanity" (D5/M7); Bribe "favour" (EN1); `ITEM_CATEGORIES.usable.hint` the same | **DEF** fixed: Bribe "favor" (5e45bd11, R6919); the usable hint says "restores Sanity" since B01b: **DONE** |
 | H15 | Confusion's first tier is 11, "owner to confirm" since 12.11 | owner's open question, not code: **1.2.114** |
-| H16 | OVERFLOW comments say "the eight" (thirteen effects); Jitters and Power cut say "the GM's room actions" | stale comments and UI text: **1.2.114** |
+| H16 | OVERFLOW comments say "the eight" (thirteen effects); Jitters and Power cut say "the GM's room actions" | comments **DEF** fixed ("thirteen", 6ac9297b); "the GM's room actions" is **ND**: the code's own term for a room action a GM made (overflow.mjs `jittersFor`, facilities) |
 | H17 | `DRPG.Monocub.dialogIntro` unused | **DONE**: deleted, 2883945f, R6904 |
 | H18 | the safeword's 60 s repeat window does nothing with no GM connected: each press posts a card | rules question (a safety tool's behaviour), default keep: **1.2.114** |
-| H19 | `DRPG.Note.q3` uses the retired word "consent" | UI text: **1.2.114** |
+| H19 | `DRPG.Note.q3` uses the retired word "consent" | **ND**: "consent" is retired only in Frisk texts (tests-text.mjs's detector, the glossary's note); a safety question may say it |
 | H20 | `DRPG.Season.resetKeeps` lists "who watches whom" as kept; the assignments group (ticked by default) clears it | UI text or code, unsure: **1.2.114** |
-| H21 | season-exceptions.mjs:33 comment says 28 ticks; there are 30 | stale comment: **1.2.114** |
+| H21 | season-exceptions.mjs:33 comment says 28 ticks; there are 30 | **DEF** fixed: comment (6ac9297b), the count the handbooks line's |
 | H22 | `DRPG.Season.hint.scenes` names Room setup's Scenes tab | **DONE**: the key is gone (group D) |
-| H23 | `DRPG.Season.introReady` says "run" Pre-season checks (now in the Season checklist); contract sentences keep British spelling | UI text: **1.2.114**; `Panel.seasonChecks` kept (windows.md M4, R1334: #115) |
-| H24 | `DRPG.Requirements.reason.dice-so-nice` and module.json: "the one dice style the GM sets" - not under Each player's own | UI text and the manifest's reason: **1.2.114** |
-| H25 | action-tamper.mjs:222-230 comment: Tamper costs Sanity once actions are gone; the code refuses Tamper with no action | stale comment: **1.2.114** |
+| H23 | `DRPG.Season.introReady` says "run" Pre-season checks (now in the Season checklist); contract sentences keep British spelling | **DONE**: `Season.introReady` no longer says "run"; the contract rows' British spelling is copied from the contract: a question for the text line, **1.2.114** |
+| H24 | `DRPG.Requirements.reason.dice-so-nice` and module.json: "the one dice style the GM sets" - not under Each player's own | **1.2.114**: `Requirements.reason.dice-so-nice` must equal module.json's reason (R1517), so the two change together, with the release line |
+| H25 | action-tamper.mjs:222-230 comment: Tamper costs Sanity once actions are gone; the code refuses Tamper with no action | **DEF** fixed: comment (6ac9297b) |
 | H26 | D113 ("the skip order in the budget paragraph") has no source in the repository | not code: the handbooks line's question |
-| H27 | `DRPG.Rooms.reportNote` puts "This is a room" in the Doors tab (Rooms since E101); `TrialScene.hallDark` names the Scenes tab | UI text: **1.2.114**; hallDark **DONE** (deleted, 2883945f) |
-| H28 | `DRPG.Season.missingMonokumaActor` points to Despair Flow and the Actors menu, neither makes a Monokuma; roomCountLine comment says Doors; `Season.step.hallTokens` unused | UI text and comment: **1.2.114**; hallTokens **DONE** (gone) |
+| H27 | `DRPG.Rooms.reportNote` puts "This is a room" in the Doors tab (Rooms since E101); `TrialScene.hallDark` names the Scenes tab | **DONE**: `Rooms.reportNote` names the Rooms tab now; `TrialScene.hallDark` deleted (2883945f) |
+| H28 | `DRPG.Season.missingMonokumaActor` points to Despair Flow and the Actors menu, neither makes a Monokuma; roomCountLine comment says Doors; `Season.step.hallTokens` unused | **DONE**: `Season.missingMonokumaActor` names the Students window and the sheet now; the comment **DEF** fixed (6ac9297b); `Season.step.hallTokens` gone |
 | H29 | murder-ui.mjs `indirectCostText` "roughly 4 to 5 actions" assumes each Work alone; `Clock.takenBack` names less than it puts back; the wrench window is in no handbook | UI text (a number, Q-NC-1's family): **1.2.114**; the wrench window: handbook line |
 | H30 | season-setup.mjs keeps an "optional" Dice So Nice row though the module requires it | **DONE**: group D, R6551 |
-| H31 | "No Mastermind set. Pick one from the GM panel first.": the Mastermind is picked in Season setup | UI text: **1.2.114** |
+| H31 | "No Mastermind set. Pick one from the GM panel first.": the Mastermind is picked in Season setup | **DEF** fixed: `Mastermind.noneSet` names Season setup (5e45bd11, R6919), the GM handbook's quotes and LABELS.md with it |
 | H32 | Escape Together on a critical leaves no Remnant (`CRISIS_ACTIONS.sharedEscape.remnant` has no critical key) | rules question, default keep: **1.2.114** |
-| H33 | config.mjs:1610 hintCritical "They ask you one question" (the player asks); :1920 "hidden-difficulty repair" is a plain Desperate project; R1374 pins "a red row" while GM rows wear the chip | UI text and a stale test sentence: **1.2.114** |
-| H34 | the Polish read: Monocub.hopeFull (Hope masculine), Frisk.rowLabel (glossary), Eclipse treated as masculine in three keys (PL-b), „karta” for the sheet (PL-d) in four, „Kafel głosu” (kafelek), „żeton” (token), Panel.studentsLeft without few/many, X12/X13/X4 shapes, the safeword card, „Rezygnuję (nic nie schodzi)”, Vault.descriptionNote „śladach” (R518 pins the copy) | UI text (Polish): **1.2.114** |
+| H33 | config.mjs:1610 hintCritical "They ask you one question" (the player asks); :1920 "hidden-difficulty repair" is a plain Desperate project; R1374 pins "a red row" while GM rows wear the chip | **DEF** fixed: the critical hint a question the player asks, a critical Sabotage's repair Desperate (5e45bd11, R6919), the GM handbook's Sabotage row with it; R1374's "a red row": **1.2.114** |
+| H34 | the Polish read: Monocub.hopeFull (Hope masculine), Frisk.rowLabel (glossary), Eclipse treated as masculine in three keys (PL-b), „karta” for the sheet (PL-d) in four, „Kafel głosu” (kafelek), „żeton” (token), Panel.studentsLeft without few/many, X12/X13/X4 shapes, the safeword card, „Rezygnuję (nic nie schodzi)”, Vault.descriptionNote „śladach” (R518 pins the copy) | **DEF** fixed in part: `Monocub.hopeFull` „Twój Hope jest pełny.” and `Murder.thresholdShort` (5e45bd11); `Frisk.rowLabel` waits (R620 holds it with three handbook passages); the rest **1.2.114** |
 | H35 | placeholders in quoted messages written as the key's word (*Only name can present*) | a convention for the text lines, not a defect |
 | H36 | DB26 in practice: the Polish skeletons carried the English facts | a method note, not a defect |
 
