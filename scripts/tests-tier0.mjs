@@ -23220,7 +23220,10 @@ const REGRESSIONS = [
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).
-            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
+            // E59 on the 1.2.115 line (CHAINS.md B-H3, B-H2; R7180): eclipse.mjs `endEclipse`'s public end card during an incident
+            // (a `message`, as the end without advancing), and overflow.mjs `announceOverflow`'s card built once and either
+            // announced or whispered veiled to the incident's audience (a `built`).
+            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 3},
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
@@ -23235,7 +23238,7 @@ const REGRESSIONS = [
             "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
             "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
-            "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
+            "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
             // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
             // PV (13.11.2026): a Secret Passage finder's "finished" moved from projects.mjs to projects-seen.mjs `postFoundDone`.
@@ -25622,6 +25625,84 @@ const REGRESSIONS = [
             read[lang] = { min: line.includes("{min}"), max: line.includes("{max}"), half: /half|połow/i.test(line) };
         }
         equal(JSON.stringify(read), JSON.stringify({ en: { min: true, max: true, half: false }, pl: { min: true, max: true, half: false } }), "{per language: the rule line's {min}, {max}, and whether it speaks of half the cast}");
+    }],
+    ["R7172 - the trial's end closes its vote (E59 C-115, CHAINS.md B-T6): End the trial (trial-floor-ui.mjs `closeTrial`) and every road out of the trial reach clock.mjs `reconcilePhase`, which closed no open vote, and the record kept `vote.open` for the chapter - a player reloading in Daily Life was handed a ballot (vote.mjs `ballotFor`) and could cast it (`recordBallot`); `reconcilePhase`, leaving the trial, calls trial-progress.mjs `shutVoteAtExit` before the sentence, which writes the record's vote closed, uncounted, when the record is the clock's chapter's and its vote is open", async () => {
+        const sources = new Map(await otherSources());
+        const exit = fnSource(stripComments(sources.get("clock.mjs") ?? ""), "reconcilePhase");
+        const at = exit.search(/\bshutVoteAtExit\(/), sentence = exit.search(/\bexecuteAtExit\(/);
+        ok(at > 0 && sentence > at, `reconcilePhase does not close the vote before the sentence (shutVoteAtExit at ${at}, executeAtExit at ${sentence})`);
+        const shut = fnSource(stripComments(sources.get("trial-progress.mjs") ?? ""), "shutVoteAtExit");
+        ok(/open:\s*false/.test(shut) && /trialProgressChapter\(\)/.test(shut) && /\.open\b/.test(shut), `shutVoteAtExit does not write an open vote of the clock's chapter closed: ${shut.replace(/\s+/g, " ").slice(0, 300)}`);
+    }],
+    ["R7173 - Shut the Door's row is shut before it costs anything where the GM would refuse it (E59 C-115, CHAINS.md B-R5): action-doors.mjs `performShut` pays and rolls before the GM's judgement (doors-gm.mjs `shutRefusal`), and a refusal gives nothing back - a refund after the roll would hand out the roll's Hope for free (action-pipeline.mjs `spentAfterRoll`); so action-listen.mjs `infiltrateRows` shuts the row with its reason by `shutShutWhy`, which reads what the player's browser knows of the GM's reasons - an Eclipse, somebody else's bedroom, more open doors than `INFILTRATE.shut.maxExits` - each a key in both languages", async () => {
+        const sources = new Map(await otherSources());
+        const listen = stripComments(sources.get("action-listen.mjs") ?? "");
+        ok(/key === "shut" \? shutShutWhy\(actor\)/.test(fnSource(listen, "infiltrateRows")), "infiltrateRows does not ask shutShutWhy for Shut the Door's row");
+        const why = fnSource(listen, "shutShutWhy");
+        const gm = fnSource(stripComments(sources.get("doors-gm.mjs") ?? ""), "shutRefusal");
+        ok(/isEclipse\(\)/.test(gm) && /ROOM_OWNER_FLAG/.test(gm) && /maxExits/.test(gm), "shutRefusal no longer refuses an Eclipse, another's bedroom and too many doors - this test reads the wrong rule");
+        const read = { eclipse: /isEclipse\(\)/.test(why), bedroom: /ROOM_OWNER_FLAG/.test(why), doors: /INFILTRATE\.shut\.maxExits/.test(why) && /isLocked\(/.test(why) };
+        equal(JSON.stringify(read), JSON.stringify({ eclipse: true, bedroom: true, doors: true }), "{shutShutWhy: whether it reads the Eclipse, the bedroom's owner and the open doors}");
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const shut = text?.DRPG?.Infiltrate?.shut ?? {};
+            ok(typeof shut.whyEclipse === "string" && typeof shut.whyBedroom === "string" && typeof shut.whyDoors?.other === "string", `${lang}.json lacks Shut the Door's row reasons`);
+        }
+    }],
+    ["R7174 - a discovery waiting for the GM's word announces the body where it lies (E59 C-115, CHAINS.md B-M2): two witnesses write the waiting row with the room they saw the body in (body.mjs `checkBodyFound`), the killers may still be in Stage 6, and Move the Body (cleanup.mjs `applyMoveBody`) does not touch the row; body.mjs `promptPendingBodies` named the row's room in its question and handed it to `discoverBody`, so the card and the gather named the old room with the body elsewhere; it reads the body's place now (body-tile.mjs `bodyPlaceOf`) for both, the row's room only where no place is read", async () => {
+        const body = stripComments(new Map(await otherSources()).get("body.mjs") ?? "");
+        const prompt = fnSource(body, "promptPendingBodies");
+        ok(/\bbodyPlaceOf\(/.test(prompt), "promptPendingBodies does not read where the body lies now");
+        ok(!/discoverBody\(\{\s*room:\s*row\.room\b/.test(prompt) && !/room:\s*esc\(row\.room\)/.test(prompt), "promptPendingBodies still names or announces the room the row was written with");
+    }],
+    ["R7176 - a Bounty of last season gives nothing back into this one (E59 C-115, CHAINS.md B-H1): a season reset with \"despair\" ticked and \"actions\" unticked zeroes the pools and drops what they owe (despair.mjs `clearOwed`) and keeps the open Bounties (gm-stores.mjs `bountyStore`, group \"actions\"); at the next time of day `lapseBounties` paid each one's cost back (`returnOwed`: no owed row reads as paid) into the new season's pool; a Bounty now carries the season it was posted in (`seasonEpoch`) and a lapse gives back only within it - inside one season the pay-back after a zero stays the owner's default (A113-C6-3)", async () => {
+        const cub = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        ok(/season:\s*seasonEpoch\(\)/.test(fnSource(cub, "postBountyNow")), "postBountyNow does not keep the season a Bounty was posted in");
+        const lapse = fnSource(cub, "lapseBounties");
+        ok(/\.season\b/.test(lapse) && /seasonEpoch\(\)/.test(lapse), "lapseBounties gives a Bounty's Despair back whatever season it was posted in");
+    }],
+    ["R7177 - an open Remnant card stays true while it is open, as a project's card does (E59 C-115, CHAINS.md B-R2): remnant-ring.mjs `showRemnantCard` wrote the card once - a player's from their own Truth Bullet (an Analyze updates that item), a GM's from the GMs' ledger (`remnantStore`) and the trace's token flags - and nothing drew it again; it keeps the card a live region (live.mjs `keepLive`) that hears the items, the tokens and the ledger, and a GM's card is wired again after each draw", async () => {
+        const ring = stripComments(new Map(await otherSources()).get("remnant-ring.mjs") ?? "");
+        const card = fnSource(ring, "showRemnantCard");
+        ok(/\bkeepLive\(/.test(card), "showRemnantCard writes the card once and keeps nothing live");
+        ok(/items:\s*true/.test(card) && /tokens:\s*true/.test(card) && /remnantStore/.test(card) && /after:/.test(card), `the Remnant card's live region does not hear the items, the tokens and the ledger, or does not wire a GM's card again: ${card.replace(/\s+/g, " ").slice(-500)}`);
+    }],
+    ["R7178 - every action a trace is left by wears its icon once analyzed, on the map and on its card (E59 C-115, CHAINS.md B-R3; PH 8: a Remnant wears \"?\" only until your copy is analyzed, then the icon of what left it): each `action: \"x\"` written in a `dropRemnant(` call of scripts/ is a key of remnant-icons.mjs `ACTION_ICONS` and of remnant-ring.mjs `GLYPH_ACTIONS` - the door actions (\"infiltrate\") and the facilities (\"facility\") fell back to the question mark", async () => {
+        const sources = new Map(await otherSources());
+        const acts = new Set();
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file)) continue;
+            const blank = blankComments(lf(raw));
+            for (const m of blank.matchAll(/\bdropRemnant\(/g)) {
+                const open = m.index + m[0].length - 1;
+                const { close } = callArgs(blank, open);
+                for (const a of blank.slice(open, close).matchAll(/\baction:\s*"(\w+)"/g)) acts.add(a[1]);
+            }
+        }
+        must(acts.size >= 4 && acts.has("search"), `only ${[...acts].join(", ")} read as trace actions - this would measure too little`);
+        const icons = stripComments(sources.get("remnant-icons.mjs") ?? ""), ring = stripComments(sources.get("remnant-ring.mjs") ?? "");
+        const iconList = bodyOf(icons, "const ACTION_ICONS = ", { until: "]" }), glyphList = bodyOf(ring, "const GLYPH_ACTIONS = ", { until: "];" });
+        const missing = [...acts].sort().filter(a => !iconList.includes(`"${a}"`) || !glyphList.includes(`"${a}"`));
+        equal(JSON.stringify(missing), "[]", `trace actions with no map icon or no card glyph (of ${[...acts].sort().join(", ")})`);
+    }],
+    ["R7179 - the GM's diagnostics do not call a neutral trace the module leaves on purpose a mistake (E59 C-115, CHAINS.md B-R4): the door actions (\"infiltrate\", doors-gm.mjs), the facilities (\"facility\", config.mjs `FACILITIES.trace`) and a body's looting (\"loot\", handover.mjs) leave Neutral Remnants by design, and diagnostics.mjs counted every Neutral Remnant under \"give each a real category\"; the count passes over the actions of `NEUTRAL_BY_DESIGN`, which names those three", async () => {
+        const diag = stripComments(new Map(await otherSources()).get("diagnostics.mjs") ?? "");
+        const list = bodyOf(diag, "const NEUTRAL_BY_DESIGN = ", { until: ";" });
+        equal(JSON.stringify(["infiltrate", "facility", "loot"].filter(a => !list.includes(`"${a}"`))), "[]", "actions that leave a Neutral Remnant by design and are not exempted");
+        ok(/NEUTRAL_BY_DESIGN\.has\(/.test(bodyOf(diag, "const neutral = [];", { until: "if (neutral.length)" })), "the Neutral count does not pass over the actions that leave one by design");
+    }],
+    ["R7180 - while an incident runs the boundary's cards go where its clock card goes, and an Eclipse ends for everyone it began for (E59 C-115, CHAINS.md B-H2, B-H3; Q-115-1): clock.mjs `announceTimeOfDay` veils the time of day's card to the GMs and the incident's audience while `murderState` stands, and overflow.mjs `announceOverflow` posted a darkening drawn at that boundary to the whole table with its sound; it veils it the same way. An Eclipse opened at Stage 6 starts on a public card and sound, and its end rode the veiled time-of-day card, so the bystanders never heard the lights come back: eclipse.mjs `endEclipse`, during an incident, posts its own public end card with `eclipseEnd` and the veiled time-of-day card carries no sound", async () => {
+        const sources = new Map(await otherSources());
+        const over = fnSource(stripComments(sources.get("overflow.mjs") ?? ""), "announceOverflow");
+        ok(/murderState\(\)/.test(over) && /incidentAudienceIds\(/.test(over) && /veiled:\s*true/.test(over), "announceOverflow posts a darkening to the whole table while an incident runs");
+        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipse");
+        ok(/murderState\(\)/.test(end) && /DRPG\.Eclipse\.ended/.test(bodyOf(end, "if (advance)", { until: "} else {" })), "endEclipse tells the bystanders nothing of the lights coming back while an incident runs");
+    }],
+    ["R7181 - the Eclipse wins over the Spectator talk switch (E59 C-115, CHAINS.md B-S5; Q-115-8's default): during an Eclipse no player is in voice (GM 9.5), and voice.mjs `placeVoices` moved an account whose talk switch is on to the Spectators' room after the Eclipse's claim, with no Eclipse asked; the Spectators' room rule passes over every account while `eclipse` holds", async () => {
+        const place = stripComments(fnSource(stripComments(new Map(await otherSources()).get("voice.mjs") ?? ""), "placeVoices"));
+        const rule = bodyOf(place, "for (const [userId, row] of byUser) {\n        if (", { length: 160 });
+        ok(/spectatorTalks\(/.test(rule), `the Spectators' room rule was not found where it stood: ${rule}`);
+        ok(/\beclipse\b/.test(rule), `the Spectators' room rule does not ask the Eclipse: ${rule}`);
     }],
 ];
 

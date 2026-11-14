@@ -1063,8 +1063,10 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
        holds one LiveKit room at a time (voice-client.mjs `applyBreakout` - a reading of this code, not of avclient-livekit;
        LIVE-E92-01), so the switch moves the account: its row's room is the Spectators', in every phase, until the switch
        is off and it goes back to its token's room. A Spectator is never a witness either way (`witness` below). */
+    // NOT IN AN ECLIPSE (E59 on the 1.2.115 line, CHAINS.md B-S5; R7181; Q-115-8's default): no player is in voice then,
+    // and the switch moved the account into the Spectators' room after the Eclipse's claim.
     for (const [userId, row] of byUser) {
-        if (!row.user || !spectatorTalks(row.user, { actors })) continue;
+        if (eclipse || !row.user || !spectatorTalks(row.user, { actors })) continue;
         byUser.set(userId, { ...row, room: null, target: SPECTATOR_ROOM, claim: CLAIM.inRoom, kept: false, keep: false,
             why: voiceText("DRPG.Voice.plan.why.spectatorTalks") });
     }
@@ -1543,6 +1545,24 @@ export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() 
 }
 
 /**
+ * WHETHER AN ACCOUNT HOLDS THE FLOOR THROUGH THIS STUDENT (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-T1; R7175):
+ * `actor` is a speaker, or a player who owns `actor` owns a speaker. The floor seats a student as the trial does (vote.mjs
+ * `trialParticipants`: the first in `game.actors`), and the mute read one student of the account (`trialVoiceActorOf`, the
+ * lowest id; the voice row's character) - a player with two students was held on their own turn. Pure but for the lists.
+ */
+export function holdsTheFloor(actor, speakers, { actors = game.actors, users = game.users } = {}) {
+    if (!actor || !speakers?.length) return false;
+    if (speakers.includes(actor.id)) return true;
+    const players = [...(users ?? [])].filter(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
+    if (!players.length) return false;
+    const byId = id => (typeof actors?.get === "function" ? actors.get(id) : [...(actors ?? [])].find(a => a?.id === id));
+    return speakers.some(id => {
+        const speaker = byId(id);
+        return Boolean(speaker) && players.some(u => speaker.testUserPermission?.(u, "OWNER"));
+    });
+}
+
+/**
  * THE FLOOR IS SOMEBODY ELSE'S (E110 C2, 14.11.2026): `{ reason: "floorHeld" | "floorHeldPair", held: true, data }` when
  * the floor the trial's facts hold (`trialFacts`) gives the floor to others and not to `actor` (floor-machine.mjs
  * `floorSpeakers`), else null. Only once a road entered the trial - the record holds the trial's list (`mutedDead`), as
@@ -1552,7 +1572,7 @@ export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() 
 export function floorHold(actor, trial) {
     if (!actor || trial?.clock?.phase !== "classTrial" || !Object.hasOwn(trial?.record ?? {}, "mutedDead")) return null;
     const speakers = floorSpeakers(trial.floor);
-    if (!speakers?.length || speakers.includes(actor.id)) return null;
+    if (!speakers?.length || holdsTheFloor(actor, speakers)) return null;
     const nameOf = id => game.actors?.get?.(id ?? "")?.name ?? "-";
     return speakers.length > 1
         ? { reason: "floorHeldPair", held: true, data: { name: nameOf(speakers[0]), target: nameOf(speakers[1]) } }
@@ -1755,7 +1775,7 @@ export async function settleTrialVoices({ release = false } = {}) {
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
             // The mask's block outside the trial alone (Q-E110-16): in the trial the floor's speakers decide.
             const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);
-            const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !speakers.includes(voice.id)
+            const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !holdsTheFloor(voice, speakers)
                 && !spectatorAccount(user, { held: flagsHeldNow }));
             if (watching || listening || masked || floorHeld || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);

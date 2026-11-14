@@ -95,7 +95,7 @@ Click a statistic on your sheet when the GM asks you for a roll outside an actio
 
 ### If you are a Spectator
 
-The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. Your microphone is off. **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and the same button, now **Go back to your room**, brings you back; if the GM turned the voice tile off, the button is not there. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat.
+The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. Your microphone is off. **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and the same button, now **Go back to your room**, brings you back; during an Eclipse it waits for the lights, as every player's voice does. If the GM turned the voice tile off, the button is not there. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat; the messenger still brings you the GM's messages, and you cannot answer them.
 
 When your character dies, you watch the same way, with a Spectator of your own: it has your character's name and pictures and stands where your body lies. Drag it anywhere, at no cost; other players do not see it. You still see only what a dead student sees. If you become a Monocub, its token becomes your Monocub.
 
@@ -424,7 +424,7 @@ The tail ends with a card when you are neither in the room they left nor in the 
 
 ### Shut the Door - Body, 1 action
 
-Barricade the room you stand in, from inside; your Body roll is the barricade's strength. It works in a room with at most two doors that open, and in your own bedroom but not in another's. While you stay inside, nobody walks in through a door, but a secret passage, a breach, or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends, and when an Eclipse begins. The room shows that it is barricaded, never by whom; the people standing in the room with you see you do it, and it leaves a Subtle Remnant marked Faint. Somebody who tries the door from outside is heard by everyone inside, without a name, and can force it (below).
+Barricade the room you stand in, from inside; your Body roll is the barricade's strength. It works in a room with at most two doors that open, and in your own bedroom but not in another's; not during an Eclipse, not where a body lies that nobody has found, and not where somebody else's barricade stands. Where your screen knows the reason - an Eclipse, another's bedroom, too many doors - the row is grayed with it and costs nothing; the other two are the GM's to see, and the action is spent. While you stay inside, nobody walks in through a door, but a secret passage, a breach, or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends, and when an Eclipse begins. The room shows that it is barricaded, never by whom; the people standing in the room with you see you do it, and it leaves a Subtle Remnant marked Faint. Somebody who tries the door from outside is heard by everyone inside, without a name, and can force it (below).
 
 ### Force the Door - Body, 1 action
 
@@ -545,7 +545,7 @@ Sprint and Burst bank instead and last until the time of day ends; a Class Trial
 
 ## 6. Despair - the other side
 
-Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** bar at the top.
+Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** at the top.
 
 ### Despair Calls - what Monokuma can do to you
 
@@ -1070,6 +1070,8 @@ The history's window shows **All**, **For you**, and **Not carried out** as butt
 - **Look**: **Language** is English or Polski for the module's windows, cards, and sheet, separate from Foundry's own language; it takes effect after a reload, and the game's names stay English in both. **Theme** is **Stained Glass** or **Monokuma Legacy**. Under Stained Glass the glass turns to a new color with each new phase or time of day; with **Reduced motion** it takes its new state at once. Here too are **Interface scale** (25% to 140%; below 80% the text is smaller than the module's readable size), **Time of day behind the clock** (Stained Glass only), and **Wide project windows**, which opens the project windows wider.
 - **Effects and accessibility**: **Pixel font** (Monokuma Legacy only), **Glass pulse** and **Glass blurs the map** (Stained Glass only), and **Reduced motion** and **High contrast** under both themes; each of the last two also follows your operating system when it asks for them.
 - **Sound and voice**: **Messenger sounds**, the **Sound** and **Music** volumes, and, while you are in voice, your **Microphone**, your **Sound output**, the **Microphone mode** (**Always on** or **Push to talk**), and the push-to-talk key (**Change the key**). If no microphone is listed, allow the browser to use it and open the window again.
+
+Some moments make no sound on purpose, so that nothing tells the table more than their card does: the change of the time of day, a Search that finds something (a critical plays its own), Work on a Project until its bar fills, and Dash and the door actions for the one who does them.
 
 **If the screen stutters**, change these in the settings window one at a time: turn **Glass blurs the map** off first, then **Glass pulse** and **Time of day behind the clock**, then turn **Reduced motion** on, and last try the theme Monokuma Legacy. Each changes only your own screen. If the GM asks how fast your screen runs, the steps are in section 17.
 

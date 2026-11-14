@@ -3408,14 +3408,14 @@
       "noWayBackLine": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Season setup.",
       "backToSchool": "Back to school",
       "phaseSwitchesScene": "It also takes everyone to the trial hall, {hall}, and places the tokens of the students chosen for it.",
-      "castPickHeading": "Who takes part in this trial",
+      "castPickHeading": "Who stands in the trial hall",
       "notPlaced": {
-        "one": "The trial hall has no token for {n} of those taking part, so the trial cannot show them: {names}. The module never makes one for Monokuma, and for anyone else it failed to. Place one on the hall's scene by hand.",
-        "other": "The trial hall has no token for {n} of those taking part, so the trial cannot show them: {names}. The module never makes one for Monokuma, and for anyone else it failed to. Place one for each on the hall's scene by hand."
+        "one": "The trial hall has no token for {n} of those chosen for the hall, so the trial cannot show them: {names}. The module never makes one for Monokuma, and for anyone else it failed to. Place one on the hall's scene by hand.",
+        "other": "The trial hall has no token for {n} of those chosen for the hall, so the trial cannot show them: {names}. The module never makes one for Monokuma, and for anyone else it failed to. Place one for each on the hall's scene by hand."
       },
       "handPlaced": "No token in the trial hall stands for {names}. The module makes none for Monokuma, so place one by hand if the trial needs it.",
       "placedByGm": "your token",
-      "castWho": "Takes part",
+      "castWho": "In the hall",
       "castToken": "Token in the hall"
     },
     "Trial": {
@@ -3809,6 +3809,9 @@
       },
       "shut": {
         "knock": "Someone tries the door and cannot get in.",
+        "whyEclipse": "Not during an Eclipse.",
+        "whyBedroom": "This is somebody else's bedroom.",
+        "whyDoors": { "one": "This room has more than {n} open door.", "other": "This room has more than {n} open doors." },
         "seenBy": "{name} barricades {room} from inside.",
         "done": "You barricade {room}. Until you leave or the time of day ends, nobody walks in through a door unless they force it."
       },
@@ -4050,7 +4053,7 @@
         "other": "You have {n} free actions banked. Each pays an action's whole price, even a Long Rest's."
       },
       "hopeSpent": "You spend {cost} Hope; you have {left} Hope left.",
-      "noPool": "This Monokuma has no Despair pool. Check the Despair bar.",
+      "noPool": "This Monokuma has no Despair pool. Check the Despair Pools.",
       "whichPlayer": "Which student?",
       "whichProject": "Which project?",
       "whichRoom": "Which room?",

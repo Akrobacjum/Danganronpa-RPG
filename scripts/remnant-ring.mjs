@@ -36,6 +36,8 @@ import { myBulletForRemnant } from "./visibility.mjs";
    adds no cycle. */
 import { projectIdOf } from "./projects-map.mjs";
 import { debug, error, esc, cssColour, forgetCssColours } from "./utils.mjs";
+import { keepLive } from "./live.mjs";
+import { remnantStore } from "./gm-stores.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { drpgConfirm, tipAttr } from "./ui-kit.mjs";
 // The ledger's key, for the repaint after a change to it (E90). utils.mjs imports settings.mjs already: no new cycle.
@@ -234,13 +236,23 @@ function showRemnantCard(app, element) {
 
     const body = element.querySelector(".window-content") ?? element;
 
-    const html = game.user.isGM
-        ? gmRemnantCard(token ?? actor, esc)
-        : playerRemnantCard(token ?? actor, esc);
+    const draw = () => (game.user.isGM ? gmRemnantCard(token ?? actor, esc) : playerRemnantCard(token ?? actor, esc));
+    const html = draw();
     if (!html) return;
 
     body.innerHTML = html;
     if (game.user.isGM) wireCardEditing(body, token ?? actor);
+    /* IN STEP WHILE IT IS OPEN (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R2; R7177), as a project's card is
+       (projects-map.mjs `showProjectCard`): a player's card reads their own Truth Bullet, which an Analyze updates; a
+       GM's the ledger (`remnantStore`) and the trace's token flags. It was written once, so an Analyze left the "?" and
+       the old words on an open card. A GM typing in it is not redrawn under the hand (live.mjs's focus rule). */
+    liveRemnantCards.get(app)?.();
+    liveRemnantCards.set(app, keepLive(app, {
+        region: ".drpg-remnant-card",
+        build: () => draw() ?? "",
+        watch: { items: true, tokens: true, stores: [remnantStore] },
+        after: next => { if (game.user.isGM) wireCardEditing(next, token ?? actor); }
+    }));
     // The window is sized for a stat block and this is a card.
     //
     // A FRAME LATER, NOT HERE (21.09). Set inside the render hook, the size was
@@ -250,6 +262,9 @@ function showRemnantCard(app, element) {
     requestAnimationFrame(() => app.setPosition?.({ height: "auto", width: 480 }));
 }
 
+/** The live region each open Remnant card holds, by its sheet: a later render stops the one before. */
+const liveRemnantCards = new WeakMap();
+
 /**
  * The card's pixel emblem - the same glyph the token itself wears on the map
  * (remnant-icons.mjs), so opening a trace confirms what the map already said
@@ -258,7 +273,7 @@ function showRemnantCard(app, element) {
  * question mark, exactly like the token does.
  */
 const GLYPH_ACTIONS = ["search", "project", "sabotage", "dynamic", "resolution",
-    "incident", "discard", "manual", "loot"];
+    "incident", "discard", "manual", "loot", "infiltrate", "facility"];
 
 function glyph(action) {
     const act = GLYPH_ACTIONS.includes(action) ? action : "unknown";

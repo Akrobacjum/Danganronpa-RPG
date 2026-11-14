@@ -1177,6 +1177,14 @@ export async function fileSizes() {
 }
 
 /**
+ * The actions that leave a Neutral Remnant by design (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R4; R7179): the
+ * door actions (doors-gm.mjs `leaveDoorTrace`), a facility's room action (config.mjs `FACILITIES.trace`) and a body's
+ * looting (handover.mjs). `diagnoseTruthBullets` passes over them in its count of Neutral Remnants a GM should give a
+ * real category.
+ */
+const NEUTRAL_BY_DESIGN = new Set(["infiltrate", "facility", "loot"]);
+
+/**
  * Are the Truth Bullets whole?
  *
  * Two things can go quietly wrong. The rows are injected into Daggerheart's own
@@ -1242,8 +1250,11 @@ export function diagnoseTruthBullets({ toChat = true } = {}) {
     for (const scene of game.scenes) {
         // Every trace's ref (E60 C1b): its trace token, with its row or none (D38 = 1; E60 fix FG1).
         for (const ref of remnantsOn(scene)) {
-            const type = remnantStore.get(ref.key)?.type ?? ref.document?.getFlag(MODULE_ID, "remnantType");
+            const row = remnantStore.get(ref.key);
+            const type = row?.type ?? ref.document?.getFlag(MODULE_ID, "remnantType");
             if (type !== "neutral") continue;
+            // Left neutral by the module on purpose, not a GM's guess (E59 on the 1.2.115 line, CHAINS.md B-R4; R7179).
+            if (NEUTRAL_BY_DESIGN.has(row?.action ?? ref.document?.getFlag(MODULE_ID, "action"))) continue;
             neutral.push(scene.name);
         }
     }

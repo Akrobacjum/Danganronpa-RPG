@@ -475,6 +475,17 @@
         "source": ["DB28"]
       },
       {
+        "id": "despair-pools",
+        "en": "Despair Pools",
+        "pl": "Pule Despair",
+        "gender": "f",
+        "inflection": "The widget's name, as its title has it (DRPG.Despair.widgetTitle). English: the Despair Pools, plural verb. Polish: \"panel Pule Despair\", the name invariant and \"panel\" inflected (w panelu Pule Despair, pod panelem Pule Despair). A pool itself stays \"a Despair pool\" / \"pula Despair\".",
+        "forbidden": {"en": {"variants": ["Despair bar", "Despair rail"], "scope": ["ui", "handbooks"]}, "pl": {"variants": ["pasek Despair", "paska Despair", "pasku Despair", "paskiem Despair"], "scope": ["ui", "handbooks"]}},
+        "stage": "E59",
+        "source": ["E59 plan"],
+        "note": "Q-115-4 (E59 on the 1.2.115 line), the coordinator's word of 14.11.2026: one name for the widget, Despair Pools."
+      },
+      {
         "id": "eclipse",
         "en": "Eclipse",
         "pl": "Eclipse",

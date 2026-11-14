@@ -95,7 +95,7 @@ Kliknij statystykę na arkuszu, gdy GM poprosi cię o rzut poza akcją. To rzut 
 
 ### Jeśli jesteś Widzem
 
-GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów, a gra nigdzie cię nie wlicza. Inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony. **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala ci rozmawiać z innymi Widzami, a ten sam przycisk, teraz **Wróć do swojego pokoju**, cię cofa; jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Ruszasz się, przeciągając token, bez kosztu. Widzisz każdy pokój, który klasa odkryła, tokeny wszystkich i każdy projekt, także tajny, z jego opisem, w każdym pokoju. Na koniec dnia plansza końca dnia pokazuje ci tylko swój nagłówek i nastrój szkoły. Nie masz czatu.
+GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów, a gra nigdzie cię nie wlicza. Inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony. **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala ci rozmawiać z innymi Widzami, a ten sam przycisk, teraz **Wróć do swojego pokoju**, cię cofa; podczas Eclipse czeka na powrót światła, jak głos każdego gracza. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Ruszasz się, przeciągając token, bez kosztu. Widzisz każdy pokój, który klasa odkryła, tokeny wszystkich i każdy projekt, także tajny, z jego opisem, w każdym pokoju. Na koniec dnia plansza końca dnia pokazuje ci tylko swój nagłówek i nastrój szkoły. Nie masz czatu; komunikator nadal przynosi ci wiadomości od GM-a, ale nie możesz na nie odpowiedzieć.
 
 Gdy twoja postać zginie, oglądasz tak samo, z własnym Widzem: ma imię i obrazy twojej postaci i stoi tam, gdzie leży twoje ciało. Możesz go przeciągnąć dokądkolwiek, bez kosztu, a inni gracze go nie widzą. Nadal widzisz tylko to, co widzi zmarły uczeń. Jeśli zostaniesz Monocubem, jego token stanie się twoim Monocubem.
 
@@ -424,7 +424,7 @@ Dopóki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i 
 
 ### Shut the Door - Body, 1 akcja
 
-Barykadujesz od środka pokój, w którym stoisz, a siłą barykady jest twój rzut na Body. Działa to w pokoju, który ma najwyżej dwoje drzwi dających się otworzyć, i we własnej sypialni, ale nie w cudzej. Dopóki zostajesz w środku, nikt nie wejdzie drzwiami, choć tajne przejście, wyłom albo tunel wciąż przepuszcza. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, ale nigdy przez kogo; osoby stojące z tobą w pokoju widzą, jak to robisz. Shut the Door zostawia Subtle Remnant oznaczony jako Faint. Kogoś, kto próbuje wejść drzwiami z zewnątrz, słyszą wszyscy w środku, bez imienia, a taka osoba może drzwi wyważyć (niżej).
+Barykadujesz od środka pokój, w którym stoisz, a siłą barykady jest twój rzut na Body. Działa to w pokoju, który ma najwyżej dwoje drzwi dających się otworzyć, i we własnej sypialni, ale nie w cudzej; nie w czasie Eclipse, nie tam, gdzie leży ciało, którego nikt nie znalazł, i nie tam, gdzie stoi cudza barykada. Gdy twój ekran zna powód - Eclipse, cudza sypialnia, za dużo drzwi - wiersz jest wyszarzony z tym powodem i nic nie kosztuje; dwa pozostałe widzi tylko GM, a akcja przepada. Dopóki zostajesz w środku, nikt nie wejdzie drzwiami, choć tajne przejście, wyłom albo tunel wciąż przepuszcza. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, ale nigdy przez kogo; osoby stojące z tobą w pokoju widzą, jak to robisz. Shut the Door zostawia Subtle Remnant oznaczony jako Faint. Kogoś, kto próbuje wejść drzwiami z zewnątrz, słyszą wszyscy w środku, bez imienia, a taka osoba może drzwi wyważyć (niżej).
 
 ### Force the Door - Body, 1 akcja
 
@@ -545,7 +545,7 @@ Sprint i Burst zamiast czekać na rzut idą do zapasu i trwają do końca pory d
 
 ## 6. Despair - druga strona
 
-Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, na pasku **Pule Despair** u góry.
+Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, w panelu **Pule Despair** u góry.
 
 ### Despair Calls - co Monokuma może ci zrobić
 
@@ -1070,6 +1070,8 @@ Okno historii pokazuje jako przyciski **Wszystkie**, **Dla ciebie** i **Niewykon
 - **Wygląd**: **Język** to English albo Polski dla okien, kart i arkusza modułu, osobno od języka Foundry; działa po przeładowaniu, a nazwy gry zostają po angielsku w obu językach. **Motyw** to **Stained Glass** albo **Monokuma Legacy**; pod Stained Glass szkło zmienia kolor z każdą nową fazą albo porą dnia, a z włączonym ustawieniem **Ograniczone animacje** od razu przyjmuje nowy stan. **Skala interfejsu** ma zakres od 25% do 140% (poniżej 80% tekst jest mniejszy niż czytelny rozmiar modułu), **Pora dnia za zegarem** jest tylko pod Stained Glass, a **Szerokie okna projektów** otwiera okna projektów szerzej.
 - **Efekty i dostępność**: **Czcionka pikselowa**, **Puls szkła**, **Szkło rozmywa mapę**, **Ograniczone animacje** i **Wysoki kontrast**. Czcionka pikselowa jest tylko pod Monokuma Legacy, puls szkła i rozmycie mapy tylko pod Stained Glass, a ograniczone animacje i wysoki kontrast są pod oboma motywami i każde z nich włącza się też samo, gdy prosi o to system operacyjny.
 - **Dźwięk i głos**: **Dźwięki komunikatora**, głośność **Dźwięk** i **Muzyka** oraz ustawienia głosu. Gdy jesteś w głosie, są tu twój **Mikrofon**, twoje **Wyjście dźwięku**, **Tryb mikrofonu** (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia (**Zmień klawisz**). Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
+
+Niektóre chwile celowo nie grają dźwięku, żeby nic nie mówiło stołowi więcej niż ich karta: zmiana pory dnia, Search, który coś znajduje (krytyk gra własny), Work on a Project, dopóki pasek się nie zapełni, oraz Dash i akcje przy drzwiach dla tego, kto je robi.
 
 **Gdy ekran się przycina**, zmieniaj te ustawienia w oknie ustawień po jednym: najpierw wyłącz **Szkło rozmywa mapę**, potem **Puls szkła** i **Pora dnia za zegarem**, potem włącz **Ograniczone animacje**, a na końcu spróbuj motywu **Monokuma Legacy**. Każde z nich zmienia tylko twój ekran. Jeśli GM zapyta, jak szybko działa twój ekran, kroki są w rozdziale 17.
 

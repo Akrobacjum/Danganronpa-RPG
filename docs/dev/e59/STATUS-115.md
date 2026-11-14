@@ -2,7 +2,7 @@
 
 Branch `claude/e59-115`, from `main` at 9e7e3d78 (the 1.2.114 release tree). Started 14.11.2026 on the coordinator's
 brief: the owner's consistency (code - handbooks - texts; the code inside itself; the behaviour, sounds and the
-mechanics meshing). R numbers: R7160-R7199, R7160-R7171 taken. The 1.2.113 part of the stage is STATUS.md, GATES.md,
+mechanics meshing). R numbers: R7160-R7199, R7160-R7181 taken. The 1.2.113 part of the stage is STATUS.md, GATES.md,
 WINDOWS.md and GAPS.md beside this file.
 
 ## Items
@@ -45,6 +45,33 @@ question, not a fix. B-S11's second half (the case summary as a sixth sequence) 
 Each break's commit is cited in its row of CHAINS.md. One commit per break, except cd81893a and 3f3a9eb7, which change
 the same paragraphs of the handbooks for several breaks each; their messages name every break.
 
+## The second pass (the coordinator's word of 14.11.2026)
+
+Merged `claude/fervent-sagan-gme4vt` (534306dc: E56 part 2, the tooltip sweep; one conflict, the registry, regenerated).
+Then every break that needs no Foundry and no design closed, red first, R7172-R7181:
+
+| Commit | Breaks | Test |
+| --- | --- | --- |
+| 0d3fd126 | B-T6 the trial's end closes its vote (checked first: End the trial refuses nothing for an open vote) | R7172 |
+| 9abdf454 | B-R5 Shut the Door's row shut before it costs anything | R7173 |
+| a2138850 | B-M2 a waiting discovery announces the body where it lies | R7174 |
+| 38349f27, a40dae28 | B-T1 the floor's mute knows a player by every student (a40dae28 moves a docblock: 38349f27 was pushed with quick red on the comments part, read through a grep that matched "RED") | R7175 |
+| 3ca4b201 | B-H1 a Bounty of last season gives nothing back | R7176 |
+| 70f9a808 | B-R2 the Remnant card live | R7177 |
+| 29b620d6 | B-R3 the door and facility traces' icons | R7178 |
+| 3c6694bb | B-R4 the diagnostics' Neutral count | R7179 |
+| f7a1f029 | B-R10 the bedroom sound's label | text |
+| 1bce99a6 | B-H2, B-H3 (Q-115-1) the darkening veiled, the Eclipse's end public during an incident | R7180 |
+| 9e575ffb | B-S5, B-S3 (Q-115-8) the Eclipse wins over the talk switch; the messenger documented | R7181 |
+| 8be5bbce | B-M9 (Q-115-6) GM 14.4's doc line | text |
+| 96d1c168 | B-T2 (Q-115-7) the tick named "In the hall" | text |
+| 95e0af72 | B-H7 (Q-115-4) one name, the Despair Pools; a glossary row | text |
+| 0f68a072 | B-H4, B-R8, B-T7, B-T8 (Q-115-3) GM 17 names the silent moments; the player's share is PH 16 (the message says PH 14 by mistake) | text |
+
+Left: B-M4 is Q-115-9 (new, a design question); B-H6 and B-M6 are E109's (H20, H11); B-S11's "five rows" half is
+unverified. The registry stamps R7160-R7171 E56 (the tool stamps the first stage not shipped, and a written row keeps
+its stamp); R7172 on are stamped E59 with `--stage E59`. Not hand-edited.
+
 ## For E83 (so it does not count these twice)
 
 Stage defects found and fixed here, each its stage's own: B-T3 (E05 fix r2-G1's rule A left out of the Final Trial's
@@ -67,8 +94,16 @@ B-S10 are the Sound window's help lines, `.drpg-help`, not tooltips).
 - The Spectator's talk switch (B-S6): mark, switch on, unmark, mark again, on a real LiveKit, and the microphone closed.
 - The banging (B-R6) and the breach (B-R7) heard at a table: two players in rooms next to a forced door, one who never
   found the forced room.
-- Q-115-1's privacy of the Overflow card during an incident: needs the owner's answer first, then a table.
-- Q-115-8's Spectator in voice during an Eclipse: a real LiveKit.
+- The Overflow card veiled and the Eclipse's public end card during an incident (B-H2, B-H3): a v14 world, an
+  incident at Stage 6 with a bystander connected, an Eclipse opened and ended, a darkening drawn at that boundary; who
+  sees and hears what.
+- The Spectator talk switch during an Eclipse (B-S5): a real LiveKit, a Spectator with the switch on, an Eclipse
+  started and ended: out of voice, then back in the Spectators' room.
+- The door and facility traces' icons on the canvas (B-R3): the harness has no canvas; an analyzed copy of each on a
+  real map.
+- The live Remnant card (B-R2): a player with the card open while a GM's Analyze identifies their copy.
+- The floor's mute for a player with two students (B-T1): a real LiveKit, a Testimony turn of the player's second
+  student.
 
 ## Test numbers
 
@@ -86,3 +121,13 @@ Measured here (4 cores, 14.11.2026), one harness at a time:
   lines this line changed on purpose; c990b6f0 brings each to the change (its message says how).
 - The full tier 1 at c990b6f0 (the code of the final tip): 1684 passed, 0 failed, 16 skipped, 0 red, 476 s wall
   (1672 at the base plus R7160-R7171).
+
+### The second pass's numbers (4 cores, 14.11.2026)
+
+- The full tier 1 at 8ede7e0b: 1712 ran, 1696 passed, 1 failed (R3510, the card census: two new card sites of
+  1bce99a6), 16 skipped; 52f1fe38 pins them.
+- The full tier 1 at 52f1fe38 (the code of the final tip): 1697 passed, 0 failed, 16 skipped, 0 red, 470 s wall.
+- Scenarios run in the second pass: 18-trial 26/26, 63-class-trial 79/79, 10-murder 45/45, 67-trial-modes 52 passed,
+  0 failed, 1 expected red (its declared knownLeak TR30), 86-frame-work 105/105, 13-murder-signals 87/87, 40-flow
+  89/89, 81-render-budget 33/33, 41-trial-scene 52/52. Not run: 30-security, 33-bridge-paths, 72-canary (no bridge row
+  or world secret changed).

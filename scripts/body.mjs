@@ -918,11 +918,16 @@ async function promptPendingBodies() {
     for (const row of rows) {
         if (!pendingBodyStore.has(row.key) || !isPrimaryGm()) continue;
         const body = game.actors.get(row.victimId);
+        /* WHERE THE BODY LIES NOW (E59 on the 1.2.115 line, CHAINS.md B-M2; R7174): the row keeps the room the witnesses saw
+           it in, and a Move the Body in Stage 6 does not touch the row - the card and the gather named the old room. The
+           row's room only where no place is read. */
+        const lies = body ? bodyPlaceOf(body, { held: flagsHeldNow }) : null;
+        const room = lies?.room ?? row.room;
         const names = listOf(row.witnessIds.map(id => game.actors.get(id)?.name).filter(Boolean));
         const answer = await drpgWindow({
             title: game.i18n.localize("DRPG.Chapter.pendingTitle"),
             classes: ["drpg-panel"],
-            body: `<p>${game.i18n.format("DRPG.Chapter.pendingBody", { names: esc(names), name: esc(body?.name ?? "?"), room: esc(row.room) })}</p>
+            body: `<p>${game.i18n.format("DRPG.Chapter.pendingBody", { names: esc(names), name: esc(body?.name ?? "?"), room: esc(room) })}</p>
                 <p class="notes">${game.i18n.localize("DRPG.Chapter.pendingNote")}</p>`,
             footer: {
                 destructive: [{ action: "announce", label: game.i18n.localize("DRPG.Chapter.pendingAnnounce") }],
@@ -932,8 +937,8 @@ async function promptPendingBodies() {
             rejectClose: false
         });
         if (answer !== "announce" || !pendingBodyStore.has(row.key)) continue;
-        const scene = game.scenes.get(row.sceneId ?? "") ?? null;
-        const done = await discoverBody({ room: row.room, victim: body ?? null, scene, by: "witnesses" });
+        const scene = (lies?.room ? lies.scene : null) ?? game.scenes.get(row.sceneId ?? "") ?? null;
+        const done = await discoverBody({ room, victim: body ?? null, scene, by: "witnesses" });
         if (done) announced++;
     }
     return announced;
