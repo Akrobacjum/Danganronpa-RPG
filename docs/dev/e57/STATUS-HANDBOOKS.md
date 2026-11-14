@@ -22,6 +22,15 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
   still show commits past the base (e61-62, e93, e72, e64, gaps-a, e101, e101b, e64-inv) are the tails of shipped
   work. The plan (E57 C6-C8) rewrites every section, so this line treats the freeze as lifted.
 
+## Readings at the line's end (6451adf8, 14.11.2026)
+
+- `node run-tests.mjs --tier 1`: 1615 tests ran, 524.8 s wall; 1599 passed, 1 failed, 16 skipped, 0 red. The one failure is R2001, red at the base (the ledger's "row 1.2.N" quotes; the coordinator's ruling: known, fixed on top).
+- The 34 handbook-sentence tests: 34 passed, R111 skipped (env.layout).
+- `node cluster.mjs scenarios/62-investigation.mjs`: 52/52. `scenarios/50-lang.mjs`: 45/45.
+- `npm run quick`: green. `node tools/check.mjs text`: green, pairs "ids, kinds and lines as in English: yes" for all three.
+- `handbook-facts.mjs check` on the three English facts files: 0 problems.
+- docs/dev/e57/CORRECTIONS.md: the handbook's corrections against the code, as the writers reported them.
+
 ## Size, measured (`wc -w`, 14.11.2026)
 
 | Handbook | At the base (1463f22b) | After E25 (ce38e5ab) | Now (5d5c50a6) | Of it, the appendix |
@@ -132,6 +141,8 @@ R620's Polish GM Palm row ("Body 12 po odmowie") was dropped by the Polish fix p
 - Q-H3: "since 1.2.113" in the appendices: right for the release this line ships in; the stamps move at release.
 - Q-H4: D113 ("the skip order in the budget paragraph") has no text in the repository; read as the order a price
   is paid in (spendAction, takeMove).
+- Q-H6: placeholders in quoted messages are written as their key's word (*Only name can present right now.*, the same in Polish), with a few Polish ones translated (*imiona*). Default: left as it is, for the text lines to settle.
+- Q-H7: Calls.chainedBadge is "Chained" in Polish now (D33a); the Polish player handbook's row reads "| **Chained** od Despair Calla |". Default: kept.
 - Q-H5: README.md contradicts the handbooks in places the cold read found (the Rebuttal's target, another student's
   Sanity on the sheet, the Key Remnant fee's "fewer than four", where Killing game rules is); the README is not this
   line's to edit.
