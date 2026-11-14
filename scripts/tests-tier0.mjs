@@ -25502,6 +25502,13 @@ const REGRESSIONS = [
         equal(JSON.stringify(shape), JSON.stringify({ tellRooms: { present: true, ownFilter: false }, tellBreach: { present: true, ownFilter: false } }),
             "{each room's audience: whether it asks countsAsPresent, whether it keeps a filter of its own}");
     }],
+    ["R7164 - a forced door's banging names the room as each listener knows it (E59 C-115, CHAINS.md B-R6): the rooms next to a forced door hear it, and a room a listener has not found is \"Unexplored room n\" to them, as a breach's crash and Listen name it (passages-gm.mjs `roomNamerFor`); doors-gm.mjs `forceDoor` formats `DRPG.Infiltrate.force.banging` per listener through `roomNamerFor`, and `tellRooms` takes a text built for each student it tells", async () => {
+        const doors = stripComments(new Map(await otherSources()).get("doors-gm.mjs") ?? "");
+        const force = fnSource(doors, "forceDoor");
+        const banging = bodyOf(force, "DRPG.Infiltrate.force.banging", { back: 400 }) + bodyOf(force, "DRPG.Infiltrate.force.banging", { length: 200 });
+        ok(/\broomNamerFor\(/.test(banging), `forceDoor names the banging's room by its real name: ${banging.replace(/\s+/g, " ").slice(-450)}`);
+        ok(/typeof text === "function"/.test(fnSource(doors, "tellRooms")), "tellRooms takes one text for every student it tells");
+    }],
 ];
 
 

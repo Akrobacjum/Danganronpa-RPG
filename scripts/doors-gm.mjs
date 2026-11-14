@@ -125,12 +125,14 @@ async function whatHolds(actor, scene, room) {
 }
 
 /**
- * Whisper `text` to the owners of every living student standing in one of `rooms` on `scene` but `skip`'s, and to `also`'s
- * when it was not among them. Answers how many students were told; their ids are added to `into` when given.
+ * Whisper `text` (a string, or a function of the student told that answers one) to the owners of every student standing in
+ * one of `rooms` on `scene` but `skip`'s, and to `also`'s when it was not among them. Answers how many students were told; their ids are added to `into` when given.
  */
 async function tellRooms(scene, rooms, text, skip = new Set(), { also = null, into = null } = {}) {
     const { roomOfToken, countsAsPresent } = await import("./movement.mjs");
     const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
+    // A text built for each student told (E59 on the 1.2.115 line, CHAINS.md B-R6): a room named as that student knows it.
+    const textFor = async student => (typeof text === "function" ? await text(student) : text);
     const told = new Set();
     for (const token of scene?.tokens ?? []) {
         // Who is in the room is movement.mjs's one answer (E59 on the 1.2.115 line, CHAINS.md B-R7; R7163): no Monokuma,
@@ -138,11 +140,11 @@ async function tellRooms(scene, rooms, text, skip = new Set(), { also = null, in
         const student = token.actor;
         if (!countsAsPresent(token) || skip.has(student.id) || told.has(student.id) || !rooms.includes(roomOfToken(token))) continue;
         told.add(student.id);
-        await whisperToOwnerOnly(student, `<p>${esc(text)}</p>`);
+        await whisperToOwnerOnly(student, `<p>${esc(await textFor(student))}</p>`);
     }
     if (also && !told.has(also.id) && !skip.has(also.id)) {
         told.add(also.id);
-        await whisperToOwnerOnly(also, `<p>${esc(text)}</p>`);
+        await whisperToOwnerOnly(also, `<p>${esc(await textFor(also))}</p>`);
     }
     for (const id of told) into?.add(id);
     return told.size;
@@ -181,7 +183,11 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
     if (loud) {
         const near = [...new Set([...M.neighbouringRooms(place.scene, place.room), ...M.neighbouringRooms(place.scene, room)])]
             .filter(r => r !== place.room && r !== room);
-        heard = await tellRooms(place.scene, near, game.i18n.format("DRPG.Infiltrate.force.banging", { room }), new Set([actor.id]));
+        // The room as each listener knows it (E59 on the 1.2.115 line, CHAINS.md B-R6; R7164): one they have not found is
+        // "Unexplored room n", as a breach's crash and Listen name it - the real name told every room next door its name.
+        const { roomNamerFor } = await import("./passages-gm.mjs");
+        const banging = async student => game.i18n.format("DRPG.Infiltrate.force.banging", { room: (await roomNamerFor(student, place.scene.id))(room, 1) });
+        heard = await tellRooms(place.scene, near, banging, new Set([actor.id]));
     }
     await tellRooms(place.scene, loud ? [place.room, room] : [place.room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
         { name: actor.name, room }), new Set([actor.id]), { into: saw });
