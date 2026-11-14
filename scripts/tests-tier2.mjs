@@ -100794,6 +100794,62 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             again: "refused", timeOfDay: [1, true, null] }),
             "{masked; tokens [name, picture, flag]; kept: the looks in the GMs' store; copies [victim's killerId, killer's]; block [muted, blocked]; theirs; reveal; back [looks as before, row, muted, blocked, victim's copy names the killer]; again; timeOfDay [ended, looks, row]} - the mask");
     }],
+    ["E43-T1 - the Mask's two cards are veiled with no incident running (scripts/mask-gm.mjs `maskKiller`, `endMask`; E43-F10): with no incident open, the card that hides a killer behind a \"?\" and the card that ends it at a new time of day each go out veiled - their documents name neither the killer as speaker nor the killer's player as the one reader", async () => {
+        /*
+         * E43's season canary, 14.11.2026 (FINDINGS E43-F10). A mask ends at a new time of day, usually after its incident has
+         * closed, and secret.mjs veils a private card by itself only while an incident runs (`incidentVeils`); every browser
+         * holds every chat document, so an unveiled card spoken by the killer and whispered to their player names the killer
+         * on each. Scenario 72's "chat [chapter end]" read it on p1 and p2; this holds the two cards on their own, as the
+         * coordinator asked (the scenario is not to be the only guard). The incident's state is handed in as a fixture, as
+         * E69-T7 does; no incident is opened. Red at 1463f22b: both cards carried the killer's actor id as speaker and the
+         * killer's player alone in `whisper`, no `veiled`.
+         */
+        needs(env.primaryGm(), "the mask is written on the primary GM");
+        needs(world.atLeast("playerAccounts", 2), "the killer's player and the victim's are two players");
+        const S = await import("./gm-stores.mjs");
+        const K = await import("./mask-gm.mjs");
+        const V = await import("./voice.mjs");
+        must(!game.drpg.murderState()?.active, "an incident is running: the cards would be veiled by it - this would measure nothing");
+        const owners = a => game.users.filter(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const killer = game.actors.find(a => a.type === "character" && owners(a).length && game.scenes.some(s => s.tokens.some(t => t.actorId === a.id)));
+        must(killer, "no player's character with a token - this would measure nothing");
+        const kp = owners(killer)[0];
+        const victim = game.actors.find(a => a.type === "character" && a.id !== killer.id && owners(a).length && !owners(a).some(u => u.id === kp.id));
+        must(victim, "no character of another player - this would measure nothing");
+        const permsWere = kp._source?.permissions ? { ...kp._source.permissions } : {};
+        const blocked = () => (game.users.get(kp.id)?._source?.permissions ?? {}).BROADCAST_AUDIO === false;
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const MOD = "danganronpa-rpg";
+        /* Each card posted since `from`, as its document reads on every browser: veiled, who speaks it, who it names. */
+        const cardsSince = from => game.messages.filter(m => !from.has(m.id) && m.flags?.[MOD]?.secret).map(m => ({
+            veiled: m.flags?.[MOD]?.veiled === true, speaksKiller: m.speaker?.actor === killer.id || m.speaker?.alias === killer.name,
+            killersOnly: (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => owners(killer).some(u => u.id === id)) }));
+        const state = { active: true, stage: "incident", killerId: killer.id, victimId: victim.id, indirect: false };
+        const read = {};
+        await S.maskStore.whenHydrated();
+        try {
+            const before = new Set(game.messages.map(m => m.id));
+            read.masked = await K.maskKiller(state);
+            await settle();
+            read.opened = cardsSince(before);
+            const mid = new Set(game.messages.map(m => m.id));
+            read.ended = await K.endMask(killer.id, "timeOfDay");
+            await settle();
+            read.closed = cardsSince(mid);
+        } finally {
+            if (S.maskStore.get(killer.id)) await K.endMask(killer.id, "suite");
+            await V.settleTrialVoices();
+            if (blocked() && permsWere.BROADCAST_AUDIO !== false) {
+                const gone = (await import("./utils.mjs")).forcedDeletion();
+                await game.users.get(kp.id).update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : gone });
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            await settle();
+        }
+        const one = { veiled: true, speaksKiller: false, killersOnly: false };
+        equal(stableJson(read), stableJson({ masked: true, opened: [one], ended: true, closed: [one] }),
+            "{masked; opened: the card hiding the killer [veiled, spoken by the killer, whispered to the killer's player alone]; ended; closed: the card at the new time of day [the same]}");
+    }],
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*
          * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`

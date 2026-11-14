@@ -1,6 +1,6 @@
 # E39 - status (the work line of E39 and E40)
 
-Updated 13.11.2026. The plan is `docs/dev/plans/E39.md` on the planner's branch `plan-130` (read whole, with its
+Updated 14.11.2026 (the line claude/e39-43-113, base 1463f22b; before it, 13.11.2026). The plan is `docs/dev/plans/E39.md` on the planner's branch `plan-130` (read whole, with its
 README); base origin/main at 421f2395 (1.2.109). Reserved R numbers R5100-R5199; scenario 70 (the README's planned E39
 row) and 99 (the coordinator's) are this stage's.
 
@@ -24,6 +24,26 @@ The plan lays out no commits C1..Cn, only five work items (its section 3). They 
 | C2 (6a243316) | **99-actions**, the plan's driveAction: every row of `ACTIONS` driven from p1's page; a census that fails on a row without a driver; each row's price; every row with thresholds (Search, Projects, Listen, Sabotage) at one below each band, at each band and on a critical, against config.mjs | audit/harness/scenarios/99-actions.mjs, README row 99, tests-flows.mjs (action-roll names 99) |
 | C3 (8b1f3445) | tier 2 **E35-T10** holds every mode of `TRANSFER_POLICY` to a road it drives (a census, then each mode into full hands with a stash read against the policy itself); at HEAD a sixth mode `lend` passed it unread | scripts/tests-tier2.mjs |
 | C4 (fbb29935) | tier 2 **E39-T1**, the one project entry's cases on fresh projects: null for no project, an empty change and a removed one; +1; a fill crossing once; a full bar renamed not crossing again; alreadyFull and alreadyEmpty; uncrossing; the clamp at both ends; a lowered target crossing; a name and a room; a frozen bar refused; a target of 0 written as 1 | scripts/tests-tier2.mjs |
+
+### The line claude/e39-43-113 (14.11.2026, base 1463f22b, R block R6200-R6299)
+
+| Commit | What | Where |
+| --- | --- | --- |
+| 30a10b5b | **68 M**, a move between the trial hall's zones: a Straw Poll open, the movement cost on, p1 drags Aiko from Zone A into Zone B - no warning and the token where p1 put it on every browser (veto, send-back), her actions, free Move and grants unchanged (fee), no GM store of the primary changed, compared whole (fog `discovery`, `crossings`, `eclipseMoves`, `remnants`, `passageLog`, `passageAccess` among them), no token or card made, no auditMove row, no crossing packet on the wire (move.sentBack, passage.cross, eclipse.move, remnant.place, token.refundCrossing), and the one document write p1's token update. An Eclipse cannot run in a trial, so the Eclipse step is read as its store and its packet, not as a live Eclipse | audit/harness/scenarios/68-trial-zones.mjs |
+| d2aa9d17 | trial-zones.mjs's header named a tier-2 test "E73 C2: a move between the zones" that the suite never held (`git grep`, 14.11); it names 68 M now | scripts/trial-zones.mjs (a comment) |
+| c5840f11 | **99 flat**: Find Stash and Find Passage at 15, 16 and a critical under 16, with a target to find (Daichi's stash concealed in Dorm A, a tunnel with an end on Aiko's spot), read where the primary writes the find, each at Analyze's cost. **99 frisk**: Botan beside Aiko with a marked comb; Unseen at Shadow 14/15 x Hand 9/10 and both critical, Openly allowed, and refused then forced at Body 11 and 12, read on the GM's cards on p1 and p2 | audit/harness/scenarios/99-actions.mjs |
+
+Mutants of this line (each on a copy of the tree, `DRPG_REPO`, the scenario run whole on it):
+
+| Mutant | Check | Verdict |
+| --- | --- | --- |
+| rooms.mjs `roomPieces` counts the hall's regions as rooms | 68 M | KILLED by M2 (the trial's veto refused the move) and M6 |
+| the same, and crossingVerdict's trial lock removed | 68 M | KILLED by M3 (free Move used), M4 (`crossings`, `sheetMarks`, `discovery` changed), M6; M5 not failed by it (a lawful crossing sends no audit row or crossing packet), so M5 is seen to read, not to fail |
+| stash-reach.mjs `resolveStashSearch`: `>=` the stash number to `>` | 99 flat | KILLED (stash at 16 not found) |
+| passages-gm.mjs `resolvePassageSearch`: `>=` to `>` | 99 flat | KILLED (passage at 16 not found) |
+| frisk.mjs `friskPerson`: the hand's `>=` to `>` | 99 frisk | KILLED (cover-1/hand, cover/hand); p1's own outcome said success while the GM's card said the miss, so the check reads the GM |
+| `friskPerson`: the cover's `>=` to `>` | 99 frisk | KILLED (cover/hand-1, cover/hand) |
+| frisk.mjs the force's `>=` (`ACTIONS.palm.frisk.threshold`) to `>` | 99 frisk | KILLED (openly, forced at 12) |
 
 ## In progress
 
@@ -104,14 +124,16 @@ keep or drop.
 
 ## Gaps left (named, not built)
 
-- A move between the trial hall's zones read for every step it must not run (veto, fees, fog, Eclipse, Remnants,
-  auditMove, sentBack, passage.cross): 41 b1 and 68 C read the hall as no room and no crossing, not each of these.
-- Palm's Frisk modes driven from 99 (99 drives Palm alone, refused with nobody in the room).
-- Analyze's Find Stash and Find Passage at their flat 16: 99 prices Analyze, it does not band them.
+- The three gaps this file named on 13.11 are closed on the line claude/e39-43-113: 68 M, 99 flat, 99 frisk (above).
 
-## Waits for
+## Needs a local Foundry
 
-- LIVE-E39-01 (a v14 sandbox): the shim's `movement.pending.waypoints` and `Region.levels` calibrated against one real move.
+- LIVE-E39-01 (a Foundry v14 sandbox, one player's browser and a GM): one real drag of a student's token across two
+  rooms with a waypoint, and one up a stair between two Levels, with the `preUpdateToken` options and the Region's
+  `levels`/`includedInLevel` read off v14 and compared to what audit/harness/lib/shim.mjs models; then 70-movement and
+  66 G run again on the shim as corrected.
+- The trial hall's zones on a real v14 scene (68's local layer): a drag between two zones drawn on the canvas, with
+  regions that have holes and Levels (LIVE-E73-01..04 name the same).
 
 ## Shots
 
@@ -124,7 +146,8 @@ None: nothing visible changed (tests and documents only).
 
 ## Status
 
-E39 is done on this line: C1-C4 pushed, CI green (run 522). What is open is named under "Gaps left" and "Waits for".
+E39 is done on this line: C1-C4 pushed, CI green (run 522). On claude/e39-43-113 (14.11): 68 M, 99 flat and 99 frisk, the
+three headless gaps; what is left needs a v14 sandbox ("Needs a local Foundry").
 
 ## Tokens so far
 

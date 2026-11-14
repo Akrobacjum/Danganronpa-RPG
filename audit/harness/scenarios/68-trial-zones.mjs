@@ -47,7 +47,7 @@ export const accounts = [
 
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, canary, repoUrl, IDS, connect, disconnect }) {
+export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, canary, repoUrl, IDS, connect, disconnect, socketTraffic, opLog }) {
     const counts = {};
     let current = null;
     const begin = (letter, name) => { phase(`${letter}: ${name}`, { flow: "class-trial" }); current = letter; counts[letter] = 0; };
@@ -316,6 +316,66 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     await disconnect("gm3");
     await settle(500);
     await canary.scan({ phase: "G" });
+
+    /* ------------------------------ M. a move between the zones runs no step of a crossing ------------------------------ */
+    /* E39 (the plan's A70/E73 amendment: "a token move in Zones runs no veto, fees, fog, Eclipse, Remnants, auditMove,
+       sentBack or passage.cross"; trial-zones.mjs's header names the promise). A Straw Poll open, the movement cost on, and
+       p1 drags Aiko's hall token from Zone A into Zone B from its own page. Each step is read where it would act: the veto
+       on p1 (a warning, the token kept where it was), the fee on Aiko's sheet (actions, the free Move and its grants), the
+       fog, the Eclipse's count, the Remnants, the GMs' crossing record and the passages' log in the GMs' stores on the
+       primary (every store, compared whole, the changed ones named), auditMove in the primary's audit book (rows and
+       dropped), a send-back by the token standing where p1 put it on every browser, and the wire: no packet of a
+       crossing's (move.sentBack, passage.cross, eclipse.move, remnant.place, token.refundCrossing) from anybody. The world's
+       writes are read off the op log too: the token's own update and nothing else of a document. */
+    begin("M", "a move between the zones is no crossing");
+    await backOnStands();
+    const chargeWas = await gm.eval(`const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs");
+        const was = game.settings.get("danganronpa-rpg", SETTINGS.chargeMovement); await game.settings.set("danganronpa-rpg", SETTINGS.chargeMovement, true); return was;`, { timeout: 30000 });
+    await gm.eval(`await game.drpg.startStrawPoll({ question: "S68 moved between the zones", a: "Inside", b: "Outside" }); return true;`, { timeout: 30000 });
+    await settle(1000);
+    const CROSSING_WIRE = ["move.sentBack", "passage.cross", "eclipse.move", "remnant.place", "token.refundCrossing"];
+    const gmState = () => gm.eval(`const G = await import("${repoUrl}/scripts/gm-store.mjs"), A = await import("${repoUrl}/scripts/movement-audit.mjs");
+        const stores = Object.fromEntries(G.gmStoreHandles().map(h => [h.name, G.stableJson(h.entries())]));
+        const book = A.auditRows();
+        const a = game.actors.get("${IDS.aiko}"), f = a.flags["danganronpa-rpg"] ?? {};
+        return { stores, audit: { rows: book.rows.length, dropped: book.dropped },
+            sheet: { actions: a.system.resources.actions.value, freeMoveUsed: f.freeMoveUsed ?? null, freeMoveGrants: f.freeMoveGrants ?? null, freeActionGrants: f.freeActionGrants ?? null },
+            tokens: game.scenes.contents.reduce((n, s) => n + s.tokens.size, 0), chat: game.messages.size };`, { timeout: 30000 });
+    const before = await gmState();
+    const wire0 = socketTraffic.length, ops0 = opLog.length;
+    const zoneMove = await p1.eval(`const hall = game.scenes.get(globalThis.__s68hall); const Z = await import("${repoUrl}/scripts/zone-geometry.mjs");
+        const t = hall.tokens.find(x => x.actorId === "${IDS.aiko}"), zones = Z.zoneRegions(hall);
+        const told = globalThis.__notifications.length, from = Z.tokenZone(zones, t);
+        try { await t.update({ x: 1500, y: 400 }); } catch (err) { return { threw: String(err?.message ?? err) }; }
+        await new Promise(r => setTimeout(r, 2500));
+        const now = hall.tokens.get(t.id);
+        return { from, to: Z.tokenZone(zones, now), at: [now.x, now.y], told: globalThis.__notifications.slice(told).map(n => n.level + ":" + n.msg) };`, { timeout: 30000 });
+    await settle(1000);
+    const after = await gmState();
+    const standsAt = [];
+    for (const c of [gm, p1, p2, p3]) standsAt.push(await c.eval(`const t = game.scenes.get(globalThis.__s68hall)?.tokens.find(x => x.actorId === "${IDS.aiko}"); return t ? [t.x, t.y] : null;`));
+    const changedStores = Object.keys(after.stores).filter(k => after.stores[k] !== before.stores[k]);
+    const wire = socketTraffic.slice(wire0);
+    const crossingWire = wire.filter(w => CROSSING_WIRE.includes(w.action));
+    const docOps = opLog.slice(ops0).map(o => `${o.who} ${o.action} ${o.coll}${o.embeddedName ? "." + o.embeddedName : ""}`);
+    const CROSSING_STORES = ["discovery", "crossings", "eclipseMoves", "remnants", "passageLog", "passageAccess"];
+    const storeNames = Object.keys(before.stores);
+    verdict("the stores a crossing writes are all among the primary's (fog, crossings, the Eclipse's count, Remnants, the passages' log and access)",
+        CROSSING_STORES.every(n => storeNames.includes(n)), J({ storeNames }));
+    verdict("p1 drags Aiko from Zone A into Zone B: no veto - no warning on p1, the token where p1 put it on every browser (no send-back)",
+        zoneMove.from === "a" && zoneMove.to === "b" && !zoneMove.told.length && standsAt.every(at => J(at) === J([1500, 400])), J({ zoneMove, standsAt }));
+    verdict("no fee: Aiko's actions, her free Move and both grants as they were, with the movement cost on",
+        J(after.sheet) === J(before.sheet), J({ before: before.sheet, after: after.sheet }));
+    verdict("no fog, crossing record, Eclipse count, Remnant or passage row: no GM store of the primary changed, no token made, no card",
+        changedStores.length === 0 && after.tokens === before.tokens && after.chat === before.chat, J({ changedStores, tokens: [before.tokens, after.tokens], chat: [before.chat, after.chat] }));
+    verdict("no auditMove row on the primary, and no packet of a crossing's on the wire (move.sentBack, passage.cross, eclipse.move, remnant.place, token.refundCrossing)",
+        J(after.audit) === J(before.audit) && crossingWire.length === 0, J({ audit: [before.audit, after.audit], crossingWire, wire: wire.map(w => `${w.from} ${w.action}`) }));
+    verdict("the one document write is p1's update of the token",
+        J(docOps) === J(["p1 embedded-update Scene.Token"]), J({ docOps }));
+    await gm.eval(`${F} if (F.trialFloor()) await F.endFloor(); const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs");
+        await game.settings.set("danganronpa-rpg", SETTINGS.chargeMovement, ${J(chargeWas)}); return true;`, { timeout: 30000 });
+    await backOnStands();
+    await canary.scan({ phase: "M" });
 
     /* ------------------------------ restore ------------------------------ */
     await gm.eval(`${F} if (F.trialFloor()) await F.endFloor();

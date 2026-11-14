@@ -21,8 +21,9 @@
  * lies in (the GM handbook's section 15 says so).
  *
  * A MOVE BETWEEN ZONES IS NO CROSSING. The hall is a place for nobody (rooms.mjs `roomPieces`): no veto, no charge, no
- * fog, no Eclipse move, no Remnant, no `auditMove`, no `move.sentBack`, no `passage.cross` reads it. Tier 2 "E73 C2: a
- * move between the zones" holds that, and the entry's own sound and outline are this file's (`onZoneEntered`).
+ * fog, no Eclipse move, no Remnant, no `auditMove`, no `move.sentBack`, no `passage.cross` reads it. Scenario 68 M
+ * holds that (E39, 14.11.2026; this line named a tier-2 test "E73 C2: a move between the zones" that the suite never
+ * held), and the entry's own sound and outline are this file's (`onZoneEntered`).
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
