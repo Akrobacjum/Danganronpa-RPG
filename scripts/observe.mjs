@@ -243,7 +243,10 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
     if (declaration === DECLARATIONS.specific) {
         chosen = await askWhichRemnant(actor, room, request, candidates);
         // A GM who closes the picker has refused the request, which is a real
-        // answer: the player keeps their action and nothing is rolled.
+        // answer. The action was paid before the dice and stays paid: the roll
+        // already thrown goes to the GMs as a card to rule on (action-observe.mjs
+        // `observeSpecific` -> `ruleObserve`; R6355, 14.11.2026). Until then this
+        // line said the player kept their action and nothing was rolled.
         if (!chosen) return { ok: false, reason: "refused" };
     } else if (followingTraces) {
         /*

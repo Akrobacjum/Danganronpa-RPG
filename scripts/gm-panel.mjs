@@ -735,7 +735,7 @@ async function openFailureLog() {
             secondary: [
                 ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy"),
                     tooltip: tipText("DRPG.Tips.Gm.copyToClipboardTooltip") }] : []),
-                { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport") }
+                { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport"), tooltip: tipText("DRPG.Tips.Gm.foundryAndModulesTooltip") }
             ],
             destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
                 tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }] : []

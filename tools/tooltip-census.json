@@ -15,7 +15,7 @@
    "kind": "select",
    "key": "DRPG.Infiltrate.force.which",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the label asks which door, the prompt above says what forcing one does, and the list is the rooms next to this one named as Listen names them; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-doors.mjs",
@@ -23,7 +23,7 @@
    "kind": "select",
    "key": "DRPG.Infiltrate.force.which",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the label asks which door, the prompt above says what picking its lock does, and the list is the rooms next to this one named as Listen names them; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-doors.mjs",
@@ -31,7 +31,7 @@
    "kind": "footer",
    "key": "DRPG.Action.roll",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's one action; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-doors.mjs",
@@ -39,7 +39,7 @@
    "kind": "footer",
    "key": "DRPG.Action.roll",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's one action; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-listen.mjs",
@@ -127,7 +127,7 @@
    "kind": "select",
    "key": "DRPG.Infiltrate.tail.who",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the label asks whom, the prompt above says what Shadow decides, and the list names the students in this room"
   },
   {
    "file": "scripts/boundary.mjs",
@@ -162,14 +162,6 @@
    "why": "none needed: The label asks the question, the placeholder gives an example and the note under the form says all three answers are announced word for word."
   },
   {
-   "file": "scripts/call-pickers.mjs",
-   "unit": "pickChoice",
-   "kind": "footer",
-   "key": "DRPG.Calls.next",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
    "file": "scripts/calls.mjs",
    "unit": "askHopeCallApproval",
    "kind": "footer",
@@ -183,15 +175,7 @@
    "kind": "button",
    "key": null,
    "count": 1,
-   "why": "E102 C6: Opens this node's fields to edit it"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "caseGraphHtml",
-   "kind": "button",
-   "key": "DRPG.CaseTrial.tickLabel",
-   "count": 1,
-   "why": "E102 C6: Marks this point as reached in the Class Trial; every GM sees the mark"
+   "why": "conditional: editable, true only on the Investigation window's Map (caseGraphHtml given its editors); the Class Trial console draws the same face read only, where a press opens nothing (case-trial.mjs liveSchema), so it has no tooltip there"
   },
   {
    "file": "scripts/case-map.mjs",
@@ -211,23 +195,7 @@
    "kind": "button",
    "key": null,
    "count": 1,
-   "why": "E102 C6: Shows or hides these Remnants on the map"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "nodeEditHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Moves this node one place in its column; the order becomes By hand"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "caseOverviewHtml",
-   "kind": "button",
-   "key": "DRPG.CaseMap.noSchema",
-   "count": 1,
-   "why": "E102 C6: Lists what in the case does not hold together"
+   "why": "conditional: editors, only on the Investigation window's Map; the Class Trial console's graph is always folded and its press folds nothing (case-trial.mjs liveSchema wires no onFold), so the fold has no tooltip there"
   },
   {
    "file": "scripts/case-map.mjs",
@@ -239,27 +207,11 @@
   },
   {
    "file": "scripts/case-map.mjs",
-   "unit": "caseToolsHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Adds it to the case at once, with no need to Save"
-  },
-  {
-   "file": "scripts/case-map.mjs",
    "unit": "cameraHtml",
    "kind": "button",
    "key": "DRPG.CaseMap.zoomIn",
    "count": 1,
    "why": "none needed: The label says it; zoom in and out already carry titles."
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "nodeEditHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
    "file": "scripts/case-realize.mjs",
@@ -268,30 +220,6 @@
    "key": "DRPG.CaseRealize.colRoom",
    "count": 1,
    "why": "none needed: The window's intro says each slot is placed in the room picked and one left on '- leave it -' stays as it is."
-  },
-  {
-   "file": "scripts/case-realize.mjs",
-   "unit": "askAtBody",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.notNow",
-   "count": 1,
-   "why": "E102 C6: Not asked again; Realization preview in the Investigation window opens it later"
-  },
-  {
-   "file": "scripts/case-realize.mjs",
-   "unit": "askAtBody",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.showPreview",
-   "count": 1,
-   "why": "E102 C6: The preview changes nothing until you press Run realization."
-  },
-  {
-   "file": "scripts/case-summary.mjs",
-   "unit": "showCaseSummary",
-   "kind": "footer",
-   "key": "DRPG.CaseSummary.send",
-   "count": 1,
-   "why": "E102 C6: Posts this summary in the chat for the whole table, once per Class Trial"
   },
   {
    "file": "scripts/death.mjs",
@@ -347,7 +275,7 @@
    "kind": "checkbox",
    "key": "DRPG.Chapter.optNextSession",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the next-morning box (the census reads its neighbour's key); its label names the morning of the next day it starts the chapter on"
   },
   {
    "file": "scripts/cleanup-reshape.mjs",
@@ -375,59 +303,11 @@
   },
   {
    "file": "scripts/facility-editor.mjs",
-   "unit": "select",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "effectFields",
-   "kind": "input",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "roomActionsBody",
-   "kind": "input",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "projectFacilityBody",
-   "kind": "input",
-   "key": "DRPG.Facility.editor.projectIntro",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "effectFields",
-   "kind": "kit:stepper",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "roomActionsBody",
-   "kind": "kit:stepper",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
    "unit": "projectFacilityBody",
    "kind": "kit:toggle",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: its label, Costs an action, says it; off, the action is free"
   },
   {
    "file": "scripts/facility-editor.mjs",
@@ -435,15 +315,15 @@
    "kind": "footer",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's note says saving writes the room's actions at once, and the label names what it saves"
   },
   {
    "file": "scripts/facility-editor.mjs",
    "unit": "editProjectFacility",
    "kind": "footer",
    "key": null,
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "count": 1,
+   "why": "none needed: Save the action, under the intro that says what the project gives once complete; the label names what it saves"
   },
   {
    "file": "scripts/fog-diagnostics.mjs",
@@ -639,19 +519,11 @@
   },
   {
    "file": "scripts/gm-items.mjs",
-   "unit": "hubGivePane",
-   "kind": "checkbox",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
    "unit": "giveChoiceBar",
    "kind": "kit:modeBar",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: each bar is named by the words before it (Give what, From) and each of its buttons by its own word; a press shows that form below and gives nothing until Give"
   },
   {
    "file": "scripts/gm-panel.mjs",
@@ -668,14 +540,6 @@
    "key": "DRPG.Panel.nextLabel",
    "count": 1,
    "why": "none needed: Its label names the step it runs (Start the Eclipse, Announce the body, ...) and the line beside it says why."
-  },
-  {
-   "file": "scripts/gm-panel.mjs",
-   "unit": "openFailureLog",
-   "kind": "footer",
-   "key": "DRPG.Panel.foundryReport",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
    "file": "scripts/gm-stores.mjs",
@@ -764,22 +628,6 @@
   {
    "file": "scripts/investigation.mjs",
    "unit": "openNewTrace",
-   "kind": "select",
-   "key": "DRPG.Investigation.traceType",
-   "count": 1,
-   "why": "E102 C6: Its true kind, which a student learns with Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
    "kind": "input",
    "key": "DRPG.Investigation.traceName",
    "count": 1,
@@ -812,138 +660,10 @@
   {
    "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "input",
-   "key": "DRPG.Investigation.notePlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "input",
-   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.keyNotePlaceholder",
    "count": 1,
    "why": "none needed: Its label and placeholder (Only you read this) say everything."
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "select",
-   "key": "DRPG.Investigation.whichSlot",
-   "count": 1,
-   "why": "E102 C6: The planned clue it fills, so the plan counts it"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "placeKeyRow",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceText",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceAnalysis",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "select",
-   "key": "DRPG.Investigation.traceType",
-   "count": 1,
-   "why": "E102 C6: Its true kind, which a student learns with Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "checkbox",
-   "key": "DRPG.Remnant.faintColumn",
-   "count": 1,
-   "why": "E102 C6: A doubtful lead. Clear Faint Remnants can remove it, and a sweep keeps its Truth Bullets."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "select",
-   "key": "DRPG.Remnant.crimeColumn",
-   "count": 1,
-   "why": "E102 C6: Whether it belongs to the murder. A tied Remnant survives Clear Faint Remnants."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "checkbox",
-   "key": "DRPG.Remnant.reinforcedColumn",
-   "count": 1,
-   "why": "E102 C6: Nobody can clean it up with Tamper, and Clear Faint Remnants leaves it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "button",
-   "key": "DRPG.Investigation.deleteTrace",
-   "count": 1,
-   "why": "E102 C6: Removes this Remnant from the map and from the case. Asks first."
   },
   {
    "file": "scripts/investigation.mjs",
@@ -971,38 +691,6 @@
   },
   {
    "file": "scripts/investigation.mjs",
-   "unit": "caseTraceFilters",
-   "kind": "select",
-   "key": "DRPG.Investigation.filterChapter",
-   "count": 1,
-   "why": "E102 C6: Also picks the chapter the Map view draws"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceText",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceAnalysis",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
    "unit": "caseKeyCells",
    "kind": "input",
    "key": "DRPG.Investigation.keyNoteLabel",
@@ -1011,123 +699,11 @@
   },
   {
    "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "select",
-   "key": "DRPG.Investigation.onMap",
-   "count": 1,
-   "why": "E102 C6: Links this planned clue to a Key Remnant already on the map"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "button",
-   "key": "DRPG.Investigation.place",
-   "count": 1,
-   "why": "E102 C6: Puts this clue's Key Remnant on the map at once, in a room you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "input",
-   "key": "DRPG.Remnant.finalSubject",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "input",
-   "key": "DRPG.Investigation.notePlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "input",
-   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "viewSwitchHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Shows the case as a map of evidence and deductions, or as tables"
-  },
-  {
-   "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "checkbox",
    "key": "DRPG.CaseMap.noName",
    "count": 1,
    "why": "none needed: A checklist under its heading (Rests on or Refutes), each box named by the node it links."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "input",
-   "key": "DRPG.CaseMap.field.label",
-   "count": 1,
-   "why": "E102 C6: Its name on the map, and in the case summary the players get"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "textarea",
-   "key": "DRPG.CaseMap.field.text",
-   "count": 1,
-   "why": "E102 C6: Your words on this node. A solution's words reach the players in the case summary."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.CaseMap.field.mode",
-   "count": 1,
-   "why": "E102 C6: The Class Trial mode this node is played out in"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.room",
-   "count": 1,
-   "why": "E102 C6: The room the Incident Remnant goes in when you place it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.CaseMap.placeOnMap",
-   "count": 1,
-   "why": "E102 C6: Deletes this node from the case. Asks first."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Deletes this node from the case. Asks first."
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1163,75 +739,11 @@
   },
   {
    "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.Assign.save",
-   "count": 1,
-   "why": "E102 C6: Saves every field you changed, and places a Final Truth Remnant if you picked its room"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.Investigation.newTraceTitle",
-   "count": 1,
-   "why": "E102 C6: Places a Remnant of your own in a room you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.TruthBullet.autopsyTitle",
-   "count": 1,
-   "why": "E102 C6: Hands the Autopsy Truth Bullet to the students you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.Chapter.bodyTitle",
-   "count": 1,
-   "why": "E102 C6: Announces to the whole table that a body was found, in a room you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.preview",
-   "count": 1,
-   "why": "E102 C6: Shows where the planned Key Remnants would go. Nothing changes until you run it."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
-   "kind": "checkbox",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.CaseMap.autopsyAt",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "input",
    "key": "DRPG.TruthBullet.autopsyNamePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Autopsy's name, labelled and with the placeholder of the GM panel's Autopsy window it copies (gm-items.mjs issueAutopsyDialog)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1239,7 +751,7 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.autopsyTextPlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Autopsy's words, labelled for the player and with the Autopsy window's placeholder (gm-items.mjs issueAutopsyDialog), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1247,15 +759,7 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.gmNote",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.traceType",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Autopsy's GM note, labelled as the Autopsy window's (gm-items.mjs issueAutopsyDialog), whose row says the player never sees it"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1263,15 +767,7 @@
    "kind": "input",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "zoneRows",
-   "kind": "select",
-   "key": "DRPG.Zones.picker.set",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned minigame's question, answers and thesis, labelled as the zones window's own (trial-zones-ui.mjs pickerHtml, questionRows), whose rows say the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1279,23 +775,7 @@
    "kind": "button",
    "key": "DRPG.CaseMap.noDiveSet",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "offerFinalOnClose",
-   "kind": "footer",
-   "key": "DRPG.Investigation.finalAskPlace",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "offerFinalOnClose",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.notNow",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: Edit sets, beside the Logic Dive's set; its label says it opens the sets' editor, as the zones window's (trial-zones-ui.mjs openDiveSets)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1303,7 +783,7 @@
    "kind": "checkbox",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's Faint, tied and Tell the player ticks, each labelled as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1311,31 +791,7 @@
    "kind": "input",
    "key": "DRPG.TruthBullet.namePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.realType",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.shown",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.visibility",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's name, its label saying the player sees it and a placeholder example, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1343,15 +799,15 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.playerTextPlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's words for the player, labelled and with a placeholder, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "textarea",
    "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
-   "count": 3,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "count": 1,
+   "why": "none needed: the planned Truth Bullet's analysis, labelled and with a placeholder that says it waits for an Analyze, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1359,7 +815,7 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.gmNotePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's GM note, its label saying the player never sees it, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1367,63 +823,7 @@
    "kind": "select",
    "key": "DRPG.Items.recipient",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.Items.tellPlayer",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.TruthBullet.give",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.room",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "input",
-   "key": "DRPG.Remnant.finalSubject",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.notePlaceholder",
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's recipient, labelled, the students and Everyone listed, as the Give window's (gm-items.mjs recipientRows)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1431,23 +831,7 @@
    "kind": "textarea",
    "key": "DRPG.Investigation.finalNotePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": null,
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.CaseMap.placeOnMap",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Final Truth's GM note, labelled and with the placeholder of the Final Truth form it copies (caseFinalPanel)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1455,23 +839,7 @@
    "kind": "select",
    "key": "DRPG.Investigation.newTraceTied",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "checkbox",
-   "key": "DRPG.Investigation.newTraceReinforced",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Remnant's tie, labelled as New Remnant's (openNewTrace), whose row says its label already says what tying it does"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1479,7 +847,7 @@
    "kind": "textarea",
    "key": "DRPG.Investigation.keyNotePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Remnant's GM note, its placeholder saying only you read it, as New Remnant's (openNewTrace)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1487,7 +855,7 @@
    "kind": "select",
    "key": "DRPG.Investigation.room",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the one field of the window that asks where a planned Final Truth goes; its title asks it, and - pick a room - places nothing"
   },
   {
    "file": "scripts/level-up.mjs",
@@ -1527,7 +895,7 @@
    "kind": "checkbox",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: each tick's label says the change in full (Health max -1, a statistic point to place), and the intro above says what ticking does and that an unticked change stays"
   },
   {
    "file": "scripts/mastermind.mjs",
@@ -1607,15 +975,7 @@
    "kind": "footer",
    "key": "DRPG.Monocub.inviteAccept",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/monocub.mjs",
-   "unit": "openInvitation",
-   "kind": "footer",
-   "key": "DRPG.Monocub.inviteDecline",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: its words, I accept the Rule, stand under the Rule and its three steps, and the intro says what a Monocub keeps doing"
   },
   {
    "file": "scripts/monocub.mjs",
@@ -1623,15 +983,7 @@
    "kind": "footer",
    "key": "DRPG.Monocub.bribeAccept",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/monocub.mjs",
-   "unit": "openBribeOffer",
-   "kind": "footer",
-   "key": "DRPG.Monocub.bribeRefuse",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's one line says who offers how much Hope and that accepting puts it in your purse"
   },
   {
    "file": "scripts/murder-rules.mjs",
@@ -1727,7 +1079,7 @@
    "kind": "dom:select",
    "key": "DRPG.Notices.filter.moreLabel",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: a menu in the chips' row whose first line reads More filters; each option is a filter's name with its count, and picking one filters the list as a chip does"
   },
   {
    "file": "scripts/observe.mjs",
@@ -1912,22 +1264,6 @@
   {
    "file": "scripts/remnant-ring.mjs",
    "unit": "gmRemnantCard",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/remnant-ring.mjs",
-   "unit": "gmRemnantCard",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
-  },
-  {
-   "file": "scripts/remnant-ring.mjs",
-   "unit": "gmRemnantCard",
    "kind": "input",
    "key": "DRPG.TruthBullet.name",
    "count": 1,
@@ -2082,14 +1418,6 @@
    "why": "none needed: The window's text names the window this opens and what it holds."
   },
   {
-   "file": "scripts/season-setup.mjs",
-   "unit": "diceLookSection",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
    "file": "scripts/season-wipe.mjs",
    "unit": "castFieldset",
    "kind": "radio",
@@ -2204,22 +1532,6 @@
     "fn": "actionButton",
     "pattern": "button\\.dataset\\.tooltip\\s*=\\s*`\\$\\{button\\.dataset\\.drpgTipHead\\}"
    }
-  },
-  {
-   "file": "scripts/sheet-sidebar.mjs",
-   "unit": "lairBlock",
-   "kind": "button",
-   "key": "DRPG.Mastermind.lair.open",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/sheet-actions.mjs",
-   "unit": "injectMonocubPanel",
-   "kind": "dom:button",
-   "key": "DRPG.Monocub.bribeAccept",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -2391,7 +1703,15 @@
    "kind": "kit:toggle",
    "key": "DRPG.TrialScene.prepareOnSave",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: each switch's label says in full what Save does with it (Foundry's fog, vision and light; the hall's playlist; Proximity Voice Chat in the hall)"
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "scenesTabRows",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "conditional: one builder draws the School and the Trial hall selects; only School (role \"school\") takes the tooltip"
   },
   {
    "file": "scripts/trial-zones-ui.mjs",
@@ -2660,14 +1980,6 @@
    "key": null,
    "count": 1,
    "why": "conditional: one builder draws the Closing's Confirm, Pick, continue and Resume; only Confirm (op \"confirm\") takes the tooltip"
-  },
-  {
-   "file": "scripts/trial-scene.mjs",
-   "unit": "scenesTabRows",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "conditional: one builder draws the School and the Trial hall selects; only School (role \"school\") takes the tooltip"
   }
  ]
 }

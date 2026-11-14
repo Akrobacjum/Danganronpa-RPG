@@ -97,8 +97,10 @@ export function roleButton({ role, label, cls = null, attrs = {}, disabled = fal
 /**
  * A footer's buttons in the kit's order, each `{ role, side, action, label, callback, icon, disabled, default, class, tooltip }`, from
  * `{ primary, secondary: [], destructive: [], gmRoute: [], close, default }`. `close` is "close", "cancel", or
- * `{ role: "close" | "cancel", action, callback, side }`; its label is the role's word whatever the caller wrote, and
- * `side: "right"` stands it on the right in a footer with no primary and no GM's road (the header). The tree
+ * `{ role: "close" | "cancel", action, callback, side, label, tooltip }`; its label is the role's word unless the caller
+ * gives one (E102 C6, 14.11.2026, R6350: from E21 C2a until then the caller's word was dropped - "Not now" went - and
+ * the discovery's prompt, whose note names its "Not yet", drew Close; the owner chose "Not yet" as that window's
+ * default, body-113), and `side: "right"` stands it on the right in a footer with no primary and no GM's road (the header). The tree
  * order is the right side (primary first, then the GM's road), then the left side (the closing word, the secondary
  * ones, the destructive ones) - see the header. `default` names the action that is the window's default; without one,
  * the primary, else the GM's road, else the closing word. Throws when the default is a role that may never be one. A
@@ -108,7 +110,8 @@ export function roleButton({ role, label, cls = null, attrs = {}, disabled = fal
  * `footerButton` (DrpgApp's footer, `liveFooter`) and by `dressFooter` on a DialogV2's drawn button, since DialogV2 takes
  * none. A title, not Foundry's `data-tooltip`: the browser's own tooltip reads a disabled button, and on a button named
  * by its text the title is its accessible description (HTML-AAM), so no `aria-describedby` beside it. Foundry v14's
- * tooltip over a disabled button was not tried. The closing word carries none. A footer that names no tooltip draws
+ * tooltip over a disabled button was not tried. The closing word carries one only when the caller gives it its own word
+ * and a tooltip (a bare Close or Cancel says what it does). A footer that names no tooltip draws
  * 4954917b's markup (R2008).
  * A CLOSING WORD WHOSE ACTION IS "close" CARRIES NO CALLBACK (E21 fix G2, 07.11.2026; the end review's correctness m2,
  * STATUS Open 41). The action defaults to the role ("close" for `close: "close"`), and ApplicationV2 dispatches
@@ -125,7 +128,10 @@ export function footerButtons(footer = {}) {
     if (footer.close) {
         const spec = typeof footer.close === "string" ? { role: footer.close } : footer.close;
         const role = spec.role === "cancel" ? "cancel" : "close";
-        closing = [{ callback: spec.callback, icon: spec.icon, action: spec.action ?? role, role, label: localize(BUTTON_ROLES[role].word), side: spec.side === "right" ? "right" : "left" }];
+        // the caller's own word and tooltip when it gives them (E102 C6, R6350), else the role's word and none
+        const label = typeof spec.label === "string" && spec.label.trim() ? spec.label : localize(BUTTON_ROLES[role].word);
+        closing = [{ callback: spec.callback, icon: spec.icon, action: spec.action ?? role, role, label, side: spec.side === "right" ? "right" : "left",
+            ...(spec.tooltip ? { tooltip: spec.tooltip } : {}) }];
         if (closing[0].action === "close" && closing[0].callback) throw new Error("ui-kit: a closing word with the action \"close\" carries no callback - Foundry closes the window on \"close\" before DialogV2 runs it (name another action)");
     }
     const answers = [...one("primary", footer.primary), ...many("gmRoute", footer.gmRoute)];

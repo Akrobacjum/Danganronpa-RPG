@@ -35,7 +35,7 @@ import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import { plural, wirePortraitPickers, log, workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable, tipAttr, tipText } from "./ui-kit.mjs";
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
 import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
@@ -153,15 +153,15 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceType")}
-                <select name="type">${typeOptions}</select></label>
+                <select name="type"${tipAttr("DRPG.Tips.Case.kindWhatItReallyTooltip")}>${typeOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
-                <select name="author">${authorOptions(plannedAuthor || null, studentActors())}</select></label>
+                <select name="author"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(plannedAuthor || null, studentActors())}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
-                <select name="vis">${visOptions}</select></label>
+                <select name="vis"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
                 <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
                     `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
-            <label class="drpg-checkbox"><input type="checkbox" name="reinforced"${reinforced ? " checked" : ""} />
+            <label class="drpg-checkbox"><input type="checkbox" name="reinforced"${tipAttr("DRPG.Tips.Case.reinforcedTooltip")}${reinforced ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>`, `
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="tname" value="${esc(name ?? "")}" maxlength="60"
@@ -650,16 +650,16 @@ function caseTraceCells(shown, finders) {
                 <img src="${esc(shows.img)}" alt="" class="drpg-project-portrait"
                      data-drpg-portrait="${key}" />
                 <input type="hidden" name="img.${key}" value="${esc(shows.img)}" data-drpg-drawn="${esc(shows.img)}" />
-                <input type="text" name="name.${key}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}" />
+                <input type="text" name="name.${key}"${aria("DRPG.Investigation.traceName")}${tipAttr("DRPG.Tips.Case.nameTooltip")} value="${esc(shows.name)}" />
                 <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>`,
-            text: `<textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}
+            text: `<textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${esc(shows.text)}</textarea>`,
             /* The second tier, edited in the same row as the first. Side by
                side on purpose: the two sentences describe one object and a
                GM writing the lab reading wants the observation in view, not
                on another tab. See TRUTH_BULLET_FLAGS.analyzedText for who
                ever gets to read this one. */
-            analysis: `<textarea name="analysis.${key}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
+            analysis: `<textarea name="analysis.${key}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.analysisPlaceholder")}"
                 >${esc(shows.analysis)}</textarea>`,
             /* WHAT IT REALLY IS, CORRECTED BY HAND. The column that used to be
@@ -682,24 +682,24 @@ function caseTraceCells(shown, finders) {
                Stained Glass and drawn over the next cell under Monokuma Legacy (Chromium, 1366x768 and 1920x1080, both
                languages). Every option is a Remnant, so the column says the kind alone ("Prep", "Final Truth"); New
                Remnant's window keeps the whole name. */
-            type: `<select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES)
+            type: `<select name="type.${key}"${aria("DRPG.Investigation.traceType")}${tipAttr("DRPG.Tips.Case.kindWhatItReallyTooltip")}>${Object.entries(REMNANT_TYPES)
                 .filter(([value]) => findableKind(value) || value === shows.type).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
                     esc(String(def.label).replace(/ Remnant$/, ""))}</option>`).join("")}</select>`,
             /* HOW HARD IT IS TO SPOT, FOR EVERY TRACE (E60 C4a, 03.11.2026; the owner's ask of 28.10, Q-E60-3's
                alternative): the band Observe reads its number from, found or not - a found trace's copies keep
                the band they were made with (remnants.mjs `setRemnantFlags`). */
-            vis: `<select name="vis.${key}"${aria("DRPG.Investigation.visibility")}>${bandOptions(shows.vis)}</select>`,
+            vis: `<select name="vis.${key}"${aria("DRPG.Investigation.visibility")}${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${bandOptions(shows.vis)}</select>`,
             // the two checkboxes centred by the column's rule (components.css `drpg-data-col-case-check`), not inline
-            faint: `<input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} />`,
+            faint: `<input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")}${tipAttr("DRPG.Tips.Case.faintTooltip")} ${shows.faint ? "checked" : ""} />`,
             // the tie's short words in the cell (E64-inv, as the kind's above): "- nie rozstrzygnięto -" ran 178 px past it
-            crime: `<select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_SHORT).map(([value, label]) =>
+            crime: `<select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}${tipAttr("DRPG.Tips.Case.tiedToCrimeTooltip")}>${Object.entries(TIE_SHORT).map(([value, label]) =>
                 `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select>`,
-            reinf: `<input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} />`,
+            reinf: `<input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")}${tipAttr("DRPG.Tips.Case.reinforcedTooltip")} ${shows.reinf ? "checked" : ""} />`,
             found,
             /* DELETE, THE GM'S (E44 C8d): asked first, then the row and the token together (`deleteTraceRow`). A plain
                button, so it submits nothing: the form's Save is the window's own. */
-            delete: `<button type="button" class="drpg-trace-delete" data-drpg-trace-delete="${key}"${aria("DRPG.Investigation.deleteTrace")}>${
+            delete: `<button type="button" class="drpg-trace-delete" data-drpg-trace-delete="${key}"${aria("DRPG.Investigation.deleteTrace")}${tipAttr("DRPG.Tips.Case.deleteTooltip")}>${
                 game.i18n.localize("DRPG.Investigation.deleteTrace")}</button>`
         };
     });
@@ -747,7 +747,7 @@ function caseTraceFilters(traces, shown, reading) {
                     .map(name => option(name, name, reading.room)).join("")}
             </select></label>
         <label>${game.i18n.localize("DRPG.Investigation.filterChapter")}
-            <select name="traceChapter" data-drpg-filter="chapter">
+            <select name="traceChapter" data-drpg-filter="chapter"${tipAttr("DRPG.Tips.Case.chapterFilterTooltip")}>
                 ${option("", game.i18n.localize("DRPG.Investigation.filterEveryChapter"), reading.chapter)}
                 ${[...chapters].sort((a, b) => Number(a) - Number(b))
                     .map(n => option(String(n),
@@ -864,23 +864,23 @@ function caseKeyCells({ plan, status, placed, limit }) {
         return {
             overLimit,
             scale: `<strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong>`,
-            name: `<input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}"
+            name: `<input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")}${tipAttr("DRPG.Tips.Case.nameTooltip")} value="${esc(shows.name)}"
                 placeholder="${esc(traceLabel(null))}" />`,
-            text: `<textarea name="keytext:${i}" rows="1"${aria("DRPG.Investigation.traceText")}
+            text: `<textarea name="keytext:${i}" rows="1"${aria("DRPG.Investigation.traceText")}${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
                 esc(shows.text)}</textarea>
                 ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}`,
             /* The second tier, as on the Traces tab (21.09). A placed row falls back
                on the trace's own reading: a plan saved before this column existed
                holds none, and an empty box would read as "nothing written". */
-            analysis: `<textarea name="keyanalysis:${i}" rows="1"${aria("DRPG.Investigation.traceAnalysis")}
+            analysis: `<textarea name="keyanalysis:${i}" rows="1"${aria("DRPG.Investigation.traceAnalysis")}${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.analysisPlaceholder")}">${
                 esc(shows.analysis)}</textarea>`,
             note: `<input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(shows.note)}"
                 placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" />`,
             status: `
                 <div class="drpg-key-state">${state}</div>
-                <select name="token:${i}"${aria("DRPG.Investigation.onMap")}>
+                <select name="token:${i}"${aria("DRPG.Investigation.onMap")}${tipAttr("DRPG.Tips.Case.whichRemnantTooltip")}>
                     ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
                     ${picker}
                 </select>
@@ -888,7 +888,7 @@ function caseKeyCells({ plan, status, placed, limit }) {
                     aria("DRPG.Investigation.plannedRoom")} data-drpg-scene-drawn="${esc(shows.scene ?? "")}"><option value="">${
                     esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room, sceneId: shows.scene })}</select></label>`}
                 ${here ? "" : keyPlanExtras(i, shows, aria)}
-                ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
+                ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${tipAttr("DRPG.Tips.Case.placeTooltip", null, { title: true })}${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
                     overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}`
         };
@@ -1005,18 +1005,18 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
                 ${roomOptions}
             </select></label>
         <label>${game.i18n.localize("DRPG.Investigation.visibility")}
-            <select name="finalVis">${visOptions}</select></label>
+            <select name="finalVis"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${visOptions}</select></label>
         <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
-            <select name="finalAuthor">${authorOptions(null, studentActors())}</select></label>
+            <select name="finalAuthor"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(null, studentActors())}</select></label>
         <label>${game.i18n.localize("DRPG.Investigation.traceName")}
-            <input type="text" name="finalName" value=""
+            <input type="text" name="finalName" value=""${tipAttr("DRPG.Tips.Case.nameTooltip")}
                 placeholder="${esc(game.i18n.localize("DRPG.Remnant.finalSubject"))}" /></label>
         <label>${game.i18n.localize("DRPG.Investigation.traceText")}
-            <input type="text" name="finalText" value=""
+            <input type="text" name="finalText" value=""${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")}
                 placeholder="${esc(game.i18n.localize(
                     "DRPG.Investigation.notePlaceholder"))}" /></label>
         <label>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}
-            <input type="text" name="finalAnalysis" value=""
+            <input type="text" name="finalAnalysis" value=""${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")}
                 placeholder="${esc(game.i18n.localize(
                     "DRPG.TruthBullet.analyzedTextPlaceholder"))}" /></label>
         <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
@@ -1096,7 +1096,7 @@ export function investigationView(user = game.user) {
 
 /** The view switch's markup, in the toolbar's switch slot (outside the live region: a redraw never replaces it). */
 function viewSwitchHtml(view) {
-    const button = (key, glyph, label) => `<button type="button" data-drpg-mode="${key}" aria-pressed="${view === key}">`
+    const button = (key, glyph, label) => `<button type="button" data-drpg-mode="${key}" aria-pressed="${view === key}"${tipAttr("DRPG.Tips.Case.mapTableTooltip")}>`
         + `${glyphHtml(glyph)}<span>${esc(game.i18n.localize(label))}</span></button>`;
     return `<div class="drpg-mode-bar drpg-case-switch-bar" role="toolbar" aria-label="${esc(game.i18n.localize("DRPG.CaseMap.viewSwitch"))}">`
         + button("map", "map-view", "DRPG.CaseMap.viewMap") + button("table", "table-view", "DRPG.CaseMap.viewTable") + `</div>`;
@@ -1314,9 +1314,9 @@ function schemaEditor(graph, node) {
         ...caseModes().map(m => `<option value="${esc(m)}"${m === node.mode ? " selected" : ""}>${esc(L(`DRPG.Floor.mode.${m}`))}</option>`)];
     if (node.mode && !caseModes().includes(node.mode)) modes.push(`<option value="${esc(node.mode)}" selected>${esc(node.mode)}</option>`);
     const rows = [
-        editRow(L("DRPG.CaseMap.field.label"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" />`),
-        editRow(L("DRPG.CaseMap.field.text"), `<textarea name="${esc(name("text"))}" rows="3">${esc(node.text)}</textarea>`),
-        editRow(L("DRPG.CaseMap.field.mode"), `<select name="${esc(name("mode"))}">${modes.join("")}</select>`),
+        editRow(L("DRPG.CaseMap.field.label"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Case.nameNodeTooltip")} />`),
+        editRow(L("DRPG.CaseMap.field.text"), `<textarea name="${esc(name("text"))}" rows="3"${tipAttr("DRPG.Tips.Case.noteForTheGmsTooltip")}>${esc(node.text)}</textarea>`),
+        editRow(L("DRPG.CaseMap.field.mode"), `<select name="${esc(name("mode"))}"${tipAttr("DRPG.Tips.Case.trialModeTooltip")}>${modes.join("")}</select>`),
         ...zoneRows(node, name)
     ];
     if (node.kind === "autopsy") {
@@ -1339,7 +1339,7 @@ function schemaEditor(graph, node) {
         return [
             `<p class="drpg-case-info-note">${esc(said)}</p>`,
             count,
-            editRow(L("DRPG.CaseMap.autopsyAt"), `<select name="${esc(name("atBody"))}">${bodies}</select>`),
+            editRow(L("DRPG.CaseMap.autopsyAt"), `<select name="${esc(name("atBody"))}"${tipAttr("DRPG.Tips.Case.autopsyAtTooltip")}>${bodies}</select>`),
             editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyNamePlaceholder"))}" />`),
             editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
@@ -1368,9 +1368,9 @@ function schemaEditor(graph, node) {
             ...(node.sent ? [`<p class="drpg-case-info-note">${esc(L("DRPG.CaseMap.bulletGiven"))}</p>`] : []),
             editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
                 esc(L("DRPG.TruthBullet.namePlaceholder"))}" />`),
-            editRow(L("DRPG.TruthBullet.realType"), `<select name="${esc(name("realType"))}">${types}</select>`),
-            editRow(L("DRPG.TruthBullet.shown"), `<select name="${esc(name("shown"))}">${shown}</select>`),
-            editRow(L("DRPG.TruthBullet.visibility"), `<select name="${esc(name("vis"))}">${vis}</select>`),
+            editRow(L("DRPG.TruthBullet.realType"), `<select name="${esc(name("realType"))}"${tipAttr("DRPG.Tips.Gm.whatItReallyIsTooltip")}>${types}</select>`),
+            editRow(L("DRPG.TruthBullet.shown"), `<select name="${esc(name("shown"))}"${tipAttr("DRPG.Tips.Gm.whatThePlayerIsTooltip")}>${shown}</select>`),
+            editRow(L("DRPG.TruthBullet.visibility"), `<select name="${esc(name("vis"))}"${tipAttr("DRPG.Tips.Gm.howHardTheOriginalTooltip")}>${vis}</select>`),
             check("faint", "DRPG.TruthBullet.faintField", node.faint === true),
             check("tied", "DRPG.TruthBullet.tiedField", node.tied === true),
             editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="2" placeholder="${
@@ -1383,8 +1383,8 @@ function schemaEditor(graph, node) {
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(node.img ?? "")}" data-drpg-drawn="${esc(node.img ?? "")}" />`),
             editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}">${recipients}</select>`),
             check("tell", "DRPG.Items.tellPlayer", node.tell !== false),
-            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
-                esc(L("DRPG.TruthBullet.give"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
+            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}"${tipAttr("DRPG.Tips.Case.giveFromPlanTooltip")}>${
+                esc(L("DRPG.TruthBullet.give"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
         ].join("");
     }
     if (node.kind === "final") {
@@ -1395,22 +1395,22 @@ function schemaEditor(graph, node) {
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
         const img = node.img || "";
         return [
-            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}" data-drpg-scene-drawn="${esc(node.scene ?? "")}"><option value="">${
+            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}" data-drpg-scene-drawn="${esc(node.scene ?? "")}"${tipAttr("DRPG.Tips.Case.roomPlannedFinalTooltip")}><option value="">${
                 esc(L("DRPG.Mastermind.finalPickRoom"))}</option>${placeRoomOptions({ room: node.room, sceneId: node.scene })}</select>`),
-            editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}">${vis}</select>`),
-            editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}">${authorOptions(node.author || null, studentActors())}</select>`),
-            editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+            editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${vis}</select>`),
+            editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(node.author || null, studentActors())}</select>`),
+            editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Case.nameTooltip")} placeholder="${
                 esc(L("DRPG.Remnant.finalSubject"))}" />`),
-            editRow(L("DRPG.Investigation.traceText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
+            editRow(L("DRPG.Investigation.traceText"), `<textarea name="${esc(name("text"))}" rows="3"${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")} placeholder="${
                 esc(L("DRPG.Investigation.notePlaceholder"))}">${esc(node.text)}</textarea>`),
-            editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2" placeholder="${
+            editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2"${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.Investigation.finalNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
             editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
-            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
-                esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
+            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}"${tipAttr("DRPG.Tips.Case.placeFinalPlanTooltip")}>${
+                esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
         ].join("");
     }
     if (node.kind === "incident") {
@@ -1428,26 +1428,26 @@ function schemaEditor(graph, node) {
             esc(L(label))}</option>`).join("");
         const img = node.img || "";
         return [
-            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}" data-drpg-scene-drawn="${esc(node.scene ?? "")}"><option value="">${
+            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}" data-drpg-scene-drawn="${esc(node.scene ?? "")}"${tipAttr("DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip")}><option value="">${
                 esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: node.room, sceneId: node.scene })}</select>`),
-            editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}">${types}</select>`),
-            editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}">${authorOptions(node.author || null, studentActors())}</select>`),
-            editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}">${vis}</select>`),
+            editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}"${tipAttr("DRPG.Tips.Case.kindWhatItReallyTooltip")}>${types}</select>`),
+            editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(node.author || null, studentActors())}</select>`),
+            editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${vis}</select>`),
             editRow(L("DRPG.Investigation.newTraceTied"), `<select name="${esc(name("tie"))}">${ties}</select>`),
-            editRow(L("DRPG.Investigation.newTraceReinforced"), `<input type="checkbox" name="${esc(name("reinforced"))}" aria-label="${
+            editRow(L("DRPG.Investigation.newTraceReinforced"), `<input type="checkbox" name="${esc(name("reinforced"))}"${tipAttr("DRPG.Tips.Case.reinforcedTooltip")} aria-label="${
                 esc(L("DRPG.Investigation.newTraceReinforced"))}"${node.reinforced ? " checked" : ""} />`),
-            editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" maxlength="60" placeholder="${
+            editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Case.nameTooltip")} maxlength="60" placeholder="${
                 esc(traceLabel(null))}" />`),
-            editRow(L("DRPG.Investigation.traceText"), `<textarea name="${esc(name("text"))}" rows="3" maxlength="400" placeholder="${
+            editRow(L("DRPG.Investigation.traceText"), `<textarea name="${esc(name("text"))}" rows="3"${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")} maxlength="400" placeholder="${
                 esc(L("DRPG.Investigation.notePlaceholder"))}">${esc(node.text)}</textarea>`),
-            editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2" maxlength="400" placeholder="${
+            editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2"${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")} maxlength="400" placeholder="${
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.Investigation.keyNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
             editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
-            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
-                esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
+            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}"${tipAttr("DRPG.Tips.Case.placeOnTheMapTooltip")}>${
+                esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
         ].join("");
     }
     if (node.kind === "counter") {
@@ -1459,7 +1459,7 @@ function schemaEditor(graph, node) {
         const candidates = others.filter(n => n.kind !== "solution");
         rows.push(editRow(L("DRPG.CaseMap.field.inputs"), `<div class="drpg-case-checklist">${candidates.map(n => box("in", n, inputs.has(n.id) || (n.trace && inputs.has(n.trace)))).join("")}</div>`));
     }
-    rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
+    rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
     return rows.join("");
 }
 
@@ -1482,7 +1482,7 @@ function zoneRows(node, name) {
         row(["straw", "scrum"], L("DRPG.Zones.picker.a"), text("zoneA", z.answerLength)),
         row(["straw", "scrum"], L("DRPG.Zones.picker.b"), text("zoneB", z.answerLength)),
         row(["scrum"], L("DRPG.Zones.picker.thesis"), text("zoneThesis", z.scrum.thesisLength)),
-        row(["dive"], L("DRPG.Zones.picker.set"), `<select name="${esc(name("diveSet"))}"><option value="">${esc(L("DRPG.CaseMap.noDiveSet"))}</option>${gone}${sets}</select>`
+        row(["dive"], L("DRPG.Zones.picker.set"), `<select name="${esc(name("diveSet"))}"${tipAttr("DRPG.Tips.Trial.setTooltip")}><option value="">${esc(L("DRPG.CaseMap.noDiveSet"))}</option>${gone}${sets}</select>`
             + ` <button type="button" data-drpg-dive-sets>${esc(L("DRPG.Zones.picker.editSets"))}</button>`)
     ];
 }
@@ -2063,8 +2063,8 @@ async function offerFinalOnClose(root) {
         title: L("DRPG.Investigation.finalAskTitle"),
         classes: ["drpg-panel", "drpg-window-final-ask"],
         body: `<p>${esc(L("DRPG.Investigation.finalAskBody"))}</p>`,
-        footer: { primary: { action: "place", label: L("DRPG.Investigation.finalAskPlace") },
-            close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow") }, default: "place" },
+        footer: { primary: { action: "place", label: L("DRPG.Investigation.finalAskPlace"), tooltip: tipText("DRPG.Tips.Case.placeFinalNowTooltip") },
+            close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow"), tooltip: tipText("DRPG.Tips.Case.keepForLaterTooltip") }, default: "place" },
         rejectClose: false
     });
     if (answer !== "place") return false;
@@ -2215,23 +2215,23 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         },
         footer: {
             primary: {
-                action: "save", label: game.i18n.localize("DRPG.Assign.save"),
+                action: "save", label: game.i18n.localize("DRPG.Assign.save"), tooltip: tipText("DRPG.Tips.Case.saveTooltip"),
                 callback: (e, b, d) => readDashboardForm(d)
             },
             secondary: [
             // N-4: the one road to a trace the GM is simply stating exists - an action rather than a view, so here and
             // not on a tab.
-            { action: "newTrace", label: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
+            { action: "newTrace", label: game.i18n.localize("DRPG.Investigation.newTraceTitle"), tooltip: tipText("DRPG.Tips.Case.newRemnantTooltip") },
             // The autopsy and the body moved here from GM panel tiles: a GM issues one or reports the other while
             // looking at the case, not while deciding which screen to open.
-            { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
+            { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle"), tooltip: tipText("DRPG.Tips.Case.issueAutopsyTruthBulletTooltip") },
             // A STATE CHANGE, NOT ONE MORE VIEW (E09 C16, audit S05-29): the buttons around it
             // open a window; this one starts a case. Its class and icon set it apart in both themes.
-            { action: "bodyFound", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
+            { action: "bodyFound", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), tooltip: tipText("DRPG.Tips.Case.bodyFoundTooltip"),
                 icon: "fa-solid fa-skull", class: "drpg-state-change" },
             // E97 C10 (Q-C): the realization's preview, in both views; it writes nothing until its own Run. Its undo is
             // in that window since E64-inv (case-realize.mjs `realizationFooter`), shown once a run has placed anything.
-            { action: "realize", label: game.i18n.localize("DRPG.CaseRealize.preview") }
+            { action: "realize", label: game.i18n.localize("DRPG.CaseRealize.preview"), tooltip: tipText("DRPG.Tips.Case.realizationPreviewTooltip") }
             ],
             /* NO DESTRUCTIVE ROW, AND NO EVIDENCE LOG (E64-inv, 12.11.2026; the owner's pick of the Investigation review:
                "Na reszte sie zgadzam"). Clear the Faint Remnants and Collect the Truth Bullets were here and in End the

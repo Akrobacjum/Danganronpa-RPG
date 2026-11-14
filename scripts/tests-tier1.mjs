@@ -27063,7 +27063,8 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         // 38 since the 1.2.112 tree: studentsTooltip went with the Students left line's button (E101, R4054) and give2Tooltip with
         // the Monocubs window (E72 C6), as docs/dev/e102/STATUS.md "Open" planned.
-        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 38, "lang/en.json has not the family's 38 keys under DRPG.Tips.Gm");
+        // 38 of C4 and its reviews, and 4 of E102 C12 that R6352 holds (14.11.2026)
+        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 38 + 4, "lang/en.json has not the family's 38 keys and C12's 4 under DRPG.Tips.Gm");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27112,7 +27113,8 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28, "lang/en.json has not the family's 28 keys under DRPG.Tips.Setup");
+        // 28 of C5 and its reviews, and 14 of E102 C12 that R6353 holds (14.11.2026; the sheet's Bribe Accept and the lair's lock after E54)
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2, "lang/en.json has not the family's 28 keys and C12's 14 under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27122,6 +27124,235 @@ const INVARIANTS = [
             return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's keys under DRPG.Tips.Case (12 at C12's node Close, 42 since C6b: the Investigation window, its Map's planned nodes and the Key Remnant windows) has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
+        /* Red at 1463f22b with this test in place and the family's scripts as they were: lang/*.json had no DRPG.Tips.Case block and no function read one of its keys.
+           C6b's part red at 05a97e0c (E54 merged): 30 keys missing and no investigation.mjs or key-remnants.mjs function drawing one. */
+        const TIPS = [
+            ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
+            ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
+            ["DRPG.Tips.Case.notTiedToTheTooltip","case-map.mjs","caseGraphHtml"],
+            ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.closeNodeTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
+            ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
+            ["DRPG.Tips.Case.notNowTooltip","case-realize.mjs","askAtBody"],
+            ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
+            ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
+            ["DRPG.Tips.Case.difficultyTooltip","remnant-ring.mjs","gmRemnantCard"],
+            ["DRPG.Tips.Case.leftByTooltip","remnant-ring.mjs","gmRemnantCard"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.faintTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.tiedToCrimeTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.deleteTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.chapterFilterTooltip","investigation.mjs","caseTraceFilters"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.whichRemnantTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.placeTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.mapTableTooltip","investigation.mjs","viewSwitchHtml"],
+            ["DRPG.Tips.Case.nameNodeTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.noteForTheGmsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.trialModeTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.autopsyAtTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.whatItReallyIsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.whatThePlayerIsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.howHardTheOriginalTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.giveFromPlanTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.removeFromTheCaseTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.roomPlannedFinalTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.placeFinalPlanTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.placeOnTheMapTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Trial.setTooltip","investigation.mjs","zoneRows"],
+            ["DRPG.Tips.Case.placeFinalNowTooltip","investigation.mjs","offerFinalOnClose"],
+            ["DRPG.Tips.Case.keepForLaterTooltip","investigation.mjs","offerFinalOnClose"],
+            ["DRPG.Tips.Case.saveTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.newRemnantTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.issueAutopsyTruthBulletTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.bodyFoundTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.realizationPreviewTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.difficultyTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.leftByTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.nameTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.plannedClueTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.difficultyTooltip","key-remnants.mjs","placeKeyRow"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        // every key of the family drawn somewhere this lists, and no other: the Case keys TIPS names (C6b reuses three Gm keys and
+        // one Trial key for the planned nodes' copies of those windows' fields)
+        const caseKeys = [...new Set(TIPS.map(t => t[0]).filter(k => k.startsWith("DRPG.Tips.Case.")))].sort();
+        equal(Object.keys(words(en, "DRPG.Tips.Case") ?? {}).map(k => `DRPG.Tips.Case.${k}`).sort().join(" "), caseKeys.join(" "), "{lang/en.json's DRPG.Tips.Case keys against the ones this test finds drawn}");
+        must(Object.keys(words(pl, "DRPG.Tips.Case") ?? {}).length === caseKeys.length, `lang/pl.json has not the family's ${caseKeys.length} keys under DRPG.Tips.Case`);
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+        // the Map's own: drawn only where caseGraphHtml was handed the Map's editors (the trial console's graph has none)
+        const map = src.get("case-map.mjs");
+        const mapOnly = [["nodeButton", "nodeOnTheMapTooltip", /\beditable\s*\?\s*tipAttr\(\s*"DRPG\.Tips\.Case\.nodeOnTheMapTooltip"/],
+            ["caseGraphHtml", "notTiedToTheTooltip", /\beditors\s*\?\s*tipAttr\(\s*"DRPG\.Tips\.Case\.notTiedToTheTooltip"/],
+            ["caseGraphHtml", "editable", /nodeButton\([^;]*\beditable:\s*Boolean\(editors\)/]]
+            .filter(([unit, , re]) => !re.test(fnSource(map, unit))).map(([unit, what]) => `${what} not held to the Map in ${unit}()`);
+        equal(bad.concat(mapOnly).join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6351 - the Actions family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): call-pickers.mjs `pickChoice`'s Next carries DRPG.Tips.Actions.nextTooltip, as the two pickers before it do (nothing is paid there; the Call's own confirmation follows), with words in English and in Polish within the guide's 23; the doors' and Tail's picks and Roll are rows with their reasons, as Listen's", async () => {
+        /* Red at 3aae7c72: pickChoice's Next drew no tooltip. */
+        const TIPS = [
+            ["DRPG.Tips.Actions.nextTooltip","call-pickers.mjs","pickChoice"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6352 - the Gm family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): the GM panel's give tab's Tell the player (gm-items.mjs `hubGivePane`), the Debug log's Foundry and modules (gm-panel.mjs `openFailureLog`), a Monocub invitation's Not now and a Bribe's Refuse (monocub.mjs `openInvitation`, `openBribeOffer`), each key under DRPG.Tips.Gm with words in English and in Polish within the guide's 23, written where its control draws it; R4753 counts these four with its 38", async () => {
+        /* Red at c15061e2: none of the four keys was in lang/*.json or drawn. */
+        const TIPS = [
+            ["DRPG.Tips.Gm.tellOnGiveTooltip","gm-items.mjs","hubGivePane"],
+            ["DRPG.Tips.Gm.foundryAndModulesTooltip","gm-panel.mjs","openFailureLog"],
+            ["DRPG.Tips.Gm.notNowInviteTooltip","monocub.mjs","openInvitation"],
+            ["DRPG.Tips.Gm.refuseBribeTooltip","monocub.mjs","openBribeOffer"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6353 - the Setup family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): the room and project action editors (facility-editor.mjs: each field of a line, which has no visible label, its own tooltip - name, statistic, difficulty, effect, amount, who, the effect's statistic, how long, text, lifetime - and the project's Remove) and the Season checklist's Open the dice look (season-setup.mjs `diceLookSection`), each key under DRPG.Tips.Setup with words in English and in Polish within the guide's 23, written where its control draws it - a select of the editor through its local `select()`, which writes the key it is handed into its own tag; R4754 counts these 12 with its 28", async () => {
+        /* Red at the Gm commit: none of the twelve keys was in lang/*.json or drawn. */
+        const TIPS = [
+            ["DRPG.Tips.Setup.facilityNameTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityNameTooltip","facility-editor.mjs","projectFacilityBody"],
+            ["DRPG.Tips.Setup.facilityRollTraitTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityDcTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityEffectTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityAmountTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityScopeTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityEffectTraitTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityUntilTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityTextTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityLifetimeTooltip","facility-editor.mjs","projectFacilityBody"],
+            ["DRPG.Tips.Setup.facilityRemoveTooltip","facility-editor.mjs","editProjectFacility"],
+            ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"],
+            ["DRPG.Tips.Setup.acceptBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
+            ["DRPG.Tips.Gm.refuseBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
+            ["DRPG.Tips.Setup.lairLockTooltip","sheet-sidebar.mjs","lairBlock"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        // the editor's local select(): its tag writes tipAttr of the key it is handed, and the unit hands it the key
+        const selectTag = /<select\b[^>]*?\$\{tipAttr\(tip\b/.test(fnSource(src.get("facility-editor.mjs"), "select"));
+        const viaSelect = (body, k, f) => f === "facility-editor.mjs" && selectTag && new RegExp(`\\bselect\\([^;]*?"${k.replace(/\./g, "\\.")}"`).test(body);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f) || viaSelect(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6354 - two Setup tooltips name the window's words as its controls say them (the text lines' read of DRPG.Tips, 14.11.2026, through the coordinator): the Sound window's Play names the button beside it by that button's own label (DRPG.Music.reset, \"Stop the track\" / \"Wyłącz utwór\", not \"Reset music\"), and the new item's Category names its picture by the item form's word (DRPG.Tables.picture, \"Picture\" / \"Obrazek\", not \"icon\" / \"Ikona\"), in English and in Polish; and no tooltip of DRPG.Tips writes the glossary's Overflow (docs/glossary.json, n) in lower case (the coordinator's note on Actions.onPerRuleTooltip, 14.11.2026)", async () => {
+        /* Red at 7025ac5c: Play's tooltip said "Reset music" / "Resetuj muzykę" and Category's "icon" / "Ikona". The Overflow
+           half red at acbaa909: Actions.onPerRuleTooltip said "the overflow fires" / "gdy overflow odpala". */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const read = (lang, ...path) => path.reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), lang.DRPG);
+        const out = {};
+        for (const [name, lang] of [["en", en], ["pl", pl]]) {
+            const stop = read(lang, "Music", "reset"), picture = read(lang, "Tables", "picture");
+            const play = read(lang, "Tips", "Setup", "playTooltip") ?? "", category = read(lang, "Tips", "Setup", "categoryTooltip") ?? "";
+            must(stop && picture && play && category, `lang/${name}.json lacks a word this reads - this would measure nothing`);
+            out[name] = { playNamesStop: play.toLowerCase().includes(stop.toLowerCase()), playSaysReset: /reset/i.test(play),
+                categoryNamesPicture: category.toLowerCase().includes(picture.toLowerCase()), categorySaysIcon: /\b(icon|ikona)\b/i.test(category) };
+        }
+        const flat = o => (o && typeof o === "object" ? Object.values(o).flatMap(flat) : [String(o ?? "")]);
+        for (const [name, lang] of [["en", en], ["pl", pl]]) {
+            const all = flat(read(lang, "Tips"));
+            must(all.length > 100, `lang/${name}.json's DRPG.Tips read as nothing - this would measure nothing`);
+            out[name].lowerOverflow = all.filter(s => /\boverflow\b/.test(s)).length;
+        }
+        const want = { playNamesStop: true, playSaysReset: false, categoryNamesPicture: true, categorySaysIcon: false, lowerOverflow: 0 };
+        equal(stableJson(out), stableJson({ en: want, pl: want }), "{per language: Play's tooltip names Stop the track and not Reset; Category's names Picture and not icon; DRPG.Tips's tooltips with a lower-case overflow}");
+    }],
+    ["R6355 - two tooltips say what the code does (group B's review of DRPG.Tips, 14.11.2026, through the coordinator): Observe's \"Nothing matches - refuse\" does not give the action back - the action is paid before the dice and a refused pick hands the roll already thrown to the GMs as a card (action-observe.mjs `observeSpecific`: `!target.ok` goes to `ruleObserve`, not to `abort`), so its tooltip says the action stays spent and the roll goes to the GMs; and the Passages tab's Who knows gives the passage with no message to the player (passages-gm.mjs `grantPassage` writes the access row and pushes the copies, and whispers nothing), so its tooltip says it appears in their Known passages with no message; in English and in Polish", async () => {
+        /* Red at aa774bd3: "The player keeps their action and finds nothing" / "Gracz zachowuje akcję", and "their player is told" / "jego gracz się o tym dowie". */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const tip = (lang, fam, k) => lang.DRPG?.Tips?.[fam]?.[k] ?? "";
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const [observe, passagesGm] = await Promise.all([read("action-observe.mjs"), read("passages-gm.mjs")]);
+        must(observe.length > 500 && passagesGm.length > 500, "a script read as nothing - this would measure nothing");
+        const specific = fnSource(observe, "observeSpecific"), grant = fnSource(passagesGm, "grantPassage");
+        const refuseEn = tip(en, "Actions", "nothingMatchesRefuseTooltip"), refusePl = tip(pl, "Actions", "nothingMatchesRefuseTooltip");
+        const grantEn = tip(en, "Setup", "aStudentSNameTooltip"), grantPl = tip(pl, "Setup", "aStudentSNameTooltip");
+        must(refuseEn && refusePl && grantEn && grantPl, "a tooltip this reads has no words - this would measure nothing");
+        equal(stableJson({
+            code: { refusedGoesToRuling: /if\s*\(\s*!target\.ok\s*\)\s*return\s+ruleObserve\(/.test(specific), grantTellsNobody: !/whisper|ChatMessage|notifications|callGm/.test(grant) },
+            refuse: { en: [/\bspent\b/i.test(refuseEn), /\bkeeps?\b/i.test(refuseEn), /\bGMs?\b/.test(refuseEn)], pl: [/wydana/i.test(refusePl), /zachowuje/i.test(refusePl), /GM-/.test(refusePl)] },
+            grant: { en: [/no message/i.test(grantEn), /\btold\b/i.test(grantEn)], pl: [/bez wiadomości/i.test(grantPl), /dowie/i.test(grantPl)] }
+        }), stableJson({
+            code: { refusedGoesToRuling: true, grantTellsNobody: true },
+            refuse: { en: [true, false, true], pl: [true, false, true] },
+            grant: { en: [true, false], pl: [true, false] }
+        }), "{the code: a refused pick goes to the GMs' ruling, a grant tells nobody; Refuse's tooltip: spent, not kept, the GMs; Who knows': no message, not told}");
     }],
     ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
         /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
@@ -39786,7 +40017,7 @@ const INVARIANTS = [
         equal(stableJson(reads), "{}", "a region held to its settings reads a module key it does not declare: [file region: the keys]");
         ok(readAny > 0, "no region read any key of the module - the spy measured nothing");
     }],
-    ["R1320 - the kit's markup (scripts/ui-kit.mjs; E44 C3a, E44-11, E44-12): drpgWindow hands DialogV2 its classes with `drpg-ui` and `drpg-panel`, its buttons in the kit's tree order with each role's classes, the closing word from the role table and one default, the tab bar above the body that scrolls and every pane in it; footerMarkup's groups (the right one first: the primary is the first submit button) and the throw for a default no role allows; kitTabs and its wiring (one pane shown by `hidden`, the footer following the tab, hidden and disabled both); formGrid; dataTable (colgroup, a head, the empty row across every column in the kit's words, the scroll signal and its line for a screen reader); stepper (its - and +, min, max and step, the message out of range, the label on the input) read through `wholeNumber`; toggle, chip, chips, the three boxes, emptyOption and modeBar; every word through a key both lang files hold; drpgConfirm and drpgPrompt (E21 C1b): their buttons in tree order with each role's classes, the default, what each answers, a destructive yes behind Cancel", async () => {
+    ["R1320 - the kit's markup (scripts/ui-kit.mjs; E44 C3a, E44-11, E44-12): drpgWindow hands DialogV2 its classes with `drpg-ui` and `drpg-panel`, its buttons in the kit's tree order with each role's classes, the closing word from the role table unless the caller names its own (E102 C6, R6350), and one default, the tab bar above the body that scrolls and every pane in it; footerMarkup's groups (the right one first: the primary is the first submit button) and the throw for a default no role allows; kitTabs and its wiring (one pane shown by `hidden`, the footer following the tab, hidden and disabled both); formGrid; dataTable (colgroup, a head, the empty row across every column in the kit's words, the scroll signal and its line for a screen reader); stepper (its - and +, min, max and step, the message out of range, the label on the input) read through `wholeNumber`; toggle, chip, chips, the three boxes, emptyOption and modeBar; every word through a key both lang files hold; drpgConfirm and drpgPrompt (E21 C1b): their buttons in tree order with each role's classes, the default, what each answers, a destructive yes behind Cancel", async () => {
         /*
          * E44 C3a, 04.11.2026; audit S17-34. The kit E21 and E22 build every window on: its builders are read here as
          * markup on a page of its own (no window is opened: DialogV2.wait is stood in for and handed back in a
@@ -39887,7 +40118,9 @@ const INVARIANTS = [
         }), stableJson({
             groups: [["drpg-kit-right", [["go", "primary", true], ["ask", "gmRoute", false]]], ["drpg-kit-left", [["cancel", "cancel", false], ["more", "secondary", false]]]],
             firstSubmit: "go", cancelWord: L("DRPG.Kit.cancel"),
-            closeWord: [["done", L("DRPG.Kit.close"), true]], namedLabel: L("DRPG.Kit.close"),
+            // a caller's own closing word is drawn since E102 C6 (7386194a, R6350; the coordinator's word, 14.11.2026): until
+            // then it read the role's word whatever the caller wrote, E21 C2a's rule this line held
+            closeWord: [["done", L("DRPG.Kit.close"), true]], namedLabel: "Got it",
             noPrimary: [["cancel", true], ["x", false]], throwsDestructive: true, throwsUnknown: true,
             closeRight: [["drpg-kit-right", [["close", "close", true]]], ["drpg-kit-left", [["wipe", "destructive", false]]]], throwsRightBesidePrimary: true
         }), "[footerMarkup's groups (class; action, role, autofocus); the first button in the tree; the cancel and close words; a caller's own closing label; a footer with no primary; a destructive default and an unknown one throw; "
@@ -41566,6 +41799,44 @@ const INVARIANTS = [
             closeCallback: "close", cancelActionClose: "close", closeOtherAction: false, closeBare: false, cancelCallback: false,
             confirm: [[["close", "none"]], [["cancel", false]]]
         }), "[footerButtons on: a close with a callback, a cancel whose action is close with one, a close of another action with one, a bare close, a cancel of action no with one ('close': it threw for that reason; false: it did not); drpgConfirm's no as asked (action, what its callback answers)]");
+    }],
+    ["R6350 - a closing word given its own word draws that word (E102 C6, 14.11.2026; the coordinator's word: the owner chose \"Not yet\" as the default of the discovery's prompt, body-113): ui-kit.mjs `footerButtons` keeps a closing button's `label` and `tooltip` when the caller gives them, and the role's word (Close, Cancel) with no tooltip when it gives none; drawn, `footerMarkup`'s button reads that word and carries that title; and the three callers that name one - case-realize.mjs `askAtBody` and investigation.mjs `offerFinalOnClose` (\"Not now\"), body.mjs `promptPendingBodies` (\"Not yet\", which its window's note names) - still pass it", async () => {
+        /* Red at c1a01382: the closing word read "Close" whatever the caller wrote (E21 C2a's rule, "Not now" goes), so
+           the discovery's window told the GM "Not yet keeps it waiting" over a button that said Close. */
+        const K = await import("./ui-kit.mjs");
+        const L = k => game.i18n.localize(k);
+        const drawn = footer => {
+            const box = document.createElement("div");
+            box.innerHTML = K.footerMarkup(footer);
+            const b = box.querySelector(`[data-drpg-role="close"], [data-drpg-role="cancel"]`);
+            return b ? [b.textContent.trim(), b.getAttribute("title")] : null;
+        };
+        const close = L("DRPG.Kit.close");
+        must(close && close !== "DRPG.Kit.close", "no word for Close in this language - this would measure nothing");
+        const built = K.footerButtons({ close: { role: "close", action: "later", label: "Not now", tooltip: "Asked again later" } })[0];
+        const sources = new Map(await moduleSources());
+        const passes = [["case-realize.mjs", "askAtBody", "DRPG.CaseRealize.notNow"], ["investigation.mjs", "offerFinalOnClose", "DRPG.CaseRealize.notNow"],
+            ["body.mjs", "promptPendingBodies", "DRPG.Chapter.pendingNotYet"]]
+            .filter(([f, fn, key]) => !new RegExp(`close:\\s*\\{[^}]*label:\\s*(?:L|game\\.i18n\\.localize)\\(\\s*"${key.replace(/\./g, "\\.")}"`).test(fnSource(stripComments(sources.get(f) ?? ""), fn)))
+            .map(([f, fn]) => `${f} ${fn}`);
+        must([...sources.keys()].length > 100, "the module's sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            built: [built.role, built.label, built.tooltip ?? null],
+            labelled: drawn({ close: { role: "close", action: "later", label: "Not now", tooltip: "Asked again later" } }),
+            bare: drawn({ close: "close" }),
+            bareObject: drawn({ close: { role: "close", action: "later" } }),
+            cancel: drawn({ close: { role: "cancel", action: "no", label: "Keep it", callback: () => false } }),
+            emptyLabel: drawn({ close: { role: "close", action: "later", label: "" } }),
+            callersNotPassing: passes
+        }), stableJson({
+            built: ["close", "Not now", "Asked again later"],
+            labelled: ["Not now", "Asked again later"],
+            bare: [close, null],
+            bareObject: [close, null],
+            cancel: ["Keep it", null],
+            emptyLabel: [close, null],
+            callersNotPassing: []
+        }), "[footerButtons's closing word: role, label, tooltip; drawn (text, title): labelled, bare, bare object, a cancel with its own word, an empty label; the callers that no longer pass their word]");
     }],
     ["R1358 - the GM's tools on the kit (E21 C2; E21-01, E21-07, E21-16, E22-01, E22-04): each window C2 moves calls ui-kit.mjs `drpgWindow` with footer slots, never `buttons`; opened on this GM (DialogV2.wait stood in for), each has a `drpg-ui` root, every footer button a role of BUTTON_ROLES, the role this test names for its action, its closing word the role's own (Close where nothing is left to answer, Cancel where a question is withdrawn) and no `drpg-gm-route` on a GM's screen; a window as wide as its table carries the kit's `fit`; and C2b's: the GM's tools and their questions on the kit, on the destructive role what cannot be undone (Reset, Kill, Delete table, remove a pool, clear the overflow, Clear the Mastermind, Delete and rebuild, Install / reinstall, Revoke and Delete a passage), and the GM panel's Next named by its step", async () => {
         /*

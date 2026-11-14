@@ -808,7 +808,7 @@ function lairBlock(actor, room) {
     div.className = "drpg-lair-line";
     div.innerHTML = `<span class="drpg-lair-room">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Mastermind.lair.room", { room }))}</span>`
         + `<span class="drpg-lair-state">${t(locked ? "DRPG.Mastermind.lair.locked" : "DRPG.Mastermind.lair.open")}</span>`
-        + `<button type="button" class="drpg-mini-button drpg-lair-lock">${t(locked ? "DRPG.Mastermind.lair.unlock" : "DRPG.Mastermind.lair.lock")}</button>`;
+        + `<button type="button" class="drpg-mini-button drpg-lair-lock"${tipAttr("DRPG.Tips.Setup.lairLockTooltip")}>${t(locked ? "DRPG.Mastermind.lair.unlock" : "DRPG.Mastermind.lair.lock")}</button>`;
     const button = div.querySelector(".drpg-lair-lock");
     button.addEventListener("click", async event => {
         event.preventDefault();
