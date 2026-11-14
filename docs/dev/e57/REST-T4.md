@@ -18,7 +18,7 @@ Allowed: none (docs/text-budgets.json `allow` holds no T4 row from this line).
 
 ## Why the over-target texts were not cut
 
-They are a report by B1, and B2 says the targets themselves are still to be confirmed in E71 (row 1.2.122): the owner's pilot of
+They are a report by B1, and B2 says the targets themselves are still to be confirmed in E71: the owner's pilot of
 01.11.2026 approved texts over them and named no number. Most of these texts were rewritten by the E71 text lines from their batch
 facts (docs/dev/text-batch-*.json) and grew because a review asked for a fact back (docs/dev/e71/STATUS-B.md, STATUS-C.md: "each over a
 target, none over a limit"). Cutting them to a target the owner has not confirmed would drop facts a review put in, so they stay as they
