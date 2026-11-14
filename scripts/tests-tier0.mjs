@@ -592,6 +592,29 @@ const REGRESSIONS = [
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
     }],
 
+    ["R7150 - a docblock after a docblock is an error: tools/comment-budget.json, which `node tools/check.mjs comments` holds equal to the comments lint's counts of every module file of scripts/, allows no doubled JSDoc in any file - the budget has no row whose `doubledJsdoc` is above 0, and every row it holds names a module file of scripts/ (E56 part 2)", async () => {
+        /*
+         * E56 part 2, 14.11.2026 (the plan's guard "a docblock after a docblock is an error"). The lint itself needs espree
+         * and reads files in Node (tools/comments-lint.mjs); here the suite reads the budget it is held to, so a budget that
+         * lets one doubled block back in is red at the table as in `npm run quick`. Red before this line's fix: "doubled
+         * JSDoc allowed in 3 file(s): scripts/enforced.mjs 1, scripts/gm-items.mjs 1, scripts/death.mjs 1" (the budget at
+         * 9e7e3d78). death.mjs and gm-items.mjs held a block left over its function's neighbour; enforced.mjs's was a
+         * `@typedef` followed by the `@type` of ENFORCED, which the lint since reads as no doubled block.
+         */
+        needs(env.tools(), "tools/comment-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/comment-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.files === "object", "tools/comment-budget.json is missing or holds no files");
+        if (!budget) return;
+        const rows = Object.entries(budget.files);
+        must(rows.every(([file]) => /^scripts\/[\w-]+\.mjs$/.test(file)), "the budget holds a row that names no module file of scripts/");
+        const doubled = rows.filter(([, row]) => Number(row?.doubledJsdoc) > 0).map(([file, row]) => `${file} ${row.doubledJsdoc}`);
+        equal(doubled.length ? `doubled JSDoc allowed in ${doubled.length} file(s): ${doubled.join(", ")}` : "", "", "the comment budget lets a docblock stand after a docblock");
+    }],
+
     ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection, nor `--drpg-critical` outside a critical; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it, and `--drpg-critical` is the critical's light red, read by the flat roll's critical line (E48 K1, K2b; Q6)", async () => {
         /*
          * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the

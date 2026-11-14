@@ -95,10 +95,6 @@
       "citations": 1,
       "doubledJsdoc": 0
     },
-    "scripts/enforced.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
     "scripts/facilities.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
@@ -130,10 +126,6 @@
     "scripts/gm-bridge.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
-    },
-    "scripts/gm-items.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
     },
     "scripts/gm-stores.mjs": {
       "citations": 1,
@@ -346,10 +338,6 @@
     "scripts/key-remnants.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
-    },
-    "scripts/death.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
     }
   }
 }

@@ -1147,25 +1147,6 @@ function visibilityOptions(selected = "evident") {
         }</option>`).join("");
 }
 
-/**
- * Hand one Truth Bullet over - copied from a trace, or written out by hand.
- *
- * TWO TABS, AND THE FIRST ONE IS THE HONEST ROUTE (Dawid, 31.08).
- *
- * Writing the bullet out was the only way through here, and it is the one way
- * that can disagree with the map: the GM retypes a name the Remnant already
- * has, picks a visibility it already carries, and the result comes out
- * unattached. No `remnantId` means the marker stays hidden from the person now
- * holding evidence of it, and nothing ever ties the bullet to the trace it
- * documents - not the Investigation dashboard, not the trial's evidence card.
- *
- * Observe has never done it that way: it reads the trace and hands over what
- * the trace says. So does this pane, with the same fields in the same order, so
- * a bullet given by hand and a bullet found by rolling are the same object.
- *
- * Writing one by hand stays, because a GM inventing evidence that is not on the
- * map yet is a real thing to want.
- */
 /** The traces on the scene as options, marking the ones this student already holds a copy of. */
 function bulletTraceOptions(traces, who, traceContextLine) {
         const copied = copiedRemnants(who);
@@ -1461,6 +1442,25 @@ export async function giveBullet(who, payload) {
         payload?.remnantId && copiedRemnants(who).has(payload.remnantId) ? GIVEN_ALREADY : createTruthBullet(who, payload));
 }
 
+/**
+ * Hand one Truth Bullet over - copied from a trace, or written out by hand.
+ *
+ * TWO TABS, AND THE FIRST ONE IS THE HONEST ROUTE (Dawid, 31.08).
+ *
+ * Writing the bullet out was the only way through here, and it is the one way
+ * that can disagree with the map: the GM retypes a name the Remnant already
+ * has, picks a visibility it already carries, and the result comes out
+ * unattached. No `remnantId` means the marker stays hidden from the person now
+ * holding evidence of it, and nothing ever ties the bullet to the trace it
+ * documents - not the Investigation dashboard, not the trial's evidence card.
+ *
+ * Observe has never done it that way: it reads the trace and hands over what
+ * the trace says. So does this pane, with the same fields in the same order, so
+ * a bullet given by hand and a bullet found by rolling are the same object.
+ *
+ * Writing one by hand stays, because a GM inventing evidence that is not on the
+ * map yet is a real thing to want.
+ */
 export async function giveTruthBulletDialog(actor, { scenes: only = null, fill = null } = {}) {
 
     const students = studentActors();
