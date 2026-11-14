@@ -711,7 +711,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -765,7 +765,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -819,7 +819,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -873,7 +873,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -925,7 +925,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -977,7 +977,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -1029,7 +1029,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -1081,7 +1081,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -1133,7 +1133,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -1185,7 +1185,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -1237,7 +1237,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -1289,7 +1289,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -1341,7 +1341,7 @@
         },
         {
           "action": "realize",
-          "label": "Podgląd realizacji",
+          "label": "Podejrzyj realizację",
           "default": false
         }
       ],
@@ -2763,7 +2763,7 @@
       "opener": "look.mjs m.openLookDialog()",
       "lang": "pl",
       "captured": true,
-      "title": "Ustawienia DRPG",
+      "title": "Ustawienia Danganronpa RPG",
       "classes": [
         "application",
         "dialog",
@@ -2794,7 +2794,7 @@
       "opener": "settings-window.mjs m.openSettingsWindow()",
       "lang": "pl",
       "captured": true,
-      "title": "Ustawienia DRPG",
+      "title": "Ustawienia Danganronpa RPG",
       "classes": [
         "application",
         "dialog",
@@ -3129,7 +3129,7 @@
       "opener": "look.mjs m.openLookDialog()",
       "lang": "pl",
       "captured": true,
-      "title": "Ustawienia DRPG",
+      "title": "Ustawienia Danganronpa RPG",
       "classes": [
         "application",
         "dialog",
@@ -3160,7 +3160,7 @@
       "opener": "settings-window.mjs m.openSettingsWindow()",
       "lang": "pl",
       "captured": true,
-      "title": "Ustawienia DRPG",
+      "title": "Ustawienia Danganronpa RPG",
       "classes": [
         "application",
         "dialog",
@@ -3191,7 +3191,7 @@
       "opener": "settings-window.mjs m.openSettingsWindow()",
       "lang": "pl",
       "captured": true,
-      "title": "Ustawienia DRPG",
+      "title": "Ustawienia Danganronpa RPG",
       "classes": [
         "application",
         "dialog",
@@ -3737,9 +3737,33 @@
       "client": "p1",
       "opener": "anonymity.mjs m.openBodyLoot(lootBody)",
       "lang": "pl",
-      "captured": false,
-      "answered": "null",
-      "threw": null
+      "captured": true,
+      "title": "Take from the Body",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-loot-window",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Weź",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-loot--long.html"
     }
   ]
 }

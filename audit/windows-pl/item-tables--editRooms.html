@@ -1,7 +1,7 @@
-<dialog id="app-CpvNR2pt" class="application dialog drpg-panel drpg-projects drpg-window-tables drpg-ui drpg-kit-width drpg-kit-width-tables" open="" style="z-index: 158; left: 48px; top: 384px;" data-drpg-width="tables" data-drpg-scaled="1@768" lang="pl" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="editTiers" aria-selected="false" data-tooltip="Po jednej tabeli na kategorię i Tier. Search losuje z nich, gdy tabela pokoju nie ma nic do dania" data-drpg-named="own">Pule Tier</button><button type="button" role="tab" data-drpg-tab-key="editRooms" aria-selected="true" data-drpg-named="own">Pule pokoi</button><button type="button" role="tab" data-drpg-tab-key="newItem" aria-selected="false" data-drpg-named="own">Nowy przedmiot</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="editTiers" hidden=""><div data-drpg-pool-pane="tiers">
+<dialog id="app-MjVCdhwe" class="application dialog drpg-panel drpg-projects drpg-window-tables drpg-ui drpg-kit-width drpg-kit-width-tables" open="" style="z-index: 158; left: 48px; top: 384px;" data-drpg-width="tables" data-drpg-scaled="1@768" lang="pl" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="editTiers" aria-selected="false" data-tooltip="Po jednej tabeli na kategorię i Tier. Search losuje z nich, gdy tabela pokoju nie ma nic do dania" data-drpg-named="own">Tabele Tier</button><button type="button" role="tab" data-drpg-tab-key="editRooms" aria-selected="true" data-tooltip="Twoje własne tabele. W Ustawieniach pokoi każdy pokój może losować z jednej z nich" data-drpg-named="own">Tabele pokoi</button><button type="button" role="tab" data-drpg-tab-key="newItem" aria-selected="false" data-tooltip="Tworzy jeden przedmiot i dodaje go do jego tabeli Tier i do zaznaczonych tabel pokoi" data-drpg-named="own">Nowy przedmiot</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="editTiers" hidden=""><div data-drpg-pool-pane="tiers">
         <p class="notes">Wszystko, co może wypaść przy Search. Wybierz tabelę po lewej.</p>
         <div class="drpg-tables-layout">
-            <div class="drpg-tables-left"><p class="notes">Nie ma jeszcze pul. Naciśnij „Zainstaluj / przeinstaluj”.</p></div>
+            <div class="drpg-tables-left"><p class="notes">Nie ma jeszcze tabel Tier. Naciśnij „Zainstaluj / przeinstaluj”.</p></div>
             <div class="drpg-tables-right">
                 <div class="drpg-table-heading">
                     <h4 data-drpg-table-name="" title=""></h4>
@@ -12,15 +12,15 @@
         </div>
         
         
-        <p class="notes">Search losuje najpierw z tabel pokoju, potem z pul Tier. „Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw, po jednej tabeli na każdą kategorię i Tier. Jeśli tabele już istnieją, wybierzesz, czy zachować swoje, czy je przebudować.</p>
+        <p class="notes">Search losuje najpierw z tabel pokoju, potem z tabel Tier. „Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw, po jednej tabeli na każdą kategorię i Tier. Jeśli tabele już istnieją, wybierzesz, czy zachować swoje, czy je przebudować.</p>
     </div></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="editRooms"><div data-drpg-pool-pane="rooms">
         <p class="notes">Wszystko, co może wypaść przy Search. Wybierz tabelę po lewej.</p>
         <div class="drpg-tables-layout">
-            <div class="drpg-tables-left"><p class="notes">Nie ma jeszcze pul pokoi. Nazwij jedną poniżej.</p></div>
+            <div class="drpg-tables-left"><p class="notes">Nie ma jeszcze tabel pokoi. Nazwij jedną poniżej.</p></div>
             <div class="drpg-tables-right">
                 <div class="drpg-table-heading">
                     <h4 data-drpg-table-name="" title=""></h4>
-                    <span class="drpg-table-actions" role="group"><button type="button" class="drpg-mini-button" data-drpg-rename-table="" data-drpg-named="own" disabled="">Zmień nazwę tabeli</button><button type="button" class="drpg-mini-button" data-drpg-delete-table="" data-tooltip="Najpierw pyta, potem usuwa widoczną tabelę razem ze wszystkimi jej przedmiotami" data-drpg-named="own" disabled="">Usuń tabelę</button></span>
+                    <span class="drpg-table-actions" role="group"><button type="button" class="drpg-mini-button" data-drpg-rename-table="" data-tooltip="Zmienia nazwę widocznej tabeli. Pokoje, które z niej losują, losują dalej, już pod nową nazwą" data-drpg-named="own" disabled="">Zmień nazwę tabeli</button><button type="button" class="drpg-mini-button" data-drpg-delete-table="" data-tooltip="Najpierw pyta, potem usuwa widoczną tabelę razem ze wszystkimi jej przedmiotami" data-drpg-named="own" disabled="">Usuń tabelę</button></span>
                 </div>
                 <div data-drpg-table-body=""><p class="notes">Nie ma jeszcze tabeli do pokazania.</p></div>
             </div>
@@ -39,12 +39,12 @@
                     <img src="modules/danganronpa-rpg/icons/item-usable.svg" alt="" class="drpg-tables-preview">
                     <input type="hidden" name="img.new" value="">
                     <label>Nazwa
-                        <input type="text" name="newName" value="" placeholder="Wpisz cokolwiek albo wybierz podpowiedź" data-drpg-named="own"></label>
+                        <input type="text" name="newName" value="" data-tooltip="Nazwa, pod którą przedmiot trafi na arkusz postaci znalazcy" placeholder="Wpisz cokolwiek albo wybierz podpowiedź" data-drpg-named="own"></label>
                 </div>
                 <div class="drpg-tables-picture">
                     <span class="drpg-tables-picture-label">Obrazek</span>
                     <details class="drpg-glyph-picker drpg-item-picture-picker">
-                        <summary data-drpg-picture-summary="">Z kategorii</summary>
+                        <summary data-drpg-picture-summary="" data-tooltip="Otwiera obrazki do wyboru. Znalazca zobaczy wybrany obrazek na przedmiocie">Z kategorii</summary>
                         <div class="drpg-glyph-grid drpg-item-picture-grid" role="radiogroup" aria-label="Obrazek" data-drpg-item-pictures="" data-drpg-wired="1"><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Z kategorii">
             <input type="radio" name="newImgChoice" value="" data-drpg-named="own">
             <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-usable.svg" alt="" data-drpg-picture-own="">
@@ -82,22 +82,22 @@
                     </details>
                 </div>
                 <label>Opis (opcjonalny)
-                    <textarea name="newText" rows="2" placeholder="Czym to jest albo co mówi o sprawie." data-drpg-named="own"></textarea></label>
+                    <textarea name="newText" rows="2" data-tooltip="To, co znalazca przeczyta w opisie przedmiotu. Możesz zostawić to pole puste" placeholder="Czym to jest albo co mówi o sprawie." data-drpg-named="own"></textarea></label>
                 <label>Kategoria
                     <span class="drpg-select"><select name="newCategory" data-tooltip="Razem z Tier wybiera tabelę, do której trafi przedmiot. Obrazek zmienia się z kategorią, dopóki nie wybierzesz innego" data-drpg-chrome="select" data-drpg-named="own"><option value="usable:healing">Użytkowy - Leczący</option><option value="usable:stress">Użytkowy - Uspokajający</option><option value="crimeTool">Narzędzie zbrodni</option><option value="cleaningTool">Narzędzie do sprzątania</option><option value="tool">Narzędzie</option></select></span></label>
                 <label>Tier
                     <span class="drpg-select"><select name="newTier" data-drpg-chrome="select" data-drpg-named="own"><option value="0">Tier 0</option><option value="1">Tier 1</option><option value="2" selected="">Tier 2</option><option value="3">Tier 3</option></select></span></label>
-                <div data-drpg-tier-target=""><div class="drpg-box" data-drpg-box="warning" role="note">Nie ma takiej puli Tier, więc przedmiot trafi tylko do zaznaczonych tabel pokoi. Zainstaluj pule w zakładce Pule Tier.</div></div>
+                <div data-drpg-tier-target=""><div class="drpg-box" data-drpg-box="warning" role="note">Nie ma takiej tabeli Tier, więc przedmiot trafi tylko do zaznaczonych tabel pokoi. Zainstaluj tabele w zakładce Tabele Tier.</div></div>
                 <div class="drpg-tables-roles">
                     <div class="notes" data-drpg-roles-note="">Czym jeszcze może być. Wciąż zajmuje jedno miejsce.</div>
-                    <label class="drpg-check"><input type="checkbox" name="role:crimeTool" data-drpg-named="own">
-            Narzędzie zbrodni</label><label class="drpg-check"><input type="checkbox" name="role:cleaningTool" data-drpg-named="own">
-            Narzędzie do sprzątania</label><label class="drpg-check"><input type="checkbox" name="role:tool" data-drpg-named="own">
+                    <label class="drpg-check"><input type="checkbox" name="role:crimeTool" title="Przedmiot może też służyć za to, od Tier 2 wzwyż. Najwyżej jedna rola" data-drpg-named="own">
+            Narzędzie zbrodni</label><label class="drpg-check"><input type="checkbox" name="role:cleaningTool" title="Przedmiot może też służyć za to, od Tier 2 wzwyż. Najwyżej jedna rola" data-drpg-named="own">
+            Narzędzie do sprzątania</label><label class="drpg-check"><input type="checkbox" name="role:tool" title="Przedmiot może też służyć za to, od Tier 2 wzwyż. Najwyżej jedna rola" data-drpg-named="own">
             Narzędzie</label>
                 </div>
                 <div class="drpg-tables-targets">
                     <span class="notes">Tabele pokoi, w których też się pojawia:</span>
-                    <span class="notes">Nie ma jeszcze tabel pokoi. Utwórz jedną w zakładce Pule pokoi.</span>
+                    <span class="notes">Nie ma jeszcze tabel pokoi. Utwórz jedną w zakładce Tabele pokoi.</span>
                 </div>
                 <p class="notes">Znalazca dostanie obrazek i opis.</p>
             </fieldset></section></div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"><button type="submit" data-action="add" class="drpg-role-primary" data-drpg-role="primary" title="Dodaje go do jego tabeli Tier i do każdej zaznaczonej tabeli pokoju" hidden="" disabled="" data-drpg-named="own">Dodaj przedmiot</button></div><div class="drpg-kit-left"><button type="submit" data-action="close" data-drpg-role="close" class="drpg-role-close default" data-drpg-named="own" autofocus="">Zamknij</button><button type="submit" data-action="newPool" data-drpg-role="secondary" class="drpg-role-secondary" title="Tworzy pustą tabelę o nazwie wpisanej na tej zakładce" data-drpg-named="own">Utwórz tabelę</button><button type="submit" data-action="install" data-drpg-role="destructive" class="drpg-role-destructive drpg-destructive" title="Tworzy domyślne tabele; pyta, zanim przebuduje twoje" data-drpg-named="own" hidden="" disabled="">Zainstaluj / przeinstaluj</button></div></footer></form></dialog>

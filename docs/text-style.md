@@ -810,6 +810,7 @@ module.json i testach idą razem z nimi.
 | `DRPG.Case.chargeHeld` | karta wstrzymanej opłaty (D27, D28) | “..., then press Charge the Key fee.” | „..., a potem naciśnij Pobierz opłatę za Key Remnanty.” | karta ma teraz ten przycisk |
 | `DRPG.Case.chargeAgain`, `chargeAgainHint`, `chargeDone` | przycisk karty, jego dymek, toast (D27) | “Charge the Key fee” | „Pobierz opłatę za Key Remnanty” | nowe |
 | `DRPG.Fog.floorsHintGm` | dymek przełącznika pięter dla GM-a i Masterminda (D40) | “You can view every floor. Players see only their character's floor and the floors with a room they have visited.” | „Możesz oglądać każde piętro. Gracze widzą tylko piętro swojej postaci i piętra z pokojem, który odwiedzili.” | nowy |
+| `DRPG.Season.group.actions` | grupa resetu sezonu (B-H6 E59, obok H20) | “The action budget refilled, and what the season's actions left in force cleared: rests, barricades, Bounties, Confusions, room effects, masks, tails, watches, eavesdrops, lock picks, crossings and the rolls' records” | „Budżet akcji odnowiony, a to, co akcje sezonu zostawiły w mocy, wyczyszczone: odpoczynki, barykady, Bounty, Confusion, efekty pokoi, maski, śledzenia, warty, podsłuchy, wytrychy, przejścia i zapisy rzutów” | etykieta wymienia wszystko, co grupa czyści (gm-stores.mjs, `resetGroup: "actions"`) |
 
 ## 13. Why so much is rebuilt
 

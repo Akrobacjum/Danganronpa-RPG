@@ -6917,7 +6917,7 @@
         "deaths": "Śmierci, Monocuby i ciała na mapach, a zmarli wracają i każdy uczeń ma znów pełne Health i Sanity",
         "items": "Co nosi obsada, a klucz do każdej sypialni wraca do jej właściciela",
         "advancement": "Level Upy i doświadczenia, które dodały, a statystyki i maksima wracają do arkusza startowego",
-        "actions": "Budżet akcji odnowiony, odpoczynki każdego ucznia wyczyszczone, a każda barykada zdjęta",
+        "actions": "Budżet akcji odnowiony, a to, co akcje sezonu zostawiły w mocy, wyczyszczone: odpoczynki, barykady, Bounty, Confusion, efekty pokoi, maski, śledzenia, warty, podsłuchy, wytrychy, przejścia i zapisy rzutów",
         "preNotes": "Notatki przed sesją dla GM-ów",
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Naprawy, projekty i ich Countdowny",

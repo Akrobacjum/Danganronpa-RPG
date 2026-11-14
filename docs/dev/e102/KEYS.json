@@ -732,7 +732,7 @@
   },
   "placeOnTheMapTooltip": {
    "key": "DRPG.Tips.Case.placeOnTheMapTooltip",
-   "en": "Opens New Remnant with every field of this plan filled in; cancelled, nothing is placed",
+   "en": "Opens New Remnant with every field of this plan filled in; canceled, nothing is placed",
    "pl": "Otwiera Nowy Remnant z wypełnionym każdym polem tego planu; gdy go anulujesz, nic nie staje na mapie",
    "sites": [
     "investigation:schemaEditor"
@@ -786,13 +786,6 @@
     "investigation:openInvestigationDashboard"
    ]
   },
-  "undoRealizationTooltip": {
-   "key": "DRPG.Tips.Case.undoRealizationTooltip",
-   "en": "Removes what the realization placed, except what a student found or Monokuma revealed. Asks first.",
-   "pl": "Usuwa to, co postawiła realizacja, poza tym, co ktoś znalazł albo co ujawnił Monokuma. Najpierw pyta.",
-   "sites": [],
-   "note": "Not built (C6b, 14.11.2026): E64-inv moved Undo realization off the dashboard's footer into the realization's preview (case-realize.mjs realizationFooter), behind its own question; the census holds no row for it there."
-  },
   "nodeOnTheMapTooltip": {
    "key": "DRPG.Tips.Case.nodeOnTheMapTooltip",
    "en": "Opens this node's fields to edit it",
@@ -840,14 +833,6 @@
    "sites": [
     "case-map:caseToolsHtml"
    ]
-  },
-  "finderTextTooltip": {
-   "key": "DRPG.Tips.Case.finderTextTooltip",
-   "en": "What a student reads when they find this Remnant; New Remnant opens with it",
-   "pl": "To, co przeczyta uczeń, który znajdzie ten Remnant; z tym tekstem otworzy się Nowy Remnant",
-   "sites": [],
-   "c7": true,
-   "note": "Not built (C6b, 14.11.2026): E104 gave the planned Incident Remnant node New Remnant's own fields, so its words are the node's traceText field, which draws playerDescriptionTooltip (\"What a student reads the moment they find it\"); a second key would say the same."
   },
   "showPreviewTooltip": {
    "key": "DRPG.Tips.Case.showPreviewTooltip",
@@ -925,16 +910,16 @@
  "Gm": {
   "minusTooltip": {
    "key": "DRPG.Tips.Gm.minusTooltip",
-   "en": "Takes one Despair from this pool",
-   "pl": "Zabiera jeden Despair z tej puli",
+   "en": "Takes {n} Despair from this pool",
+   "pl": "Zabiera {n} Despair z tej puli",
    "sites": [
     "despair:1230"
    ]
   },
   "plusTooltip": {
    "key": "DRPG.Tips.Gm.plusTooltip",
-   "en": "Adds one Despair to this pool",
-   "pl": "Dodaje jeden Despair do tej puli",
+   "en": "Adds {n} Despair to this pool",
+   "pl": "Dodaje {n} Despair do tej puli",
    "sites": [
     "despair:1232"
    ]
