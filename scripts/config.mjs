@@ -682,7 +682,7 @@ export const ITEM_CATEGORIES = {
         label: "Murder Weapon",
         plural: "Murder Weapons",
         limitGroup: "gear",
-        hint: "Readied in an incident, it gives advantage on Self-Defense and Role Reversal; a weapon blow with it takes more Health the higher its tier, and without one readied that blow is at disadvantage. One used to strike breaks when the clean-up ends."
+        hint: "Readied in an incident, it gives advantage on Self-Defense and Role Reversal; a weapon blow with it takes more Health the higher its tier, and without one readied that blow is at disadvantage. One used to strike breaks when the Tamper stage ends."
     },
     cleaningTool: {
         label: "Cleaning Tool",
@@ -2017,7 +2017,7 @@ export const INDIRECT_MURDER = {
     /** The guide splits an indirect murder into at least two sub-projects. */
     subProjects: [
         { label: "Prepare the Weapon", scale: ["everyday", "complex"], progress: [4, 6],
-          note: "May need a room with the right equipment, unless the killer already has the tool." },
+          note: "May need a room with the right equipment." },
         { label: "Set the Trap", scale: ["trivial", "everyday"], progress: [3, 4],
           note: "Always requires a specific room." }
     ]

@@ -61247,6 +61247,43 @@ const INVARIANTS = [
         equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
             "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
     }],
+    ["R7120 - the owner's text answers on DRPG-Q113 (E109, 14.11.2026): Overflow.hopeBlocked says only that the darkening blocks Hope (#6, Q-A1), TraitRuling.propose reads as the bridge's Send (#16, Q-A11), the incident's stage after the fight is \"Tamper\" on the tracker and on the cards (#11, Q-A6), Prepare the Weapon's note names no tool the code never checks (#49, H13), and Season.resetKeeps keeps no promise the assignments group breaks (#53, H20)", async () => {
+        /*
+         * Red at 9e7e3d78 on the first four (hopeBlocked named Hope Calls and "You keep your Hope"; propose read
+         * "Propose"; the stage label "Resolution" and the cards "the clean-up"; the note "unless the killer already has the
+         * tool"). The fifth was green there already: E71's B15 had dropped "who watches whom" from resetKeeps; it is held
+         * here so the text cannot drift back while season-wipe.mjs `RESET_STEPS` clears the assignments.
+         */
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const { INDIRECT_MURDER } = await import("./config.mjs");
+        const { RESET_STEPS } = await import("./season-wipe.mjs");
+        /* The cards that name the stage (afterInterrupted's English does not; its Polish did, "przed sprzątaniem"): each
+           names it "the Tamper stage" / "etap Tamper" now. "clean them up", "posprzątać" and "żadne sprzątanie" are the activity, and stay. */
+        const named = ["openedSelfNote", "selfWentThrough", "resolutionNoteSelf", "resolutionNote", "ranOutTwoKillersNote"];
+        const cards = { en: named, pl: [...named, "afterInterrupted"] };
+        const read = lang => {
+            const f = flats[lang];
+            const note = lang === "en" ? INDIRECT_MURDER.subProjects[0].note : f["DRPG.Config.INDIRECT_MURDER.subProjects.0.note"];
+            return [
+                f["DRPG.Overflow.hopeBlocked"],
+                f["DRPG.TraitRuling.propose"] === f["DRPG.Bridge.send"],
+                f["DRPG.Murder.stage.resolution"], f["DRPG.Remnant.action.resolution"],
+                cards[lang].map(k => `DRPG.Murder.${k}`).filter(k => typeof f[k] !== "string" || (lang === "en" && /the clean-up/i.test(f[k]))
+                    || !(lang === "en" ? /the Tamper stage/i : /etap\w* Tamper/).test(f[k])),
+                typeof note === "string" && !(lang === "en" ? /\btool\b/i : /narzędzi/i).test(note),
+                RESET_STEPS.includes("assignments") && typeof f["DRPG.Season.resetKeeps"] === "string"
+                    && !(lang === "en" ? /watches/i : /pilnuje/i).test(f["DRPG.Season.resetKeeps"])
+            ];
+        };
+        equal(stableJson([read("en"), read("pl")]), stableJson([
+            ["The darkening blocks Hope this time of day.", true, "Tamper", "Tamper", [], true, true],
+            ["Zaciemnienie blokuje Hope o tej porze dnia.", true, "Tamper", "Tamper", [], true, true]
+        ]), "[hopeBlocked, propose = Bridge.send, the stage label, the Remnant's stage label, the cards not naming the Tamper stage, Prepare the Weapon's note without the tool, resetKeeps without who watches whom] in English, then Polish");
+    }],
 ];
 
 /**
