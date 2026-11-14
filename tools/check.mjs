@@ -242,7 +242,11 @@
  *             reads ships (module.json's paths, a script's ./x.mjs imports,
  *             every module file a reader names; REVIEW-111-e59 finding 1). A
  *             planted package with eight faults first. Red on 421f2395:
- *             macros/ and icons/pixel-sprite.svg. Bare Node and git.
+ *             macros/ and icons/pixel-sprite.svg. And (E26 prep, 14.11)
+ *             the zip tools/build-package.mjs builds is the same bytes under
+ *             a Windows git config and none, each file the commit's own,
+ *             with a control that the config reaches git; no "DM" in a
+ *             shipped language file or handbook. Bare Node and git.
  *   fonts     what each fonts/*.woff2 says of itself in its name table
  *             against fonts/README.md's licence table (E26 prep, 14.11.2026;
  *             tools/font-names.mjs, whose header has the rules): a row each,
@@ -930,6 +934,66 @@ function packageTracked() {
     return execFileSync("git", ["-C", REPO, "ls-tree", "-r", "--name-only", "HEAD"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n").filter(Boolean);
 }
 
+/*
+ * The same zip whatever the machine's git config (E26 prep, 14.11.2026): tools/build-package.mjs pins git archive's text
+ * conversions off. Built at HEAD under no extra config and under a Windows checkout's (`core.autocrlf=true`,
+ * `core.eol=crlf`), the two zips must be the same bytes, and every file of the pinned tar the commit's own blob, byte
+ * for byte (a `text eol=crlf` rule in .gitattributes would convert under any config, and only this sees it). The
+ * control: release.yml's plain command under the Windows config gives other bytes (measured at c31d9b0d), so the
+ * config does reach git archive here - without that, the comparison would hold by construction.
+ */
+function packageReproducible() {
+    const problems = [];
+    const B = { PINNED: ["-c", "core.autocrlf=false", "-c", "core.eol=lf"] };
+    let zipA, zipB, plainWin, tar;
+    const windows = ["-c", "core.autocrlf=true", "-c", "core.eol=crlf"];
+    try {
+        const run = (...args) => execFileSync("git", ["-C", REPO, ...args], { maxBuffer: 512 * 1024 * 1024 });
+        zipA = run(...B.PINNED, "archive", "--format=zip", "HEAD");
+        zipB = run(...windows, ...B.PINNED, "archive", "--format=zip", "HEAD");
+        plainWin = run(...windows, "archive", "--format=zip", "HEAD");
+        tar = run(...windows, ...B.PINNED, "archive", "--format=tar", "HEAD");
+    } catch (err) { return { problems: [`git archive failed (${String(err.message).split("\n")[0]})`], line: "not built" }; }
+    const builder = fs.readFileSync(path.join(REPO, "tools", "build-package.mjs"), "utf8");
+    if (!builder.includes(`export const PINNED = ${JSON.stringify(B.PINNED).replace(/,/g, ", ")};`)) problems.push("tools/build-package.mjs's PINNED is not the config this part builds with: change both");
+    if (!zipA.equals(zipB)) problems.push("module.zip built with tools/build-package.mjs's config differs under a Windows git config: the build is not reproducible");
+    if (plainWin.equals(zipA)) problems.push("the control: the plain git archive under a Windows config gave the pinned bytes - the config did not reach git, and this measured nothing");
+    const entries = tarEntries(tar).filter(e => e.name);
+    const blobs = execFileSync("git", ["-C", REPO, "cat-file", "--batch"], { input: entries.map(e => `HEAD:${e.name}`).join("\n") + "\n", maxBuffer: 512 * 1024 * 1024 });
+    let off = 0, differ = 0;
+    for (const e of entries) {
+        const nl = blobs.indexOf(10, off);
+        const size = Number(blobs.subarray(off, nl).toString("latin1").split(" ")[2]);
+        const blob = blobs.subarray(nl + 1, nl + 1 + size);
+        off = nl + 1 + size + 1;
+        if (!blob.equals(e.data)) { differ++; if (differ <= 5) problems.push(`${e.name}: the pinned package's copy is not the commit's bytes`); }
+    }
+    const crypto = createRequire(import.meta.url)("node:crypto");
+    const short = b => crypto.createHash("sha256").update(b).digest("hex").slice(0, 12);
+    return { problems, line: `reproducible: ${short(zipA)} under no config and a Windows one (plain command there ${short(plainWin)}), ${entries.length - differ}/${entries.length} file(s) the commit's bytes` };
+}
+
+/*
+ * No "DM" in what a player or a GM reads (E26 prep, 14.11.2026; the E26 plan: old Polish macros said "DM"). The
+ * glossary's word is "GM" in both languages (docs/glossary.json, gm-a); macros/ left the repository on 13.11.2026, and
+ * this holds every shipped language file and handbook to the word, after a planted line. "DM" in a script's comment
+ * quotes the rule guide (observe.mjs, investigation.mjs: 14 files at c31d9b0d) and is not read at a table.
+ */
+const DM_WORD = /(?<![\w-])DM(?:-?\p{Ll}*)?(?![\w-])/u;
+function packageWords(entries) {
+    const problems = [];
+    const texts = entries.filter(e => /^lang\/[\w-]+\.json$/.test(e.name) || /^docs\/handbooks\/[\w.-]+\.md$/.test(e.name));
+    for (const e of texts) {
+        const lines = e.data.toString("utf8").split("\n");
+        const at = lines.findIndex(l => DM_WORD.test(l));
+        if (at >= 0) problems.push(`${e.name}:${at + 1} says "DM" - the glossary's word is "GM" (docs/glossary.json): ${lines[at].trim().slice(0, 100)}`);
+    }
+    const plant = ["Napisz do DM-a na kanale.", "a DMem", "the GM decides", "ADMIN", "DMX-1"].map(l => DM_WORD.test(l));
+    if (JSON.stringify(plant) !== JSON.stringify([true, true, false, false, false])) problems.push(`the "DM" word's planted lines read ${JSON.stringify(plant)}`);
+    if (!texts.length) problems.push("no language file or handbook in the archive - the DM rule read nothing");
+    return { problems, line: `"DM" in ${texts.length} shipped text file(s) after 5 planted lines` };
+}
+
 function pkg() {
     let entries;
     let tracked;
@@ -969,9 +1033,13 @@ function pkg() {
     if (!readers.some(r => /^scripts\/tests[\w-]*\.mjs$/.test(r.file))) problems.push("no reader matches scripts/tests*.mjs - the tests' exclusion reads nothing; rename it with the suite");
     const tops = [...new Set(files.map(f => (f.includes("/") ? `${f.split("/")[0]}/` : f)))];
     if (!files.length) problems.push("the archive listed no file - this part read nothing");
+    const same = packageReproducible();
+    problems.push(...same.problems);
+    const words = packageWords(entries);
+    problems.push(...words.problems);
     if (seen !== plantedCount || plantedGave !== plantedCount) problems.push(`the self-check's planted package gave ${JSON.stringify([...plant, ...missPlant])}`);
     console.log(`package: git archive HEAD (the working tree's .gitattributes): ${files.length} file(s), top level ${tops.join(" ")}; `
-        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; self-check ${seen}/${plantedCount} planted fault(s) seen, `
+        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; ${same.line}; ${words.line}; self-check ${seen}/${plantedCount} planted fault(s) seen, `
         + `${plantedGave - seen} other(s); ${problems.length} problem(s)`);
     return problems;
 }
