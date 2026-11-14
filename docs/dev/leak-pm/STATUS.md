@@ -26,7 +26,7 @@ measured on this branch, headless, on 4 cores, unless it says otherwise.
 | - | the token sync on a GM whose rows have not arrived | added | projects-map.mjs `syncOneProjectToken`: a secret project's token is not taken off the map for "no room" while `projectSecretStore.isHydrated()` is false - before the GMs' copies are here, the room reads null |
 | - | GM handbook, "What every browser holds anyway" | added, both languages | one item: where a secret project's token stands tells its room, but since 1.2.113 not the room of one with no token, nor whether it is an indirect murder |
 
-## Tests (final tip; filled in at the end)
+## Tests
 
 See "Final numbers" at the end of this file.
 
@@ -81,3 +81,16 @@ after this diff, but the two in the last row.
 Until 1.2.113 any player's browser held, in the module's world data, which secret project is an indirect murder, and
 the room of a secret project whose token is not on the map; both are now kept by the GMs and sent only to the players
 in on the project and to Spectators. (Where a project's token stands still shows its room to every browser.)
+
+## Final numbers (14.11.2026, headless, 4 cores; code as at 0baa48b1 - the commit after it changes this file alone)
+
+| Run | Result |
+| --- | --- |
+| tiers 0-1, `node run-tests.mjs --tier 1` | 1595 passed, 1 failed, 16 skipped, 0 red; 1611 tests, 531 s. The failure is R2001 (stale "row 1.2.N" quotes), the base's known red |
+| tier 2, `--only "leak-pm-T" --only "the case health check names" --only "S17-31-T" --only "project secrets' lift" --only "R1351"` | 13 passed, 0 failed, 0 skipped, 0 red (9 tests) |
+| 72-canary | 139 passed, 3 expected red (foundry-hidden-tokens, foundry-actor-items, S17-64: Foundry limits), 0 failed of 142 |
+| 30-security | 301 passed, 2 expected red, 0 failed of 303 |
+| 61-gmstore-case | 113 passed, 0 expected red, 1 failed of 114: Z2, whose check looks for "2 traces on the map" where `DRPG.Case.row.traces` says "2 Remnants on the map". The same at 123f8242, measured (the harness against the base, `DRPG_REPO`: 113/114, Z2 failed); not this line's text and not changed here |
+| 62-investigation | 52 passed, 0 failed of 52 |
+| 13-murder-signals, 33-bridge-paths, 40-flow, 95-tooltips-drawn (the scenarios that create an indirect murder) | 87/87; 88 passed, 1 expected red of 89; 89/89; 4/4 |
+| `npm run quick` | green: lint 0 problems, check 21 parts green, gate 37/37 |
