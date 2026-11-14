@@ -425,99 +425,6 @@
    "owner": null
   },
   {
-   "key": "DRPG.Observe.general",
-   "group": "window",
-   "surface": "tile-hint",
-   "screen": "action-tiles",
-   "readers": [
-    "both"
-   ],
-   "source": "written",
-   "pilot": null,
-   "facts": [
-    {
-     "fact": "The label of the Observe row that takes the easiest Remnant to spot here, Remnants tied to the crime first; also named on GM cards as the way of looking declared.",
-     "file": "scripts/action-observe.mjs",
-     "fn": "observeModeLine",
-     "note": null
-    }
-   ],
-   "kept": [
-    0
-   ],
-   "en": {
-    "before": "Sweep the room",
-    "after": "Sweep the room"
-   },
-   "pl": {
-    "before": "Rozejrzyj się za czymkolwiek",
-    "after": "Rozejrzyj się po pokoju"
-   },
-   "removed": [
-    "pl: „za czymkolwiek” przeczy faktom (bierze najłatwiejszy Remnant) i myli się z wierszem „anything”, który celuje w coś poza Remnantem.",
-    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
-   ],
-   "needsCode": [],
-   "disagreements": [],
-   "reviews": {
-    "en": null,
-    "coldEn": null,
-    "pl": null,
-    "mechanics": null
-   },
-   "owner": null
-  },
-  {
-   "key": "DRPG.Observe.anything",
-   "group": "window",
-   "surface": "tile-hint",
-   "screen": "action-tiles",
-   "readers": [
-    "both"
-   ],
-   "source": "written",
-   "pilot": null,
-   "facts": [
-    {
-     "fact": "The label of the Observe row aimed at something other than a Remnant; a row marked as going to a GM. Also named on GM cards as the way of looking declared.",
-     "file": "scripts/action-observe.mjs",
-     "fn": "observeModeLine",
-     "note": null
-    },
-    {
-     "fact": "The roll is thrown and handed to a GM as a ruling card; the GM may place a Key Remnant there, reply, or answer that nothing was there.",
-     "file": "scripts/action-observe.mjs",
-     "fn": "ruleObserve",
-     "note": null
-    }
-   ],
-   "kept": [
-    0
-   ],
-   "en": {
-    "before": "Examine point of interest",
-    "after": "Examine a point of interest"
-   },
-   "pl": {
-    "before": "Zbadaj punkt zainteresowania",
-    "after": "Zbadaj coś, co przykuło twoją uwagę"
-   },
-   "removed": [
-    "The dropped article (X6, telegraph style).",
-    "pl: „punkt zainteresowania” to kalka; etykieta ma mówić, że celujesz w coś poza Remnantem.",
-    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
-   ],
-   "needsCode": [],
-   "disagreements": [],
-   "reviews": {
-    "en": null,
-    "coldEn": null,
-    "pl": null,
-    "mechanics": null
-   },
-   "owner": null
-  },
-  {
    "key": "DRPG.Observe.requestPrompt",
    "group": "window",
    "surface": "tile-hint",
@@ -2236,14 +2143,15 @@
    },
    "pl": {
     "before": "Wątpliwy. Przetrwa do następnej sesji i można go analizować ponownie.",
-    "after": "Wątpliwy związek ze sprawą. Gdy na koniec rozdziału GM zbiera Truth Bullets, ten zostaje u posiadacza."
+    "after": "Wątpliwy związek ze sprawą. Gdy na koniec rozdziału GM zbiera Truth Bullety, ten zostaje u posiadacza."
    },
    "removed": [
     "\"Survives into the next session\": wrong; it is the chapter's end it stays through (fact 3).",
     "\"and can be analyzed again\": a passive that hides the reader (X11), and on an identified bullet, the only one this badge is drawn on, there is no Analyze left to make; whether a locked bullet can be tried again next chapter is the locked badge's tooltip.",
     "pl: Mówiło o następnej sesji, a chodzi o koniec rozdziału; ponowna analiza nie wynika z Faint.",
     "review: en: taken - \"with you\" -> \"with its holder\" on a tooltip the GM also reads (P1, P2).",
-    "review: en: taken - the holder from fact 2 (chapter.mjs faintOf)."
+    "review: en: taken - the holder from fact 2 (chapter.mjs faintOf).",
+    "pl: „Truth Bullety” inflected (DB4, PL-a; the coordinator's word of 14.11)"
    ],
    "needsCode": [],
    "disagreements": [
@@ -2826,11 +2734,12 @@
    },
    "pl": {
     "before": "Truth Bullets zaktualizowane",
-    "after": "Aktualizacja Truth Bullets"
+    "after": "Aktualizacja Truth Bulletów"
    },
    "removed": [
     "Six words for a title over the window-title target of five (T4).",
-    "pl: Imiesłów bez orzeczenia jako tytuł karty brzmiał telegraficznie (X6)."
+    "pl: Imiesłów bez orzeczenia jako tytuł karty brzmiał telegraficznie (X6).",
+    "pl: „Truth Bulletów” inflected (DB4, PL-a)"
    ],
    "needsCode": [],
    "disagreements": [],

@@ -1614,12 +1614,13 @@
    },
    "pl": {
     "before": "Cokolwiek ma w rękach albo w skrytce - także Truth Bullets i klucze do cudzych pokoi.",
-    "after": "Cokolwiek ma w rękach albo w skrytce, także Truth Bullets i klucze do cudzych pokoi."
+    "after": "Cokolwiek ma w rękach albo w skrytce, także Truth Bullety i klucze do cudzych pokoi."
    },
    "removed": [
     "The dash (T5 X4) becomes a comma, the smallest change.",
     "pl: X4: myślnik zamieniony na przecinek, najmniejsza poprawka.",
-    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "pl: „Truth Bullety” inflected (DB4, PL-a)"
    ],
    "needsCode": [],
    "disagreements": [],
@@ -5592,7 +5593,8 @@
    },
    "removed": [
     "the antithesis 'X, not Y' (T5 X3); the shape of the approved Polish pair N34",
-    "en: \"can't\" written in full (DB8, T19)"
+    "en: \"can't\" written in full (DB8, T19)",
+    "pl: the uninflected „Truth Bullets” kept: it is the owner's naturalness pair N34's approved after"
    ],
    "needsCode": [],
    "disagreements": [],
