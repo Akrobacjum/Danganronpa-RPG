@@ -307,8 +307,8 @@ const countOf = rows => {
     return n;
 };
 
-/** Today's sites that need help against the baseline's rows (and main's copy, when given): the problems, one line each. */
-export function compare(sites, rows, mainRows = null) {
+/** Today's sites that need help against the baseline's rows (and main's copy, when given; `verified`, the held rows heldCheck found in their code): the problems, one line each. */
+export function compare(sites, rows, mainRows = null, verified = null) {
     const left = countOf(rows), problems = [];
     for (const r of rows) if (!WHY.test(String(r.why ?? ""))) problems.push(`${BASELINE}: the row ${identity(r).replace(/\|/g, " ")} has no reason ("none needed: ..." of 20 characters or more, or "E<stage> C<n>: ...")`);
     for (const s of sites.filter(x => x.needs)) {
@@ -319,10 +319,43 @@ export function compare(sites, rows, mainRows = null) {
     }
     for (const [id, n] of left) if (n > 0) problems.push(`${BASELINE} keeps ${n} row(s) of ${id.replace(/\|/g, " ")} that no site needs any more: cut ${n === 1 ? "it" : "them"}, so the baseline only shrinks`);
     if (mainRows) {
-        const main = countOf(mainRows);
-        for (const [id, n] of countOf(rows)) if (n > (main.get(id) ?? 0)) problems.push(`${BASELINE} holds ${n} of ${id.replace(/\|/g, " ")} where origin/main's copy holds ${main.get(id) ?? 0}: a row added here hides a control with no help - give it a tooltip instead`);
+        const main = countOf(mainRows), ours = countOf(rows), spare = heldSpare(mainRows, main, ours);
+        for (const [id, n] of ours) {
+            let over = n - (main.get(id) ?? 0);
+            if (over <= 0) continue;
+            const fuk = id.slice(0, id.lastIndexOf("|")), used = Math.min(over, verifiedCount(rows, verified, id), spare.get(fuk) ?? 0);
+            spare.set(fuk, (spare.get(fuk) ?? 0) - used);
+            over -= used;
+            if (over > 0) problems.push(`${BASELINE} holds ${n} of ${id.replace(/\|/g, " ")} where origin/main's copy holds ${main.get(id) ?? 0}: a row added here hides a control with no help - give it a tooltip instead`);
+        }
     }
     return problems;
+}
+
+/*
+ * A VERIFIED HELD ROW AGAINST MAIN'S COPY (1.2.113 assembly, the coordinator's decision of 14.11.2026): a row's key is
+ * read from the text near its control (keyNear), so moving a comment can re-key a control whose help did not change.
+ * E56 C4 put callButton's JSDoc back above it; the blanked comment pushed `DRPG.Overflow.silenced` out of the 160
+ * characters before `document.createElement("button")`, and the row's key became null (measured: of two narrower
+ * readings, one re-keys 31 of 691 sites, the other 9). The guard against main is about a new row hiding a control with
+ * no help, and a "help in code" row whose held pattern heldCheck has just found in its function has help. So, there
+ * alone, such a row's excess over main's count of its exact identity may be met by main's own "help in code" rows of
+ * the same file, unit and kind that our rows leave unmatched; each of main's counts is met once. A row that is not
+ * verified, a row of another reason, and a held row beyond main's count of its file, unit and kind stay red as before.
+ */
+const isHeldRow = r => /^help in code: /.test(String(r.why ?? "")) && Boolean(r.held?.fn && r.held?.pattern);
+function heldSpare(mainRows, main, ours) {
+    const heldOf = new Map(), spare = new Map();
+    for (const r of mainRows.filter(isHeldRow)) heldOf.set(identity(r), (heldOf.get(identity(r)) ?? 0) + (r.count ?? 1));
+    for (const [id, h] of heldOf) {
+        const left = Math.min(h, Math.max(0, (main.get(id) ?? 0) - (ours.get(id) ?? 0))), fuk = id.slice(0, id.lastIndexOf("|"));
+        if (left > 0) spare.set(fuk, (spare.get(fuk) ?? 0) + left);
+    }
+    return spare;
+}
+function verifiedCount(rows, verified, id) {
+    if (!verified) return 0;
+    return rows.filter(r => verified.has(r) && identity(r) === id).reduce((a, r) => a + (r.count ?? 1), 0);
 }
 
 /**
@@ -331,8 +364,10 @@ export function compare(sites, rows, mainRows = null) {
  * its file that writes the help and a pattern of that line. The gate reads the function (a top-level declaration, to
  * the next one) and wants the pattern there, so losing that help is red, where a "none needed" row would have hidden it.
  */
-export function heldProblems(rows, repo = REPO) {
-    const out = [];
+export function heldProblems(rows, repo = REPO) { return heldCheck(rows, repo).problems; }
+/** heldProblems' reading, with the rows whose pattern it found (a Set of the row objects) for compare's guard on main. */
+export function heldCheck(rows, repo = REPO) {
+    const out = [], verified = new Set();
     for (const r of rows.filter(x => /^help in code: /.test(String(x.why ?? "")))) {
         const where = `${BASELINE}: ${identity(r).replace(/\|/g, " ")}`;
         if (!r.held?.fn || !r.held?.pattern) { out.push(`${where} says its help is in code and names no held { fn, pattern }`); continue; }
@@ -343,8 +378,9 @@ export function heldProblems(rows, repo = REPO) {
         const rest = src.slice(at + 1), next = rest.search(/^(?:export )?(?:async )?function |^const \w+ = \{|^export const /m);
         const body = src.slice(at, next < 0 ? src.length : at + 1 + next);
         if (!new RegExp(r.held.pattern).test(body)) out.push(`${where}: its help is gone from ${r.held.fn}() (no ${r.held.pattern}) - give the control its tooltip again, or a row with another reason`);
+        else verified.add(r);
     }
-    return out;
+    return { problems: out, verified };
 }
 
 /** Every key a script names to tipAttr / tipText, and the ones with no words in either language file. */
@@ -401,6 +437,37 @@ export function selfCheck(es = espree()) {
     return { misses, planted: want.length };
 }
 
+/**
+ * The guard on main's copy, planted (1.2.113 assembly): each case is a baseline, main's copy and the held rows found
+ * in code, and whether the guard must be red. One shaped like callButton's re-keyed row must be green; the same row
+ * unverified, a keyless row of another reason, a reason changed from main's held row, a verified row beyond main's
+ * count and a verified row main has no held row for must each stay red. Returns { misses, planted }.
+ */
+const GUARD_PLANTS = (() => {
+    const why = "help in code: a planted control's help, written in its function", held = { fn: "g", pattern: "x" };
+    const at = (key, extra = {}) => ({ file: "scripts/plant.mjs", unit: "g", kind: "dom:button", key, why, held, ...extra });
+    const none = { why: "none needed: a planted control that needs no words of its own", held: undefined };
+    return [
+        ["a re-keyed held row, verified (callButton's shape)", [at(null)], [at("DRPG.X.near")], true, false],
+        ["a re-keyed held row, not verified", [at(null)], [at("DRPG.X.near")], false, true],
+        ["a keyless row of another reason, added", [at(null, none)], [], false, true],
+        ["a held row on main, a row of another reason here", [at(null, none)], [at("DRPG.X.near")], false, true],
+        ["a verified held row beyond main's count", [at(null, { count: 2 })], [at("DRPG.X.near")], true, true],
+        ["a verified held row main holds no held row for", [at(null)], [at("DRPG.X.near", none)], true, true],
+    ];
+})();
+export function guardSelfCheck() {
+    const misses = [];
+    for (const [name, rows, mainRows, isVerified, red] of GUARD_PLANTS) {
+        const sites = rows.flatMap(r => Array.from({ length: r.count ?? 1 }, () => ({ file: r.file, unit: r.unit, kind: r.kind, key: r.key, needs: true, line: 1 })));
+        const got = compare(sites, rows, mainRows, isVerified ? new Set(rows) : new Set());
+        const onMain = got.some(p => p.includes("origin/main's copy holds")), other = got.find(p => !p.includes("origin/main's copy holds"));
+        if (other) misses.push(`guard self-check: ${name} read a problem other than main's copy (${other})`);
+        if (onMain !== red) misses.push(`guard self-check: ${name} should be ${red ? "red" : "green"} against main's copy and is ${onMain ? "red" : "green"}`);
+    }
+    return { misses, planted: GUARD_PLANTS.length };
+}
+
 /** origin/main's baseline rows, or null with the reason when that copy cannot be read. */
 function mainBaseline(repo) {
     try {
@@ -428,13 +495,14 @@ export async function loadShipped(repo = REPO) {
 
 /** The gate, as `node tools/check.mjs tooltips` runs it. */
 export function check(log = console.log, repo = REPO) {
-    const { misses, planted } = selfCheck(espree(repo));
+    const { misses: siteMisses, planted } = selfCheck(espree(repo)), guard = guardSelfCheck(), misses = [...siteMisses, ...guard.misses];
     const sites = census(repo);
     let base;
     try { base = JSON.parse(fs.readFileSync(path.join(repo, BASELINE), "utf8")); }
     catch (err) { return [...misses, `${BASELINE} could not be read (${err.message})`]; }
     const rows = base.rows ?? [], main = mainBaseline(repo), keys = missingTipKeys(repo);
-    const problems = [...compare(sites, rows, main.rows), ...keys.bad, ...shippedRows(rows, repo), ...heldProblems(rows, repo)];
+    const heldRead = heldCheck(rows, repo);
+    const problems = [...compare(sites, rows, main.rows, heldRead.verified), ...keys.bad, ...shippedRows(rows, repo), ...heldRead.problems];
     const need = sites.filter(s => s.needs).length, kept = rows.reduce((a, r) => a + (r.count ?? 1), 0);
     const reasons = rows.filter(r => /^(none needed|conditional|help in code): /.test(String(r.why ?? ""))).reduce((a, r) => a + (r.count ?? 1), 0);
     const held = rows.filter(r => /^help in code: /.test(String(r.why ?? ""))).length;
@@ -444,7 +512,7 @@ export function check(log = console.log, repo = REPO) {
             // Loud on purpose (REVIEW-E102-code C2): CI's checkouts have no origin/main (.github/workflows/ci.yml fetches only
             // the commit, and changing that is the owner's call), so there the growth guard does not run; this says so.
             : `MAIN'S COPY NOT READ, so the guard on rows added by hand DID NOT RUN (${main.why}); `)
-        + `${held} row(s) of help in code read where they say; ${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - misses.length}/${planted} planted site(s) read; `
+        + `${held} row(s) of help in code read where they say; ${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - siteMisses.length}/${planted} planted site(s) read, guard ${guard.planted - guard.misses.length}/${guard.planted} planted case(s); `
         + `${problems.length + misses.length} problem(s)`);
     return [...misses, ...problems];
 }

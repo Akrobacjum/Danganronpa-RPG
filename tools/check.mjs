@@ -251,7 +251,9 @@
  *             three lines, held to tools/tooltip-census.json by file, unit,
  *             kind and key - red on a new one with no row, on a row no site
  *             needs any more, on a row with no reason, on a count above
- *             origin/main's copy (when that copy can be read), on a stage's
+ *             origin/main's copy (when that copy can be read; a "help in
+ *             code" row whose held pattern is found there may stand for
+ *             main's held row of its file, unit and kind), on a stage's
  *             row once the stage shipped, and on a tipAttr/tipText key with no
  *             words in either language. Needs espree (`npm ci` in audit/harness).
  */
