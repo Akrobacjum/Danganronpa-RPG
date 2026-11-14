@@ -1543,13 +1543,6 @@ export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() 
 }
 
 /**
- * THE FLOOR IS SOMEBODY ELSE'S (E110 C2, 14.11.2026): `{ reason: "floorHeld" | "floorHeldPair", held: true, data }` when
- * the floor the trial's facts hold (`trialFacts`) gives the floor to others and not to `actor` (floor-machine.mjs
- * `floorSpeakers`), else null. Only once a road entered the trial - the record holds the trial's list (`mutedDead`), as
- * `settleTrialVoices` blocks only then (Q-E110-7) - so the line never says a microphone is held that nothing holds.
- * `data` names who has the floor: `name`, and `target` for a Rebuttal's pair. Pure over the facts handed in (R7103).
- */
-/**
  * WHETHER AN ACCOUNT HOLDS THE FLOOR THROUGH THIS STUDENT (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-T1; R7175):
  * `actor` is a speaker, or a player who owns `actor` owns a speaker. The floor seats a student as the trial does (vote.mjs
  * `trialParticipants`: the first in `game.actors`), and the mute read one student of the account (`trialVoiceActorOf`, the
@@ -1567,6 +1560,13 @@ export function holdsTheFloor(actor, speakers, { actors = game.actors, users = g
     });
 }
 
+/**
+ * THE FLOOR IS SOMEBODY ELSE'S (E110 C2, 14.11.2026): `{ reason: "floorHeld" | "floorHeldPair", held: true, data }` when
+ * the floor the trial's facts hold (`trialFacts`) gives the floor to others and not to `actor` (floor-machine.mjs
+ * `floorSpeakers`), else null. Only once a road entered the trial - the record holds the trial's list (`mutedDead`), as
+ * `settleTrialVoices` blocks only then (Q-E110-7) - so the line never says a microphone is held that nothing holds.
+ * `data` names who has the floor: `name`, and `target` for a Rebuttal's pair. Pure over the facts handed in (R7103).
+ */
 export function floorHold(actor, trial) {
     if (!actor || trial?.clock?.phase !== "classTrial" || !Object.hasOwn(trial?.record ?? {}, "mutedDead")) return null;
     const speakers = floorSpeakers(trial.floor);
