@@ -33,6 +33,17 @@ Base: claude/fervent-sagan-gme4vt at 123f8242. Updated as the line goes, so a re
 | area 2 | 1594 | 2 (R2001, R4420) | 16 | 0 | 550 s |
 | area 3 | 1595 | 1 (R2001) | 16 | 0 | 563 s |
 
+| 7074b15d (the rule on), DRPG_REPO worktree | 1595 | 1 (R2001) | 16 | 0 | 555 s |
+| 642d249b (the tip), DRPG_REPO worktree | 1595 | 1 (R2001) | 16 | 0 | 501 s |
+
+The tip in the main checkout timed out twice (566 s and 567 s wall; "eval timeout on gm" at run-tests.mjs's 560 s
+bound for tiers 0-1, so 0 tests counted), both after six scenarios had written their results there. From a clean
+worktree of the same commit it ran in 501 s, and e08350d8 from a worktree in 538 s. Which part of the main checkout
+costs the time was not measured; the suite runs near its bound on this 4-core machine either way (501-563 s passing).
+
+Scenarios touched by area 3, on the tip (`node cluster.mjs scenarios/<n>.mjs`): 14-quiet 8/8, 40-flow 89/89, 71-sheet
+42/42, 76-passages 118 passed and 1 expected red, 87-messenger-sound 36/36, 98-chaos 9/9; each exited 0.
+
 R4420 after area 2: `release` read false once, while an ESLint run over the base worktree loaded the machine; alone
 (`--only R4420`) it passed, and it passed in area 3's full run. Read as timing under load, not as this line's change.
 
