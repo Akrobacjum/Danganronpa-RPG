@@ -1687,6 +1687,1428 @@
     "S16: DRPG.Monokuma.panelNote is marked for removal in the GM review (E101); rewritten here so it is right until then.",
     "S16: DRPG.Monocub.silencedNoteShort now reads exactly as DRPG.Monocub.silenceOn (DB7's „Jesteś świadkiem: …”), on purpose."
    ]
+  },
+  "B10a": {
+   "kept": [
+    {
+     "key": "DRPG.Vote.openTitle",
+     "why": "The vote window's title and the console's button that opens it (trial-floor-ui.mjs openVoteDialog, trialConsole footer); a two-word noun, as a window title holds."
+    },
+    {
+     "key": "DRPG.Vote.openIntro",
+     "why": "The vote window's first body line (openVoteDialog): the three steps in the order the footer offers them, second person to the GM, no X shape."
+    },
+    {
+     "key": "DRPG.Vote.send",
+     "why": "A button: verb with its object (O11), the step's name the console and the guide use."
+    },
+    {
+     "key": "DRPG.Vote.tally",
+     "why": "A button: two verbs on the vote (O11); the name the lead lines use (DRPG.Floor.next.vote)."
+    },
+    {
+     "key": "DRPG.Vote.sendAgain",
+     "why": "A button and its confirmation's title: what it does, a new round (vote.mjs openRound with restart)."
+    },
+    {
+     "key": "DRPG.Vote.banner",
+     "why": "The vote card's banner set in capitals as display type; its X16 allow row was approved by the owner on 12.11.2026 (docs/text-budgets.json)."
+    },
+    {
+     "key": "DRPG.Vote.opened",
+     "why": "The public card of a vote opening (vote.mjs openRound, announce): third person with the role to the table (P1, P2), rewritten in the early pass; {n} is the ballots sent, the Polish predicate per form (PL7)."
+    },
+    {
+     "key": "DRPG.Vote.notOpen",
+     "why": "A GM's toast when Close and count or a remind finds no vote open (vote.mjs voteStep, askVote): the result in one sentence."
+    },
+    {
+     "key": "DRPG.Vote.ballotTitle",
+     "why": "The ballot window's title (vote.mjs castBallot): the question the player answers, a real one (not X21)."
+    },
+    {
+     "key": "DRPG.Vote.ballotIntro",
+     "why": "The ballot's first line (castBallot), second person to the one voting; the three names it allows are config.mjs TRIAL allowVotingForSelf, allowVotingForMonokuma and allowVotingForDead, and candidatesFor offers them; Oxford comma."
+    },
+    {
+     "key": "DRPG.Vote.who",
+     "why": "The legend over a one-name ballot's list (castBallot): a two-word label."
+    },
+    {
+     "key": "DRPG.Vote.castConfirmed",
+     "why": "The guide's own O1 example: the toast when the primary has recorded the ballot (vote.mjs sendBallot)."
+    },
+    {
+     "key": "DRPG.Vote.alreadyIn",
+     "why": "A player's toast when the primary already holds their ballot of this round (vote.mjs askBallot): the result, one sentence."
+    },
+    {
+     "key": "DRPG.Vote.notReceived",
+     "why": "Rewritten by the early pass as T29's own example (docs/text-style.md section 2): the toast when no GM took the ballot (vote.mjs sendBallot); the browser's role is gone."
+    },
+    {
+     "key": "DRPG.Vote.notRunning",
+     "why": "A console and vote-window line when no vote is open (trial-floor-ui.mjs trialConsole, openVoteDialog): the state in one sentence."
+    },
+    {
+     "key": "DRPG.Vote.allIn",
+     "why": "The console's line when every participant has returned a ballot (pendingVoters empty): one sentence, the state."
+    },
+    {
+     "key": "DRPG.Vote.remind",
+     "why": "A button: verb and object with the count of those it reaches (trial-floor-ui.mjs voteFooter; vote.mjs sendAgain)."
+    },
+    {
+     "key": "DRPG.Vote.reminded",
+     "why": "The toast after Send another ballot, {n} the players reached (vote.mjs sendAgain); a plural family with its predicate per form (PL7)."
+    },
+    {
+     "key": "DRPG.Vote.monokuma",
+     "why": "A name on the ballot, the count's card and the verdict window (vote.mjs candidatesFor); the glossary's form."
+    },
+    {
+     "key": "DRPG.Vote.resultBanner",
+     "why": "The count card's banner set in capitals as display type; its X16 allow row was approved by the owner on 12.11.2026."
+    },
+    {
+     "key": "DRPG.Vote.tied",
+     "why": "The guide's own world-voice example (section 3); the count's sentence when more names clear the bar than the vote asks for (vote.mjs closeRound, countBallots), and \"counts as a wrong vote unless the table settles it\" is the GM handbook's rule (section 15, step 3)."
+    },
+    {
+     "key": "DRPG.Vote.verdictTitle",
+     "why": "The verdict window's title, the console's button and the GMs' summary title (verdict.mjs openVerdictDialog, runVerdict): a noun."
+    },
+    {
+     "key": "DRPG.Vote.blackened",
+     "why": "The label of the verdict window's second list when the register names no Blackened (openVerdictDialog); a right verdict executes whom it names (read)."
+    },
+    {
+     "key": "DRPG.Vote.gotItRight",
+     "why": "A button of the verdict window (openVerdictDialog), the GM's answer; \"They\" is the table the window names above it."
+    },
+    {
+     "key": "DRPG.Vote.gotItWrong",
+     "why": "A button of the verdict window, the other answer (openVerdictDialog)."
+    },
+    {
+     "key": "DRPG.Vote.correctSummary",
+     "why": "The GMs' summary sentence of a right verdict (verdict.mjs runVerdict, whisperToGms): third person, one fact."
+    },
+    {
+     "key": "DRPG.Vote.wrongSummary",
+     "why": "The GMs' summary sentence of a wrong verdict (runVerdict): third person, one fact."
+    },
+    {
+     "key": "DRPG.Vote.executionCardTitle",
+     "why": "THE EXECUTION card's banner set in capitals as display type; its X16 allow row was approved by the owner on 12.11.2026."
+    },
+    {
+     "key": "DRPG.Vote.finalSentenceMissing",
+     "why": "The guide's own O7 example (section 2): the GMs' card when a Final verdict's sentence is not in this browser's store (trial-progress.mjs sentenceOf); what happened, then what to do."
+    },
+    {
+     "key": "DRPG.Vote.levelUpGranted",
+     "why": "A line of the GMs' verdict summary (verdict.mjs verdictLevelUps): {n} the Level Ups taken in the GM's window, {kind} after a colon as section 14's contract for DRPG.Advance.kind asks; the Polish predicate per form (PL7)."
+    },
+    {
+     "key": "DRPG.Vote.levelUpWaiting",
+     "why": "A line of the GMs' verdict summary (verdictLevelUps): {n} the Level Ups offered to players, waiting for them to pick; {kind} after a colon, as section 14 asks."
+    },
+    {
+     "key": "DRPG.Vote.blackenedRewarded",
+     "why": "A line of the GMs' summary of a wrong verdict (verdict.mjs verdictOffers): the Reinforced Level Up waits for the class (level-up.mjs deferAdvancement); a host section 14 names for {kind}."
+    },
+    {
+     "key": "DRPG.Vote.newRuleWritten",
+     "why": "A line of the GMs' summary when the Blackened's rule was recorded and announced with no name (verdict.mjs verdictRule, askBlackenedRule): the result, one sentence."
+    },
+    {
+     "key": "DRPG.Vote.blackenedRuleTitle",
+     "why": "The rule window's title (verdict.mjs askBlackenedRule): a noun phrase."
+    },
+    {
+     "key": "DRPG.Vote.blackenedRuleIntro",
+     "why": "The rule window's first line (askBlackenedRule): what the Blackened gets and what the GM types, from config.mjs TRIAL.wrong.newRule; second person to the GM."
+    },
+    {
+     "key": "DRPG.Vote.whoNth",
+     "why": "The legend over each list of a ballot asking for more than one name (vote.mjs castBallot): a label with its number."
+    },
+    {
+     "key": "DRPG.Vote.silent",
+     "why": "A line of the count's public card (vote.mjs closeRound): the ballots not returned and that the count is out of all issued (ballotBase); the world voice, third person."
+    },
+    {
+     "key": "DRPG.Vote.blackenedKnown",
+     "why": "A label before the register's names in the verdict window (openVerdictDialog), with the count in the plural form."
+    },
+    {
+     "key": "DRPG.Vote.nobodyExecuted",
+     "why": "The first option of the verdict's list and the card's and Event panel's line when nobody is sentenced (verdict.mjs postVerdictCard, events.mjs afterVerdictCard): one plain clause."
+    },
+    {
+     "key": "DRPG.Vote.verdictCardTitle",
+     "why": "THE VERDICT card's banner set in capitals as display type; its X16 allow row was approved by the owner on 12.11.2026."
+    },
+    {
+     "key": "DRPG.Vote.verdictRight",
+     "why": "A line of THE VERDICT card, the Event panel and the cut-in (verdict.mjs postVerdictCard, events.mjs afterVerdictCard, sequence.mjs verdictBoard): third person with the role (DB19)."
+    },
+    {
+     "key": "DRPG.Vote.verdictWrong",
+     "why": "A line of THE VERDICT card, the Event panel and the cut-in, the other outcome; third person with the role."
+    },
+    {
+     "key": "DRPG.Vote.executedNote",
+     "why": "The executed student's player, told alone (trial-progress.mjs postExecutionCard, whisperToOwner): second person to the one it is about, with the name."
+    },
+    {
+     "key": "DRPG.Vote.finishVerdict",
+     "why": "A button of the trial console while a verdict stands stopped (trial-floor-ui.mjs trialConsole; verdict.mjs finishVerdict): verb and object."
+    },
+    {
+     "key": "DRPG.Vote.verdictSteps.sentence",
+     "why": "A fragment of DRPG.Vote.verdictStopped's nominative list (verdict.mjs VERDICT_STEP_LABELS, stepLabels): a clause that reads after the colon in both languages."
+    },
+    {
+     "key": "DRPG.Vote.verdictSteps.executions",
+     "why": "A fragment of verdictStopped's list for a record from before 1.2.90 (VERDICT_STEP_LABELS): a noun phrase in the nominative."
+    },
+    {
+     "key": "DRPG.Vote.verdictSteps.card",
+     "why": "A fragment of verdictStopped's list (VERDICT_STEP_LABELS): a noun phrase in the nominative."
+    },
+    {
+     "key": "DRPG.Trial.comment",
+     "why": "A field label (\"Say something with it (optional)\"); plain, no forbidden shape, true of the Present and the picker."
+    },
+    {
+     "key": "DRPG.Trial.commentPlaceholder",
+     "why": "An example placeholder in the player's voice; no rule touches it."
+    },
+    {
+     "key": "DRPG.Trial.present",
+     "why": "The button and the action's name, the glossary's Present (O14); E100's one-word buttons."
+    },
+    {
+     "key": "DRPG.Trial.presentShort",
+     "why": "The log's kind cell for a Present; one word, true (openObjectionLog)."
+    },
+    {
+     "key": "DRPG.Trial.objection",
+     "why": "The genre's call-out, an X15/X16 allow row (STATUS, the owner 12.11)."
+    },
+    {
+     "key": "DRPG.Trial.objectionShort",
+     "why": "The log's kind cell for an Objection, the X16 allow row's display type."
+    },
+    {
+     "key": "DRPG.Trial.objectionBanner",
+     "why": "The card's banner, an X15/X16 allow row."
+    },
+    {
+     "key": "DRPG.Trial.evidence",
+     "why": "The evidence popup's title, one noun."
+    },
+    {
+     "key": "DRPG.Trial.presentedBy",
+     "why": "The card's first line before the bullet's name; third person to the table (P1)."
+    },
+    {
+     "key": "DRPG.Trial.notInTrial",
+     "why": "True (presentDialog; a copy is shared with Handover's Share outside a trial), the guide's own PL-a example."
+    },
+    {
+     "key": "DRPG.Trial.logTitle",
+     "why": "A window title and its console button, a noun phrase within budget."
+    },
+    {
+     "key": "DRPG.Trial.logRefused",
+     "why": "A log mark, one word, true (the refused flag)."
+    },
+    {
+     "key": "DRPG.Trial.logWithdrawn",
+     "why": "A log mark, one word, true (the withdrawn flag)."
+    },
+    {
+     "key": "DRPG.Trial.logOverruled",
+     "why": "A log mark, the glossary's Overrule wording (DB41)."
+    },
+    {
+     "key": "DRPG.Trial.logNoTopic",
+     "why": "A heading row for cards with no debate question; a noun phrase, fine as a heading."
+    },
+    {
+     "key": "DRPG.Trial.overruledStamp",
+     "why": "The glossary's fixed stamp `overruled-stamp` (DB41)."
+    },
+    {
+     "key": "DRPG.Trial.objectionPaid",
+     "why": "True of both roads (objectOnPrimary, seizeFloor); result first, then the price line; Polish natural."
+    },
+    {
+     "key": "DRPG.Trial.objectionNotYours",
+     "why": "True (refusePlayersCard, seizeFloor: the author does not own the actor); no forbidden shape."
+    },
+    {
+     "key": "DRPG.Trial.objectionNoItem",
+     "why": "True (seizeFloor: no Truth Bullet as the GMs hold it); no forbidden shape."
+    },
+    {
+     "key": "DRPG.Trial.deadCannotPresent",
+     "why": "True on every road (presentDialog, presentBullet, seizeFloor, refusePlayersCard); Objection named, Polish natural."
+    },
+    {
+     "key": "DRPG.Trial.logEmpty",
+     "why": "A GM's toast, true (openObjectionLog), one sentence."
+    },
+    {
+     "key": "DRPG.Trial.objectionTarget",
+     "why": "The picker's label, a real question to the one choosing (not X21)."
+    },
+    {
+     "key": "DRPG.Trial.objectionWarning",
+     "why": "True (TRIAL.objectionSeconds, objection mode speak \"holder\"); a plural family with its verbs per form (PL7)."
+    },
+    {
+     "key": "DRPG.Trial.moveLocked",
+     "why": "True (movement.mjs crossingVerdict refuses every crossing in the trial); two plain sentences."
+    },
+    {
+     "key": "DRPG.Trial.callsLocked",
+     "why": "True (calls.mjs callBarred bars Despair Calls only in the trial); two plain sentences."
+    },
+    {
+     "key": "DRPG.Trial.logKind",
+     "why": "A column head, one word."
+    },
+    {
+     "key": "DRPG.Trial.logWho",
+     "why": "A column head, one word."
+    },
+    {
+     "key": "DRPG.Trial.logAgainst",
+     "why": "A column head, one word."
+    },
+    {
+     "key": "DRPG.Trial.logWhen",
+     "why": "A column head, one word."
+    },
+    {
+     "key": "DRPG.Trial.objectionPickLabel",
+     "why": "A field label, the glossary's Truth Bullet."
+    },
+    {
+     "key": "DRPG.Trial.objectionNoRoom",
+     "why": "True (objectOnPrimary asks for a name when the primary has no voice Room); one sentence that says what to do."
+    },
+    {
+     "key": "DRPG.Trial.objectionFailed",
+     "why": "A toast on an error of the press; says what to do next (O7)."
+    },
+    {
+     "key": "DRPG.Trial.objectionSpeakerOnly",
+     "why": "True (targetRefusal, MODE_RULES target \"holder\"); PL uses \"w trybie {mode}\" (PL17)."
+    },
+    {
+     "key": "DRPG.Trial.turn.done",
+     "why": "A one-word button (E100), true (nextFloor done)."
+    },
+    {
+     "key": "DRPG.Trial.turn.pass",
+     "why": "A one-word button (E100), true (nextFloor pass)."
+    },
+    {
+     "key": "DRPG.Trial.turn.keep",
+     "why": "The primary button that closes the window and keeps the turn (turnFooter); a verb."
+    },
+    {
+     "key": "DRPG.Trial.turn.closingPass",
+     "why": "True when shown (promptTurn: no early window, nextFloor ends the Closing on Pass)."
+    },
+    {
+     "key": "DRPG.Trial.claim.yes",
+     "why": "A button in the player's voice, a verb (claimFooter)."
+    },
+    {
+     "key": "DRPG.Trial.objectionClosingSpeaker",
+     "why": "True (targetRefusal in the Closing: the speaker only); same shape as objectionSpeakerOnly."
+    },
+    {
+     "key": "DRPG.Trial.objectionClosingDecision",
+     "why": "True (closingOf's decide phase: the speaker with the time left or an objector); one sentence."
+    },
+    {
+     "key": "DRPG.TrialScene.hiddenHere",
+     "why": "True (standingTwice: every token here hidden, one elsewhere shown); plural family with its verbs per form; no forbidden shape."
+    },
+    {
+     "key": "DRPG.TrialScene.tokensStay",
+     "why": "True (standingTwice's others); plural family per PL7; no forbidden shape."
+    },
+    {
+     "key": "DRPG.TrialScene.scenesIntro",
+     "why": "No code draws it: scenesTabHtml shows it only with lead null, and its one caller, Season setup, always hands DRPG.Season.scenesLine (see notes)."
+    },
+    {
+     "key": "DRPG.TrialScene.school",
+     "why": "A field label, one noun."
+    },
+    {
+     "key": "DRPG.TrialScene.hall",
+     "why": "A field label, the glossary's trial hall."
+    },
+    {
+     "key": "DRPG.TrialScene.hallRoom.legend",
+     "why": "A fieldset legend, a noun phrase (hallRoomFields)."
+    },
+    {
+     "key": "DRPG.TrialScene.hallRoom.hint",
+     "why": "True (room-tile.mjs shows the hall's facts to everyone in a trial); a safety note in two plain sentences."
+    },
+    {
+     "key": "DRPG.TrialScene.hallRoom.name",
+     "why": "A field label, one noun."
+    },
+    {
+     "key": "DRPG.TrialScene.hallRoom.picture",
+     "why": "A field label, one noun."
+    },
+    {
+     "key": "DRPG.TrialScene.hallRoom.words",
+     "why": "A field label, one noun."
+    },
+    {
+     "key": "DRPG.TrialScene.noScene",
+     "why": "The select's empty option, as every \"- none -\" option of the module."
+    },
+    {
+     "key": "DRPG.TrialScene.castHeading",
+     "why": "A heading, a noun clause."
+    },
+    {
+     "key": "DRPG.TrialScene.noCast",
+     "why": "The cast table's empty line, true (castActors: characters, no spectators)."
+    },
+    {
+     "key": "DRPG.TrialScene.hallDark",
+     "why": "No code reads it: sceneReport and enterTrialScene use DRPG.TrialScene.hallDarkLine since E101 (see notes)."
+    },
+    {
+     "key": "DRPG.TrialScene.prepare",
+     "why": "No code reads it: scenesTabRows labels the tick DRPG.TrialScene.prepareOnSave since E101 (see notes)."
+    },
+    {
+     "key": "DRPG.TrialScene.preparePlaylist",
+     "why": "A tick label, true (hallPreparePatch clears the hall's playlist when ticked with Prepare)."
+    },
+    {
+     "key": "DRPG.Floor.trialBegins",
+     "why": "The card's title (trialEventCard in startClassTrial, to the table): a short title in the glossary's name, no rule broken."
+    },
+    {
+     "key": "DRPG.Floor.debateOpenedTitle",
+     "why": "The debate's title card; its \"!\" is the genre's call-out with an allow row (X15, text-budgets.json, approved 12.11.2026)."
+    },
+    {
+     "key": "DRPG.Floor.debateClosedTitle",
+     "why": "closeDebate's card title to the table: a plain title, true to endFloor."
+    },
+    {
+     "key": "DRPG.Floor.trialOver",
+     "why": "closeTrial's card title to the table: a plain title; the body (DRPG.Floor.trialClosed) says Daily Life resumes."
+    },
+    {
+     "key": "DRPG.Floor.seconds",
+     "why": "The length field of openDebate's window: a plain label; the note under it calls the number a budget."
+    },
+    {
+     "key": "DRPG.Floor.startTrial",
+     "why": "Window title and buttons of startClassTrial and the console: a verb with its object (O11), the name other texts point to."
+    },
+    {
+     "key": "DRPG.Floor.newTrialTitle",
+     "why": "confirmNewTrial's title and destructive button: a verb with its object (O11), within the button budget."
+    },
+    {
+     "key": "DRPG.Floor.newTrialConfirm",
+     "why": "confirmNewTrial's question: result first, the real question the window asks, and the cost of a second verdict as its comment states it."
+    },
+    {
+     "key": "DRPG.Floor.eclipseFirst",
+     "why": "Its five doors (startClassTrial, setClock, Edit campaign's Save, the vote's open) all refuse in an Eclipse: result, then what to do (O1, O7), within the toast budget."
+    },
+    {
+     "key": "DRPG.Floor.nowMovedOn",
+     "why": "advanceFloorNow's toast when the floor moved on before the press: result, then what to do (O7), true to floorAsSeen."
+    },
+    {
+     "key": "DRPG.Floor.incidentTitle",
+     "why": "incidentClosedFirst's window title: the window's subject, short."
+    },
+    {
+     "key": "DRPG.Floor.registerCount",
+     "why": "The console's count of blackenedIds() for this chapter, a plural family in every form; nothing to cut."
+    },
+    {
+     "key": "DRPG.Floor.startTrialStepPhase",
+     "why": "A list item of startClassTrial: one plain sentence, true to setClock's phase write."
+    },
+    {
+     "key": "DRPG.Floor.endTrial",
+     "why": "The button and title of endClassTrial's windows and the console's footer: a verb with its object (O11)."
+    },
+    {
+     "key": "DRPG.Floor.endTrialRoom",
+     "why": "The room select's label in askTrialExit: one word, the window's subject."
+    },
+    {
+     "key": "DRPG.Floor.trialEnded",
+     "why": "The lead's prefix after End the trial with the record standing (trialConsoleHtml): two short facts, true."
+    },
+    {
+     "key": "DRPG.Floor.lead.openAgain",
+     "why": "The lead after an Overrule past its exchange (TRIAL_NEXT_STEPS \"openAgain\"): true to againAfterOverrule, with both next steps (O7)."
+    },
+    {
+     "key": "DRPG.Floor.lead.reopen",
+     "why": "The lead after an exchange closed the debate (TRIAL_NEXT_STEPS \"reopen\", commitFloor's debateAgain): true, with both next steps (O7)."
+    },
+    {
+     "key": "DRPG.Floor.manageTrial",
+     "why": "The console's window title and the GM panel's tile: the glossary's name (class-trial)."
+    },
+    {
+     "key": "DRPG.Floor.mode.debate",
+     "why": "A mode's name, the glossary's (nonstop-debate), English in Polish (TR18)."
+    },
+    {
+     "key": "DRPG.Floor.mode.objection",
+     "why": "The game's shout as the mode's name; tests-text.mjs ACRONYMS sets \"OBJECTION\" aside from X16 by the orchestrator's decision."
+    },
+    {
+     "key": "DRPG.Floor.mode.rebuttal",
+     "why": "A mode's name, the glossary's (rebuttal)."
+    },
+    {
+     "key": "DRPG.Floor.mode.testimony",
+     "why": "A mode's name, the glossary's (testimony; E66 C5 put it back in Polish)."
+    },
+    {
+     "key": "DRPG.Floor.mode.panic",
+     "why": "A mode's name, the glossary's (panic-round)."
+    },
+    {
+     "key": "DRPG.Floor.repoint",
+     "why": "The bar's and the repoint window's verb (O11); kept as the E70 name the GM handbook quotes (Q-E71-4 note)."
+    },
+    {
+     "key": "DRPG.Floor.bar.skip",
+     "why": "The bar's first button (BAR_LABELS skip): one verb, the name the leads point to (Q-E71-4)."
+    },
+    {
+     "key": "DRPG.Floor.bar.overrule",
+     "why": "The bar's and the evidence log's button: the glossary's overrule entry (E70), \"Oddalenie\" in Polish."
+    },
+    {
+     "key": "DRPG.Floor.bar.endMode",
+     "why": "The bar's End this mode (BAR_LABELS endMode), the same words as DRPG.Zones.end; the name the refusals point to (Q-E71-4)."
+    },
+    {
+     "key": "DRPG.Floor.bar.notTrial",
+     "why": "barRefusal's and the modes' refusal outside a trial: short and true (every op refuses outside a Class Trial)."
+    },
+    {
+     "key": "DRPG.Floor.bar.noTime",
+     "why": "nextFloor's refusal of -30 s on a debate at zero or overrun: one true sentence."
+    },
+    {
+     "key": "DRPG.Floor.bar.inDebate",
+     "why": "Back to the debate on a running debate (nextFloor \"back\") and the picker's Nonstop Debate while a floor stands: short; see notes on the picker."
+    },
+    {
+     "key": "DRPG.Floor.bar.noObjection",
+     "why": "Re-point outside an Objection (barRefusal) and the Closing's exchange steps: short and true."
+    },
+    {
+     "key": "DRPG.Floor.bar.noOverrule",
+     "why": "overruleTarget's and nextFloor's refusal with nothing to overrule: one true sentence."
+    },
+    {
+     "key": "DRPG.Floor.bar.minusSeconds",
+     "why": "The bar's -{seconds} s at a step other than 30 s (barLabel): the number from its placeholder (O5)."
+    },
+    {
+     "key": "DRPG.Floor.bar.plusSeconds",
+     "why": "The bar's +{seconds} s at a step other than 30 s (barLabel): the number from its placeholder (O5)."
+    },
+    {
+     "key": "DRPG.Floor.gmStepTitle",
+     "why": "The title of the GM's step cards to the table (postFloorCard): short, third person."
+    },
+    {
+     "key": "DRPG.Floor.modeEnded",
+     "why": "End this mode's card to the table (nextFloor endMode): third person, the mode's name; Polish \"tryb {mode}\" (PL17)."
+    },
+    {
+     "key": "DRPG.Floor.gmNoteAdjust",
+     "why": "The Event panel's short note of a GM's clock change (gmNoteText), signed seconds from the placeholder."
+    },
+    {
+     "key": "DRPG.Floor.gmNoteBack",
+     "why": "The Event panel's short note of Back to the debate (gmNoteText)."
+    },
+    {
+     "key": "DRPG.Floor.gmNoteOverrule",
+     "why": "The Event panel's short note of an Overrule (gmNoteText); sfx.mjs reads the key, not its words."
+    },
+    {
+     "key": "DRPG.Floor.againAfterOverrule",
+     "why": "The console's button after an Overrule past its exchange: verb with object, seconds from the placeholder, Polish forms per PL7."
+    },
+    {
+     "key": "DRPG.Floor.againSame",
+     "why": "The console's button after an exchange closed the debate (reopenDebate): verb with object."
+    },
+    {
+     "key": "DRPG.Floor.topic",
+     "why": "The debate question's field label in openDebate's window: short, says it is optional."
+    },
+    {
+     "key": "DRPG.Floor.topicHint",
+     "why": "The field's placeholder: a sample question in the GM's own words, no digit."
+    },
+    {
+     "key": "DRPG.Floor.topicLine",
+     "why": "The question's line on the console, the cards and the log: label and the GM's text."
+    },
+    {
+     "key": "DRPG.Floor.trialTime",
+     "why": "The console's trial clock (trialTime): numbers from placeholders, marked as an estimate."
+    },
+    {
+     "key": "DRPG.Floor.trialTimeNoBudget",
+     "why": "The same line with no budget (trialTime budget null): numbers from the placeholder."
+    },
+    {
+     "key": "DRPG.Floor.overrule.title",
+     "why": "The Overrule card's title (markOverruled): the glossary's name."
+    },
+    {
+     "key": "DRPG.Floor.overrule.over",
+     "why": "The second line of the Overrule card after the exchange: result, true to overruleInStep (the floor does not move)."
+    },
+    {
+     "key": "DRPG.Floor.overrule.stateDebate",
+     "why": "A fragment after the Overrule card's colon (trial-floor.mjs overruledState -> trial.mjs markOverruled): the Nonstop Debate and its seconds left, Math.max'd to 0; the Polish family carries its predicate per form (PL7), no X-shape."
+    },
+    {
+     "key": "DRPG.Floor.repointTo",
+     "why": "The label over the Re-point window's list of students (trial.mjs repointDialog, GM only): a plain verb with its object, the glossary's Objection, no X-shape."
+    },
+    {
+     "key": "DRPG.Floor.sectionTrial",
+     "why": "A heading of the console's status region (trial-floor-ui.mjs trialConsoleHtml): a noun for what the region holds."
+    },
+    {
+     "key": "DRPG.Floor.sectionDebate",
+     "why": "The mode region's heading when no mode runs (trial-floor-ui.mjs trialConsoleHtml; a mode's own name replaces it): a noun, no sentence."
+    },
+    {
+     "key": "DRPG.Floor.sectionVote",
+     "why": "The heading of the vote's region (trial-floor-ui.mjs trialConsoleHtml): nouns for what follows, no sentence."
+    },
+    {
+     "key": "DRPG.Floor.backToDebate",
+     "why": "A GM bar button (trial-floor-ui.mjs BAR_LABELS back): already names what it does, the debate given back with the time it had; in a round's exchange it gives the speaker the turn's rest, which the bar's greyed reason DRPG.Floor.bar.inRound covers. Left to the GM bar's naming (Q-E71-4)."
+    },
+    {
+     "key": "DRPG.Floor.startTrialStepDiscussion",
+     "why": "A line of the Start the Class Trial window's list (trial-floor-ui.mjs startClassTrial): the trial opens with no floor and the GM opens the debate; two whole sentences to the GM, no X-shape."
+    },
+    {
+     "key": "DRPG.Floor.gateVote",
+     "why": "The vote region's line while the vote is not counted (trial-floor-ui.mjs trialConsoleHtml): true and short; the passive does not hide the GM's own step."
+    },
+    {
+     "key": "DRPG.Floor.startTrialHall",
+     "why": "The Start window's line with a hall linked (trial-scene.mjs startTrialLines): the hall is activated for the table and the ticked cast get tokens, which stageHall deletes at the trial's end; plain, no X-shape."
+    },
+    {
+     "key": "DRPG.Floor.startTrialNoHall",
+     "why": "Read by no code: startTrialLines shows DRPG.TrialScene.noHallLine (e101 STATUS lists this key among the old keys no code reads); see notes."
+    },
+    {
+     "key": "DRPG.Floor.tableRuleDead",
+     "why": "The table's rule as one sentence in the Start window (trial-scene.mjs startTrialLines; decision D8); R437 and scenario 41 read it; no X-shape."
+    },
+    {
+     "key": "DRPG.Floor.round.passes",
+     "why": "A round's card to the table (floor-machine.mjs turnAt, nextFloor), also for a speaker passed over with no player connected; a whole sentence in the third person."
+    },
+    {
+     "key": "DRPG.Floor.round.tooShort",
+     "why": "The machine's refusal of a turn below the mode's range (floor-machine.mjs nextFloor): plain, no X-shape; the GM's window and toast use the {min} form first."
+    },
+    {
+     "key": "DRPG.Floor.round.tooLong",
+     "why": "The machine's refusal of a turn above the mode's range (floor-machine.mjs nextFloor): plain, no X-shape."
+    },
+    {
+     "key": "DRPG.Floor.round.tooShortSeconds",
+     "why": "The GM's toast with the range's minimum (trial-modes.mjs roundRefusal): one plain sentence, the number a placeholder."
+    },
+    {
+     "key": "DRPG.Floor.round.tooLongSeconds",
+     "why": "The GM's toast with the range's maximum (trial-modes.mjs roundRefusal): one plain sentence, the number a placeholder."
+    },
+    {
+     "key": "DRPG.Floor.round.noTurn",
+     "why": "The machine's refusal of a turn's step with no round's turn on the floor (floor-machine.mjs nextFloor, closingOwnStep); turnOnPrimary maps it to the bridge's own words, so a GM alone may read it; plain."
+    },
+    {
+     "key": "DRPG.Floor.round.stale",
+     "why": "The refusal when the floor moved on before the step was written (trial-floor.mjs roundStepInStep, zoneStepInStep, closingStepInStep); short and true."
+    },
+    {
+     "key": "DRPG.Floor.round.notSpeaker",
+     "why": "The machine's refusal of Done or Pass from anyone but the speaker (floor-machine.mjs nextFloor); plain."
+    },
+    {
+     "key": "DRPG.Floor.round.notDue",
+     "why": "The machine's refusal of a turn called over before its time, within the second's grace (floor-machine.mjs nextFloor); plain."
+    },
+    {
+     "key": "DRPG.Floor.round.notStarted",
+     "why": "The GM's toast when a round's start was refused for a reason other than a busy floor or nobody (trial-modes.mjs startRound): the result first; the code knows no more to say."
+    },
+    {
+     "key": "DRPG.Floor.startPanic",
+     "why": "Read by no code: the console's mode picker labels its starts with DRPG.Floor.mode.* (trial-floor-ui.mjs modePickerHtml); see notes."
+    },
+    {
+     "key": "DRPG.Floor.endRound",
+     "why": "The console footer's step while a round holds the floor (trial-floor-ui.mjs trialButtons): a verb with its object (O11)."
+    },
+    {
+     "key": "DRPG.Floor.closing.speaks",
+     "why": "The Closing Argument's card when a speaker starts (floor-machine.mjs closingSpeech), to the table: one sentence in the third person."
+    },
+    {
+     "key": "DRPG.Floor.closing.over",
+     "why": "The Closing Argument's end card (floor-machine.mjs closingOver), to the table: one plain sentence."
+    },
+    {
+     "key": "DRPG.Floor.closing.already",
+     "why": "The refusal once this trial has had its Closing Argument (trial-modes.mjs closingRefusal; floor-machine.mjs closingStep): plain and true."
+    },
+    {
+     "key": "DRPG.Floor.closing.notVolunteering",
+     "why": "The machine's refusal of a volunteer outside the volunteers' window (floor-machine.mjs closingStep); the player hears the bridge's own words (trial-modes.mjs volunteerOnPrimary); plain."
+    },
+    {
+     "key": "DRPG.Floor.closing.noChoice",
+     "why": "The machine's refusal of Confirm or Pick outside the GM's choice (floor-machine.mjs closingStep): plain and true."
+    },
+    {
+     "key": "DRPG.Floor.closing.noDrawn",
+     "why": "The refusal of Confirm with no drawn speaker (floor-machine.mjs closingStep): the result, then what to do (O7)."
+    },
+    {
+     "key": "DRPG.Floor.closing.absent",
+     "why": "The refusal of a speaker whose player is not connected (floor-machine.mjs closingStep): the result, then what to do (O7)."
+    },
+    {
+     "key": "DRPG.Floor.closing.notParticipant",
+     "why": "The refusal of a pick outside the trial's participants (floor-machine.mjs closingStep): plain and true."
+    },
+    {
+     "key": "DRPG.Floor.closing.noDecision",
+     "why": "The refusal of a decision outside the GM's decide phase (floor-machine.mjs closingStep): plain."
+    },
+    {
+     "key": "DRPG.Floor.closing.notInExchange",
+     "why": "The refusal of a continuer who is neither the speaker nor an objector of this exchange (floor-machine.mjs closingStep): the rule whole, plain."
+    },
+    {
+     "key": "DRPG.Floor.closing.nothingToResume",
+     "why": "The Resume's refusal when the last speaker has no seconds left (floor-machine.mjs closingStep): plain and true."
+    },
+    {
+     "key": "DRPG.Floor.closing.confirming",
+     "why": "The table's line while the GM confirms the drawn speaker (trial-floor.mjs closingLine): third person with the role, never the name."
+    },
+    {
+     "key": "DRPG.Floor.closing.nobody",
+     "why": "The table's and the console's line when nobody volunteered (trial-floor.mjs closingLine; trial-floor-ui.mjs closingConsole): the result, then what the GM does, in the third person."
+    },
+    {
+     "key": "DRPG.Floor.closing.picking",
+     "why": "The table's line while the GM picks a speaker (trial-floor.mjs closingLine): third person with the role."
+    },
+    {
+     "key": "DRPG.Floor.closing.deciding",
+     "why": "The table's line in the GM's decision after an exchange (trial-floor.mjs closingLine): third person with the role."
+    },
+    {
+     "key": "DRPG.Floor.closing.notDone",
+     "why": "The GM's toast when a Closing call changed nothing (trial-modes.mjs closingCall): the result; the code holds no reason to add."
+    },
+    {
+     "key": "DRPG.Floor.closing.resume",
+     "why": "The Resume button with its speaker and the seconds left in m:ss (trial-floor-ui.mjs closingConsole): a verb with its object, within the button's limit."
+    },
+    {
+     "key": "DRPG.Floor.closing.noVolunteers",
+     "why": "A fragment for an empty volunteers' list (trial-floor-ui.mjs closingConsole), read after \"Volunteered so far:\"; lower case, no gender."
+    },
+    {
+     "key": "DRPG.Floor.closing.pickOther",
+     "why": "The button that opens the pick window (trial-floor-ui.mjs closingConsole): a verb with its object."
+    },
+    {
+     "key": "DRPG.Floor.closing.pick",
+     "why": "The button and the pick window's primary (trial-floor-ui.mjs closingConsole, pickClosingDialog): a verb with its object."
+    },
+    {
+     "key": "DRPG.Floor.closing.whoContinues",
+     "why": "The console's prompt over the decision's buttons (trial-floor-ui.mjs closingConsole): a real question the buttons answer, not rhetorical."
+    },
+    {
+     "key": "DRPG.Floor.closing.volunteered",
+     "why": "A fragment after a name in the pick window's list (trial-floor-ui.mjs pickClosingDialog); the E65 finding (\"zgłosił(a)\") is already closed: „na ochotnika” has no gender."
+    },
+    {
+     "key": "DRPG.Floor.closing.alreadySpoke",
+     "why": "A fragment after a name in the pick window's list (trial-floor-ui.mjs pickClosingDialog); the E65 finding (\"mówił(a)\") is already closed: „Już po wypowiedzi” has no gender."
+    },
+    {
+     "key": "DRPG.Floor.closing.pickLabel",
+     "why": "The label of the pick window's list (trial-floor-ui.mjs pickClosingDialog): what the list chooses."
+    },
+    {
+     "key": "DRPG.Floor.startClosing",
+     "why": "Read by no code: the console's mode picker labels its starts with DRPG.Floor.mode.* (trial-floor-ui.mjs modePickerHtml); see notes."
+    },
+    {
+     "key": "DRPG.Vote.verdictSteps.offers",
+     "why": "A noun fragment in the nominative for the stopped-steps list (verdictStopped, runVerdict): names the step verdictOffers runs (the Blackened's Level Up deferred to the class), glossary Level Up, no rule broken."
+    },
+    {
+     "key": "DRPG.Vote.verdictSteps.despair",
+     "why": "A noun fragment in the nominative for the same list: the step verdictDespair fills every Monokuma's Despair pool; plain, glossary forms, Despair masculine and indeclinable."
+    },
+    {
+     "key": "DRPG.Trial.presented",
+     "why": "A toast to the presenter after the card went out (presentDialog): result first (O1), past for what just happened (O15), the table's word for evidence presented; a Truth Bullet is knowledge, not an item, so no quotes (DB31 reads items)."
+    },
+    {
+     "key": "DRPG.Trial.presentOnly",
+     "why": "presentRefusal's refusal in a mode with a speaker, as a toast and the sheet button's tooltip: one plain sentence, true to modeAllows, no rule broken."
+    },
+    {
+     "key": "DRPG.Trial.presentWithAnalysis",
+     "why": "The checkbox label in the Present window (analysisChoice), first person as a checkbox the reader ticks; Analyze by its name (D33a); short and true."
+    },
+    {
+     "key": "DRPG.Floor.lead.chapterEnd",
+     "why": "The console's lead once the verdict is in: result, then what to do (O1, O7); End the chapter carries out the reveal and moves to the next chapter; Polish names the button as the console does."
+    },
+    {
+     "key": "DRPG.TrialScene.prepareDone",
+     "why": "A GM's toast after Prepare the hall (prepareTrialScene): the result in one sentence (O1), the scene's name from the placeholder."
+    },
+    {
+     "key": "DRPG.TrialScene.tableOn",
+     "why": "The console's line naming the active scene (tableDoor): one plain sentence, \"the table\" as the module's word for everyone's scene."
+    },
+    {
+     "key": "DRPG.TrialScene.showHall",
+     "why": "A console button (tableDoor's showHall): a verb with its object (O11), within the button budget."
+    },
+    {
+     "key": "DRPG.TrialScene.backToSchool",
+     "why": "A console button (tableDoor's backToSchool, showSchool): a verb phrase with its destination (O11), within the budget."
+    },
+    {
+     "key": "DRPG.TrialScene.phaseSwitchesScene",
+     "why": "The second paragraph of Edit campaign's question before the trial (confirmCorrection's more): true to enterTrialScene (the hall activated, the cast's tokens placed), placeholder kept, no forbidden shape; Polish natural, \"w sali rozpraw {hall}\" not X12's shape."
+    },
+    {
+     "key": "DRPG.TrialScene.castPickHeading",
+     "why": "The heading of the cast picker in Start the Class Trial (castPickerHtml's heading): a short noun clause for what the list holds, within the title budget."
+    }
+   ],
+   "notes": [
+    "S01: Scope: DRPG.Reveal.* left out, as the coordinator asked; 90 DRPG.Vote.* keys done (43 rewritten, 47 unchanged).",
+    "S01: Several {who}/{names} lists are joined with \", \" rather than utils.mjs listOf (needsCode on recipients, stillOut, accusesLineMany, executionPending, executionNow, despairFilled; the same holds for namedByTable, accusedDead, unfoundDead, blackenedRuleUnfound and the console's lists in verdict.mjs openVerdictDialog and askBlackenedRule).",
+    "S01: DRPG.Vote.verdictSteps.offers (\"the Blackened's Level Up\") and the other verdictSteps keys outside this slice look right; verdictSteps.levelUps' Polish was the only plural slip seen.",
+    "S01: Polish „Werdykt” texts use „Class Trial” (indeclinable) where the old Polish said „rozprawa”; „rozprawa” is not forbidden by the glossary, so the choice is for consistency with DRPG.Vote.verdictAlreadyApplied and blackenedRuleIntro.",
+    "S01: The GM handbook (section 15, step 4) says a wrong verdict sentences \"the accused\"; the code sentences whom the GM picks in a list that opens on the accused (verdict.mjs verdictCandidates, read). Not a contradiction of rule, but the texts here say \"the student you pick\".",
+    "S02: DRPG.TrialScene.hallDark and DRPG.TrialScene.prepare are read by no code: since E101 the scenes part stands in Season setup and uses DRPG.TrialScene.hallDarkLine and DRPG.TrialScene.prepareOnSave (trial-scene.mjs sceneReport, enterTrialScene, scenesTabRows). Both left unchanged; a code stage may delete the two keys (no key is deleted here).",
+    "S02: DRPG.TrialScene.scenesIntro is drawn only by scenesTabHtml with lead null, and its one caller (season-setup.mjs seasonScenesPart) always hands DRPG.Season.scenesLine; Room setup has no Scenes tab since E101 (room-setup.mjs ROOM_SETUP_TABS). Left unchanged (it still says the hall's tokens are ticked below and that nothing deletes the GM's tokens, true of the code); a code stage may delete it.",
+    "S02: The player handbook section 12 quotes two texts this slice changes: *Your turn - n s* (DRPG.Trial.turn.title, now \"Your turn ({seconds} s)\") and *Objection only in a Class Trial.* (DRPG.Trial.objectionOutside, now \"You can raise an Objection only in a Class Trial.\"). The handbook lines (EN and PL) and any test that pins those quotes must follow; the handbook also says Present is free and goes on the table, consistent with the new presentNote.",
+    "S02: DRPG.Trial.presentByButton (outside this slice) still says \"the GM's browser posts its card\" / \"przeglądarka MG\": T29 and PL-i, as STATUS's coordinator table already notes; and its Polish \"karty postaci\" breaks PL-d.",
+    "S02: DRPG.TrialScene.hallDarkLine and prepareOnSave (outside this slice) are the live twins of hallDark and prepare; prepareOnSave still holds the dash aside and the long list that the 12.11 GM review cut from prepare.",
+    "S02: Objection is written with a capital in every Polish after here (O14, glossary objection); several Polish texts outside the slice still write \"objection\" in lowercase.",
+    "S02: DRPG.Trial.objectionPickCount's Polish is the owner's approved pair N54, written into all four forms; the English says the same facts. Neither says that closing the picker withdraws it at once (trial.mjs raiseObjection), as N54 did not.",
+    "S02: Surface choices where the code has no closer one: the windows' body lines are player-card for a player's window and gm-card for the GMs' Season setup and Start window; the scenes part's tick label prepareVoice is read against settings-hint.",
+    "S03: Q-E71-4: the GM's bar is trial-floor-ui.mjs trialBar, labels from BAR_LABELS via barLabel, in this order: skip DRPG.Floor.bar.skip \"Skip\" / \"Pomiń\"; minus DRPG.Floor.bar.minus \"-{seconds} s\" (DRPG.Floor.bar.minusSeconds, same words, at a Panic Round's 5 s step); plus DRPG.Floor.bar.plus \"+{seconds} s\" (DRPG.Floor.bar.plusSeconds likewise); overrule DRPG.Floor.bar.overrule \"Overrule\" / \"Oddalenie\"; endMode DRPG.Floor.bar.endMode \"End this mode\" / \"Zakończ ten tryb\"; back DRPG.Floor.backToDebate \"Back to the debate\" / \"Z powrotem do debaty\"; repoint DRPG.Floor.repoint \"Re-point\" / \"Przekieruj\"; zone modes only: count DRPG.Floor.bar.count \"Count now\" / \"Policz teraz\", skipQuestion DRPG.Floor.bar.skipQuestion \"Skip question\" / \"Pomiń pytanie\"; in a Scrum Debate's Sides and Camps confer Skip reads DRPG.Zones.confer.sidesSet \"Sides set\" / \"Strony wybrane\" and DRPG.Zones.confer.conferOver \"End the confer\" / \"Zakończ naradę\"; the toolbar's name DRPG.Floor.bar.label \"The GM's controls\" / \"Sterowanie GM-a\". Proposed default names: Skip / Pomiń; -{seconds} s / -{seconds} s; +{seconds} s / +{seconds} s; Overrule / Oddalenie (the glossary's overrule, E70); End this mode / Zakończ ten tryb; Back to the debate / Wróć do debaty (a verb, O11; the only Polish change, key in S04); Re-point / Przekieruj (kept: the GM handbook section 979 and the bridge's \"Re-point the Objection\" quote it); Count now / Policz teraz; Skip question / Pomiń pytanie; the toolbar The GM's bar / Pasek GM-a (the name the leads, \"Skip on the bar\", and the handbook use). Applied in this slice: DRPG.Floor.bar.label only; skip, overrule, endMode, minusSeconds, plusSeconds and repoint are listed unchanged. The glossary entry gm-bar-buttons can then name these labels as the bar's names; if S04 takes \"Wróć do debaty\", gm-handbook.pl.md line 979 (\"Z powrotem do debaty\", and \"pasek GMa\" for PL-i's \"GM-a\") needs the same change.",
+    "S03: Button names in sentences: this slice keeps them bare, as the floor's texts already do, and makes each the object of a verb (\"press End this mode\", Polish \"naciśnij Zakończ ten tryb\" or \"przycisk Zakończ rozdział\") rather than the subject, which text-review-E65 flags in DRPG.Floor.bar.inClosing, bar.inRound and lead.closing. S04 holds DRPG.Floor.bar.inClosing and lead.round/lead.closing/lead.zones keys of the same shape: same fix suggested.",
+    "S03: Outside this slice, for the coordinator: trial-floor-ui.mjs modePickerHtml greys the Nonstop Debate start with DRPG.Floor.bar.inDebate (\"The debate is already running.\") whenever any floor stands, so during Testimony, a Panic Round, the Closing or a zone mode the reason is false; DRPG.Floor.round.busy or a mode-neutral key would be true there (a code change, not a text one).",
+    "S03: DRPG.Floor.startTrialIntro drops its last sentence because DRPG.Floor.startTrialStepDiscussion (S04) says it in the same window; if S04 cuts that step item, the intro needs the sentence back.",
+    "S03: DRPG.Floor.lead.verdict and lead.finishVerdict no longer say \"then end the chapter\": TRIAL_NEXT_STEPS puts the case summary first (E99). DRPG.Floor.lead.chapterEnd and lead.caseSummary (other slices) already name their steps.",
+    "S03: Polish plural \"other\" forms keep the many-form wording, as the old values of these keys did (fractions never reach them).",
+    "S04: Three keys of this slice are read by no code on this tree (grep of scripts/, tools/ and the harness): DRPG.Floor.startPanic, DRPG.Floor.startClosing (the picker labels its starts with DRPG.Floor.mode.*, trial-floor-ui.mjs modePickerHtml since E73) and DRPG.Floor.startTrialNoHall (trial-scene.mjs startTrialLines uses DRPG.TrialScene.noHallLine; docs/dev/e101/STATUS.md already lists it). Left unchanged; deleting them is a code stage's (no deleted keys here).",
+    "S04: DRPG.Floor.round.busy is shown by trial-floor-ui.mjs modePickerHtml as the greyed reason on every start, the Closing Argument's and the zone modes' included; the new text is worded for any start. A code stage could give the picker DRPG.Floor.closing.busy for the Closing's start.",
+    "S04: Outside the slice, DRPG.Floor.startTrialIntro (the other half) says what DRPG.Floor.startTrialStepDiscussion says, in the same window (O3); and DRPG.Floor.objectionNote / DRPG.Floor.next.* / lead.* still describe the pre-1.2.79 Objection in places - the same disagreement as DRPG.Floor.debateOpened here (a Present is always free; the Objection is its own button).",
+    "S04: DRPG.Floor.closing.noTime names the GM bar's buttons Skip / Pomiń and End this mode / Zakończ ten tryb as they stand (DRPG.Floor.bar.skip, bar.endMode); if the other writer renames them (Q-E71-4), this text must follow.",
+    "S04: DRPG.Floor.openDebate and closeDebate change from \"Open Debate\" / \"Close Debate\" to sentence case; any test or handbook line that quotes the old labels should read them through i18n or be updated with them.",
+    "S04: DRPG.Floor.debateClosed and trialClosed drop the sentence their card's title repeats; trial-floor-ui.mjs trialEventCard's comment says tier 2 finds an end card by its body's words, so a test that matches the old English literally needs the new value.",
+    "S15: DRPG.TrialScene.noWayBack is a dead key (no reader in scripts/); written true to the code (Season setup) and logged in needsCode for its removal by a code stage.",
+    "S15: DRPG.Trial.presentByButton: the screen map classes it as a button (T4 limit 6, X14); the code sends it as a player's chat card (trial.mjs refusePlayersCard, whisperToOwner). The map's row should say player card."
+   ]
+  },
+  "B11": {
+   "kept": [
+    {
+     "key": "DRPG.Project.passageNone",
+     "why": "a short status line of the GM's approval window, true to wirePassagePick (it is reset when the room beyond changes); no shape the guide forbids."
+    },
+    {
+     "key": "DRPG.Project.passagePicked",
+     "why": "a status label with its value (the stretch's two rooms), not a sentence, so X12 does not read it; matches wirePassagePick."
+    },
+    {
+     "key": "DRPG.Project.passagePick",
+     "why": "a button, a verb with its object (O11), as passageFieldset draws it."
+    },
+    {
+     "key": "DRPG.Project.passageFrom",
+     "why": "true to passageFieldset (offer.from is the builder's room as the GMs read it); Polish already \"z pokoju {room}\" (X12)."
+    },
+    {
+     "key": "DRPG.Project.passageSummary",
+     "why": "the preset's summary line on the GM's card; the glossary's name (secret-passage) and \"do pokoju {to}\" (X12)."
+    },
+    {
+     "key": "DRPG.Project.passageTo",
+     "why": "a field label, shown in the proposal and the approval windows; short and true to both."
+    },
+    {
+     "key": "DRPG.Project.breachSummary",
+     "why": "as passageSummary: the glossary's name and \"do pokoju {to}\"."
+    },
+    {
+     "key": "DRPG.Project.preset.secretPassage",
+     "why": "the glossary's name (secret-passage), English in Polish (A10)."
+    },
+    {
+     "key": "DRPG.Project.preset.breach",
+     "why": "the glossary's name (breach-the-wall), English in Polish (A10)."
+    },
+    {
+     "key": "DRPG.Project.unbreachWhich",
+     "why": "a field label true to startProject (the standing breaches of this room)."
+    },
+    {
+     "key": "DRPG.Project.unbreachNote",
+     "why": "true to PASSAGE_PRESETS closeBreach (Body, Complex) and closeBreachDone; one plain rule and its effect, the digit its own."
+    },
+    {
+     "key": "DRPG.Project.repairWhich",
+     "why": "a field label true to startProject (broken or worn usables and tools of the character's sheet)."
+    },
+    {
+     "key": "DRPG.Project.repairOption",
+     "why": "an option label: item in quotes (EN17, PL-g) and its Tier."
+    },
+    {
+     "key": "DRPG.Project.repairNote",
+     "why": "true to PASSAGE_PRESETS repairItem byTier (Tier 0-1 Trivial, 2-3 Complex) and repairItem's completion; the digits are its own."
+    },
+    {
+     "key": "DRPG.Project.repairItemName",
+     "why": "a project's default name with the item in quotes (EN17, PL-g)."
+    },
+    {
+     "key": "DRPG.Project.repairWhole",
+     "why": "a {state} fragment of DRPG.Project.repairLabel beside repairBroken and repairWorn, which are outside this slice; changing it alone would split the three."
+    },
+    {
+     "key": "DRPG.Project.presetRefused",
+     "why": "the GMs' refusal with the judged reason after it (presetApproval, judgedPassagePick); result first, one sentence."
+    },
+    {
+     "key": "DRPG.Project.notRepaired",
+     "why": "a GM card true to COMPLETION_EFFECTS repairsItem's refusal; result first and the reason after."
+    },
+    {
+     "key": "DRPG.Project.itemRepaired",
+     "why": "the builder's card, result first, item in quotes (EN17, PL-g); true to COMPLETION_EFFECTS repairsItem."
+    },
+    {
+     "key": "DRPG.Project.kind",
+     "why": "a field label of the preset select; one word, no forbidden shape."
+    },
+    {
+     "key": "DRPG.Project.title",
+     "why": "a card head, window title and column label; one word."
+    },
+    {
+     "key": "DRPG.Project.startNew",
+     "why": "a row label, window title and card head; a verb with its object (O11)."
+    },
+    {
+     "key": "DRPG.Project.workOn",
+     "why": "a row label of the Projects window, a verb with its object, beside \"Propose a project\"."
+    },
+    {
+     "key": "DRPG.Project.trait",
+     "why": "a field label beside the statistic select; its tooltip says what it means (O3)."
+    },
+    {
+     "key": "DRPG.Project.traitRequired",
+     "why": "a toast that says what is missing and what to do (O1, O7); true to startProject and openProjectDialog."
+    },
+    {
+     "key": "DRPG.Project.repairName",
+     "why": "a repair's default name (sabotageProject); a label."
+    },
+    {
+     "key": "DRPG.Project.repairNameSecret",
+     "why": "a secret project's repair name, which names nothing (sabotageProject)."
+    },
+    {
+     "key": "DRPG.Project.doneTitle",
+     "why": "a card title, one word."
+    },
+    {
+     "key": "DRPG.Project.whichWork",
+     "why": "a short question label of the Work row's project select (performProject)."
+    },
+    {
+     "key": "DRPG.Project.whichSabotage",
+     "why": "a short question label of the Sabotage row's project select; Polish natural."
+    },
+    {
+     "key": "DRPG.Project.aloneBonus",
+     "why": "true to concealProjectIntent (INDIRECT_MURDER.concealIntent.aloneBonus, 1); result and reason in one sentence, the digit its own."
+    },
+    {
+     "key": "DRPG.Project.concealSeen",
+     "why": "the room's card (roomAudience) in the third person with a name (P1), \"w pokoju {room}\" (X12); true to concealProjectIntent."
+    },
+    {
+     "key": "DRPG.Project.toolRelief",
+     "why": "true to toolRelief (the relief is the tool's tier) and to both rolls that use it; item in quotes (EN17)."
+    },
+    {
+     "key": "DRPG.Project.room",
+     "why": "a field and column label, one word."
+    },
+    {
+     "key": "DRPG.Project.anyRoom",
+     "why": "an option label; the dashes are the select's decoration, not an aside."
+    },
+    {
+     "key": "DRPG.Project.roomElsewhere",
+     "why": "an option label true to roomSelectOptions and mastermind.mjs's lair select."
+    },
+    {
+     "key": "DRPG.Project.indirect",
+     "why": "a checkbox, column and card label; the glossary's words."
+    },
+    {
+     "key": "DRPG.Project.cardTitle",
+     "why": "the card's head for a project this reader may not read; names nothing (unknownProjectCard)."
+    },
+    {
+     "key": "DRPG.Project.cardProgress",
+     "why": "a row label and the bar's accessible name."
+    },
+    {
+     "key": "DRPG.Project.cardStatus",
+     "why": "a row label (GM only)."
+    },
+    {
+     "key": "DRPG.Project.cardUnderway",
+     "why": "a status value, short."
+    },
+    {
+     "key": "DRPG.Project.cardDone",
+     "why": "a status value, short."
+    },
+    {
+     "key": "DRPG.Project.cardFrozen",
+     "why": "a status value true to sabotageProject and the repairs row of COMPLETION_EFFECTS; no forbidden shape."
+    },
+    {
+     "key": "DRPG.Project.cardSecrecy",
+     "why": "a row label (GM only)."
+    },
+    {
+     "key": "DRPG.Project.cardKnownBy",
+     "why": "a row label over knowsProject's list (GM only)."
+    },
+    {
+     "key": "DRPG.Project.cardKnownByNobody",
+     "why": "a row value, short."
+    },
+    {
+     "key": "DRPG.Project.cardNoCondition",
+     "why": "a row value for a trap with no condition written."
+    },
+    {
+     "key": "DRPG.Project.cardOpenManager",
+     "why": "a button, a verb with its object (O11); the window's name as the glossary's action-names-english has it."
+    },
+    {
+     "key": "DRPG.Project.cardShared",
+     "why": "a GM's note, two plain sentences: what the shared actor is and what to do (unknownProjectCard)."
+    },
+    {
+     "key": "DRPG.Project.cardUnknown",
+     "why": "a short sentence to the reader, true to unknownProjectCard (names nothing)."
+    },
+    {
+     "key": "DRPG.Project.secret",
+     "why": "a checkbox and column label, one word."
+    },
+    {
+     "key": "DRPG.Project.createTitle",
+     "why": "a window title; the guide's own example of O11's shape on the button beside it."
+    },
+    {
+     "key": "DRPG.Project.createButton",
+     "why": "the guide's O11 example (section 2 and the surface matrix)."
+    },
+    {
+     "key": "DRPG.Project.created",
+     "why": "a toast, result first, true to openProjectDialog."
+    },
+    {
+     "key": "DRPG.Project.name",
+     "why": "A field label of the proposal and project windows (action-project.mjs startProject, projects-ui.mjs openProjectDialog); one noun in both languages."
+    },
+    {
+     "key": "DRPG.Project.namePlaceholder",
+     "why": "A placeholder with an example, short, natural in both languages; no rule applies."
+    },
+    {
+     "key": "DRPG.Project.scale",
+     "why": "The Scale field's label in both windows; one noun."
+    },
+    {
+     "key": "DRPG.Project.needsName",
+     "why": "A toast when Create or Propose is pressed with no name (projects-ui.mjs openProjectDialog, action-project.mjs startProject); says what is missing in one sentence."
+    },
+    {
+     "key": "DRPG.Project.visibleToNote",
+     "why": "True to projects-secrecy.mjs builderIds (builders are added whatever is ticked); one short sentence in both languages."
+    },
+    {
+     "key": "DRPG.Project.manageTitle",
+     "why": "The window's name, \"Projects\" in both languages (glossary action-names-english, E66 C5)."
+    },
+    {
+     "key": "DRPG.Project.tokenName",
+     "why": "The neutral name every browser reads on a project's token (projects-map.mjs placeProjectToken); it must say nothing of the project."
+    },
+    {
+     "key": "DRPG.Project.showOnMap",
+     "why": "A button's tooltip that puts a hidden project's token back (projects-ui.mjs projectManagerRows); a verb with its object."
+    },
+    {
+     "key": "DRPG.Project.sweptOld",
+     "why": "A GM's toast at load (migrate.mjs sweepOldProjectTokens); true, plural family whole in both languages, no forbidden shape."
+    },
+    {
+     "key": "DRPG.Project.glyphDefault",
+     "why": "The default cell of the glyph grid; the tray draws the hourglass for it (projects-ui.mjs glyphGrid); the token's hammer is said in DRPG.Project.glyphNote."
+    },
+    {
+     "key": "DRPG.Project.glyph.checklist",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.gear",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.tamper",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.broom",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.wand",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.key",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.lock",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.door",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.box",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.gift",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.envelope",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.note",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.calendar",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.table",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.scale",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.barrier",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.chain",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.bug",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.brain",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.glyph.murder",
+     "why": "A glyph cell's name under its picture (projects-ui.mjs glyphGrid, config.mjs PROJECT_GLYPHS); one noun that names the drawing."
+    },
+    {
+     "key": "DRPG.Project.delete",
+     "why": "A button and a column head, one verb (projects-ui.mjs); the word of the destructive role."
+    },
+    {
+     "key": "DRPG.Project.saved",
+     "why": "A GM's toast after Save in the Projects or project window (projects-ui.mjs); the result in two words, O1."
+    },
+    {
+     "key": "DRPG.Project.savedWithDeletions",
+     "why": "T18 is a candidate here: a status toast after a Delete (projects-ui.mjs wireManagerDeletes, openProjectDialog) that reads naturally in both languages; {n} is not a plural family, so a fuller sentence would need forms the key does not have."
+    },
+    {
+     "key": "DRPG.Project.shareButton",
+     "why": "The Share button (projects-ui.mjs openProjectManager, openShareDialog); one verb, the ellipsis because it opens a window."
+    },
+    {
+     "key": "DRPG.Project.revokeButton",
+     "why": "A verb with its object (O11), the destructive button of the share window."
+    },
+    {
+     "key": "DRPG.Project.shareTitle",
+     "why": "The share window's title; it names what the window does and lists only secret projects (projects-ui.mjs openShareDialog)."
+    },
+    {
+     "key": "DRPG.Project.shared",
+     "why": "A GM's toast after a share that went through (projects-ui.mjs openShareDialog); result first."
+    },
+    {
+     "key": "DRPG.Project.revoked",
+     "why": "A GM's toast after a revoke that went through; result first."
+    },
+    {
+     "key": "DRPG.Project.noSecrets",
+     "why": "A toast when the share window has no secret project to list; one plain sentence, true."
+    },
+    {
+     "key": "DRPG.Project.noPlayers",
+     "why": "A toast and a column line when no player exists to share with (projects-ui.mjs); true and plain."
+    },
+    {
+     "key": "DRPG.Project.player",
+     "why": "A field label of the share window; one noun."
+    },
+    {
+     "key": "DRPG.Project.gone",
+     "why": "A toast and a Reroll's line when the project was deleted meanwhile (call-effects.mjs progressEffect, reroll.mjs settleProgress); true and plain."
+    },
+    {
+     "key": "DRPG.Project.allSabotaged",
+     "why": "A Sabotage refusal (action-project.mjs performSabotage); true, one sentence in both languages. Its {names} join is the code's to change (see DRPG.Project.someSabotaged's needsCode)."
+    },
+    {
+     "key": "DRPG.Project.edit",
+     "why": "A column head and button word; one verb."
+    },
+    {
+     "key": "DRPG.Project.editTitle",
+     "why": "The edit window's title and the pen's tooltip; names the window's subject."
+    },
+    {
+     "key": "DRPG.Project.deleteConfirm",
+     "why": "The destructive question (projects-ui.mjs confirmProjectDelete); a real question with its consequence, true: the progress is deleted with the project."
+    },
+    {
+     "key": "DRPG.Project.condition",
+     "why": "A field label in both windows; a noun phrase."
+    },
+    {
+     "key": "DRPG.Project.conditionPlaceholder",
+     "why": "An example of a condition in the field; natural in both languages."
+    },
+    {
+     "key": "DRPG.Project.trapReadyTitle",
+     "why": "Kept on purpose: migrate.mjs VEILED_HEADINGS recognizes old cards by this heading in the browser's language, so a new wording would leave old trap cards unveiled. Also short and true."
+    },
+    {
+     "key": "DRPG.Project.trapCondition",
+     "why": "A label before the typed condition on the trap's cards (projects.mjs announceTrapReady, traps.mjs alert); short in both languages."
+    },
+    {
+     "key": "DRPG.Project.approveButton",
+     "why": "A verb with its object for what the GM's window does: it opens prefilled to be changed, then approved (messenger-app.mjs ruleApproveProject)."
+    },
+    {
+     "key": "DRPG.Project.trayEmpty",
+     "why": "The line a player's tray shows before the first project (projects-tray.mjs showTrayToPlayer); a status line, natural in both languages."
+    },
+    {
+     "key": "DRPG.Project.completeTag",
+     "why": "A tag appended to a project's label (projects.mjs projectLabel); one word, masculine to agree with „projekt”."
+    },
+    {
+     "key": "DRPG.Project.allComplete",
+     "why": "A toast when every project here is finished (action-project.mjs workOnProject); true, X12 already „w pokoju {room}”."
+    },
+    {
+     "key": "DRPG.Trap.watchFor",
+     "why": "The trigger list's label in the project window; a short noun phrase."
+    },
+    {
+     "key": "DRPG.Trap.whichProject",
+     "why": "The label of the project a project or sabotage trigger names; short."
+    },
+    {
+     "key": "DRPG.Trap.afterDark",
+     "why": "The modifier's label; true to traps.mjs afterDark (evening, night or an Eclipse), its detail in the box's tooltip."
+    },
+    {
+     "key": "DRPG.Trap.notBuilder",
+     "why": "The modifier's label; true to traps.mjs passesModifiers (the killer's own act sets nothing off)."
+    },
+    {
+     "key": "DRPG.Trap.trigger.enters",
+     "why": "A trigger label, true to traps.mjs onCrossed (any crossing into the room)."
+    },
+    {
+     "key": "DRPG.Trap.trigger.rest",
+     "why": "A trigger label, true to traps.mjs onRested (a rest taken in the trap's room)."
+    },
+    {
+     "key": "DRPG.Trap.trigger.item",
+     "why": "A trigger label, true to traps.mjs onChatMessage (a use card of the planted item)."
+    },
+    {
+     "key": "DRPG.Trap.trigger.project",
+     "why": "A trigger label, true to traps.mjs onActionResolved with the project's id (every Work on it)."
+    },
+    {
+     "key": "DRPG.Trap.trigger.stash",
+     "why": "A trigger label, true to traps.mjs onStashHunted (every attempt in the room)."
+    },
+    {
+     "key": "DRPG.Trap.trigger.passage",
+     "why": "A trigger label, true to traps.mjs onPassageHunted (every Find Passage in the room)."
+    },
+    {
+     "key": "DRPG.Trap.armedTitle",
+     "why": "Kept on purpose: migrate.mjs VEILED_HEADINGS recognizes old receipts by this heading in the browser's language. Also short and true."
+    },
+    {
+     "key": "DRPG.Trap.alertReading",
+     "why": "The reading line of the GMs' alert card (traps.mjs alert); Polish already „w pokoju {room}” (X12), a list of facts for the GM."
+    },
+    {
+     "key": "DRPG.Trap.rearmed",
+     "why": "The settled line after Rearm (messenger-app.mjs ruleRearmTrap); result first, both languages natural."
+    },
+    {
+     "key": "DRPG.Trap.plantItem",
+     "why": "A field label of the plant window; short."
+    },
+    {
+     "key": "DRPG.Trap.plantRoom",
+     "why": "A field label of the plant window; short."
+    },
+    {
+     "key": "DRPG.Trap.planted",
+     "why": "Whispered to the GMs after a plant (traps.mjs openPlantDialog); item in quotes (EN17, PL-g), Polish „w pokoju {room}”."
+    },
+    {
+     "key": "DRPG.Trap.plantAction",
+     "why": "A verb with its object on the receipt's and the window's button (O11)."
+    },
+    {
+     "key": "DRPG.Project.kindOwn",
+     "why": "The Kind select's first option in Propose a project (startProject): a short noun phrase for a project with no preset, natural in both languages."
+    },
+    {
+     "key": "DRPG.Project.repairBroken",
+     "why": "repairLabel's state word (presetApproval): one adjective; the Polish \"zepsuty przedmiot\" carries its noun so the adjective agrees whatever the item's gender."
+    },
+    {
+     "key": "DRPG.Project.repairWorn",
+     "why": "repairLabel's state word for a worn item (wearOf): as repairBroken, one adjective, the Polish with its noun for agreement."
+    },
+    {
+     "key": "DRPG.Project.proposalPlaceholder",
+     "why": "The request field's placeholder in Propose a project: a prompt in the reader's words, no rule broken."
+    },
+    {
+     "key": "DRPG.Project.collapseTray",
+     "why": "The tray's fold button tooltip and aria-label (applyCollapsed): a verb with its object (O11), short."
+    },
+    {
+     "key": "DRPG.Project.expandTray",
+     "why": "The same button's label while the tray is folded (applyCollapsed): a verb with its object, short."
+    }
+   ],
+   "notes": [
+    "S07: DRPG.Project.needsKiller and needsKillerNamed name the remedy \"tick a player who may see it\": the edit and create windows make the first player ticked the killer (projects-ui.mjs killerIdFor). The viewer list's own label (DRPG.Project.visibleTo, EN \"Who knows about it\", PL „Widoczny także dla”, outside this slice) disagrees between the languages; the other writer of B11 may want to align it, and these two texts should then follow its words.",
+    "S07: DRPG.Project.workOn (\"Work on project\") is left as is; the code and createNote call the action \"Work on Project\" (EN6 Title Case for names). Whether the row label takes Title Case is the coordinator's call across the batch.",
+    "S07: DRPG.Project.agreedWarning lost the GM's power to change the proposal to DRPG.Project.startNote (same window, O3): review them together.",
+    "S07: DRPG.Project.repairWhole is kept only because its siblings repairBroken/repairWorn and the host repairLabel („{item} (Tier {tier}): {state}”, X12 shape) are outside this slice; the Polish state words („cały przedmiot”) repeat „przedmiot” after the item's name and could be „cały”/„zepsuty”/„zużyty” when the other writer edits repairLabel.",
+    "S08: The trap's two card headings, DRPG.Trap.armedTitle and DRPG.Project.trapReadyTitle, are left as they are because migrate.mjs VEILED_HEADINGS matches old cards by their words; any later rewrite needs that migration to keep the old wording.",
+    "S08: Outside the slice: action-project.mjs startProject types the proposal's Scale options and the card summary's \"progress\" in English outside i18n (see DRPG.Project.scaleOption's needsCode).",
+    "S08: Terms kept with the code and B01a: Work (not Push) for the step, Sabotage, repair project, Remnant; the Projects window's name English in Polish; the trap's buttons Spring the trap / Rearm the trap, which DRPG.Trap.watchNote and DRPG.Trap.armedBody refer to by what they do.",
+    "S08: DRPG.Trap.why.* are rewritten in Polish to the present tense (X13, PL17); the English keeps the singular \"they\". The other writer of DRPG.Project.* may want the same present-tense shape where a Polish text names one character.",
+    "S17: Title Case of the project kinds (EN6): this slice writes Seal the Passage, Close the Breach and Repair an Item (in repairItemSummary). Outside the slice and to follow: DRPG.Project.preset.repairItem (\"Repair an item\", in no slice), DRPG.Project.sealNote, unbreachNote and repairNote (S07), which open with the kind's name, and the GMs' Passages tab button that says \"Close the breach\" (lang/en.json line 775) where it names the project rather than the act. Default: all follow, so one kind has one spelling (O14). No test pins the old spelling (R981, R1338 read the keys).",
+    "S17: The project kind labels are select options and a fieldset legend; with no surface for an option, they are filed as window-title (a noun for a subject, limit 8).",
+    "S17: DRPG.Project.proposalPrompt cut its second sentence (the GM may change the scale, the room, or the wording) because DRPG.Project.agreedWarning (S07) says it in the same window; if S07's writer cuts that sentence from agreedWarning too, the fact must stay in one of the two."
+   ]
   }
  }
 }

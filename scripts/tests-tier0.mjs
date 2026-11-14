@@ -19636,12 +19636,13 @@ const REGRESSIONS = [
                 "Investigation.filterCount", "Investigation.keyLimitLine", "Investigation.keySummary",
                 "Overflow.clearAsk", "Overflow.current", "Overflow.currentDrawn", "Overflow.currentWaiting",
                 "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
-                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable",
+                "Passage.pick.step", "Sound.groupAssigned", "Vote.barLine", "Vote.namedByTable",
                 // E24 C1b: the incident card's reserves, "3 of 4 Health" / "3 z 4 Health" (the sheet's "Left: 3 / 4").
                 "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou",
                 // The owner's report of 13.11.2026 (R5900): a zone mode's line on the Event card, "Question 2 of 3" /
                 // "Pytanie 2 z 3", "Turn 1 of 4" / "Tura 1 z 4" - the seconds are the card's clock.
                 "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak"
+                // E71 B10a (line C, 14.11.2026): Vote.accusesLine left the table - "a majority of {n} out of {total}" puts no count before a noun.
             ].map(key => [key, "R"]),
             ...[
                 "Vault.roomRatio"
@@ -19665,7 +19666,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 73, S: 39, R: 29, D: 1, P: 1, T: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 73, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
