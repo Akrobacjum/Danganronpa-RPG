@@ -102,7 +102,8 @@
    "pl": "Płacisz dopiero po potwierdzeniu w następnym oknie.",
    "sites": [
     "call-pickers:255",
-    "call-pickers:490"
+    "call-pickers:490",
+    "call-pickers:pickChoice"
    ]
   },
   "indirectMurderAProjectTooltip": {
@@ -858,6 +859,14 @@
    "sites": [
     "case-realize:askAtBody"
    ]
+  },
+  "closeNodeTooltip": {
+   "key": "DRPG.Tips.Case.closeNodeTooltip",
+   "en": "Saves what you changed in this node, then closes its fields",
+   "pl": "Zapisuje zmiany w tym węźle i zamyka jego pola",
+   "sites": [
+    "case-map:nodeEditHtml"
+   ]
   }
  },
  "Gm": {
@@ -1165,6 +1174,42 @@
    "sites": [
     "gm-stores:2496"
    ]
+  },
+  "tellOnGiveTooltip": {
+   "key": "DRPG.Tips.Gm.tellOnGiveTooltip",
+   "en": "Ticked, the player gets a message saying what they received. Untick it to give quietly",
+   "pl": "Zaznaczone: gracz dostaje wiadomość, co otrzymał. Odznacz, by dać po cichu",
+   "sites": [
+    "gm-items:hubGivePane"
+   ],
+   "c12": true
+  },
+  "foundryAndModulesTooltip": {
+   "key": "DRPG.Tips.Gm.foundryAndModulesTooltip",
+   "en": "Shows which parts of Foundry, Daggerheart and the modules the module relies on work here, for a fault report",
+   "pl": "Pokazuje, które części Foundry, Daggerheart i modułów, na których opiera się moduł, działają tutaj; do zgłoszenia błędu",
+   "sites": [
+    "gm-panel:openFailureLog"
+   ],
+   "c12": true
+  },
+  "notNowInviteTooltip": {
+   "key": "DRPG.Tips.Gm.notNowInviteTooltip",
+   "en": "Turns the invitation down for now. The GMs are told and can invite you again",
+   "pl": "Odrzuca na razie zaproszenie. GM-owie dostają wiadomość i mogą zaprosić cię ponownie",
+   "sites": [
+    "monocub:openInvitation"
+   ],
+   "c12": true
+  },
+  "refuseBribeTooltip": {
+   "key": "DRPG.Tips.Gm.refuseBribeTooltip",
+   "en": "Turns the offer down. They keep their Hope and are told you refused",
+   "pl": "Odrzuca ofertę. Oferujący zachowuje swój Hope i dostaje wiadomość o odmowie",
+   "sites": [
+    "monocub:openBribeOffer"
+   ],
+   "c12": true
   }
  },
  "Setup": {
@@ -1392,6 +1437,115 @@
    "sites": [
     "passages-tab:100"
    ]
+  },
+  "facilityNameTooltip": {
+   "key": "DRPG.Tips.Setup.facilityNameTooltip",
+   "en": "The action's name, as students see it in Facilities",
+   "pl": "Nazwa akcji, jaką uczniowie widzą w Facilities",
+   "sites": [
+    "facility-editor:roomActionsBody",
+    "facility-editor:projectFacilityBody"
+   ],
+   "c12": true
+  },
+  "facilityRollTraitTooltip": {
+   "key": "DRPG.Tips.Setup.facilityRollTraitTooltip",
+   "en": "The statistic the action's roll uses",
+   "pl": "Statystyka, na którą rzuca się przy tej akcji",
+   "sites": [
+    "facility-editor:roomActionsBody"
+   ],
+   "c12": true
+  },
+  "facilityDcTooltip": {
+   "key": "DRPG.Tips.Setup.facilityDcTooltip",
+   "en": "The lowest total the roll needs; a critical always works",
+   "pl": "Najniższy wynik, którego potrzebuje rzut; krytyk zawsze się udaje",
+   "sites": [
+    "facility-editor:roomActionsBody"
+   ],
+   "c12": true
+  },
+  "facilityEffectTooltip": {
+   "key": "DRPG.Tips.Setup.facilityEffectTooltip",
+   "en": "What this line gives once the action works",
+   "pl": "Co daje ta linia, gdy akcja się uda",
+   "sites": [
+    "facility-editor:effectFields"
+   ],
+   "c12": true
+  },
+  "facilityAmountTooltip": {
+   "key": "DRPG.Tips.Setup.facilityAmountTooltip",
+   "en": "How much it gives, held to each effect's own limit",
+   "pl": "Ile daje; każdy efekt ma własny limit",
+   "sites": [
+    "facility-editor:effectFields"
+   ],
+   "c12": true
+  },
+  "facilityScopeTooltip": {
+   "key": "DRPG.Tips.Setup.facilityScopeTooltip",
+   "en": "Who gets it. An effect that acts once, on the room or the table, ignores this",
+   "pl": "Kto to dostaje. Efekt działający raz, na pokój albo na stół, pomija to pole",
+   "sites": [
+    "facility-editor:effectFields"
+   ],
+   "c12": true
+  },
+  "facilityEffectTraitTooltip": {
+   "key": "DRPG.Tips.Setup.facilityEffectTraitTooltip",
+   "en": "The statistic a Statistic effect raises; the other effects ignore it",
+   "pl": "Statystyka, którą podnosi efekt Statystyka; inne efekty pomijają to pole",
+   "sites": [
+    "facility-editor:effectFields"
+   ],
+   "c12": true
+  },
+  "facilityUntilTooltip": {
+   "key": "DRPG.Tips.Setup.facilityUntilTooltip",
+   "en": "How long a timed effect lasts; an effect that acts at once ignores it",
+   "pl": "Jak długo trwa efekt czasowy; efekt działający od razu pomija to pole",
+   "sites": [
+    "facility-editor:effectFields"
+   ],
+   "c12": true
+  },
+  "facilityTextTooltip": {
+   "key": "DRPG.Tips.Setup.facilityTextTooltip",
+   "en": "The words a GM's text effect sends, or the name an Experience effect gives",
+   "pl": "Słowa, które wysyła efekt Tekst GM-a, albo nazwa, którą dostaje efekt Experience",
+   "sites": [
+    "facility-editor:effectFields"
+   ],
+   "c12": true
+  },
+  "facilityLifetimeTooltip": {
+   "key": "DRPG.Tips.Setup.facilityLifetimeTooltip",
+   "en": "For good, or for the number of times of day or days set beside it",
+   "pl": "Na stałe albo na tyle pór dnia lub dni, ile ustawisz obok",
+   "sites": [
+    "facility-editor:projectFacilityBody"
+   ],
+   "c12": true
+  },
+  "facilityRemoveTooltip": {
+   "key": "DRPG.Tips.Setup.facilityRemoveTooltip",
+   "en": "Takes the room action off this project at once",
+   "pl": "Od razu zabiera temu projektowi akcję w pokoju",
+   "sites": [
+    "facility-editor:editProjectFacility"
+   ],
+   "c12": true
+  },
+  "diceLookTooltip": {
+   "key": "DRPG.Tips.Setup.diceLookTooltip",
+   "en": "Shows how the dice look on this browser and why they may look different elsewhere",
+   "pl": "Pokazuje, jak wyglądają kości w tej przeglądarce i czemu gdzie indziej mogą wyglądać inaczej",
+   "sites": [
+    "season-setup:diceLookSection"
+   ],
+   "c12": true
   }
  },
  "More": {

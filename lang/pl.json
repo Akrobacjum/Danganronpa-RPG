@@ -2163,7 +2163,8 @@
         "showPreviewTooltip": "Otwiera podgląd realizacji. Nic nie stanie na mapie, dopóki nie naciśniesz tam Uruchom realizację",
         "sendToEveryoneTooltip": "Publikuje to podsumowanie na czacie dla całego stołu, raz na Class Trial",
         "difficultyTooltip": "Jak trudno go zauważyć przy Observe, przeanalizować i usunąć przez Tamper",
-        "leftByTooltip": "Liczy się jako własny Remnant tego ucznia przy Observe i Tamper"
+        "leftByTooltip": "Liczy się jako własny Remnant tego ucznia przy Observe i Tamper",
+        "closeNodeTooltip": "Zapisuje zmiany w tym węźle i zamyka jego pola"
       }
     },
     "Look": {

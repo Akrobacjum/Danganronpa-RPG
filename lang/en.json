@@ -2073,7 +2073,8 @@
         "showPreviewTooltip": "Opens the realization's preview. Nothing is placed until you press Run realization there",
         "sendToEveryoneTooltip": "Posts this summary in the chat for the whole table, once per Class Trial",
         "difficultyTooltip": "How hard it is to spot with Observe, to analyze and to clean up with Tamper",
-        "leftByTooltip": "Counts as this student's own Remnant for Observe and Tamper"
+        "leftByTooltip": "Counts as this student's own Remnant for Observe and Tamper",
+        "closeNodeTooltip": "Saves what you changed in this node, then closes its fields"
       }
     },
     "Look": {

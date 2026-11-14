@@ -27125,13 +27125,14 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 11 keys under DRPG.Tips.Case has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
+    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's keys under DRPG.Tips.Case (12 at C12's node Close) has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
         /* Red at 1463f22b with this test in place and the family's scripts as they were: lang/*.json had no DRPG.Tips.Case block and no function read one of its keys. */
         const TIPS = [
             ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
             ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.notTiedToTheTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.closeNodeTooltip","case-map.mjs","nodeEditHtml"],
             ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
             ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
             ["DRPG.Tips.Case.notNowTooltip","case-realize.mjs","askAtBody"],

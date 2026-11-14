@@ -214,14 +214,6 @@
    "why": "none needed: The label says it; zoom in and out already carry titles."
   },
   {
-   "file": "scripts/case-map.mjs",
-   "unit": "nodeEditHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
    "file": "scripts/case-realize.mjs",
    "unit": "previewHtml",
    "kind": "select",

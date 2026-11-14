@@ -262,7 +262,7 @@ export function nodeInfoHtml({ graph, node, finders = null, authors = null, reac
 function nodeEditHtml({ graph, node, p, open, finders, authors, reach, problems, html }) {
     const b = (step, key) => `<button type="button" data-drpg-case-move="${step}"${tipAttr("DRPG.Tips.Case.moveUpMoveDownTooltip")}>${esc(L(key))}</button>`;
     // Close beside the arrows: the face that closed the fields by a second click is hidden while they are open
-    const close = `<button type="button" data-drpg-case-close>${esc(L("DRPG.Panel.close"))}</button>`;
+    const close = `<button type="button" data-drpg-case-close${tipAttr("DRPG.Tips.Case.closeNodeTooltip")}>${esc(L("DRPG.Panel.close"))}</button>`;
     const moves = `<div class="drpg-case-edit-actions drpg-case-edit-moves">${b(-1, "DRPG.CaseMap.moveUp")}${b(1, "DRPG.CaseMap.moveDown")}${close}</div>`;
     const cells = String(html ?? "");
     // The node's facts only where it has no field of its own (another chapter's Remnant); otherwise its warnings alone
