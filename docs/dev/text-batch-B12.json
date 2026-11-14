@@ -5710,15 +5710,16 @@
    ],
    "en": {
     "before": "The crisis action is taken back and made again with the new roll - the damage, the Remnant, and any hindrance go with it. The turn is not spent twice.",
-    "after": "Your crisis action is taken back and made again with the new roll, along with its damage, Remnant, and any hindrance. It still costs only one turn."
+    "after": "Your crisis action is taken back and made again with the new roll, along with its damage, Remnant, and any hindrance. It does not cost a second turn."
    },
    "pl": {
     "before": "Akcja kryzysowa zostaje cofnięta i wykonana ponownie z nowym rzutem - obrażenia, Remnant i utrudnienia idą razem z nią. Tura nie jest wydawana dwa razy.",
-    "after": "Twoja akcja kryzysowa zostaje cofnięta i wykonana jeszcze raz z nowym rzutem, razem z obrażeniami, Remnantem i utrudnieniami. Nadal kosztuje tylko jedną turę."
+    "after": "Twoja akcja kryzysowa zostaje cofnięta i wykonana jeszcze raz z nowym rzutem, razem z obrażeniami, Remnantem i utrudnieniami. Tura nie zostaje wydana drugi raz."
    },
    "removed": [
     "The dash aside (X4), joined into the sentence.",
-    "\"The turn is not spent twice\" (a negation): said as what it costs."
+    "\"The turn is not spent twice\" (a negation): said as what it costs.",
+    "After landing (T7, M5): \"only one turn\" / „tylko jedną turę” wrote a rule's number as a word; the text says the turn is not spent twice, as the before did."
    ],
    "needsCode": [],
    "disagreements": [],

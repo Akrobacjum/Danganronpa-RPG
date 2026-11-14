@@ -5326,7 +5326,7 @@
       "replayFailed": "The dice are rerolled, but the action could not run again with them. Tell the GM what the first roll already did.",
       "observeReplayed": "Observe looks at the same target again, with the new roll.",
       "analyzeReplayed": "Your Truth Bullet is analyzed again with the new roll, after any lock from the first attempt comes off.",
-      "crisisReplayed": "Your crisis action is taken back and made again with the new roll, along with its damage, Remnant, and any hindrance. It still costs only one turn.",
+      "crisisReplayed": "Your crisis action is taken back and made again with the new roll, along with its damage, Remnant, and any hindrance. It does not cost a second turn.",
       "deathStands": "This crisis action killed somebody, so a Reroll cannot take it back. The student keeps their Hope.",
       "busy": "A Reroll for this student is already under way. Wait for it to finish. The student keeps their Hope.",
       "messageGone": "The roll is no longer in the chat, so there is nothing to throw again. You keep your Hope.",

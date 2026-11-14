@@ -5752,7 +5752,7 @@
       "replayFailed": "Reroll zostaje w mocy, ale akcja nie wykonała się ponownie z nowymi kośćmi. Powiedz GM-owi, co zrobił już pierwszy rzut.",
       "observeReplayed": "Observe sprawdza ten sam cel jeszcze raz, z nowym wynikiem.",
       "analyzeReplayed": "Twój Truth Bullet jest analizowany jeszcze raz z nowym rzutem; jeśli pierwsza próba go zablokowała, blokada najpierw znika.",
-      "crisisReplayed": "Twoja akcja kryzysowa zostaje cofnięta i wykonana jeszcze raz z nowym rzutem, razem z obrażeniami, Remnantem i utrudnieniami. Nadal kosztuje tylko jedną turę.",
+      "crisisReplayed": "Twoja akcja kryzysowa zostaje cofnięta i wykonana jeszcze raz z nowym rzutem, razem z obrażeniami, Remnantem i utrudnieniami. Tura nie zostaje wydana drugi raz.",
       "deathStands": "Ta akcja kryzysowa kogoś zabiła, więc Reroll jej nie cofnie. Uczeń nie traci Hope.",
       "busy": "Reroll tego ucznia już trwa. Poczekaj, aż się skończy. Uczeń nie traci Hope.",
       "messageGone": "Tego rzutu nie ma już na czacie, więc nie ma czego rzucać ponownie. Hope zostaje przy tobie.",
