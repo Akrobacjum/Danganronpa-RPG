@@ -37571,6 +37571,31 @@ const INVARIANTS = [
         }
     }],
 
+    ["R6401 - the GMs' card of a Direct Murder that came to nothing gives the GMs' reason, not the killer's line (scripts/eclipse.mjs `judgePendingMurders`; E71 line A, 14.11.2026): `Action.murderCancelled`'s {reason} is `Action.murderNobodyGm` or the family `Action.murderWitnessGm`, in English and Polish, with no second person and no \"try again\"; the killer keeps `murderNobody` and `murderWitness`", async () => {
+        /*
+         * E71 line A, B04's code faults (the coordinator, 14.11.2026). Red at 876878f5: `judgePendingMurders` handed the
+         * killer's own sentence ("... The action stays spent; try again at another time of day.") to the GMs' whisper as
+         * `{reason}`, so the GMs' card spoke to the killer in the second person (P2). Read from source and the two files:
+         * the cancel is reached only by an Eclipse's end with a parked declaration, which tier 2 drives (E12 C0's tests).
+         */
+        const sources = new Map(await otherSources());
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        must(eclipse.length > 1000, "eclipse.mjs did not load - this reads nothing");
+        const judge = bodyOf(eclipse, "async function judgePendingMurders", { until: "async function askAtTheLights" });
+        must(judge.includes("DRPG.Action.murderCancelled"), "judgePendingMurders no longer posts the GMs' card - this reads nothing");
+        const read = { gmKeys: ["DRPG.Action.murderNobodyGm", "DRPG.Action.murderWitnessGm"].filter(k => !judge.includes(`"${k}"`)) };
+        const forms = { en: ["one", "other"], pl: ["one", "few", "many", "other"] };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const A = file?.DRPG?.Action ?? {};
+            const words = [A.murderNobodyGm, ...forms[lang].map(f => A.murderWitnessGm?.[f])];
+            read[lang] = words.filter(w => typeof w !== "string" || (lang === "en" ? /\b(you|your)\b|try again/i : /spróbuj|\btwo(j|ja|je|ją)\b|\bciebie\b/i).test(w)).length;
+            read[`${lang}Witness`] = forms[lang].filter(f => !String(A.murderWitnessGm?.[f] ?? "").includes("{n}")).length;
+        }
+        equal(stableJson(read), stableJson({ gmKeys: [], en: 0, enWitness: 0, pl: 0, plWitness: 0 }),
+            "[the GMs' reason keys judgePendingMurders does not read; per language, the GMs' reasons missing or speaking to the killer, and the witness forms without {n}]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

@@ -1078,6 +1078,8 @@
       "murderParkedToast": "Zgłoszenie przyjęte. Wynik poznasz po zakończeniu Eclipse.",
       "murderSecondDeclaration": "{killer} też zgłasza Direct Murder podczas Eclipse, ale incydent jest już otwarty. Próba zostaje odrzucona, a akcja przepada.",
       "murderCancelled": "Direct Murder ({killer}) w pokoju {room} nie dochodzi do skutku: {reason}",
+      "murderNobodyGm": "w pokoju nie było nikogo poza zabójcą.",
+      "murderWitnessGm": { "one": "poza ofiarą była tam jeszcze {n} osoba, która by to zobaczyła.", "few": "poza ofiarą były tam jeszcze {n} osoby, które by to zobaczyły.", "many": "poza ofiarą było tam jeszcze {n} osób, które by to zobaczyły.", "other": "poza ofiarą było tam jeszcze {n} osób, które by to zobaczyły." },
       "murderOpensTitle": "Zabójstwo w ciemności",
       "murderOpens": "Direct Murder podczas Eclipse: {killer} zostaje sam na sam z postacią {victim} w pokoju {room}. Incydent jest otwarty.",
       "directMurder": "Direct Murder",

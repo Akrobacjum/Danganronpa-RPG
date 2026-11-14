@@ -1048,6 +1048,8 @@
       "murderParkedToast": "Declared. You learn the outcome when the Eclipse ends.",
       "murderSecondDeclaration": "{killer} also declared a Direct Murder during the Eclipse, but an incident was already open. The attempt is refused, and the action stays spent.",
       "murderCancelled": "{killer}'s Direct Murder in {room} came to nothing: {reason}",
+      "murderNobodyGm": "nobody else was in the room.",
+      "murderWitnessGm": { "one": "{n} person besides the victim was in the room and would have seen it.", "other": "{n} people besides the victim were in the room and would have seen it." },
       "murderOpensTitle": "A killing in the dark",
       "murderOpens": "{killer} declared a Direct Murder during the Eclipse and ended it alone with {victim} in {room}. The incident is open.",
       "directMurder": "Direct Murder",

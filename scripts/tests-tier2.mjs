@@ -8070,7 +8070,7 @@ const SCENARIOS = [
         const toSecond = words.filter(w => w.to.includes(player(second).id)).map(w => w.html);
         const kept = game.messages.contents.slice(from).map(m => contentOf(m));
         const cancelled = game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(second.name),
-            room: foundry.utils.escapeHTML(stood[1].room), reason: foundry.utils.escapeHTML(nobody) });
+            room: foundry.utils.escapeHTML(stood[1].room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobodyGm")) });
         const reason = game.i18n.format("DRPG.Action.murderSecondDeclaration", { killer: foundry.utils.escapeHTML(second.name) });
         equal(stableJson([opened, toSecond.length, toSecond.some(h => h.includes(nobody)), toSecond.some(h => h.includes(refused)),
             kept.some(c => c.includes(cancelled)), kept.some(c => c.includes(reason))]),
@@ -65193,7 +65193,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                         const told = reason => kept.some(c => c.includes(game.i18n.format("DRPG.Action.murderCancelled", {
                             killer: foundry.utils.escapeHTML(killer.name), room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(reason) })));
                         readings.push([where?.scene?.id ?? null, where?.room ?? null, Mv.roomOfActor(killer),
-                            told(plural("DRPG.Action.murderWitness", { n: 1 })), told(game.i18n.localize("DRPG.Action.murderNobody"))]);
+                            told(plural("DRPG.Action.murderWitnessGm", { n: 1 })), told(game.i18n.localize("DRPG.Action.murderNobodyGm"))]);
                     }
                 } finally {
                     await home?.view();
@@ -68455,9 +68455,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await Ev.parkDirectMurder({ killerId: student.id, room: stood.room, note: "SUITE E12 fix r2-H3 declared in the dark" });
             await Ev.endEclipse({ advance: false });
             await settle();
-            await until(() => game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name), room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) }))));
+            await until(() => game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name), room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobodyGm")) }))));
             const nobody = game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name),
-                room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) });
+                room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobodyGm")) });
             read = [standing, spoke, asked.length, game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(nobody))];
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
