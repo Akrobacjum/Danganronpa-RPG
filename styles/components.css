@@ -3657,7 +3657,6 @@ body .application.dialog.drpg-ui.drpg-panel.drpg-window-projects .dialog-content
 /* the forms: the portrait beside the name, as before (a line across the grid) */
 body .application.drpg-project-form .drpg-project-image-row { display: flex; align-items: flex-end; gap: 0.6rem; }
 body .application.drpg-project-form .drpg-project-image-row .drpg-project-portrait { width: 2.6rem; height: 2.6rem; flex: 0 0 auto; }
-body .application.drpg-project-form .drpg-project-image-row > label { flex: 1 1 auto; }
 /* the description's textarea and the refusal under it the field cell's width */
 body .application.drpg-ui.drpg-project-form .drpg-form-grid > .drpg-form-field > textarea { flex: 1 1 100%; width: 100%; }
 body .application.drpg-project-form .drpg-form-field > .drpg-box { flex: 1 0 100%; margin: 0; }
@@ -3975,8 +3974,9 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-k
 .drpg-window-alive .drpg-data-table :is(th, td) { padding-inline: 4px; }
 
 /* CREATE A PROJECT'S NAME takes its row (ac078): the label is a row of its word and its field, the field the rest -
-   it stood at its own 20 characters' width (about 120 px under the glass), its placeholder cut. */
-body .application.drpg-project-form .drpg-project-image-row > label { display: flex; align-items: center; gap: 0.5rem; }
+   it stood at its own 20 characters' width (about 120 px under the glass), its placeholder cut. Its share of the row
+   (`flex: 1 1 auto`) was a line of its own beside the portrait's until E55 S3. */
+body .application.drpg-project-form .drpg-project-image-row > label { flex: 1 1 auto; display: flex; align-items: center; gap: 0.5rem; }
 body .application.drpg-project-form .drpg-project-image-row > label > input[name="name"] { flex: 1 1 auto; min-width: 0; width: auto; }
 
 /* ---- E47-FC (09.11.2026; the owner on comparison 2: cards bc019 and bc025, question q-create-icon) ----
