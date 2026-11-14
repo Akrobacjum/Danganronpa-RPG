@@ -324,7 +324,7 @@ function tableRowHtml(table, r, { home = null, tier = NaN, badge = "" } = {}) {
             ? `<span class="drpg-table-item-roles"${rolesAllowed ? "" : ` data-tooltip="${
                     esc(game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER }))}"`
               }>${offerable.map(key =>
-                `<label class="drpg-check${rolesAllowed ? "" : " drpg-locked"}"><input type="checkbox"
+                `<label class="drpg-check${rolesAllowed ? "" : " drpg-locked"}"><input type="checkbox"${tipAttr("DRPG.Tips.Sweep.Setup.itemRowRoleTooltip", null, { title: true })}
                     data-drpg-role="${key}"${roles.includes(key) ? " checked" : ""}${
                     rolesAllowed ? "" : " disabled"} />${
                     esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}</span>`
@@ -812,7 +812,7 @@ function itemPictureGrid(current) {
     return `<div class="drpg-tables-picture">
                     <span class="drpg-tables-picture-label">${esc(label)}</span>
                     <details class="drpg-glyph-picker drpg-item-picture-picker"${current ? " open" : ""}>
-                        <summary data-drpg-picture-summary>${esc(pictureName(current))}</summary>
+                        <summary data-drpg-picture-summary${tipAttr("DRPG.Tips.Sweep.Setup.itemPictureTooltip")}>${esc(pictureName(current))}</summary>
                         <div class="drpg-glyph-grid drpg-item-picture-grid" role="radiogroup" aria-label="${esc(label)}"
                              data-drpg-item-pictures>${cells.join("")}</div>
                     </details>
@@ -907,7 +907,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
      * use than one redundant box.
      */
     const roleChecks = EQUIPPABLE.map(key =>
-        `<label class="drpg-check"><input type="checkbox" name="role:${key}" />
+        `<label class="drpg-check"><input type="checkbox" name="role:${key}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemRoleTooltip", { tier: MULTI_ROLE_TIER }, { title: true })} />
             ${foundry.utils.escapeHTML(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("");
 
     /*
@@ -943,7 +943,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
         game.i18n.format("DRPG.Items.tierN", { n: t })}</option>`).join("");
 
     const roomChecks = roomTablesList.map(t => `<label class="drpg-inline-check">
-        <input type="checkbox" name="target:${t.id}"${
+        <input type="checkbox" name="target:${t.id}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemRoomTableTooltip")}${
             presetTargets.has(t.id) ? " checked" : ""} /> ${esc(t.name)}</label>`).join(" ");
 
     return `
@@ -954,12 +954,12 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
                          class="drpg-tables-preview" />
                     <input type="hidden" name="img.new" value="${esc(preset?.img || "")}" />
                     <label>${game.i18n.localize("DRPG.Items.name")}
-                        <input type="text" name="newName" value="${esc(preset?.name ?? "")}"
+                        <input type="text" name="newName" value="${esc(preset?.name ?? "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
                                placeholder="${esc(game.i18n.localize("DRPG.Items.namePlaceholder"))}" /></label>
                 </div>
                 ${itemPictureGrid(preset?.img || "")}
                 <label>${game.i18n.localize("DRPG.Items.description")}
-                    <textarea name="newText" rows="2"
+                    <textarea name="newText" rows="2"${tipAttr("DRPG.Tips.Sweep.Setup.newItemDescriptionTooltip")}
                         placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}"></textarea></label>
                 <label>${game.i18n.localize("DRPG.Items.category")}
                     <select name="newCategory"${tipAttr("DRPG.Tips.Setup.categoryTooltip")}>${categories}</select></label>
@@ -1056,7 +1056,7 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
             <div class="drpg-tables-right">
                 <div class="drpg-table-heading">
                     <h4 data-drpg-table-name title="${esc(first?.name ?? "")}">${esc(shortPoolName(first?.name))}</h4>
-                    <span class="drpg-table-actions" role="group">${tiers ? "" : `<button type="button" class="drpg-mini-button" data-drpg-rename-table>${
+                    <span class="drpg-table-actions" role="group">${tiers ? "" : `<button type="button" class="drpg-mini-button" data-drpg-rename-table${tipAttr("DRPG.Tips.Sweep.Setup.renameTableTooltip")}>${
                         esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>`}<button type="button" class="drpg-mini-button" data-drpg-delete-table${tipAttr("DRPG.Tips.Setup.deleteTableTooltip")}>${
                         esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button></span>
                 </div>
@@ -1645,9 +1645,9 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
         body: `<form>${kitTabs([
             { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"), tooltip: tipText("DRPG.Tips.Setup.tabsTierPoolsRoomTooltip"),
               html: poolPaneHtml("tiers", tierTables, selected, poolError?.family === "tiers" ? poolError : null) },
-            { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"),
+            { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"), tooltip: tipText("DRPG.Tips.Sweep.Setup.tabRoomPoolsTooltip"),
               html: poolPaneHtml("rooms", roomTablesList, selected, poolError?.family === "rooms" ? poolError : null) },
-            { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"),
+            { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"), tooltip: tipText("DRPG.Tips.Sweep.Setup.tabNewItemTooltip"),
               html: newItemPaneHtml(preset, presetTargets, roomTablesList) }
         ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : preset ? "newItem" : null })}</form>`,
         /* THE FOOTER BY ROLE (E21 C2b, E22): Add an item the primary; Create table secondary; Install / reinstall

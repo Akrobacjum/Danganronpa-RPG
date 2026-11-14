@@ -1,5 +1,5 @@
 {
-  "about": "What each module file of scripts/ may hold, held by tools/comments-lint.mjs (node tools/check.mjs comments): `citations` (a backticked name in a comment that no code, language key or stylesheet of the repository holds: renamed, removed, or somebody else's) and `doubledJsdoc` (two JSDoc blocks with nothing between them; a file's header before its first declaration's block not counted). A count above its row fails: a comment added one. A count below fails until the row is lowered in the same commit, so the budget only falls. `known` holds names read and kept, each with its reason (a Foundry, Daggerheart or browser name; a history line), which are counted nowhere. Written at a31e7a3b's counts on 13.11.2026 (E56 C1 on main's base; prep-54 first wrote it at 4dfac3a9: 175 names, 63 doubled blocks); E56 lowers it to zero or to `known` names. The rows are written by `node tools/comments-lint.mjs --write`, which lowers a row to its count and never raises one, from a run, never by hand.",
+  "about": "What each module file of scripts/ may hold, held by tools/comments-lint.mjs (node tools/check.mjs comments): `citations` (a backticked name in a comment that no code, language key or stylesheet of the repository holds: renamed, removed, or somebody else's) and `doubledJsdoc` (two JSDoc blocks with nothing between them; a file's header before its first declaration's block not counted). A count above its row fails: a comment added one. A count below fails until the row is lowered in the same commit, so the budget only falls. `known` holds names read and kept, each with its reason (a Foundry, Daggerheart or browser name; a history line), which are counted nowhere. Written at a31e7a3b's counts on 13.11.2026 (E56 C1 on main's base; prep-54 first wrote it at 4dfac3a9: 175 names, 63 doubled blocks); E56 lowers it to zero or to `known` names. The rows are written by `node tools/comments-lint.mjs --write`, which lowers a row to its count and never raises one, from a run, never by hand. On 14.11.2026 E56 part 2 took every row to zero (141 citations in 77 files and 3 doubled blocks on 9e7e3d78): a doubled block is an error since then whatever a row says (R7150), and a citation is held at zero by R7151, so a name a comment needs to keep bare goes into `known` with its reason.",
   "known": {
     "anyCub": "gm-students.mjs: history - the E47-C8 defect (a function read as a value), told at the cub cells' comment and pointed to by the pools' one (E56 C3, 13.11.2026)",
     "shownTraces": "investigation.mjs: history - the S1-m7 snapshot the form replaced in E09 C3 ('until then')",
@@ -28,328 +28,98 @@
     "restShutReason": "action-facilities.mjs: history - rest.mjs's two-rest reason the Facilities tile read until fix line 113f deleted it (13.11.2026)",
     "nightFoldsIntoBoard": "day-summary.mjs: history - the Night's summary folded into the roll-over's board until 13.11.2026 (fix line 113j)",
     "visibleCountdownTypes": "projects-tray.mjs: Daggerheart 2.12.8's countdowns.mjs function, not this module's (fix line 113n, A113-C1-2)",
-    "actorResources": "resources.mjs: Daggerheart 2.12.8's feature field read by its `_cleanupOptionalResources`, not this module's (compat-113)"
+    "actorResources": "resources.mjs: Daggerheart 2.12.8's feature field read by its `_cleanupOptionalResources`, not this module's (compat-113)",
+    "fillObjection": "trial-floor.mjs: history - the floor op's asker nothing called, removed in E56 part 2 (14.11.2026), named where its step's doc says so",
+    "buildMotive": "hud.mjs: history - one of the four row builders removed from the HUD in 1.2.47, named in the header that says so",
+    "buildAssembly": "hud.mjs: history - one of the four row builders removed from the HUD in 1.2.47, named in the header that says so",
+    "buildIncident": "hud.mjs: history - one of the four row builders removed from the HUD in 1.2.47, named in the header that says so",
+    "buildBody": "hud.mjs: history - one of the four row builders removed from the HUD in 1.2.47, named in the header that says so",
+    "trapRunning": "incident-store.mjs: history - the flag read until E06, said so ('Until E06')",
+    "patchConfig": "iso-shield.mjs: the Isometric Perspective module's function, no copy of it in this repository",
+    "isoDepthSortTokenMixin": "iso-shield.mjs: the Isometric Perspective module's mixin, no copy of it in this repository",
+    "openKeyPlanner": "key-remnants.mjs: history - investigation.mjs's planner window, gone by 1.2.70, said so",
+    "keepStandingFresh": "live.mjs: history - gone by 1.2.70, said so",
+    "meddleButton": "monocub.mjs: history - sheet.mjs's button folded in with E33 C10, said so",
+    "registerMonokuma": "monokuma.mjs: history - removed from module.mjs in E24 C3a (08.11.2026), said so ('gone with them')",
+    "_testElevation": "movement.mjs: Foundry's region elevation test (a RegionDocument method by the comment's reading; not read in v14's source here)",
+    "bestWeaponTier": "murder-rules.mjs: history - gone by 1.2.70, said so ('the old')",
+    "clearCuePlaylist": "music-play.mjs: history - music.mjs's, renamed by 1.2.70, said so",
+    "incidentAudience": "private-rolls.mjs: history - until 1.2.65, said so",
+    "belongsTo": "private-rolls.mjs: history - a field read until E08+E28 C4a, said so",
+    "showRerolledDice": "private-rolls.mjs: history - until E08+E28 C4a, said so",
+    "discoveredBy": "projects.mjs: a field the design turned down, named to say why it is not written",
+    "checkRepairCompletion": "projects.mjs: history - removed in 1.2.85 (E36+E15), said so",
+    "takeHealing": "relay-guard.mjs: Daggerheart's relay operation, named as its packets carry it (its owner in Daggerheart's source not read here)",
+    "takeDamage": "relay-guard.mjs: Daggerheart's relay operation, named as its packets carry it (its owner in Daggerheart's source not read here)",
+    "rollSave": "relay-guard.mjs: Daggerheart's save roll (chatMessage.mjs's onRollSave calls it), not this module's",
+    "propagateCrimeTie": "remnants.mjs: history - truth-bullets.mjs's, folded into propagateVerdicts in E09 C2 (08.10.2026), said so",
+    "publishChapterTies": "remnants.mjs: history - removed by E09 fix r1-G1, said so",
+    "tokenById": "remnants.mjs: history - removed by E60 C1b (03.11.2026), said so",
+    "guardRemnantEditReceipt": "reroll.mjs: history - the guard E08+E28 C8 removed, said so",
+    "allowTraitsForNextRoll": "roll-dialog.mjs: history - removed in 1.2.66, said so",
+    "maybeRollItself": "roll-dialog.mjs: history - removed on the owner's call of 28.08, said so",
+    "wireVoice": "settings-window.mjs: history - look.mjs's, removed by d6680c1f (11.11.2026), said so",
+    "ReferenceError": "settings.mjs: the JavaScript built-in error",
+    "nothingToBreak": "sheet-actions.mjs: history - gone before 1.2.70, said so",
+    "ROLL_PATH": "sheet-audit.mjs: history - gone with the fix the comment names, said so",
+    "applyChangeField": "sheet-audit.mjs: Foundry's active effect application, cited by file (activeEffect.mjs); its class not read here",
+    "isMulticlass": "sheet-audit.mjs: Daggerheart's class item field, cited from its data model; not this module's",
+    "heldCalls": "sheet-audit.mjs: history - gone by 1.2.70, said so",
+    "addNewItemV2": "sheet-fit.mjs: a made-up rename, named to say what the check would catch",
+    "orderNoop": "sheet-repaint.mjs: history - the measurement's helper, in no file, said so",
+    "equippedItems": "sheet-sidebar.mjs: Daggerheart's sheet's equipped list, not this module's",
+    "fitTabs": "sound-panel.mjs: history - utils.mjs tableDialog's option, gone with it, said so",
+    "toggleDefeated": "states.mjs: Daggerheart's defeated toggle, not this module's",
+    "defeatedConditions": "states.mjs, config.mjs: Daggerheart's helper of its defeated conditions, not this module's",
+    "PROJECT_ITEMS": "tables-pools.mjs: history - gone since the 1.2.13 audit (Q12), said so",
+    "ensureTrialTokens": "trial-scene.mjs: history - gone by 1.2.70, said so",
+    "clearTrialTokens": "trial-scene.mjs: history - gone by 1.2.70, said so",
+    "studentsWithoutHallToken": "trial-scene.mjs: history - removed by E81 DZ6, said so",
+    "handleCustomSocket": "truth-bullets.mjs, bridge-guards.mjs: Foundry's server-side socket handler, not this module's",
+    "dressNumberField": "ui-kit.mjs, chrome.mjs: history - chrome.mjs's, removed by E44 C4b (04.11.2026), said so",
+    "dragRuler": "visibility.mjs: history - gone from this file before 1.2.70, said so",
+    "_ruler": "visibility.mjs: history - gone from this file before 1.2.70, said so",
+    "movementRuler": "visibility.mjs: history - gone from this file before 1.2.70, said so",
+    "breakout": "voice-client.mjs, voice.mjs: avclient-livekit's breakout function, not this module's",
+    "DEAD_ROOM": "voice-client.mjs: history - gone from the code by 13.11.2026, said so",
+    "userlist": "voice.mjs: the Proximity Voice Chat module's flag, not this module's",
+    "confirmCrisisAction": "action-murder.mjs: history - removed by E32+E07 C15, said so",
+    "performMeddle": "api.mjs: history - the console name until 1.2.68, gone since, said so",
+    "meddleDialog": "api.mjs: history - the console name until 1.2.68, gone since, said so",
+    "endBarredRound": "boundary.mjs: history - removed by E37 FG1b (02.11.2026), said so",
+    "callChoice": "call-pickers.mjs: history - gone since E72, said so",
+    "settingSheet": "dh-settings.mjs: Daggerheart's actor sheet's setting window, not this module's",
+    "viewedDocuments": "fog.mjs: Foundry v14's level-aware reader, named from its typings; its class not read here",
+    "fract": "fog.mjs: the GLSL built-in, in a shader's text",
+    "notePaneLean": "glass-geometry.mjs: history - the measurement's name for fitNoteTile's lean, never code, said so (stained-glass.css held the word until E56 part 2 reworded it)",
+    "effectsOn": "glass.mjs: history - gone by 1.2.70, said so",
+    "lastCrossing": "gm-stores.mjs: a field never built, named to say so",
+    "deadRoomFor": "voice-client.mjs, voice.mjs: history - the dead's own room's name, built from E72 C8 until E62 C3b sent the dead to the Spectators' room; removed in E56 part 2 (14.11.2026), said so",
+    "bulletsWithoutAnswer": "key-remnants.mjs: history - gm-stores.mjs's count of bullets with no answer key, which nothing called; removed in E56 part 2 (14.11.2026), named for its rule",
+    "DualityRollMock": "tests-tier2.mjs: history - the harness's model of Daggerheart's roll before C2a (client-entry.mjs records it), said so ('Until C2a')",
+    "LONGEST_TILE_WORD": "tests-tier1.mjs: history - sheet.mjs's import-time constant, replaced in E56 C12 by sheet-fit.mjs longestTileWord, said so ('The word was')",
+    "ROLE_CONTEXT": "tests-tier1.mjs: Dice So Nice 6.4.5's own constant (module/settings/DsnSettings.js), cited by its source line; not this module's",
+    "SEASON_WINDOWS": "tests-tier1.mjs: history - a red-first reading of season-setup.mjs's row, removed in E49 A1e round 2 (af0aea09), said so",
+    "base_edges": "tests-tier0.mjs: a function of the proposal's gen2.py (09.11.2026), outside the repository",
+    "map_svg": "tests-tier0.mjs: a function of the proposal's gen2.py (09.11.2026), outside the repository",
+    "chooseAnalyze": "tests-tier0.mjs: the E51 slice's name for the picker, which the comment maps to askWhatToAnalyze",
+    "drpgX": "tests-css.mjs: a pattern's placeholder for any drpg-prefixed dataset name, not an identifier",
+    "hideTrialTokens": "tests-tier1.mjs: history - trial-scene.mjs's token hiding until E81 DZ6, said so ('until then')",
+    "inConsole": "tests-tier1.mjs: history - a red-first reading of trialSchemaHtml's option, removed with the window in E99 C5 (f02ec551), said so",
+    "lastBook": "tests-tier1.mjs: history - the page variable E51 C8 replaced with the handbookBook setting, said so ('was')",
+    "lookFieldset": "tests-tier1.mjs: history - look.mjs's fieldset as read at 54493dbf for E49 A1d's inventory, since removed, said so",
+    "mayEditReserve": "tests-tier0.mjs, tests-tier1.mjs: history - sheet.mjs's reserve gate, removed by E24 fix G2B (f2e2ed9a) for sheetMode's reserveField, said so",
+    "meddleOnGm": "tests-tier2.mjs: history - monocub.mjs's name until E33 C10 folded the abilities into cubAbilityOnGm, said so",
+    "missingTokens": "tests-tier1.mjs, tests-tier2.mjs: history - enterTrialScene's whisper until E81 DZ6 (12.10.2026), replaced by notPlaced, said so",
+    "onBallotCast": "tests-tier0.mjs: history - struck by E10 C2, a measured count of its places, said so",
+    "pickDue": "tests-tier2.mjs: history - roll-draw.mjs's name before E29 fix r1-G10, said so ('then')",
+    "propagateCrimeTieMany": "tests-tier0.mjs, tests-tier2.mjs: history - one of the roads E09 C2 folded into propagateVerdicts, said so",
+    "propagateRealType": "tests-tier0.mjs, tests-tier2.mjs: history - folded into propagateVerdicts by E09 C2, said so",
+    "spendRerollReceipt": "tests-tier0.mjs: history - the receipt's delegate until E08+E28 C8 retired it, said so",
+    "startMurderMusic": "tests-tier1.mjs: history - E19 C5's base reading of the murder music's start, replaced by createMurderOverlay, said so ('At Base')",
+    "stashDieOf": "tests-tier2.mjs: history - the Reroll's stash step, removed in 1.2.112 with the step, said so",
+    "vaultRoomsFor": "tests-tier1.mjs: the name E17's closing list gave a function that never existed, quoted to say so",
+    "watchNotice": "tests-tier0.mjs: history - the declaration C9's watchCard replaced (12.10.2026), said so"
   },
-  "files": {
-    "scripts/a11y.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/action-murder.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/action-observe.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/action-pipeline.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/action-project.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/api.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/boundary.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/bridge-asks.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/bridge-guards.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/bridge-table.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/call-pickers.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/camera-view.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/chrome.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/config.mjs": {
-      "citations": 5,
-      "doubledJsdoc": 0
-    },
-    "scripts/dh-settings.mjs": {
-      "citations": 3,
-      "doubledJsdoc": 0
-    },
-    "scripts/diagnostics.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/enforced.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
-    "scripts/facilities.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/float-text.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/floor-machine.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/fog-diagnostics.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/fog-reveal.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/fog.mjs": {
-      "citations": 4,
-      "doubledJsdoc": 0
-    },
-    "scripts/glass.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/gm-bridge.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/gm-items.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
-    "scripts/gm-stores.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/handbooks.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/hud.mjs": {
-      "citations": 4,
-      "doubledJsdoc": 0
-    },
-    "scripts/incident-store.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/iso-shield.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/level-up.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/live.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/monocub.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/monokuma.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/motion.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/movement-audit.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/movement.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/murder-rules.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/music-play.mjs": {
-      "citations": 4,
-      "doubledJsdoc": 0
-    },
-    "scripts/patches.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/private-rolls.mjs": {
-      "citations": 5,
-      "doubledJsdoc": 0
-    },
-    "scripts/projects-secrecy.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/projects-ui.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/projects.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/relay-guard.mjs": {
-      "citations": 6,
-      "doubledJsdoc": 0
-    },
-    "scripts/remnant-ring.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/remnants.mjs": {
-      "citations": 3,
-      "doubledJsdoc": 0
-    },
-    "scripts/reroll-receipts.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/reroll.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/resources.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/roll-dialog.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/roll-draw.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/search-tokens.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/season-setup.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/settings-window.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/settings.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/sfx-play.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/sheet-audit.mjs": {
-      "citations": 11,
-      "doubledJsdoc": 0
-    },
-    "scripts/sound-panel.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/states.mjs": {
-      "citations": 7,
-      "doubledJsdoc": 0
-    },
-    "scripts/tables-pools.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/trial-floor-ui.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/trial-scene.mjs": {
-      "citations": 3,
-      "doubledJsdoc": 0
-    },
-    "scripts/trial-speakers.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/truth-bullets.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/ui-kit.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/utils.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/visibility.mjs": {
-      "citations": 3,
-      "doubledJsdoc": 0
-    },
-    "scripts/voice-client.mjs": {
-      "citations": 6,
-      "doubledJsdoc": 0
-    },
-    "scripts/voice-panel.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/voice-tile.mjs": {
-      "citations": 3,
-      "doubledJsdoc": 0
-    },
-    "scripts/voice.mjs": {
-      "citations": 2,
-      "doubledJsdoc": 0
-    },
-    "scripts/sheet-repaint.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/sheet-fit.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/sheet-header.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/sheet-sidebar.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/sheet-actions.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/key-remnants.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/death.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    }
-  }
+  "files": {}
 }

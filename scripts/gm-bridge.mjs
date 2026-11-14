@@ -19,7 +19,7 @@
  *   bridge-table.mjs         BRIDGE_ACTIONS, the primary's listener
  *                            `onSocket`, which hands every packet to
  *                            `judge`, and `ask` (C5b);
- *   bridge-asks.mjs          every `requestX` and the asks that call `ask`
+ *   bridge-asks.mjs          every `request*` and the asks that call `ask`
  *                            (C5b).
  * This file keeps its name and every name it exported - those that moved are
  * re-exported under the imports - so every importer still imports

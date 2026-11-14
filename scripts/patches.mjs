@@ -1276,7 +1276,7 @@ const RELAY_FAILED = {
  * judged it. Every other state of the guard is failed, its fallback the guard's own; "idle" (not looked at
  * yet) is unknown. The inputs can be handed in (R1542).
  *
- * AND NO CATCH-ALL BEFORE IT (E52 fix round, line A; review SEC-2). socket.io's `onAny`/`prependAny` listeners
+ * AND NO CATCH-ALL BEFORE IT (E52 fix round, line A; review SEC-2). socket.io's `Socket#onAny`/`prependAny` listeners
  * run before every channel listener with the same packet - the guard's own backstop relies on it - so "first on
  * the channel" was not first. A catch-all listener other than the backstop makes an ok guard unknown, not failed:
  * such a listener may only read, and nothing here can tell. `any` is the socket's catch-alls, the backstop left out.

@@ -64,7 +64,7 @@ export function registerCameraView() {
      * resizing, and the dock being hidden - which `renderCameraViews` also
      * reports, as a render with nothing visible in it.
      *
-     * The second listener was `collapseCameraViews`, which Foundry 14 does not
+     * The second listener was `Hooks.on("collapseCameraViews")`, which Foundry 14 does not
      * call: the A9 design read v14's files on 11.10 (its CB-3 and REL7; external,
      * not re-read here) and found no such hook. E78 C2 put Foundry's own
      * `rtcSettingsChanged` in its place, as the design proposed: the dock's

@@ -341,7 +341,8 @@ function wireSections(root) {
 }
 
 /**
- * The Voice section for this browser's window (E49 A1d; look.mjs `wireVoice` until then): voice-panel.mjs's fieldset,
+ * The Voice section for this browser's window (E49 A1d; look.mjs `wireVoice` until d6680c1f, 11.11.2026, removed
+ * it): voice-panel.mjs's fieldset,
  * wired, where this world has voice to set (`voiceAvailable()`, voice-tile.mjs) - elsewhere null and voice-panel.mjs
  * never fetched. `available` and `build` stand in for those two imports, for the suite (R586), which runs where no
  * LiveKit is; the window passes neither.

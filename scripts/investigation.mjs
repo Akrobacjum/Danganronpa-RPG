@@ -161,7 +161,7 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
-                <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+                <select name="tied"${tipAttr("DRPG.Tips.Sweep.Case.tieTooltip")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
                     `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
             <label class="drpg-checkbox"><input type="checkbox" name="reinforced"${tipAttr("DRPG.Tips.Case.reinforcedTooltip")}${reinforced ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>`, `
@@ -732,7 +732,7 @@ function caseTraceFilters(traces, shown, reading) {
             esc(label)}</option>`;
     return `<div class="drpg-trace-filters">
         <label>${game.i18n.localize("DRPG.Investigation.filterOrder")}
-            <select name="traceOrder" data-drpg-filter="order">
+            <select name="traceOrder" data-drpg-filter="order"${tipAttr("DRPG.Tips.Sweep.Case.orderTooltip")}>
                 ${option("room", game.i18n.localize("DRPG.Investigation.orderRoom"), reading.order)}
                 ${option("newest", game.i18n.localize("DRPG.Investigation.orderNewest"), reading.order)}
             </select></label>
@@ -1066,11 +1066,11 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
        name under it, the same list the Map's summary shows. */
     return `<div class="drpg-case-live drpg-case-view" data-drpg-view="table"><form>
         ${kitTabs([
-            { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"),
+            { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"), tooltip: tipText("DRPG.Tips.Sweep.Case.remnantsTabTooltip"),
               html: caseTracesPanel({ traces, shown, finders, reading }) },
-            { key: "key", label: game.i18n.localize("DRPG.Investigation.tabKeyRemnants"),
+            { key: "key", label: game.i18n.localize("DRPG.Investigation.tabKeyRemnants"), tooltip: tipText("DRPG.Tips.Sweep.Case.keyTabTooltip"),
               html: caseKeyPanel({ plan, status, placed, limit }) },
-            { key: "final", label: game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"), html: caseFinalPanel({
+            { key: "final", label: game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"), tooltip: tipText("DRPG.Tips.Sweep.Case.finalTabTooltip"), html: caseFinalPanel({
             /* The Final Key Remnant is always an input - it is being placed, not
                read back - so it takes the plain lists: every room, none chosen,
                and Evident as the default. Every room of every place scene, each
@@ -1079,7 +1079,7 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
                and placed on the school's room of the name. */
             roomOptions: placeRoomOptions(), visOptions: visOptionsFor(null),
             finalRemnants, finalTruthPlacedThisChapter }) },
-            { key: "who", label: game.i18n.localize("DRPG.Investigation.whoHasWhat"),
+            { key: "who", label: game.i18n.localize("DRPG.Investigation.whoHasWhat"), tooltip: tipText("DRPG.Tips.Sweep.Case.whoTabTooltip"),
               html: `<div data-drpg-part="who">${caseStudentTable(students)}</div>` }
         ])}
     </form></div>`;
@@ -1311,7 +1311,8 @@ function schemaEditor(graph, node) {
     const name = field => `${base}:${field}`;
     const others = graph.nodes.filter(n => n.id !== node.id);
     const nameOf = n => n.label || (n.planned ? game.i18n.format("DRPG.CaseMap.slotNumber", { n: (n.slot ?? 0) + 1 }) : L("DRPG.CaseMap.noName"));
-    const box = (field, n, on) => `<label class="drpg-case-check"><input type="checkbox" name="${esc(name(`${field}:${n.id}`))}"${on ? " checked" : ""} /> `
+    const box = (field, n, on) => `<label class="drpg-case-check"><input type="checkbox" name="${esc(name(`${field}:${n.id}`))}"${field === "ref"
+        ? tipAttr("DRPG.Tips.Sweep.Case.refutesBoxTooltip") : tipAttr("DRPG.Tips.Sweep.Case.restsOnBoxTooltip")}${on ? " checked" : ""} /> `
         + `${esc(nameOf(n))}</label>`;
     const modes = [`<option value=""${node.mode ? "" : " selected"}>${esc(L("DRPG.CaseMap.noMode"))}</option>`,
         ...caseModes().map(m => `<option value="${esc(m)}"${m === node.mode ? " selected" : ""}>${esc(L(`DRPG.Floor.mode.${m}`))}</option>`)];
@@ -1343,11 +1344,11 @@ function schemaEditor(graph, node) {
             `<p class="drpg-case-info-note">${esc(said)}</p>`,
             count,
             editRow(L("DRPG.CaseMap.autopsyAt"), `<select name="${esc(name("atBody"))}"${tipAttr("DRPG.Tips.Case.autopsyAtTooltip")}>${bodies}</select>`),
-            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Sweep.Case.autopsyNameTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyNamePlaceholder"))}" />`),
-            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
+            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3"${tipAttr("DRPG.Tips.Sweep.Case.autopsyWordsTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyTextPlaceholder"))}">${esc(node.text)}</textarea>`),
-            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2">${esc(node.note ?? "")}</textarea>`)
+            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.autopsyNoteTooltip")}>${esc(node.note ?? "")}</textarea>`)
         ].join("");
     }
     if (node.kind === "bullet") {
@@ -1362,29 +1363,31 @@ function schemaEditor(graph, node) {
             .map(([v, k]) => `<option value="${v}"${v === (node.shown ?? "auto") ? " selected" : ""}>${esc(L(k))}</option>`).join("");
         const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (node.vis ?? "evident") ? " selected" : ""}>${
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
-        const check = (field, key, on) => editRow(L(key), `<input type="checkbox" name="${esc(name(field))}" aria-label="${esc(L(key))}"${on ? " checked" : ""} />`);
+        const check = (field, key, on) => editRow(L(key), `<input type="checkbox" name="${esc(name(field))}" aria-label="${esc(L(key))}"${field === "faint"
+            ? tipAttr("DRPG.Tips.Sweep.Case.bulletFaintTooltip") : field === "tied" ? tipAttr("DRPG.Tips.Sweep.Case.bulletTiedTooltip")
+            : tipAttr("DRPG.Tips.Sweep.Case.bulletTellTooltip")}${on ? " checked" : ""} />`);
         const recipients = `<option value=""${node.recipient ? "" : " selected"}>${esc(L("DRPG.CaseMap.noRecipient"))}</option>`
             + studentActors().map(a => `<option value="${esc(a.id)}"${a.id === node.recipient ? " selected" : ""}>${esc(a.name)}</option>`).join("")
             // every living student, a copy each (1.2.113; config.mjs `RECIPIENT_EVERYONE`)
             + `<option value="${RECIPIENT_EVERYONE}"${node.recipient === RECIPIENT_EVERYONE ? " selected" : ""}>${esc(L("DRPG.Items.everyone"))}</option>`;
         return [
             ...(node.sent ? [`<p class="drpg-case-info-note">${esc(L("DRPG.CaseMap.bulletGiven"))}</p>`] : []),
-            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Sweep.Case.bulletNameTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.namePlaceholder"))}" />`),
             editRow(L("DRPG.TruthBullet.realType"), `<select name="${esc(name("realType"))}"${tipAttr("DRPG.Tips.Gm.whatItReallyIsTooltip")}>${types}</select>`),
             editRow(L("DRPG.TruthBullet.shown"), `<select name="${esc(name("shown"))}"${tipAttr("DRPG.Tips.Gm.whatThePlayerIsTooltip")}>${shown}</select>`),
             editRow(L("DRPG.TruthBullet.visibility"), `<select name="${esc(name("vis"))}"${tipAttr("DRPG.Tips.Gm.howHardTheOriginalTooltip")}>${vis}</select>`),
             check("faint", "DRPG.TruthBullet.faintField", node.faint === true),
             check("tied", "DRPG.TruthBullet.tiedField", node.tied === true),
-            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="2" placeholder="${
+            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.bulletWordsTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(node.text)}</textarea>`),
-            editRow(L("DRPG.TruthBullet.analyzedText"), `<textarea name="${esc(name("analysis"))}" rows="2" placeholder="${
+            editRow(L("DRPG.TruthBullet.analyzedText"), `<textarea name="${esc(name("analysis"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.bulletAnalysisTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
-            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
+            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.bulletNoteTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.gmNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
             editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(node.img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(node.img ?? "")}" data-drpg-drawn="${esc(node.img ?? "")}" />`),
-            editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}">${recipients}</select>`),
+            editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}"${tipAttr("DRPG.Tips.Sweep.Case.bulletRecipientTooltip")}>${recipients}</select>`),
             check("tell", "DRPG.Items.tellPlayer", node.tell !== false),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}"${tipAttr("DRPG.Tips.Case.giveFromPlanTooltip")}>${
                 esc(L("DRPG.TruthBullet.give"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
@@ -1408,7 +1411,7 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.Investigation.notePlaceholder"))}">${esc(node.text)}</textarea>`),
             editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2"${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
-            editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
+            editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.finalNoteTooltip")} placeholder="${
                 esc(L("DRPG.Investigation.finalNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
             editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
@@ -1436,7 +1439,7 @@ function schemaEditor(graph, node) {
             editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}"${tipAttr("DRPG.Tips.Case.kindWhatItReallyTooltip")}>${types}</select>`),
             editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(node.author || null, studentActors())}</select>`),
             editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${vis}</select>`),
-            editRow(L("DRPG.Investigation.newTraceTied"), `<select name="${esc(name("tie"))}">${ties}</select>`),
+            editRow(L("DRPG.Investigation.newTraceTied"), `<select name="${esc(name("tie"))}"${tipAttr("DRPG.Tips.Sweep.Case.tieTooltip")}>${ties}</select>`),
             editRow(L("DRPG.Investigation.newTraceReinforced"), `<input type="checkbox" name="${esc(name("reinforced"))}"${tipAttr("DRPG.Tips.Case.reinforcedTooltip")} aria-label="${
                 esc(L("DRPG.Investigation.newTraceReinforced"))}"${node.reinforced ? " checked" : ""} />`),
             editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Case.nameTooltip")} maxlength="60" placeholder="${
@@ -1476,7 +1479,7 @@ function zoneRows(node, name) {
     const L = key => game.i18n.localize(key);
     const z = TRIAL.modes.zones;
     const row = (modes, label, field) => `<div data-drpg-zone-for="${modes.join(" ")}"${modes.includes(node.mode) ? "" : " hidden"}>${editRow(label, field)}</div>`;
-    const text = (field, max) => `<input type="text" name="${esc(name(field))}" value="${esc(node[field] ?? "")}" maxlength="${max}" />`;
+    const text = (field, max) => `<input type="text" name="${esc(name(field))}" value="${esc(node[field] ?? "")}" maxlength="${max}"${tipAttr("DRPG.Tips.Sweep.Case.zonePlanTooltip")} />`;
     const sets = Object.entries(diveSetStore.entries() ?? {}).filter(([, s]) => Array.isArray(s?.questions))
         .map(([id, s]) => `<option value="${esc(id)}"${id === node.diveSet ? " selected" : ""}>${esc(s.name ?? id)} (${s.questions.length})</option>`).join("");
     const gone = node.diveSet && !diveSetStore.get(node.diveSet) ? `<option value="${esc(node.diveSet)}" selected>${esc(L("DRPG.CaseMap.diveSetGone"))}</option>` : "";
@@ -1486,7 +1489,7 @@ function zoneRows(node, name) {
         row(["straw", "scrum"], L("DRPG.Zones.picker.b"), text("zoneB", z.answerLength)),
         row(["scrum"], L("DRPG.Zones.picker.thesis"), text("zoneThesis", z.scrum.thesisLength)),
         row(["dive"], L("DRPG.Zones.picker.set"), `<select name="${esc(name("diveSet"))}"${tipAttr("DRPG.Tips.Trial.setTooltip")}><option value="">${esc(L("DRPG.CaseMap.noDiveSet"))}</option>${gone}${sets}</select>`
-            + ` <button type="button" data-drpg-dive-sets>${esc(L("DRPG.Zones.picker.editSets"))}</button>`)
+            + ` <button type="button" data-drpg-dive-sets${tipAttr("DRPG.Tips.Sweep.Case.diveSetsTooltip")}>${esc(L("DRPG.Zones.picker.editSets"))}</button>`)
     ];
 }
 
@@ -2030,7 +2033,7 @@ async function placePlannedFinal(chapter, id, row) {
         const answer = await drpgWindow({
             title: L("DRPG.CaseMap.finalAskRoomTitle"),
             classes: ["drpg-panel", "drpg-window-final-room"],
-            body: `<form><label>${esc(L("DRPG.Investigation.room"))}<select name="room"><option value="">${esc(L("DRPG.Mastermind.finalPickRoom"))}</option>${
+            body: `<form><label>${esc(L("DRPG.Investigation.room"))}<select name="room"${tipAttr("DRPG.Tips.Sweep.Case.finalRoomAskTooltip")}><option value="">${esc(L("DRPG.Mastermind.finalPickRoom"))}</option>${
                 placeRoomOptions()}</select></label></form>`,
             footer: { primary: { action: "place", label: L("DRPG.Investigation.finalAskPlace"), callback: (e, b, d) => {
                 const select = d.element.querySelector('[name="room"]');

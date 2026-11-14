@@ -213,8 +213,9 @@ const GIVE_FROM_WORDS = Object.freeze({
 /* A bar of the Give tab, named by the words before it. */
 function giveChoiceBar(kind, labelKey, modes, active) {
     const id = `drpg-give-${kind}-label`;
+    const bar = modeBar(modes, { active });
     return `<div class="drpg-give-choice" data-drpg-give-${kind}><span class="drpg-give-choice-label" id="${id}">${
-        esc(game.i18n.localize(labelKey))}</span>${modeBar(modes, { active }).replace('role="toolbar"', `role="toolbar" aria-labelledby="${id}"`)}</div>`;
+        esc(game.i18n.localize(labelKey))}</span>${bar.replace('role="toolbar"', `role="toolbar" aria-labelledby="${id}"`)}</div>`;
 }
 
 /* The Give tab's body: the two bars, the five panes (the one `state` names shown), the tell switch and the notes. */
@@ -232,8 +233,10 @@ function hubGivePane(ctx) {
             { full: `<p class="notes">${L("DRPG.Vault.giveKeyNote")}</p>` }])
         : `<p class="notes">${L("DRPG.Vault.noKeysToGive")}</p>`;
     const note = (what, key) => `<p class="notes" data-drpg-give-note="${what}"${state.what === what ? "" : " hidden"}>${L(key)}</p>`;
-    return giveChoiceBar("what", "DRPG.Items.giveWhat", GIVE_WHATS.map(([key, label]) => ({ key, label: L(label) })), state.what)
-        + giveChoiceBar("from", "DRPG.Items.giveFrom", [{ key: "existing", label: L(words[0]) }, { key: "create", label: L(words[1]) }], state.from)
+    const whatTips = { item: tipText("DRPG.Tips.Sweep.Gm.giveWhatItemTooltip"), bullet: tipText("DRPG.Tips.Sweep.Gm.giveWhatBulletTooltip"), key: tipText("DRPG.Tips.Sweep.Gm.giveWhatKeyTooltip") };
+    return giveChoiceBar("what", "DRPG.Items.giveWhat", GIVE_WHATS.map(([key, label]) => ({ key, label: L(label), tooltip: whatTips[key] })), state.what)
+        + giveChoiceBar("from", "DRPG.Items.giveFrom", [{ key: "existing", label: L(words[0]), tooltip: tipText("DRPG.Tips.Sweep.Gm.giveFromExistingTooltip") },
+            { key: "create", label: L(words[1]), tooltip: tipText("DRPG.Tips.Sweep.Gm.giveFromCreateTooltip") }], state.from)
             .replace("data-drpg-give-from", `data-drpg-give-from${state.what === "key" ? " hidden" : ""}`)
         + pane("item:existing", items.existing) + pane("item:create", items.create)
         + pane("bullet:existing", bulletExistingPane(bullets.traces, who, bullets.traceContextLine))
@@ -671,7 +674,7 @@ function giveExistingPane(catalogue, categories, tiers) {
             { label: game.i18n.localize("DRPG.Items.pickTable"), id: "drpg-give-ex-table",
               field: `<select name="exTable" id="drpg-give-ex-table"${tipAttr("DRPG.Tips.Gm.whichTableTooltip")}>${tableOptions}</select>` },
             { label: game.i18n.localize("DRPG.Items.pickExisting"), id: "drpg-give-ex-item",
-              field: `<select name="exItem" id="drpg-give-ex-item">${giveItemOptionsFor(catalogue[0])}</select>` },
+              field: `<select name="exItem" id="drpg-give-ex-item"${tipAttr("DRPG.Tips.Sweep.Gm.whichItemFromTableTooltip")}>${giveItemOptionsFor(catalogue[0])}</select>` },
             { label: game.i18n.localize("DRPG.Items.category"), id: "drpg-give-ex-category",
               field: `<select name="exCategory" id="drpg-give-ex-category" aria-describedby="drpg-give-to-set">${EX_UNSET}${categories}</select>` },
             { full: kindNote("exCategory") },
@@ -704,11 +707,11 @@ function giveCreatePane({ categories, tiers, suggestions }) {
         { label: game.i18n.localize("DRPG.Items.tier"), id: "drpg-give-tier", field: `<select name="tier" id="drpg-give-tier"${tipAttr("DRPG.Tips.Gm.tierTooltip")}>${tiers}</select>` },
         { label: game.i18n.localize("DRPG.Items.name"), id: "drpg-give-name",
           field: `<input type="text" name="name" id="drpg-give-name" list="drpg-item-names"
-                       placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}" /><datalist id="drpg-item-names">${
+                       placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Gm.itemNameTooltip")} /><datalist id="drpg-item-names">${
                 suggestions.map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>` },
         { label: game.i18n.localize("DRPG.Items.description"), id: "drpg-give-description",
           field: `<textarea name="description" id="drpg-give-description" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea>` },
+                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Gm.itemDescriptionTooltip")}></textarea>` },
         { full: `<span class="drpg-role-picker" data-drpg-roles>
                 <span class="drpg-role-label">${game.i18n.localize("DRPG.Items.alsoServesAs")}</span>
                 ${EQUIPPABLE.map(key => `<label class="drpg-check"><input type="checkbox"
@@ -727,7 +730,8 @@ function kindNote(field) {
 function recipientRows(recipients, noteKey, prefix, { tell = true } = {}) {
     return formGrid([
         { label: game.i18n.localize("DRPG.Items.recipient"), id: `${prefix}-recipient`,
-          field: `<select name="recipient" id="${prefix}-recipient">${recipients}</select>` },
+          field: `<select name="recipient" id="${prefix}-recipient"${tipAttr(prefix === "drpg-bullet"
+              ? "DRPG.Tips.Sweep.Gm.recipientBulletTooltip" : "DRPG.Tips.Sweep.Gm.recipientItemTooltip")}>${recipients}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="tell"${tell ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>` },
@@ -1058,9 +1062,9 @@ export async function gmGiveItemDialog(actor) {
         // sit below the tabs because they are true of both.
         body: `<form>${kitTabs([
             { key: "existing", label: game.i18n.localize("DRPG.Items.tabGiveExisting"),
-              html: parts.existing },
+              html: parts.existing, tooltip: tipText("DRPG.Tips.Sweep.Gm.tabGiveExistingTooltip") },
             { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"),
-              html: parts.create }
+              html: parts.create, tooltip: tipText("DRPG.Tips.Sweep.Gm.tabCreateNewTooltip") }
         ])}${recipientRows(recipients, "DRPG.Items.overCapNote", "drpg-give")}</form>`,
         render: (event, dialog) => { wireGiveForm(dialog); wireKindNotes(dialog); },
         footer: {
@@ -1147,25 +1151,6 @@ function visibilityOptions(selected = "evident") {
         }</option>`).join("");
 }
 
-/**
- * Hand one Truth Bullet over - copied from a trace, or written out by hand.
- *
- * TWO TABS, AND THE FIRST ONE IS THE HONEST ROUTE (Dawid, 31.08).
- *
- * Writing the bullet out was the only way through here, and it is the one way
- * that can disagree with the map: the GM retypes a name the Remnant already
- * has, picks a visibility it already carries, and the result comes out
- * unattached. No `remnantId` means the marker stays hidden from the person now
- * holding evidence of it, and nothing ever ties the bullet to the trace it
- * documents - not the Investigation dashboard, not the trial's evidence card.
- *
- * Observe has never done it that way: it reads the trace and hands over what
- * the trace says. So does this pane, with the same fields in the same order, so
- * a bullet given by hand and a bullet found by rolling are the same object.
- *
- * Writing one by hand stays, because a GM inventing evidence that is not on the
- * map yet is a real thing to want.
- */
 /** The traces on the scene as options, marking the ones this student already holds a copy of. */
 function bulletTraceOptions(traces, who, traceContextLine) {
         const copied = copiedRemnants(who);
@@ -1221,9 +1206,11 @@ function bulletCreatePane(fill = null, { nameField = "name" } = {}) {
     const f = fill ?? {};
     const row = (key, id, field) => ({ label: game.i18n.localize(key), id, field });
     const text = (name, key, value = "") => `<textarea name="${name}" id="drpg-bullet-${name}" rows="2"
-                    placeholder="${game.i18n.localize(key)}">${esc(value ?? "")}</textarea>`;
+                    placeholder="${game.i18n.localize(key)}"${tipAttr({ playerText: "DRPG.Tips.Sweep.Gm.playerTextTooltip",
+                        analyzedText: "DRPG.Tips.Sweep.Gm.analyzedTextTooltip", gmNote: "DRPG.Tips.Sweep.Gm.gmNoteTooltip" }[name])}>${esc(value ?? "")}</textarea>`;
     const check = (name, key, on = false) => ({ full: `<label class="drpg-checkbox">
-                <input type="checkbox" name="${name}"${on ? " checked" : ""} />
+                <input type="checkbox" name="${name}"${on ? " checked" : ""}${tipAttr({ faint: "DRPG.Tips.Sweep.Gm.faintTooltip",
+                    tied: "DRPG.Tips.Sweep.Gm.tiedTooltip" }[name])} />
                 ${game.i18n.localize(key)}</label>` });
     return formGrid([
         row("DRPG.TruthBullet.name", "drpg-bullet-name", `<input type="text" name="${nameField}" id="drpg-bullet-name" value="${esc(f.label ?? "")}"
@@ -1461,6 +1448,25 @@ export async function giveBullet(who, payload) {
         payload?.remnantId && copiedRemnants(who).has(payload.remnantId) ? GIVEN_ALREADY : createTruthBullet(who, payload));
 }
 
+/**
+ * Hand one Truth Bullet over - copied from a trace, or written out by hand.
+ *
+ * TWO TABS, AND THE FIRST ONE IS THE HONEST ROUTE (Dawid, 31.08).
+ *
+ * Writing the bullet out was the only way through here, and it is the one way
+ * that can disagree with the map: the GM retypes a name the Remnant already
+ * has, picks a visibility it already carries, and the result comes out
+ * unattached. No `remnantId` means the marker stays hidden from the person now
+ * holding evidence of it, and nothing ever ties the bullet to the trace it
+ * documents - not the Investigation dashboard, not the trial's evidence card.
+ *
+ * Observe has never done it that way: it reads the trace and hands over what
+ * the trace says. So does this pane, with the same fields in the same order, so
+ * a bullet given by hand and a bullet found by rolling are the same object.
+ *
+ * Writing one by hand stays, because a GM inventing evidence that is not on the
+ * map yet is a real thing to want.
+ */
 export async function giveTruthBulletDialog(actor, { scenes: only = null, fill = null } = {}) {
 
     const students = studentActors();
@@ -1485,9 +1491,9 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
         // the line saying so, and the window opened there with Give a Truth Bullet live under it.
         body: `<form>${kitTabs([
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
-              html: existingPane },
+              html: existingPane, tooltip: tipText("DRPG.Tips.Sweep.Gm.tabFromRemnantTooltip") },
             { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),
-              html: bulletCreatePane(fill) }
+              html: bulletCreatePane(fill), tooltip: tipText("DRPG.Tips.Sweep.Gm.tabWriteNewTooltip") }
             /* a planned Truth Bullet (E104) opens on Write new, filled in, its recipient and Tell as planned */
         ], { active: fill || !traces.length ? "create" : "existing" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet", { tell: fill?.tell ?? true })}</form>`,
         render: (event, dialog) => wireBulletForm(dialog, traces, traceContextLine),
@@ -1627,7 +1633,7 @@ export async function issueAutopsyDialog() {
     const rows = actors.map(a => {
         const dead = isDeadForGm(a);
         return `<label class="drpg-checkbox">
-            <input type="checkbox" name="target" value="${a.id}"${dead ? "" : " checked"} />
+            <input type="checkbox" name="target" value="${a.id}"${dead ? "" : " checked"}${tipAttr("DRPG.Tips.Sweep.Gm.autopsyTargetTooltip")} />
             ${foundry.utils.escapeHTML(a.name)}${
                 dead ? ` - <em>${game.i18n.localize("DRPG.Chapter.deadShort")}</em>` : ""
             }</label>`;
@@ -1659,10 +1665,10 @@ export async function issueAutopsyDialog() {
                        placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyNamePlaceholder")}" /></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
                 <textarea name="playerText" rows="3"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyTextPlaceholder")}">${foundry.utils.escapeHTML(fill.text ?? "")}</textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyTextPlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Gm.autopsyTextTooltip")}>${foundry.utils.escapeHTML(fill.text ?? "")}</textarea></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
                 <textarea name="gmNote" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}">${foundry.utils.escapeHTML(fill.note ?? "")}</textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Gm.gmNoteTooltip")}>${foundry.utils.escapeHTML(fill.note ?? "")}</textarea></label>
             <fieldset><legend>${game.i18n.localize("DRPG.TruthBullet.autopsyWho")}</legend>${rows}</fieldset>
         </form>`,
         footer: {
@@ -1790,9 +1796,9 @@ async function takeItemDialog(actor, { only = null } = {}) {
         classes: ["drpg-panel", "drpg-window-take"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Items.takeFromWhom")}
-                <select name="recipient">${recipients}</select></label>
+                <select name="recipient"${tipAttr("DRPG.Tips.Sweep.Gm.takeFromWhomTooltip")}>${recipients}</select></label>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
-                <select name="item">${optionsFor(initial)}</select></label>
+                <select name="item"${tipAttr("DRPG.Tips.Sweep.Gm.whichItemToTakeTooltip")}>${optionsFor(initial)}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="tell" checked${tipAttr("DRPG.Tips.Gm.tellThePlayerTooltip")} />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>

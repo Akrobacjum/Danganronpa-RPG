@@ -358,7 +358,7 @@ export function shownTab(root) {
  *
  * HIDDEN IS NOT ENOUGH FOR A FOOTER BUTTON, AND THAT IS THE WHOLE TRAP (utils.mjs's `wirePanelTabs`, measured against
  * DialogV2 on 14.365, which this replaces): the footer's buttons are `type="submit"` inside the dialog's form and
- * `_onKeyDown` intercepts Escape only, so Enter goes through the browser's implicit submission, which picks the first
+ * `DialogV2#_onKeyDown` intercepts Escape only, so Enter goes through the browser's implicit submission, which picks the first
  * submit button in tree order whether or not it shows; `autofocus` does not decide it either. So a button another
  * tab owns is hidden AND disabled - a disabled first submit button makes Enter do nothing at all (the spec does not
  * fall through to the next one; E44-T5 reads it so), where a hidden one alone would be pressed - and
@@ -849,8 +849,9 @@ export function readStepper(el, options = {}) {
     return wholeNumber(input.value, { min: bound(input.min, -Infinity), max: bound(input.max, Infinity), fallback });
 }
 
-/* One step of a stepper and its message line (chrome.mjs `step` and `dressNumberField`'s check until E44 C4b, the same
-   rules): the step inside `min` and `max`, an empty field starting from `min` (or 0), `input` and `change` as a keystroke
+/* One step of a stepper and its message line (chrome.mjs `step` and `dressNumberField`'s check until E44 C4b,
+   04.11.2026, which removed both from chrome.mjs; the same rules): the step inside `min` and `max`, an empty
+   field starting from `min` (or 0), `input` and `change` as a keystroke
    sends them; the line under the field only while the value is out of range. */
 function wireStepper(wrap) {
     if (wrap.dataset.drpgKitWired) return;
@@ -1001,13 +1002,15 @@ export function emptyOption(key, { selected = false, disabled = false } = {}) {
 }
 
 /**
- * A row of modes, the active one pressed (E70's trial console, E47): `modes` `[{ key, label }]`, labels text.
- * `wireKit` presses the one clicked and calls the window's `onMode(key)` when it has one.
+ * A row of modes, the active one pressed (E70's trial console, E47): `modes` `[{ key, label, tooltip? }]`, labels text.
+ * `wireKit` presses the one clicked and calls the window's `onMode(key)` when it has one. A mode's `tooltip` (words, as
+ * a tab section's) is its button's data-tooltip, and a mode without one draws as before (the tooltip sweep, 1.2.115: the
+ * GM panel's Give bars had their tooltips patched into this markup by string until the kit drew them).
  */
 export function modeBar(modes, { active = null } = {}) {
     const on = modes.some(m => m.key === active) ? active : modes[0]?.key;
     return `<div class="drpg-mode-bar" role="toolbar">${modes.map(m =>
-        `<button type="button" data-drpg-mode="${esc(m.key)}" aria-pressed="${m.key === on}">${esc(m.label)}</button>`).join("")}</div>`;
+        `<button type="button" data-drpg-mode="${esc(m.key)}" aria-pressed="${m.key === on}"${m.tooltip ? ` data-tooltip="${esc(m.tooltip)}"` : ""}>${esc(m.label)}</button>`).join("")}</div>`;
 }
 
 /** Wire every stepper inside `root` (idempotent per stepper): `wireKit`'s, and chrome.mjs `dressChrome`'s on every window. */

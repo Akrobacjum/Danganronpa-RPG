@@ -601,7 +601,7 @@ function lockDice(root) {
  *   the Call is FOR, so nothing is narrowed.
  *
  * There was a second until 1.2.66: an action could open the door part-way, and
- * Search offered Eye or Hand through a one-window handoff (`allowTraitsForNextRoll`).
+ * Search offered Eye or Hand through a one-window handoff (`allowTraitsForNextRoll`, removed in 1.2.66).
  * By the owner's rule of 28.09.2026 a Search rolls Eye alone, and no other roll
  * outside the incident leaves a choice (E32+E07 C11d), so the handoff went with it.
  *
@@ -932,7 +932,7 @@ function audienceOf(mode, actor) {
 /*
  * A WINDOW WITH NOTHING IN IT USED TO PRESS ITS OWN BUTTON, AND NO LONGER DOES.
  *
- * `maybeRollItself` lived here. With the lock on and no Call armed the dialog
+ * `maybeRollItself` lived here until 28.08 (removed, below). With the lock on and no Call armed the dialog
  * offers a student nothing - the dice are fixed by the guide, the trait was
  * chosen before the window opened, advantage is not self-served, the
  * experiences are greyed out, the bonus field is disabled and the roll mode is

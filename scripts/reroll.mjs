@@ -2040,7 +2040,7 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
  * C4a moved the edit onto this client and C8 took the guard away with the receipts, so nothing
  * asked it: the review's probe 99c rerolled a Search 14 into 3 and the trace already copied
  * into another student's bullet was deleted. The same question is asked here, with the guard's
- * readings (a14db4e bridge-guards.mjs `guardRemnantEditReceipt`). On a refusal the trace stays,
+ * readings (bridge-guards.mjs `guardRemnantEditReceipt` as a14db4e held it, the guard C8 removed). On a refusal the trace stays,
  * the row keeps naming it, the card says it could not be adjusted (not why: who found a trace is
  * not the roller's to learn), and the GMs are told which trace and the new total, the reason in
  * the console. A trace that is gone is not asked about; the retune finds nothing, as before.

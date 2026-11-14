@@ -150,9 +150,9 @@ function onRenderCountdowns(app, element) {
  * THE TRAY'S OWN CONTROLS ON A PROJECT ROW (E36 C2)
  * --------------------------------------------------------------------------
  * 25.10.2026; audit S17-18, S09-36. Daggerheart 2.10.5's tray writes the
- * Countdowns setting itself: its -/+ (`editCountdown`, read from the row's
+ * Countdowns setting itself: its -/+ (`DhCountdowns#editCountdown`, read from the row's
  * `data-countdown`) and its menu's Delete (`countdown.delete()`) whole, outside
- * the module's queue, and its Reveal and Hide (`toggleVisibility`) flip a
+ * the module's queue, and its Reveal and Hide (`DhCountdowns#toggleVisibility`) flip a
  * `hidden` the module's secrecy does not read. On a GM's tray a project row's
  * -/+ is one change of the entry, by addProgress, and its Delete is
  * deleteProject; Reveal and Hide are not offered on it - who sees a project is
@@ -340,7 +340,7 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
             project: p.id,
             title: `${esc(p.name)}<br><small data-drpg-progress="${p.id}"
                 >${projectLabel(p, { name: false })}</small>`,
-            room: `<select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
+            room: `<select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}"${tipAttr("DRPG.Tips.Actions.room2Tooltip")}>${
                 roomSelectOptions(rooms, roomOf(p.id) ?? "")}</select>`,
             murder: `<input type="checkbox" name="murder.${p.id}" aria-label="${rowName("DRPG.Project.indirect", p)}"
                        ${isIndirectMurder(p.id) ? "checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderAProjectTooltip")} />`,
@@ -657,9 +657,9 @@ export async function openProjectManager() {
         body: content,
         // Save still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
         footer: {
-            primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), callback: (e, b, d) => readManager(d, projects) },
+            primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), tooltip: tipText("DRPG.Tips.Sweep.Actions.saveManagerTooltip"), callback: (e, b, d) => readManager(d, projects) },
             secondary: [
-                { action: "new", label: game.i18n.localize("DRPG.Project.createButton") },
+                { action: "new", label: game.i18n.localize("DRPG.Project.createButton"), tooltip: tipText("DRPG.Tips.Sweep.Actions.createFromManagerTooltip") },
                 { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.shareTooltip") }
             ],
             close: { role: "cancel", action: "cancel" }
@@ -1016,11 +1016,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <label>${t("DRPG.Project.name")}
                     <input type="text" name="name" autofocus
                            value="${esc(start?.name ?? "")}"
-                           placeholder="${t("DRPG.Project.namePlaceholder")}" /></label>
+                           placeholder="${t("DRPG.Project.namePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Actions.projectNameTooltip")} /></label>
             </div>` },
         descriptionField(start?.description ?? ""),
         { full: glyphGrid(start?.glyph ?? null) },
-        { label: t("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${offScale}${scaleOptions}</select>` },
+        { label: t("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${offScale}${scaleOptions}</select>` },
         { label: t("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.room2Tooltip")}>${roomOptions}</select>` },
         { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWork2Tooltip")}>${traitOptions}</select>` },
         { full: `<label class="drpg-checkbox">
@@ -1612,7 +1612,7 @@ function viewerBoxes(players, checked, projectId = null, { locked = false } = {}
     const name = projectId ? `viewers.${projectId}` : "viewers";
     const known = new Set(checked);
     return players.map(user => `<label class="drpg-inline-check">
-        <input type="checkbox" name="${name}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${locked ? " disabled" : ""} />
+        <input type="checkbox" name="${name}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${locked ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.aPlayerSOnTooltip", null, { title: true })} />
         ${foundry.utils.escapeHTML(user.name)}</label>`).join(" ");
 }
 
@@ -1658,9 +1658,9 @@ export async function openShareDialog(preselectId = null) {
         body: `<form>
             <p>${game.i18n.localize("DRPG.Project.shareIntro")}</p>
             <label>${game.i18n.localize("DRPG.Project.title")}
-                <select name="project">${projectOptions}</select></label>
+                <select name="project"${tipAttr("DRPG.Tips.Sweep.Actions.shareProjectTooltip")}>${projectOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Project.player")}
-                <select name="player">${playerOptions}</select></label>
+                <select name="player"${tipAttr("DRPG.Tips.Sweep.Actions.sharePlayerTooltip")}>${playerOptions}</select></label>
         </form>`,
         footer: {
             primary: { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.share2Tooltip"), callback: (e, b, d) => read(d, false) },

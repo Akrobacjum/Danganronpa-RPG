@@ -15,7 +15,7 @@ import { isStashed, categoriesInGroup, isBroken, countInGroup } from "./inventor
 import { isEquipped, isUsable, usedCreatively, isEquippable, noDiscardNow } from "./use-items.mjs";
 import { sceneOfActor, roomOfActor } from "./movement.mjs";
 import { GM_ROUTE_CLASS, error } from "./utils.mjs";
-import { drpgConfirm } from "./ui-kit.mjs";
+import { drpgConfirm, setTip } from "./ui-kit.mjs";
 import { modeOf, rowGate, sheetMode } from "./sheet-mode.mjs";
 import { dropTab, wearMarkup, classSafe, bulletBadges } from "./sheet-item.mjs";
 import { itemTags, guardRow, GEAR_GROUP, INVENTORY_GROUPS } from "./sheet-sidebar.mjs";
@@ -366,6 +366,7 @@ function buildOpenStashSection(box, actor, app) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "drpg-action-button drpg-rifle-button";
+    setTip(button, "DRPG.Tips.Sweep.More.rifleStashTooltip");
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
         <span class="drpg-action-name">${game.i18n.localize("DRPG.Vault.rifle")}</span>`;
     button.addEventListener("click", async () => {
@@ -799,6 +800,7 @@ function bulletSortSwitch(app) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = `drpg-bullet-sort-button${mode === key ? " is-on" : ""}`;
+        setTip(button, key === "room" ? "DRPG.Tips.Sweep.More.bulletsByRoomTooltip" : "DRPG.Tips.Sweep.More.bulletsByChapterTooltip");
         /* `aria-pressed` rather than a disabled button for the one that is on: a
            reader has to be able to move onto it to hear which of the two is
            chosen, and a disabled control is not in the tab order. */

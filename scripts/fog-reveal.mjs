@@ -189,9 +189,10 @@ export function findLayer() {
  * triggers this animation is also the write that triggers a repaint, roughly
  * 120ms later. So the reveal was killed about a fifth of the way in, every
  * time, and `CanvasAnimation` went on ticking against a destroyed Graphics:
- * "Cannot read properties of null (reading 'clear')" out of `SmoothGraphics`,
- * once a frame, for the rest of the run. `FX_GROUP` is exempt from that
- * clearing, and every `ontick` checks `destroyed` before touching anything.
+ * "Cannot read properties of null (reading 'clear')" out of
+ * `PIXI.smooth.SmoothGraphics`, once a frame, for the rest of the run.
+ * `FX_GROUP` is exempt from that clearing, and every `ontick` checks
+ * `destroyed` before touching anything.
  *
  * It subtracts with ERASE into a render texture rather than with a mask. A
  * Graphics mask that is also a child of the display list renders twice - once

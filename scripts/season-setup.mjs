@@ -231,7 +231,7 @@ const lastRoomChecks = new Map();
 function roomGuideHtml() {
     return `<div class="drpg-room-guide">
         <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
-        <p><button type="button" data-drpg-check>${
+        <p><button type="button" data-drpg-check${tipAttr("DRPG.Tips.Sweep.Setup.checkRoomsTooltip")}>${
             foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.checkRooms"))}</button></p>
         <div data-drpg-check-out class="drpg-room-check"></div>
     </div>`;
@@ -1431,7 +1431,7 @@ async function askStartHere() {
         classes: ["drpg-panel", "drpg-window-start-here"],
         title: game.i18n.localize("DRPG.Season.startHereTitle"),
         body: `<p>${esc(game.i18n.localize("DRPG.Season.startHereText"))}</p>`,
-        footer: { primary: { action: "open", label: game.i18n.localize("DRPG.Season.title") }, close: { role: "close", action: "close" } },
+        footer: { primary: { action: "open", label: game.i18n.localize("DRPG.Season.title"), tooltip: tipText("DRPG.Tips.Sweep.Setup.startHereOpenTooltip") }, close: { role: "close", action: "close" } },
         rejectClose: false
     });
     if (answer === "open") await openSeasonSetup();
@@ -1487,7 +1487,8 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 
     const anon = await auditAnonymity({ toChat: false });
-    // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
+    // E78 C5 (the owner's Q11, the A9 design's "avVideo", here voice-tile.mjs `videoUnwatched`): a world in
+    // audio-and-video mode sends every camera while
     // the voice tile stands in for the dock, which shows none of them. E20 C3 (amend 11.10): the two worlds where the
     // tile the GM switched on cannot stand - A/V off, and video alone. A row only when one is so; each a warning (the
     // GM decides: the tile, or Foundry's A/V), keyed by its sentence's key.
@@ -1505,7 +1506,8 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
 
     /* ONE CHECKLIST A PART (E46-C5b, 09.11.2026; card M4: "red only for a blocking row"). The dice look, the room
        pictures and the voice are built here from data (the cast and the scenes, read as marked text through
-       `markedChecks` until E101, are the checklist's rows now; `markedChecks` stays for R2033's reading). The anonymity audit stays the audit's own markup with its
+       `markedChecks` until E101, are the checklist's rows now; `markedChecks`, kept after that for R2033 though R2033 reads
+       `preSessionReport`, went in E56 part 2, 14.11.2026). The anonymity audit stays the audit's own markup with its
        marks (`checkMarks`, R1530): anonymity.mjs `wireAnonymityFix` draws it again in place after "Set them to Observer". */
     return `<div>
             ${pictures}
@@ -1519,29 +1521,6 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
 function checkPart(part, heading, body) {
     return `<section class="drpg-check-part" data-drpg-check-part="${part}">${
         heading ? `<h3>${foundry.utils.escapeHTML(heading)}</h3>` : ""}${body}</section>`;
-}
-
-/**
- * A report of marked text as the kit's checks (E46-C5b): a line marked "✓ " a `done` row, "✗ " a `crossed` row
- * (blocking unless handed otherwise), an unmarked line under a row (indented: a fix, a reason) that row's detail, and an
- * unmarked line elsewhere (the report's header, "no scene has rooms") fine print where it stands. Every line kept, in
- * its order (D31). Exported for R2033.
- */
-export function markedChecks(text, { crossed = "blocking", label = null } = {}) {
-    const out = [];
-    let rows = [];
-    const flush = () => { if (rows.length) out.push(checkList(rows.map(row => ({ ...row,
-        detail: row.lines.map(line => `<span class="drpg-check-line">${esc(line)}</span>`).join("") })), { label })); rows = []; };
-    for (const raw of String(text ?? "").split("\n")) {
-        const line = raw.trim();
-        if (!line) continue;
-        const mark = /^([✓✗])\s+(.*)$/u.exec(line);
-        if (mark) rows.push({ state: mark[1] === "✓" ? "done" : crossed, title: mark[2], lines: [] });
-        else if (rows.length && /^\s/.test(raw)) rows.at(-1).lines.push(line);
-        else { flush(); out.push(`<p class="drpg-help">${esc(line)}</p>`); }
-    }
-    flush();
-    return out.join("");
 }
 
 /*

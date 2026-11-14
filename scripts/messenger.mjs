@@ -117,10 +117,6 @@ export function threadMessages(playerUserId) {
         .sort((a, b) => a.timestamp - b.timestamp);
 }
 
-export function lastMessage(playerUserId) {
-    return threadStats().get(playerUserId)?.last ?? null;
-}
-
 /*
  * ONE COUNT OF EVERY THREAD (E50 C2, 30.10.2026; audit S11-45, S11-57, E50-10 to E50-12).
  *

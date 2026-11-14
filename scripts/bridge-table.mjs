@@ -1426,9 +1426,10 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply"
     },
     /*
-     * A SCRUM SPEAKER'S THESIS (E73 C5; the audit's `trialKeyword`): the speaker of the running turn posts a short thesis
-     * of their camp, judged on the primary (trial-zones.mjs `thesisOnPrimary`): Scrum Debate's turn, the character its
-     * speaker, the text cut to `TRIAL.modes.zones.scrum.thesisLength`; posted as the mode's card by the primary.
+     * A SCRUM SPEAKER'S THESIS (E73 C5; `ACTION_TRIAL_KEYWORD`, asked by `requestTrialKeyword`): the speaker of the
+     * running turn posts a short thesis of their camp, judged on the primary (trial-zones.mjs `thesisOnPrimary`): Scrum
+     * Debate's turn, the character its speaker, the text cut to `TRIAL.modes.zones.scrum.thesisLength`; posted as the
+     * mode's card by the primary.
      */
     [ACTION_TRIAL_KEYWORD]: {
         label: "DRPG.Bridge.what.trial.keyword",

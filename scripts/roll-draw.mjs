@@ -1431,7 +1431,7 @@ async function onGmTerms(json, actor, { key = null, claimed = true, nonce = null
  *     the GM's own sum (`advantage`, capped as roll-dialog.mjs `advantageSources` caps it), the
  *     highest kept of several, at the list's faces - `applyAdvantage`'s shape (dualityRoll.mjs:143-168);
  *   - one number per flat source, each labelled in `options.roll.modifiers` as Daggerheart labels
- *     its own (dualityRoll.mjs `applyBaseBonus`, d20Roll.mjs `configureModifiers`): the statistic's
+ *     its own (dualityRoll.mjs `DualityRoll#applyBaseBonus`, d20Roll.mjs `configureModifiers`): the statistic's
  *     value off the character as this GM holds it - the statistic the list names (where a pick was
  *     due and none came, the lowest the action lists, since fix r2-H2), else the one the roller
  *     chose (a statistic from the sheet, after a Resolve); the experiences an Experience Call
@@ -2660,7 +2660,8 @@ export function drawnRecordOf(message) {
  * Now a drawn roll is thrown again from the record's `scored` (`legalRollOf`): the formula of the
  * same dice at the list's faces and the same numbers, the statistic and the experiences the GM
  * counted, and every other number the GM counted as a base modifier (`baseModifiers`, which
- * Daggerheart's `applyBaseBonus` starts from) with no effects for it to read again - so the
+ * Daggerheart 2.10.5's `DualityRoll#applyBaseBonus` starts from; 2.12.8's `D20Roll#getRollBonuses`) with no
+ * effects for it to read again - so the
  * constructor, which drops the formula's numbers and writes its own, comes back to the GM's sum.
  * The statistic's and the experiences' values it reads come from the roll's data (dualityRoll.mjs
  * :174, d20Roll.mjs:103), which until fix r2-H3 was the character's as it stood at the Reroll - with

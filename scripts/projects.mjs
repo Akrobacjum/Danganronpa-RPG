@@ -982,7 +982,7 @@ export function workersNow(countdownId) {
 export const COMPLETION_EFFECTS = [
     {
         /*
-         * A FINISHED REPAIR THAWS WHAT IT REPAIRED, AND GOES (was `checkRepairCompletion`, called on
+         * A FINISHED REPAIR THAWS WHAT IT REPAIRED, AND GOES (was `checkRepairCompletion`, removed in 1.2.85, called on
          * every landing). The repair is a means, not a goal: once the thing it was fixing works again
          * there is nothing left to work on, and a completed 6/6 bar left in the tray beside the project
          * it unblocked reads as an open job. The thaw and the removal are in the same step, so no

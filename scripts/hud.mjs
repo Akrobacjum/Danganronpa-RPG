@@ -396,8 +396,8 @@ export function hudHeader(clock) {
  * Glass - two implementations of one set of facts, and the Legacy half was the
  * poorer one: no opening roll, no Despair overflow, and a body row that
  * vanished the moment the investigation began because it read `bodyDiscovery()`
- * alone. `buildMotive`, `buildAssembly`, `buildIncident` and `buildBody` went
- * with this function; `motiveCard` and its three neighbours in events.mjs are
+ * alone. `buildMotive`, `buildAssembly`, `buildIncident` and `buildBody` were
+ * removed from this file then (1.2.47); `motiveCard` and its three neighbours in events.mjs are
  * what is left, and they are what both themes now draw.
  *
  * The clock is a clock again in both, which is what this file has been trying

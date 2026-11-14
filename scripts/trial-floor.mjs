@@ -1158,16 +1158,11 @@ export async function openRebuttalInStep() {
  * answers null and writes nothing (a late pick, somebody else's, a floor that moved on). Counted from the fill and
  * not from the press, so the minute is the minute the objector argues with the card on the table.
  *
+ * The fill's judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`, its one road).
+ * Until E56 part 2 (14.11.2026) a `fillObjection` beside it asked the same through the floor's op `fill`; it had no
+ * caller and went.
+ *
  * @returns {Promise<object|null>} the floor written, or null
- */
-export async function fillObjection(objectorId, messageId) {
-    if (!game.user.isGM) return null;
-    return floorStep("fill", { actorId: objectorId, messageId });
-}
-
-/**
- * The fill's judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`, its one road;
- * `fillObjection` above, which would ask it through the floor's op `fill`, has no caller).
  */
 export async function fillObjectionInStep(objectorId, messageId) {
     // Under the heartbeat's latch (`advancing`): a fill read inside the seconds and written after the lapse would

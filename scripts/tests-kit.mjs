@@ -533,7 +533,7 @@ const dialogsDrawn = () => typeof foundry.applications.api.DialogV2?.prototype?.
 /**
  * Whether a document's data here is its source, unprepared - which a test can then prepare itself
  * (tests-tier2.mjs `preparedAs`, E29 fix r2-H25). The headless harness prepares nothing; at a table
- * Foundry prepares a character's `system` (Daggerheart's `prepareBaseData`, `prepareDerivedData`), a
+ * Foundry prepares a character's `system` (Daggerheart's `TypeDataModel#prepareBaseData`, `TypeDataModel#prepareDerivedData`), a
  * test's stand-in is not used, and a half of a test that reads its own preparation reads Daggerheart's
  * instead (E10 fix r1-G3, 10.10.2026; the round-1 review's cor F5: two such halves passed measuring the
  * opposite case). Read off the first character, as `preparedAs` reads the one it is given.
@@ -2883,7 +2883,7 @@ function kitQuestions(wait0) {
  * (DHCharacterSettings) is Daggerheart's: neither the harness nor this suite draws it, so the tests that read what the module
  * does to it build its markup here - the four parts of Daggerheart 2.6.5 (templates/sheets-settings/character-settings/
  * header.hbs, details.hbs, experiences.hbs and templates/sheets/global/tabs/tab-navigation.hbs, read at the tag 2.6.5),
- * Foundry's `formGroup` as v13 draws a number field (div.form-group > label + div.form-fields > input), the frame (a form
+ * Foundry's `{{formGroup}}` Handlebars helper as v13 draws a number field (div.form-group > label + div.form-fields > input), the frame (a form
  * with `daggerheart dh-style dialog character-settings`, a header, `section.window-content`). Its words through this
  * browser's i18n as the templates name them. `source` is an actor's system as `document._source.system` holds it; the
  * parts alone (`parts: true`) for an ApplicationV2's `_renderHTML`. A model: what Foundry's frame adds beyond these, and

@@ -41,8 +41,8 @@
  * static `DhCountdowns.updateCountdowns` (a GM's roll, a combat turn, reroll.mjs `settleDualityReroll`), wrapped once
  * by projects-ui.mjs `wrapCountdownUpdate` (patches.mjs's row "countdown-update"), and the tray menu's Reveal, Hide
  * and Delete on a row that is no project (projects-ui.mjs `projectRowMenu`). Outside it still: the tray's -/+ on a row
- * that is no project, the system's private handler (`editCountdown`), which the module does not wrap - a whole write
- * that can land between a project's step's read and its write (LIVE-E37-03, audit/AUDIT-1.2.42.md 9.2); a player's
+ * that is no project, the system's private handler (`DhCountdowns#editCountdown`), which the module does not wrap - a whole
+ * write that can land between a project's step's read and its write (LIVE-E37-03, audit/AUDIT-1.2.42.md 9.2); a player's
  * clicks go to the GM's relay, whose write is in a step (relay-guard.mjs `applyOps`). Nothing calls `updateCountdowns`
  * inside a step of the key: it would wait on itself (tests-tier0.mjs R1201).
  * `liftProjectSecrets` stands last on purpose: R172 reads it by name, a

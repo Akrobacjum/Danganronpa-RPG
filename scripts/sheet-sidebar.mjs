@@ -15,7 +15,7 @@ import { listenLabels } from "./action-rolls.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, debug } from "./utils.mjs";
-import { tipAttr } from "./ui-kit.mjs";
+import { tipAttr, setTip } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { stateHeld } from "./states.mjs";
 import { sheetMode, modeOf } from "./sheet-mode.mjs";
@@ -1079,6 +1079,7 @@ export function tidyBiography(app, element, mode = modeOf(app)) {
         area.className = "drpg-biography-text";
         area.rows = 8;
         area.placeholder = game.i18n.localize("DRPG.Sheet.biographyPlaceholder");
+        if (mode.editable) setTip(area, "DRPG.Tips.Sweep.More.biographyTooltip");
         // Daggerheart's legend over the field, on the module's own key (A6, D10): the word is the module's.
         const legend = editor.closest("fieldset")?.querySelector(":scope > legend");
         if (legend) legend.textContent = game.i18n.localize("DRPG.Sheet.biographyLabel");

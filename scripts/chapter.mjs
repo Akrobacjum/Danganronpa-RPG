@@ -323,7 +323,13 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
        `tick`, named `box` until E46-C6 brought the kit's `box` into this file: the window's three warnings (the untyped
        bullets, the last chapter, no Final Truth Remnant) are the kit's warning box since then, as E21 homed them (R2035),
        and the Final Truth line stays a plain note while the Remnant is placed. */
-    const tick = (name, n) => `<input type="checkbox" name="${name}"${n ? " checked" : " disabled"} />`;
+    // Each box's tooltip by its name (the tooltip sweep, 1.2.115), the browser's title since a box at 0 is disabled.
+    const tick = (name, n) => `<input type="checkbox" name="${name}"${n ? " checked" : " disabled"}${
+        name === "reveal" ? tipAttr("DRPG.Tips.Sweep.Trial.endRevealTooltip", null, { title: true })
+            : name === "sweep" ? tipAttr("DRPG.Tips.Sweep.Trial.endSweepTooltip", null, { title: true })
+            : name === "faint" ? tipAttr("DRPG.Tips.Sweep.Trial.endFaintTooltip", null, { title: true })
+            : name === "keys" ? tipAttr("DRPG.Tips.Sweep.Trial.endKeysTooltip", null, { title: true })
+            : tipAttr("DRPG.Tips.Sweep.Trial.endCloseTrialTooltip", null, { title: true })} />`;
     const option = (name, n, words, { permanent = false, why = "DRPG.Chapter.optNothing" } = {}) => n
         ? `<label class="drpg-checkbox${permanent ? " drpg-destructive" : ""}"${permanent ? " data-drpg-permanent" : ""}>
                 ${tick(name, n)}
@@ -356,7 +362,7 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
                 <input type="checkbox" name="nextSession" checked${tipAttr("DRPG.Tips.Trial.countThisAsSessionTooltip")} />
                 ${game.i18n.format("DRPG.Chapter.optNextSession", { from: session, to: session + 1 })}</label>
             <label class="drpg-checkbox">
-                <input type="checkbox" name="nextMorning" checked />
+                <input type="checkbox" name="nextMorning" checked${tipAttr("DRPG.Tips.Sweep.Trial.endNextMorningTooltip")} />
                 ${game.i18n.format("DRPG.Chapter.optNextMorning", { day: day + 1 })}</label>
             ${/* The Final Truth Remnant points at the Mastermind (E22 C3b; audit S06-47): a season with none set is told
                  nothing about it, and the warning was red at every chapter's end of such a season. */ ""}

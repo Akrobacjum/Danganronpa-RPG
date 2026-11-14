@@ -221,7 +221,7 @@ body.drpg-theme-stained-glass {
          430 x 340   1280x800: 15 edge gaps
          620 x 260   worse than 430 x 260, not better - width buys a little
                      height back on a card and costs more of the rail's run to
-                     the pane's own lean (`notePaneLean`, 0.22 of the width)
+                     the pane's own lean (glass.mjs `fitNoteTile`'s `lean`, 0.22 of the width)
          430 x 480   1440x900: 16 edge gaps, and the tool rail is drawn on bare
                      map because its bound has gone negative
 
@@ -833,7 +833,8 @@ body.drpg-theme-stained-glass #pause.paused figcaption::after {
 /* ---- Foundry's own windows: the title in the title face ------------------------------------
    THE 0.84 GROUND THAT STOOD HERE IS GONE, AND IT HAD NOT PAINTED ANYTHING SINCE 07.09.
    It was this file's first answer for a window - the audit page's own number for a pane that
-   is not `glassfull`. Dawid's call that day made liquid glass the ground of EVERY window, and
+   is not `glassfull` (a class of the design page, docs/design/identity-audit-v13.html). Dawid's
+   call that day made liquid glass the ground of EVERY window, and
    that rule (`.application[class] .window-content`, 0.58, `!important`) has the same
    specificity and comes later, so this one lost every contest it entered. Two statements about
    the same surface, one of them silent: the audit of 08.09 found it by measuring the pixels

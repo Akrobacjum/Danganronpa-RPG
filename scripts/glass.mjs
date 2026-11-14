@@ -2212,7 +2212,7 @@ function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass";
  * complaint (14 frames a second in portrait).
  */
 function glassRoom() { return themeOn() && !(narrowLayout() && shortScreen()); }
-/* `effectsOn()` is gone with the setting it read. It gated the pulse, the seam flashes, the
+/* `effectsOn()` is gone (already by 1.2.70) with the setting it read. It gated the pulse, the seam flashes, the
    pane beat and (until 08.09) the state crossfade - which meant one switch could stop the
    theme moving at all, and with it off the curtain was a still picture that nobody could
    explain. Reduced motion still stops everything: that is a preference about motion, not a
@@ -3235,8 +3235,6 @@ export function holdPulse(on, { max = 10000 } = {}) {
   return pulseHeldSince !== null;
 }
 let curtainHold = null;
-/** Whether a sequence holds the live curtain at 0 under its copies now. */
-export function curtainHeld() { return curtainHold !== null; }
 /* The hold of one curtain, as a sequence drives it: `hold(ms)` takes the curtain and its glow to 0 over `ms`,
    `handBack(ms)` brings them back over `ms`, `release()` ends the hold - the curtain shown, the pulse's clock running. */
 function holdCurtain(j) {

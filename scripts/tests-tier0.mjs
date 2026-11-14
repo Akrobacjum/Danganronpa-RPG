@@ -25,7 +25,7 @@ import {
  * TIER 0 - MODULE-WIDE REGRESSION
  * ========================================================================== */
 
-/**
+/*
  * WHY A THIRD TIER, AND WHY IT READS SOURCE INSTEAD OF CALLING FUNCTIONS.
  *
  * Look at which defects in this update surfaced LAST. Not one of them was bad
@@ -590,6 +590,53 @@ const REGRESSIONS = [
         must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
         must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
+    }],
+
+    ["R7150 - a docblock after a docblock is an error: tools/comment-budget.json, which `node tools/check.mjs comments` holds equal to the comments lint's counts of every module file of scripts/, allows no doubled JSDoc in any file - the budget has no row whose `doubledJsdoc` is above 0, and every row it holds names a module file of scripts/ (E56 part 2)", async () => {
+        /*
+         * E56 part 2, 14.11.2026 (the plan's guard "a docblock after a docblock is an error"). The lint itself needs espree
+         * and reads files in Node (tools/comments-lint.mjs); here the suite reads the budget it is held to, so a budget that
+         * lets one doubled block back in is red at the table as in `npm run quick`. Red before this line's fix: "doubled
+         * JSDoc allowed in 3 file(s): scripts/enforced.mjs 1, scripts/gm-items.mjs 1, scripts/death.mjs 1" (the budget at
+         * 9e7e3d78). death.mjs and gm-items.mjs held a block left over its function's neighbour; enforced.mjs's was a
+         * `@typedef` followed by the `@type` of ENFORCED, which the lint since reads as no doubled block.
+         */
+        needs(env.tools(), "tools/comment-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/comment-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.files === "object", "tools/comment-budget.json is missing or holds no files");
+        if (!budget) return;
+        const rows = Object.entries(budget.files);
+        must(rows.every(([file]) => /^scripts\/[\w-]+\.mjs$/.test(file)), "the budget holds a row that names no module file of scripts/");
+        const doubled = rows.filter(([, row]) => Number(row?.doubledJsdoc) > 0).map(([file, row]) => `${file} ${row.doubledJsdoc}`);
+        equal(doubled.length ? `doubled JSDoc allowed in ${doubled.length} file(s): ${doubled.join(", ")}` : "", "", "the comment budget lets a docblock stand after a docblock");
+    }],
+
+    ["R7151 - a name in backticks exists: tools/comment-budget.json, held by `node tools/check.mjs comments` to the comments lint's counts, allows no module file of scripts/ a comment citation of a name nothing in the repository holds - no row's `citations` above 0 - and every name its `known` keeps, read and left (a history record, another module's or a browser's name), carries its reason (E56 part 2)", async () => {
+        /*
+         * E56 part 2, 14.11.2026 (the plan's guard "an identifier in a comment must exist in the source"). Read as R7150
+         * reads the budget. Red first, on the budget at 512f74d5 (the sweep's comments in, the budget not yet lowered):
+         * "citations allowed in 77 file(s): scripts/a11y.mjs 1, ..."; green on the budget written after it. The sweep: 141
+         * citations in 77 files on 9e7e3d78, 0 after; `known` from 28 names to 93, each with its reason, and to 119 once the
+         * lint read the suite's own files as well (49 citations and 8 doubled blocks there, the same day).
+         */
+        needs(env.tools(), "tools/comment-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/comment-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.files === "object" && typeof budget.known === "object", "tools/comment-budget.json is missing, or holds no files or no known");
+        if (!budget) return;
+        const cited = Object.entries(budget.files).filter(([, row]) => Number(row?.citations) > 0);
+        equal(cited.length ? `citations allowed in ${cited.length} file(s): ${cited.slice(0, 6).map(([file, row]) => `${file} ${row.citations}`).join(", ")}` : "", "", "the comment budget lets a comment name what nothing holds");
+        const known = Object.entries(budget.known ?? {});
+        must(known.length > 0, "the budget keeps no known name - this half would hold nothing");
+        const bare = known.filter(([, why]) => typeof why !== "string" || why.trim().length < 10).map(([name]) => name);
+        ok(!bare.length, `known names with no reason: ${bare.join(", ")}`);
     }],
 
     ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection, nor `--drpg-critical` outside a critical; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it, and `--drpg-critical` is the critical's light red, read by the flat roll's critical line (E48 K1, K2b; Q6)", async () => {
@@ -8810,7 +8857,7 @@ const REGRESSIONS = [
          * `sweepTruthBullets` and `confirmSweepBullets` (both read through chapter.mjs `sweepPlan` now, which
          * names no field) and added `sparedBySweep`, where the planned `sweepPlan` row's field read is: 78
          * rows, 21 ITEM (read live 08.10.2026, none without a row). E09 C2 struck `propagateCrimeTie`,
-         * `propagateCrimeTieMany` and `propagateRealType` (folded into `propagateVerdicts`, the planned row it
+         * `propagateCrimeTieMany` and `propagateRealType` (gone since, folded into `propagateVerdicts`, the planned row it
          * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). E09 C7 added
          * `keyFeeOf`, the fee's count, where its planned row said: 77 rows, 20 ITEM (read live
          * 08.10.2026, none without a row). E09 C8 struck `revealAllBulletTypes` and
@@ -8891,7 +8938,6 @@ const REGRESSIONS = [
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
             ["ITEM investigation.mjs#autopsyIssued", "judged (E11 fix r1-G4; moved from gm-panel.mjs on 13.11.2026, unchanged): the answer key (secretOf, the GMs' store) names the autopsy and its chapter (and its season since fix r2-H2, `sameSeason`), over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
-            ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
             ["ITEM handover.mjs#mintCopy", "judged (E70 C10, Share's core moved out of shareBullet, which names no field now): the copy is built from bulletAsHeld (E29), the answer key's fields from secretOf, one copy per trace by copiedRemnants; Share's road (shareBullet after verify) and Present's (presentOnPrimary), on a GM"],
@@ -9033,7 +9079,7 @@ const REGRESSIONS = [
          * coming back is a place without a row. Measured on the harness on 09.10.2026 with C1
          * in the tree: 37 places against 37 rows - 7 PACKET, 6 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
          * E10 C2 (1.2.71) added `vote.cast`'s two PACKET rows, `vote.ask`'s one and the `round` the
-         * ballot's packet carries now, struck `onBallotCast` (the raw `vote.ballot`) and the
+         * ballot's packet carries now, struck `onBallotCast` (since removed; the raw `vote.ballot`) and the
          * `voterActorId` nothing read, and rewrote the verdicts the bridge's ballot changes. Measured
          * on the harness on 09.10.2026 with C2 in the tree: 39 places against 39 rows - 10 PACKET,
          * 5 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
@@ -9201,7 +9247,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
             ["STORE gm-stores.mjs#verdictStore", "not a source (fix r1-G1): a GM store (`gmVerdict`) `applyVerdict` writes - the verdict's `at` and the Blackened its GM named - and `finishVerdict` reads; never sent to a player"],
-            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjection`, the lapse) and read by OBJECTION! and the console as a display"]
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjectionInStep`, the lapse) and read by OBJECTION! and the console as a display"]
         ];
         // E56 C5 (13.11.2026): a reason names the function, never `file.mjs:N` - 45 such line numbers had drifted off what they named.
         ok(!TRIAL_CENSUS.some(([, why]) => /\b[\w-]+\.mjs:\d/.test(String(why ?? ""))), "a census row's reason cites a line (file.mjs:N): name the function it means instead");
@@ -10302,7 +10348,7 @@ const REGRESSIONS = [
          * 3 DELETE, 7 HOOK, 5 STORE: the five more are `askReroll`'s second and third refusal, the messenger hook's
          * second card and the two `updateNotice` calls; nothing else stands twice in a declaration.
          * Merged into the main line (12.10.2026), the body's `updateNotice` row is keyed by C9's `watchCard`, the
-         * declaration that took over `watchNotice`'s call (read in popup.mjs; the fix line was cut before C9).
+         * declaration that took over `watchNotice`'s call (since removed; read in popup.mjs; the fix line was cut before C9).
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, a second `recordNotice` and an
          * `updateNotice` in one declaration, both deletions and a
@@ -22271,7 +22317,7 @@ const REGRESSIONS = [
            declaration (a function, a const or let); the imports before the first are not read. Red on E24's tip: 46 lines
            in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none.
            E24 fix G2B (general m1): `testUserPermission?.(` and `<name>?.isGM` were not read; read now, red on 52955be4 at
-           sheet.mjs `mayEditReserve`'s two lines and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
+           sheet.mjs `mayEditReserve`'s two lines (since removed: the mode's `reserveField` gates it) and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
         const sources = await moduleSources();
         const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\??\.?\(|\.isOwner\b|\b\w+\??\.isGM\b|\bisEditable\b/;
         const AUDIT_ROLE = "the audit's role: which browser judges, relays or decides a write (the GMs', D2), not a view's gate";

@@ -229,7 +229,7 @@ function gainFor(key) {
  * Sounds this file owns, decoded once. Path -> Sound.
  *
  * WHY WE OWN THEM AT ALL, since `AudioHelper.play` is otherwise perfectly good:
- * a rate can only be bent on an `AudioBufferSourceNode`, and Foundry decides
+ * a rate can only be bent on `AudioBufferSourceNode#playbackRate`, and Foundry decides
  * per file whether to decode into a buffer or stream from an `<audio>` element
  * - where the rate lives on the element and PRESERVES PITCH, which is a speed
  * change with no pitch change and sounds like a glitch rather than variation.

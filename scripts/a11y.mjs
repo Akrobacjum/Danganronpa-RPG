@@ -208,9 +208,9 @@ export function a11yWatch() {
  * The two places words arrive without anybody asking for them.
  *
  * The notice stack and the Event card both appear on their own, and both are
- * POLITE: they wait for the reader to finish what it is saying. `assertive`
- * would be right for a safeword and wrong for everything else, and everything
- * else is what comes through here.
+ * POLITE: they wait for the reader to finish what it is saying.
+ * `aria-live="assertive"` would be right for a safeword and wrong for
+ * everything else, and everything else is what comes through here.
  */
 function liveRegions(root) {
     /* `#drpg-evidence` sets its own role when popup.mjs creates it, because it is

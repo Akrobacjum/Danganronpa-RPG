@@ -10910,9 +10910,9 @@
      "note": null
     },
     {
-     "fact": "A round's speakers speak one at a time, in an order frozen at its start (roundOrder: the trial's participants), each first speaker with a connected owner.",
-     "file": "scripts/floor-machine.mjs",
-     "fn": "roundOrder",
+     "fact": "A round's speakers speak one at a time, in an order frozen at its start (the trial's participants, as trial-floor.mjs startRoundInStep hands it to the floor), each first speaker with a connected owner.",
+     "file": "scripts/trial-floor.mjs",
+     "fn": "startRoundInStep",
      "note": null
     },
     {

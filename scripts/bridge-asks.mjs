@@ -2,7 +2,7 @@
  * Danganronpa RPG - asking the GM.
  * ---------------------------------------------------------------------------
  * Every request a player's or a GM's client makes of the primary GM: a
- * `requestX` that asks through bridge-table.mjs's `ask` and answers the
+ * `request*` function that asks through bridge-table.mjs's `ask` and answers the
  * bridge's result (`{ ok, pending?, value?, refused?, reason? }`, held by the
  * lint rule `drpg/bridge-result`), and the asks a card or a GM's window makes
  * through `ask`: `sendDespairToPrimary`, `askObservePick`,

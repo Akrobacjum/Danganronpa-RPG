@@ -159,7 +159,7 @@ export function noteSpeakers(record, speakers) {
  * without `on` follows nothing. An event the old Room still emits is checked against the record's Room and changes
  * nothing, as voice-tile.mjs `attachRoom` does.
  *
- * @param {object|null} client  avclient-livekit's `LiveKitClient`
+ * @param {object|null} client  avclient-livekit's LiveKitClient, `LiveKitAVClient#_liveKitClient`
  * @param {object} [record]
  * @returns {boolean} whether a Room is followed
  */

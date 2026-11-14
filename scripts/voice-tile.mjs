@@ -479,7 +479,7 @@ export function voiceWatch(tile, { clock = realClock, dock = foundryDock,
  * The user a participant of the watch's own Room is, or `null`: only a remote participant the Room holds, mapped
  * by avclient-livekit (external). The viewer's own participant and anybody the Room does not hold is nobody here.
  *
- * @param {object} client       avclient-livekit's `LiveKitClient`
+ * @param {object} client       avclient-livekit's LiveKitClient, `LiveKitAVClient#_liveKitClient`
  * @param {object} participant
  * @param {object} [room]       the Room the participant has to be in
  * @returns {User|null}
@@ -501,7 +501,7 @@ export function participantUser(client, participant, room = client?.liveKitRoom)
  * still emits is checked against the watch's Room and changes nothing. No client, no Room, or a Room without
  * `on` (an avclient-livekit this file does not know) is the offline state.
  *
- * @param {object|null} client  avclient-livekit's `LiveKitClient`
+ * @param {object|null} client  avclient-livekit's LiveKitClient, `LiveKitAVClient#_liveKitClient`
  * @param {object} [watch]
  * @returns {boolean} whether a Room is followed
  */
@@ -601,7 +601,8 @@ function resetSpeech(watch) {
 
 /**
  * Where this browser plays the voices: Foundry's dock (`ui.webrtc.element`, the one root avclient-livekit 0.6.8 looks
- * in for a user's `<audio>`, LiveKitClient.ts `getUserAudioElement`, external) and the camera popouts Foundry has
+ * in for a user's `<audio>`, LiveKitClient.ts `LiveKitClient#getUserAudioElement`, external) and the camera popouts
+ * Foundry has
  * open, found among its own applications (`foundry.applications.instances`) - never the whole document. E78 fix
  * r1-G2, 14.10.2026, round 1's SEC-R1-5: the default was `document`, and a paused element of the dock's shape put in
  * front of the dock in p1's page made p2's speech show nobody on p1's tile (the reviewer's reading; R535 plants one,
@@ -1631,6 +1632,7 @@ function buildVoiceList(watch) {
     const muteAll = textNode("button", "drpg-voice-list-muteall", game.i18n.localize("DRPG.Voice.list.muteAll"));
     muteAll.type = "button";
     muteAll.setAttribute("aria-pressed", "false");
+    setTip(muteAll, "DRPG.Tips.Sweep.More.muteEverybodyTooltip", null, { text: true });
     muteAll.addEventListener("click", () => listAct(watch, () => toggleMuteAll(watch)));
     const alone = textNode("p", "drpg-voice-list-alone", game.i18n.localize("DRPG.Voice.list.alone"));
     alone.hidden = true;

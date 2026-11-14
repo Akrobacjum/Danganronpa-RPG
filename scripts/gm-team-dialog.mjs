@@ -546,9 +546,11 @@ function buildContent(actors, gms, roster, candidates, removable, layout = despa
     const body = kitTabs([
         { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection,
           tooltip: tipText("DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip") },
-        { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection },
+        { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection,
+          tooltip: tipText("DRPG.Tips.Sweep.Gm.tabMonokumasTooltip") },
         ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Despair.tabStudents"), html: assignSection }] : []),
-        { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: unfold + overflowSection({ suggestion: overflowSuggestionNow() }) }
+        { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: unfold + overflowSection({ suggestion: overflowSuggestionNow() }),
+          tooltip: tipText("DRPG.Tips.Sweep.Gm.tabOverflowTooltip") }
     ], { active: layout.open });
 
     // Built as an element, not a string: DialogV2 runs a string `content`
