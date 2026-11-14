@@ -86,6 +86,75 @@ export function markTraitGlyphs(element) {
     }
 }
 
+/*
+ * THE SIX STATISTICS IN ONE ROW (14.11.2026; the owner on 1.2.114's sheet, "Podoba mi sie pomysl by wysrodkowac, ale
+ * koniecznie w 1 rzedzie"). The row is a grid of six equal columns, each statistic centred in its own at the width its
+ * widest name needs (danganronpa.css, "THE SIX STATISTICS IN ONE ROW"). Where six at that width do not fit, the row gives
+ * way in the owner's order and stops at the first step that fits: the gap between statistics (from 1rem to the mark's
+ * overhang and a pixel), then the plate's padding (the mark's room, cut to where the mark ends), then the names'
+ * letter-spacing (to 0), then the mark moves above the name. The names' size is not a step: in both themes they stand at
+ * their floor already - 11 px times the Interface scale under Legacy (`--drpg-text-xs`), VT323 at the glass's own floor
+ * (`--drpg-sg-floor`, 21 px) - so it would give nothing. Where even the mark above does not fit, the row is three over
+ * three (`wrap`), as before, and nothing overlaps or runs out of the header: in Chromium on Daggerheart 2.12.8's
+ * stylesheet that is Legacy below a row of 454 px (a sheet of about 760 px; 362 px at the owner's 667 px sheet). Each
+ * step is measured, not predicted: `fitTraitRow` sets it on the row (`data-drpg-trait-fit`), reads the statistics at
+ * their natural width (`measure`) and keeps the first that fits; again whenever the row's width changes and once the
+ * fonts have loaded. With no layout (the harness) the row stays as drawn. R5760 reads the cascade, R7330 the order.
+ */
+export const TRAIT_FIT_STEPS = Object.freeze(["", "gap", "gap pad", "gap pad track", "above track"]);
+
+/**
+ * The first of `TRAIT_FIT_STEPS` at which six statistics fit their row, or "wrap". `measure(step)` answers the widest
+ * statistic at that step (`need`), the column gap (`gap`), how far a mark stands out of its plate's left end beside the
+ * name (`overhang`, 0 above it) and the row's width. A mark beside the name keeps a pixel clear of the plate before it.
+ * Pure; exported for R7330.
+ */
+export function traitFitStep(measure) {
+    for (const step of TRAIT_FIT_STEPS) {
+        const { need, gap, overhang, width } = measure(step);
+        const space = Math.max(gap, overhang > 0 ? overhang + 1 : 0);
+        if (need > 0 && 6 * need + 5 * space <= width + 0.5) return step;
+    }
+    return "wrap";
+}
+
+function measureTraitStep(row, step) {
+    row.dataset.drpgTraitFit = `${step} measure`.trim();
+    const traits = [...row.querySelectorAll(":scope > .trait")];
+    const need = Math.max(0, ...traits.map(trait => trait.getBoundingClientRect().width));
+    const style = getComputedStyle(row);
+    const gap = Number.parseFloat(style.columnGap) || 0;
+    const width = row.clientWidth - (Number.parseFloat(style.paddingLeft) || 0) - (Number.parseFloat(style.paddingRight) || 0);
+    const mark = row.querySelector(".trait-name > .tier-mark.drpg-stat-mark");
+    const overhang = step.includes("above") || !mark ? 0
+        : Math.max(0, mark.parentElement.getBoundingClientRect().left - mark.getBoundingClientRect().left);
+    return { need, gap, overhang, width };
+}
+
+/** Fit the header's statistics to one row (see TRAIT_FIT_STEPS), and again when the row's width changes. */
+export function fitTraitRow(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const row = root?.querySelector?.(".character-header-sheet .character-traits");
+    if (!row || !row.querySelector(":scope > .trait")) return;
+    let width = null;
+    const fit = () => {
+        if (!row.isConnected || !row.clientWidth) return;
+        width = row.clientWidth;
+        const step = traitFitStep(s => measureTraitStep(row, s));
+        const need = step === "wrap" ? null : measureTraitStep(row, step).need;
+        row.dataset.drpgTraitFit = step;
+        if (need) row.style.setProperty("--drpg-trait-need", `${Math.ceil(need)}px`);
+        else row.style.removeProperty("--drpg-trait-need");
+    };
+    fit();
+    try { app?._drpgTraitFit?.disconnect(); } catch { /* already gone */ }
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(() => { if (row.clientWidth !== width) fit(); });
+    observer.observe(row);
+    if (app) app._drpgTraitFit = observer;
+    document.fonts?.ready?.then(() => { width = null; fit(); }).catch(() => {});
+}
+
 /* ==========================================================================
  * ACTION BAR + TIME OF DAY
  * --------------------------------------------------------------------------

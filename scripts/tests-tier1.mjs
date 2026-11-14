@@ -60618,8 +60618,11 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
-    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of equal columns", async () => {
+    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of six equal columns, in one row (the owner, 14.11.2026: \"koniecznie w 1 rzedzie\"), three only on the row the fit gave up on (`data-drpg-trait-fit=\"wrap\"`, sheet-header.mjs `fitTraitRow`)", async () => {
         /*
+         * Red at 21973f06 (1.2.115's assembly) for the one row: the grid was `repeat(auto-fill, ...)`, six columns only where
+         * six fit at the widest name's full width and three elsewhere - 3 over 3 on the default 850 px sheet in both themes
+         * (Chromium, 14.11.2026), which the owner's photo of 1.2.114 showed.
          * Red at ceb9e9c8 (1.2.112). Daggerheart's name is `flex: 1` (a 0 basis) with `word-break: break-word`
          * (header.less:44-53 at 2.12.8, unchanged since 2.6.5), so beside the name row's buttons it shrinks to one glyph's
          * width: the captioned Level Up and Give / take (sheet-header.mjs `headerButton`, 1.2.105) stand `flex: 0 0 auto` and,
@@ -60654,12 +60657,15 @@ const INVARIANTS = [
             trait.dataset.attribute = "presence";
             const plate = trait.appendChild(Object.assign(document.createElement("div"), { className: "trait-name drpg-stat-named" }));
             const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const columns = v(traits, "grid-template-columns");
+            traits.dataset.drpgTraitFit = "wrap";
+            const wrapped = v(traits, "grid-template-columns");
             return [v(row, "flex-wrap"), v(name, ["flex", "flex-basis"]), v(name, "word-break"), v(name, "overflow-wrap"),
-                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"])];
+                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"]), columns, wrapped];
         };
-        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center"];
+        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center", "repeat(6, minmax(0, 1fr))", "repeat(3, minmax(0, 1fr))"];
         equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
-            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column]");
+            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column; the row's columns; the columns of a row the fit gave up on]");
     }],
     ["R5761 - a disabled field in Foundry's and other modules' windows reads as disabled in both themes and an enabled one is left as it was (the owner, 13.11.2026, on Dice So Nice's colour fields, which it disables itself unless the colorset is custom - module/ui/DiceConfig.js `toggleCustomColors`, 6.4.5): read through the module's cascade on Dice So Nice's markup (partial-appearance.hbs: a text field and its `input[type=color]` twin) in its ApplicationV2 frame, a disabled text field, colour field and select take the not-allowed cursor and a lowered opacity, the colour field greyed (`grayscale`), Legacy's disabled text its dim ink; the enabled ones take none of it", async () => {
         /*
@@ -61291,6 +61297,28 @@ const INVARIANTS = [
         const watch = fnSource(map, "showProjectCard").match(/watch:\s*\{[^}]*\}/)?.[0] ?? "";
         equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
             "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
+    }],
+    ["R7330 - the six statistics' row gives way in the owner's order and stops at the first step that fits (sheet-header.mjs `traitFitStep`; the owner, 14.11.2026, \"koniecznie w 1 rzedzie\"): the gap, then the plate's padding, then the names' letter-spacing, then the mark above the name; three columns only where none of them fits. Fed the widths Chromium measured on Daggerheart 2.12.8's stylesheet with the module's sheets (14.11.2026): Legacy at 850 px moves the mark above, Legacy at 667 px fits nothing, the glass at 850 px stops at the letter-spacing and at 667 px at the mark above, and every sheet wider than six full-width names keeps its row as drawn", async () => {
+        /*
+         * Red at 21973f06: no `traitFitStep` - the row wrapped to 3 over 3 wherever six full-width names did not fit.
+         * Pure: a step is judged from the widths a measure answers for it (the widest statistic, the column gap, the mark's
+         * overhang beside the name, the row's width), the numbers below those Chromium read for each step. Nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        /* [need with the mark beside, need with its padding cut, need at letter-spacing 0, need with the mark above] for
+           "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
+           (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
+        const sheet = (beside, cut, untracked, above) => row => step => {
+            const need = step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
+            const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
+            return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
+        const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
+        equal(stableJson([got, H.TRAIT_FIT_STEPS ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
+            ["", "gap", "gap pad", "gap pad track", "above track"]]),
+            "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
 ];
 
