@@ -5209,7 +5209,7 @@ export const SFX_EVENTS = {
     },
     // E110 part 3: the owner of a bedroom told it was entered - its lock picked, forced or breached, or mended.
     bedroomEntered: {
-        label: "Your bedroom was entered",
+        label: "Your bedroom's lock",
         hint: "Your bedroom's lock was picked, forced or breached, or mended. Heard by you alone.",
         category: "world"
     },

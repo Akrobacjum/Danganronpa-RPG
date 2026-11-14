@@ -8227,7 +8227,7 @@
           "hint": "Find Stash znajduje czyjąś skrytkę. Słyszy go szukający i GM-owie."
         },
         "bedroomEntered": {
-          "label": "Ktoś wszedł do twojej sypialni",
+          "label": "Zamek twojej sypialni",
           "hint": "Zamek twojej sypialni ktoś otworzył wytrychem, wyważył albo przebił, albo naprawił. Słyszysz tylko ty."
         },
         "passageFound": {
