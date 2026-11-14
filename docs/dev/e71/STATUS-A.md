@@ -102,7 +102,7 @@ batch file is held by `node tools/check.mjs text` (line B's glob, merged at d97b
 | B01b | `docs/dev/text-batch-B01b.json` | 86 | the eight config tables (labels and plurals of `ITEM_CATEGORIES` untouched, N5), `Despair`, `Overflow`, `Motive` | `Overflow.hopeBlocked` (pair N30, wrong on the facts: Q-A1), `Config.MURDER_OPENING.killer.selfInflicted.despair` (narration no code runs: Q-A2) | landed c4d7073d |
 | B02 | `docs/dev/text-batch-B02.json` | 54 | `Config.SFX_EVENTS` (and `sheetButton.label`, PL-d) | `SFX_EVENTS.passageFound.hint` (R599 pins it word for word) | landed c4d7073d |
 | B03 | `docs/dev/text-batch-B03.json` | 97 | `Murder`, `Mastermind`, `Mask`, `Body` | none | landed c4d7073d |
-| B04 | `docs/dev/text-batch-B04.json` | 100 | `Action`, `Actions`, `Price`, `TraitRuling`, `Rest`, `Reserve`, `Unit`, `Infiltrate` | `TraitRuling.propose` (E68's, O12) | landed c4d7073d, a0073b19 |
+| B04 | `docs/dev/text-batch-B04.json` | 97 | `Action`, `Actions`, `Price`, `TraitRuling`, `Rest`, `Reserve`, `Unit`, `Infiltrate` | `TraitRuling.propose` (E68's, O12) | landed c4d7073d, a0073b19 (2004efb6 took three back) |
 | B05 | `docs/dev/text-batch-B05.json` | 66 | `Cleanup`, `Tamper` | `Cleanup.reshapeRulingWas` (R307 reads ": {now}.") | landed addb36d3, f1e08a2a |
 
 Keys checked and left as they stand (already true and short, labels, fragments with a case contract, O12 texts):
@@ -150,11 +150,12 @@ the added namespaces, so it differs from C0's table above):
   red). The rise in B01b is config descriptions that now state the rule whole (Bounty 41 words, the limit 45).
 - T22 (the mirror, a report for good) counts where the Polish differs in shape from the English: its rise is the
   Polish written from the facts, not from the English (DB26).
-- B04's T16 count is taken before a0073b19, which put the three `TraitRuling.opening*` lines in the third person
-  (they go to every seat of the opening, `tellOpeningRoller`): measured again on a0073b19, B04's T16 is 0. B03's two
-  are `Murder.closedVictimYou` (en, pl), which murder-rules.mjs `tellIncidentClosed` whispers to the victim's owners
-  alone when nobody else is in the audience (`freed`): one reader, so the second person is right and T16 reads the
-  helper's whole audience, not the branch (a finding of the detector, for C21's T16 with no allowlist).
+- B04's T16 finds: a0073b19 put the three `TraitRuling.opening*` lines in the third person on T16's reading, and
+  2004efb6 put them back: at the `openingRoll` stage murder-rules.mjs `tellOpeningRoller`'s audience is the roller's
+  seat alone (tier 2's "the roller was not told while the GM picked ..." holds it), so the second person speaks to its
+  one reader. B03's two are `Murder.closedVictimYou`, which `tellIncidentClosed` whispers to the victim's owners alone
+  when nobody else is in the audience. All five are the detector's: it reads a helper's whole audience, not the stage or
+  the branch the sender passes (for C21's T16 with no allowlist).
 - Whole tree, on a0073b19 against 1463f22b: T5 found 1253 -> 1042, T4 304 -> 313 (over a target; over a limit
   unchanged in these namespaces), `check text`'s report found 3177 -> 3070 (c4d7073d). No lint was switched to FAIL
   (the coordinator's rule).
@@ -199,23 +200,20 @@ X3, X5, X7, X8, X14-X18, X20, X21, N4, N6-N8, V3, and the button, window-title, 
 | Q-A10 | `DRPG.Tamper.watched` | Departs from pilot pair 40 (the key now carries `{dc}`; a hit with Despair and either miss cost Sanity; a miss gives the student away). | The batch's text. |
 | Q-A11 | `DRPG.TraitRuling.propose` | E100's button rule would say „Wyślij do GM-a” / "Send to the GM"; E68 wrote "Propose" after E66 (O12). | "Propose" kept. |
 
-## For the coordinator: code faults found (text kept true to the code; needsCode in the batch files)
+## Code faults found, and what became of them (the coordinator's list of 14.11, each red first, its own commit)
 
-- cleanup.mjs `report` prints `DRPG.Cleanup.stressSpent` on the free attempt after a critical Finishing Blow (`charged`
-  null): the text now states the rule with its exception; the line should be left out there (an E54 file).
-- `DRPG.Action.murderCancelled`'s `{reason}` is the killer's own line (`murderNobody`, `murderWitness`), so the GMs' card
-  speaks in the second person ("try again"): eclipse.mjs `judgePendingMurders` would pass GM-only reason keys.
-- murder-ui.mjs / murder-rules.mjs `nightNoteKey` sends `Murder.nightNoteIndirect` ("disadvantage at night") for a trap
-  at Night, while `MURDER_OPENING.victim.nightDisadvantage` is false since E64.
-- `tellOpeningRoller` sends the killer's and the victim's lines to the same audience; one line per seat would let each
-  speak to its reader (the three lines are now in the third person).
-- Lists joined with ", " instead of utils.mjs `listOf` (no Oxford comma, EN2): `Murder.unlockedActions` {names},
-  `Infiltrate.watch.start` and `tail.movedWith` {who}, `Cleanup.toolsBroken` {items} (no quotes either, EN17),
-  `Action.dcTamperRelief` {what}.
-- Dead keys (no sender in scripts/): `Murder.addThird`, `whoWalkedIn`, `nobodyElse`, `noStressLeft`, `betrayalConfirm`.
-- secret.mjs `dropOldGmLines` matches `DRPG.Action.observeGm`'s current sentence to hide it on old cards: the text cannot
-  change until the matcher does (kept word for word).
-- Tier 2 E66-T1 run alone leaves the mask on Aiko's token in its restore, at 1463f22b as here.
+| # | Fault | Commit, test | Outcome |
+| --- | --- | --- | --- |
+| 1 | `Action.murderCancelled`'s {reason} on the GMs' card was the killer's own line ("try again") | 155556fa, R6401 | Fixed: `Action.murderNobodyGm`, `murderWitnessGm` (en, pl); tier 2's three tests and 66-rooms read them (77/77) |
+| 2 | `nightNoteKey` sent `nightNoteIndirect` (night disadvantage) though E64 turned it off | 5ce68aec, R6402 | Fixed: the note reads the rolling side's `MURDER_OPENING` flags; `Murder.nightNoteNone` for a night that changes nothing |
+| 3 | `tellOpeningRoller` sends both seats' lines to one audience | 2004efb6 (no test) | Not a defect: at the `openingRoll` stage the audience is the roller alone (tier 2 holds it); the third-person rewrite of a0073b19 was taken back |
+| 4 | Lists joined with ", " instead of `listOf` | 4acd3f5b, R6403 | Fixed in murder-rules.mjs `applyUnlocks`, tail-gm.mjs `onTailCrossing`, watch-gm.mjs `startWatches`, action-briefing.mjs `tamperThresholdFacts`; `Cleanup.toolsBroken` (cleanup.mjs) waits for E54 |
+| 5 | Dead keys `Murder.addThird`, `whoWalkedIn`, `nobodyElse`, `noStressLeft`, `betrayalConfirm` | 1f142e5e, R6404 | Deleted in both files (no reader in scripts, tests, scenarios, tools or docs but the 1.2.42 findings list) |
+| 6 | cleanup.mjs `report` prints `Cleanup.stressSpent` on the free attempt | - | Waits for E54 (cleanup.mjs is split there), with `Cleanup.toolsBroken`'s `listOf` |
+
+Also found, not on the list: secret.mjs `dropOldGmLines` matches `DRPG.Action.observeGm`'s current sentence to hide it
+on old cards, so that text cannot change until the matcher does (kept word for word); tier 2 E66-T1 run alone leaves the
+mask on Aiko's token in its restore, at 1463f22b as here.
 
 Keys outside group A's namespaces that look wrong: none found that a group A batch needed changed.
 
