@@ -10,6 +10,7 @@ import {
     LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES, HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC,
     ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS, PHASES, PRICE_CHAINS, RESOLUTION_STRESS_COST, FLAGS
 } from "./config.mjs";
+import { atReadableFloor } from "./tests-css.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS } from "./settings.mjs";
@@ -29496,7 +29497,7 @@ const INVARIANTS = [
         const discovery = fnSource(stripComments(chapterText(sources)), "runDiscovery");
         equal(stableJson([
             bar("drpg-theme-monokuma-legacy"), bar("drpg-theme-monokuma-legacy drpg-pixel-font"), bar("drpg-theme-stained-glass"),
-            token("--drpg-text-xs"),
+            atReadableFloor(token("--drpg-text-xs")),
             /popupKind:\s*"objection",\s*popupTitle:\s*game\.i18n\.localize\("DRPG\.Chapter\.bodyTitle"\)[\s\S]{0,400}DRPG\.Chapter\.bodyBanner/.test(discovery),
             [game.i18n.has("DRPG.Chapter.bodyTitle"), game.i18n.localize("DRPG.Chapter.bodyTitle")]
         ]), stableJson([
@@ -29604,7 +29605,7 @@ const INVARIANTS = [
             const face = node => theme === "drpg-theme-stained-glass"
                 ? [value(node, "--brush-on"), value(node, "--brush-ink")]
                 : [value(node, ["background", "background-color"]), value(node, "color")];
-            return { line: value(text, "line-height"), time: value(time, "font-size"), mask: value(log, ["mask", "mask-image"]),
+            return { line: value(text, "line-height"), time: atReadableFloor(value(time, "font-size")), mask: value(log, ["mask", "mask-image"]),
                 save: face(save), template: face(template) };
         };
         const styles = manifest.styles ?? [];
@@ -50289,7 +50290,7 @@ const INVARIANTS = [
             };
             read[theme] = Object.fromEntries(Object.entries(parts).map(([name, el]) => {
                 const size = sizeOf(el);
-                return [name, FLOOR.test(size) ? true : size];
+                return [name, FLOOR.test(atReadableFloor(size)) ? true : size];
             }));
         }
         const yes = { description: true, chip: true, groupLine: true, groupCount: true, lineAbove: true, musicNote: true };
@@ -55437,7 +55438,8 @@ const INVARIANTS = [
          */
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         const floor = name => {
-            const m = css.match(new RegExp(`${name}:\\s*max\\(min\\((\\d+)px,\\s*([\\d.]+)rem\\),\\s*calc\\(([\\d.]+)rem \\* var\\(--drpg-legacy-scale, 1\\)\\)\\)`));
+            // the floor's 11 px is `calc(11px * var(--drpg-floor-scale, 1))` since the slider reaches 25 % (R7332): 1 at 0.8
+            const m = css.match(new RegExp(`${name}:\\s*max\\(min\\((?:calc\\()?(\\d+)px(?: \\* var\\(--drpg-floor-scale, 1\\)\\))?,\\s*([\\d.]+)rem\\),\\s*calc\\(([\\d.]+)rem \\* var\\(--drpg-legacy-scale, 1\\)\\)\\)`));
             return m ? Math.round(Math.max(Math.min(Number(m[1]), Number(m[2]) * 16), Number(m[3]) * 16 * 0.8) * 10) / 10 : null;
         };
         equal(stableJson(["--drpg-text-xs", "--font-size-11", "--font-size-12", "--font-size-13", "--font-size-14"].map(floor)),
@@ -61350,11 +61352,11 @@ const INVARIANTS = [
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         let bare = 0, scaled = 0;
         for (const href of manifest.styles ?? []) {
-            const css = (await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text())).replace(/\/\*[\s\S]*?\*\//g, " ");
+            const css = (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
             bare += (css.match(/(?:max|min)\(\s*11px/g) ?? []).length;
             scaled += (css.match(/calc\(11px \* var\(--drpg-floor-scale, 1\)\)/g) ?? []).length;
         }
-        const glass = /--drpg-sg-floor:\s*calc\(21px \* var\(--drpg-sg-scale, 1\)\)/.test(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()));
+        const glass = /--drpg-sg-floor:\s*calc\(21px \* var\(--drpg-sg-scale, 1\)\)/.test(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
         must(scaled + bare > 20, `${scaled + bare} floors read - the sheets were not read`);
         equal(stableJson([of ? [0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4].map(of) : null, stamped, bare, scaled >= 25, glass]),
             stableJson([[0.3125, 0.5, 0.625, 0.9875, 1, 1, 1], true, 0, true, true]),

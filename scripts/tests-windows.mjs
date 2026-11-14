@@ -21,7 +21,7 @@
  * scenario and C3's screenshots, LIVE-E59-01).
  */
 import { blankComments, blankLiterals, callArgs, lineAt } from "./tests-lint.mjs";
-import { blocksOf, declarationsOf, stripCssComments, meaningReads, MEANING } from "./tests-css.mjs";
+import { blocksOf, declarationsOf, stripCssComments, meaningReads, MEANING, atReadableFloor } from "./tests-css.mjs";
 
 /* ---- reading the source ------------------------------------------------------------------------------------------ */
 
@@ -344,7 +344,7 @@ export function floorRule(sheets, outside = FLOOR_OUTSIDE) {
     const found = [], kept = [], read = [], used = new Set();
     let unread = 0;
     for (const [file, raw] of sheets ?? []) {
-        const text = lfOf(raw);
+        const text = atReadableFloor(lfOf(raw));
         for (const block of blocksOf(stripCssComments(text))) {
             if (!block.prelude || block.prelude.startsWith("@")) continue;
             const where = [...block.context, block.prelude].join(" ");
