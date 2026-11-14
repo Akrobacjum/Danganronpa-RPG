@@ -24,14 +24,17 @@ The step each sheet takes, 100 % (the row's width in brackets):
 
 | sheet | Legacy | Stained Glass |
 | --- | --- | --- |
-| 667 px (362) | three over three: six above need 454 | mark above, one row |
+| 667 px (362) | short names (LEG BOD HAN EYE SHA HEA), mark above, one row | mark above, one row |
 | 850 px (545) | mark above, one row | gap, padding, letter-spacing; one row |
 | 1120 px (815) | as drawn, one row | as drawn, one row |
 | 1300 px | as drawn, one row | as drawn, one row |
 
-At 140 % (a sheet opens 1.4 times as wide: Legacy 1190, the glass 1568): one row as drawn in both themes. A sheet a
-Legacy player narrows by hand under about 760 px (100 %) or 1030 px (140 %) stands three over three; under the glass the
-same at 140 % on a 667 px sheet. In every case measured no mark stands on its neighbour's plate and nothing runs out of
+The step before three over three is the short names (the coordinator's, for the owner's "koniecznie w 1 rzedzie"): a
+statistic is then as wide as its value's box, 52 px times the slider, and the full name stays the plate's tooltip and
+aria-label. At 140 % (a sheet opens 1.4 times as wide: Legacy 1190, the glass 1568): one row in both themes; Legacy
+narrowed by hand to 934 px takes the short names (legacy-934-140pct-after.png). Three over three is left only for a row
+under about 322 px at 100 % (a Legacy sheet under about 630 px) and 447 px at 140 % (a 667 px sheet at 140 %, both
+themes). In every case measured no mark stands on its neighbour's plate and nothing runs out of
 the header.
 
 ## Not measured here

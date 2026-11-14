@@ -8029,8 +8029,12 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
    padding 2 px, the gap 2 px). Not the names' size: both themes draw them at their floor already (Legacy 11 px times the
    scale, the glass VT323 at its 21 px `--drpg-sg-floor`). Measured in Chromium, 14.11.2026, "Shadow" with its plate: Legacy
    86 px beside its mark, 84 with the padding cut, about 72 with the mark above; the glass 89, 87, 75 untracked, 59 above.
-   Where even `above` does not fit - Legacy on a row under about 454 px, its 667 px sheet's row is 362 - the row is three
-   over three (`wrap`), as before: nothing overlaps or runs out of the header. `measure` lays each statistic at its
+   Where even `above` does not fit - Legacy on a row under about 454 px, its 667 px sheet's row is 362 - the six take
+   their short names (`short`, the coordinator's step for the owner's one row: LEG BOD HAN EYE SHA HEA drawn from
+   `data-drpg-short`, the full name kept as the plate's tooltip and aria-label), each then as wide as its value's box
+   (52 px times the slider). Only where even those do not fit - a row under about 322 px at 100 % (a Legacy sheet under
+   about 630 px), 447 px at 140 % (a Legacy sheet narrowed by hand under about 860 px) - is the row three over three
+   (`wrap`): nothing overlaps or runs out of the header. `measure` lays each statistic at its
    natural width for the fitter's reading. R5760 reads this cascade, R7330 the order; the drawing is the commit's
    measurement. */
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
@@ -8074,6 +8078,12 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     top: auto;
     bottom: calc(100% + 2px);
     transform: translateX(-50%);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="short"] .trait .trait-name > span {
+    display: none;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="short"] .trait .trait-name::after {
+    content: attr(data-drpg-short);
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit="wrap"] {
     grid-template-columns: repeat(3, minmax(0, 1fr));

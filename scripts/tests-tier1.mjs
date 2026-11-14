@@ -61310,14 +61310,15 @@ const INVARIANTS = [
            "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
            (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
         const sheet = (beside, cut, untracked, above) => row => step => {
-            const need = step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
+            const need = step.includes("short") ? 52 : step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
             const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
             return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
         };
         const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
         const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
-        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
-            ["", "gap", "gap pad", "gap pad track", "above track"]]),
+        /* Legacy at 667 takes the short names since they came in (R7333): at them a statistic is its value's box, 52 px. */
+        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["above track short", "above track", "", "above track", "gap pad track", ""],
+            ["", "gap", "gap pad", "gap pad track", "above track", "above track short"]]),
             "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
     ["R7331 - the Interface scale reaches down to 25 % (the owner, 14.11.2026: \"Chcialbym powiekszyc tez zakres zmniejszenia ui (aktualnie minimum to 0.8, celujmy w 0.25\"): settings.mjs states the range once (`UI_SCALE`: 0.25 to 1.4 by 0.05), the setting is registered with it, and `clampSlider` holds a stored value to it - 0.25 and 1.4 kept, below and above them clamped, a value that is no number read as 1; the setting's hint names 25% and 140% in both languages, and the window's line under the slider (`DRPG.SettingsWindow.scaleSmall`, the hint itself stays one line, R4061) says below 80% the text is smaller than the module's readable size", async () => {
@@ -61358,6 +61359,25 @@ const INVARIANTS = [
         equal(stableJson([of ? [0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4].map(of) : null, stamped, bare, scaled >= 25, glass]),
             stableJson([[0.3125, 0.5, 0.625, 0.9875, 1, 1, 1], true, 0, true, true]),
             "[floorScaleOf at 0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4; applyTheme stamps it; bare 11 px floors left; the floors that read it (25); the glass's floor rides on its scale]");
+    }],
+    ["R7333 - where even the mark above does not fit, the six take their short names before the row gives up on one line (the owner's \"koniecznie w 1 rzedzie\", 14.11.2026, through the coordinator: the short names already in lang - LEG BOD HAN EYE SHA HEA - with the mark above, the full name as the plate's tooltip and its aria-label): sheet-header.mjs `TRAIT_FIT_STEPS` ends on `above track short`, `traitFitStep` takes it where it fits and gives `wrap` only where even it does not, and `shortTraitName` reads a statistic's short name off Daggerheart's key `DAGGERHEART.CONFIG.Traits.<key>.short`", async () => {
+        /*
+         * Red at 6c6b1461: no `short` step - Legacy at 667 px stood three over three (its row 362 px, six with the mark above
+         * 454). Fed: a statistic at its short name is as wide as its value's box (52 px at 100 %, 72.8 at 140 %), the widest
+         * thing in it then; rows of 362 (667 px at 100 %), 252 (667 px at 140 %) and 519 (934 px at 140 %). Pure, and one
+         * localize; nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        const measure = (row, box) => step => {
+            const need = step.includes("short") ? box : step.includes("above") ? (box > 60 ? 101 : 74) : 86.2;
+            return { need, gap: step.includes("above") ? 2 : step.includes("gap") ? 9 : 16, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const short = typeof H.shortTraitName === "function" ? ["agility", "presence", "knowledge"].map(H.shortTraitName) : null;
+        equal(stableJson([pick(measure(362, 52)), pick(measure(252, 72.8)), pick(measure(519, 72.8)), short]),
+            stableJson(["above track short", "wrap", "above track short",
+                ["agility", "presence", "knowledge"].map(k => game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${k}.short`))]),
+            "[Legacy 667 px at 100 %, 667 px at 140 %, 934 px at 140 %; the short names of Leg, Shadow and Head]");
     }],
 ];
 
