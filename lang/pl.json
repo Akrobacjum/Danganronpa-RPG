@@ -3906,6 +3906,7 @@
         "freeMove": "{name}: +{n} Free Move",
         "text": "{name}: słowa GM-a wysłane",
         "searchToken": "{room}: Search Tokeny +{n}",
+      "searchTokenFull": "{room}: żaden Search Token nie wrócił, bo pokój ma już ich komplet",
         "overflowDown": "Despair overflow: -{n}",
         "durability": {"one": "{name}: „{item}”, +{n} wytrzymałości", "few": "{name}: „{item}”, +{n} wytrzymałości", "many": "{name}: „{item}”, +{n} wytrzymałości", "other": "{name}: „{item}”, +{n} wytrzymałości"},
         "durabilityNone": "{name}: nie ma nic zużytego do naprawy",

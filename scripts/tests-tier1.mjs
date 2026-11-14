@@ -37924,6 +37924,19 @@ const INVARIANTS = [
             "[a set started, not ended; one ended solved; one stopped at question 2; the key exists]");
     }],
 
+    ["R6911 - a room action's Search Tokens line says how many came back, not how many were asked (needsCode, 14.11.2026): facilities-gm.mjs `applyEffects` counts what search-tokens.mjs `giveBack` answered - each token capped at the room's maximum, none on a GM that is not the primary - and says `Facility.applied.searchToken` with that count, or `searchTokenFull` when none came back", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #51. Red at 1c89f07a: the line passed
+         * `effect.n`, the GM's number, so a full room read \"+3\" with nothing given back. Read from source; tier 2 runs the
+         * room actions.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "facilities-gm.mjs")?.[1] ?? ""), "applyEffects") ?? "";
+        must(body.includes("giveBack"), "applyEffects no longer gives Search Tokens back - this reads nothing");
+        equal(stableJson([/t\("searchToken", \{ n: effect\.n\b/.test(body), /const \w+ = await SearchTokens\.giveBack\(/.test(body), /"searchTokenFull"/.test(body),
+            game.i18n.has("DRPG.Facility.applied.searchTokenFull")]), stableJson([false, true, true, true]),
+            "[the line says effect.n; giveBack's answer read; searchTokenFull said; the key exists]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
