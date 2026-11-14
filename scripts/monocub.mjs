@@ -1818,7 +1818,8 @@ async function postBountyNow(userId, target) {
     const owedKey = await D.oweDespair(userId, cost);
     if (!owedKey) return null;
     // The owed row's key and the price, so a lapse gives back what this Bounty took (A113-C6-3, `lapseBounties`).
-    const bounty = { by: userId, reward, cost, owedKey, at: serverNow(), targetName: target.name };
+    // And its season (E59 on the 1.2.115 line, CHAINS.md B-H1; R7176): a lapse gives back only within it.
+    const bounty = { by: userId, reward, cost, owedKey, at: serverNow(), targetName: target.name, season: seasonEpoch() };
     await bountyStore.patch(target.id, bounty);
     tellEveryCub();
     await tellBounty("bountyPosted", { name: target.name, reward },
@@ -1859,7 +1860,11 @@ export async function lapseBounties() {
     const D = await import("./despair.mjs");
     for (const [id, bounty] of open) {
         const cost = Math.max(0, Math.trunc(Number(bounty?.cost) || 0));
-        const back = bounty?.owedKey ? await D.returnOwed(bounty.by, bounty.owedKey, cost).catch(err => {
+        /* OF THIS SEASON ONLY (E59 on the 1.2.115 line, CHAINS.md B-H1; R7176): a season reset that zeroes the pools and
+           keeps the Bounties ("despair" ticked, "actions" not) left last season's to lapse into this one, and
+           `returnOwed` paid each one's cost into the new pool. A Bounty posted before 1.2.115 holds no season: as now. */
+        const thisSeason = (bounty?.season ?? seasonEpoch()) === seasonEpoch();
+        const back = bounty?.owedKey && thisSeason ? await D.returnOwed(bounty.by, bounty.owedKey, cost).catch(err => {
             error("Could not give a lapsed Bounty's Despair back", err);
             return null;
         }) : null;

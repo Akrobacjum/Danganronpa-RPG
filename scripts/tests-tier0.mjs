@@ -25649,6 +25649,12 @@ const REGRESSIONS = [
         ok(/\bbodyPlaceOf\(/.test(prompt), "promptPendingBodies does not read where the body lies now");
         ok(!/discoverBody\(\{\s*room:\s*row\.room\b/.test(prompt) && !/room:\s*esc\(row\.room\)/.test(prompt), "promptPendingBodies still names or announces the room the row was written with");
     }],
+    ["R7176 - a Bounty of last season gives nothing back into this one (E59 C-115, CHAINS.md B-H1): a season reset with \"despair\" ticked and \"actions\" unticked zeroes the pools and drops what they owe (despair.mjs `clearOwed`) and keeps the open Bounties (gm-stores.mjs `bountyStore`, group \"actions\"); at the next time of day `lapseBounties` paid each one's cost back (`returnOwed`: no owed row reads as paid) into the new season's pool; a Bounty now carries the season it was posted in (`seasonEpoch`) and a lapse gives back only within it - inside one season the pay-back after a zero stays the owner's default (A113-C6-3)", async () => {
+        const cub = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        ok(/season:\s*seasonEpoch\(\)/.test(fnSource(cub, "postBountyNow")), "postBountyNow does not keep the season a Bounty was posted in");
+        const lapse = fnSource(cub, "lapseBounties");
+        ok(/\.season\b/.test(lapse) && /seasonEpoch\(\)/.test(lapse), "lapseBounties gives a Bounty's Despair back whatever season it was posted in");
+    }],
 ];
 
 
