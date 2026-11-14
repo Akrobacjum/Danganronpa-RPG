@@ -5941,7 +5941,7 @@
       "hint.foundryHeld": "Foundry's settings are given back. Unless your table wants that, hold them again.",
       "step.hallTokens": "The trial hall and its tokens (optional)",
       "hint.hallTokens": "A trial hall is linked, with no warnings on the Scenes tab. This is optional.",
-      "step.diceSoNice": "Dice So Nice (optional)",
+      "step.diceSoNice": "Dice So Nice is active",
       "hint.diceSoNice": "Dice So Nice shows the dice as they fall. Danganronpa RPG does not start without it.",
       "resetTitle": "Reset the season",
       "resetWarning": "This cannot be undone, by this module or by anything else.",

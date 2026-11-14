@@ -59157,6 +59157,28 @@ const INVARIANTS = [
             stableJson([files.length, true, true, []]),
             "[the six files read; bridge-guards.mjs beside them; at least one of them draws UI, so T13 reads it; T13's findings in the six]");
     }],
+    ["R6551 - the Season checklist's Dice So Nice row is no optional one: module.json requires Dice So Nice, and the row's title says \"optional\" in neither language (scripts/season-setup.mjs `steps`; module.json `relationships.requires`; lang/en.json and lang/pl.json DRPG.Season step.diceSoNice; E71 group D, the coordinator's word of 14.11.2026: required, not a taste question)", async () => {
+        /*
+         * E71 group D, 14.11.2026. The module does not start without Dice So Nice (module.json requires it; the row's own
+         * hint says so since B15), so a checklist row titled "Dice So Nice (optional)" and drawn as advisory said the
+         * opposite of the manifest. The row's `optional` flag stays as R1132 holds the First session rows: it is done
+         * wherever the module runs. Red at e8a46890: its titles "Dice So Nice (optional)" and "Dice So Nice (opcjonalnie)".
+         */
+        const fetchJson = async path => { try { const res = await fetch(path, { cache: "no-cache" }); return res.ok ? await res.json() : null; } catch { return null; } };
+        const manifest = await fetchJson(`/modules/${MODULE_ID}/module.json?t=${Date.now()}`);
+        const files = { en: await fetchJson(`/modules/${MODULE_ID}/lang/en.json`), pl: await fetchJson(`/modules/${MODULE_ID}/lang/pl.json`) };
+        must(manifest && files.en && files.pl, "module.json or a language file did not load - this would measure nothing");
+        const S = await import("./season-setup.mjs");
+        must(typeof S.steps === "function", "season-setup.mjs exports no steps - this would measure nothing");
+        const row = S.steps({ roomScene: null }).find(step => step.key === "diceSoNice") ?? null;
+        must(row, "the checklist has no diceSoNice row - this would measure nothing");
+        // en.json spells the key flat ("step.diceSoNice"), pl.json nests it (step: { diceSoNice }): Foundry reads both.
+        const title = lang => foundry.utils.getProperty(foundry.utils.expandObject(files[lang] ?? {}), "DRPG.Season.step.diceSoNice") ?? null;
+        const required = (manifest.relationships?.requires ?? []).some(entry => entry.id === "dice-so-nice");
+        equal(stableJson([required, /optional/i.test(title("en") ?? "optional"), /opcjonaln/i.test(title("pl") ?? "opcjonalnie")]),
+            stableJson([true, false, false]),
+            "[module.json requires dice-so-nice; the row's English title says optional; its Polish title says so]");
+    }],
 ];
 
 /**

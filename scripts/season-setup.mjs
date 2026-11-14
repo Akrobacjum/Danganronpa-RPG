@@ -637,7 +637,10 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         }] : []),
         /* DICE SO NICE (E51 C8, 31.10.2026; audit S17-49; E51-48). The module draws every player's throw on the GM
            (roll-draw.mjs) and keeps each player's dice look (dice-sync.mjs) for it; a table without it rolls, and sees
-           no dice. Optional. Open is Foundry's module list, where it is switched on - offered only where this Foundry
+           no dice. Required: module.json requires it and the module does not start without it, so its title says nothing of
+           "optional" (E71 group D, 14.11.2026; R6551). The flag below stays `optional` as R1132 holds the First session
+           rows: where the checklist is drawn the module runs, so the row is done and the Next line has nothing to wait
+           on. Open is Foundry's module list, where it is switched on - offered only where this Foundry
            has the window under the name v13 gives it (`foundry.applications.sidebar.apps.ModuleManagement`, from
            memory, not read on v14); the row says its state either way. */
         {

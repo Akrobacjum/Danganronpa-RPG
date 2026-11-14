@@ -6357,7 +6357,7 @@
         "mastermind": "Mastermind (opcjonalnie)",
         "foundryHeld": "Moduł trzyma ustawienia Foundry (opcjonalnie)",
         "hallTokens": "Sala rozpraw i jej tokeny (opcjonalnie)",
-        "diceSoNice": "Dice So Nice (opcjonalnie)",
+        "diceSoNice": "Dice So Nice jest włączony",
         "roomCount": "Dość pokoi dla obsady",
         "despairSplit": "Uczniowie są podzieleni po równo między pule",
         "overflow": "Próg Overflow pasuje do obsady"

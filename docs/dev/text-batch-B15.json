@@ -4897,19 +4897,18 @@
       ],
       "en": {
         "before": "Dice So Nice (optional)",
-        "after": "Dice So Nice (optional)"
+        "after": "Dice So Nice is active"
       },
       "pl": {
         "before": "Dice So Nice (opcjonalnie)",
-        "after": "Dice So Nice (opcjonalnie)"
+        "after": "Dice So Nice jest włączony"
       },
       "removed": [
-        "unchanged: the title matches the row's optional flag; the disagreement with the requirement is the owner's to settle"
+        "unchanged: the title matches the row's optional flag; the disagreement with the requirement is the owner's to settle",
+        "FIX: R6551: \"(optional)\" / \"(opcjonalnie)\" out of the title: module.json requires Dice So Nice and the module does not start without it (the coordinator, 14.11.2026: a fact, not a taste question); the row's `optional` flag stays (R1132; the row is done wherever the module runs)"
       ],
       "needsCode": [],
-      "disagreements": [
-        "DRPG.Season.step.diceSoNice: the row is optional (\"(optional)\") while requirements.mjs makes Dice So Nice required and the module does not start without it (module.mjs requirementsMet); the row can never be red. Drop the row, or make its title and the GM handbook's First session line say it is required."
-      ],
+      "disagreements": [],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -4971,9 +4970,7 @@
         "PL: „Przycisk otwiera listę modułów Foundry, gdzie się go włącza.” left: while the module runs the row is done and draws no button (fact 1)."
       ],
       "needsCode": [],
-      "disagreements": [
-        "DRPG.Season.hint.diceSoNice: see DRPG.Season.step.diceSoNice - the row treats a required module as optional."
-      ],
+      "disagreements": [],
       "reviews": {
         "en": null,
         "coldEn": {
