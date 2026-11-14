@@ -2233,7 +2233,7 @@
           "shareProjectTooltip": "Tajny projekt, któremu zmieniasz dostęp; jawnych projektów nie ma na liście.",
           "sharePlayerTooltip": "Gracz, który zyskuje albo traci wgląd w projekt; GM-owie i tak widzą każdy projekt.",
           "saveManagerTooltip": "Zapisuje zmienione na tej liście pokoje, znaczniki i zaznaczenia graczy.",
-          "createFromManagerTooltip": "Otwiera okno nowego projektu, a potem znów tę listę; niezapisane tu zmiany przepadają.",
+          "createFromManagerTooltip": "Zapisuje zmiany z tej listy, otwiera okno nowego projektu i wraca tutaj.",
           "passRollTooltip": "Zachowujesz to, co miało być zapłacone, i nie rzucasz; GM zobaczy w twoim wątku, że rezygnujesz."
         },
         "Trial": {

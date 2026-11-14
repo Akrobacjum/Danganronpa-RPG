@@ -2143,7 +2143,7 @@
           "shareProjectTooltip": "The secret project whose access you change; public projects aren't on the list.",
           "sharePlayerTooltip": "The player who gains or loses sight of the project; GMs see every project anyway.",
           "saveManagerTooltip": "Saves the rooms, flags, and player ticks you changed in this list.",
-          "createFromManagerTooltip": "Opens a new project's window, then this list again; changes you haven't saved here are lost.",
+          "createFromManagerTooltip": "Saves what you changed in this list, then opens a new project's window and brings you back here.",
           "passRollTooltip": "You keep what you'd have paid and skip the roll; the GM reads in your thread that you passed."
         },
         "Trial": {
