@@ -243,6 +243,13 @@
  *             every module file a reader names; REVIEW-111-e59 finding 1). A
  *             planted package with eight faults first. Red on 421f2395:
  *             macros/ and icons/pixel-sprite.svg. Bare Node and git.
+ *   fonts     what each fonts/*.woff2 says of itself in its name table
+ *             against fonts/README.md's licence table (E26 prep, 14.11.2026;
+ *             tools/font-names.mjs, whose header has the rules): a row each,
+ *             the licence the font's own licence URL names, and a modified
+ *             face that keeps no name its copyright reserves. A planted set
+ *             with three faults first. Red on 1463f22b: no licence table, and
+ *             Special Elite (Apache 2.0) called OFL. Bare Node.
  *   tooltips  the controls with no help (E102 C1, widened after REVIEW-102;
  *             tools/tooltip-census.mjs, whose header lists the kinds of
  *             control it reads and the ones it does not): its self-check of
@@ -739,6 +746,30 @@ function tree() {
     catch (err) { return [`not a git checkout (${err.message.split("\n")[0]})`]; }
     console.log(`tree: ${listed.length} tracked file(s) under audit/harness/results or node_modules`);
     return listed.slice(0, 20).map(f => `${f} is tracked - it is written by a run or an install, never committed`);
+}
+
+/* ------------------------------ fonts ------------------------------ */
+
+/* E26 prep (14.11.2026): tools/font-names.mjs reads the name tables; this part feeds it the files and the README. */
+async function fontsPart() {
+    const F = await import(url.pathToFileURL(path.join(REPO, "tools", "font-names.mjs")).href);
+    const dir = path.join(REPO, "fonts");
+    const problems = [];
+    const fonts = {};
+    for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".woff2")).sort()) {
+        try { fonts[file] = F.woff2Names(fs.readFileSync(path.join(dir, file))); }
+        catch (err) { problems.push(`${file}: its name table could not be read (${err.message})`); }
+    }
+    const rows = F.licenceRows(fs.readFileSync(path.join(dir, "README.md"), "utf8"));
+    for (const [file, row] of Object.entries(rows)) if (!fs.existsSync(path.join(dir, row.text))) problems.push(`${file}: its licence text fonts/${row.text} is not there`);
+    problems.push(...F.fontProblems(fonts, rows));
+    const named = Object.values(fonts).filter(n => n[1]).length;
+    if (!named) problems.push("no woff2 in fonts/ gave a family name - this part read nothing");
+    const self = F.fontSelfCheck();
+    if (self.seen !== self.want || self.got.length !== self.want) problems.push(`the self-check's planted fonts gave ${JSON.stringify(self.got)}`);
+    console.log(`fonts: ${Object.keys(fonts).length} woff2 file(s) in fonts/, ${named} with a family name (${[...new Set(Object.values(fonts).map(n => n[1]))].join(", ")}); `
+        + `${Object.keys(rows).length} licence row(s); self-check ${self.seen}/${self.want} planted fault(s) seen, ${self.got.length - self.seen} other(s); ${problems.length} problem(s)`);
+    return problems;
 }
 
 /* ------------------------------ package ------------------------------ */
@@ -1606,6 +1637,8 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
 PARTS.package = pkg;
 // E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
 PARTS.comments = comments;
+// E26 prep: on its own line, as `package` is.
+PARTS.fonts = fontsPart;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);

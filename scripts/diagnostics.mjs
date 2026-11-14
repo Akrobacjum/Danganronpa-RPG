@@ -668,8 +668,8 @@ function callIconLines(lines, root) {
 }
 
 /*
- * A stylesheet or a face, with or without a query. The stylesheet asks for `pixel.woff2?v=2` and `pixel-ext.woff2?v=3`
- * (danganronpa.css's `@font-face`), and the `/\.woff2$/` this replaced (E52 C5, audit S01-51) missed both, then said
+ * A stylesheet or a face, with or without a query. The stylesheet asks for `pixel.woff2?v=N` and `pixel-ext.woff2?v=N`
+ * (danganronpa.css's `@font-face`; v=4 and v=5 on 14.11.2026), and the `/\.woff2$/` this replaced (E52 C5, audit S01-51) missed both, then said
  * no face had been fetched at all.
  */
 const STYLE_FILE = /\.(css|woff2)(\?|$)/;

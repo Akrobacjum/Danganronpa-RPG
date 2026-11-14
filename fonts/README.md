@@ -1,6 +1,7 @@
 # Pixel font
 
-**Press Start 2P** ships with the module and is on by default. Turn it off with
+A modified **Press Start 2P**, named **DRPG Pixel** (see "Licences"), ships with
+the module and is on by default. Turn it off with
 the *Pixel font* setting.
 
     pixel.woff2       latin       (12.5 KB)
@@ -38,9 +39,13 @@ the licence URL); the texts are google/fonts' own copies, fetched the same day.
 
 - **Press Start 2P** by CodeMan38: Copyright 2012 The Press Start 2P Project
   Authors, with Reserved Font Name "Press Start 2P". The two pixel files are a
-  modified version (the marks of Ó Ć Ń Ś Ź Ż, 13.11.2026, under "Polish capitals"
-  above), so under the licence's condition 3 they may not carry that name: the
-  stylesheet loads them as "DRPG Pixel".
+  modified version (Polish letters redrawn, the last time on 13.11.2026, under
+  "Polish capitals" above), so under the licence's condition 3 they may not carry
+  that name: since 14.11.2026 their own name tables call them "DRPG Pixel"
+  (family, full and PostScript names; the copyright line is kept), the name the
+  stylesheet loads them by. No glyph changed in that rename (fontTools 4.68:
+  every glyph's compiled bytes the same before and after). `node tools/check.mjs
+  fonts` holds each file to its row here.
 - **VT323** by Peter Hull: Copyright 2011 The VT323 Project Authors. No reserved
   font name.
 - **Special Elite** by Astigmatic (Brian J. Bonislawsky): Copyright 2010, under

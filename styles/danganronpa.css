@@ -2774,15 +2774,18 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
    at the sheet's prose).
    ========================================================================== */
 
-/* Press Start 2P, SIL Open Font License. Split the same way Google serves it,
-   so Polish letters in a campaign name resolve from the latin-ext file instead
-   of falling back to a different typeface mid-word. */
+/* A modified Press Start 2P, SIL Open Font License 1.1 (fonts/OFL-PressStart2P.txt).
+   Its copyright reserves the name "Press Start 2P", so the modified files call
+   themselves "DRPG Pixel" in their own name tables too (E26 prep, 14.11.2026;
+   `node tools/check.mjs fonts`). Split the same way Google serves it, so Polish
+   letters in a campaign name resolve from the latin-ext file instead of falling
+   back to a different typeface mid-word. */
 @font-face {
     font-family: "DRPG Pixel";
     /* ?v=2: Oacute redrawn (F5.5 iter. 2); ?v=3: its acute lifted one font
-       pixel off the letter (trial exit, 13.11) - the query defeats the font
-       cache. */
-    src: url("../fonts/pixel.woff2?v=3") format("woff2");
+       pixel off the letter (trial exit, 13.11); ?v=4: the name table renamed
+       (14.11), no glyph changed - the query defeats the font cache. */
+    src: url("../fonts/pixel.woff2?v=4") format("woff2");
     font-display: swap;
     font-weight: normal;
     font-style: normal;
@@ -2795,9 +2798,9 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     font-family: "DRPG Pixel";
     /* ?v=3: PL lowercase (iter. 1) + uppercase (iter. 2) redrawn; ?v=4: the
        marks of the capitals with an acute or a dot lifted one font pixel
-       off the letter (trial exit, 13.11) - the query defeats the font
-       cache. */
-    src: url("../fonts/pixel-ext.woff2?v=4") format("woff2");
+       off the letter (trial exit, 13.11); ?v=5: the name table renamed
+       (14.11), no glyph changed - the query defeats the font cache. */
+    src: url("../fonts/pixel-ext.woff2?v=5") format("woff2");
     font-display: swap;
     font-weight: normal;
     font-style: normal;
