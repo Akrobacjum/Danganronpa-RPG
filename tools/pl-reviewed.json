@@ -28,6 +28,20 @@
       "dropped": 5,
       "baseline": false,
       "note": "E57 C12: the 212 keys whose English the text lines (e71-a..d) moved and whose Polish they did not, read beside the English; 43 Polish corrected, 169 confirmed"
+    },
+    {
+      "date": "2026-11-14",
+      "keys": 1,
+      "dropped": 0,
+      "baseline": false,
+      "note": "E57 C12: T21's one finding, reworded to the English"
+    },
+    {
+      "date": "2026-11-14",
+      "keys": 1,
+      "dropped": 0,
+      "baseline": false,
+      "note": "E57 C12: T24, the English's first colon made a full stop; the Polish already reads so"
     }
   ],
   "keys": {
@@ -1902,7 +1916,7 @@
     "DRPG.Config.SFX_EVENTS.deathFade.label": "a75db459:d761d371:b",
     "DRPG.Config.SFX_EVENTS.debateOpen.hint": "9e270c97:45268e58:b",
     "DRPG.Config.SFX_EVENTS.debateOpen.label": "915abbd8:a4f8ae65:b",
-    "DRPG.Config.SFX_EVENTS.despairCall.hint": "276be11b:c295e50c:b",
+    "DRPG.Config.SFX_EVENTS.despairCall.hint": "e6459d42:f559988b",
     "DRPG.Config.SFX_EVENTS.despairCall.label": "e0adce5d:e0adce5d:b",
     "DRPG.Config.SFX_EVENTS.despairOverflow.hint": "0220f33c:b55a551c:b",
     "DRPG.Config.SFX_EVENTS.despairOverflow.label": "6fb2087c:dbaa9f90:b",
@@ -4412,7 +4426,7 @@
     "DRPG.Panel.title": "62739429:f80a9c83:b",
     "DRPG.Panel.voiceReset": "441a92f2:31489ec1:b",
     "DRPG.Panel.whoIsAlive": "ad3459c9:38e3d92c:b",
-    "DRPG.Panel.whoIsAliveNote": "f44fbd06:b55332e2:b",
+    "DRPG.Panel.whoIsAliveNote": "a22f9463:4264eb54",
     "DRPG.Passage.card.breachBedroom": "d56315c7:32406c49:b",
     "DRPG.Passage.card.breachDoneHere": "ffe0cb39:5e750c46:b",
     "DRPG.Passage.card.breachDoneHereNamed": "c34d40b6:5c6cea92:b",

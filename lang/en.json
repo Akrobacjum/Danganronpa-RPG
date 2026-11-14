@@ -4892,7 +4892,7 @@
       "seasonChecks": "Pre-season checks",
       "foundryReport": "Foundry and modules",
       "whoIsAlive": "Students",
-      "whoIsAliveNote": "The State column fixes a mis-click: the change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
+      "whoIsAliveNote": "The State column fixes a mis-click. The change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
       "doColumn": "Do",
       "refundCrossing": "Refund last crossing",
       "refundCrossingNote": "{to} back to {from}",

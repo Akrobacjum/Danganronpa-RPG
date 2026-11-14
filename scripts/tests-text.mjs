@@ -1486,13 +1486,24 @@ export function colonsIn(text) {
  * One finding a string, its count in `colons`; `byCount` how many strings hold
  * three, four and more.
  */
+/**
+ * T24's allowed readouts (E57 C12, 14.11.2026): a string that is a list of named values, one "Label: {value}." each, not prose
+ * strung on colons (X7's chain), each key with the reason and both languages alike. Read by `colonChains`; a fixture
+ * passes its own through `colonAllow`.
+ */
+export const COLON_CHAIN_ALLOW = Object.freeze({
+    "DRPG.Action.dcAnalyze": "Analyze's thresholds, one per kind of Truth Bullet: three named values the briefing shows as a readout (action-briefing.mjs), not a sentence",
+    "DRPG.Mastermind.verdictSummary": "the Final Trial's summary: three named values, the Mastermind, the accused and the outcome, a readout on the GM's card (verdict.mjs)"
+});
+
 export function colonChains(bag = {}) {
     const found = [], byCount = {};
+    const allow = bag.colonAllow ?? COLON_CHAIN_ALLOW;
     let read = 0;
     for (const u of uiUnits(bag)) {
         read++;
         const n = colonsIn(u.text);
-        if (n <= 2) continue;
+        if (n <= 2 || Object.hasOwn(allow, u.key)) continue;
         byCount[n] = (byCount[n] ?? 0) + 1;
         found.push({ key: u.key, kind: u.lang, lang: u.lang, colons: n,
             what: `${u.where}: ${n} colons in one string - more than two is a chain of labels (T24, X7)` });
@@ -2423,8 +2434,23 @@ const PL_NOT_VERB = new Set("klawisz afisz gulasz łukasz tomasz".split(" "));
  * whose readers depend on a value at run time is judged by every branch (the map lists both). `read`: the keys with a
  * send read. One finding a key and language, `you-en` or `you-pl`.
  */
+/**
+ * T16's allowed keys (E57 C12, 14.11.2026): a text whose send the audience map files under many readers, where the call site
+ * narrows them to the one person "you" means. Each key with the site and why; read by `secondPersonToMany`, and a fixture
+ * passes its own through `youAllow`.
+ */
+export const SECOND_PERSON_ALLOW = Object.freeze({
+    "DRPG.Murder.closedVictimYou": "murder-rules.mjs tellIncidentClosed: sent only when no one else is told (`others` empty), whispered to `freed`, the living victim's own players",
+    "DRPG.TraitRuling.openingKiller": "murder-rules.mjs tellOpeningRoller: the incident's audience at the stage `openingRoll`, which settings.mjs incidentSeats gives as the roller's side alone (the killer, with a third who kills with them)",
+    "DRPG.TraitRuling.openingKillerProposed": "murder-rules.mjs tellOpeningRoller: as openingKiller, the roller's side alone at `openingRoll`",
+    "DRPG.TraitRuling.openingVictim": "murder-rules.mjs tellOpeningRoller: at `openingRoll` of a trap the seats are the victim alone (incidentSeats), the one who rolls",
+    "DRPG.Monocub.meddleIntro": "monocub.mjs: the header of the Monocub's own ability window (callWindow), read by the Monocub's player, no card",
+    "DRPG.Monocub.tiersIntro": "monocub.mjs: the brief of the Monocub's own ability window (callWindow), read by the Monocub's player, no card"
+});
+
 export function secondPersonToMany(bag = {}) {
-    const counts = { keys: 0, many: 0, maybe: 0, single: 0, en: 0, pl: 0 };
+    const counts = { keys: 0, many: 0, maybe: 0, single: 0, allowed: 0, en: 0, pl: 0 };
+    const allow = bag.youAllow ?? SECOND_PERSON_ALLOW;
     if (bag.audience === undefined || bag.en === undefined || bag.pl === undefined) return { found: [], read: 0, counts };
     const en = new Map([...asMap(bag.en), ...asMap(bag.prose)]), pl = asMap(bag.pl);
     const found = [];
@@ -2434,6 +2460,7 @@ export function secondPersonToMany(bag = {}) {
         const readers = new Set(sends.flatMap(s => (Array.isArray(s?.readers) ? s.readers : [])));
         const many = [...readers].filter(r => MANY_READERS.includes(r));
         if (!many.length) { counts[readers.has("list") ? "maybe" : "single"]++; continue; }
+        if (Object.hasOwn(allow, key)) { counts.allowed++; continue; }
         counts.many++;
         const where = sends.filter(s => s.readers?.some(r => MANY_READERS.includes(r))).map(s => `${s.file ?? "?"}:${s.line ?? "?"}`).slice(0, 3).join(", ");
         const tell = (lang, text, at, len) => {
@@ -2537,8 +2564,10 @@ export const MODES = Object.freeze({
     lengthOver: Object.freeze({ test: "T4", mode: "report", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
-    monokumaVoice: Object.freeze({ test: "T21", mode: "report", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
-    colonChains: Object.freeze({ test: "T24", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    /* FAIL since E57 C12 (14.11.2026): its one finding after the text lines, SFX_EVENTS.despairCall.hint, reworded. */
+    monokumaVoice: Object.freeze({ test: "T21", mode: "fail", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
+    /* FAIL since E57 C12 (14.11.2026): after the text lines, two readouts allowed (COLON_CHAIN_ALLOW) and one sentence split. */
+    colonChains: Object.freeze({ test: "T24", mode: "fail", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     loanGender: Object.freeze({ test: "T11", mode: "report", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
     loanDeclension: Object.freeze({ test: "T12", mode: "report", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
     oxfordComma: Object.freeze({ test: "T17", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
@@ -2551,8 +2580,10 @@ export const MODES = Object.freeze({
     uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
     localeCalls: Object.freeze({ test: "T20", mode: "fail", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
     naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) }),
-    renderChecks: Object.freeze({ test: "T15", mode: "report", fail: "E71", reads: Object.freeze(["render", "lang"]), also: Object.freeze(["prose"]) }),
-    secondPersonToMany: Object.freeze({ test: "T16", mode: "report", fail: "E71", reads: Object.freeze(["audience", "lang"]), also: Object.freeze(["prose"]) })
+    /* FAIL since E57 C12 (14.11.2026): its 114 after the text lines were 33 placeholder names tools/text-render.mjs had no value for. */
+    renderChecks: Object.freeze({ test: "T15", mode: "fail", fail: "E71", reads: Object.freeze(["render", "lang"]), also: Object.freeze(["prose"]) }),
+    /* FAIL since E57 C12 (14.11.2026): its six keys after the text lines each read by one person at its call site (SECOND_PERSON_ALLOW). */
+    secondPersonToMany: Object.freeze({ test: "T16", mode: "fail", fail: "E71", reads: Object.freeze(["audience", "lang"]), also: Object.freeze(["prose"]) })
 });
 
 export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, staleTranslations, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
@@ -3051,8 +3082,10 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.b": "At 12:30: the bell: rings.",                                       // a time is no colon: two, passes
                 "DRPG.Fx.c": "<table><tr><td>Hope:</td><td>Despair:</td><td>Sanity:</td></tr></table> Total: {n}",   // the cells' labels: one, passes
                 "DRPG.Fx.d": "See https://a.b: one: two: three",                                 // the URL's is not read: three, flagged
-                "DRPG.Fx.e": "<span style=\"a:b;c:d\">Room: {room}</span>"                       // markup is not read: one, passes
+                "DRPG.Fx.e": "<span style=\"a:b;c:d\">Room: {room}</span>",                      // markup is not read: one, passes
+                "DRPG.Fx.readout": "Who: {a}. What: {b}. Why: {c}."                                // three, but allowed below: passes
             },
+            colonAllow: { "DRPG.Fx.readout": "a readout of three named values (E57 C12)" },
             prose: { "DRPG.Config.FX.x": "A: b: c: d" },                                          // three: flagged
             pl: { "DRPG.Fx.a": "Zbrodnia: {a}; słabe: {b}; klucz: {c}." }                          // three: flagged
         }
@@ -3427,7 +3460,7 @@ export const FIXTURES = Object.freeze({
     },
     secondPersonToMany: {
         flags: ["DRPG.Fx.room you-en", "DRPG.Fx.room you-pl", "DRPG.Fx.flag you-en", "DRPG.Fx.flag you-pl", "DRPG.Fx.cast you-pl", "DRPG.Config.FX.call you-en"],
-        counts: { keys: 10, many: 6, maybe: 1, single: 3, en: 3, pl: 3 },
+        counts: { keys: 11, many: 6, maybe: 1, single: 3, allowed: 1, en: 3, pl: 3 },
         input: {
             audience: {
                 "DRPG.Fx.room": [{ readers: ["gms", "room"], file: "scripts/fx.mjs", line: 1 }],             // the room: flagged in both
@@ -3440,18 +3473,20 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.nasz": [{ readers: ["room"] }],                                                     // "klawisz" is no verb: passes
                 "DRPG.Fx.own": [{ readers: ["own"] }],                                                       // the notice history's own: passes
                 "DRPG.Fx.unsent": [],                                                                        // no send read: not a key of the map
-                "DRPG.Config.FX.call": [{ readers: ["everyone"] }]                                           // config prose: read in English
+                "DRPG.Config.FX.call": [{ readers: ["everyone"] }],                                          // config prose: read in English
+                "DRPG.Fx.narrowed": [{ readers: ["incident"] }]                                              // allowed below (E57 C12): passes, counted
             },
+            youAllow: { "DRPG.Fx.narrowed": "the call site narrows the incident to the one who rolls" },
             en: {
                 "DRPG.Fx.room": "You hear a scream.", "DRPG.Fx.owner": "You found it.", "DRPG.Fx.flag": "<p>Your turn.</p>",
                 "DRPG.Fx.toast": "You can't do that now.", "DRPG.Fx.list": "You were told.", "DRPG.Fx.third": "{victim} falls; the killer stands.",
-                "DRPG.Fx.cast": "{n} actions left for the killer.", "DRPG.Fx.nasz": "Our key.", "DRPG.Fx.own": "You read this before.", "DRPG.Fx.unsent": "You never see this.", "DRPG.Fx.youth": "Youth."
+                "DRPG.Fx.cast": "{n} actions left for the killer.", "DRPG.Fx.nasz": "Our key.", "DRPG.Fx.own": "You read this before.", "DRPG.Fx.unsent": "You never see this.", "DRPG.Fx.youth": "Youth.", "DRPG.Fx.narrowed": "Your opening roll."
             },
             prose: { "DRPG.Config.FX.call": "You lose one Hope." },
             pl: {
                 "DRPG.Fx.room": "Słyszysz krzyk.", "DRPG.Fx.owner": "Znajdujesz to.", "DRPG.Fx.flag": "Twoja kolej.", "DRPG.Fx.toast": "Nie możesz teraz.",
                 "DRPG.Fx.list": "Powiedziano ci.", "DRPG.Fx.third": "{victim} pada; zabójca stoi.", "DRPG.Fx.cast": "Zostały ci {n} akcje.", "DRPG.Fx.nasz": "Nasz klawisz.",
-                "DRPG.Fx.own": "Czytałeś to.", "DRPG.Config.FX.call": "Gracz traci jeden Hope."
+                "DRPG.Fx.own": "Czytałeś to.", "DRPG.Config.FX.call": "Gracz traci jeden Hope.", "DRPG.Fx.narrowed": "Twój rzut otwarcia."
             }
         }
     }

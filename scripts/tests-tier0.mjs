@@ -19067,12 +19067,12 @@ const REGRESSIONS = [
             detectors: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
                 "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
-            modes: [["bareLeft", "T25", "fail"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
+            modes: [["bareLeft", "T25", "fail"], ["colonChains", "T24", "fail"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
                 ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
                 ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
-                ["monokumaVoice", "T21", "report"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
-                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
+                ["monokumaVoice", "T21", "fail"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
+                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "fail"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "fail"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
                 ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
@@ -19165,7 +19165,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []], ["bareLeft", true, 0, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");

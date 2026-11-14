@@ -7900,7 +7900,7 @@
         },
         "despairCall": {
           "label": "Despair Call",
-          "hint": "Despair Call Monokumy działa i zostaje ogłoszony na publicznej karcie. Słyszy cały stół."
+          "hint": "Monokuma używa Despair Call. Słyszy cały stół."
         },
         "newRule": {
           "label": "Nowa zasada",

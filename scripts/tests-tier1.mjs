@@ -57835,7 +57835,8 @@ const INVARIANTS = [
         const files = {};
         for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
         const PL = { title: "Ustawienia postaci", details: "Szczegóły", experiences: "Doświadczenia", statistics: "Statystyki", reserves: "Health i Sanity",
-            maxHealth: "Health (maks.)", maxSanity: "Sanity (maks.)", newExperience: "Nowe doświadczenie", delete: "Usuń" };
+            maxHealth: "Health (maks.)", maxSanity: "Sanity (maks.)", newExperience: "Dodaj doświadczenie", delete: "Usuń" };
+        /* E57 C12: newExperience follows the English, which line A made a verb ("Add Experience", was "New Experience"). */
         const en = files.en.DRPG?.DhSettings ?? {}, pl = files.pl.DRPG?.DhSettings ?? {};
         const DH_KEYS = ["Tabs.settings", "Tabs.details", "Tabs.experiences", "basics", "maxWithThing", "experience"];
         const read = {

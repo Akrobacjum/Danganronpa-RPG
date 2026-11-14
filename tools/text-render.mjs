@@ -58,9 +58,11 @@ const fixed = (en, pl) => Object.freeze({ en: [en], pl: [pl] });
  */
 export const PLACEHOLDERS = Object.freeze({
     person: { names: ["name", "who", "actor", "target", "victim", "killer", "player", "student", "giver", "finder", "accused", "roller", "mastermind", "owner",
-        "third", "gm", "user", "by", "account", "speaker"], values: both([WOMAN, MAN]), note: "a woman's name, then a man's: the Polish past tense agrees with it" },
+        "third", "gm", "user", "by", "account", "speaker",
+        // E57 C12 (14.11.2026): the names the text lines' keys brought (T15's unknown 33), each read off its sentence.
+        "cub", "thief", "body"], values: both([WOMAN, MAN]), note: "a woman's name, then a man's: the Polish past tense agrees with it" },
     people: { names: ["names", "actors", "students", "players", "killers", "holders"], list: true, values: both([[WOMAN, MAN, THIRD], [WOMAN, MAN], [THIRD]]) },
-    room: { names: ["room", "from", "to", "killerRoom", "victimRoom", "hall", "lair", "gather", "sealed", "region", "next"],
+    room: { names: ["room", "from", "to", "killerRoom", "victimRoom", "hall", "lair", "gather", "sealed", "region", "next", "into", "far"],
         values: Object.freeze({ en: ["Workshop", "Library", "Cinema"], pl: ["Warsztat", "Biblioteka", "Kino"] }), note: "one room of each Polish gender: m, f, n" },
     rooms: { names: ["rooms", "places"], list: true, values: Object.freeze({ en: [["Workshop", "Library", "Cinema"], ["Library"]], pl: [["Warsztat", "Biblioteka", "Kino"], ["Biblioteka"]] }) },
     scene: { names: ["scene", "floor", "title"], values: fixed("School, floor 1", "Szkoła, piętro 1") },
@@ -76,9 +78,12 @@ export const PLACEHOLDERS = Object.freeze({
         "session", "shown", "slider", "auto", "notices", "turn", "bodies", "actions", "traces", "placed", "living", "all", "s", "add", "refresh", "remove", "bar",
         "overflow", "rows", "set", "claimed", "expected", "legal", "projects", "plants", "x", "pools",
         // E66 C4 (01.11.2026): the numbers config.mjs `PROSE_NUMBERS` and the builders put where a digit stood.
-        "drain", "mult", "worth", "fewest"], values: both(RENDER_NS) },
+        "drain", "mult", "worth", "fewest",
+        // E57 C12: "Alive: {alive}/{total}", the fog's diagnosis in pixels, a reserve's maximum, a lock's bands, a Bounty's Hope, a count.
+        "alive", "amplitude", "core", "d", "openings", "span", "y", "hpMax", "sanity", "sanityMax", "clean", "cover", "reward", "entered", "grid", "section"],
+        values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },
-    trait: { names: ["trait"], from: "trait" },
+    trait: { names: ["trait", "proposed"], from: "trait" },
     traits: { names: ["traits", "sources"], list: true, from: "traits" },
     grant: { names: ["what"], from: "grant", note: "each real DRPG.Calls.grants.* fragment" },
     call: { names: ["call"], from: "call" },
@@ -90,7 +95,10 @@ export const PLACEHOLDERS = Object.freeze({
         // E66 C4: a number with its unit, written by a `DRPG.Unit.*` family or the Eclipse's reach.
         "reach", "short", "long", "wounded",
         // E66 fix r1 F7: the vote's noun, `Events.voteMetaGmBallots` counted on the total (events.mjs `voteMetaLine`).
-        "ballots"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
+        "ballots",
+        // E57 C12: a straw poll's answer and question, a solved dive's finding, a split's counts, a project's life, a badge's end, a
+        // silenced warning, the case map's node and reference, a zone's letter, the module's name in a diagnosis.
+        "answer", "question", "finding", "counts", "life", "until", "warning", "node", "ref", "zone", "module"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },
