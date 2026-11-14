@@ -4083,7 +4083,7 @@
       "armedTitle": "Ktoś użył Calla dla ciebie",
       "waitsNextRoll": "Nałożone po otwarciu tego okna: {what}. Nie wchodzi do tego rzutu - czeka na twój następny.",
       "armedForYou": "Inny uczeń wydaje na ciebie Hope: twój następny rzut ma {what}. Okno rzutu ma to już włączone.",
-      "armedForYouBy": "{name} wydaje na ciebie Hope: twój następny rzut ma {what}. Działa samo.",
+      "armedForYouBy": "{name} wydaje na ciebie Hope: twój następny rzut ma {what}. Okno rzutu ma to już włączone.",
       "armedByMonokuma": "Monokuma nałożył na twój następny rzut {what}. Działa samo.",
       "armedByNobody": "Twój następny rzut niesie {what}. Działa samo.",
       "newRuleTitle": "Nowa zasada killing game",
@@ -5625,8 +5625,8 @@
       "caughtTaking": "Widzisz to: {who} zabiera ci „{item}”.",
       "caughtTrying": "Przyłapujesz postać {who} na grzebaniu w twoich kieszeniach. Ta osoba odchodzi z niczym.",
       "wHand": "Widzisz, jak {who} wsuwa rękę do kieszeni: {target} - i to zostaje zauważone.",
-      "wTaking": "Widzisz, jak {who} wyjmuje {item} z kieszeni: {target} - i to zostaje zauważone.",
-      "wPlanting": "Widzisz, jak {who} wsuwa {item} do kieszeni: {target} - i to zostaje zauważone."
+      "wTaking": "Widzisz, jak {who} wyjmuje „{item}” z kieszeni: {target} - i to zostaje zauważone.",
+      "wPlanting": "Widzisz, jak {who} wsuwa „{item}” do kieszeni: {target} - i to zostaje zauważone."
     },
     "Frisk": {
       "rowLabel": "Zobacz, co nosi",

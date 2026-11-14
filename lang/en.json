@@ -3814,7 +3814,7 @@
       "armedTitle": "A Call was made for you",
       "waitsNextRoll": "Armed after this window opened: {what}. It is not part of this roll - it waits for your next one.",
       "armedForYou": "Another student spent Hope on you: your next roll gets {what}. It is already switched on in your roll window.",
-      "armedForYouBy": "{name} spends Hope on you: your next roll has {what}. It applies by itself.",
+      "armedForYouBy": "{name} spends Hope on you: your next roll gets {what}. It is already switched on in your roll window.",
       "armedByMonokuma": "Monokuma has {what} on your next roll. It applies by itself.",
       "armedByNobody": "Your next roll carries {what}. It applies by itself.",
       "newRuleTitle": "New Killing Game Rule",
@@ -5219,8 +5219,8 @@
       "caughtTaking": "{who} took “{item}” from you, and you saw them do it.",
       "caughtTrying": "You catch {who} going through your pockets. They come away with nothing.",
       "wHand": "You see {who} slip a hand into {target}'s pocket - and {target} notices.",
-      "wTaking": "You see {who} take {item} from {target}'s pocket - and {target} notices.",
-      "wPlanting": "You see {who} slip {item} into {target}'s pocket - and {target} notices."
+      "wTaking": "You see {who} take “{item}” from {target}'s pocket - and {target} notices.",
+      "wPlanting": "You see {who} slip “{item}” into {target}'s pocket - and {target} notices."
     },
     "Frisk": {
       "rowLabel": "See what they carry",
