@@ -301,7 +301,9 @@ function thresholdFacts(actor, actionKey, def) {
             try {
                 const place = locateActor(actor);
                 const here = place?.room ? projectsAvailableIn(place) : [];
-                if (here.some(p => isIndirectMurder(p))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
+                /* By the project's id (the leak-pm line, 14.11.2026): asked with the row, `isIndirectMurder` read projectMeta
+                   under "[object Object]" and the line never showed (72-canary, red at 19ae74fb on the killer's browser). */
+                if (here.some(p => isIndirectMurder(p.id))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
             } catch { /* no projects here */ }
             break;
         }

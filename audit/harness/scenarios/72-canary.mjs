@@ -442,7 +442,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     /* THE WORK'S BRIEFING NAMES THE MURDER'S CONCEALMENT TO ITS KILLER, AND TO NOBODY ELSE (the leak-pm line, the
        coordinator's item of 14.11.2026). action-briefing.mjs's "project" facts add `DRPG.Action.dcIndirect` when an indirect
        murder stands where the character does - asked with the project's row, not its id, so it never did (red at
-       df3d602a). A second murder of Chie's, unfinished, in the room she stands in; her briefing read on p3, whose sight of
+       19ae74fb: p3 {murder:true, shows:false}). A second murder of Chie's, unfinished, in the room she stands in; her briefing read on p3, whose sight of
        it carries `murder` (projects.mjs `sightFor`), and on p1, who is not in on it - p1's `isIndirectMurder` reads false off
        no sight copy, and its list holds no secret project it cannot see. The probe is deleted after. */
     const probe = await gm.eval(`${PROJ} const { locateActor } = await import("${repoUrl}/scripts/movement.mjs");
@@ -458,8 +458,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const briefP1 = await briefOn(p1);
     check("p3's Work briefing in Chie's room names an indirect murder's concealment; p1's does not, and p1 reads no murder",
         Boolean(probe.id) && briefP3.murder === true && briefP3.shows === true && briefP1.murder === false && briefP1.shows === false,
-        JSON.stringify({ probe, p3: briefP3, p1: briefP1 }),
-        { expectedRed: { stage: "E54", why: "the leak-pm line's red first: the briefing asks isIndirectMurder with a row" }, measured: Boolean(probe.id) && briefP3.murder === true });
+        JSON.stringify({ probe, p3: briefP3, p1: briefP1 }));
     await gm.eval(`${PROJ} if ("${probe.id ?? ""}") await P.deleteProject("${probe.id ?? ""}"); return true;`, { timeout: 60000 });
     await scanned("trap", KILLER_CHAT);
     /* The trap's receipt (E06 C8): a veiled thread card. Found on the GM in Chie's player's

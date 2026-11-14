@@ -50,10 +50,13 @@ after this diff, but the two in the last row.
 
 ## Found, not changed
 
-- action-briefing.mjs:304 calls `isIndirectMurder(p)` with a project row, not an id, so it reads `projectMeta()[row]` and
-  is always false: Move's briefing never shows `DRPG.Action.dcIndirect`. Before this line and after it the same
-  (`isIndirectMurder` reads the meta by the row as a key, then `isSecret(row)`, false). Not changed here: it changes what
-  the killer's browser shows, which the brief asked to keep. A one-word fix (`p.id`) for whoever owns the briefing.
+- action-briefing.mjs:304 called `isIndirectMurder(p)` with a project row, not an id, so the Work on Project briefing
+  never showed `DRPG.Action.dcIndirect` (the brief's "Move briefing" is the "project" case of `thresholdFacts`). Fixed at
+  the coordinator's ask of 14.11.2026, red first: 72-canary's check "p3's Work briefing in Chie's room names an indirect
+  murder's concealment; p1's does not, and p1 reads no murder", a second unfinished murder of Chie's in her room (Dorm
+  B). Red at 19ae74fb: p3 `{murder:true, shows:false}`, p1 `{murder:false, shows:false}`; green after: p3
+  `{murder:true, shows:true}`, p1 the same as before. The killer's view changes by that one line alone: the call is
+  the condition of that `f(...)` and nothing else reads it.
 - The GM handbook's item on Daggerheart's Countdowns still says they carry a secret project's name and who may see it,
   and that "this version does not move them"; S17-31 (1.2.111) moved both. Not this line's text to change.
 
