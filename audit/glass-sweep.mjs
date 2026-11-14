@@ -228,6 +228,8 @@
  *        node audit/glass-sweep.mjs --tray [--themes ..., stained,legacy] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
  *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1280x720,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
  *        node audit/glass-sweep.mjs --board [--themes ...] [--roles ...] [--sizes ..., 1024x768,820x1180,393x852,1200x800,844x390,640x360] [--no-control]   (E23 C4a: below)
+ *        node audit/glass-sweep.mjs --follow [--kinds phase-recut,layout] [--sizes ..., 1600x900,1920x1080] [--roles ...] [--turn-ms <n>, 1600]
+ *          [--no-control]   (E62 C6, fix-113p: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
  *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
@@ -1190,6 +1192,103 @@ if (args.includes("--board")) {
     process.exit(bad ? 1 : 0);
 }
 
+/* THE INTERFACE RIDES ITS PANE (E62 C6, fix-113p, 13.11.2026; LIVE-E62-01, the owner on 1.2.103: "textures and effects
+   still change while the curtain animates"). `--follow` runs this instead of the sweep: the glass harness's two recuts
+   (`drpgTurn`: phase-recut and layout) at each size (1600x900 and 1920x1080 by default: at 1366x768 and 1280x800 neither
+   moves a block the cut seats) and role, Stained Glass, the pulse off, one fresh page a turn. Every animation frame
+   from the event to `--turn-ms` (1600) after it reads each of glass.mjs's `FOLLOWERS` (the room tile beside the
+   notices and its picture, the voice tile and its portrait, the notice tile and its plate) - its box on the screen -
+   and the current time of every ride (an Animation on one of them) and of every moving pane layer of the turn
+   (`drpg-turn-pane`). A block RIDES where its box at the end stands more than FOLLOW_PX from its box at rest and the
+   page's own placement says the cut seats it (the room tile under the clock is the clock's column's). The line:
+   `follow <kind> <size> <role> frames <n> riders <n> sync <frames>/<max ms> start <id> <px>... step <id> <px>/<total>...`
+   - `start`, each rider's box in the first frame the turn's moving layers stand, against its box at rest (the largest of
+     its four edges' moves): the jump at the move's start, which is the whole move where a block does not ride
+   - `sync`, the frames in which a ride and a moving pane both ran, and the largest gap between a ride's time and the
+     nearest pane's: one clock is 0
+   - `step`, each rider's largest move between two frames against its whole move (printed, not judged: headless frames
+     run 60-450 ms in software, so a move of 700 ms is a handful of frames; the pane's own steps are as coarse)
+   A line FAILS where a rider's start stands more than FOLLOW_PX from rest, a sync gap exceeds 1 ms, or no frame was
+   read. THE CONTROL, once a run at the first size and role (`--no-control` leaves it out): the same page with every
+   ride's keyframes emptied (`Element.prototype.animate` planted for the riders' ids), whose start must read more than
+   FOLLOW_PX on at least one rider - the measure sees a block that does not ride. Headless and software: a table's frames
+   are LIVE-E62-01's. */
+if (args.includes("--follow")) {
+    const KINDS = (opt("--kinds") ?? "phase-recut,layout").split(",").filter(Boolean);
+    const ms = Number(opt("--turn-ms") ?? 1600), FOLLOW_PX = 2;
+    const sizes = (opt("--sizes") ?? "1600x900,1920x1080").split(",").filter(Boolean);
+    let bad = 0, lines = 0, controlled = !control;
+    const read = async (role, size, kind, plant = false) => {
+        const [W, H] = size.split("x").map(Number);
+        const page = await browser.newPage({ viewport: { width: W, height: H } });
+        await page.goto(`${base}/${page0}${role === "player" ? (page0.includes("?") ? "&" : "?") + "role=player" : ""}`);
+        const loaded = await page.waitForFunction(() => window.__glass?.FOLLOWERS && window.drpgTurn, null, { timeout: 15000 }).then(() => true, () => false);
+        if (!loaded) { await page.close(); return null; }
+        await page.waitForTimeout(waitMs);
+        await page.evaluate(() => document.body.classList.add("drpg-no-pulse"));
+        await page.evaluate(k => window.drpgTurn(k, { stage: "prep" }), kind);
+        const r = await page.evaluate(async ([kind, ms, plant]) => {
+            const F = window.__glass.FOLLOWERS, sels = F.map(f => f.sel);
+            if (plant) {
+                const own = Element.prototype.animate;
+                Element.prototype.animate = function (frames, timing) { return own.call(this, sels.some(s => this.matches(s)) ? [] : frames, timing); };
+            }
+            const box = s => { const e = document.querySelector(s); if (!e || !e.getClientRects().length) return null; const b = e.getBoundingClientRect(); return b.width ? [b.left, b.top, b.right, b.bottom] : null; };
+            const all = () => sels.map(box);
+            const placed = () => F.map(f => { const e = document.querySelector(f.sel); return !f.place || e?.dataset.place === f.place; });
+            const rest = all(), frames = [];
+            let on = true;
+            const tick = () => {
+                if (!on) return;
+                const an = document.getAnimations().filter(a => a.constructor.name === "Animation");
+                const ride = an.filter(a => sels.some(s => a.effect?.target?.matches?.(s))).map(a => a.currentTime);
+                const pane = an.filter(a => a.effect?.target?.classList?.contains("drpg-turn-pane")).map(a => a.currentTime);
+                frames.push({ b: all(), pane: pane.length > 0, gap: ride.length && pane.length ? Math.max(...ride.map(x => Math.min(...pane.map(p => Math.abs(x - p))))) : null });
+                requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+            await window.drpgTurn(kind, { stage: "fire", ms });
+            on = false;
+            return { rest, end: all(), placed: placed(), frames, sels };
+        }, [kind, ms, plant]);
+        await page.close();
+        const far = (a, b) => (a && b ? Math.max(...a.map((v, i) => Math.abs(v - b[i]))) : null);
+        const riders = r.sels.map((s, i) => ({ s, i })).filter(({ i }) => r.placed[i] && r.rest[i] && r.end[i] && far(r.rest[i], r.end[i]) > FOLLOW_PX);
+        const at = r.frames.findIndex(f => f.pane);
+        const gaps = r.frames.map(f => f.gap).filter(g => g != null);
+        const out = riders.map(({ s, i }) => {
+            const seq = [r.rest[i], ...r.frames.map(f => f.b[i]).filter(Boolean)];
+            const step = Math.max(0, ...seq.slice(1).map((b, k) => far(b, seq[k])));
+            return { id: s.replace("#drpg-", ""), start: at >= 0 && r.frames[at].b[i] ? +far(r.rest[i], r.frames[at].b[i]).toFixed(1) : null, step: +step.toFixed(1), total: +far(r.rest[i], r.end[i]).toFixed(1) };
+        });
+        return { frames: r.frames.length, moved: at >= 0, riders: out, sync: [gaps.length, gaps.length ? +Math.max(...gaps).toFixed(2) : 0] };
+    };
+    const show = (kind, size, role, x) => `follow ${kind.padEnd(11)} ${size.padEnd(9)} ${role.padEnd(6)} frames ${x.frames} riders ${x.riders.length} sync ${x.sync[0]}/${x.sync[1]} `
+        + `start ${x.riders.map(d => `${d.id} ${d.start ?? "-"}`).join(", ") || "-"} step ${x.riders.map(d => `${d.id} ${d.step}/${d.total}`).join(", ") || "-"}`;
+    try {
+        for (const role of roles) for (const size of sizes) for (const kind of KINDS) {
+            const x = await read(role, size, kind);
+            if (!x) { console.log(`follow ${kind} ${size} ${role} FAIL: the page did not load the glass, its FOLLOWERS or drpgTurn`); bad++; continue; }
+            const why = [];
+            if (!x.frames) why.push("no frame was read");
+            for (const d of x.riders) if (d.start == null || d.start > FOLLOW_PX) why.push(`${d.id} stood ${d.start ?? "?"} px off its rest when the panes began to move (${FOLLOW_PX})`);
+            if (x.sync[1] > 1) why.push(`a ride ran ${x.sync[1]} ms off its pane's clock`);
+            console.log(show(kind, size, role, x) + (why.length ? `  - FAIL: ${why.join("; ")}` : ""));
+            lines++;
+            if (why.length) bad++;
+            if (!controlled && x.riders.length) {
+                controlled = true;
+                const c = await read(role, size, kind, true);
+                const seen = Boolean(c?.riders.some(d => d.start != null && d.start > FOLLOW_PX));
+                console.log(`follow control (rides emptied) ${kind} ${size} ${role}: start ${c?.riders.map(d => `${d.id} ${d.start ?? "-"}`).join(", ") || "-"}${seen ? " - read" : "  - FAIL: a block that does not ride was not read as off its rest"}`);
+                if (!seen) bad++;
+            }
+        }
+        if (!controlled) { console.log("follow control: no line had a rider, so the control could not run - FAIL"); bad++; }
+    } finally { await browser.close(); srv?.kill(); }
+    console.log(`FOLLOW ${bad ? "RED" : "GREEN"}: ${lines} line(s); headless Chromium (software): frames are not a table's`);
+    process.exit(bad ? 1 : 0);
+}
 /* THE TURN (E23 C1a, 07.11.2026; E23-01..E23-06 and E23-08, the owner's 05.11 and E61's DIAGNOSIS.md of MK-R1). `--turn`
    runs this instead of the sweep: how the curtain moves from one state to the next, on the glass harness's four turns
    (its `drpgTurn`: phase-recut, Daily Life -> Class Trial with the clock shorter; phase, Daily Life -> Investigation;
@@ -1834,7 +1933,28 @@ async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
     const body = document.body, HIDDEN = "drpg-dock-hidden";
     const st = window.__dockState ??= { liftWas: body.style.getPropertyValue("--drpg-av-lift"), hiddenWas: body.classList.contains(HIDDEN) };
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const settle = async () => { await new Promise(r => setTimeout(r, 600)); await frame(); };
+    const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher", "drpg-gm-launcher", "drpg-foundry-tools", "drpg-popups"];
+    /* and any ride of the blocks read here to its end (E62 C6, fix-113p): since 1.2.113 a block the cut seats - the
+       notice tile here - rides its pane through the recut's 700 ms, which begins about 150 ms after the dock moves, so at
+       600 ms it stood part way (the sweep at 1224x768 and every desk size: "hidden: not where they stand with no dock:
+       drpg-popups"); where it stands is read once its ride has ended */
+    /* rounds, not one look: on a loaded machine the recut, and so the ride, can begin late; and the first reading
+       (`bare`) waits too - on the full sweep at 1366x657 a ride of the page's own earlier recut still ran when the
+       check began, and `bare` read the notice tile 1.1 px off where it stands (14.11.2026, with three cores held busy
+       to reproduce it; the tile then wore no animation and only its rotation at the later reading) */
+    const rideOut = async () => {
+        for (let k = 0; k < 4; k++) {
+            await frame();
+            const rides = document.getAnimations().filter(a => a.constructor.name === "Animation" && a.playState !== "finished" && ids.some(id => a.effect?.target?.id === id));
+            if (!rides.length) break;
+            await Promise.all(rides.map(a => a.finished.catch(() => null)));
+        }
+    };
+    const settle = async () => {
+        await new Promise(r => setTimeout(r, 600));
+        await rideOut();
+        await frame();
+    };
     const putBack = () => {
         document.getElementById("camera-views")?.remove();
         body.classList.toggle(HIDDEN, st.hiddenWas);
@@ -1857,13 +1977,13 @@ async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
     try { CV = await import("/scripts/camera-view.mjs"); } catch (err) { loadError = String(err); }
     for (const [owner, key] of added.reverse()) delete owner[key];
     if (!CV) { putBack(); return { ok: false, why: `camera-view.mjs did not load here: ${loadError}` }; }
-    const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher", "drpg-gm-launcher", "drpg-foundry-tools", "drpg-popups"];
     const parts = ids.map(id => document.getElementById(id)).filter(el => el && el.offsetWidth > 0 && el.offsetHeight > 0);
     const boxes = () => parts.map(el => { const b = el.getBoundingClientRect(); return { id: el.id, top: b.top, bottom: b.bottom, left: b.left }; });
     const lift = () => getComputedStyle(body).getPropertyValue("--drpg-av-lift").trim();
     const height = Math.min(200, Math.floor(innerHeight / 2)), why = [];
     body.classList.remove(HIDDEN);
     body.style.setProperty("--drpg-av-lift", "0px");
+    await rideOut();
     await frame();
     const bare = boxes();
     const dock = document.createElement("section");
@@ -1881,7 +2001,8 @@ async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
     CV.measureCameraDock();
     await settle();
     const hidden = { lift: lift(), display: getComputedStyle(dock).display, boxes: boxes() };
-    const moved = hidden.boxes.filter((b, i) => Math.abs(b.top - bare[i].top) > 0.5 || Math.abs(b.left - bare[i].left) > 0.5).map(b => b.id);
+    const moved = hidden.boxes.map((b, i) => [b, bare[i]]).filter(([b, w]) => Math.abs(b.top - w.top) > 0.5 || Math.abs(b.left - w.left) > 0.5)
+        .map(([b, w]) => `${b.id} (top ${Math.round(w.top)} -> ${Math.round(b.top)}, left ${Math.round(w.left)} -> ${Math.round(b.left)})`);
     if (hidden.display !== "none") why.push(`hidden: the dock computes display ${hidden.display}`);
     if (hidden.lift !== "0px") why.push(`hidden: the lift ${hidden.lift}`);
     if (moved.length) why.push(`hidden: not where they stand with no dock: ${moved.join(", ")}`);

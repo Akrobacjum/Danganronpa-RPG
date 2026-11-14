@@ -54186,6 +54186,70 @@ const INVARIANTS = [
             still: ["still", 0, 3], off: ["off", 1, false]
         }), "[Send's card: the board's payload, spread from the composed one, no sfx; the chat hook plays it; its sound is the slot's; the world's rule; motion: mode, kind, rows, one after another; heard twice; after Escape; a player's card; still: mode, animations, rows; the switch off: mode, sounds, a host]");
     }],
+    ["R6052 - the interface rides its pane through a recut (scripts/glass.mjs `followFrames`; E62 C6, the owner's 10.11 and LIVE-E62-01 on 1.2.103): a block's keyframes lay it on the box it stood in at the first frame and on its own box at the last (translate 0, scale 1), by translate and scale only, each edge moving one way; and at every sample they share with a moving pane's keyframes (`turnPlan` on a stand-in recut) the block has gone the same share of its way as the pane's corners have of theirs - one curve, one clock; an empty box gives none", async () => {
+        /*
+         * fix-113p, 13.11.2026. Red at ceb9e9c8: no `followFrames` - the tiles and pictures the cut seats stood at the new
+         * cut from the first frame (the glass harness: the notice tile 46.9 px in one frame at 1600x900). The stand-in recut
+         * is R1377's: four triangles, the first and third recut.
+         */
+        const G = await import("./glass.mjs");
+        must(typeof G.followFrames === "function", "glass.mjs has no `followFrames` - nothing rides its pane");
+        const W = 400, H = 300;
+        const old = [[[0, 0], [200, 0], [0, 150]], [[200, 0], [400, 0], [400, 150]], [[0, 150], [200, 300], [0, 300]], [[400, 150], [400, 300], [200, 300]]];
+        const now = [[[0, 0], [260, 0], [0, 190]], old[1], [[0, 190], [200, 300], [0, 300]], old[3]];
+        const panes = polys => polys.map(poly => ({ poly, content: false, tone: null }));
+        const plan = G.turnPlan(panes(old), panes(now), { W, H, fromAcc: "#ff3d8b", acc: "#ff3d8b", dur: 1200 });
+        const m = plan.moves.find(x => x.to === 0);
+        must(m && !plan.none, "the stand-in recut moved no pane - this would measure nothing");
+        // a block on that pane: it stood at `from` and the new cut seats it at `to`; its origin at its middle
+        const from = { x0: 20, y0: 20, x1: 120, y1: 80 }, to = { x0: 26, y0: 25, x1: 152, y1: 96 }, O = [89, 60.5];
+        const frames = G.followFrames(from, to, O) ?? [];
+        const nums = str => [...String(str).matchAll(/-?[\d.]+(?:e-?\d+)?/g)].map(x => Number(x[0]));
+        const boxAt = f => { const [tx, ty] = nums(f.translate), [sx, sy] = nums(f.scale); return [O[0] + tx + sx * (to.x0 - O[0]), O[1] + ty + sy * (to.y0 - O[1]), O[0] + tx + sx * (to.x1 - O[0]), O[1] + ty + sy * (to.y1 - O[1])]; };
+        const boxes = frames.map(boxAt), F = [from.x0, from.y0, from.x1, from.y1], T = [to.x0, to.y0, to.x1, to.y1];
+        const share = b => (b[2] - F[2]) / (T[2] - F[2]);
+        // the pane's share at a keyframe: its corner (200, 0) carried by the keyframe's matrix, of its way to (260, 0)
+        const paneShare = k => { const [a, , c, , e] = nums(k.transform); const qx = 200 - m.box.x0, qy = 0 - m.box.y0; return (m.box.x0 + a * qx + c * qy + e - 200) / 60; };
+        const common = m.frames.filter(k => frames.some(f => Math.abs(f.offset - k.offset) < 1e-9));
+        const keys = [...new Set(frames.flatMap(f => Object.keys(f)))].sort().join(",");
+        const read = {
+            n: frames.length, keys,
+            first: frames.length ? boxes[0].every((v, k) => Math.abs(v - F[k]) < 0.02) : null,
+            last: frames.length ? [frames.at(-1).offset, frames.at(-1).translate, frames.at(-1).scale] : null,
+            // each edge one way, to the keyframes' rounding (0.01 px a translate, 1e-5 a scale) at the curve's flat end
+            oneWay: boxes.length > 2 && [0, 1, 2, 3].every(k => boxes.slice(1).every((b, i) => (b[k] - boxes[i][k]) * (T[k] - F[k]) >= -0.02)),
+            together: common.length >= 11 && common.every(k => Math.abs(share(boxes[frames.findIndex(f => Math.abs(f.offset - k.offset) < 1e-9)]) - paneShare(k)) < 0.002),
+            // the stand-in keeps its colour, so its moves carry the hand-over's 21 samples (two keyframes at its step)
+            common: common.length >= 11,
+            empty: G.followFrames({ x0: 0, y0: 0, x1: 0, y1: 10 }, to, O)
+        };
+        equal(stableJson(read), stableJson({ n: 21, keys: "offset,scale,translate", first: true, last: [1, "0px 0px", "1 1"], oneWay: true, together: true, common: true, empty: null }),
+            "[keyframes; their keys; the first on the box it stood in; the last the identity; each edge one way; at every common sample the block's share of its way is the pane corner's; samples in common; an empty box]");
+    }],
+    ["R6053 - a rebuild that recuts sets what the cut seats riding the turn, and the turn's end ends it (scripts/glass.mjs `followTurn`, `rebuildAll`; E62 C6): the riders are the room tile beside the notices (under the clock the clock's column lays it) and its picture with it, the voice tile and its portrait, the notice tile and its plate, each on its own pane's tone; `rebuildAll` calls `followTurn` after the seats (`seatRoomArt`, `seatVoiceArt`, `seatNoteFrame`) and only for a turn that recuts; the riders' animations join the turn's (`posed`/`anims`, which the turn's end and its cancel end) on its move's length, linear over the sampled curve; and the counter is documented", async () => {
+        /*
+         * fix-113p, 13.11.2026. Red at ceb9e9c8: no `FOLLOWERS`, no `followTurn`. Read off the source: the riders' frames are
+         * R6052's, and the glass harness's per-frame reading in Chromium (`drpgFollowCheck`) is the browser's half.
+         */
+        const G = await import("./glass.mjs");
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("glass.mjs") ?? ""), pc = sources.get("perf-counters.mjs") ?? "";
+        must(src.length > 50000, "glass.mjs read as nothing - this would measure nothing");
+        const rebuild = topLevelFunction(src, "rebuildAll") ?? "", follow = topLevelFunction(src, "followTurn") ?? "";
+        const at = name => rebuild.indexOf(name);
+        equal(stableJson({
+            riders: (G.FOLLOWERS ?? []).map(f => `${f.sel}@${f.tone}${f.place ? `/${f.place}${f.of ? ` of ${f.of}` : ""}` : ""}`),
+            placed: /f\.place && document\.querySelector\(f\.of \?\? f\.sel\)\?\.dataset\.place !== f\.place/.test(follow),
+            order: at("followTurn(") > Math.max(at("seatRoomArt("), at("seatVoiceArt("), at("seatNoteFrame(")) && at("seatNoteFrame(") > 0,
+            recutOnly: /if\s*\(\s*turn\?\.plan\?\.recut\s*\)\s*followTurn\(/.test(rebuild),
+            joins: /h\.posed\?\.push\(anim\)/.test(follow) && /h\.anims\.push\(anim\)/.test(follow),
+            timing: /duration:\s*h\.plan\.move\.ms,\s*easing:\s*"linear"/.test(follow),
+            counted: /count\("glass\.turn\.follow"/.test(follow) && pc.includes("glass.turn.follow")
+        }), stableJson({
+            riders: ["#drpg-room-tile@room-block/notes", "#drpg-room-art@room-block/notes of #drpg-room-tile", "#drpg-voice-tile@voice-block", "#drpg-voice-art@voice-block", "#drpg-popups@note-block", "#drpg-note-frame@note-block"],
+            placed: true, order: true, recutOnly: true, joins: true, timing: true, counted: true
+        }), "[the riders and their panes (the room tile only beside the notices); a rider out of its place stays; after the seats; only on a recut; joined to the turn's animations; the move's length, linear; counted and documented]");
+    }],
     ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
         /*
          * E61 C5, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. The messages are stand-ins with `author` and
