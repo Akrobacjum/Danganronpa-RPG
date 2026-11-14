@@ -960,13 +960,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        after the clear p3 held neither. */
     const sightOn = () => p3.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         const row = P.allProjects().find(p => p.id === "${made ?? "none"}");
-        return { sees: P.canSee("${made ?? "none"}"), name: String(row?.name ?? "") };`)
-        .then(r => ({ sees: r.sees, named: r.name === project.name }));
+        return { sees: P.canSee("${made ?? "none"}"), name: String(row?.name ?? ""), description: String(row?.description ?? "") };`)
+        .then(r => ({ sees: r.sees, named: r.name === project.name, described: r.description === project.description }));
     const sightBefore = await sightOn();
     const cleared = await gm.eval(`await ChatMessage.deleteDocuments([], { deleteAll: true });
         await new Promise(r => setTimeout(r, 1500)); return game.messages.size;`, { timeout: 60000 });
     const sightAfter = await sightOn();
     check("p3: the player in on the secret project still holds it, by its name, after the GM clears the chat log (E101's review of S17-31, R2)",
         Boolean(made) && sightBefore.sees && sightBefore.named && cleared === 0 && sightAfter.sees && sightAfter.named,
+        JSON.stringify({ sightBefore, cleared, sightAfter }), { flow: "projects" });
+    /* ITS DESCRIPTION TOO (Open 103, E44's, carried by E43 as E43-F9; built 14.11.2026 on the line claude/e39-43-113). A
+       secret project's description reached its insiders on a private card alone (projects.mjs `tellDescription`), read
+       off the chat log (`toldDescription`), and the GMs' record of who was told (`descriptionTold`) kept it from being
+       sent again: the same road as the name's before R2, read the same way. Red at 1463f22b: p3 read the description
+       before the clear and "" after it. */
+    check("p3: the player in on the secret project still reads its description after the GM clears the chat log (Open 103, E43-F9)",
+        Boolean(made) && sightBefore.described && cleared === 0 && sightAfter.described,
         JSON.stringify({ sightBefore, cleared, sightAfter }), { flow: "projects" });
 }

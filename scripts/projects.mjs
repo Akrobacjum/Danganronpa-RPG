@@ -242,9 +242,17 @@ function toldDescription(countdownId) {
     return wordsHere.get(countdownId)?.text ?? null;
 }
 
-/** A project's description as this browser may hold it (E44 C9; fix FG6): projectMeta's for a public one; for a secret one the GMs' store on a GM, the newest card that told it on a player's. */
+/**
+ * A project's description as this browser may hold it (E44 C9; fix FG6): projectMeta's for a public one; for a secret one
+ * the GMs' store on a GM, and on a player's their copy of the GMs' sight (`projectSightCopy`, `sightFor`), else the newest
+ * card that told it. THE COPY FIRST (Open 103, E43-F9; 14.11.2026): the card alone was read off the chat log, so a GM's
+ * Clear Chat Log, or the card deleted, left an insider with no description, and the GMs' `descriptionTold` kept it from
+ * being sent again - the road the name took until E101 R2. Scenario 72 reads it after a cleared log.
+ */
 function descriptionOf(id) {
-    const words = !isSecret(id) ? metaFor(id).description : game.user?.isGM ? secretsOf(id).description : toldDescription(id);
+    const copied = !isSecret(id) || game.user?.isGM ? null : projectSightCopy.read()?.[id]?.description;
+    const words = !isSecret(id) ? metaFor(id).description : game.user?.isGM ? secretsOf(id).description
+        : (typeof copied === "string" ? copied : toldDescription(id));
     return typeof words === "string" ? words : "";
 }
 
@@ -279,6 +287,8 @@ export async function tellDescription(countdownId) {
     if (!posted) return 0;
     for (const id of readers) told[id] = words;
     await projectSecretStore.patch(countdownId, { descriptionTold: told }, { whole: true });
+    // And their copy of the sight, which carries the words since Open 103 (`sightFor`): a card deleted leaves them there.
+    for (const id of readers) await sendSightTo(id);
     return readers.length;
 }
 
@@ -328,8 +338,8 @@ const SIGHT_MINE = "projects.sight";
 const SIGHT_ASK = "projects.sightAsk";
 
 /**
- * GM: what this user sees of the secret projects, as the GMs' rows say - `{ sight: { id: { in, name } }, stamps }`: each
- * secret project they are in on (`insidersOf`), or watch as a Spectator, with its name; and, for each project in `also`
+ * GM: what this user sees of the secret projects, as the GMs' rows say - `{ sight: { id: { in, name, description? } }, stamps }`: each
+ * secret project they are in on (`insidersOf`), or watch as a Spectator, with its name and its description (Open 103); and, for each project in `also`
  * or `held` (the asker's copy) that is not among them, a stamp with no row, so the copy lets it go. Nothing of a project
  * whose name this browser does not hold yet. Every stamp is this answer's: an answer is the user's whole set, sent by the
  * primary alone, so the newest is the truth (`offersCombine`).
@@ -346,7 +356,8 @@ function sightFor(userId, { also = [], held = [] } = {}) {
         if (typeof name !== "string" || !name) continue;
         const inside = insidersOf(project.id).includes(userId);
         if (!inside && !watching) continue;
-        sight[project.id] = { in: inside, name };
+        const words = secretsOf(project.id).description;
+        sight[project.id] = { in: inside, name, ...(typeof words === "string" && words ? { description: words } : {}) };
         stamps[project.id] = now;
     }
     for (const id of [...also, ...held]) if (typeof id === "string" && !(id in stamps)) stamps[id] = now;
@@ -390,7 +401,8 @@ async function receiveSight(sight, stamps) {
         own[id] = Number(s) || 0;
         const row = sight?.[id];
         if (!row || typeof row !== "object") continue;
-        mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null };
+        mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null,
+            ...(typeof row.description === "string" ? { description: row.description } : {}) };
     }
     const taken = await projectSightCopy.receive(mine, own);
     if (taken) noticeSight(before, projectSightCopy.read() ?? {});
