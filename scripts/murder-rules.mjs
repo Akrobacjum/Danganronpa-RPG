@@ -70,7 +70,7 @@ import {
 import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { isDeadForGm, SETTINGS } from "./settings.mjs";
 import { isMoveChange } from "./rooms.mjs";
-import { castStore } from "./gm-stores.mjs";
+import { castStore, deathStore } from "./gm-stores.mjs";
 import { maskInsiders, MASK_NAME } from "./mask-gm.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { getClock, setClock, frozenClockOf } from "./clock.mjs";
@@ -3326,6 +3326,21 @@ export async function thirdPartyEnters(actor) {
 }
 
 /**
+ * WHO WAS THERE, KEPT ON THE DEATH'S ROW (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-M4; R7182; Q-115-9, the
+ * coordinator's word: GM 13.4's "that body's own killers or the third of its incident (they were there)"). The close of
+ * the incident (`closeIncident`) hands the third and whoever walked out of it; the row's `there` is read by
+ * body.mjs `inThatDeath`, for the discovery's witnesses and for the walk-in sound. Only a row the GMs hold (`ifLive`: a
+ * death they keep); a published death is found already. GM side; answers the patch or null.
+ */
+async function keepThoseThere(victimId, ids) {
+    const there = [...new Set((ids ?? []).filter(id => typeof id === "string" && id && id !== victimId))];
+    if (!game.user?.isGM || !victimId || !there.length || !deathStore.has(victimId)) return null;
+    const row = deathStore.get(victimId) ?? {};
+    const kept = Array.isArray(row.there) ? row.there : [];
+    return deathStore.patch(victimId, { there: [...new Set([...kept, ...there])] }, { ifLive: true });
+}
+
+/**
  * A fourth person walks in, and there is no murder to be had.
  *
  * Automatic, and not put to the GM. The condition is countable - four people in
@@ -3503,6 +3518,17 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
            left its chapter ..."). An incident opened before that fix names no chapter: the
            clock's, as before. A dynamic import, because investigation.mjs reaches this file
            through its static imports. */
+        /* AND WHO WAS THERE (E59 on the 1.2.115 line, CHAINS.md B-M4; R7182): the third, and whoever walked out of the
+           incident, kept on the victim's death row before the wipe takes the state - the walk-in sound and the
+           discovery's witnesses read it (body.mjs `inThatDeath`). */
+        if (state?.victimId && leftABody(state)) {
+            try {
+                await keepThoseThere(state.victimId, [state.thirdId, ...(Array.isArray(state.departed) ? state.departed : [])]
+                    .filter(id => id && id !== state.killerId));
+            } catch (err) {
+                error("Could not keep who was in the incident on the victim's death row", err);
+            }
+        }
         if (Number.isFinite(state?.keyRemnants) && leftABody(state)) {
             try {
                 const { recordCaseKeys } = await import("./investigation.mjs");

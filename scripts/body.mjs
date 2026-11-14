@@ -795,7 +795,11 @@ async function checkBodyFound(tokenDoc) {
        murder is closed, so during the clean-up it was empty: a killer and a partner in crime
        standing by the body were two "witnesses", and the body was discovered in the middle of
        their own Stage 6. The running incident's killers count as involved too. */
-    const involved = new Set([...blackenedIds(), ...killerIds(murderState())]);
+    /* AND THE THIRD (E59 on the 1.2.115 line, CHAINS.md B-M4; R7182; GM 13.4: "the third of its incident (they were
+       there)"): who was in this body's death, the running incident's or as its death row keeps them (`inThatDeath`). */
+    const { blackenedStore } = await import("./gm-stores.mjs");
+    const involved = new Set([...blackenedIds(), ...killerIds(murderState()),
+        ...inThatDeath(bodyHere.id, { state: murderState(), register: blackenedStore.entries() })]);
 
     // And the dead are not witnesses, a Monocub neither since E72 C3 (E11 C1; `witnessesOf`). Nor is a student
     // who reached the room by a crossing the rules refuse, until they stand somewhere lawful (E12
@@ -980,9 +984,11 @@ export function bodiesLyingIn({ cast = studentActors(), except = null, scene = n
  * Who was in `bodyId`'s death, GM side (1.2.113): the running incident's killers and its third when that body is its
  * victim, and every Blackened whose register row names it. They were there; walking back to it is no finding.
  */
-function inThatDeath(bodyId, { state, register }) {
+function inThatDeath(bodyId, { state, register, row = deathStore.get(bodyId) }) {
     const ids = new Set();
-    if (state?.victimId === bodyId) for (const id of [state.killerId, state.thirdId]) if (id) ids.add(id);
+    if (state?.victimId === bodyId) for (const id of [state.killerId, state.thirdId, ...(Array.isArray(state.departed) ? state.departed : [])]) if (id && id !== bodyId) ids.add(id);
+    // And after the close, who was there as the death's row keeps them (E59 on the 1.2.115 line, CHAINS.md B-M4; R7182).
+    for (const id of Array.isArray(row?.there) ? row.there : []) ids.add(id);
     for (const [killerId, row] of Object.entries(register ?? {})) {
         if (Array.isArray(row?.victims) && row.victims.includes(bodyId)) ids.add(killerId);
     }
