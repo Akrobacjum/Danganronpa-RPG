@@ -6947,7 +6947,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        Botan (p2's), as an opening on Hope does (`maskKiller`, the incident's state handed in). p2, the victim, and p3, a
        witness, then read what a console reads: Aiko's tokens' name, picture and the module's flags on them, and every
        packet of the module's socket that reached them while the mask went up. None may name Aiko by her name or her actor
-       id. What does: a token document keeps its actorId (Foundry's limit, recorded by a note below). p2's
+       id. What does: a token document keeps its actorId (Foundry's limit, known leak foundry-masked-token-actor). p2's
        console's reveal is refused. Put back: the mask, p1's microphone. */
     phase("the killer behind a \"?\", read from a console", { flow: "mask" });
     const killerName = await gm.eval(`return game.actors.get("${ids.aiko}").name;`);
@@ -6991,11 +6991,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && maskView[k].tokens.every(t => t.name === "?" && t.src === "icons/svg/mystery-man.svg") && !named(maskView[k]))
             && maskView.revealTheirs.unchanged && maskView.revealTheirs.forOwnership,
         JSON.stringify({ maskWas, p2: maskView.p2, p3: maskView.p3, revealTheirs: maskView.revealTheirs }).slice(0, 3000), { flow: "mask" });
-    /* WHAT STAYS, A FOUNDRY LIMIT, RECORDED AND NOT CHECKED: the token document keeps its actor, so a console resolves the
-       "?" to the killer. Not a known-leaks.json entry yet: a foundryLimit entry needs its paragraph in the root README.md,
-       which this line may not edit (reported to the coordinator, 13.11.2026). LIVE-E69-05 reads it at a table. */
-    note("the killer behind a \"?\": what a console still resolves through the token's actorId (Foundry's limit)",
-        JSON.stringify({ p2: maskView.p2?.viaActor, p3: maskView.p3?.viaActor, killer: killerName }));
+    /* The known leak, a Foundry limit: the token document keeps its actor, so a console resolves the "?" to the killer. */
+    check("a masked token's actor is read from a player's console - on p2 and p3 the \"?\" token's actorId resolves to the killer's name",
+        !["p2", "p3"].some(k => (maskView[k]?.viaActor ?? []).includes(killerName)),
+        JSON.stringify({ p2: maskView.p2?.viaActor, p3: maskView.p3?.viaActor }),
+        { knownLeak: "foundry-masked-token-actor", measured: maskWas?.done === true });
 
     /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
        tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */
