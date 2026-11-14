@@ -51,7 +51,7 @@ import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanal
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, isPrimaryGm, log, error,
     whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -63,7 +63,6 @@ import { contentOf } from "./secret.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** Flags that make a chat message a presentation. */
 export const TRIAL_FLAGS = {

@@ -62,13 +62,12 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting, autoScale, diceLookChoice, diceLookWrites, DICE_LOOK_CHOICES } from "./settings.mjs";
 import { esc, error, wholeNumber, firstSentence, restOf } from "./utils.mjs";
-import { toggle, stepper, stepperId } from "./ui-kit.mjs";
+import { toggle, stepper, stepperId, tipAttr } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { themeOnlyKeys, systemWantsContrast, isStainedGlass } from "./look.mjs";
 import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
 
-import { tipAttr } from "./ui-kit.mjs";
 
 /**
  * The sections of each place (Q4's seven, split by whose the setting is: E49 A1d), each `{ key, icon, place, keys }`:

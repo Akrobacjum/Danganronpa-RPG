@@ -23,13 +23,11 @@ import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 /* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
    `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
