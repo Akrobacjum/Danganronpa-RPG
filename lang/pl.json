@@ -4325,7 +4325,7 @@
         "other": "Masz w zapasie {n} darmowych akcji. Każda pokrywa pełną cenę akcji, nawet Long Rest."
       },
       "hopeSpent": "Wydajesz {cost} Hope; zostaje ci {left} Hope.",
-      "noPool": "Ten Monokuma nie ma puli Despair. Sprawdź pasek Despair.",
+      "noPool": "Ten Monokuma nie ma puli Despair. Sprawdź panel Pule Despair.",
       "whichPlayer": "Który uczeń?",
       "whichProject": "Który projekt?",
       "whichRoom": "Który pokój?",

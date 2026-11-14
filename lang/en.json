@@ -4052,7 +4052,7 @@
         "other": "You have {n} free actions banked. Each pays an action's whole price, even a Long Rest's."
       },
       "hopeSpent": "You spend {cost} Hope; you have {left} Hope left.",
-      "noPool": "This Monokuma has no Despair pool. Check the Despair bar.",
+      "noPool": "This Monokuma has no Despair pool. Check the Despair Pools.",
       "whichPlayer": "Which student?",
       "whichProject": "Which project?",
       "whichRoom": "Which room?",

@@ -545,7 +545,7 @@ Sprint i Burst zamiast czekać na rzut idą do zapasu i trwają do końca pory d
 
 ## 6. Despair - druga strona
 
-Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, na pasku **Pule Despair** u góry.
+Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, w panelu **Pule Despair** u góry.
 
 ### Despair Calls - co Monokuma może ci zrobić
 

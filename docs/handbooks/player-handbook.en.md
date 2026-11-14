@@ -545,7 +545,7 @@ Sprint and Burst bank instead and last until the time of day ends; a Class Trial
 
 ## 6. Despair - the other side
 
-Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** bar at the top.
+Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** at the top.
 
 ### Despair Calls - what Monokuma can do to you
 
