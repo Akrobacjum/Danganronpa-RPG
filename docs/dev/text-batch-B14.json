@@ -4072,7 +4072,7 @@
         },
         {
           "fact": "By chapter (the default) or by room; the switch is on the inventory, beside the Truth Bullets, and not in the settings window.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-inventory.mjs",
           "fn": "bulletSortMode",
           "note": null
         }
@@ -4120,7 +4120,7 @@
         },
         {
           "fact": "By chapter (the default) or by room; the switch is on the inventory, beside the Truth Bullets, and not in the settings window.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-inventory.mjs",
           "fn": "bulletSortMode",
           "note": null
         }

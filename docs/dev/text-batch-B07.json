@@ -379,13 +379,13 @@
     },
     {
      "fact": "The stash is remembered as found for this character; while the character stands in that room, the Inventory tab of their sheet draws a panel for it listing its contents and a button to take from it, with no action and no roll.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOpenStashSection",
      "note": null
     },
     {
      "fact": "The panel is drawn only for a stash with something in it.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOpenStashSection",
      "note": null
     },

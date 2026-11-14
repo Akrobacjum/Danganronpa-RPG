@@ -1030,7 +1030,7 @@
    "facts": [
     {
      "fact": "The tooltip of the Broken tag, and of the Use and hold-ready buttons of a broken item: it can no longer be used, held ready or worn further.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "addUseButton",
      "note": null
     },
@@ -1132,13 +1132,13 @@
    "facts": [
     {
      "fact": "The tooltip of the first role badge on a weapon, cleaning tool or tool row: the item's own category; {role} is its label (Murder Weapon, Cleaning Tool, Tool).",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-sidebar.mjs",
      "fn": "itemTags",
      "note": null
     },
     {
      "fact": "Other roles it serves as get a second badge (DRPG.Items.alsoServes).",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-sidebar.mjs",
      "fn": "itemTags",
      "note": null
     },
@@ -1969,7 +1969,7 @@
     },
     {
      "fact": "The same line serves a room key, which is copied too, so 'show' fits only a Truth Bullet; sharing fits both.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "addHandoverButton",
      "note": null
     },
@@ -2097,7 +2097,7 @@
     },
     {
      "fact": "The same note is shown when copying a room key, where the Analyze clause does not apply.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "addHandoverButton",
      "note": null
     }
@@ -5309,13 +5309,13 @@
    "facts": [
     {
      "fact": "Heading of a group on the character sheet's inventory: the things the character keeps in their own stash in one room, one heading per stash on the scene they stand on, with a count beside it.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOneStashSection",
      "note": null
     },
     {
      "fact": "{room} is the room the stash is in; the character must stand there to put things in or take them out.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildStashSection",
      "note": null
     }
@@ -5360,7 +5360,7 @@
    "facts": [
     {
      "fact": "Tooltip of the row button on the character sheet that puts a carried item into the character's stash; free, no action, but only while standing in that stash's room.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "addStashButton",
      "note": null
     },
@@ -5408,7 +5408,7 @@
    "facts": [
     {
      "fact": "Tooltip of the row button on a stashed item that takes it back into the character's hands; free, and only while standing in the room of the stash it lies in.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "addStashButton",
      "note": null
     },
@@ -6771,13 +6771,13 @@
    "facts": [
     {
      "fact": "Heading on the character sheet for each stash of another student, in the room the character stands in, that they can reach and that holds something, with its count.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOpenStashSection",
      "note": null
     },
     {
      "fact": "{who} is that stash's owner, {room} the room.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOpenStashSection",
      "note": null
     }
@@ -9346,7 +9346,7 @@
    "facts": [
     {
      "fact": "Tooltip on the count (for example 1 / 2) next to each of the three gear headings: Murder Weapons, Cleaning Tools and Tools share one slot limit, so each of the three rows shows the same total against it. {n} is that limit (LIMIT_GROUPS.gear.limit, now 2).",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-sidebar.mjs",
      "fn": "INVENTORY_GROUPS",
      "note": null
     },
@@ -9396,7 +9396,7 @@
    "facts": [
     {
      "fact": "Tooltip on the fold that opens first (marked as 'here') in chapter grouping of the Truth Bullets on the character sheet.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "bulletFold",
      "note": null
     },
@@ -9456,7 +9456,7 @@
    "facts": [
     {
      "fact": "Tooltip on the fold that opens first (marked as 'here') in location grouping of the Truth Bullets on the character sheet.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "bulletFold",
      "note": null
     },
@@ -9516,13 +9516,13 @@
    "facts": [
     {
      "fact": "Line under the 'Other' group heading, shown to a GM: the items here have no category the module knows, so no heading files them; the GM can remove the item with the row's trash button and give it again from the Give / take items window, under its proper category.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOtherSection",
      "note": null
     },
     {
      "fact": "Give / take items cannot take such an item itself, which is why the sheet's own Remove exists for a GM.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOtherSection",
      "note": null
     }
@@ -9566,7 +9566,7 @@
    "facts": [
     {
      "fact": "The question in the confirmation window before a GM deletes an uncategorized item from a character sheet: {item} is the item's name (in quotes), {actor} the character's name. Deleting cannot be undone; Cancel is the default button.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOtherSection",
      "note": null
     }
@@ -9609,7 +9609,7 @@
    "facts": [
     {
      "fact": "Line under the 'Other' group heading, shown to a player (not a GM): the item has no heading; the player is told to ask the GM to file it, since only a GM can remove it and give it again under a category.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "buildOtherSection",
      "note": null
     }
@@ -9745,7 +9745,7 @@
    "facts": [
     {
      "fact": "Title of the window that asks whom to show a secret passage to; {passage} is the row's label, the two rooms the passage joins written with a dash between them (for example: Library - Kitchen).",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-sidebar.mjs",
      "fn": "showPassageDialog",
      "note": null
     }

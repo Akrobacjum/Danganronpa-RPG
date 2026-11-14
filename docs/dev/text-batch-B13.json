@@ -1718,7 +1718,7 @@
    "facts": [
     {
      "fact": "The line stands under the heading DRPG.Rules.sheetTitle (\"Monokuma's rules\") in the Rules tab of every character sheet, read by the players and the GMs who open a sheet.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-actions.mjs",
      "fn": "buildRulesPanel",
      "note": null
     },
@@ -1879,7 +1879,7 @@
     },
     {
      "fact": "Every rule in rules() is drawn in the Rules tab of every character sheet (DRPG.Rules.tab).",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-actions.mjs",
      "fn": "buildRulesPanel",
      "note": null
     },
@@ -2026,7 +2026,7 @@
     },
     {
      "fact": "A rule in the list is drawn in the Rules tab of every character sheet.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-actions.mjs",
      "fn": "buildRulesPanel",
      "note": null
     }

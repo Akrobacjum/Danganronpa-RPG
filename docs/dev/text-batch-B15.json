@@ -5543,7 +5543,7 @@
         },
         {
           "fact": "Counts the students dead for the GMs; the deaths group revives them, turns every Monocub back and puts every student's Health and Sanity back to whole.",
-          "file": "scripts/chapter.mjs",
+          "file": "scripts/death.mjs",
           "fn": "tallySeasonDeaths",
           "note": null
         },
@@ -7857,7 +7857,7 @@
         },
         {
           "fact": "The Key Remnant plan is cleared; unticked, it is kept for the clock's current chapter only.",
-          "file": "scripts/investigation.mjs",
+          "file": "scripts/key-remnants.mjs",
           "fn": "keepSeasonKeyPlan",
           "note": null
         }
@@ -10055,7 +10055,7 @@
       "facts": [
         {
           "fact": "The safeword button is drawn on a student's sheet; a Monokuma's and a Spectator's sheet have none.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/safeword.mjs",
           "fn": "safeword",
           "note": null
         },
@@ -11741,7 +11741,7 @@
         },
         {
           "fact": "A walk-in discovery takes two student witnesses.",
-          "file": "scripts/chapter.mjs",
+          "file": "scripts/body.mjs",
           "fn": "checkBodyFound",
           "note": null
         }

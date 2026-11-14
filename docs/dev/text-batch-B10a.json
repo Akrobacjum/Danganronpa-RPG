@@ -2840,7 +2840,7 @@
    "facts": [
     {
      "fact": "The tooltip of the Present button on a Truth Bullet's row of the sheet, replaced by the mode's refusal while the button is held.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "paintPresentButton",
      "note": null
     },
@@ -10518,7 +10518,7 @@
     },
     {
      "fact": "The way to present is the Present button (a gavel icon, tooltip DRPG.Trial.presentTooltip \"Present\" / \"Przedstaw\") on a Truth Bullet's row of the character sheet, which opens the Present window.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-inventory.mjs",
      "fn": "addPresentButton",
      "note": null
     },

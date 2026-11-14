@@ -3794,7 +3794,7 @@
         },
         {
           "fact": "The drawer's note.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-actions.mjs",
           "fn": "callLockNote",
           "note": null
         }
@@ -3843,7 +3843,7 @@
         },
         {
           "fact": "Shown as a warning when a Despair Call that grants Hope is chosen, on the greyed Breath of a rest, and in the item window instead of a Hope bonus.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-actions.mjs",
           "fn": "runCall",
           "note": null
         },

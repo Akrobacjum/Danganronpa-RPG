@@ -894,7 +894,7 @@
         },
         {
           "fact": "Shown on the Tamper tile while the actor is cleaning their own crime scene.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/cleanup.mjs",
           "fn": "freeTonightText",
           "note": null
         },
@@ -2160,7 +2160,7 @@
       "facts": [
         {
           "fact": "A second ruling on one proposal is refused with the name of the GM who ruled.",
-          "file": "scripts/cleanup.mjs",
+          "file": "scripts/cleanup-reshape.mjs",
           "fn": "claimRuling",
           "note": null
         }

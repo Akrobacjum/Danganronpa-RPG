@@ -4027,7 +4027,7 @@
         },
         {
           "fact": "The sheet's lock line is drawn only on the Mastermind's player's browser.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-sidebar.mjs",
           "fn": "lairBlock",
           "note": null
         },
