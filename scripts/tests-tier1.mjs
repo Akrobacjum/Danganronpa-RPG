@@ -61439,6 +61439,28 @@ const INVARIANTS = [
             stableJson([["off", "off", null], true, true, true, false]),
             "[the replays of a GM's card twice and of a player's card, the console offers it once the summary is out, the button runs case-summary.mjs's replay, which finds this trial's card, and writes nothing]");
     }],
+    ["R7330 - the six statistics' row gives way in the owner's order and stops at the first step that fits (sheet-header.mjs `traitFitStep`; the owner, 14.11.2026, \"koniecznie w 1 rzedzie\"): the gap, then the plate's padding, then the names' letter-spacing, then the mark above the name; three columns only where none of them fits. Fed the widths Chromium measured on Daggerheart 2.12.8's stylesheet with the module's sheets (14.11.2026): Legacy at 850 px moves the mark above, Legacy at 667 px fits nothing, the glass at 850 px stops at the letter-spacing and at 667 px at the mark above, and every sheet wider than six full-width names keeps its row as drawn", async () => {
+        /*
+         * Red at 21973f06: no `traitFitStep` - the row wrapped to 3 over 3 wherever six full-width names did not fit.
+         * Pure: a step is judged from the widths a measure answers for it (the widest statistic, the column gap, the mark's
+         * overhang beside the name, the row's width), the numbers below those Chromium read for each step. Nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        /* [need with the mark beside, need with its padding cut, need at letter-spacing 0, need with the mark above] for
+           "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
+           (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
+        const sheet = (beside, cut, untracked, above) => row => step => {
+            const need = step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
+            const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
+            return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
+        const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
+        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
+            ["", "gap", "gap pad", "gap pad track", "above track"]]),
+            "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
+    }],
     ["R7126 - the Key limit's line counts the rows the GM has filled or placed (E109, DISAGREEMENTS.json D22, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `keyRowsUsed` counts a slot with a trace or any of its four words, and both lines that say \"{used} of {limit}\" (investigation.mjs's planner and the Map's summary) take it, not min(slots, limit)", async () => {
         /* Red at c87c2e8c: no keyRowsUsed, and both lines wrote Math.min(plan.entries.length, limit) - the plan always holds
            five slots, so a limit of five or less read "5 of 5 used" with nothing written. */
@@ -61494,28 +61516,6 @@ const INVARIANTS = [
             /wireChargeHeld/.test(bridge), typeof flats.en["DRPG.Case.chargeAgain"] === "string" && names("en"), typeof flats.pl["DRPG.Case.chargeAgain"] === "string" && names("pl")]),
         stableJson([true, true, true, true, true, true, true]),
             "[the held card carries the button, its flag, the button asks the primary's charge, it is wired by the card's flag, a GM's browser wires it, every English form names the button, every Polish form]");
-    }],
-    ["R7330 - the six statistics' row gives way in the owner's order and stops at the first step that fits (sheet-header.mjs `traitFitStep`; the owner, 14.11.2026, \"koniecznie w 1 rzedzie\"): the gap, then the plate's padding, then the names' letter-spacing, then the mark above the name; three columns only where none of them fits. Fed the widths Chromium measured on Daggerheart 2.12.8's stylesheet with the module's sheets (14.11.2026): Legacy at 850 px moves the mark above, Legacy at 667 px fits nothing, the glass at 850 px stops at the letter-spacing and at 667 px at the mark above, and every sheet wider than six full-width names keeps its row as drawn", async () => {
-        /*
-         * Red at 21973f06: no `traitFitStep` - the row wrapped to 3 over 3 wherever six full-width names did not fit.
-         * Pure: a step is judged from the widths a measure answers for it (the widest statistic, the column gap, the mark's
-         * overhang beside the name, the row's width), the numbers below those Chromium read for each step. Nothing drawn.
-         */
-        const H = await import("./sheet-header.mjs");
-        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
-        /* [need with the mark beside, need with its padding cut, need at letter-spacing 0, need with the mark above] for
-           "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
-           (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
-        const sheet = (beside, cut, untracked, above) => row => step => {
-            const need = step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
-            const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
-            return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
-        };
-        const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
-        const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
-        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
-            ["", "gap", "gap pad", "gap pad track", "above track"]]),
-            "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
 ];
 

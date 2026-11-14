@@ -118,6 +118,21 @@ export function maskStands(killerId) {
 /** The players (no GM) who own `actor`. */
 const ownersOf = actor => (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
 
+/**
+ * WHO SEES THROUGH A MASK (owner-115 item 1, 14.11.2026; the owner at a table on 1.2.114: "ikona tokenu mordercy u ofiary
+ * powinna byc zamieniona na "?"... co zdradza tosamosc mordercy"). On a GM: null when no mask stands for `actorId`, else the
+ * user ids that may still be told who it is - every GM, and every player who owns `actorId` or one of `killers` (an
+ * accomplice seated with the killer, as the cast's copies keep the killer for them: incident-store.mjs `castCopyFor`).
+ * Everyone else is told "?" (murder-rules.mjs `maskedName`) and sent no dice as the killer's player's
+ * (private-rolls.mjs `maskSplit`).
+ */
+export function maskInsiders(actorId, killers = []) {
+    if (!maskStands(actorId)) return null;
+    const ids = new Set((game.users ?? []).filter(u => u.isGM).map(u => u.id));
+    for (const id of new Set([actorId, ...(killers ?? [])])) for (const userId of ownersOf(game.actors?.get?.(id))) ids.add(userId);
+    return [...ids];
+}
+
 /** The killer's tokens on every scene, each `{ scene, token }`. */
 function tokensOf(actor) {
     const out = [];

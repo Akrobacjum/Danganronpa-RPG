@@ -79,7 +79,7 @@ Dwóch starych wartości może brakować. Gdy uprawnienia do plików odebrała w
 
 ### 1.3 Ustawienia modułu warte znajomości
 
-Ustawienia modułu są w dwóch miejscach. Ustawienia gry to wszystko, co zmienia stół dla wszystkich: otwiera je kafelek **Ustawienia gry** w panelu GM-a, w sekcji Między sesjami, a otworzy je tylko GM, który może zmieniać ustawienia świata. Wybierz sekcję po lewej, zmień, co chcesz, i naciśnij **Zapisz zmiany**; linia pod każdym ustawieniem mówi, co zmienia, a dymek mówi resztę. Ustawienia tej przeglądarki, czyli język, motyw, wygląd, efekty, głośność, dźwięki komunikatora i głos, to okno zębatki, takie samo dla GM-a i gracza; są też w Configure Settings, w Ustawieniach DRPG (sekcja 18).
+Ustawienia modułu są w dwóch miejscach. Ustawienia gry to wszystko, co zmienia stół dla wszystkich: otwiera je kafelek **Ustawienia gry** w panelu GM-a, w sekcji Między sesjami, a otworzy je tylko GM, który może zmieniać ustawienia świata. Wybierz sekcję po lewej, zmień, co chcesz, i naciśnij **Zapisz zmiany**; linia pod każdym ustawieniem mówi, co zmienia, a dymek mówi resztę. Ustawienia tej przeglądarki, czyli język, motyw, wygląd, efekty, głośność, dźwięki komunikatora i głos, to okno zębatki, takie samo dla GM-a i gracza; są też w Configure Settings, w Ustawieniach Danganronpa RPG (sekcja 18).
 
 W ustawieniach gry warto znać te:
 
