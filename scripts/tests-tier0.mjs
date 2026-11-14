@@ -19510,7 +19510,7 @@ const REGRESSIONS = [
                 move: ["That cost an action - 1 action left.", "That cost an action - 2 actions left.", "That cost an action - 5 actions left."],
                 eclipse: ["1 crossing)", "2 crossings)"],
                 summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 Remnants left behind"],
-                thin: ["No Key Remnant has been found yet", "Only 2 Key Remnants have been found"],
+                thin: ["No Key Remnant has been found yet, and the trial needs more than 3 to have an honest answer", "Only 2 Key Remnants have been found, and the trial needs more than 3 to have an honest answer"],
                 overflow: ["2 fewer actions each, on top of anything Wounded already took", true],
                 approved: ["You spend 2 Hope; you have 5 Hope left.", "“I” loses durability to Despair"]
             },
@@ -19519,7 +19519,7 @@ const REGRESSIONS = [
                 move: ["To kosztowało akcję - została 1 akcja.", "To kosztowało akcję - zostały 2 akcje.", "To kosztowało akcję - zostało 5 akcji."],
                 eclipse: ["1 przejście)", "2 przejścia)"],
                 summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
-                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnanty"],
+                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 3", "Znaleziono dopiero 2 Key Remnanty, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 3"],
                 overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
                 approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
             },

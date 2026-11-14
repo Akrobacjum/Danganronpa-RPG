@@ -9957,10 +9957,12 @@ const INVARIANTS = [
          * E68 fix round, 10.11.2026: the setting's hint told a GM "Resolve always asks a GM", but an armed Resolve asks
          * nobody (C7; the GM handbook's who-picks table). Read in both languages: the hint does not put Resolve among
          * what asks a GM, and says Resolve asks nobody. Red at a5ebfeaa: both hints listed Resolve with the fights.
+         * E71 group D (14.11.2026, text batch B14): the hints say it as "A Resolve never asks for one" (the approval
+         * the sentence before names) and "Resolve i tak nikogo nie pyta"; the same fact, read in those words.
          */
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
         const hints = [game.i18n.localize("DRPG.Settings.autoApproveTraits.hint"), pl?.DRPG?.Settings?.autoApproveTraits?.hint ?? ""];
-        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve nie pyta nikogo/ : /Resolve asks nobody/).test(h)])),
+        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve i tak nikogo nie pyta/ : /A Resolve never asks for one\./).test(h)])),
             JSON.stringify([[false, true], [false, true]]),
             "the valve's hint says Resolve asks a GM, or does not say it asks nobody (EN, PL: [asks a GM, asks nobody])");
     }],
@@ -26437,7 +26439,8 @@ const INVARIANTS = [
          * for a mapped Investigation resumed the afternoon (a fade in) and then stopped it; and the silent state, having
          * no playlist, was "nothing to take over with", so a GM's track played on through the announcement. Who gives
          * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs's family with comments blanked; the Sound
-         * window's note says it in both languages.
+         * window's note says it in both languages. E71 group D (14.11.2026, text batch B18): the English note says "a
+         * track you put on yourself stops too" where it said "your own track"; the same fact, read in those words.
          */
         const M = await import("./music.mjs");
         ok(typeof M.cueGivesWay === "function", "music.mjs exports no `cueGivesWay`, so who a GM's track gives way to cannot be driven");
@@ -26456,7 +26459,7 @@ const INVARIANTS = [
         const silenceOut = /if \(silenced\) \{[\s\S]{0,900}?if \(next\)[\s\S]{0,200}?clearHeld\([\s\S]{0,200}?else await resumeHeld\(held\)/.test(apply);
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
-        const note = [/body is found[^.]*your own track/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
+        const note = [/body is found[^.]*a track you put on yourself stops/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
         equal(stableJson([gives, ["apply asks it", asks], ["the takeover lets go", takeover], ["the crossfade lets go of its own", ownLetGo],
             ["out of the silence", silenceOut], ["the Sound window says so (en, pl)", note]]), stableJson([
             [["the same state", false], ["a mapped state", true], ["an unmapped state", false], ["the body's silence", true]],
@@ -32491,7 +32494,7 @@ const INVARIANTS = [
         const text = Dg.diagnoseCharacters({ toChat: false, roster, assigned });
         const lines = text.split("\n");
         const marks = roster.map(a => lines.find(l => l.includes(` ${a.name} - `))?.trim().slice(0, 1) ?? null);
-        const poolLine = lines.find(l => l.includes("Everybody is assigned to a Despair pool")) ?? "";
+        const poolLine = lines.find(l => l.includes("Everybody is assigned in Despair Flow")) ?? ""; // the row's words since E71 group D (B18, 14.11.2026)
         const listed = /^\s*✗ .* - \d+: (.*)$/.exec(poolLine)?.[1]?.split(", ") ?? [];
         const row = SS.steps({ roster, scenes: [], roomScene: null, assigned, lastChecks: new Map() }).find(r => r.key === "assignments");
         const sources = await K.moduleSources();
@@ -33751,7 +33754,9 @@ const INVARIANTS = [
             text: [text.textContent, text.querySelectorAll(".drpg-check-ok").length, text.querySelectorAll(".drpg-check-bad").length],
             attr: [attr.querySelector("button")?.getAttribute("title"), attr.querySelectorAll(".drpg-check-bad").length],
             looks: ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(look),
-            ready: game.i18n.localize("DRPG.Season.introReady").includes(game.i18n.localize("DRPG.Panel.seasonChecks")),
+            // E71 group D (B15, 14.11.2026): the further checks are in this window since E101, and the ready line names them
+            // "the further checks below" / "dalsze sprawdzenia poniżej" where it named the window "Pre-season checks".
+            ready: [game.i18n.localize("DRPG.Season.introReady")].map(t => /further checks below|dalsze sprawdzenia poniżej/.test(t) && !/green|zielon/i.test(t))[0],
             report: (fnSource(src, "preSessionReport").match(/checkMarks\(/g) ?? []).length
         }), stableJson({
             text: ["✓ R1530 <a>\n   ✗ R1530 b - ✓", 2, 1],
