@@ -27113,7 +27113,8 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28, "lang/en.json has not the family's 28 keys under DRPG.Tips.Setup");
+        // 28 of C5 and its reviews, and 12 of E102 C12 that R6353 holds (14.11.2026)
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12, "lang/en.json has not the family's 28 keys and C12's 12 under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27202,6 +27203,41 @@ const INVARIANTS = [
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = fnSource(src.get(f), unit);
             return !((P.tipPlacement(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6353 - the Setup family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): the room and project action editors (facility-editor.mjs: each field of a line, which has no visible label, its own tooltip - name, statistic, difficulty, effect, amount, who, the effect's statistic, how long, text, lifetime - and the project's Remove) and the Season checklist's Open the dice look (season-setup.mjs `diceLookSection`), each key under DRPG.Tips.Setup with words in English and in Polish within the guide's 23, written where its control draws it - a select of the editor through its local `select()`, which writes the key it is handed into its own tag; R4754 counts these 12 with its 28", async () => {
+        /* Red at the Gm commit: none of the twelve keys was in lang/*.json or drawn. */
+        const TIPS = [
+            ["DRPG.Tips.Setup.facilityNameTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityNameTooltip","facility-editor.mjs","projectFacilityBody"],
+            ["DRPG.Tips.Setup.facilityRollTraitTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityDcTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityEffectTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityAmountTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityScopeTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityEffectTraitTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityUntilTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityTextTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityLifetimeTooltip","facility-editor.mjs","projectFacilityBody"],
+            ["DRPG.Tips.Setup.facilityRemoveTooltip","facility-editor.mjs","editProjectFacility"],
+            ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        // the editor's local select(): its tag writes tipAttr of the key it is handed, and the unit hands it the key
+        const selectTag = /<select\b[^>]*?\$\{tipAttr\(tip\b/.test(fnSource(src.get("facility-editor.mjs"), "select"));
+        const viaSelect = (body, k, f) => f === "facility-editor.mjs" && selectTag && new RegExp(`\\bselect\\([^;]*?"${k.replace(/\./g, "\\.")}"`).test(body);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f) || viaSelect(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],

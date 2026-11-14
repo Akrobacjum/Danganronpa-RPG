@@ -11,14 +11,15 @@
 
 import { FACILITIES, TRAITS } from "./config.mjs";
 import { esc, wholeNumber } from "./utils.mjs";
-import { drpgWindow, stepper, toggle } from "./ui-kit.mjs";
+import { drpgWindow, stepper, toggle, tipAttr, tipText } from "./ui-kit.mjs";
 import { roomActions, setRoomActions, setProjectFacility, projectFacilityOf } from "./facilities.mjs";
 
 const t = key => game.i18n.localize(`DRPG.Facility.editor.${key}`);
 
-/** A `<select>` of `options` (`[value, label]`), `value` selected. */
-function select(name, options, value, label) {
-    return `<select name="${esc(name)}" aria-label="${esc(label)}">${options.map(([v, text]) =>
+/** A `<select>` of `options` (`[value, label]`), `value` selected; `tip` the key of its tooltip (E102 C12: a line's
+ *  fields have no visible label, only `aria-label`). */
+function select(name, options, value, label, tip = "") {
+    return `<select name="${esc(name)}" aria-label="${esc(label)}"${tipAttr(tip)}>${options.map(([v, text]) =>
         `<option value="${esc(v)}"${v === value ? " selected" : ""}>${esc(text)}</option>`).join("")}</select>`;
 }
 
@@ -37,13 +38,14 @@ function effectFields(prefix, effects) {
         const e = effects?.[j] ?? {};
         const name = field => `${prefix}.e${j}.${field}`;
         return `<div class="drpg-facility-line drpg-facility-effect">
-            ${select(name("kind"), kindOptions(), e.kind ?? "", `${t("effect")} ${j + 1}`)}
-            ${stepper({ name: name("n"), value: e.n ?? 1, min: 1, max: 10, compact: true, attrs: { "aria-label": `${t("amount")} ${j + 1}` } })}
-            ${select(name("scope"), scopeOptions(), e.scope ?? "self", `${t("scope")} ${j + 1}`)}
-            ${select(name("trait"), traitOptions(), e.trait ?? Object.keys(TRAITS)[0], `${t("trait")} ${j + 1}`)}
-            ${select(name("until"), untilOptions(), e.until ?? "timeOfDay", `${t("until")} ${j + 1}`)}
+            ${select(name("kind"), kindOptions(), e.kind ?? "", `${t("effect")} ${j + 1}`, "DRPG.Tips.Setup.facilityEffectTooltip")}
+            ${stepper({ name: name("n"), value: e.n ?? 1, min: 1, max: 10, compact: true,
+                attrs: { "aria-label": `${t("amount")} ${j + 1}`, "data-tooltip": tipText("DRPG.Tips.Setup.facilityAmountTooltip") } })}
+            ${select(name("scope"), scopeOptions(), e.scope ?? "self", `${t("scope")} ${j + 1}`, "DRPG.Tips.Setup.facilityScopeTooltip")}
+            ${select(name("trait"), traitOptions(), e.trait ?? Object.keys(TRAITS)[0], `${t("trait")} ${j + 1}`, "DRPG.Tips.Setup.facilityEffectTraitTooltip")}
+            ${select(name("until"), untilOptions(), e.until ?? "timeOfDay", `${t("until")} ${j + 1}`, "DRPG.Tips.Setup.facilityUntilTooltip")}
             <input type="text" name="${esc(name("text"))}" value="${esc(e.text ?? "")}" maxlength="${FACILITIES.maxText}"
-                placeholder="${esc(t("textPlaceholder"))}" aria-label="${esc(`${t("text")} ${j + 1}`)}" />
+                placeholder="${esc(t("textPlaceholder"))}" aria-label="${esc(`${t("text")} ${j + 1}`)}"${tipAttr("DRPG.Tips.Setup.facilityTextTooltip")} />
         </div>`;
     }).join("");
 }
@@ -71,10 +73,10 @@ export function roomActionsBody(room, actions) {
             <div class="drpg-facility-line">
                 <input type="hidden" name="${p}.id" value="${esc(a.id ?? "")}" />
                 <input type="text" name="${p}.label" value="${esc(a.label ?? "")}" maxlength="${FACILITIES.maxLabel}"
-                    placeholder="${esc(t("labelPlaceholder"))}" aria-label="${esc(`${t("label")} ${i + 1}`)}" />
-                ${select(`${p}.trait`, traitOptions(), a.trait ?? Object.keys(TRAITS)[0], `${t("trait")} ${i + 1}`)}
+                    placeholder="${esc(t("labelPlaceholder"))}" aria-label="${esc(`${t("label")} ${i + 1}`)}"${tipAttr("DRPG.Tips.Setup.facilityNameTooltip")} />
+                ${select(`${p}.trait`, traitOptions(), a.trait ?? Object.keys(TRAITS)[0], `${t("trait")} ${i + 1}`, "DRPG.Tips.Setup.facilityRollTraitTooltip")}
                 ${stepper({ name: `${p}.dc`, value: a.dc ?? FACILITIES.defaultDc, min: FACILITIES.dc.min, max: FACILITIES.dc.max, compact: true,
-                    attrs: { "aria-label": `${t("dc")} ${i + 1}` } })}
+                    attrs: { "aria-label": `${t("dc")} ${i + 1}`, "data-tooltip": tipText("DRPG.Tips.Setup.facilityDcTooltip") } })}
             </div>
             ${effectFields(p, a.effects)}
         </fieldset>`;
@@ -124,12 +126,12 @@ export function projectFacilityBody(project, facility) {
         <p>${esc(game.i18n.format("DRPG.Facility.editor.projectIntro", { project: project.name }))}</p>
         <div class="drpg-facility-line">
             <input type="text" name="p.label" value="${esc(f.label ?? "")}" maxlength="${FACILITIES.maxLabel}"
-                placeholder="${esc(t("labelPlaceholder"))}" aria-label="${esc(t("label"))}" />
+                placeholder="${esc(t("labelPlaceholder"))}" aria-label="${esc(t("label"))}"${tipAttr("DRPG.Tips.Setup.facilityNameTooltip")} />
         </div>
         ${effectFields("p", f.effects)}
         <div class="drpg-facility-line">${toggle({ name: "p.costsAction", checked: f.costsAction !== false, label: t("costsAction") })}</div>
         <div class="drpg-facility-line">
-            ${select("p.life", FACILITIES.lifetimes.map(k => [k, t(`life.${k}`)]), life.kind, t("lifetime"))}
+            ${select("p.life", FACILITIES.lifetimes.map(k => [k, t(`life.${k}`)]), life.kind, t("lifetime"), "DRPG.Tips.Setup.facilityLifetimeTooltip")}
             ${stepper({ name: "p.n", value: life.n ?? 1, min: 1, max: FACILITIES.maxLifetime, compact: true, attrs: { "aria-label": t("lifetimeN") } })}
         </div>
         <p class="notes">${esc(t("projectNote"))}</p>
@@ -157,7 +159,7 @@ export async function editProjectFacility(project) {
         body: projectFacilityBody(project, facility),
         footer: {
             primary: { action: "save", label: t("saveProject"), callback: (e, b, d) => readProjectFacility(d.element) },
-            secondary: [{ action: "remove", label: t("remove") }],
+            secondary: [{ action: "remove", label: t("remove"), tooltip: tipText("DRPG.Tips.Setup.facilityRemoveTooltip") }],
             close: { role: "cancel", action: "cancel" }
         },
         rejectClose: false

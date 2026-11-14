@@ -311,59 +311,11 @@
   },
   {
    "file": "scripts/facility-editor.mjs",
-   "unit": "select",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "effectFields",
-   "kind": "input",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "roomActionsBody",
-   "kind": "input",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "projectFacilityBody",
-   "kind": "input",
-   "key": "DRPG.Facility.editor.projectIntro",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "effectFields",
-   "kind": "kit:stepper",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
-   "unit": "roomActionsBody",
-   "kind": "kit:stepper",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/facility-editor.mjs",
    "unit": "projectFacilityBody",
    "kind": "kit:toggle",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: its label, Costs an action, says it; off, the action is free"
   },
   {
    "file": "scripts/facility-editor.mjs",
@@ -371,15 +323,15 @@
    "kind": "footer",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's note says saving writes the room's actions at once, and the label names what it saves"
   },
   {
    "file": "scripts/facility-editor.mjs",
    "unit": "editProjectFacility",
    "kind": "footer",
    "key": null,
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "count": 1,
+   "why": "none needed: Save the action, under the intro that says what the project gives once complete; the label names what it saves"
   },
   {
    "file": "scripts/fog-diagnostics.mjs",
@@ -1447,7 +1399,7 @@
    "kind": "checkbox",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: each tick's label says the change in full (Health max -1, a statistic point to place), and the intro above says what ticking does and that an unticked change stays"
   },
   {
    "file": "scripts/mastermind.mjs",
@@ -1968,14 +1920,6 @@
    "key": "DRPG.Season.title",
    "count": 1,
    "why": "none needed: The window's text names the window this opens and what it holds."
-  },
-  {
-   "file": "scripts/season-setup.mjs",
-   "unit": "diceLookSection",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
    "file": "scripts/season-wipe.mjs",

@@ -2134,7 +2134,19 @@
         "createTableTooltip": "Tworzy pustą tabelę o nazwie wpisanej na tej zakładce",
         "installReinstallTooltip": "Tworzy domyślne tabele; pyta, zanim przebuduje twoje",
         "resetMusicTooltip": "Zatrzymuje wybrany utwór i przywraca muzykę, którą przerwał",
-        "aStudentSNameStartTooltip": "Zna je znowu po każdym resecie sezonu, ale nie teraz"
+        "aStudentSNameStartTooltip": "Zna je znowu po każdym resecie sezonu, ale nie teraz",
+        "facilityNameTooltip": "Nazwa akcji, jaką uczniowie widzą w Facilities",
+        "facilityRollTraitTooltip": "Statystyka, na którą rzuca się przy tej akcji",
+        "facilityDcTooltip": "Najniższy wynik, którego potrzebuje rzut; krytyk zawsze się udaje",
+        "facilityEffectTooltip": "Co daje ta linia, gdy akcja się uda",
+        "facilityAmountTooltip": "Ile daje; każdy efekt ma własny limit",
+        "facilityScopeTooltip": "Kto to dostaje. Efekt działający raz, na pokój albo na stół, pomija to pole",
+        "facilityEffectTraitTooltip": "Statystyka, którą podnosi efekt Statystyka; inne efekty pomijają to pole",
+        "facilityUntilTooltip": "Jak długo trwa efekt czasowy; efekt działający od razu pomija to pole",
+        "facilityTextTooltip": "Słowa, które wysyła efekt Tekst GM-a, albo nazwa, którą dostaje efekt Experience",
+        "facilityLifetimeTooltip": "Na stałe albo na tyle pór dnia lub dni, ile ustawisz obok",
+        "facilityRemoveTooltip": "Od razu zabiera temu projektowi akcję w pokoju",
+        "diceLookTooltip": "Pokazuje, jak wyglądają kości w tej przeglądarce i czemu gdzie indziej mogą wyglądać inaczej"
       },
       "More": {
         "volumeTooltip": "Jak głośno słyszysz tę osobę, tylko u siebie, i wyłącza jej wyciszenie; inni słyszą ją jak wcześniej",

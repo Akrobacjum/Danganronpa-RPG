@@ -69,7 +69,7 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
@@ -1565,7 +1565,7 @@ function diceLookSection(findings, esc) {
     const title = game.i18n.localize("DRPG.DiceLook.diag.title");
     // Its console line ("ask them to run game.drpg.diagnoseDiceLook()") is Diagnostics' since E101 item 2 (`foundryReport`).
     return checkPart("dice", title, `${rows.length ? checkList(rows, { label: title }) : ""}
-            <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
+            <p><button type="button" data-drpg-dice-look${tipAttr("DRPG.Tips.Setup.diceLookTooltip")}>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
 }
 
 /**

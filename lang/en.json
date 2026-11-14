@@ -2044,7 +2044,19 @@
         "createTableTooltip": "Creates an empty table with the name typed on this tab",
         "installReinstallTooltip": "Builds the default tables; asks before rebuilding yours",
         "resetMusicTooltip": "Stops the chosen track and brings back the music it interrupted",
-        "aStudentSNameStartTooltip": "Known again after each season reset, not now"
+        "aStudentSNameStartTooltip": "Known again after each season reset, not now",
+        "facilityNameTooltip": "The action's name, as students see it in Facilities",
+        "facilityRollTraitTooltip": "The statistic the action's roll uses",
+        "facilityDcTooltip": "The lowest total the roll needs; a critical always works",
+        "facilityEffectTooltip": "What this line gives once the action works",
+        "facilityAmountTooltip": "How much it gives, held to each effect's own limit",
+        "facilityScopeTooltip": "Who gets it. An effect that acts once, on the room or the table, ignores this",
+        "facilityEffectTraitTooltip": "The statistic a Statistic effect raises; the other effects ignore it",
+        "facilityUntilTooltip": "How long a timed effect lasts; an effect that acts at once ignores it",
+        "facilityTextTooltip": "The words a GM's text effect sends, or the name an Experience effect gives",
+        "facilityLifetimeTooltip": "For good, or for the number of times of day or days set beside it",
+        "facilityRemoveTooltip": "Takes the room action off this project at once",
+        "diceLookTooltip": "Shows how the dice look on this browser and why they may look different elsewhere"
       },
       "More": {
         "volumeTooltip": "How loud this person is for you alone, and unmutes them; the others hear them as before",
