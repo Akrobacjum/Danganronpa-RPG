@@ -20,7 +20,7 @@ Branch `claude/e109-115` from main 9e7e3d78. R numbers R7120-R7149. Kept as the 
 | Leftover 1: check live | reads any LIVE-<id>-<n> but LIVE-REOPEN-01; a planted control of each form; red with the old patterns (the control: three items not read, two unwritten citations not caught), green after: 522 items (516 before: +3 PV, +2 113R, +1 R4420), 979 citations | `check live` | (below) |
 | Leftover 2: KEYS.json | the four Polish tooltips 7de81166 reworded (tiedToCrime, roomPlannedIncidentRemnant, roomPlannedFinal, placeOnTheMap) brought to lang/pl.json | - | (below) |
 | Leftover 3: NEEDSCODE.md:21 | "row 1.2.122" is "row 1.2.113", as text-style.md writes it 30 times and stages.json plans E71; the rows Q-NC-7, Q-NC-10, H11, H13, H20 marked answered | - | (below) |
-| Leftover 4: radio sweep in Polish | (below) | | |
+| Leftover 4: radio sweep in Polish | made: audit/windows-pl, probe 08 with DRPG_CAPTURE_LANG=pl DRPG_CAPTURE_OUT=../windows-pl on f85a0071 (114 s; 102 of 104 rows captured, action-palm and action-loot--long answered null, as their rows read); `node audit/radio-sweep.mjs --pl-windows audit/windows-pl --chromium /opt/pw-browsers/chromium-1243/chrome-linux64/chrome` (the bundled headless shell 1194 is not on this machine): 42 windows, 1488 radio readings, RED, 112 problems, all one finding (below) | radio sweep | (next commit) |
 | #81, #77 | not this line's (the tips line; the coordinator) | | |
 
 ## #27 D-NIEZG, the disagreements
@@ -37,6 +37,16 @@ line's words): 22 a question for the owner on wording or code, 10 an owner-appro
 from those lines and says so: the writer's full text is not in the repository.
 
 ### Notes on what was read
+
+- **A finding of the Polish sweep, not fixed here (a module layout fault, Polish only):** Item tables, the Room pools
+  tab (`item-tables--rooms`), Stained Glass: the "Serves also as" column's checkbox label „Narzędzie do sprzątania” wraps
+  to two lines, and the box stands between them, its centre 13.80 px below the label's first line (the sweep's
+  2 px rule), at device scale 1 and 2, with and without core's stand-in: the 112 problems are those 4 distinct ones
+  repeated per row. Seen in the sweep's screenshot (`--shots`, Polish, glass). English ("Cleaning Tool") fits on one
+  line and reads clean; Legacy reads clean in both. The fix is a style rule (the box to the first line, or the column
+  wider), the stylesheet owner's; the harness has no Foundry core sheet, so a table settles whether core changes it.
+- The radio sweep on English alone was not run separately; the run above read English too, with the same 42 windows,
+  and found nothing in English.
 
 - KEYS.json differs from lang/ in more than the four: `Tips.Gm.minusTooltip` and `plusTooltip` say "one Despair" where both
   lang files now say "{n} Despair" (EN and PL alike, not 7de81166's), and `Tips.Case.undoRealizationTooltip` and
