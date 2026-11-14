@@ -371,7 +371,7 @@ const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) 
    seam and 0.31 the settle's floor to a pixel (`settleVoice`): 19.61 -> 18.46 and 24.34 -> 23.20 from the wall, under the
    pane's top 22 and 57 unchanged (Chromium, the glass harness, 7b4f286c against ce3a821f, both roles). At 1920x1080
    (scale 0.85) the same drop is 7 px and the buttons move 0.50 px, 20.48 -> 19.98, which still rounds to CORNER. */
-/* E96 C4 (09.11.2026; R3122): the tile came down to the middle of the side (glass.mjs `settleVoice`), and its x is the
+/* E96 C4 (09.11.2026; R3122): the tile came down to the middle of the side (glass-blocks.mjs `settleVoice`), and its x is the
    floor of a place that leans with the turn, so where it moved, the buttons' centres moved by under a pixel from the
    wall and a reading rounds the other way: 1920x1080 reads 19,22 24,57 and 1536x864 and 1680x1050 read 20,22 24,57
    (were 20,22 25,57), both roles; 2000x1072, the owner's screen, is pinned at what it reads, 19,22 24,57. Read in
