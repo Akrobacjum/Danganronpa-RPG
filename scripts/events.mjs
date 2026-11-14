@@ -965,20 +965,32 @@ let eventsBoxWatch = null;
 /** The kind of the card this browser's reader opened last, kept open while it stands (`wireEventsPanel`). */
 let openedKind = null;
 
-const FOLDED = "data-drpg-folded";
+const FOLDED = "data-drpg-folded", HIDDEN = "data-drpg-hidden";
 const ROOM_GAP = 8;
-/* What the panel must not reach as it grows: the corner launchers (glass.mjs `LAUNCHERS`), the HUD and Foundry's hotbar. */
-const BELOW = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster], #drpg-hud, #hotbar";
+/* A block whose edge reaches under the panel's by less than this is beside it, not under it: under Monokuma Legacy at
+   1280x720 the left column (the HUD, the room tile under it) ends at 446 px and the panel begins at 434, a 12 px strip
+   that stood there at the old cap as well (Chromium, the glass harness, 14.11.2026); counted, it left the panel 49 px. */
+const ROOM_SLIVER = 24;
+/* What the panel must not reach as it grows: every other block the curtain lays out (glass.mjs `BLOCKS`: the HUD, the
+   tiles' row, the three, the tray, the notices, the room tile, the voice tile, the corner launchers) and Foundry's
+   hotbar. The room tile stands at the bottom of the screen under the rail, and the first fit of this item grew the panel
+   over it (the glass harness at 1366x768, a GM's five cards: the screenshot, not the sweep, showed it). Not the room
+   tile's picture (`#drpg-room-art`): the curtain stretches it into the space the panel leaves - 175 to 771 px under a
+   1062 px panel at 1366x768, 557 to 720 under a fitted one - so it follows the panel and cannot bound it.
+   Exported for audit/events-murder-fit.mjs, which reads the same list. */
+export const EVENTS_BELOW = "#drpg-hud, #drpg-tile-row, #drpg-player-status, #countdowns, #drpg-popups, #drpg-room-tile, "
+    + "#drpg-voice-tile, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster], #hotbar";
 
 /** The height the panel may take from its top: to the screen's bottom or the top of what stands below it, `ROOM_GAP` clear. */
 export function eventsRoom(panel) {
     const box = panel?.getBoundingClientRect?.();
     if (!box) return Infinity;
     let limit = (window.innerHeight || document.documentElement?.clientHeight || 0) - ROOM_GAP;
-    for (const el of document.querySelectorAll(BELOW)) {
+    for (const el of document.querySelectorAll(EVENTS_BELOW)) {
         if (panel.contains(el) || !el.getClientRects().length) continue;
         const r = el.getBoundingClientRect();
-        if (r.top >= box.top && r.left < box.right && box.left < r.right) limit = Math.min(limit, r.top - ROOM_GAP);
+        const across = Math.min(r.right, box.right) - Math.max(r.left, box.left);
+        if (r.top >= box.top && across > ROOM_SLIVER) limit = Math.min(limit, r.top - ROOM_GAP);
     }
     return limit > 0 && Number.isFinite(limit) ? limit - box.top : Infinity;
 }
@@ -999,22 +1011,32 @@ function fold(card, folded) {
 }
 
 /**
- * Fit the panel's cards to `room`: all open where they fit, else folded from the last up, the card `open` names (or the
- * first) kept open; with no room for that either, every card folded. Answers the kinds folded. `height` and `room` are
- * the suite's to hand (jsdom lays nothing out). R7401.
+ * Fit the panel's cards to `room`: all open where they fit, else the others folded from the last up, the card `open`
+ * names (or the first) kept open always - a card opened by a click that folded again at once would be a click that does
+ * nothing; and where the folded titles still do not fit, the last of them left out and counted on the panel
+ * (`data-drpg-more`, drawn "+N"; Q-OWN115-6). Answers the kinds folded, those left out among them. `height` and `room`
+ * are the suite's to hand (jsdom lays nothing out). R7401.
  */
 export function fitEvents(panel, { room = eventsRoom(panel), height = boxHeight, open = openedKind } = {}) {
     const cards = [...(panel?.children ?? [])].filter(c => c.classList?.contains("drpg-event"));
-    for (const card of cards) fold(card, false);
+    for (const card of cards) { fold(card, false); card.removeAttribute(HIDDEN); }
+    panel?.removeAttribute?.("data-drpg-more");
     const fits = () => height(panel) <= room + 0.5;
     if (!cards.length || fits()) return [];
     const keep = cards.find(c => c.dataset.kind === open) ?? cards[0];
-    for (const card of [...cards].reverse()) {
-        if (card === keep) continue;
+    const others = [...cards].reverse().filter(card => card !== keep);
+    for (const card of others) {
         fold(card, true);
         if (fits()) break;
     }
-    if (!fits()) fold(keep, true);
+    // The count is set as each title goes, so the line that draws it ("+N", the stylesheet's `::after`) is measured with
+    // the rest: set after, it added 24 px past the room (the glass harness at 1280x720, a GM's five cards).
+    let left = 0;
+    for (const card of others) {
+        if (fits()) break;
+        card.setAttribute(HIDDEN, "");
+        panel.setAttribute("data-drpg-more", String(++left));
+    }
     return cards.filter(c => c.hasAttribute(FOLDED)).map(c => c.dataset.kind);
 }
 

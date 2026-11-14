@@ -44983,7 +44983,7 @@ const INVARIANTS = [
             stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-evidence)" }), // Hope's gold until E48 K1: the base sheet's antique is Evidence's
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
-    ["R7401 - the Event panel never scrolls (scripts/events.mjs `fitEvents`, `wireEventsPanel`; the stylesheets' `#drpg-events`; owner-115 item 3): under Monokuma Legacy, the glass and the glass's stack no rule gives the panel a cap or lets it or a card scroll; a panel taller than the room under it folds its cards to their titles from the last up, the first kept open, a folded card a button that says it is closed; the card a reader opened stays open and the others fold; with no room every card folds; a click on a folded card opens it", async () => {
+    ["R7401 - the Event panel never scrolls (scripts/events.mjs `fitEvents`, `wireEventsPanel`; the stylesheets' `#drpg-events`; owner-115 item 3): under Monokuma Legacy, the glass and the glass's stack no rule gives the panel a cap or lets it or a card scroll; a panel taller than the room under it folds its cards to their titles from the last up, the first kept open, a folded card a button that says it is closed; the card a reader opened stays open and the others fold; with no room the first card stays open, the others fold and the titles that do not fit are left out and counted; a click on a folded card opens it", async () => {
         /* owner-115 item 3, 14.11.2026; the owner at a table on 1.2.114: "Na karcie eventu pojawil sie scroll w trakcie
            morderstwa. Na karcie eventu nigdy nie powinno byc scrolla." The panel had a cap (`--drpg-events-h`, a `max-height`)
            and scrolled past it (E23 C3b, E49 A6); audit/events-murder-fit.mjs measured every murder-time panel scrolling, 60 of
@@ -45023,14 +45023,14 @@ const INVARIANTS = [
             fits: E.fitEvents(a, { room: 1000, height, open: null }), fitsState: state(a).map(r => r[1]),
             folds: E.fitEvents(b, { room: 500, height, open: null }), foldsState: state(b),
             opened: E.fitEvents(c, { room: 500, height, open: "k4" }),
-            none: E.fitEvents(d, { room: 20, height, open: null })
+            none: E.fitEvents(d, { room: 20, height, open: null }), noneLeft: [d.getAttribute("data-drpg-more"), [...d.children].filter(x => x.hasAttribute("data-drpg-hidden")).map(x => x.dataset.kind)]
         };
         equal(stableJson(read), stableJson({
             fits: [], fitsState: [false, false, false, false, false],
             folds: ["k3", "k4", "k5"],
             foldsState: [["k1", false, null, null, -1], ["k2", false, null, null, -1], ["k3", true, "button", "false", 0], ["k4", true, "button", "false", 0], ["k5", true, "button", "false", 0]],
-            opened: ["k2", "k3", "k5"], none: ["k1", "k2", "k3", "k4", "k5"]
-        }), "{fits: folded with room for all; folds: with room for two and three titles, and each card's [kind, folded, role, aria-expanded, tabIndex]; opened: k4 asked open; none: no room}");
+            opened: ["k2", "k3", "k5"], none: ["k2", "k3", "k4", "k5"], noneLeft: ["4", ["k2", "k3", "k4", "k5"]]
+        }), "{fits: folded with room for all; folds: with room for two and three titles, and each card's [kind, folded, role, aria-expanded, tabIndex]; opened: k4 asked open; none: no room - the first kept open, the rest folded; noneLeft: the count on the panel and the titles left out}");
         const e = build();
         E.fitEvents(e, { room: 500, height, open: null });
         E.wireEventsPanel(e);
@@ -45171,6 +45171,9 @@ const INVARIANTS = [
             const live = observers.filter(o => o.live);
             read.watched = live.flatMap(o => o.targets.map(el => (el === panel ? "panel" : el.parentElement === panel ? "card" : "other")));
             read.cards = panel.children.length;
+            // A second card, the test's own, after the first: the first card is always kept open (fitEvents), so with the
+            // trial's alone nothing could fold.
+            panel.append(E.cardElement({ kind: "r1430", title: "R1430" }));
             const tall = height => Object.defineProperty(panel, "getBoundingClientRect", { configurable: true,
                 value: () => ({ top: 0, left: 0, right: 100, bottom: height, width: 100, height }) });
             const fire = () => observers.filter(o => o.live && o.targets.includes(panel)).forEach(o => o.callback([], o));
@@ -45188,11 +45191,11 @@ const INVARIANTS = [
         } finally {
             [window.ResizeObserver, globalThis.ResizeObserver] = realObservers;
             if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
-            if (panel) { delete panel.getBoundingClientRect; panel.dataset.signature = "R1430"; }
+            if (panel) { delete panel.getBoundingClientRect; panel.querySelector('[data-kind="r1430"]')?.remove(); panel.dataset.signature = "R1430"; }
             E.renderEvents();
         }
-        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: read.cards, resizedUnder: 0, sameCards: [true, read.cards] }),
-            "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the cards folded after the observer "
+        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: 1, resizedUnder: 0, sameCards: [true, 1] }),
+            "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the cards folded (the test's second card) after the observer "
             + "fires with the panel taller than the screen, then 1 px tall; sameCards: a render of the same cards keeps the panel and fits it again (taller than the screen)}");
     }],
     ["R3462 - the Event panel is one live region, rewritten in place, and a field is never named by its content (E48 K4): a change of the panel's cards keeps the panel standing - the same element, its role, aria-live and the sweep's mark - with new cards inside it; a select is not named by its options' words, nor a textarea by its text, so the tooltip each carries becomes its name", async () => {

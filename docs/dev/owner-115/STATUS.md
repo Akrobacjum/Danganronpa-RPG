@@ -163,3 +163,78 @@ direction of approach, after a reload, after selecting and deselecting, and afte
 - Q-OWN115-4. With the traces on their own layer, Isometric Perspective no longer sorts them against the tiles it sorts
   (those it lifts to the TOKENS layer). A floor trace in front of such a wall tile is drawn under it. **Default: accepted;
   a trace lies on the floor, and the owner's rule is about characters. LIVE-OWN115-02 looks at it.**
+
+## Item 3 - the Event panel never scrolls
+
+The owner, 14.11.2026, at a real table on 1.2.114: "Na karcie eventu pojawil sie scroll w trakcie morderstwa. Na karcie
+eventu nigdy nie powinno byc scrolla."
+
+### What scrolled, and where
+
+The panel had one cap a theme and scrolled past it by design: `--drpg-events-h` as a `max-height`, with `overflow-y:
+auto` (styles/danganronpa.css `#drpg-events`, 192 px under Monokuma Legacy; styles/stained-glass.css, 316 px x the
+glass's scale; styles/narrow.css, 272 px stacked; E23 C3b, E49 A6). The panel took the wheel only while it scrolled
+(`data-drpg-scrolls`, events.mjs `markEventsScrolls`, R1430).
+
+audit/events-murder-fit.mjs (new) draws the panels a murder puts up, built from the language files with long sample names:
+- victim: the fight, the Overflow, a motive
+- killer: the fight, the Overflow, a motive, a Monocub's card
+- gm: the fight, a body, the Overflow, an assembly, a motive
+- opening: the opening's card, the Overflow, a motive
+- safeword: a safeword, the fight, the Overflow, a motive
+
+Each is drawn in both themes, English and Polish, at 1280x720, 1366x768 and 1920x1080: 60 panels in all. At e0ee06ef,
+**60 of 60 scrolled**: 454-803 px of cards in Legacy's 192, and 627-1086 in the glass's 269.
+
+### The fix (the coordinator's default, in its order)
+
+1. A card shows its whole text: no card scrolls or is cut.
+2. The panel has no cap and nothing in it scrolls. It is as tall as its cards up to the room under it (events.mjs
+   `eventsRoom`): to the screen's bottom, or to the top of another block below it, 8 px clear. The blocks counted are
+   those the curtain lays out (`EVENTS_BELOW`: the HUD, the tiles' row, the three, the tray, the notices, the room tile,
+   the voice tile, the corner launchers) and Foundry's hotbar.
+   - A block that only brushes the panel's edge by 24 px or less is beside it, not under it. Under Legacy at 1280x720 the
+     left column overlaps the panel by 12 px, and did so at the old cap too.
+   - The room tile's picture is not counted: the curtain stretches it into whatever space the panel leaves.
+3. Past that room, cards fold to their title, from the last up (`fitEvents`; the panel's order is its priority, safeword
+   first). The first card, or the one the reader opened, always stays open. Titles that still do not fit are left out
+   from the last up, and counted under the panel as "+N". A folded card is a button: a click, Enter or Space opens it,
+   and the others fold as the room needs (`wireEventsPanel`).
+4. The panel is fitted on every render and by its ResizeObserver (R1430's two roads).
+
+The glass harness's `drpgEventCheck` now holds this rule: no cap, nothing styled to scroll, nothing over its box. Its
+"fixed" control is held at 600 px, since the cap token is gone.
+
+### Numbers
+
+| Run | Result |
+| --- | --- |
+| events-murder-fit at e0ee06ef (before) | 60/60 FAIL: every panel scrolled |
+| events-murder-fit, the first fit | 60/60 ok, but the screenshot showed the panel over the room tile: the obstacle list held only the launchers and the HUD |
+| events-murder-fit with every block counted | 50/60: Legacy at 1280x720 read room 49 px (the 12 px strip of the left column counted as under the panel) |
+| events-murder-fit with strips of 24 px or less as beside | 60/60, but under glass at 1366x768 the GM's panel folded every card, the first too: the room tile's picture was counted, and stretched to 175 px under the unfitted panel |
+| without the picture; the first card always open, titles left out as "+N" | 58/60: the "+N" line, set after the loop, added 24 px past the room (1280x720 glass, the GM's) |
+| the count set as each title goes | **60/60** |
+| R7401 (new) | FAIL before (no cap rule held, no `fitEvents`), ok after |
+| R1394, R1430 | changed on purpose: they held the cap and the scroll marker (R1430 now reads the fit, with a stand-in second card, since the first card never folds) |
+| quick, the glass sweep (`--events` and whole), tier 1 | in the item's report |
+
+The pictures for the owner are in docs/dev/owner-115/shots/: `before-` and `after-event-panel-{gm,victim}-{glass,legacy}-1366x768.png`, at deviceScaleFactor 2.
+
+### Needs a local Foundry
+
+At a real table, both themes, at the owner's screen size, during a murder with several cards up:
+- no scrollbar anywhere on the panel;
+- a folded card opens on a click and on Enter;
+- the panel does not cover Foundry's own hotbar or players list, nor the module's room tile, notices or voice tile.
+
+The harness has no Foundry layout. Its hotbar is in the list but not in the glass harness, and Foundry's players list is
+not counted.
+
+### Questions, with the default taken
+
+- Q-OWN115-5. A folded card is a button, the panel's one control. That goes against the rule of 10.11 ("the panel holds
+  no control"). **Default: kept. Without it a folded card could not be read.**
+- Q-OWN115-6. Where even the first card and the folded titles do not fit, the last titles are left out and counted as
+  "+N" under the panel. There is no way to reach them until there is room. **Default: accepted. They are the
+  lowest-priority cards; another choice would be a smaller font for the titles.**

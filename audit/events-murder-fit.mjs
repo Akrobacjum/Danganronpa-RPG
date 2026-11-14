@@ -11,8 +11,9 @@
  *   - the panel scrolls (its scrollHeight past its clientHeight), or a card does (its own), or any of them is styled to
  *     scroll (`overflow-y` auto or scroll) - a bar shown or not;
  *   - a card cuts its own text (a line wider than its box);
- *   - the panel's box reaches a corner launcher (glass.mjs `LAUNCHERS`) or the HUD (`#drpg-hud`) it does not already sit
- *     beside, or runs past the screen's bottom.
+ *   - the panel's box reaches another block of the screen below its top - a corner launcher, the HUD, the room tile, the
+ *     voice tile, the notices (events.mjs `EVENTS_BELOW`) - or runs past the screen's bottom. One beside its top (Legacy's
+ *     HUD at 1280x720) is printed as a note: growing does not reach it.
  * The panels (the texts the language files hold, the longest of a key's forms, with long sample names):
  *   victim    the fight's card as its victim reads it, the Despair Overflow's, a motive with its price
  *   killer    the fight's card as the killer reads it (waiting for a name), the Overflow, a motive, a Monocub's card
@@ -123,15 +124,24 @@ for (const [w, h] of SIZES) for (const theme of ["glass", "legacy"]) for (const 
                     if (el.getClientRects().length && el.scrollWidth > el.clientWidth + 1) why.push(`${c.dataset.kind} ${el.className.split(" ")[0]} ${el.scrollWidth}/${el.clientWidth} wide`);
             }
             const meets = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-            const obstacles = [...document.querySelectorAll("#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster], #drpg-hud")]
+            // The module's own list where it has one (events.mjs `EVENTS_BELOW`), else the corner launchers, the HUD and the room tile.
+            const obstacles = [...document.querySelectorAll(EV.EVENTS_BELOW ?? "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster], #drpg-hud, #drpg-room-tile")]
                 .filter(e => e.getClientRects().length && !panel.contains(e)).map(e => [e.id || e.dataset.drpgCluster || e.className, e.getBoundingClientRect()]);
             // What the panel grows into is below its top; something that already stands beside its top (Legacy's HUD at
             // 1280x720 reaches past the rail's left edge) is said, not failed: growing taller does not reach it.
             const notes = [];
-            for (const [id, r] of obstacles) if (meets(box, r)) (r.top >= box.top ? why : notes).push(`${r.top >= box.top ? "covers" : "beside its top:"} ${id}`);
+            // A block reaching under the panel's edge by 24 px or less (events.mjs `ROOM_SLIVER`: Legacy's left column at
+            // 1280x720, 12 px, there at the old cap too) is printed as a note as well.
+            for (const [id, r] of obstacles) {
+                if (!meets(box, r)) continue;
+                const across = Math.round(Math.min(r.right, box.right) - Math.max(r.left, box.left));
+                if (r.top < box.top) notes.push(`beside its top: ${id}`);
+                else if (across <= 24) notes.push(`${across} px under its edge: ${id}`);
+                else why.push(`covers ${id}`);
+            }
             if (box.bottom > window.innerHeight + 1) why.push(`runs ${Math.round(box.bottom - window.innerHeight)} px past the screen`);
             const below = obstacles.map(([, r]) => r).filter(r => r.top >= box.top && r.left < box.right && box.left < r.right).map(r => r.top);
-            const room = Math.round(Math.min(window.innerHeight, ...below) - box.top);
+            const room = typeof EV.eventsRoom === "function" ? Math.round(EV.eventsRoom(panel)) : Math.round(Math.min(window.innerHeight, ...below) - box.top);
             const folded = [...panel.children].filter(c => c.hasAttribute("data-drpg-folded")).map(c => c.dataset.kind);
             if (!keep) { panel.remove(); window.__glass?.refreshGlass?.(); }
             return { box: [box.left, box.top, box.width, box.height], why, notes, h: Math.round(box.height), room, cards: cards.length, folded, fitted };

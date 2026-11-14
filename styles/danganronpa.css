@@ -10158,6 +10158,9 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
    the glass harness at 1280x720) - five such titles took the room an open card needed */
 #drpg-events .drpg-event[data-drpg-folded] > :not(.drpg-event-title) { display: none; }
 #drpg-events .drpg-event[data-drpg-folded]:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+/* Titles that still do not fit are left out, the last first, and counted under the panel ("+2"; Q-OWN115-6). */
+#drpg-events .drpg-event[data-drpg-hidden] { display: none; }
+#drpg-events[data-drpg-more]::after { content: "+" attr(data-drpg-more); display: block; text-align: center; font-size: 0.85em; opacity: 0.8; padding: 2px 0 4px; }
 
 .drpg-event {
     --acc: var(--drpg-gold-antique);
