@@ -1497,6 +1497,13 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
     border: 0;
     border-radius: 0;
     clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    /* THE TAB BAR RUNS THE FULL WIDTH. The audit page's tabs fill the sheet's working column and
+       share it between them; the module had an `inline-flex` bar hugging its four words, 217 px
+       in a 518 px column. (A rule of its own under "three more points, measured against the audit
+       page" until E55 S3.) */
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
 }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a {
     --brush: var(--drpg-sg-bone); /* the hour's until E48 K2 (D30) */
@@ -1512,6 +1519,9 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
     border: 0;
     background: none;
     transition: color var(--drpg-t-snap, 120ms);
+    /* each tab its share of the full-width bar (THE TAB BAR RUNS THE FULL WIDTH, above) */
+    flex: 1 1 0;
+    text-align: center;
 }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a span {
     color: inherit !important;
@@ -4337,18 +4347,6 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-track {
 
 /* ---- three more points, measured against the audit page ---------------------------------- */
 
-/* THE TAB BAR RUNS THE FULL WIDTH. The audit page's tabs fill the sheet's working column and
-   share it between them; the module had an `inline-flex` bar hugging its four words, 217 px
-   in a 518 px column. */
-body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs {
-    display: flex;
-    width: 100%;
-    box-sizing: border-box;
-}
-body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a {
-    flex: 1 1 0;
-    text-align: center;
-}
 
 /* THE STAT FRAME TAKES ITS RESOURCE'S COLOUR AND THE THEME'S CORNER.
    `--drpg-bar-fill` is already correct per block (the two reserve tokens since E24 C1a) and
