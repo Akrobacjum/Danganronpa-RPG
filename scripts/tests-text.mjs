@@ -2403,8 +2403,8 @@ export const BASELINES = Object.freeze({
         /* The two Meddle threshold lines' minus signs, in config.mjs's prose and their Polish twins (S02-66): gone with E71
            B10b (14.11.2026), which wrote them "-" in both languages. */
         Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "`signed`, a roll's bonus (action-rolls.mjs until E41 C3)" }),
-        Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "the duality formula's operator (action-rolls.mjs until E41 C3)" }),
-        Object.freeze({ in: "script", file: "scripts/roll-dialog.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "a situational source's sign, written as an escape" })
+        Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "the duality formula's operator (action-rolls.mjs until E41 C3)" })
+        // roll-dialog.mjs's situational source's sign, the escape of U+2212: gone with the needsCode line (14.11.2026, R6902), "-".
         // season-setup.mjs's optional row's mark, the escape of U+2013 (S06-52): gone with E46-C5b (the kit's "-"; R2034).
     ])
 });
