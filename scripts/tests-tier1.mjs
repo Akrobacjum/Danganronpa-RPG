@@ -27911,7 +27911,8 @@ const INVARIANTS = [
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(r => (r.ok ? lfText(r) : "")));
         must(src.length > 500, "room-setup.mjs read as nothing - this would measure nothing");
         const cells = fnSource(src, "roomCells"), content = fnSource(src, "roomSetupContent");
-        const returned = cells.slice(cells.lastIndexOf("return {"));
+        // The row's own object, the last `return {` at the function's first indent; a names map above holds keys at the same depth.
+        const returned = [...cells.matchAll(/^ {8}return \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
         const built = [...returned.matchAll(/^ {12}([a-z]+):/gm)].map(m => m[1]).filter(k => k !== "name");
         const tabled = new Set([...content.matchAll(/tableFor\(\[([^\]]*)\]\)/g)].flatMap(m => [...m[1].matchAll(/"([a-z]+)"/g)].map(x => x[1])));
         must(built.length >= 10 && tabled.size >= 10, `read ${built.length} built cell(s) and ${tabled.size} tabled column(s) - this would measure nothing`);

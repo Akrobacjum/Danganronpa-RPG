@@ -10608,6 +10608,8 @@ const REGRESSIONS = [
             ["WRITER api.mjs#DrpgApi -> src", "`image` passes the spread to `setVaultRoom`, which writes for a GM only, through `safeRoomImage`; a refused path is not written and the GM is told (`imageRefused`)"],
             ["WRITER room-setup.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
             ["WRITER room-setup.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
+            ["WRITER tables-editor.mjs#repointRooms -> text", "a renamed room table's rooms (1.2.115): `setVaultRoom` is handed `table` alone, the new name of a RollTable a GM renamed in the Item tables window, and writes for a GM only; no description reaches it"],
+            ["WRITER tables-editor.mjs#repointRooms -> src", "a renamed room table's rooms (1.2.115): `table` alone is handed to `setVaultRoom`, never `image`, so no picture path is written by this road"],
             // E79 C11: the trial hall's name, picture and words, a flag of the hall scene (trial-scene.mjs `HALL_ROOM_FLAG`; R583)
             ["WRITER trial-scene.mjs#applyScenesTab -> text", "the Scenes tab's Apply, a GM's (`if (!game.user?.isGM || !read) return null`), and `setHallRoom` writes for a GM only: the name and the words as trimmed strings, drawn later as text only (R583)"],
             ["WRITER trial-scene.mjs#applyScenesTab -> src", "`setHallRoom` writes the picture only as `safeRoomImage` gives it; a refused path is not written, the old one stays and the GM is told (`imageRefused`; R583)"],
