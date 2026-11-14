@@ -2045,6 +2045,18 @@
       "More": {
         "volumeTooltip": "How loud this person is for you alone, and unmutes them; the others hear them as before",
         "changeTheKeyTooltip": "Opens Foundry's controls, where you set the push-to-talk key"
+      },
+      "Case": {
+        "nodeOnTheMapTooltip": "Opens this node's fields to edit it",
+        "onANodeTooltip": "Marks this node as reached in the Class Trial. A ticked deduction or counter goes into the players' case summary",
+        "notTiedToTheTooltip": "Shows or hides these Remnants",
+        "moveUpMoveDownTooltip": "Moves this node one place in its column; the order becomes By hand",
+        "checkConsistencyTooltip": "Lists what in the case does not hold together",
+        "addDeductionCounterSolutionTooltip": "Adds it to the case at once, with no need to Save",
+        "showPreviewTooltip": "Opens the realization's preview. Nothing is placed until you press Run realization there",
+        "sendToEveryoneTooltip": "Posts this summary in the chat for the whole table, once per Class Trial",
+        "difficultyTooltip": "How hard it is to spot with Observe, to analyze and to clean up with Tamper",
+        "leftByTooltip": "Counts as this student's own Remnant for Observe and Tamper"
       }
     },
     "Look": {

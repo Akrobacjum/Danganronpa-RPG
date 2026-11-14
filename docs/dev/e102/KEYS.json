@@ -548,7 +548,7 @@
    "en": "Posts this summary in the chat for the whole table, once per Class Trial",
    "pl": "Publikuje to podsumowanie na czacie dla całego stołu, raz na Class Trial",
    "sites": [
-    "case-summary:89"
+    "case-summary:showCaseSummary"
    ]
   },
   "kindWhatItReallyTooltip": {
@@ -568,20 +568,20 @@
     "investigation:1057",
     "investigation:1332",
     "investigation:2207",
-    "remnant-ring:356"
+    "remnant-ring:gmRemnantCard"
    ]
   },
   "difficultyTooltip": {
    "key": "DRPG.Tips.Case.difficultyTooltip",
-   "en": "How hard it is to spot with Observe, and its copies to analyze",
-   "pl": "Jak trudno go zauważyć przy Observe i przeanalizować jego kopie",
+   "en": "How hard it is to spot with Observe, to analyze and to clean up with Tamper",
+   "pl": "Jak trudno go zauważyć przy Observe, przeanalizować i usunąć przez Tamper",
    "sites": [
     "investigation:1059",
     "investigation:1330",
     "investigation:1451",
     "investigation:1896",
     "investigation:2205",
-    "remnant-ring:349"
+    "remnant-ring:gmRemnantCard"
    ]
   },
   "nameTooltip": {
@@ -791,23 +791,23 @@
    "en": "Opens this node's fields to edit it",
    "pl": "Otwiera pola tego węzła do edycji",
    "sites": [
-    "case-map:108"
+    "case-map:nodeButton"
    ]
   },
   "onANodeTooltip": {
    "key": "DRPG.Tips.Case.onANodeTooltip",
-   "en": "Marks this point as reached in the Class Trial; a ticked one goes into the players' case summary",
-   "pl": "Oznacza ten punkt jako osiągnięty w Class Trial; zaznaczony trafi do podsumowania sprawy dla graczy",
+   "en": "Marks this node as reached in the Class Trial. A ticked deduction or counter goes into the players' case summary",
+   "pl": "Zaznacza ten węzeł jako osiągnięty podczas Class Trial. Zaznaczony wniosek albo kontra trafia do podsumowania sprawy dla graczy",
    "sites": [
-    "case-map:172"
+    "case-map:caseGraphHtml"
    ]
   },
   "notTiedToTheTooltip": {
    "key": "DRPG.Tips.Case.notTiedToTheTooltip",
-   "en": "Shows or hides these Remnants on the map",
-   "pl": "Pokazuje albo chowa te Remnanty na mapie",
+   "en": "Shows or hides these Remnants",
+   "pl": "Pokazuje albo ukrywa te Remnanty",
    "sites": [
-    "case-map:183"
+    "case-map:caseGraphHtml"
    ]
   },
   "moveUpMoveDownTooltip": {
@@ -815,7 +815,7 @@
    "en": "Moves this node one place in its column; the order becomes By hand",
    "pl": "Przesuwa ten węzeł o jedno miejsce w kolumnie; kolejność zmienia się na Ręcznie",
    "sites": [
-    "case-map:236"
+    "case-map:nodeEditHtml"
    ]
   },
   "checkConsistencyTooltip": {
@@ -823,31 +823,15 @@
    "en": "Lists what in the case does not hold together",
    "pl": "Wypisuje, co w sprawie się nie zgadza",
    "sites": [
-    "case-map:263"
+    "case-map:caseOverviewHtml"
    ]
   },
   "addDeductionCounterSolutionTooltip": {
    "key": "DRPG.Tips.Case.addDeductionCounterSolutionTooltip",
    "en": "Adds it to the case at once, with no need to Save",
-   "pl": "Dodaje to do sprawy od razu, bez klikania Zapisz",
+   "pl": "Dodaje od razu do sprawy, bez naciskania Zapisz",
    "sites": [
-    "case-map:332"
-   ]
-  },
-  "placeOnTheMap2Tooltip": {
-   "key": "DRPG.Tips.Case.placeOnTheMap2Tooltip",
-   "en": "Opens New Remnant with this Remnant's room, name and words filled in",
-   "pl": "Otwiera Nowy Remnant z wpisanym pokojem, nazwą i opisem",
-   "sites": [
-    "case-map:492"
-   ]
-  },
-  "showTooltip": {
-   "key": "DRPG.Tips.Case.showTooltip",
-   "en": "Opens the Investigation's Map on this Remnant",
-   "pl": "Otwiera Mapę w Investigation na tym Remnancie",
-   "sites": [
-    "case-map:493"
+    "case-map:caseToolsHtml"
    ]
   },
   "finderTextTooltip": {
@@ -858,6 +842,14 @@
     "investigation:2454"
    ],
    "c7": true
+  },
+  "showPreviewTooltip": {
+   "key": "DRPG.Tips.Case.showPreviewTooltip",
+   "en": "Opens the realization's preview. Nothing is placed until you press Run realization there",
+   "pl": "Otwiera podgląd realizacji. Nic nie stanie na mapie, dopóki nie naciśniesz tam Uruchom realizację",
+   "sites": [
+    "case-realize:askAtBody"
+   ]
   }
  },
  "Gm": {

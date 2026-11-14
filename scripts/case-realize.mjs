@@ -23,7 +23,7 @@
  */
 import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
 import { bodiesFoundIn } from "./settings.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, autopsiesDue, bodiesInOrder } from "./case-schema.mjs";
 import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyCount } from "./investigation.mjs";
 import { remnantById, dropRemnantSecret } from "./remnants.mjs";
@@ -232,7 +232,7 @@ export async function askAtBody(chapter) {
         classes: ["drpg-panel", "drpg-window-case-ask"],
         body: `<p>${esc(L("DRPG.CaseRealize.askBody"))}</p>`,
         footer: { close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow") },
-            secondary: [{ action: "preview", label: L("DRPG.CaseRealize.showPreview") }], default: "later" },
+            secondary: [{ action: "preview", label: L("DRPG.CaseRealize.showPreview"), tooltip: tipText("DRPG.Tips.Case.showPreviewTooltip") }], default: "later" },
         rejectClose: false
     });
     if (answer === "preview") return openRealization({ chapter });

@@ -183,15 +183,7 @@
    "kind": "button",
    "key": null,
    "count": 1,
-   "why": "E102 C6: Opens this node's fields to edit it"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "caseGraphHtml",
-   "kind": "button",
-   "key": "DRPG.CaseTrial.tickLabel",
-   "count": 1,
-   "why": "E102 C6: Marks this point as reached in the Class Trial; every GM sees the mark"
+   "why": "conditional: editable, true only on the Investigation window's Map (caseGraphHtml given its editors); the Class Trial console draws the same face read only, where a press opens nothing (case-trial.mjs liveSchema), so it has no tooltip there"
   },
   {
    "file": "scripts/case-map.mjs",
@@ -211,23 +203,7 @@
    "kind": "button",
    "key": null,
    "count": 1,
-   "why": "E102 C6: Shows or hides these Remnants on the map"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "nodeEditHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Moves this node one place in its column; the order becomes By hand"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "caseOverviewHtml",
-   "kind": "button",
-   "key": "DRPG.CaseMap.noSchema",
-   "count": 1,
-   "why": "E102 C6: Lists what in the case does not hold together"
+   "why": "conditional: editors, only on the Investigation window's Map; the Class Trial console's graph is always folded and its press folds nothing (case-trial.mjs liveSchema wires no onFold), so the fold has no tooltip there"
   },
   {
    "file": "scripts/case-map.mjs",
@@ -236,14 +212,6 @@
    "key": null,
    "count": 1,
    "why": "none needed: a fold whose line is the case summary's title and counts; pressing it opens or closes the summary"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "caseToolsHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Adds it to the case at once, with no need to Save"
   },
   {
    "file": "scripts/case-map.mjs",
@@ -275,23 +243,7 @@
    "kind": "footer",
    "key": "DRPG.CaseRealize.notNow",
    "count": 1,
-   "why": "E102 C6: Not asked again; Realization preview in the Investigation window opens it later"
-  },
-  {
-   "file": "scripts/case-realize.mjs",
-   "unit": "askAtBody",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.showPreview",
-   "count": 1,
-   "why": "E102 C6: The preview changes nothing until you press Run realization."
-  },
-  {
-   "file": "scripts/case-summary.mjs",
-   "unit": "showCaseSummary",
-   "kind": "footer",
-   "key": "DRPG.CaseSummary.send",
-   "count": 1,
-   "why": "E102 C6: Posts this summary in the chat for the whole table, once per Class Trial"
+   "why": "none needed: the kit draws this closing word as Close, with neither its label Not now nor a tooltip (ui-kit.mjs footerButtons builds the closing word from BUTTON_ROLES alone); a closing word needs none"
   },
   {
    "file": "scripts/chapter.mjs",
@@ -1908,22 +1860,6 @@
    "key": "DRPG.Project.createButton",
    "count": 1,
    "why": "none needed: Opens the Create a project window, as its label says."
-  },
-  {
-   "file": "scripts/remnant-ring.mjs",
-   "unit": "gmRemnantCard",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/remnant-ring.mjs",
-   "unit": "gmRemnantCard",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
   },
   {
    "file": "scripts/remnant-ring.mjs",

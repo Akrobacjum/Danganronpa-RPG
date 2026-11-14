@@ -85,6 +85,36 @@ difference is E102's. R-REGISTRY.md is generated and conflicts wherever two line
 
 R numbers: R4750-R4754 (C1-C5), R4760 on (review fixes, C6-C8); scenario 95 (tooltips-drawn; 94 is claude/e72's).
 
+## C6 (claude/e102-c6, from claude/fervent-sagan-gme4vt 1463f22b; 14.11.2026)
+
+The coordinator's line for the last family. Two parts: the case files first, the investigation.mjs sites after E54 has
+landed on claude/fervent-sagan-gme4vt (merged in first; its sites are then in E54's new files). Keys only in a new
+`DRPG.Tips.Case` block after `DRPG.Tips.More`, EN and PL; no existing key edited. R4755.
+
+| Part | Sites | Census (needing help / baseline rows still "E102 C6") | Test |
+| --- | --- | --- | --- |
+| base 1463f22b | - | 335 / 52 | R4755 red: "lang/en.json has not the family's 11 keys" |
+| C6a: case-map, case-realize, case-summary, remnant-ring | 8 tipped, 3 rows re-reasoned | 327 / 41 (all investigation.mjs) | R4755 green, 10 keys |
+| C6b: investigation.mjs (E54's files) | waits for E54 | - | - |
+
+What C6a found, against KEYS.json's proposals:
+
+- **The Map's face and fold are the Map's alone.** The Class Trial console draws the same graph (case-trial.mjs
+  `trialSchemaHtml`) and wires it with no callbacks: a press on a node opens nothing and the fold folds nothing there
+  (`liveSchema`). Both tooltips are drawn only where `caseGraphHtml` has the Map's `editors`; their rows say
+  "conditional: ..." (the census counts such a site as still needing a row, so these two stay in the baseline).
+- **The tick's tooltip.** KEYS.json said "a ticked one goes into the players' case summary"; case-summary.mjs
+  `composeCaseSummary` takes a ticked deduction or counter, and the solution only on a right vote, tick or not. The
+  words say so. The tick's old `title` ("Ticked: {name}", the same ticked or not) gives way to the tooltip; its
+  `aria-label` keeps the name.
+- **The difficulty select** sets the Observe, Analyze and Tamper numbers (config.mjs `OBSERVE_DC`, `ANALYZE_DC`,
+  cleanup.mjs `cleanupDc`); the words name all three.
+- **"Not now" is never drawn.** ui-kit.mjs `footerButtons` builds a closing word from `BUTTON_ROLES` alone, so the
+  `label` (and any tooltip) of `askAtBody`'s close is dropped and the button reads Close (the same at
+  investigation.mjs `offerFinalOnClose`). No tooltip there; its row says why. The dead label is a finding for E71 or
+  the kit, not changed here.
+- KEYS.json's case-map `incidentAsksHtml` sites (Place on the map, Show) are gone from the code; nothing to tip.
+
 ## Tier 2
 
 Whole, on C2 (70613472), 13.11 01:17-02:32 UTC: tiers 0-2, 2676 tests, 2652 passed, 1 failed, 27 skipped. The one: "every

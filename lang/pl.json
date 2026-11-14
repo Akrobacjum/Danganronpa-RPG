@@ -2135,6 +2135,18 @@
       "More": {
         "volumeTooltip": "Jak głośno słyszysz tę osobę, tylko u siebie, i wyłącza jej wyciszenie; inni słyszą ją jak wcześniej",
         "changeTheKeyTooltip": "Otwiera sterowanie Foundry, gdzie ustawiasz klawisz mówienia"
+      },
+      "Case": {
+        "nodeOnTheMapTooltip": "Otwiera pola tego węzła do edycji",
+        "onANodeTooltip": "Zaznacza ten węzeł jako osiągnięty podczas Class Trial. Zaznaczony wniosek albo kontra trafia do podsumowania sprawy dla graczy",
+        "notTiedToTheTooltip": "Pokazuje albo ukrywa te Remnanty",
+        "moveUpMoveDownTooltip": "Przesuwa ten węzeł o jedno miejsce w kolumnie; kolejność zmienia się na Ręcznie",
+        "checkConsistencyTooltip": "Wypisuje, co w sprawie się nie zgadza",
+        "addDeductionCounterSolutionTooltip": "Dodaje od razu do sprawy, bez naciskania Zapisz",
+        "showPreviewTooltip": "Otwiera podgląd realizacji. Nic nie stanie na mapie, dopóki nie naciśniesz tam Uruchom realizację",
+        "sendToEveryoneTooltip": "Publikuje to podsumowanie na czacie dla całego stołu, raz na Class Trial",
+        "difficultyTooltip": "Jak trudno go zauważyć przy Observe, przeanalizować i usunąć przez Tamper",
+        "leftByTooltip": "Liczy się jako własny Remnant tego ucznia przy Observe i Tamper"
       }
     },
     "Look": {

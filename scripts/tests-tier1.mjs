@@ -27123,6 +27123,43 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
+    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 10 keys under DRPG.Tips.Case has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
+        /* Red at 1463f22b with this test in place and the family's scripts as they were: lang/*.json had no DRPG.Tips.Case block and no function read one of its keys. */
+        const TIPS = [
+            ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
+            ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
+            ["DRPG.Tips.Case.notTiedToTheTooltip","case-map.mjs","caseGraphHtml"],
+            ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
+            ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
+            ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
+            ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
+            ["DRPG.Tips.Case.difficultyTooltip","remnant-ring.mjs","gmRemnantCard"],
+            ["DRPG.Tips.Case.leftByTooltip","remnant-ring.mjs","gmRemnantCard"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.Case") ?? {}).length === TIPS.length, `lang/en.json has not the family's ${TIPS.length} keys under DRPG.Tips.Case`);
+        must(Object.keys(words(pl, "DRPG.Tips.Case") ?? {}).length === TIPS.length, `lang/pl.json has not the family's ${TIPS.length} keys under DRPG.Tips.Case`);
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+        // the Map's own: drawn only where caseGraphHtml was handed the Map's editors (the trial console's graph has none)
+        const map = src.get("case-map.mjs");
+        const mapOnly = [["nodeButton", "nodeOnTheMapTooltip", /\beditable\s*\?\s*tipAttr\(\s*"DRPG\.Tips\.Case\.nodeOnTheMapTooltip"/],
+            ["caseGraphHtml", "notTiedToTheTooltip", /\beditors\s*\?\s*tipAttr\(\s*"DRPG\.Tips\.Case\.notTiedToTheTooltip"/],
+            ["caseGraphHtml", "editable", /nodeButton\([^;]*\beditable:\s*Boolean\(editors\)/]]
+            .filter(([unit, , re]) => !re.test(fnSource(map, unit))).map(([unit, what]) => `${what} not held to the Map in ${unit}()`);
+        equal(bad.concat(mapOnly).join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
     ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
         /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
