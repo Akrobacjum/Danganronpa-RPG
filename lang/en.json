@@ -5365,7 +5365,7 @@
       "remnantLeft": "The new result leaves a Remnant behind.",
       "remnantRemoved": "The new result removes the Remnant your first roll left.",
       "remnantManual": "The Reroll cannot adjust the Remnant your first roll left. Ask the GM to re-rate it.",
-      "traceKept": "{name}'s Reroll left the Remnant of the first roll as it was ({trace}): a GM has written on it or set its band, a Reroll put it back, it is too old for a Reroll to reach, or - where the new result would have removed it - somebody has already found it. The console says which. If the new result ({total}) should change it, re-rate or remove it by hand.",
+      "traceKept": "{name}'s Reroll left the first roll's Remnant ({trace}) unchanged: a GM wrote on it or set its band, a Reroll put it back, it is too old for a Reroll, or, where the new result would remove it, somebody already found it. The console says which. If the new result ({total}) should change it, re-rate or remove it by hand.",
       "sabotageUndone": "Your first attempt is taken back: the target project is no longer frozen, and its repair project is gone.",
       "sabotageRedone": "{name} breaks again, and its repair now needs {n} progress.",
       "sabotageNowFails": "The new result fails: the target is left working.",

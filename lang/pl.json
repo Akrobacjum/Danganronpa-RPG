@@ -5791,7 +5791,7 @@
       "remnantLeft": "Nowy wynik zostawia Remnant.",
       "remnantRemoved": "Nowy wynik usuwa Remnant z pierwszego rzutu.",
       "remnantManual": "Reroll nie może dostosować Remnantu z twojego pierwszego rzutu. Poproś GM-a o ponowną ocenę.",
-      "traceKept": "Reroll postaci {name} zostawił Remnant z pierwszego rzutu bez zmian ({trace}): GM coś na nim zapisał albo ustawił jego widoczność, przywrócił go Reroll, jest zbyt stary, by Reroll go sięgał, albo - gdy nowy wynik by go usunął - ktoś już go znalazł. Konsola mówi, który powód. Jeśli nowy wynik ({total}) powinien go zmienić, oceń go ponownie albo usuń ręcznie.",
+      "traceKept": "Reroll postaci {name} zostawił Remnant z pierwszego rzutu bez zmian ({trace}): GM coś na nim zapisał albo ustawił jego widoczność, przywrócił go Reroll, jest zbyt stary, by Reroll go sięgał, albo, gdy nowy wynik by go usunął, ktoś już go znalazł. Konsola mówi, który powód. Jeśli nowy wynik ({total}) powinien go zmienić, oceń go ponownie albo usuń ręcznie.",
       "sabotageUndone": "Pierwsza próba zostaje cofnięta: projekt nie jest już zamrożony, a jego projekt naprawy znika.",
       "sabotageRedone": "Projekt „{name}” znów się psuje, a naprawa wymaga teraz {n} postępu.",
       "sabotageNowFails": "Nowy wynik to porażka: cel zostaje sprawny.",
