@@ -2062,6 +2062,9 @@
         "carryItThereTooltip": "Rzut na przeciągnięcie ciała do wybranego pokoju",
         "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza"
       },
+      "CaseCopy": {
+        "writeNowTooltip": "Odczytuje kopię z serwera, a potem zapisuje na niej sprawę z tej przeglądarki"
+      },
       "Gm": {
         "minusTooltip": "Zabiera {n} Despair z tej puli",
         "plusTooltip": "Dodaje {n} Despair do tej puli",
@@ -8922,6 +8925,24 @@
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
         "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
       },
+      "copy": {
+        "writeNow": "Zapisz kopię teraz",
+        "emptyHere": "Planer sprawy jest tu pusty, a serwer nie ma jego kopii. Przywróć go z pliku kopii: panel GM-a, Diagnostyka, Sprawa.",
+        "done": {
+          "written": "Kopia sprawy na serwerze zapisana.",
+          "same": "Kopia sprawy na serwerze już ma tę sprawę."
+        },
+        "refused": {
+          "switchOff": "Kopia sprawy nie trafia na serwer: ustawienie Bez przeglądarki plików dla graczy jest wyłączone. Włącz je, a kopia się zapisze.",
+          "roles": "Kopia sprawy nie trafia na serwer: rola Gracz albo Zaufany gracz może przeglądać lub wysyłać pliki. Odbierz tym rolom oba uprawnienia w uprawnieniach Foundry.",
+          "account": "Kopia sprawy nie trafia na serwer: konto gracza może przeglądać lub wysyłać pliki. Odbierz to uprawnienie temu kontu w ustawieniach użytkownika Foundry.",
+          "notGm": "Kopię sprawy zapisuje tylko GM.",
+          "notPrimary": "Kopię sprawy zapisuje tylko główny GM.",
+          "notHydrated": "Kopie sprawy od innych GM-ów jeszcze nie dotarły. Spróbuj za chwilę.",
+          "list": "Ta przeglądarka nie mogła odczytać folderu sprawy na serwerze. Szczegóły są w konsoli.",
+          "failed": "Nie udało się zapisać kopii sprawy. Szczegóły są w konsoli."
+        }
+      },
       "row": {
         "traces": {
           "one": "{n} Remnant na mapie (z {of}) nie ma klucza odpowiedzi w tej przeglądarce.",
@@ -8963,6 +8984,13 @@
         "notices": "Historia powiadomień zajmuje ponadto {notices} KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.",
         "lastBackup": "Ostatnia kopia: {when} ({who}).",
         "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii.",
+        "copyNone": "Na serwerze nie ma jeszcze kopii sprawy. Przeglądarka głównego GM-a zapisze ją po zmianie sprawy.",
+        "copyFound": {
+          "one": "Kopia sprawy na serwerze: zapisana {when} przez {who}.",
+          "few": "{n} kopie sprawy na serwerze; najnowsza zapisana {when} przez {who}.",
+          "many": "{n} kopii sprawy na serwerze; najnowsza zapisana {when} przez {who}.",
+          "other": "{n} kopii sprawy na serwerze; najnowsza zapisana {when} przez {who}."
+        },
         "traceOrphans": {
           "one": "{n} klucz odpowiedzi Remnantu nie ma tokenu na żadnej scenie: zostaje, nic go nie czyta.",
           "few": "{n} klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.",

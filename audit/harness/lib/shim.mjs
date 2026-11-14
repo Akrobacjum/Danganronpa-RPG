@@ -1714,7 +1714,10 @@ export function buildApplications(ctx) {
 
     class FilePickerImpl {
         static get implementation() { return FilePickerImpl; }
-        static async browse(source, target) {
+        static async browse(source, target, options = {}) {
+            /* A world's folder is the server's (E111): asked of the cluster, which judges FILES_BROWSE
+               and answers what was uploaded there; a refusal throws, as Foundry's browse rejects. */
+            if (/^worlds\//.test(String(target ?? ""))) return ctx.bus.files({ action: "browse", source, target });
             // serve real repo files so icon/audio existence checks are honest
             const dir = path.join(REPO, String(target ?? "").replace(/^modules\/danganronpa-rpg\/?/, ""));
             try {
@@ -1725,6 +1728,14 @@ export function buildApplications(ctx) {
                     dirs: entries.filter(e => e.isDirectory()).map(e => `${target}/${e.name}`)
                 };
             } catch { return { target, files: [], dirs: [] }; }
+        }
+        /* E111: a folder made and a file uploaded on the server, each judged there (FILES_UPLOAD). The upload
+           answers Foundry's shape, `{ status, path }`, and overwrites a file of the same name, as Foundry's does;
+           `notify` is ignored (the harness draws no toast for it). */
+        static async createDirectory(source, target) { return ctx.bus.files({ action: "mkdir", source, target }); }
+        static async upload(source, target, file, _body = {}, _options = {}) {
+            const text = typeof file?.text === "function" ? await file.text() : String(file ?? "");
+            return ctx.bus.files({ action: "upload", source, target, name: file?.name ?? "upload", text });
         }
         constructor(o = {}) { this.options = o; }
         render() { return this; }

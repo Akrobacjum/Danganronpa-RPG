@@ -2221,6 +2221,20 @@ async function claimRowsIntoCopy(handle, section) {
 }
 
 /**
+ * The case as this browser holds it now, as the file a backup writes: every store with `backup: true`, a failed
+ * claim's rows computed into its copy (`claimRowsIntoCopy`), this world, this GM and the clock's reset cuts. The one
+ * builder of the file: Back up saves it, and the server copy (case-copy.mjs, E111) uploads it.
+ */
+export async function caseFileNow() {
+    const sections = caseSections(gmStoreHandles());
+    for (const name of Object.keys(sections)) sections[name] = await claimRowsIntoCopy(gmStoreByName(name), sections[name]);
+    return caseFileOf({
+        sections, world: { id: game.world.id, title: game.world.title }, exportedAt: new Date().toISOString(),
+        exportedBy: game.user.name, resetCuts: getClock().resetCuts ?? {}
+    });
+}
+
+/**
  * Back up the case: every GM store of this world, in one file this browser saves.
  *
  * `ask` (the panel's tile) says first what the file holds - the Mastermind and
@@ -2248,13 +2262,8 @@ export async function backupCase({ ask = false } = {}) {
         });
         if (!yes) return null;
     }
-    const sections = caseSections(gmStoreHandles());
-    for (const name of Object.keys(sections)) sections[name] = await claimRowsIntoCopy(gmStoreByName(name), sections[name]);
-    const exportedAt = new Date().toISOString();
-    const file = caseFileOf({
-        sections, world: { id: game.world.id, title: game.world.title }, exportedAt,
-        exportedBy: game.user.name, resetCuts: getClock().resetCuts ?? {}
-    });
+    const file = await caseFileNow();
+    const { exportedAt, stores: sections } = file;
     foundry.utils.saveDataToFile(JSON.stringify(file), "application/json",
         `drpg-case-${game.world.id}-${exportedAt.replace(/[:.]/g, "-")}.json`);
     await markCase({ lastBackupAt: Date.now(), lastBackupBy: game.user.name });
@@ -2373,21 +2382,23 @@ export function previewRestore(file) {
  * restored store counts as having its copy; a store whose rows a player holds a copy
  * of sends each connected player theirs again (`afterRestore`: the door, the cast, the
  * offers, the fog - R182); the Faint pass runs again; and the health check runs again
- * (`recheck`).
+ * (`recheck`). `quiet` (E111: the server copy's read, case-copy.mjs `readServerCopies`) says nothing on screen and
+ * does not count the stores as restored - the copy is read as another GM's sync is, and the stores' hydration stays
+ * the exchange's to say.
  */
-export async function restoreCase(file, { otherWorld = false, beforeCut = false, recheck = true, records = [] } = {}) {
+export async function restoreCase(file, { otherWorld = false, beforeCut = false, recheck = true, records = [], quiet = false } = {}) {
     if (!game.user?.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
+        if (!quiet) ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
         return null;
     }
     const read = readCaseFile(file);
     if (read.refused) {
-        ui.notifications.error(caseRefusalText(read));
+        if (!quiet) ui.notifications.error(caseRefusalText(read));
         return { refused: read.refused };
     }
     const foreign = fromOtherWorld(read);
     if (foreign && !otherWorld) {
-        ui.notifications.error(caseRefusalText({ refused: "otherWorld", world: read.world }));
+        if (!quiet) ui.notifications.error(caseRefusalText({ refused: "otherWorld", world: read.world }));
         return { refused: "otherWorld" };
     }
     const counts = {};
@@ -2412,7 +2423,7 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
                 filled++;
             }
         }
-        handle.markRestored();
+        if (!quiet) handle.markRestored();
         counts[name] = { changed, filled, beforeCut: beforeCut ? 0 : preview.beforeCut, clamped };
         try { await handle.spec.afterRestore?.(); }
         catch (err) { error(`After restoring "${name}", the players' copies could not be sent again`, err); }
@@ -2425,7 +2436,7 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
         ? game.i18n.format("DRPG.Case.restoredSkipped", { store: storeLabel(name) })
         : game.i18n.format("DRPG.Case.restoredStore", { store: storeLabel(name), n: c.changed + c.filled, cut: c.beforeCut })));
     const clamped = Object.values(counts).reduce((n, c) => n + (c.clamped ?? 0), 0);
-    ui.notifications.info([game.i18n.localize("DRPG.Case.restored"), lines.join("; "),
+    if (!quiet) ui.notifications.info([game.i18n.localize("DRPG.Case.restored"), lines.join("; "),
         clamped ? plural("DRPG.Case.restoredClamped", { n: clamped }) : ""].filter(Boolean).join(" "));
     if (recheck) runHealthCheck().catch(err => error("The case health check could not run", err));
     return { counts };
@@ -2611,6 +2622,14 @@ export async function gmStoreHealth() {
     const mark = caseMark();
     add("lastBackup", "info", mark.lastBackupAt ? "DRPG.Case.row.lastBackup" : "DRPG.Case.row.neverBackedUp",
         { when: mark.lastBackupAt ? localeFormat("dateTime", mark.lastBackupAt) : "", who: mark.lastBackupBy ?? "" });
+    /* THE SERVER COPY (E111): found or not, its newest copy's time and writer (inside the file), how many copies the
+       folder holds; and, a conflict, the refusal to write one while players may list or upload files. Names no file. */
+    const { copyStatus } = await import("./case-copy.mjs");
+    const copy = copyStatus();
+    const copyWhen = copy.exportedAt ? localeFormat("dateTime", Date.parse(copy.exportedAt)) : "?";
+    if (copy.refused && copy.refused !== "notGm") add("caseCopy", "conflict", `DRPG.Case.copy.refused.${copy.refused}`);
+    else add("caseCopy", "info", copy.found ? "DRPG.Case.row.copyFound" : "DRPG.Case.row.copyNone",
+        { when: copyWhen, who: copy.exportedBy ?? "?", n: copy.count });
 
     const counts = {
         traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },
@@ -2794,22 +2813,42 @@ export async function openCaseWindow() {
     const age = mark.lastBackupAt
         ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
         : game.i18n.localize("DRPG.Case.row.neverBackedUp");
+    /* THE SERVER COPY (E111, 14.11.2026): its state in a second fact row, and "Write the copy now" - a GM's own press,
+       which reads the folder first and then writes (case-copy.mjs `writeServerCopy({ explicit: true })`). */
+    const copies = await import("./case-copy.mjs");
+    const copyLine = copyLineText(copies.copyStatus());
     const choice = await drpgWindow({
         help: WINDOW_HELP.theCase,
         title: game.i18n.localize("DRPG.Case.tile"),
         classes: ["drpg-panel", "drpg-window-case-copy"],
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
-        body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>`,
+        body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>
+            <p class="drpg-briefing-facts" data-drpg-case-server>${esc(copyLine)}</p>`,
         footer: {
             primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup"), tooltip: tipText("DRPG.Tips.Gm.backUpTooltip") },
-            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }],
+            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") },
+                { action: "writeCopy", label: game.i18n.localize("DRPG.Case.copy.writeNow"), tooltip: tipText("DRPG.Tips.CaseCopy.writeNowTooltip") }],
             close: { role: "close", action: "close" }
         },
         rejectClose: false
     });
     if (choice === "backup") return backupCase({ ask: true });
     if (choice === "restore") return openRestoreDialog();
+    if (choice === "writeCopy") {
+        const result = await copies.writeServerCopy({ explicit: true });
+        const done = result === "written" || result === "same";
+        ui.notifications[done ? "info" : "warn"](game.i18n.localize(done ? `DRPG.Case.copy.done.${result}` : `DRPG.Case.copy.refused.${result}`));
+        return result;
+    }
     return null;
+}
+
+/** The server copy's state as the case window's line says it (E111): the refusal, or found or not. Names no file. */
+export function copyLineText(copy) {
+    if (copy?.refused && copy.refused !== "notGm") return game.i18n.localize(`DRPG.Case.copy.refused.${copy.refused}`);
+    if (!copy?.found) return game.i18n.localize("DRPG.Case.row.copyNone");
+    return plural("DRPG.Case.row.copyFound", { n: copy.count, who: copy.exportedBy ?? "?",
+        when: copy.exportedAt ? localeFormat("dateTime", Date.parse(copy.exportedAt)) : "?" });
 }
 
 /** Whether the upgrade day's clear still stands as the health window showed it: the same pick, clear and stamps. */

@@ -1972,6 +1972,9 @@
         "carryItThereTooltip": "Rolls to drag the body into the room you picked",
         "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not"
       },
+      "CaseCopy": {
+        "writeNowTooltip": "Reads the copy on the server, then writes over it the case this browser holds"
+      },
       "Gm": {
         "minusTooltip": "Takes {n} Despair from this pool",
         "plusTooltip": "Adds {n} Despair to this pool",
@@ -7114,6 +7117,24 @@
         "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
       },
+      "copy": {
+        "writeNow": "Write the copy now",
+        "emptyHere": "The case planner is empty here and the server holds no copy of it. Restore it from a backup file: GM panel, Diagnostics, The case.",
+        "done": {
+          "written": "The copy of the case on the server is written.",
+          "same": "The copy of the case on the server already holds this case."
+        },
+        "refused": {
+          "switchOff": "No copy of the case is written to the server: the setting Keep players out of the file browser is off. Turn it on, and the copy is written.",
+          "roles": "No copy of the case is written to the server: the Player or Trusted Player role may browse or upload files. Take both permissions off those roles in Foundry's permissions.",
+          "account": "No copy of the case is written to the server: a player's account may browse or upload files. Take that permission off the account in Foundry's user settings.",
+          "notGm": "Only a GM can write the copy of the case.",
+          "notPrimary": "Only the primary GM writes the copy of the case.",
+          "notHydrated": "The other GMs' copies of the case have not arrived yet. Try again in a moment.",
+          "list": "This browser could not list the case's folder on the server. The console has the details.",
+          "failed": "The copy of the case could not be written. The console has the details."
+        }
+      },
       "row": {
         "traces": {
           "one": "{n} Remnant on the map (of {of}) has no answer key on this browser.",
@@ -7145,6 +7166,11 @@
         "notices": "The notice history takes {notices} KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.",
         "lastBackup": "Last backup: {when} ({who}).",
         "neverBackedUp": "This case has never been backed up.",
+        "copyNone": "No copy of the case on the server yet. The primary GM's browser writes one after the case changes.",
+        "copyFound": {
+          "one": "Copy of the case on the server: written {when} by {who}.",
+          "other": "{n} copies of the case on the server; the newest written {when} by {who}."
+        },
         "traceOrphans": {
           "one": "{n} Remnant's answer key has no token on any scene: it is kept, but nothing reads it.",
           "other": "{n} Remnants' answer keys have no token on any scene: they are kept, but nothing reads them."

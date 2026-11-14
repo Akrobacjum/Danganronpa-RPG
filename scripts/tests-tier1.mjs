@@ -61460,6 +61460,67 @@ const INVARIANTS = [
             ["", "gap", "gap pad", "gap pad track", "above track"]]),
             "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
+    /* E111 (14.11.2026; the owner: "Bez hasel prosze - niech to bedzie dostepne dla kont gmow po prostu"): the case's
+       copy on the server. Pure over case-copy.mjs's functions and source reads; nothing is written to the world. */
+    ["R7345 - the server copy is written only while no player can reach the files: case-copy.mjs `filesRefusal` answers \"switchOff\" with the module's switch enforcePlayerFiles off, \"roles\" when FILES_BROWSE or FILES_UPLOAD in force names the Player or the Trusted Player role, \"account\" when a player's account holds either by name, and nothing for a held table (an Assistant or a GM granted one by name is no refusal); and `filesPrivate` reads the switch of enforced.mjs's row playerFiles", async () => {
+        /* Red at 18df17c4: no case-copy.mjs (the import fails). */
+        const C = await import("./case-copy.mjs");
+        const roles = { PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 };
+        const held = { FILES_BROWSE: [3, 4], FILES_UPLOAD: [3, 4] };
+        const ask = more => C.filesRefusal({ switchOn: true, inForce: held, users: [], roles, ...more });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson({
+            held: ask({}), off: ask({ switchOn: false }), playerBrowse: ask({ inForce: { ...held, FILES_BROWSE: [1, 3, 4] } }),
+            trustedUpload: ask({ inForce: { ...held, FILES_UPLOAD: [2, 3, 4] } }),
+            account: ask({ users: [{ isGM: false, permissions: { FILES_BROWSE: true } }] }),
+            gmGrant: ask({ users: [{ isGM: true, permissions: { FILES_UPLOAD: true } }] }),
+            readsRow: /ENFORCED\.find\(r => r\.id === "playerFiles"\)/.test(fnSource(src, "filesPrivate")) && /permissionsInForce\(\)/.test(fnSource(src, "filesPrivate"))
+        }), stableJson({ held: null, off: "switchOff", playerBrowse: "roles", trustedUpload: "roles", account: "account", gmGrant: null, readsRow: true }),
+        "{each table's refusal; filesPrivate reads the playerFiles row and the permissions in force}");
+    }],
+    ["R7346 - an empty browser never writes before it has read: case-copy.mjs `copyRefusal` answers \"notGm\", \"notPrimary\", the files' refusal before anything else a GM is asked, and \"notHydrated\" for a GM whose stores have not heard the other GMs; and `writeServerCopy` lists and merges every copy in the folder (`readServerCopies`) before it builds the case it uploads, asks the hydration again after that read, and uploads over the newest copy's name or a new one", async () => {
+        /* Red at 18df17c4: no case-copy.mjs. */
+        const C = await import("./case-copy.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const w = fnSource(src, "writeServerCopy");
+        const at = pattern => w.search(pattern);
+        const base = { isGM: true, primary: true, hydrated: true, files: null };
+        equal(stableJson({
+            ok: C.copyRefusal(base), notGm: C.copyRefusal({ ...base, isGM: false }), notPrimary: C.copyRefusal({ ...base, primary: false }),
+            unhydrated: C.copyRefusal({ ...base, hydrated: false }), filesFirst: C.copyRefusal({ ...base, hydrated: false, files: "roles" }),
+            readBeforeBuild: at(/await readServerCopies\(\)/) > 0 && at(/await readServerCopies\(\)/) < at(/await caseFileNow\(\)/),
+            hydratedAfterRead: at(/await readServerCopies\(\)/) < at(/if \(!SEAL_DEPS\.hydrated\(\)\)/),
+            uploadLast: at(/await caseFileNow\(\)/) < at(/FP\.upload\("data", copyFolder\(\)/), newestName: /seen\.newest \? seen\.newest\.slice/.test(w)
+        }), stableJson({ ok: null, notGm: "notGm", notPrimary: "notPrimary", unhydrated: "notHydrated", filesFirst: "roles",
+            readBeforeBuild: true, hydratedAfterRead: true, uploadLast: true, newestName: true }),
+        "{the refusals in order; the write reads the folder, asks the hydration again, builds, then uploads over the newest name}");
+    }],
+    ["R7347 - a copy's name is 128 random bits and stays with the GMs: `newCopyName` answers case- and 32 hex digits, two calls differ, `copyFolder` is the world's drpg-case folder in the data source; and case-copy.mjs writes no setting, flag, chat message or console line - nothing a player's browser could read the name from", async () => {
+        /* Red at 18df17c4: no case-copy.mjs. */
+        const C = await import("./case-copy.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const a = C.newCopyName(), b = C.newCopyName();
+        equal(stableJson({ a: /^case-[0-9a-f]{32}\.json$/.test(a), differ: a !== b, folder: C.copyFolder("R7347WORLD"),
+            pattern: C.COPY_NAME.test("worlds/w/drpg-case/" + a) && !C.COPY_NAME.test("worlds/w/drpg-case/case-123.json"),
+            writes: (src.match(/setSetting\(|\.setFlag\(|ChatMessage|whisperToGms|console\.\w+\(|debug\(/g) ?? []).length,
+            dataOnly: (src.match(/FP\.(browse|upload|createDirectory)\("data",/g) ?? []).length }),
+        stableJson({ a: true, differ: true, folder: "worlds/R7347WORLD/drpg-case", pattern: true, writes: 0, dataOnly: 3 }),
+        "{the name's shape, two names differ, the folder, the pattern, no road a player reads, every file call in the data source}");
+    }],
+    ["R7348 - the server copy is read with Restore's own merge and written from the backup's own file: `readServerCopies` calls gm-stores.mjs `restoreCase` quiet with no health check of its own for every copy it fetched; `writeServerCopy` uploads `caseFileNow`, which `backupCase` saves too; `restoreCase` with `quiet` neither toasts nor marks a store restored; and the health check and the case window name the copy (`caseCopy` row, `copyLineText`, the button \"writeCopy\")", async () => {
+        /* Red at 18df17c4: no case-copy.mjs, no caseFileNow, no quiet. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const copy = await src("case-copy.mjs"), stores = await src("gm-stores.mjs");
+        const restore = fnSource(stores, "restoreCase");
+        equal(stableJson({
+            readMerge: /restoreCase\(file,\s*\{\s*quiet:\s*true,\s*recheck:\s*false\s*\}\)/.test(fnSource(copy, "readServerCopies")),
+            writeFile: /await caseFileNow\(\)/.test(fnSource(copy, "writeServerCopy")), backupFile: /await caseFileNow\(\)/.test(fnSource(stores, "backupCase")),
+            quietToast: /if \(!quiet\) ui\.notifications\.info\(/.test(restore), quietMark: /if \(!quiet\) handle\.markRestored\(\)/.test(restore),
+            healthRow: /add\("caseCopy"/.test(fnSource(stores, "gmStoreHealth")),
+            window: /action: "writeCopy"/.test(fnSource(stores, "openCaseWindow")) && /writeServerCopy\(\{ explicit: true \}\)/.test(fnSource(stores, "openCaseWindow"))
+        }), stableJson({ readMerge: true, writeFile: true, backupFile: true, quietToast: true, quietMark: true, healthRow: true, window: true }),
+        "{the read merges through restoreCase quiet; the write uploads caseFileNow, which Back up saves; quiet keeps the toast and the mark off; the health row and the window's button}");
+    }],
 ];
 
 /**
