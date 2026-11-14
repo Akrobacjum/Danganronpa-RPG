@@ -56,6 +56,38 @@ from those lines and says so: the writer's full text is not in the repository.
   English lines (grep, not read one by one, so some may name the attempts): the handbook line's.
 - The glossary's source rule took two-digit stages only (`E\d\d plan`); it takes `E\d{2,3} plan` now, for "E109 plan".
 
+## Round 2: the owner's confirmations and the coordinator's decisions (14.11.2026, about 20:20Z)
+
+The owner confirmed every default of the brief: #11 (Tamper), #48 (the floor), #56 (the replay), #40 (the order) - each
+built already on that default, so nothing changed - and #77 (above: already built by E57). The 40 open disagreements
+went to the coordinator, whose decisions are in `docs/dev/e109/DISAGREEMENTS.json` (`status` of each row): 27 taken,
+13 kept, the 2 settled before as they were. Built in 95bf8d12:
+
+| Rows | What | Test |
+| --- | --- | --- |
+| D01 | already „Dodaj doświadczenie” at 9e7e3d78; nothing to change | R3555 (green there) |
+| D05, D07, D08-D11, D12, D18-D21, D30, D32 | the texts, EN and PL, and every handbook line that quotes them (the GM and player handbooks and the brochures, both languages) | R518, R1016, R2036, R3587 (its expected label follows D20) |
+| D13, D14, D16, D17 | the writer's edits of two B01a texts; text-render.mjs `BATCH_LATER` names the coordinator's decision over the approved after | check text |
+| D15 | the English, the GM handbook's two rows (the Polish row too, which still said „słyszysz”) and module.json's relationships reason, that string alone | R1517 |
+| D33, D34 | Tier tables and Room tables in every text of the Item tables window and `Items.existingNote`, EN (24 texts) and PL (23); the GM handbooks' lines | R975 |
+| D22 | `keyRowsUsed`: the rows filled or placed | R7126 |
+| D23 | Save counts Remnants once each | R7127 |
+| D24 | {n} the rows offered; the clause stays, reworded, since the count cannot say which clues | R7128 |
+| D27, D28 | the held card's "Charge the Key fee", wired to the keys.charge road on the primary; small enough to build (about 25 lines, sheet-audit.mjs's flagged card the pattern), so built | R7130 |
+| D40 | a GM's and the Mastermind's own floor tooltip | R7129 |
+
+Two of the tool's own checks moved with it: the pilot's control in `check text` read two strings whose Polish was still
+the before, and landing reducedMotion's after left one, so it plants its own befores in a copy now; and the Polish of
+`Panel.refundCrossing` is stamped (`tools/stale-pl.mjs --stamp`), as the coordinator kept it.
+
+Questions with the default taken (round 2):
+
+| Question | Default taken |
+| --- | --- |
+| Q-E109-4: D24's clause | kept, reworded ("the {n} planned clues that are not on the map yet"): with {n} the open rows, "the {n} clues you planned" alone would read as every planned clue |
+| Q-E109-5: D08, D09 "keep the rest of the approved wording" | the pilot's approved after of pair 21 (EN and PL), which makes exactly the two changes and was approved by the owner on 01.11; the old text was the pilot's before |
+| Q-E109-6: the 4 tier-2 test names that say "tier pool", "Refund last crossing" or "DRPG Settings" (git grep of their name lines) | left: a test's name is its id in the results and the baselines; their assertions read the texts through i18n and pass |
+
 ## Every row of DRPG-Q113 (140), with the owner's answer of 14.11.2026
 
 "owner's or coordinator's" marks a kept default whose work names the README, CLAUDE.md, .claude/ or the release, read
@@ -89,7 +121,7 @@ by the row's name on the page, not by its asking line's file.
 | 24 | Q-D-3 | keep | kept, owner 14.11 |
 | 25 | Q-D-4 | keep | kept, owner 14.11 |
 | 26 | Q-D-5 | keep | kept, owner 14.11 |
-| 27 | D-NIEZG | change, "Pokaz mi te niezgody" | DISAGREEMENTS.json written; no text changed |
+| 27 | D-NIEZG | change, "Pokaz mi te niezgody"; then handed to the coordinator ("Czy niezgody mozesz rozwiazac sam?") | DISAGREEMENTS.json written; the coordinator's 40 decisions built in 95bf8d12 (below) |
 | 28 | BATCH-OWNER | keep | kept, owner 14.11 |
 | 29 | C12-SAMPLE | keep | kept, owner 14.11 |
 | 30 | playerHint/PL-d | keep | kept, owner 14.11 |
@@ -139,7 +171,7 @@ by the row's name on the page, not by its asking line's file.
 | 74 | Q-H4 / H26 | keep | kept, owner 14.11 |
 | 75 | SIZE | keep | kept, owner 14.11 |
 | 76 | Q-E57-1 | keep | kept, owner 14.11 |
-| 77 | Q-E57-2 | hold | not this line's: the coordinator explains it again |
+| 77 | Q-E57-2 | hold, then the default (the owner through the coordinator, 14.11 about 20:20Z) | checked: all seven windows of E57's default already draw the "?" at 9e7e3d78 (`help: WINDOW_HELP.<row>` in gm-panel, season-setup, room-setup, gm-stores, investigation, trial-floor-ui and gm-campaign; R6601 holds them); nothing to add |
 | 78 | Q-E57-3 | keep | kept, owner 14.11 |
 | 79 | Q-E57-4 | keep | kept, owner 14.11 |
 | 80 | Q-E57-7 | keep | kept, owner 14.11 |
@@ -232,3 +264,15 @@ by the row's name on the page, not by its asking line's file.
 | Q-E109-1: #11's "Tamper" - does it rename only the stage (tracker, Remnant's stage, the cards that name the stage), or also the attempts' words ("clean-up roll", the Clean-up window, Cleaning Tool)? | the stage only; the attempts keep their words. The handbooks still say "the clean-up" in 7 English lines (grep; not read one by one, so some may name the attempts), and their Polish: the handbook line's |
 | Q-E109-2: #48 (H11) and #11 were built on the coordinator's default while the coordinator confirms them with the owner | built; each is one commit's lines (56c85378 for #11, daba7d5c for #48) |
 | Q-E109-3: the replay plays with the table's sequences switch off, since the GM asked for it | plays; the live board still follows the switch |
+
+## Checked, round 2 (14.11.2026, this machine)
+
+| What | Tree | Result |
+| --- | --- | --- |
+| R7126-R7130 alone | c87c2e8c with the tests only, then with the code | red as named (5 failed), then 6 passed, 0 failed |
+| tier 1, whole | 95bf8d12 (the status file and a tooltip-census reason line on top change no module file) | 1683 passed, 0 failed, 16 skipped, 0 red, 502 s |
+| tier 2 by name (Refund last crossing, tier pool, DRPG Settings, E60-T8, E46-T, charge, floor, Key Remnant, Item tables, dashboard, Save) | 95bf8d12's tree before its commit | 310 passed, 0 failed, 2 skipped (env probes of the baseline), 392 s |
+| scenarios, one at a time | 95bf8d12 | 50-lang 45/45; 51-lang-mixed 38/38; 70-movement 8/8; 88-flow-length 27/27; 62-investigation 52/52; 65-season 58/60, 2 expected red (Foundry limits); 61-gmstore-case 114/114; 66-rooms 77/77; 68-trial-zones 42/42; 30-security 302/304, 2 expected red (Foundry limits); 0 failed in each |
+
+Needs a local Foundry (round 2): the held Key fee card's button at a table (the card drawn on a GM's browser, the press
+reaching the primary, a second card while a key is still missing); the GM's floor tooltip on a multi-floor scene.

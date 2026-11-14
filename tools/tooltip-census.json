@@ -1615,7 +1615,7 @@
    "kind": "kit:kitTabs-item",
    "key": "DRPG.Tables.tabRoomPools",
    "count": 1,
-   "why": "none needed: the tab's label names its pane (Room pools, New item); Tier pools, the one that needs saying, has its tooltip"
+   "why": "none needed: the tab's label names its pane (Room tables, New item); Tier tables, the one that needs saying, has its tooltip"
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -1623,7 +1623,7 @@
    "kind": "kit:kitTabs-item",
    "key": "DRPG.Tables.tabNewItem",
    "count": 1,
-   "why": "none needed: the tab's label names its pane (Room pools, New item); Tier pools, the one that needs saying, has its tooltip"
+   "why": "none needed: the tab's label names its pane (Room tables, New item); Tier tables, the one that needs saying, has its tooltip"
   },
   {
    "file": "scripts/trait-ruling.mjs",
