@@ -22,7 +22,7 @@
         "every name it exported and keeps `openNewTrace` and the dashboard. The bedroom keys are bedroom-keys.mjs's (F4)."
       ],
       "names": {
-        "ICON": "const",
+        "PLANNED_GLYPH": "const",
         "SCALE_LABELS": "const",
         "PLAN_FIELDS": "const",
         "planKey": "const",

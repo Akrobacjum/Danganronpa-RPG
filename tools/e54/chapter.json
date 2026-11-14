@@ -13,8 +13,10 @@
         "A body found (E54, the plan's D2): the prep traces promoted (`faintPrepCandidates`, `promoteFaintPrep`), the discovery",
         "and its queue (`discoverBody`, `runDiscovery`), the bodies published (`publishFoundBodies`), the announcement and its",
         "hook (`announceBody`, `BODY_ANNOUNCED_HOOK`, `registerBodyAnnounced`), who finds a body and who saw it",
-        "(`bodiesToDiscover`, `witnessesOf`, `checkBodyFound`, `tellLoneFinder`) and the discovery window",
-        "(`openBodyDiscoveryDialog`). Moved out of chapter.mjs, which re-exports every name it exported. Not body-tile.mjs, E63's tile."
+        "(`bodiesToDiscover`, `witnessesOf`, `checkBodyFound`, `tellLoneFinder`), a discovery waiting for the GM's word and its",
+        "prompt (`pendingBodyDiscoveries`, `askPendingBodies`, `registerPendingBodies`), the discovery sound (`checkBodySound`,",
+        "`heardByEveryone`) and the discovery window (`openBodyDiscoveryDialog`). Moved out of chapter.mjs, which re-exports",
+        "every name it exported. Not body-tile.mjs, E63's tile."
       ],
       "names": {
         "faintPrepCandidates": "function",
@@ -47,6 +49,19 @@
         "witnessesOf": "function",
         "maybeBodyFound": "function",
         "checkBodyFound": "async function",
+        "pendingKeyOf": "function",
+        "pendingBodyDiscoveries": "function",
+        "answersBodyPrompt": "function",
+        "askingPending": "let",
+        "askPendingBodies": "function",
+        "promptPendingBodies": "async function",
+        "registerPendingBodies": "function",
+        "bodiesLyingIn": "function",
+        "inThatDeath": "function",
+        "lastRoomOf": "const",
+        "heardBody": "function",
+        "checkBodySound": "async function",
+        "heardByEveryone": "async function",
         "tellLoneFinder": "async function",
         "openBodyDiscoveryDialog": "async function"
       }

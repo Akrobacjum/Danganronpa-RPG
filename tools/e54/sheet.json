@@ -72,6 +72,7 @@
         "renderPlan": "function",
         "RENDER_PLAN": "const",
         "installRenderPlan": "function",
+        "paintHopeGlyphs": "function",
         "repaintInPlace": "function",
         "refreshPricedTiles": "function",
         "refreshCallsPanels": "function",
@@ -84,7 +85,7 @@
       "header": [
         "How the sheet fits its window (E54, the sheet's family): the Loadout tab left, a tab's scroll kept, the system's",
         "create buttons removed (`removeSystemCreators`), the action tiles' fit (`fitActionTiles`, `fitTileText`, `watchTileFit`,",
-        "`LONGEST_TILE_WORD`, `softWrap`) and the sheet's height held and grown for the Calls (`holdActionsTab`, `growForCalls`)."
+        "`longestTileWord`, `softWrap`) and the sheet's height held and grown for the Calls (`holdActionsTab`, `growForCalls`)."
       ],
       "names": {
         "leaveLoadoutTab": "function",
@@ -99,7 +100,7 @@
         "tileOverflows": "function",
         "fitActionTiles": "function",
         "TILE_TEXT_FLOOR": "const",
-        "LONGEST_TILE_WORD": "const",
+        "longestTileWord": "function",
         "fitTileText": "function",
         "watchTileFit": "function",
         "grown": "const",
