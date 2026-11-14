@@ -952,7 +952,6 @@ body.drpg-theme-stained-glass :is(.drpg-panel button,
     --brush-ink: var(--drpg-sg-ink);
     --brush-edge: var(--brush);
 }
-body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) { --brush: var(--drpg-sg-bone); }
 /* The messenger's note: Save is its default (S11-48, E49 B3), the full brush and Ink words, as a panel's default. */
 body.drpg-theme-stained-glass .drpg-messenger .drpg-messenger-note-save {
     --brush-on: 1;
@@ -3293,6 +3292,7 @@ body.drpg-theme-stained-glass .application.drpg-panel .window-header .window-tit
 }
 /* the default button's edge is its brush's colour, not the base sheet's crimson under a Bone brush */
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) {
+    --brush: var(--drpg-sg-bone);
     border-color: color-mix(in srgb, var(--drpg-sg-bone) 70%, transparent) !important;
 }
 
