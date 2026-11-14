@@ -88,6 +88,39 @@ const FALLBACK = 0x8a8296;   // --drpg-dim, for a type nobody has named yet
 /* A project's frame, for a token that has no type because a project does not have one. */
 const PROJECT_FALLBACK = 0xd8c98a;   // PROJECT_TOKEN.workingTint, if the tint cannot be read
 
+/*
+ * A CHARACTER IS DRAWN OVER EVERY TRACE (owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci
+ * jest w tym samym miejscu co remnant, postac zawsze niech bedzie na wierzchu"). A Remnant is created with `sort: -10` and a
+ * project token with -5 (remnants.mjs, config.mjs `PROJECT_TOKEN`), "below characters" - and at the owner's table one lay
+ * over a character. Foundry's primary group orders what it draws by elevation, then sortLayer, then sort, then zIndex
+ * (fvtt-types 14.370, primary-canvas-object.d.mts: the types, not v14's source, which is not on this machine), and
+ * Isometric Perspective 14.0.6, which this module requires, rewrites every token's `sort` - its mesh's and its document's,
+ * on this browser - by depth on the screen, on every token's render flags, ties broken by id (scripts/autosorting.js
+ * `applyDepthSort` and `sortByDepth`, read in its release zip on 14.11.2026; installed at `init` on every scene). So a
+ * trace's sort said nothing, and two tokens on one spot fell by their ids.
+ * The trace's mesh goes one sort layer under the tokens' instead: under every character, Monokuma and Monocub at its
+ * elevation whatever their sorts, and still above the tiles and drawings (500, 600). Isometric Perspective sorts the
+ * tokens' layer alone, so it leaves the traces out of its pass. Not elevation: the rooms are read off it (movement.mjs).
+ * Set on this browser, on the refresh `paint` already runs for every token, and the group asked to sort again only when
+ * the layer moved. What a table draws is LIVE-OWN115-02 (audit/AUDIT-1.2.42.md 9.2).
+ */
+/** The sort layer a Remnant's or a project token's mesh is drawn on: the one under Foundry's tokens. */
+export function traceLayer() {
+    return (foundry.canvas?.groups?.PrimaryCanvasGroup?.SORT_LAYERS?.TOKENS ?? 700) - 1;
+}
+
+/** Put `token`'s mesh on `traceLayer`; answers whether it moved (and then `primary` sorts again). R7400. */
+export function keepUnderCharacters(token, primary = canvas?.primary) {
+    const mesh = token?.mesh;
+    if (!mesh) return false;
+    const layer = traceLayer();
+    if (mesh.sortLayer === layer) return false;
+    mesh.sortLayer = layer;
+    if (primary) primary.sortDirty = true;
+    count("remnantRing.layer");
+    return true;
+}
+
 export function registerRemnantRings() {
     // The refresh's flags go to `paint` (E88 C2): a refresh may keep a drawing that still stands; a call without flags
     // (a repaint of the scene, a type written on the token) always draws again.
@@ -614,6 +647,8 @@ function paint(token, flags) {
             }
             return;
         }
+
+        keepUnderCharacters(token);
 
         // A Remnant the viewer cannot see must not be outlined into existence -
         // the ring would give away a hidden trace to the whole table. The same

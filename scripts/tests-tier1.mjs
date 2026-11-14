@@ -58625,6 +58625,31 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true, false, false, false, false]),
             "[Hope, critical, Despair, a failure, a trap, self-inflicted] - whether the opening hides the killer");
     }],
+    ["R7400 - a Remnant and a project token are drawn under every character whatever their sort (scripts/remnant-ring.mjs `traceLayer`, `keepUnderCharacters`, `paint`; owner-115 item 2): a trace's mesh goes to the sort layer just under Foundry's tokens, above its tiles and drawings, once - the primary group told to sort again only when the layer moved; a token with no mesh is left; `paint` puts a Remnant or a project token there before it asks whether the token is seen, and never a character", async () => {
+        /* owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci jest w tym samym miejscu co remnant,
+           postac zawsze niech bedzie na wierzchu". Foundry's primary group orders by elevation, then sortLayer, then sort
+           (fvtt-types 14.370, primary-canvas-object.d.mts), and Isometric Perspective 14.0.6 rewrites every token's sort by
+           depth (autosorting.js `applyDepthSort`), ties by id - so `sort: -10` held nothing. Stand-ins; nothing written. */
+        const R = await import("./remnant-ring.mjs");
+        ok(typeof R.keepUnderCharacters === "function" && typeof R.traceLayer === "function", "remnant-ring.mjs has no keepUnderCharacters or traceLayer");
+        if (typeof R.keepUnderCharacters !== "function" || typeof R.traceLayer !== "function") return;
+        const LAYERS = foundry.canvas?.groups?.PrimaryCanvasGroup?.SORT_LAYERS ?? {};
+        const TOKENS = LAYERS.TOKENS ?? 700, DRAWINGS = LAYERS.DRAWINGS ?? 600;
+        const primary = { sortDirty: false };
+        const mesh = { sortLayer: TOKENS };
+        const first = R.keepUnderCharacters({ mesh }, primary);
+        const dirtyFirst = primary.sortDirty;
+        primary.sortDirty = false;
+        const second = R.keepUnderCharacters({ mesh }, primary);
+        const read = { layer: R.traceLayer(), mesh: mesh.sortLayer, first, dirtyFirst, second, dirtySecond: primary.sortDirty,
+            noMesh: R.keepUnderCharacters({}, primary), between: R.traceLayer() > DRAWINGS && R.traceLayer() < TOKENS };
+        equal(stableJson(read), stableJson({ layer: TOKENS - 1, mesh: TOKENS - 1, first: true, dirtyFirst: true, second: false, dirtySecond: false,
+            noMesh: false, between: true }), "{the layer; the mesh's; moved; sort asked; again: not moved, not asked; no mesh; between the drawings and the tokens}");
+        const body = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/remnant-ring.mjs`).then(lfText), "paint") ?? "");
+        const at = { kind: body.indexOf("if (!isRemnant && !project)"), under: body.indexOf("keepUnderCharacters("), seen: body.indexOf("if (!token.visible)") };
+        ok(at.kind >= 0 && at.seen >= 0 && at.under > at.kind && at.under < at.seen,
+            `paint puts a trace under the characters after the character's way out and before the visibility check (${stableJson(at)})`);
+    }],
     ["R6028 - a masked token is a \"?\" with Foundry's mystery man and one flag that names nobody, and its look comes back exactly (scripts/mask-gm.mjs `lookOf`, `maskPatch`, `restorePatch`, `isMaskedToken`; E69 C8): the patch writes the name \"?\", the mystery man, no ring, no name or bars drawn and `masked`; the look kept is the token's own name, picture, ring and display modes; the patch back writes those and takes the flag off; the flag alone marks a token masked", async () => {
         /* E69 C8, 13.11.2026. Pure readings. Red at f7e1721d. */
         let K = null;

@@ -30,7 +30,7 @@
  *
  * Not read (Foundry's limits, mask-gm.mjs's header): the token document keeps its `actorId`, and every browser holds
  * every actor, so a console still reaches the name; the canvas is not drawn here, nor are Daggerheart's own chat header and
- * Dice So Nice's real dice (docs/dev/owner-115/STATUS.md, "Needs a local Foundry").
+ * Dice So Nice's real dice (LIVE-OWN115-01, audit/AUDIT-1.2.42.md 9.2).
  */
 export const layers = ["ci"];
 
