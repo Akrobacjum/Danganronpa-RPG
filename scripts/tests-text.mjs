@@ -2101,11 +2101,14 @@ function callSpans(lx, blank, re) {
  * the author's report read, by file and property name, each with its reason. A literal is the property's when it
  * stands in the property's own value - after `name:` with no call's "(", no "[" and no "{" left open between them, so a call's
  * argument there (`title: format("...")`) is not - every piece of a string sum, a ternary or a template included.
- * Not a bucket: the screen that shows such a table reads lang/ for what it shows (patches.mjs `insteadOf`), and a field that reaches a screen as it is written has no row here. Read by `uiLiterals`; a fixture
+ * Not a bucket: the screen that shows such a table reads lang/ for what it shows (patches.mjs `targetOf`, `insteadOf`, `unreadOf`), and a field that reaches a screen as it is written has no row here. Read by `uiLiterals`; a fixture
  * passes its own through `uiAllow`.
  */
 export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/patches.mjs": Object.freeze({
+        target: "a row's target as the code names it, for the console, diagnosePatches() and the author; the notice, Pre-season and the newer-system window show DRPG.Contract.target.<key> (targetOf), and fall back to this only for a row whose target is names alone",
+        road: "what fires a hook, in English for the console's note; Pre-season shows DRPG.Contract.road.<id> (unreadOf)",
+        note: "a probe's note, read in the console and diagnostics.mjs's report; Pre-season shows an unread row's reason from DRPG.Contract.unread.* (unreadOf)",
         why: "a row's reason, read only in diagnosePatches()'s console table and the source",
         when: "when a row is installed, read only in diagnosePatches()'s console table and in a note of a row not in use, which no screen shows (an ok row)",
         fallback: "what the table gets, in English for the console's warning and the report; a screen shows DRPG.Contract.instead.<key> (insteadOf, R1562)",
