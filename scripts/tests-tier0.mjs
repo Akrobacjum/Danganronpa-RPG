@@ -25620,6 +25620,14 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(read), JSON.stringify({ en: { min: true, max: true, half: false }, pl: { min: true, max: true, half: false } }), "{per language: the rule line's {min}, {max}, and whether it speaks of half the cast}");
     }],
+    ["R7172 - the trial's end closes its vote (E59 C-115, CHAINS.md B-T6): End the trial (trial-floor-ui.mjs `closeTrial`) and every road out of the trial reach clock.mjs `reconcilePhase`, which closed no open vote, and the record kept `vote.open` for the chapter - a player reloading in Daily Life was handed a ballot (vote.mjs `ballotFor`) and could cast it (`recordBallot`); `reconcilePhase`, leaving the trial, calls trial-progress.mjs `shutVoteAtExit` before the sentence, which writes the record's vote closed, uncounted, when the record is the clock's chapter's and its vote is open", async () => {
+        const sources = new Map(await otherSources());
+        const exit = fnSource(stripComments(sources.get("clock.mjs") ?? ""), "reconcilePhase");
+        const at = exit.search(/\bshutVoteAtExit\(/), sentence = exit.search(/\bexecuteAtExit\(/);
+        ok(at > 0 && sentence > at, `reconcilePhase does not close the vote before the sentence (shutVoteAtExit at ${at}, executeAtExit at ${sentence})`);
+        const shut = fnSource(stripComments(sources.get("trial-progress.mjs") ?? ""), "shutVoteAtExit");
+        ok(/open:\s*false/.test(shut) && /trialProgressChapter\(\)/.test(shut) && /\.open\b/.test(shut), `shutVoteAtExit does not write an open vote of the clock's chapter closed: ${shut.replace(/\s+/g, " ").slice(0, 300)}`);
+    }],
 ];
 
 

@@ -996,6 +996,14 @@ async function reconcilePhase(from, to) {
            (trial-floor-ui.mjs `closeTrial`), and this finds it stamped; Edit campaign, `setClock` and any other
            road out reach it here - in the trial's own chapter, which Edit campaign may move in this same write
            (trial-progress.mjs `executeAtExit` reads the record by its own chapter). */
+        /* THE VOTE CLOSED, UNCOUNTED (E59 on the 1.2.115 line, CHAINS.md B-T6; R7172): a vote left open by End the trial
+           handed a ballot to a player who reloaded in Daily Life. Before the sentence, as the floor before it. */
+        try {
+            const { shutVoteAtExit } = await import("./trial-progress.mjs");
+            await shutVoteAtExit();
+        } catch (err) {
+            error("Could not close the trial's vote after the phase changed", err);
+        }
         /* THE DEAD'S MICROPHONES GIVEN BACK (E70 C5), before the sentence: the trial's list taken out of the record and
            every block it wrote put back on the primary, so the convicted, who spoke until now, are not listed as they
            die, and nobody leaves the trial muted (voice.mjs `settleTrialVoices`, asked of the primary by "trial.enter"). */

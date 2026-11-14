@@ -571,6 +571,22 @@ export async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
     return next;
 }
 
+/**
+ * THE TRIAL'S END CLOSES ITS VOTE (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-T6; R7172). clock.mjs
+ * `reconcilePhase` asks this on every road out of the trial, before the sentence: a vote still open is written closed,
+ * uncounted - End the trial closed none, and a player reloading in Daily Life was handed a ballot (vote.mjs `ballotFor`)
+ * and could cast it. Only the record of the clock's chapter: another chapter's (the chapter's end moves the clock first)
+ * is read by no ballot, and a write from here would stamp the clock's chapter on it. The primary's own step reads the
+ * record in the step; another GM's write is asked of the primary as an object patch (`setTrialProgress`). GM only.
+ */
+export async function shutVoteAtExit() {
+    if (!game.user?.isGM || trialProgressChapter() !== getClock().chapter) return null;
+    const vote = trialProgress().vote;
+    if (!vote?.open) return null;
+    if (isPrimaryGm()) return setTrialProgress(record => (record.vote?.open ? { vote: { ...record.vote, open: false } } : null));
+    return setTrialProgress({ vote: { ...vote, open: false } });
+}
+
 /** A trial is starting: nothing has happened in it yet. */
 export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) {
     if (!game.user.isGM) return null;
