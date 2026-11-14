@@ -459,12 +459,12 @@ async function openRound(progress, op, picks) {
         voteClosed: false, tied: false, majority: 0, noMajority: false, accused: [], total: 0, accusedIds: [],
         voteOpenedAt: now.voteOpenedAt ?? serverNow()
     }));
-    // THE VOTE ENDS THE CLOSING ARGUMENT (E70 C8; E70-56): a Closing still on the floor, or in its exchange, is over.
+    // THE VOTE ENDS THE FLOOR (E70 C8; E70-56; since E110 C3 any floor): a Closing, a round, a zone mode, a debate.
     try {
-        const { endClosingForVote } = await import("./trial-modes.mjs");
-        await endClosingForVote();
+        const { endFloorForVote } = await import("./trial-modes.mjs");
+        await endFloorForVote();
     } catch (err) {
-        error("Could not end the Closing Argument as the vote opened", err);
+        error("Could not end the trial's floor as the vote opened", err);
     }
     const older = Object.entries(ballotStore.entries())
         .filter(([, row]) => row?.chapter !== progress.chapter || row?.round !== round)

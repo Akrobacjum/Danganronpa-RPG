@@ -26960,7 +26960,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 36 keys (34 until E110 C3) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -26996,7 +26996,10 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.whichRemnantTooltip","cleanup.mjs","openCleanupDialog"],
             ["DRPG.Tips.Trial.scrubAtItTooltip","cleanup.mjs","openCleanupDialog"],
             ["DRPG.Tips.Trial.carryItThereTooltip","cleanup.mjs","openMoveBodyDialog"],
-            ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"]
+            ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"],
+            // E110 C3 (14.11.2026): the Scrum speaker's thesis window - the family grew by two, on purpose.
+            ["DRPG.Tips.Trial.thesisLineTooltip","trial-prompt.mjs","promptThesis"],
+            ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -27004,7 +27007,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 36, "lang/en.json has not the family's 36 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -32279,7 +32282,8 @@ const INVARIANTS = [
         /* Since E21 C4 the window is the kit's (`drpgWindow`) with the footer `turnFooter` builds, whose default is the kit's
            (ui-kit.mjs `footerButtons`: the primary); a `buttons` list before. */
         const P = await import("./trial-prompt.mjs"), K = await import("./ui-kit.mjs");
-        read.window = typeof P.turnFooter === "function" && /footer:\s*turnFooter\(\)/.test(prompt)
+        // E110 C3 (14.11.2026): the footer takes `{ thesis }` in a Scrum turn - changed on purpose; its default unchanged.
+        read.window = typeof P.turnFooter === "function" && /footer:\s*turnFooter\(/.test(prompt)
             ? ["done", "pass", "keep"].map(action => K.footerButtons(P.turnFooter()).find(b => b.action === action)?.default ?? null)
             : ["done", "pass", "keep"].map(action => {
                 const button = new RegExp(`\\{\\s*action:\\s*"${action}"[^}]*\\}`).exec(prompt)?.[0] ?? null;
@@ -42253,7 +42257,8 @@ const INVARIANTS = [
         const prompt = stripComments(src.get("trial-prompt.mjs") ?? "");
         const trial = stripComments(src.get("trial.mjs") ?? "");
         const opened = {
-            turn: /drpgWindow\(\{[\s\S]*footer:\s*turnFooter\(\)/.test(fnSource(prompt, "promptTurn")),
+            // E110 C3: `turnFooter({ thesis })` in a Scrum turn - changed on purpose.
+            turn: /drpgWindow\(\{[\s\S]*footer:\s*turnFooter\(/.test(fnSource(prompt, "promptTurn")),
             claim: /drpgWindow\(\{[\s\S]*footer:\s*claimFooter\(\)/.test(fnSource(prompt, "promptClaim")),
             objection: /drpgWindow\(\{[\s\S]*footer:\s*objectionFooter\(/.test(fnSource(trial, "pickObjectionEvidence"))
         };
@@ -59512,6 +59517,36 @@ const INVARIANTS = [
         equal(stableJson([words("en"), words("pl")]), stableJson([[true, true], [true, true]]), "the two lines in [English, Polish]: [the holder named, the pair named]");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(r => (r.ok ? lfText(r) : "")));
         ok(/SETTINGS\.trialQueue/.test(fnSource(src, "registerTrialVoices")), "voice.mjs does not settle the voices on a write of the floor (registerTrialVoices names no trialQueue)");
+    }],
+    ["R7104 - the review's gaps in the trial's modes (E110 C3, 14.11.2026): a Scrum Debate speaker's Done and Pass (their own, at their turn's step) and a speaker gone hand the turn on as the clock's end does, Pass and gone told; the Event panel's \"Next\" skips a player who is not here, as the machine passes them; the ops that open a mode take back a Straw Poll's split; the vote's opening ends any floor; the speaker's window offers a Scrum turn's thesis", async () => {
+        /* Pure but for two source reads. Red at 6dd02975: no Done, Pass or gone row in a Scrum, no roundNextId, no MODE_OPENS, no endFloorForVote, no thesis button. */
+        const Z = await import("./zone-machine.mjs");
+        const F = await import("./trial-floor.mjs");
+        const E = await import("./events.mjs");
+        const P = await import("./trial-prompt.mjs");
+        const start = Z.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "A", b: "B" } }, { now: 0 }).floor;
+        const speak = { ...start, holderId: "O", seconds: 40, startedAt: 0,
+            zone: { ...start.zone, phase: "speak", turns: 4, turnSeconds: 40, first: "a", turn: 1, side: "a", spoke: { a: 1, b: 0 }, step: 5 } };
+        const ctx = { now: 10_000, sides: { a: ["O", "X"], b: ["B"] } };
+        const step = event => { const out = Z.zoneStep(speak, event, ctx); return out.refused ?? [out.floor?.holderId ?? null, (out.cards ?? []).map(c => c.key)]; };
+        const read = {
+            done: step({ type: "done", actorId: "O", step: 5 }), pass: step({ type: "pass", actorId: "O", step: 5 }), gone: step({ type: "gone", actorId: "O" }),
+            stale: step({ type: "done", actorId: "O", step: 4 }), other: step({ type: "pass", actorId: "X", step: 5 }),
+            sides: Z.zoneStep({ ...speak, zone: { ...speak.zone, phase: "setup" } }, { type: "done", actorId: "O", step: 5 }, ctx).refused ?? null
+        };
+        const round = { mode: "testimony", round: { mode: "testimony", order: ["A", "B", "C", "D"], index: 0, step: 1 } };
+        read.next = [E.roundNextId(round, id => id !== "B"), E.roundNextId(round, () => true), E.roundNextId(round, id => id === "A"),
+            E.roundNextId({ ...round, round: { ...round.round, index: 3 } }, () => true)];
+        read.opens = Array.isArray(F.MODE_OPENS) ? F.MODE_OPENS.filter(op => !F.FLOOR_OP_NAMES.includes(op)) : "none";
+        const footer = (P.turnFooter({ thesis: true }).secondary ?? []).map(b => b.action);
+        read.footer = [footer, (P.turnFooter().secondary ?? []).map(b => b.action)];
+        const vote = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vote.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        read.vote = /endFloorForVote\(\)/.test(fnSource(vote, "openRound")) && typeof F.endFloorForVoteInStep === "function";
+        equal(stableJson(read), stableJson({
+            done: ["B", []], pass: ["B", ["DRPG.Floor.round.passes"]], gone: ["B", ["DRPG.Floor.round.passes"]],
+            stale: "DRPG.Floor.round.stale", other: "DRPG.Floor.round.notSpeaker", sides: "DRPG.Floor.round.noTurn",
+            next: ["C", "B", null, null], opens: [], footer: [["done", "pass", "thesis"], ["done", "pass"]], vote: true
+        }), "{a Scrum turn's Done, Pass, gone: [next speaker, cards]; a stale step, another's Pass, Done in Sides; next: [B away, all here, only A here, the last turn]; opens: ops not in FLOOR_OP_NAMES; footer: [a Scrum turn, a round]; vote: openRound ends the floor}");
     }],
 ];
 

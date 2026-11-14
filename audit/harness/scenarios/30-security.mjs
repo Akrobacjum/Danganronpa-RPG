@@ -6527,6 +6527,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objTrialGm, "gmOnly") && objTrialGm.logged.some(r => /only a GM changes the trial's floor/.test(r))
             && objTrialGm.after.mode === "objection" && objTrialGm.after.target === ids.chie && objTrialGm.after.cards === objTrialGm.before.cards,
         JSON.stringify(objTrialGm), { flow: "class-trial" });
+    /* E110 C1 (1.2.114): the GM's redirect by the GMs' row (`trial.gm` op `repoint`), the second road of a redirect, forged
+       from p1's console during Aiko's running Objection, naming Botan. Refused gmOnly and told, logged on the GM; the floor
+       still aimed at Chie, no card posted (the redirect's public card included). */
+    const objTrialGmRepoint = await objSend(p1, "trial.gm", { op: "repoint", targetId: ids.botan }, "SECOBJTRIALGMREPOINT");
+    check("SECURITY: p1's redirect of Aiko's running Objection at Botan through the GMs' row (trial.gm op repoint) is refused (gmOnly) and told - the floor still aimed at Chie, nothing posted",
+        refusedAs(objTrialGmRepoint, "gmOnly") && objTrialGmRepoint.logged.some(r => /only a GM changes the trial's floor/.test(r))
+            && objTrialGmRepoint.after.mode === "objection" && objTrialGmRepoint.after.target === ids.chie && objTrialGmRepoint.after.cards === objTrialGmRepoint.before.cards,
+        JSON.stringify(objTrialGmRepoint), { flow: "class-trial" });
     /* E70 C5 (1.2.90; amend 6, answer 3 (b)): the trial's voices settled on the primary (`trial.enter`, a GM's only),
        forged from p1's console during Aiko's running Objection. Refused gmOnly and told with its code, logged on the GM;
        the floor as it was. The legal road is the entry and the exit from a GM that is not the primary. */

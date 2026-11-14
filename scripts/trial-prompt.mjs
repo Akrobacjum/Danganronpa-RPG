@@ -27,7 +27,7 @@
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error, playerOwns } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { isRoundMode, MODES, closingOf } from "./floor-machine.mjs";
 
@@ -37,6 +37,11 @@ let calledOver = null;
 let promptedFor = null;
 let claimedFor = null;
 const CLAIM_CLASS = "drpg-closing-claim";
+
+/** A Scrum Debate's turn on `floor` (E110 C3): its zone in the `speak` phase, or null. */
+function scrumTurn(floor) {
+    return floor?.mode === MODES.scrum && floor.zone?.phase === "speak" && floor.holderId ? floor.zone : null;
+}
 
 /** The Closing on `floor` in `phase`, or null (E70 C8). */
 function closingIn(floor, phase) {
@@ -49,7 +54,7 @@ function closingIn(floor, phase) {
  */
 async function myParticipant(floor) {
     if (game.user.isGM) return null;
-    if (floor?.mode === MODES.closing) {
+    if (floor?.mode === MODES.closing || scrumTurn(floor)) {
         const { trialParticipants } = await import("./vote.mjs");
         return trialParticipants().find(p => p.user?.id === game.user.id)?.actor?.id ?? null;
     }
@@ -60,12 +65,14 @@ async function myParticipant(floor) {
 function turnKey(floor) {
     if (floor && isRoundMode(floor.mode) && floor.round) return `${floor.round.openedAt ?? "-"}|${floor.round.step}`;
     const closing = closingIn(floor, "speak");
-    return closing ? `closing|${closing.openedAt ?? "-"}|${closing.step}` : null;
+    if (closing) return `closing|${closing.openedAt ?? "-"}|${closing.step}`;
+    const scrum = scrumTurn(floor);
+    return scrum ? `scrum|${scrum.openedAt ?? "-"}|${scrum.step}` : null;
 }
 
 /** The step a turn's request names: the round's, or the Closing's. */
 function stepOf(floor) {
-    return floor?.round?.step ?? closingOf(floor)?.step ?? 0;
+    return floor?.round?.step ?? closingOf(floor)?.step ?? scrumTurn(floor)?.step ?? 0;
 }
 
 /*
@@ -77,15 +84,42 @@ function stepOf(floor) {
  * as a closing word would, and the card shows none. Exported for the suite (R1365), which reads each footer's tree.
  */
 
-/** Your turn's footer: Keep speaking the primary; Done and Pass, in that order, on the left. */
-export function turnFooter() {
+/**
+ * Your turn's footer: Keep speaking the primary; Done and Pass, in that order, on the left - and in a Scrum Debate's
+ * turn (E110 C3; the handbook's "the speaker may post a short thesis") Post thesis after them.
+ */
+export function turnFooter({ thesis = false } = {}) {
     return {
         primary: { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep") },
         secondary: [
             { action: "done", label: game.i18n.localize("DRPG.Trial.turn.done") },
-            { action: "pass", label: game.i18n.localize("DRPG.Trial.turn.pass") }
+            { action: "pass", label: game.i18n.localize("DRPG.Trial.turn.pass") },
+            ...(thesis ? [{ action: "thesis", label: game.i18n.localize("DRPG.Trial.turn.thesis") }] : [])
         ]
     };
+}
+
+/**
+ * THE SCRUM SPEAKER'S THESIS (E110 C3): one short line for the camp, asked of the primary ("trial.keyword", trial-zones.mjs
+ * `thesisOnPrimary`), which posts it as the mode's card while the turn is this speaker's. Cancel posts nothing.
+ */
+async function promptThesis(actor) {
+    const length = Number(TRIAL.modes?.zones?.scrum?.thesisLength) || 120;
+    const text = await drpgWindow({
+        title: game.i18n.localize("DRPG.Trial.turn.thesisTitle"),
+        classes: ["drpg-panel", "drpg-scrum-thesis"],
+        body: `<form><label>${game.i18n.localize("DRPG.Trial.turn.thesisLabel")}
+            <input type="text" name="thesis" maxlength="${length}" autofocus ${tipAttr("DRPG.Tips.Trial.thesisLineTooltip")}></label></form>`,
+        footer: {
+            primary: { action: "post", label: game.i18n.localize("DRPG.Trial.turn.thesisPost"), tooltip: tipText("DRPG.Tips.Trial.thesisPostTooltip"),
+                callback: (e, b, d) => d.element.querySelector("[name=thesis]")?.value ?? "" },
+            close: "cancel"
+        },
+        rejectClose: false
+    });
+    if (typeof text !== "string" || text === "cancel" || !text.trim()) return;
+    const { requestTrialKeyword } = await import("./gm-bridge.mjs");
+    await requestTrialKeyword({ actorId: actor.id, text: text.trim() });
 }
 
 /** The volunteers' footer: Not me the primary, I'll sum up on the left. */
@@ -146,7 +180,8 @@ async function promptTurn(floor) {
     // The Closing's speaker may hold less than the whole stretch (the rest after an exchange), and is told what Pass does.
     const closing = closingIn(floor, "speak");
     const { secondsLeft } = await import("./trial-floor.mjs");
-    const seconds = closing ? Math.max(secondsLeft(floor), 0) : floor.seconds;
+    // A Scrum turn's seconds can be a fraction (300 / turns, zone-machine.mjs `scrumTurnSeconds`): whole on the title.
+    const seconds = closing ? Math.max(secondsLeft(floor), 0) : Math.round(Number(floor.seconds) || 0);
     // The early Pass's seconds are the window floor-machine.mjs gives it (E66 fix r1 F9; STATUS Open 26).
     const passLine = closing ? `<p class="notes">${Number(closing.resignUntil) > 0
         ? game.i18n.format("DRPG.Trial.turn.closingPassEarly", { seconds: TRIAL.modes.closing.passWindowSeconds })
@@ -160,7 +195,7 @@ async function promptTurn(floor) {
            window with Enter or Space while talking ended their own turn - and Back is refused in a round, and in the
            Closing it ended the whole Closing Argument. "Keep speaking" is the default and closes the window alone; the
            turn runs on its clock, the GM's bar still skips it. As the volunteers' window's "Not me". */
-        footer: turnFooter(),
+        footer: turnFooter({ thesis: Boolean(scrumTurn(floor)) }),
         // Closed as soon as the floor is no longer this turn: the round moved on without the speaker's press.
         render: (event, dialog) => {
             const watch = setInterval(() => {
@@ -172,6 +207,13 @@ async function promptTurn(floor) {
         },
         rejectClose: false
     });
+    if (choice === "thesis" && turnKey(trialFloor()) === key) {
+        // The window closed on the thesis; the turn runs on, and the window opens again for the rest of it once the
+        // thesis window is closed.
+        await promptThesis(actor);
+        if (turnKey(trialFloor()) === key) promptedFor = null;
+        return;
+    }
     if (choice !== "done" && choice !== "pass") return;
     if (turnKey(trialFloor()) !== key) return;
     const { requestTurn } = await import("./gm-bridge.mjs");

@@ -21,7 +21,11 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
 | E110-08 | Restored exactly at the floor's end, the turn's passing, the trial's end, a season reset and a primary change; nothing stays muted after a reload | C2 tests | C2 |
 | E110-09 | Panic: only the users whose state changes are written; the count per turn measured | C2 tier 2 | C2 |
 | E110-10 | The HUD and the voice line say why: "The floor is X's" (EN, PL) | C2 tests | C2 |
-| E110-11..15 | The review's gaps (below) | C3 tests | C3 |
+| E110-11 | The vote's opening ends any floor (a round, a zone mode, a debate, an exchange), as it ends a Closing | R7104, E110-T3 | C3 |
+| E110-12 | The Event panel's "Next" skips a player who is not here, as the machine passes them | R7104 | C3 |
+| E110-13 | A mode opened takes back a Straw Poll's split (no more Scrum offered for the rest of the trial) | R7104, E110-T3 | C3 |
+| E110-14 | A Scrum speaker's thesis has a button and a window (Post thesis) | R7104 (the footer); the window itself not driven headless | C3 |
+| E110-15 | A Scrum speaker has Done and Pass; a speaker whose player leaves passes | R7104, E110-T3 (Done, a stale and another's Pass); `speakerGone` read, not driven (no harness disconnect) | C3 |
 
 ## Questions for the owner (each default taken)
 
@@ -37,6 +41,13 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
 - **Q-E110-5** Monocubs keep design P6: never held by the module, by mode either. Default: keep P6.
 - **Q-E110-6** (C2) A player whose voice character is a living student who is not a participant is held by mode like
   a participant who does not have the floor. Default: yes.
+- **Q-E110-8** (C3) The vote's opening ends any floor, with no card of its own (the vote's card tells the table); a
+  Logic Dive stopped by it keeps where it stopped. Default: as written.
+- **Q-E110-9** (C3) Any mode's start takes back a Straw Poll's split - a debate included. Default: as written.
+- **Q-E110-10** (C3) The Scrum thesis is posted from the speaker's turn window (Post thesis), during the turn only, as
+  often as the primary accepts. Default: as written.
+- **Q-E110-11** Both GM roads are kept: the console's Re-point asks "floor.repoint", the API and another GM's
+  `floorStep` ask "trial.gm" op repoint; both run the one step. Default: keep both (the brief named "trial.gm").
 - **Q-E110-7** (C2) Muting by mode starts only once a road entered the trial (the trial's list written, E70's rule for
   the dead): a clock written raw blocks nobody. Default: as E70.
 
@@ -45,8 +56,15 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
 | Commit | What | Tests |
 | --- | --- | --- |
 | C1+C2 (one commit: the two share floor-machine.mjs, trial-floor.mjs and the lang files) | Redirect: machine `repoint` row in the Objection and its Rebuttal with a public card; `repointRefusal`; `repointObjectionInStep` writes floor, card (by the stack), flags and receipt (`repointCopies`) in one step for both GM roads; bar and dialog open in the Rebuttal. Muting: floor-machine.mjs `floorSpeakers`; `settleTrialVoices` blocks by it; settles on every trialQueue write; `floorHold` lines in micHold, trialVoiceLine, moduleHoldsMic; EN/PL | R7100-R7103 red at 6dd02975, green after; E110-T1, E110-T2 red at 6dd02975, green after; R3909 and the bar's census test changed on purpose (Re-point open in the Rebuttal); R220, R311, R432 census rows |
+| C3+C4 | Gaps: the vote's opening ends any floor (trial-floor.mjs `endFloorForVoteInStep`, trial-modes.mjs `endFloorForVote`); `MODE_OPENS` take back a Straw Poll's split; events.mjs `roundNextId`; zone-machine.mjs Scrum `done`/`pass`/`gone`, trial-modes.mjs Scrum branch of `turnOnPrimary`, `speakerGone` for a Scrum speaker; trial-prompt.mjs Done/Pass/Post thesis in a Scrum turn and the thesis window. Books: GM and player handbooks EN/PL; AUDIT 9.2 LIVE-E110-01..03; scenario 67 phase V, 33 A23 (the Assistant GM's redirect by both roads), 30 a forged "trial.gm" op repoint | R7104, E110-T3 red at 6dd02975, green after; changed on purpose: R1047, R1365 (`turnFooter(` with args), R4752 (36 keys) |
 
-## Needs a local Foundry
+## Not fixed, with the reason
+
+- A disconnected Scrum speaker is passed by `speakerGone` on `userConnected`; the harness cannot disconnect a player, so
+  the hook is read (R7104's machine row `gone`) and not driven.
+- The thesis window is not opened headless (no scenario seeds a Scrum turn on a player's page); its footer is R7104's.
+
+## Needs a local Foundry (AUDIT 9.2 LIVE-E110-01..03)
 
 - Whether avclient-livekit stops sending without a reload when BROADCAST_AUDIO flips (LIVE-E70-04 is related): a v14
   server, avclient-livekit 0.6.8, a LiveKit server, two browsers.

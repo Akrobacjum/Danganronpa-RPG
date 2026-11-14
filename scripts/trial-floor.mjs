@@ -606,10 +606,13 @@ export async function closingStepInStep(event, { why = false } = {}) {
 async function speakerGone() {
     const floor = trialFloor();
     const closingSpeaker = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak";
-    if (!isPrimaryGm() || !floor || !(isRoundMode(floor.mode) || closingSpeaker) || !floor.holderId) return;
+    // A Scrum Debate's speaker too (E110 C3): the camps' rotation passes them (zone-machine.mjs `gone`).
+    const scrumSpeaker = floor?.mode === MODES.scrum && zoneOf(floor)?.phase === "speak";
+    if (!isPrimaryGm() || !floor || !(isRoundMode(floor.mode) || closingSpeaker || scrumSpeaker) || !floor.holderId) return;
     if (!absentOf([floor.holderId]).length) return;
     try {
-        await serialWrite(SEIZE_KEY, () => roundStepInStep({ type: "gone", actorId: floor.holderId }));
+        const gone = { type: "gone", actorId: floor.holderId };
+        await serialWrite(SEIZE_KEY, () => (scrumSpeaker ? zoneStepInStep(gone) : roundStepInStep(gone)));
     } catch (err) {
         error("Could not pass the turn of a speaker who left", err);
     }
@@ -651,6 +654,13 @@ async function commitFloor(prev, result, op, { replaced = true } = {}) {
     /* A SCRUM DEBATE'S CAMPS BEGIN TO CONFER (the owner's 13.11.2026): their voice rooms are voice.mjs `placeVoices`'
        rule, asked by the floor's write; where voice cannot split them the GMs are told once (trial-zones.mjs). */
     if (result.conferBegun) await conferNotice();
+    /* A MODE OPENED ENDS THE STRAW POLL'S SPLIT (E110 C3; the review's gap): "Scrum Debate next" holds "until a mode opens
+       after it" (`TRIAL_NEXT_STEPS`), and nothing took the split back, so the console offered Scrum Debate for the rest
+       of the trial. Any mode's start takes it back, in the record's own step; a Straw Poll's own count writes it after. */
+    if (MODE_OPENS.includes(op)) {
+        const { setTrialProgress, trialProgress } = await import("./vote.mjs");
+        if (trialProgress().strawPoll?.split === true) await setTrialProgress(record => ({ strawPoll: { ...(record.strawPoll ?? {}), split: false } }));
+    }
     // An Overrule's Objection is overruled, not withdrawn (E70 C2): its card is marked by `overruleInStep`.
     const kept = result.floor?.mode === FLOOR_MODES.objection && result.floor?.messageId === prev?.messageId;
     if (!kept && replaced) await withdrawReplaced(prev);
@@ -661,6 +671,25 @@ async function commitFloor(prev, result, op, { replaced = true } = {}) {
         error("A listener of the trial's step threw", err);
     }
     return written;
+}
+
+/** The ops that open a mode (E110 C3): each takes back a Straw Poll's split (`commitFloor`). */
+export const MODE_OPENS = Object.freeze(["start", "testimony", "panic", "closing", "straw", "dive", "scrum"]);
+
+/**
+ * THE VOTE ENDS ANY FLOOR (E110 C3, 14.11.2026; the review's gap: only a Closing ended, though zone-machine.mjs says the
+ * vote ends a Scrum Debate too). In a step of `SEIZE_KEY` on the primary (trial-modes.mjs `endFloorForVote`, asked by
+ * vote.mjs `openRound`): the Closing as before (`closingEnd`, its record done); a zone mode by its own end row with no
+ * card - a Logic Dive set's stop is kept; any other floor - a debate, an Objection, a Rebuttal, a round - emptied. The
+ * vote's own card tells the table; no card here. The floor written (`{}`), or null with no floor.
+ */
+export async function endFloorForVoteInStep() {
+    if (!isPrimaryGm()) return null;
+    const floor = trialFloor();
+    if (!floor) return null;
+    if (closingOf(floor)) return closingStepInStep({ type: "closingEnd" });
+    const result = isZoneMode(floor.mode) ? { ...nextFloor(floor, { type: "closingEnd" }, floorCtx(floor)), cards: [] } : { floor: null, cards: [] };
+    return commitFloor(floor, result, "vote");
 }
 
 /**

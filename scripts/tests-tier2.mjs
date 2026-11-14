@@ -101419,6 +101419,67 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             exit: [["open", "open", "gm", ...m], 0]
         }), "per step [user writes, each player's microphone (O, B, H with a GM's block, M a Monocub): blocked by the trial, a GM's block, open, the floor's mode or holder]");
     }],
+    ["E110-T3 - the review's gaps on the primary (E110 C3): the vote's opening ends a Panic Round and a Scrum Debate as it ends a Closing; a mode opened takes back a Straw Poll's split, so the console's next step is no longer Scrum Debate; a Scrum speaker's Done (trial.turn's run) hands the turn to the other camp and a stale or another's Pass moves nothing", async () => {
+        /*
+         * E110 C3, 14.11.2026. On this primary in a Class Trial written raw. (1) A Panic Round of two participants opened
+         * by the GMs' op, then the vote's end of the floor (trial-modes.mjs `endFloorForVote`, which vote.mjs `openRound`
+         * asks); (2) a Scrum Debate's turn written raw (the camps by their picks: no hall token stands in a zone here),
+         * the end again; (3) the record's Straw Poll split, then a debate opened: the split and the next step; (4) the
+         * Scrum turn again, the speaker's Done by `turnOnPrimary` (the run of "trial.turn"), a Pass at a stale step and
+         * another's Pass. Red at 6dd02975: the vote left both floors, the split stood after the debate, and a Scrum turn
+         * had no Done ("no round holds the floor now").
+         */
+        needs(env.primaryGm(), "the floor is written on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three participants with a player here");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const TM = await import("./trial-modes.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial", eclipse: false });
+            await settle();
+            const people = V.trialParticipants({ connected: true }).map(p => p.actor.id);
+            must(people.length >= 3, `three participants, found ${people.length}`);
+            const [O, B, X] = people;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await F.floorOnPrimary("panic", { seconds: 15, order: [O, B].join(",") });
+            must(F.trialFloor()?.mode === "panic", "the Panic Round did not open - this would measure nothing");
+            await TM.endFloorForVote?.();
+            await settle();
+            read.panic = F.trialFloor()?.mode ?? null;
+            const now = Date.now();
+            const scrum = { active: true, mode: "scrum", holderId: O, targetId: null, seconds: 40, startedAt: now, pending: false, messageId: null, before: [], gmNote: null,
+                zone: { phase: "speak", question: "SUITE E110 Q", answers: { a: "A", b: "B" }, picks: { [O]: "a", [X]: "a", [B]: "b" }, stands: {}, openedAt: now, step: 5,
+                    turns: 4, turnSeconds: 40, first: "a", turn: 1, side: "a", spoke: { a: 1, b: 0 } } };
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, scrum);
+            await TM.endFloorForVote?.();
+            await settle();
+            read.scrum = F.trialFloor()?.mode ?? null;
+            await V.setTrialProgress({ strawPoll: { split: true, a: 2, b: 2, question: "SUITE E110 Q" } });
+            const stepBefore = F.trialNextStep(F.trialStepView());
+            await F.floorOnPrimary("start", { seconds: 60 });
+            await F.floorOnPrimary("end", {});
+            read.split = [stepBefore, V.trialProgress().strawPoll?.split ?? null, F.trialNextStep(F.trialStepView())];
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...scrum, startedAt: Date.now() });
+            const turn = async (actorId, kind, step) => (await TM.turnOnPrimary({ actorId, kind, step }, null))?.refused ?? "moved";
+            read.turn = [await turn(O, "pass", 4), await turn(X, "pass", 5), await turn(O, "done", 5), F.trialFloor()?.holderId === B, F.trialFloor()?.zone?.side ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* gone */ } }
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ panic: null, scrum: null, split: ["scrum", false, "openDebate"],
+            turn: ["the round has moved on since that turn", "it is not that character's turn", "moved", true, "b"] }),
+            "{the floor after the vote's end of a Panic Round, of a Scrum turn; [the next step with a split, the split after a debate opened and closed, the next step]; [a stale Pass, another's Pass, the speaker's Done, the turn the other camp's, its side]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

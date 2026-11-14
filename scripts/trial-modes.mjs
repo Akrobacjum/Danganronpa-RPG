@@ -155,6 +155,9 @@ export async function turnOnPrimary({ actorId, kind, step }, senderId = null) {
     // The volunteers' window called over too (E70 fix p2-G3): its draw is made in the step (trial-floor.mjs `roundStepInStep`).
     const phase = floor?.mode === MODES.closing ? closingOf(floor)?.phase : null;
     const closing = phase === "speak" || (phase === "volunteer" && kind === "over") ? closingOf(floor) : null;
+    /* A SCRUM DEBATE'S TURN (E110 C3): its speaker's Done and Pass, and a participant's step over once the turn ran out
+       (the heartbeat's `due`, which refuses a turn not run out), judged by zone-machine.mjs in the floor's step. */
+    if (floor?.mode === MODES.scrum && floor.zone?.phase === "speak") return scrumTurnOnPrimary(floorMod, floor, { actorId, kind, step }, senderId);
     if (!closing && (!floor?.round || !isRoundMode(floor.round.mode))) return { refused: "no round holds the floor now" };
     if (closing) {
         const { trialParticipants } = await import("./vote.mjs");
@@ -173,6 +176,29 @@ export async function turnOnPrimary({ actorId, kind, step }, senderId = null) {
         case null: return { reply: { step: out?.written?.round?.step ?? out?.written?.closing?.step ?? null } };
         case "DRPG.Floor.bar.notTrial": return { refused: "no Class Trial is in session" };
         case "DRPG.Floor.round.noTurn": return { refused: "no round holds the floor now" };
+        case "DRPG.Floor.round.notSpeaker": return { refused: "it is not that character's turn" };
+        case "DRPG.Floor.round.notDue": return { refused: "that turn has not run out yet" };
+        default: return { refused: "the round has moved on since that turn" };
+    }
+}
+
+/** `turnOnPrimary`'s Scrum branch (E110 C3): the speaker's Done or Pass, or a participant's step over, in the floor's step. */
+async function scrumTurnOnPrimary(floorMod, floor, { actorId, kind, step }, senderId) {
+    const { trialParticipants } = await import("./vote.mjs");
+    const { SEIZE_KEY } = await import("./trial.mjs");
+    if (!trialParticipants().some(p => p.actor.id === actorId)) return { refused: "that character takes no part in the round" };
+    if (kind === "over") {
+        const heard = `${senderId ?? "-"}|scrum|${floor.zone?.openedAt ?? "-"}|${Number(step) || 0}`;
+        if (overHeard.has(heard)) return { refused: "that player has already called that turn over" };
+        if (overHeard.size > 500) overHeard.clear();
+        overHeard.add(heard);
+    }
+    const event = kind === "over" ? { type: "due" } : { type: kind, actorId, step: Number(step) || 0 };
+    const out = await serialWrite(SEIZE_KEY, () => floorMod.zoneStepInStep(event));
+    switch (out?.refused ?? null) {
+        case null: return { reply: { step: out?.written?.zone?.step ?? null } };
+        case "DRPG.Floor.bar.notTrial": return { refused: "no Class Trial is in session" };
+        case "DRPG.Floor.round.noTurn": case "DRPG.Floor.bar.noMode": return { refused: "no round holds the floor now" };
         case "DRPG.Floor.round.notSpeaker": return { refused: "it is not that character's turn" };
         case "DRPG.Floor.round.notDue": return { refused: "that turn has not run out yet" };
         default: return { refused: "the round has moved on since that turn" };
@@ -314,18 +340,20 @@ export async function volunteerOnPrimary({ actorId }) {
 }
 
 /**
- * THE VOTE ENDS THE CLOSING (E70 C8; E70-56): the vote's opening (vote.mjs `openRound`, on the primary) ends a Closing
- * still on the floor or in its exchange, as End this mode would, its record done. Nothing on any other floor.
+ * THE VOTE ENDS THE FLOOR (E70 C8; E70-56; since E110 C3 any floor, not the Closing alone): the vote's opening (vote.mjs
+ * `openRound`, on the primary) ends a Closing still on the floor or in its exchange, as End this mode would, its record
+ * done, and any other floor - a Testimony, a Panic Round, a zone mode, a debate or its exchange (trial-floor.mjs
+ * `endFloorForVoteInStep`).
  */
-export async function endClosingForVote() {
+export async function endFloorForVote() {
     if (!isPrimaryGm()) return null;
     const floorMod = await import("./trial-floor.mjs");
-    if (!closingOf(floorMod.trialFloor())) return null;
+    if (!floorMod.trialFloor()) return null;
     const { SEIZE_KEY } = await import("./trial.mjs");
     try {
-        return await serialWrite(SEIZE_KEY, () => (closingOf(floorMod.trialFloor()) ? floorMod.closingStepInStep({ type: "closingEnd" }) : null));
+        return await serialWrite(SEIZE_KEY, () => floorMod.endFloorForVoteInStep());
     } catch (err) {
-        error("Could not end the Closing Argument as the vote opened", err);
+        error("Could not end the trial's floor as the vote opened", err);
         return null;
     }
 }

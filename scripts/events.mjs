@@ -522,8 +522,7 @@ export function trialFloorCard(floor) {
         /* A ROUND (E70 C7; E70-45): the speaker under the mode, and who speaks next - "Next: {name}" - or that this
            is the last turn, from the order frozen at the round's start. */
         speaker = floorHolder(floor)?.name ?? unknown;
-        const order = floor.round?.order ?? [];
-        const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
+        const next = roundNextId(floor);
         meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
             : game.i18n.localize("DRPG.Events.trialLastTurn");
     } else if (floor?.mode === FLOOR_MODES.closing) {
@@ -1015,4 +1014,19 @@ export function renderEvents() {
     } catch (err) {
         error("Could not render the Event panel", err);
     }
+}
+
+/**
+ * WHO SPEAKS NEXT IN A ROUND, AS THE MACHINE WILL PASS THE TURN (E110 C3, 14.11.2026; the review's gap: "Next: {name}" named
+ * the next in the order, an absent player among them, whom floor-machine.mjs `turnAt` passes at once). The first actor
+ * after the turn now whose student has a player connected (`present`, read from this browser's users as the primary's
+ * `absentOf` reads them), or null for the last turn. `present` is handed in by tier 1 R7104.
+ */
+export function roundNextId(floor, present = id => {
+    const actor = game.actors?.get(id ?? "");
+    return Boolean(actor) && game.users.some(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
+}) {
+    const order = Array.isArray(floor?.round?.order) ? floor.round.order : [];
+    for (let i = (Number(floor?.round?.index) || 0) + 1; i < order.length; i++) if (present(order[i])) return order[i];
+    return null;
 }
