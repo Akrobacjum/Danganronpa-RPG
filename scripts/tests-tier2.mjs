@@ -101353,8 +101353,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.line = voice.floorHold(B.actor, { clock: getClock(), floor: getSetting(SETTINGS.trialQueue), record: getSetting(SETTINGS.trialProgress), epoch: 0 })?.reason ?? null;
             read.rebuttal = [await step(() => serialWrite(SEIZE_KEY, () => F.openRebuttalInStep())), state()];
             read.end = [await step(() => F.endFloor()), state(), Object.keys(store.entries()).length];
-            /* A Monocub is never held (P6; Q-E110-5): H's own block lifted, H a Monocub, an Objection again - B blocked, H
-               open; then H alive again and blocked by the GM's hand as before. */
+            /* A Monocub is muted by the mode as a student is (D-E110-A, the owner's 14.11 over P6 and Q-E110-5's default): H's
+               own block lifted, H a Monocub, an Objection again - B and H blocked; then H alive again and blocked by the GM's
+               hand as before. */
             await H.user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
             await killCharacter(H.actor, { secret: false, keepBullets: true });
             await setMonocub(H.actor, true);
@@ -101410,7 +101411,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             line: "floorHeld",
             rebuttal: [1, ["open", "open", "gm", ...m]],
             end: [0, ["open", "open", "gm", ...m], 0],
-            monocub: [1, ["open", "blocked", "open", ...m], true],
+            // D-E110-A (the owner, 14.11.2026: "W tych trybach monocuby tez maja byc wyciszane"): a Monocub is muted by the mode too.
+            monocub: [2, ["open", "blocked", "blocked", ...m], true],
             panic: [1, ["open", "blocked", "gm", ...m], true],
             turn: [2, ["blocked", "open", "gm", ...m], true],
             crashed: ["blocked", "open", "gm", ...m],

@@ -1293,7 +1293,9 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  *     `isMutedDead`), named before a GM's block, which the trial's own block is beside it (`settleTrialVoices`);
  *   - "cubSpeak", "cubListen", "cubVote", "ownCase": a Monocub in the Class Trial (E70 C5; DC4, DC28, DC29, DC41) - it
  *     speaks in the discussion and listens in a mode (`data.mode` names it) and from the vote on, and listens through a
- *     trial about its own death: lines of information, never held (the design's P6), so the microphone stays its own.
+ *     trial about its own death: lines of information, never held (the design's P6), so the microphone stays its own -
+ *     but in a mode whose floor is somebody else's, where since D-E110-A (the owner, 14.11.2026) it is "floorHeld" (held);
+ *   - "floorHeld", "floorHeldPair": HELD - in the Class Trial a mode gives the floor to others (E110 C2, `floorHold`).
  *
  * From this browser's own facts only - the room the primary GM sent it (`desiredRoom`), its own A/V state, its own
  * characters and the flags on them - and never from GmStore: on a player `isDeadForGm` and `pendingDeath` read the
@@ -1332,8 +1334,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
     // browser in the room it listens into.
     if (listening && room === listening) return { reason: "listening", held: true };
-    // The floor is somebody else's (E110 C2): HELD, named before the block the trial's settle wrote for it.
-    const floorLine = speaker && !isMonocub(speaker) && !spectatorAccount(user, { actors }) ? floorHold(speaker, trial) : null;
+    // The floor is somebody else's (E110 C2): HELD, named before the block the trial's settle wrote for it - a Monocub's
+    // too since D-E110-A (the owner, 14.11.2026), the one exception to the design's P6.
+    const floorLine = speaker && !spectatorAccount(user, { actors }) ? floorHold(speaker, trial) : null;
     if (floorLine) return floorLine;
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
@@ -1372,7 +1375,7 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     if (spectatorAccount(user, { actors })) return { reason: spectatorTalks(user, { actors }) ? "spectatorTalk" : "spectator", held: true };
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
     // The floor's block (E110 C2): the trial's to put back, so the GM's own is not offered over it.
-    if (actor && !row.monokuma && trial && !isMonocub(actor) && floorHold(actor, trialFacts())) return { reason: "floorHeld", held: true };
+    if (actor && !row.monokuma && trial && floorHold(actor, trialFacts())) return { reason: "floorHeld", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
 }
@@ -1511,8 +1514,10 @@ export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() 
     const speaker = accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null;
     if (!speaker) return null;
     if (isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
-    if (isMonocub(speaker)) return cubLine(speaker, trial);
-    return spectatorAccount(user, { actors }) ? null : floorHold(speaker, trial);
+    // The floor's hold first, a Monocub's included (D-E110-A); the Monocub's own line where the floor holds nobody.
+    const held = spectatorAccount(user, { actors }) ? null : floorHold(speaker, trial);
+    if (held) return held;
+    return isMonocub(speaker) ? cubLine(speaker, trial) : null;
 }
 
 /**
@@ -1708,8 +1713,10 @@ export async function settleTrialVoices({ release = false } = {}) {
         const listed = new Set(list ?? []);
         /* THE FLOOR'S SPEAKERS (E110 C2, 14.11.2026): while a floor with a speaker stands in a trial a road entered, every
            player whose voice character the mode does not give the floor is blocked by the same write and the same row, and
-           given back when the floor, the turn or the trial moves on. Never a GM (skipped below), a Monocub (the design's P6,
-           Q-E110-5) or a Spectator's account (its talk switch decides, `watching`); a GM's own block is left alone by
+           given back when the floor, the turn or the trial moves on. Never a GM (skipped below) or a Spectator's account (its
+           talk switch decides, `watching`). A Monocub is held like a student: the design's P6 (A9, E78: never held by the
+           module) has one exception since the owner's D-E110-A of 14.11.2026, "W tych trybach monocuby tez maja byc
+           wyciszane" - a trial mode that does not give it the floor. A GM's own block is left alone by
            `blockForTrial`. Only a user whose answer changes is written (`row?.wrote`), so a Panic turn writes the speaker who
            stops and the one who starts. */
         const queue = getSetting(SETTINGS.trialQueue) ?? {};
@@ -1726,7 +1733,7 @@ export async function settleTrialVoices({ release = false } = {}) {
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
             const masked = !release && mask.maskMutedIds().has(user.id);
             const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !speakers.includes(voice.id)
-                && !flagsHeldNow(voice).getFlag?.(MODULE_ID, FLAGS.monocub) && !spectatorAccount(user, { held: flagsHeldNow }));
+                && !spectatorAccount(user, { held: flagsHeldNow }));
             if (watching || listening || masked || floorHeld || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
