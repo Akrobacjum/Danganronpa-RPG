@@ -27,6 +27,10 @@ Full tier 1 at c545ab94 (14.11.2026, 4 cores, 434 s): 1611 tests ran, 1595 passe
 one failure is R2001, the base's known one at 1463f22b (the coordinator's word: its fix comes with E54's merge). The
 first full run, at fb70d2c3, also read R22 red on this line's regex literal; fixed at c545ab94.
 
+Full tier 1 at a8745c7a (14.11.2026, 554 s): 1628 tests ran, 1612 passed, 1 failed (R2001, the known one), 16 skipped, 0 red.
+R4420 read red once in the full run at ad286bdd and passed alone 4 of 4 and in this run: timing under load, not this line's files.
+Scenario 51-lang-mixed 38/38 at a8745c7a.
+
 ## Anchors added to docs/handbooks/*.md
 
 None. C4a's anchors are attributes the handbook window writes on the headings it renders (`data-drpg-section`); no handbook file was edited.
