@@ -1549,10 +1549,28 @@ export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() 
  * `settleTrialVoices` blocks only then (Q-E110-7) - so the line never says a microphone is held that nothing holds.
  * `data` names who has the floor: `name`, and `target` for a Rebuttal's pair. Pure over the facts handed in (R7103).
  */
+/**
+ * WHETHER AN ACCOUNT HOLDS THE FLOOR THROUGH THIS STUDENT (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-T1; R7175):
+ * `actor` is a speaker, or a player who owns `actor` owns a speaker. The floor seats a student as the trial does (vote.mjs
+ * `trialParticipants`: the first in `game.actors`), and the mute read one student of the account (`trialVoiceActorOf`, the
+ * lowest id; the voice row's character) - a player with two students was held on their own turn. Pure but for the lists.
+ */
+export function holdsTheFloor(actor, speakers, { actors = game.actors, users = game.users } = {}) {
+    if (!actor || !speakers?.length) return false;
+    if (speakers.includes(actor.id)) return true;
+    const players = [...(users ?? [])].filter(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
+    if (!players.length) return false;
+    const byId = id => (typeof actors?.get === "function" ? actors.get(id) : [...(actors ?? [])].find(a => a?.id === id));
+    return speakers.some(id => {
+        const speaker = byId(id);
+        return Boolean(speaker) && players.some(u => speaker.testUserPermission?.(u, "OWNER"));
+    });
+}
+
 export function floorHold(actor, trial) {
     if (!actor || trial?.clock?.phase !== "classTrial" || !Object.hasOwn(trial?.record ?? {}, "mutedDead")) return null;
     const speakers = floorSpeakers(trial.floor);
-    if (!speakers?.length || speakers.includes(actor.id)) return null;
+    if (!speakers?.length || holdsTheFloor(actor, speakers)) return null;
     const nameOf = id => game.actors?.get?.(id ?? "")?.name ?? "-";
     return speakers.length > 1
         ? { reason: "floorHeldPair", held: true, data: { name: nameOf(speakers[0]), target: nameOf(speakers[1]) } }
@@ -1755,7 +1773,7 @@ export async function settleTrialVoices({ release = false } = {}) {
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
             // The mask's block outside the trial alone (Q-E110-16): in the trial the floor's speakers decide.
             const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);
-            const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !speakers.includes(voice.id)
+            const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !holdsTheFloor(voice, speakers)
                 && !spectatorAccount(user, { held: flagsHeldNow }));
             if (watching || listening || masked || floorHeld || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);

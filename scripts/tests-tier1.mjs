@@ -61199,6 +61199,24 @@ const INVARIANTS = [
             yields: [["keyReveal", "present"], ["newRule", "motive", "publicAnnouncement"]]
         }), "{each floor opening's sounds; scrumTurn: [a Scrum turn of mine, the same again, the next of mine, another's]; yields: [truthBullet, despairCall]}");
     }],
+    ["R7175 - the floor's mute knows a player by every student they own (E59 C-115, CHAINS.md B-T1): the floor's speaker is a student the trial seated (vote.mjs `trialParticipants`: the first in `game.actors`), and the mute compared the speakers with one student of the account (voice.mjs `trialVoiceActorOf`: the lowest id; the voice row's character in `micHold` and `moduleHoldsMic`) - a player with two students could be held on their own turn; voice.mjs `floorHold` and the settle ask `holdsTheFloor`, which answers true for any student whose player owns a speaker", async () => {
+        const V = await import("./voice.mjs");
+        must(typeof V.holdsTheFloor === "function", "voice.mjs has no holdsTheFloor");
+        const player = { id: "R7175p", isGM: false }, other = { id: "R7175o", isGM: false };
+        const char = (id, owner) => ({ id, type: "character", testUserPermission: (u, level) => level === "OWNER" && u.id === owner.id });
+        const a = char("R7175a", player), b = char("R7175b", player), c = char("R7175c", other);
+        const actors = [a, b, c], users = [player, other];
+        const read = {
+            ownSecond: V.holdsTheFloor(a, ["R7175b"], { actors, users }),
+            own: V.holdsTheFloor(b, ["R7175b"], { actors, users }),
+            another: V.holdsTheFloor(a, ["R7175c"], { actors, users }),
+            none: V.holdsTheFloor(a, [], { actors, users })
+        };
+        equal(stableJson(read), stableJson({ ownSecond: true, own: true, another: false, none: false }),
+            "{a student of the speaker's player, the speaker, another player's student, no speaker: whether each holds the floor}");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText));
+        ok(/\bholdsTheFloor\(/.test(fnSource(src, "floorHold")) && /\bholdsTheFloor\(/.test(fnSource(src, "settleTrialVoices")), "floorHold or the settle still compares the speakers with one student alone");
+    }],
     ["R7166 - a Panic Round's first speaker hears the *your turn* sound alone (E59 C-115, CHAINS.md B-T8; GM 15, \"The speaker ... hears the your turn sound alone\"): sfx.mjs `floorSounds` plays \"Panic Round starts\" on every other browser as the round opens, and on the browser of the speaker whose turn opens it only \"Your turn\" - the two played in one pass there; a Closing's start and its first turn are two writes, and stay two sounds", async () => {
         const S = await import("./sfx.mjs");
         const none = { known: true, floorOpen: false, floorMode: null, turnStep: null, closingAt: null };
