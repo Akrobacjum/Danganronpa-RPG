@@ -7976,6 +7976,10 @@ const SCENARIOS = [
          * murder-rules.mjs `tellVictimTheIncidentBegan`). A trap's victim is told the trap closed,
          * and nothing of its builder. Each murder is opened and its incident started with the
          * same two students; the words sent to the victim's player are read off the packets.
+         * E69 C8 (t2-restore, 14.11.2026): an opening on Hope or a critical now hides the killer behind a "?"
+         * (mask-gm.mjs), and the victim is told "someone" (`victimSomeoneMoves`). This test opened on Hope and read
+         * the name, so it failed from ad89e657 on. The named whisper is read on an opening that succeeds on Fear (24,
+         * no Hope: no mask), and the masked one on Hope, last, with no name in it.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player to be told");
         const M = await import("./murder.mjs");
@@ -7986,7 +7990,7 @@ const SCENARIOS = [
         const toVictim = words => words.filter(w => w.to.includes(player(victim).id)).map(w => w.html);
         const direct = toVictim(await wordsSent(async () => {
             await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
-            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
             await settle();
         }));
         await M.endMurder({ reason: "test", followUp: false });
@@ -7996,12 +8000,22 @@ const SCENARIOS = [
             if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
         }));
+        await M.endMurder({ reason: "test", followUp: false });
+        await settle();
+        const masked = toVictim(await wordsSent(async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+        }));
         const attacked = game.i18n.format("DRPG.Murder.victimUnderAttackBy", { killer: name });
         const sprung = game.i18n.localize("DRPG.Murder.victimTrapSprung");
-        equal(stableJson([direct.some(h => h.includes(attacked)), trap.some(h => h.includes(sprung)), trap.some(h => h.includes(name))]),
-            stableJson([true, true, false]),
-            `the direct victim was not told the killer's name, or the trap's victim was not told it closed, or was told its builder's name: ${
-                stableJson({ direct: direct.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)), trap: trap.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)) })}`);
+        const someone = game.i18n.localize("DRPG.Murder.victimSomeoneMoves");
+        const plain = h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80);
+        equal(stableJson([direct.some(h => h.includes(attacked)), trap.some(h => h.includes(sprung)), trap.some(h => h.includes(name)),
+            masked.some(h => h.includes(someone)), masked.some(h => h.includes(name))]),
+            stableJson([true, true, false, true, false]),
+            `the direct victim on Fear was not told the killer's name, or the trap's victim was not told it closed, or was told its builder's name, or the masked killer's victim on Hope was not told "someone", or was told the name: ${
+                stableJson({ direct: direct.map(plain), trap: trap.map(plain), masked: masked.map(plain) })}`);
     }],
 
     ["a second killer in the same Eclipse is told only that the attempt is refused", async () => {
@@ -55341,6 +55355,30 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 },
                 gone: (report, key) => !S.diveSetStore.has(key),
                 back: key => stableJson([S.diveSetStore.get(key)?.name, S.diveSetStore.get(key)?.questions?.[0]?.truth]) === stableJson(["SUITE backed-up set", "b"])
+            },
+            // A listener's eavesdrop and a killer's mask, through their stores (E69 C6, C8; both `backup: true`). Backed up
+            // with no fixture here from ad89e657, and this test failed naming both (t2-restore, 14.11.2026, on 6dd02975 and
+            // after). Rows nothing acts on: the eavesdrop ended long ago in this time of day (its grace over, so nobody's
+            // microphone is held, and the time of day's sweep keeps it), told to no account (`userId` null); the mask over
+            // no token and no account (`tokens`, `userIds` empty), so nothing is hidden or blocked while it stands, and
+            // tier 2's restore ends it (`endMask`) before the stores go back.
+            eavesdrops: {
+                seed: async () => {
+                    const { markNow } = await import("./eavesdrop-gm.mjs");
+                    await S.eavesdropStore.patch(holder.id, { actorId: holder.id, userId: null, sceneId: "SUITEE69SCENE000", from: "SUITE room",
+                        into: "SUITE next room", mark: markNow(), active: false, endedAt: 1, at: 1 });
+                    return holder.id;
+                },
+                gone: (report, key) => !S.eavesdropStore.get(key),
+                back: key => stableJson([S.eavesdropStore.get(key)?.from, S.eavesdropStore.get(key)?.into]) === stableJson(["SUITE room", "SUITE next room"])
+            },
+            masks: {
+                seed: async () => {
+                    await S.maskStore.patch(holder.id, { killerId: holder.id, victimId: null, userIds: [], mark: "SUITE", tokens: [], at: 1 });
+                    return holder.id;
+                },
+                gone: (report, key) => !S.maskStore.get(key),
+                back: key => stableJson([S.maskStore.get(key)?.killerId, S.maskStore.get(key)?.mark]) === stableJson([key, "SUITE"])
             },
             bullets: {
                 seed: async () => {
