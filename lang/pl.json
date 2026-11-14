@@ -356,7 +356,7 @@
       },
       "pixelFont": {
         "name": "Czcionka pikselowa",
-        "hint": "Tylko Monokuma Legacy: Press Start 2P na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju."
+        "hint": "Tylko Monokuma Legacy: krój pikselowy na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju."
       },
       "wideProjectWindows": {
         "name": "Szerokie okna projektów",

@@ -59328,6 +59328,83 @@ const INVARIANTS = [
         equal(JSON.stringify({ before, again, answered, after }), JSON.stringify({ before: [1, 1], again: [1, 1], answered: false, after: 1 }),
             "{before: scaleWindow on renderApplicationV2 and renderApplication after init; again: the same after a second registerWindows; answered: what the second call answers; after: a stand-in sheet sized once after it}");
     }],
+    ["R6300 - every font the stylesheets load ships with its own licence named in fonts/README.md and its text beside it, Special Elite's Apache 2.0 (E26 prep, 14.11.2026)", async () => {
+        /*
+         * E26 prep, 14.11.2026. Read off the woff2 files' own name tables (fontTools 4.68 on the checkout at 1463f22b):
+         * Special Elite's copyright says "Available under the Apache 2.0 licence" and its licence URL is apache.org's,
+         * while fonts/README.md and the root README called it SIL OFL 1.1; VT323 and the pixel face name the OFL. No
+         * licence text shipped at all. The licence files are google/fonts' own (ofl/pressstart2p/OFL.txt,
+         * ofl/vt323/OFL.txt, apache/specialelite/LICENSE.txt, fetched 14.11.2026). Red at 1463f22b: no "## Licences"
+         * table, so no woff2 had a row. What the name tables say is `node tools/check.mjs fonts`, in Node.
+         */
+        const css = await moduleStyles();
+        const loaded = [...new Set([...css.matchAll(/fonts\/([\w-]+\.woff2)/g)].map(m => m[1]))].sort();
+        must(loaded.length >= 6, `the stylesheets named ${loaded.length} woff2 file(s)`);
+        const res = await fetch(`/modules/${MODULE_ID}/fonts/README.md`);
+        must(res.ok, "fonts/README.md did not load");
+        const readme = await lfText(res);
+        const section = /^## Licences\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(readme)?.[1] ?? "";
+        const rows = new Map([...section.matchAll(/^\| `([\w-]+\.woff2)` \| ([^|]+?) \| ([^|]+?) \| `([\w.-]+)` \|$/gm)]
+            .map(m => [m[1], { face: m[2], licence: m[3], file: m[4] }]));
+        equal(stableJson(loaded.filter(f => !rows.has(f))), "[]", "a woff2 the stylesheets load with no row in fonts/README.md's licence table");
+        const want = { "Special Elite": /^Apache License 2\.0$/, "VT323": /^SIL Open Font License 1\.1$/, "Press Start 2P": /^SIL Open Font License 1\.1$/ };
+        const texts = { apache: /Apache License\s+Version 2\.0, January 2004/, ofl: /SIL OPEN FONT LICENSE Version 1\.1 - 26 February 2007/ };
+        const wrong = [];
+        for (const f of loaded) {
+            const row = rows.get(f);
+            if (!row) continue;
+            const face = Object.keys(want).find(k => row.face.includes(k));
+            if (!face) { wrong.push(`${f}: face "${row.face}" is none of ${Object.keys(want).join(", ")}`); continue; }
+            if (!want[face].test(row.licence)) wrong.push(`${f}: ${face} under "${row.licence}"`);
+            const lic = await fetch(`/modules/${MODULE_ID}/fonts/${row.file}`);
+            const text = lic.ok ? await lfText(lic) : "";
+            if (!(face === "Special Elite" ? texts.apache : texts.ofl).test(text)) wrong.push(`${f}: fonts/${row.file} ${lic.ok ? "is not that licence's text" : "did not load"}`);
+        }
+        equal(stableJson(wrong), "[]", "each face's licence and its text, as the font's own name table names it");
+        ok(!/Special Elite[^.\n]*Open Font License|both under the \*\*SIL Open/.test(readme), "fonts/README.md still calls Special Elite OFL");
+    }],
+
+    ["R6301 - module.json states no maximum anywhere and names a verified Daggerheart no older than D1's 2.10.5 and no older than its minimum (E26 prep, 14.11.2026; decision D1)", async () => {
+        /*
+         * E26 prep, 14.11.2026. D1: no `compatibility.maximum`, so a newer Daggerheart loads and the module tells the GM
+         * once per version; verified 2.10.5. The manifest at 1463f22b already said verified 2.12.8 (8f1b1b38, the owner,
+         * 13.11.2026), newer than the plan's 2.10.5, and is kept: the release rules' step 6 names only a version passed
+         * at a table. Nothing held either part before. Nothing was red in the tree: the planted manifests below are the
+         * red reading (a maximum on Foundry, one on the system, a verified older than 2.10.5, one older than the minimum).
+         */
+        const newer = (a, b) => {
+            const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
+            for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+            return false;
+        };
+        const atLeast = (a, b) => !newer(b, a);
+        const faults = m => {
+            const out = [];
+            if (m.compatibility && "maximum" in m.compatibility) out.push("Foundry maximum");
+            const dh = (m.relationships?.systems ?? []).find(r => r.id === "daggerheart");
+            if (!dh) return [...out, "no daggerheart"];
+            const c = dh.compatibility ?? {};
+            if ("maximum" in c) out.push("system maximum");
+            for (const r of [...(m.relationships?.systems ?? []), ...(m.relationships?.requires ?? [])]) if (r !== dh && r.compatibility && "maximum" in r.compatibility) out.push(`${r.id} maximum`);
+            if (!c.verified || !atLeast(c.verified, "2.10.5")) out.push(`verified ${c.verified} older than 2.10.5`);
+            if (!c.minimum || !c.verified || !atLeast(c.verified, c.minimum)) out.push(`verified ${c.verified} older than the minimum ${c.minimum}`);
+            return out;
+        };
+        const plant = (dh, top = {}) => ({ compatibility: { minimum: "14.364", ...top }, relationships: { systems: [{ id: "daggerheart", compatibility: dh }] } });
+        equal(stableJson([
+            faults(plant({ minimum: "2.6.5", verified: "2.12.8" }, { maximum: "14" })),
+            faults(plant({ minimum: "2.6.5", verified: "2.12.8", maximum: "2.12.8" })),
+            faults(plant({ minimum: "2.6.5", verified: "2.6.5" })),
+            faults(plant({ minimum: "2.12.9", verified: "2.12.8" })),
+            faults(plant({ minimum: "2.6.5", verified: "2.10.10" }))
+        ]), stableJson([["Foundry maximum"], ["system maximum"], ["verified 2.6.5 older than 2.10.5"], ["verified 2.12.8 older than the minimum 2.12.9"], []]),
+            "the planted manifests [Foundry maximum | system maximum | verified 2.6.5 | below its minimum | 2.10.10 as numbers, clean]");
+        const res = await fetch(`/modules/${MODULE_ID}/module.json`);
+        must(res.ok, "module.json did not load");
+        const manifest = JSON.parse(await lfText(res));
+        must((manifest.relationships?.systems ?? []).length > 0, "module.json names no system");
+        equal(stableJson(faults(manifest)), "[]", "module.json's compatibility (D1)");
+    }],
 ];
 
 /**

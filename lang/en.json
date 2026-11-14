@@ -356,7 +356,7 @@
       },
       "pixelFont": {
         "name": "Pixel font",
-        "hint": "Monokuma Legacy only: Press Start 2P on the HUD, tabs, names, and labels. Long text keeps the normal face."
+        "hint": "Monokuma Legacy only: a pixel face on the HUD, tabs, names, and labels. Long text keeps the normal face."
       },
       "wideProjectWindows": {
         "name": "Wide project windows",
