@@ -190,7 +190,7 @@ fi
 # 7
 proofs end
 golden "golden end" golden-end.txt --boxes "$OUT/golden-boxes.json" --out "$OUT/golden-1.json"
-cmp -s "$OUT/golden-0.json" "$OUT/golden-1.json" && row golden $DT "SAME, $(wc -c < "$OUT/golden-1.json") bytes" || stop golden $DT "DIFFERS from step 3's"
+cmp -s "$OUT/golden-0.json" "$OUT/golden-1.json" && row golden 0 "SAME, $(wc -c < "$OUT/golden-1.json") bytes" || stop golden $DT "DIFFERS from step 3's"
 if [ $SWEEP = 1 ]; then
   step "glass-sweep" glass-sweep.txt node audit/glass-sweep.mjs --chromium "$CHROMIUM"; s=$?
   row glass-sweep $DT "$(grep '^SWEEP' "$OUT/logs/glass-sweep.txt" | tail -1)"

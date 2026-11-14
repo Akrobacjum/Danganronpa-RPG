@@ -303,3 +303,27 @@ line now stands above them; on the a31e7a3b line it stood after), and name no br
 main moved after the base: ceb9e9c8 (1.2.112's death fade fix, scripts/death-fade.mjs, the gate's record and the
 release notes). merge-tree against it: clean. death-fade.mjs imports nothing the cuts moved (settings.mjs keeps
 `SETTINGS`, `getSetting`, `isDeadForGm`). Not run on the merged tree.
+
+## The rebuild from one command (tools/e54/rebuild.sh), 13-14.11.2026
+
+`tools/e54/rebuild.sh --base <sha> --work <dir> --out <dir>` (its header has the steps), with rows.mjs, messages.mjs
+and union-tail.mjs. Run on a2b233d2 as its own test: it rebuilt the landing line's tree, e85b927e (the pushed head
+c6e4e5ed's), from 35 commits - the six headers come from the manifests now. A container restart cut the run in step 7;
+`--end-only` ran step 7 on its worktree (with the tools of 4e613364 and that mode not yet committed, b65b26f5).
+
+| Steps | Seconds, measured |
+| --- | ---: |
+| picks (13), the worktree, npm ci (installed already) | 5 |
+| quick, 8 times (the picks, each cut, the end) | 684 (65-95 each) |
+| tiers 0-1, 8 times | 4079 (406-480 each) |
+| golden: boxes, baseline, end | 264 |
+| sweep tables | 43 |
+| seven cuts: split, moved-only, repoint, sweep | 87 (8-16 a cut) |
+| rows, messages, merge-tree | under 1 each |
+| glass-sweep | not run here (`--no-sweep`; the same tree swept green on the landing line, 46 min on 13.11) |
+
+About 86 minutes without the sweep, 2 h 12 min with a 46-minute one, on this machine (4 cores). Mechanical: all of it
+while it reads green. Read by a person: a pick conflict other than the registry or two tier tails (on a2b233d2 the one
+was config.mjs's import line), a repoint or sweep refusal (a line the manifest or a table does not know on the new
+base), a rows.mjs count a base moved (the prose round it), and the results and logs before a push.
+
