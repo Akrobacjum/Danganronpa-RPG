@@ -25,4 +25,5 @@ again by hand at both ends before it went into CHAINS.md; a break not re-read is
 
 ## Test numbers
 
-- Baseline `node run-tests.mjs --tier 1` at 9e7e3d78: running.
+- Baseline `node run-tests.mjs --tier 1` at 9e7e3d78 (4 cores, 14.11.2026): 1672 passed, 0 failed, 16 skipped, 0 red,
+  469 s wall.
