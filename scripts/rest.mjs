@@ -491,14 +491,14 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 const marks = held.hitPoints;
                 const healed = full ? marks : Math.ceil(marks / 2);
                 update["system.resources.hitPoints.value"] = marks - healed;
-                applied.push(`${opt.label}: ${healed} Health recovered`);
+                applied.push(game.i18n.format("DRPG.Rest.applied.health", { label: opt.label, n: healed }));
             }
 
             if (pick === "meal") {
                 const marks = held.stress;
                 const cleared = full ? marks : Math.ceil(marks / 2);
                 update["system.resources.stress.value"] = marks - cleared;
-                applied.push(`${opt.label}: ${cleared} Sanity cleared`);
+                applied.push(game.i18n.format("DRPG.Rest.applied.sanity", { label: opt.label, n: cleared }));
             }
 
             if (pick === "breath" && (relief || hopeBlocked)) {
@@ -510,7 +510,7 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 const max = maxOf("hope") || STARTING.hopeMax;
                 const next = Math.min(max, held.hope + gain);
                 update["system.resources.hope.value"] = next;
-                applied.push(`${opt.label}: +${gain} Hope`);
+                applied.push(game.i18n.format("DRPG.Rest.applied.hope", { label: opt.label, n: gain }));
             }
         }
 

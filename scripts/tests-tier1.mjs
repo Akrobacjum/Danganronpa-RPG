@@ -37544,6 +37544,33 @@ const INVARIANTS = [
             + "seconds from TRIAL, rest.mjs's two halves and config.mjs's English that says them]");
     }],
 
+    ["R6400 - the Rest report's lines are read from lang/, in English and Polish, and say a resource as its reserve (scripts/rest.mjs `applyRest`; E71 B04, 14.11.2026): Sleep, Meal and Breath each name what they gave through `DRPG.Rest.applied.*`, never an English literal, and no line says Sanity is \"cleared\" (D5, M7)", async () => {
+        /*
+         * E71 line A, B04 (14.11.2026). Red at 1463f22b: `applyRest` pushed `${opt.label}: ${healed} Health recovered`,
+         * `... Sanity cleared` and `... +${gain} Hope` as English literals into the card every Rest posts, so a Polish
+         * player read English there, and "cleared" says Sanity the way D5 and the guide's M7 forbid (a reserve: what is
+         * given back). Read from source, as R1163 reads rest.mjs: the lines are drawn inside `meansWrite` on a sheet the
+         * GMs hold, which tier 1 does not write.
+         */
+        const sources = new Map(await otherSources());
+        const rest = stripComments(sources.get("rest.mjs") ?? "");
+        must(rest.length > 1000, "rest.mjs did not load - this reads nothing");
+        const apply = bodyOf(rest, "async function applyRest", { until: "function kindLabel" });
+        must(apply.length > 500, "applyRest is gone - this reads nothing");
+        const literals = ["Health recovered", "Sanity cleared", " Hope`"].filter(w => apply.includes(w));
+        equal(stableJson(literals), "[]", "[the English literals left in applyRest's report lines]");
+        const keys = ["health", "sanity", "hope"].map(k => `DRPG.Rest.applied.${k}`);
+        equal(stableJson(keys.filter(k => !apply.includes(`"${k}"`))), "[]", "[the report keys applyRest does not read]");
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const at = key => key.split(".").reduce((node, part) => node?.[part], file);
+            const bad = keys.filter(k => typeof at(k) !== "string" || !at(k).includes("{label}") || !at(k).includes("{n}"));
+            equal(stableJson(bad), "[]", `[${lang}: the report keys missing, or without {label} and {n}]`);
+            const cleared = keys.filter(k => /clear|oczyszcz|czyści/i.test(String(at(k))));
+            equal(stableJson(cleared), "[]", `[${lang}: a report line that says a resource is cleared, not given back (D5)]`);
+        }
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

@@ -3981,7 +3981,12 @@
       "longColumn": "Long Rest",
       "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów.",
       "insomnia": "Insomnia: o tej porze dnia nie ma Short Rest.",
-      "reliefNoBreath": "Relief kosztuje więcej Hope, niż daje Breath, więc w tym odpoczynku Breath nie ma."
+      "reliefNoBreath": "Relief kosztuje więcej Hope, niż daje Breath, więc w tym odpoczynku Breath nie ma.",
+      "applied": {
+        "health": "{label}: +{n} Health",
+        "sanity": "{label}: +{n} Sanity",
+        "hope": "{label}: +{n} Hope"
+      }
     },
     "Calls": {
       "resolveNext": "Następny rzut zapyta, której statystyki użyć.",
