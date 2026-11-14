@@ -1447,9 +1447,10 @@ async function text() {
         /* A text the owner later asked to change (text-render.mjs BATCH_LATER; E47-FC) is not held to its approved after;
            each is named, and a key there that is no approved text of this batch is a problem. */
         const later = Object.keys(textRender.BATCH_LATER ?? {});
-        const strayLater = later.filter(key => !texts.some(t => t?.key === key && t?.owner?.verdict === "ok"));
+        /* BATCH_LATER's entries are B01a's texts (E47-FC, E68 C13), so a later batch file (E71's) does not answer for them. */
+        const strayLater = BATCH_FILE !== textRender.BATCH_FILES[0] ? [] : later.filter(key => !texts.some(t => t?.key === key && t?.owner?.verdict === "ok"));
         if (strayLater.length) problems.push(`batch: ${BATCH_FILE}: BATCH_LATER names ${strayLater.join(", ")}, no text of this batch the owner approved`);
-        if (later.length) console.log(`text: batch: the owner's later word supersedes the approved after of ${later.length} text(s): ${later.map(key => `${key} (${textRender.BATCH_LATER[key].page} ${textRender.BATCH_LATER[key].card}, ${textRender.BATCH_LATER[key].date})`).join(", ")}`);
+        if (later.length && BATCH_FILE === textRender.BATCH_FILES[0]) console.log(`text: batch: the owner's later word supersedes the approved after of ${later.length} text(s): ${later.map(key => `${key} (${textRender.BATCH_LATER[key].page} ${textRender.BATCH_LATER[key].card}, ${textRender.BATCH_LATER[key].date})`).join(", ")}`);
         const approved = texts.filter(t => t?.owner?.verdict === "ok" && !later.includes(t.key));
         const unlanded = approved.flatMap(t => {
             const one = textRender.batchState({ texts: [t] }, against);
@@ -1459,6 +1460,9 @@ async function text() {
             + `${approved.length - unlanded.filter(u => u.endsWith(" en")).length}, pl ${approved.length - unlanded.filter(u => u.endsWith(" pl")).length}; not landed ${unlanded.length}`);
         if (unlanded.length) problems.push(`batch: ${BATCH_FILE}: ${unlanded.length} approved after(s) not in the files (${unlanded.slice(0, 6).join(", ")}`
             + `${unlanded.length > 6 ? `, and ${unlanded.length - 6} more` : ""}) - every after the owner approved is the text of config.mjs and lang/ (E66-28)`);
+        /* The control plants its faults in a copy of B01a alone, the file that has a pilot copy to plant in; it holds the
+           schema, which every batch file is read by, so one file is enough (E71: the batches B02-B18 have no pilot copy). */
+        if (BATCH_FILE !== textRender.BATCH_FILES[0]) continue;
         const copyOf = texts.findIndex(t => t?.source === "pilot" && typeof t?.en?.before === "string");
         const marked = texts.findIndex(t => t?.source === "written" && typeof t?.en?.before === "string" && /\{\w+\}/.test(t.en.before));
         const plain = texts.findIndex((t, i) => t?.source === "written" && typeof t?.en?.before === "string" && i !== marked);
