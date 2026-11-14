@@ -354,7 +354,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     const after = await gmState();
     const standsAt = [];
     for (const c of [gm, p1, p2, p3]) standsAt.push(await c.eval(`const t = game.scenes.get(globalThis.__s68hall)?.tokens.find(x => x.actorId === "${IDS.aiko}"); return t ? [t.x, t.y] : null;`));
-    const changedStores = Object.keys(after.stores).filter(k => after.stores[k] !== before.stores[k]);
+    /* THE PRIMARY'S BEAT IS TIME PASSING, NOT A CROSSING (release run 43606815692 on e5590374, 14.11.2026: M4 red with
+       changedStores ["clockBeat"] alone, green on the same tree in CI runs 542 and 543). The primary writes `serverNow()`
+       into the GMs' store "clockBeat" every 60 s whatever the table does (hud-elapsed.mjs `beatClock`, gm-stores.mjs
+       `clockBeatStore`), so a beat that lands in the ~6 s between the two readings moved it; 01-runtests (BEAT_LEAF) and
+       61-gmstore-case (G5) let it move for the same reason. Every other store of the primary is still held unchanged. */
+    const TIME_STORES = new Set(["clockBeat"]);
+    const changedStores = Object.keys(after.stores).filter(k => !TIME_STORES.has(k) && after.stores[k] !== before.stores[k]);
     const wire = socketTraffic.slice(wire0);
     const crossingWire = wire.filter(w => CROSSING_WIRE.includes(w.action));
     const docOps = opLog.slice(ops0).map(o => `${o.who} ${o.action} ${o.coll}${o.embeddedName ? "." + o.embeddedName : ""}`);
