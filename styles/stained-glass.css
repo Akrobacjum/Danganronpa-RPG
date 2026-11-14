@@ -2713,10 +2713,8 @@ body.drpg-theme-stained-glass #drpg-despair :is(.drpg-despair-count, .drpg-overf
 
 /* ---- D3. Foundry's tiles: red is the GM's, not the scene controls' ------------------------
    The glyphs inside the rails were inheriting the module's red at 34 % of an edge, which
-   spends the one colour that is supposed to mean "the GM did this" on a pan tool. */
-body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control {
-    color: var(--drpg-sg-bone-dim);
-}
+   spends the one colour that is supposed to mean "the GM did this" on a pan tool. The resting glyph's Bone Dim is the
+   tiles' own rule, "with a pane of their own" further down, since E55 S3. */
 body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control:hover { color: var(--drpg-sg-bone); }
 body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control:is(.active, [aria-pressed="true"]) {
     color: var(--drpg-glass-accent);
@@ -4585,6 +4583,8 @@ body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) {
 }
 /* with a pane of their own the tiles no longer need a plate each: the glass is the ground */
 body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control {
+    /* the glyph at rest Bone Dim, not the module's red (D3, above; a rule of its own there until E55 S3) */
+    color: var(--drpg-sg-bone-dim);
     background: transparent !important;
     border-color: color-mix(in srgb, var(--drpg-glass-accent) 22%, transparent) !important;
 }
