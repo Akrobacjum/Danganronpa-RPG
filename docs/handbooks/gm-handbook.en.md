@@ -2331,7 +2331,7 @@ Monokuma's Reveal: *Left to reveal* is the fee's own count, written when it was 
 
 The Final Trial verdict: `game.drpg.verdictDialog()` and `game.drpg.applyVerdict()` open that window too, so no road gives a Final Trial the ordinary verdict. It stops and is finished as the ordinary verdict does (since 1.2.97).
 
-### 22.15 1. The trial hall
+#### The trial hall (section 15.1)
 
 The hall's code: `scripts/trial-scene.mjs`. The console calls that set the phase, and so take the table into or out of the hall, are `game.drpg.setPhase` and `game.drpg.setClock`. The hall's cast is kept by the GMs' browsers. Before 1.2.74 every trial opened wherever the table was. That the executed die in the hall before the table leaves it is read in the code; LIVE-E70-06 tries it at a table. A player's browser still loading when the hall is activated moves itself there once, when its map is first drawn, and one still loading when the table leaves the hall moves itself to the scene the table went to.
 
@@ -2339,13 +2339,13 @@ From the browser's console, `game.drpg.showCourtroom()` and `game.drpg.showSchoo
 
 Not yet tried at a table: whether Foundry v14 lets a player change whether their own token is hidden, where a browser that was loading during the activation lands, how the hall draws with Isometric Perspective, whether Foundry v14 makes a token from a character's prototype as the module asks, and what making and deleting the cast's tokens costs at a table - live checks.
 
-### 22.15 2. The hall's zones
+#### The hall's zones (section 15.2)
 
 `game.drpg.startStrawPoll`, `startLogicDive`, `startScrumDebate`, `countNow`, `skipQuestion`, `findings`, `addFinding`, `editFinding`, `deleteFinding` and `confirmFinding` do the same as the console's buttons.
 
 Not yet tried at a table: regions with holes and Levels in v14, a move just before the count on a real server, the zones drawn on the canvas, and a GM reload during a question (LIVE-E73-01 to LIVE-E73-04).
 
-### 22.15 3. The entry and the verdict's cut-in
+#### The entry and the verdict's cut-in (section 15.3)
 
 The sequences' code: `scripts/sequence.mjs`, `glass.mjs`, `glass-close.mjs`. A late screen plays the newest sequence it missed since 1.2.112 (the owner's choice).
 
