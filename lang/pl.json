@@ -3642,16 +3642,16 @@
       "hallDarkLine": "Sala rozpraw nadal ma włączone widzenie tokenów Foundry, wyłączone światło globalne albo włączoną mgłę eksploracji. Żeby każdy widział całą salę, zaznacz „Przygotuj salę przy Zapisz” w Ustawieniach sezonu i naciśnij Zapisz.",
       "noWayBackLine": "Żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw. Podepnij szkołę w Ustawieniach sezonu.",
       "phaseSwitchesScene": "Przenosi też wszystkich do sali rozpraw {hall} i stawia tokeny wybranych do niej uczniów.",
-      "castPickHeading": "Kto bierze udział w tej rozprawie",
+      "castPickHeading": "Kto stoi w sali rozpraw",
       "notPlaced": {
-        "one": "Sala rozpraw nie ma tokenu dla {n} postaci z obsady rozprawy, więc rozprawa nie może jej pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw token ręcznie na scenie sali.",
-        "few": "Sala rozpraw nie ma tokenów dla {n} postaci z obsady rozprawy, więc rozprawa nie może ich pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw każdej token ręcznie na scenie sali.",
-        "many": "Sala rozpraw nie ma tokenów dla {n} postaci z obsady rozprawy, więc rozprawa nie może ich pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw każdej token ręcznie na scenie sali.",
-        "other": "Sala rozpraw nie ma tokenów dla {n} postaci z obsady rozprawy, więc rozprawa nie może ich pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw każdej token ręcznie na scenie sali."
+        "one": "Sala rozpraw nie ma tokenu dla {n} postaci wybranej do sali, więc rozprawa nie może jej pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw token ręcznie na scenie sali.",
+        "few": "Sala rozpraw nie ma tokenów dla {n} postaci wybranych do sali, więc rozprawa nie może ich pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw każdej token ręcznie na scenie sali.",
+        "many": "Sala rozpraw nie ma tokenów dla {n} postaci wybranych do sali, więc rozprawa nie może ich pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw każdej token ręcznie na scenie sali.",
+        "other": "Sala rozpraw nie ma tokenów dla {n} postaci wybranych do sali, więc rozprawa nie może ich pokazać: {names}. Moduł nigdy nie robi tokenu Monokumie, a dla innych postaci nie udało mu się go zrobić. Postaw każdej token ręcznie na scenie sali."
       },
       "handPlaced": "W sali rozpraw nie ma tokenu postaci {names}. Moduł nie robi tokenu Monokumie, więc postaw go ręcznie, jeśli rozprawa go potrzebuje.",
       "placedByGm": "twój token",
-      "castWho": "Bierze udział",
+      "castWho": "W sali",
       "castToken": "Token w sali"
     },
     "Trial": {
