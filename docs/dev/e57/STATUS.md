@@ -16,8 +16,10 @@ R6600-R6699. Kept current as the line goes; the coordinator's ledger is the reco
 | C4 the Investigation dashboard's "?" (its tabs share it, Q-E57-17; section 14) | done | c6b00847 | R6601 widened to seven windows |
 | C5 window registry (Q-E57-16: SCREENS' window rows) and scenario 51-lang-mixed | done | fb70d2c3 | 51-lang-mixed 35/35, twice; a mutant (Edit campaign's title key gone) red on that window alone |
 | Merges of claude/e71-a..d (the text lines) | done | 294ace65, 1693a20d, 81f12349, fd85baa7 | R1058, R1157 widened as both sides wrote them |
-| C12, the text lines' part: T9 read (212 keys: 43 Polish corrected, 169 confirmed, all stamped), T25 to FAIL, the sample of 60 for the owner, the lints' counts (docs/dev/e57/C12-FINDINGS.md, C12-SAMPLE.md) | done | (this commit) | T9 0, T25 0; R1058, R1059 |
-| C12, what waits: the other detectors' FAIL (findings in other lines' texts), the cold read of README and the handbooks | waits for the owners' texts and the handbooks line | - | - |
+| C12, the text lines' part: T9 read (212 keys: 43 Polish corrected, 169 confirmed, all stamped), T25 to FAIL, the sample of 60 for the owner, the lints' counts (docs/dev/e57/C12-FINDINGS.md, C12-SAMPLE.md) | done | ad286bdd | T9 0, T25 0; R1058, R1059 |
+| C12: T15, T16, T21, T24 to FAIL at 0 (fixtures, two allow tables with reasons, three texts) | done | 63f91dd3 | R1058, R1059, R3555 |
+| C12: the lang findings of T8 and T11 fixed; T4, T5, T7, T8, T11, T12, T13 moved to 1.2.114 as reports with their counts | done | (this commit) | C12-FINDINGS.md |
+| C12, what waits (1.2.114): those seven detectors' FAIL; the cold read of README and the handbooks, after the handbooks line | moved | - | - |
 
 ## Test numbers
 

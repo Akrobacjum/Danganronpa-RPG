@@ -1353,7 +1353,7 @@
       "bribeTitle": "Bribe",
       "bribeAsk": "{name} oferuje postaci {cub} {cost} Hope za przysługę, którą ustalicie. Przyjmij, a Hope trafi do sakiewki.",
       "bribeAccept": "Przyjmij",
-      "bribeRefuse": "Odrzuć",
+      "bribeRefuse": "Odmów",
       "bribeOffered": "Proponujesz postaci {name} Bribe: {cost} Hope. Płacisz tylko wtedy, gdy przyjmie.",
       "bribeOfferedCub": "{name} proponuje ci Bribe: {cost} Hope.",
       "bribeRefused": "{name} odrzuca twój Bribe. Hope zostaje u ciebie.",
@@ -1625,7 +1625,7 @@
         "chapterEnd": "Werdykt zapadł. Zakończ rozdział.",
         "caseSummary": "Werdykt zapadł. Pokaż podsumowanie sprawy.",
         "endZone": "Głos ma tryb stref. Liczy się sam; Zakończ ten tryb go kończy.",
-        "scrum": "Straw Poll podzielił klasę. Otwórz Scrum Debate w Strefach sali albo otwórz debatę."
+        "scrum": "Straw Poll podzieliła klasę. Otwórz Scrum Debate w Strefach sali albo otwórz debatę."
       },
       "nobodyForTrial": "Żaden uczeń nie żyje, więc Class Trial nie może się zacząć.",
       "trialBegins": "Class Trial się zaczyna",
@@ -1684,7 +1684,7 @@
         "round": "Głos ma runda, w której mówcy przemawiają po kolei. Pomiń oddaje głos następnemu mówcy, a Zakończ ten tryb kończy rundę.",
         "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie.",
         "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
-        "scrum": "Straw Poll podzielił klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
+        "scrum": "Straw Poll podzieliła klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },
       "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
@@ -8108,7 +8108,7 @@
         },
         "strawPollResult": {
           "label": "Wynik Straw Poll",
-          "hint": "Straw Poll zostaje policzony: klasa się zgadza albo jest podzielona. Słyszy cały stół."
+          "hint": "Straw Poll zostaje policzona: klasa się zgadza albo jest podzielona. Słyszy cały stół."
         },
         "answerRight": {
           "label": "Logic Dive: dobra odpowiedź",

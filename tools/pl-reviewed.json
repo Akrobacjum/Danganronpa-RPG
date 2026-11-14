@@ -42,6 +42,13 @@
       "dropped": 0,
       "baseline": false,
       "note": "E57 C12: T24, the English's first colon made a full stop; the Polish already reads so"
+    },
+    {
+      "date": "2026-11-14",
+      "keys": 4,
+      "dropped": 0,
+      "baseline": false,
+      "note": "E57 C12: T8's and T11's lang findings (the glossary's refuse; Straw Poll feminine)"
     }
   ],
   "keys": {
@@ -1980,7 +1987,7 @@
     "DRPG.Config.SFX_EVENTS.sheetButton.label": "b180a241:8ba5d38f:b",
     "DRPG.Config.SFX_EVENTS.stolen.hint": "a044e90b:157dcfcd:b",
     "DRPG.Config.SFX_EVENTS.stolen.label": "eb996500:0912e1a8:b",
-    "DRPG.Config.SFX_EVENTS.strawPollResult.hint": "47110eb6:4ed50fd8:b",
+    "DRPG.Config.SFX_EVENTS.strawPollResult.hint": "47110eb6:695a60c0",
     "DRPG.Config.SFX_EVENTS.strawPollResult.label": "e62c7ed2:a6bdd837:b",
     "DRPG.Config.SFX_EVENTS.toolBroke.hint": "e7e2ad15:2040522e:b",
     "DRPG.Config.SFX_EVENTS.toolBroke.label": "08f64ab6:d5fcadad:b",
@@ -2712,7 +2719,7 @@
     "DRPG.Floor.lead.openDebate": "8646eec3:097eb6ae:b",
     "DRPG.Floor.lead.reopen": "6fa39ef7:fbcb722a:b",
     "DRPG.Floor.lead.round": "23980e14:a4ae8a32:b",
-    "DRPG.Floor.lead.scrum": "45388aa2:1f0e9e84:b",
+    "DRPG.Floor.lead.scrum": "45388aa2:778e45a3",
     "DRPG.Floor.lead.sentenceWaits": "8cd8a31c:354ec778:b",
     "DRPG.Floor.lead.start": "838ff250:ea1106b1:b",
     "DRPG.Floor.lead.verdict": "1a2124a7:464072f0:b",
@@ -2745,7 +2752,7 @@
     "DRPG.Floor.next.openAgain": "c43964c6:6d640b51:b",
     "DRPG.Floor.next.openDebate": "437b8fbd:0892b57e:b",
     "DRPG.Floor.next.reopen": "5839d9e0:6381531a:b",
-    "DRPG.Floor.next.scrum": "c01680ca:c8911dcb:b",
+    "DRPG.Floor.next.scrum": "c01680ca:2ea58c78",
     "DRPG.Floor.next.start": "6d740ff0:52196ebd:b",
     "DRPG.Floor.next.verdict": "86345f6f:20e43ac4:b",
     "DRPG.Floor.next.verdictElsewhere": "d7dc59c7:08c50c8a:b",
@@ -3617,7 +3624,7 @@
     "DRPG.Monocub.bribeLapsed": "a4e4e3c1:fd0ea886:b",
     "DRPG.Monocub.bribeOffered": "78cf5b22:0bea8165:b",
     "DRPG.Monocub.bribeOfferedCub": "3ef4bbc9:e7de9b11:b",
-    "DRPG.Monocub.bribeRefuse": "9bcada35:fdec7dfe:b",
+    "DRPG.Monocub.bribeRefuse": "9bcada35:45f6aa6b",
     "DRPG.Monocub.bribeRefused": "acbd9fd6:103ab400:b",
     "DRPG.Monocub.bribeTitle": "51f77bea:b4d149c5:b",
     "DRPG.Monocub.bribeUnpaid": "7d14276b:07f66fdc:b",

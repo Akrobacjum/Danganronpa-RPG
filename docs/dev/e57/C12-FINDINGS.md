@@ -1,48 +1,47 @@
 # E57 C12: the text lints after the four text lines
 
-Read on 14.11.2026 at fd85baa7 (claude/e57-tools with claude/e71-a d575470c, e71-b cbdd5015, e71-c b21d49bc and e71-d b37cbbbf merged in, then
-the C12 commit's Polish corrections), by `node tools/check.mjs text --all`, which prints every finding. The handbooks line
-(claude/handbooks-113) has not landed: every finding marked "handbooks" is in docs/handbooks/*.md as they stand on the base.
+Read on 14.11.2026 at 63f91dd3 (claude/e57-tools with claude/e71-a d575470c, e71-b cbdd5015, e71-c b21d49bc and e71-d b37cbbbf merged in, then
+C12's commits), by `node tools/check.mjs text --all`, which prints every finding. "After the merges" is the same command at fd85baa7, the
+last merge, before C12. The handbooks line (claude/handbooks-113) has not landed: a finding marked "handbooks" is in docs/handbooks/*.md
+as they stand on the base.
 
-## Each detector, its mode and what it finds
+## Each detector
 
-| Test | Detector | Mode at C12 | MODES' FAIL stage | Read | Found | Where the findings stand |
-| --- | --- | --- | --- | --- | --- | --- |
-| T1 | pluralForms | fail | E65 | 258 | 0 | - |
-| T1 | configPlaceholders | fail | E65 | 547 | 0 | - |
-| T2 | pairParity | fail | E65 | 6421 | 0 | - |
-| T3 | familyFormats | fail | E65 | 3794 | 0 | - |
-| T4 | lengthOver | report | E71 | 3338 | 325 | lang/pl 149, lang/en 130, config prose 46 |
-| T5 | patterns | report | E71 | 237896 | 212 | lang/pl 131, lang/en 62, config prose 19 |
-| T6 | dashesIn | fail | E65 | 107447 | 3 | - |
-| T7 | ruleNumberWords | report | E25 | 13420 | 23 | lang/pl 13, lang/en 6, config prose 4 |
-| T8 | glossaryHits | report | E25 | 68 | 28 | handbooks 27, lang/pl 1 |
-| T9 | staleTranslations | fail | E57 | 6968 | 0 | - |
-| T11 | loanGender | report | E71 | 9410 | 15 | handbooks 12, lang/pl 3 |
-| T12 | loanDeclension | report | E71 | 9410 | 17 | handbooks 17 |
-| T13 | uiLiterals | report | E71 | 3472 | 737 | scripts 737 |
-| T14 | tableWordProblems | fail | E65 | 15 | 0 | - |
-| T15 | renderChecks | report | E71 | 24384 | 114 | lang/en 57, lang/pl 57 |
-| T16 | secondPersonToMany | report | E71 | 1592 | 12 | lang/en 6, lang/pl 6 |
-| T17 | oxfordComma | report | null | 13420 | 66 | lang/en 51, config prose 11, lang/pl 4 |
-| T18 | telegraph | report | null | 13420 | 27 | lang/pl 11, lang/en 8, config prose 8 |
-| T19 | contractions | report | null | 6452 | 7 | lang/en 7 |
-| T20 | localeCalls | fail | E66 | 253 | 0 | - |
-| T21 | monokumaVoice | report | E71 | 18304 | 1 | lang/pl 1 |
-| T22 | mirror | report | null | 6452 | 611 | a pair (en and pl) 611 |
-| T23 | itemQuotes | report | null | 13420 | 1 | lang/pl 1 |
-| T24 | colonChains | report | E71 | 13420 | 5 | lang/en 3, lang/pl 2 |
-| T25 | bareLeft | fail | E71 | 13420 | 0 | - |
-| T27 | naturalnessBefore | report | null | 60 | 0 | - |
-| T28 | retiredHits | fail | E66 | 318 | 0 | - |
+| Test | Detector | Mode now | MODES' FAIL stage | Read | After the merges | Now | Where the findings now stand |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| T1 | configPlaceholders | fail | E65 | 547 | 0 | 0 | - |
+| T1 | pluralForms | fail | E65 | 258 | 0 | 0 | - |
+| T2 | pairParity | fail | E65 | 6421 | 0 | 0 | - |
+| T3 | familyFormats | fail | E65 | 3794 | 0 | 0 | - |
+| T4 | lengthOver | report | E71 | 3338 | 325 | 325 | lang/pl 149, lang/en 130, config prose 46 |
+| T5 | patterns | report | E71 | 237896 | 212 | 212 | lang/pl 131, lang/en 62, config prose 19 |
+| T6 | dashesIn | fail | E65 | 107663 | 3 | 3 | - |
+| T7 | ruleNumberWords | report | E25 | 13420 | 23 | 23 | lang/pl 13, lang/en 6, config prose 4 |
+| T8 | glossaryHits | report | E25 | 68 | 28 | 27 | handbooks 27 |
+| T9 | staleTranslations | fail | E57 | 6968 | 212 | 0 | - |
+| T11 | loanGender | report | E71 | 9410 | 15 | 12 | handbooks 12 |
+| T12 | loanDeclension | report | E71 | 9410 | 17 | 17 | handbooks 17 |
+| T13 | uiLiterals | report | E71 | 3472 | 737 | 737 | scripts 737 |
+| T14 | tableWordProblems | fail | E65 | 15 | 0 | 0 | - |
+| T15 | renderChecks | fail | E71 | 24452 | 114 | 0 | - |
+| T16 | secondPersonToMany | fail | E71 | 1592 | 12 | 0 | - |
+| T17 | oxfordComma | report | null | 13420 | 66 | 66 | lang/en 51, config prose 11, lang/pl 4 |
+| T18 | telegraph | report | null | 13420 | 27 | 27 | lang/pl 11, lang/en 8, config prose 8 |
+| T19 | contractions | report | null | 6452 | 7 | 7 | lang/en 7 |
+| T20 | localeCalls | fail | E66 | 253 | 0 | 0 | - |
+| T21 | monokumaVoice | fail | E71 | 18304 | 1 | 0 | - |
+| T22 | mirror | report | null | 6452 | 617 | 611 | a pair (en and pl) 611 |
+| T23 | itemQuotes | report | null | 13420 | 1 | 1 | lang/pl 1 |
+| T24 | colonChains | fail | E71 | 13420 | 5 | 0 | - |
+| T25 | bareLeft | fail | E71 | 13420 | 0 | 0 | - |
+| T27 | naturalnessBefore | report | null | 60 | 0 | 0 | - |
+| T28 | retiredHits | fail | E66 | 318 | 0 | 0 | - |
 
-## The findings of the small detectors, each with its owner
+## The findings of the small detectors still reports
 
-Every finding below stands in a text another line owns: lang/ and config.mjs's prose the four text lines' (done), docs/handbooks/ the
-handbooks line's. None is in a file of this line. The large detectors (T4, T5, T13, T15, T22, and T17, T18, which MODES gives no FAIL stage)
-are counted above and listed in full by `node tools/check.mjs text --all`.
+Each stands in a text another line owns: the handbooks the handbooks line's, lang/ and config.mjs's prose the four text lines'.
 
-### T7 (ruleNumberWords, 23)
+### T7 (23)
 
 - lang/en.json DRPG.Actions.woundedTooltip: "th left, so one action fewer per t" - "one action": a rule's number written as a word; it comes from a placeholder (T7, M5)
 - lang/en.json DRPG.Tips.Gm.minusTooltip: "Takes one Despair from this p" - "one Despair": a rule's number written as a word; it comes from a placeholder (T7, M5)
@@ -68,9 +67,8 @@ are counted above and listed in full by `node tools/check.mjs text --all`.
 - lang/pl.json DRPG.Config.MONOCUB.abilities.meddle.critical.help: "ć odzyskuje jedną wydaną akcję." - "jedną wydaną akcję": a rule's number written as a word; it comes from a placeholder (T7, M5)
 - lang/pl.json DRPG.Config.MONOCUB.abilities.meddle.critical.hinder: "ostać traci jedną akcję." - "jedną akcję": a rule's number written as a word; it comes from a placeholder (T7, M5)
 
-### T8 (glossaryHits, 28)
+### T8 (27)
 
-- lang/pl.json DRPG.Monocub.bribeRefuse: "Odrzuć" - "Odrzuć" is forbidden, the glossary says "Odmów" (glossary refuse, DA18, S18-31; holds from E68)
 - docs/handbooks/gm-handbook.pl.md:581: "ski w rogu, kafel powiadomień i stos na w" - "kafel powiadomień" is forbidden, the glossary says "kafelek powiadomień" (glossary notice-tile, A7; holds from E81)
 - docs/handbooks/gm-handbook.en.md:274: "pening or a Dynamic action, and Resolv" - "Dynamic action" is written "Dynamic Action" (glossary dynamic-action, D33a, DB3, DB16; holds from E66)
 - docs/handbooks/gm-handbook.pl.md:274: "twarcia ani akcji Dynamic, a Resolve" - "akcji Dynamic" is forbidden, the glossary says "Dynamic Action" (glossary dynamic-action, D33a, DB3, DB16; holds from E66)
@@ -99,11 +97,8 @@ are counted above and listed in full by `node tools/check.mjs text --all`.
 - docs/handbooks/gm-handbook.pl.md:88: "adka Opis w Room Setup: "Każda prz" - "Room Setup" is forbidden, the glossary says "Ustawienia pokoi" (glossary window-room-setup, D31, E44 plan; holds from E44)
 - docs/handbooks/gm-handbook.en.md:972: "ame log the Investigation Dashboard's footer op" - "Investigation Dashboard" is forbidden, the glossary says "Investigation" (glossary window-investigation, D31, E44 plan; holds from E44)
 
-### T11 (loanGender, 15)
+### T11 (12)
 
-- lang/pl.json DRPG.Floor.next.scrum: "Straw Poll podzielił k" - "podzielił" is masculine, and Straw Poll is feminine (DB28, DB39; glossary straw-poll; T11, a candidate)
-- lang/pl.json DRPG.Floor.lead.scrum: "Straw Poll podzielił k" - "podzielił" is masculine, and Straw Poll is feminine (DB28, DB39; glossary straw-poll; T11, a candidate)
-- lang/pl.json DRPG.Config.SFX_EVENTS.strawPollResult.hint: "Straw Poll zostaje pol" - "policzony" is masculine, and Straw Poll is feminine (DB28, DB39; glossary straw-poll; T11, a candidate)
 - docs/handbooks/gm-handbook.pl.md:170: "2. Eclipse jest otwart" - "otwarty" is masculine, and Eclipse is neuter (DB28, DB39; glossary eclipse; T11, a candidate)
 - docs/handbooks/gm-handbook.pl.md:373: "awny: jedno Hope dla pierwsz" - "jedno" is neuter, and Hope is masculine (DB28, DB39; glossary hope; T11, a candidate)
 - docs/handbooks/gm-handbook.pl.md:375: "e albo, gdy Eclipse nie jest uż" - "używany" is masculine, and Eclipse is neuter (DB28, DB39; glossary eclipse; T11, a candidate)
@@ -117,7 +112,7 @@ are counted above and listed in full by `node tools/check.mjs text --all`.
 - docs/handbooks/player-handbook.pl.md:743: "ałać - poza Eclipse, który nie" - "który" is masculine, and Eclipse is neuter (DB28, DB39; glossary eclipse; T11, a candidate)
 - docs/handbooks/player-handbook.pl.md:850: "M-ów: jedno Hope dla pierwsz" - "jedno" is neuter, and Hope is masculine (DB28, DB39; glossary hope; T11, a candidate)
 
-### T12 (loanDeclension, 17)
+### T12 (17)
 
 - docs/handbooks/gm-handbook.pl.md:231: "karty: stop safewordu, Class Tria" - safeword does not decline, "safewordu" gives it a case ending (DB4; glossary safeword; T12, a candidate)
 - docs/handbooks/gm-handbook.pl.md:241: "igation - w Class Trialu nie kosztuj" - Class Trial does not decline, "Class Trialu" gives it a case ending (DB4; glossary class-trial; T12, a candidate)
@@ -137,22 +132,7 @@ are counted above and listed in full by `node tools/check.mjs text --all`.
 - docs/handbooks/player-handbook.pl.md:784: "* na karcie Class Trialu). Gdy przeg" - Class Trial does not decline, "Class Trialu" gives it a case ending (DB4; glossary class-trial; T12, a candidate)
 - docs/handbooks/player-handbook.pl.md:784: "yb, a karta Class Trialu na panelu z" - Class Trial does not decline, "Class Trialu" gives it a case ending (DB4; glossary class-trial; T12, a candidate)
 
-### T16 (secondPersonToMany, 12)
-
-- en DRPG.Monocub.meddleIntro: "student in your room. Every" - the second person on a card everyone reads at once (scripts/monocub.mjs:1365); DB19 names the reader by the role (T16)
-- pl DRPG.Monocub.meddleIntro: "go ucznia w twoim pokoju. Wsz" - the second person on a card everyone reads at once (scripts/monocub.mjs:1365); DB19 names the reader by the role (T16)
-- en DRPG.Monocub.tiersIntro: "M rolls for you, and the to" - the second person on a card everyone reads at once (scripts/monocub.mjs:1365); DB19 names the reader by the role (T16)
-- pl DRPG.Monocub.tiersIntro: "GM rzuca za ciebie, a wynik de" - the second person on a card everyone reads at once (scripts/monocub.mjs:1365); DB19 names the reader by the role (T16)
-- en DRPG.Murder.closedVictimYou: "nt is over. You can act aga" - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:3651); DB19 names the reader by the role (T16)
-- pl DRPG.Murder.closedVictimYou: "ę skończył. Możesz znowu dział" - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:3651); DB19 names the reader by the role (T16)
-- en DRPG.TraitRuling.openingKillerProposed: "e statistic you proposed fo" - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:4454); DB19 names the reader by the role (T16)
-- pl DRPG.TraitRuling.openingKillerProposed: "onowanej do twojego rzutu otwar" - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:4454); DB19 names the reader by the role (T16)
-- en DRPG.TraitRuling.openingKiller: "atistic for your opening. Te" - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:4454); DB19 names the reader by the role (T16)
-- pl DRPG.TraitRuling.openingKiller: "atystykę do twojego rzutu otwar" - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:4454); DB19 names the reader by the role (T16)
-- en DRPG.TraitRuling.openingVictim: "a roll for you." - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:4454); DB19 names the reader by the role (T16)
-- pl DRPG.TraitRuling.openingVictim: "otowuje dla ciebie rzut." - the second person on a card the incident's cast reads at once (scripts/murder-rules.mjs:4454); DB19 names the reader by the role (T16)
-
-### T19 (contractions, 7)
+### T19 (7)
 
 - lang/en.json DRPG.Action.noRoom: "ter's token isn't in any room" - "isn't" in a rule (toast); DB8 writes it in full (T19)
 - lang/en.json DRPG.Action.substitute: "looking for isn't here. You f" - "isn't" in a rule (unclassified); DB8 writes it in full (T19)
@@ -162,21 +142,9 @@ are counted above and listed in full by `node tools/check.mjs text --all`.
 - lang/en.json DRPG.Monocub.silenceOn: "You're a witness:" - "You're" in a prohibition text; DB8 writes it in full (T19)
 - lang/en.json DRPG.Monocub.silencedTooltip: "You're a witness:" - "You're" in a prohibition text; DB8 writes it in full (T19)
 
-### T21 (monokumaVoice, 1)
-
-- lang/pl.json DRPG.Config.SFX_EVENTS.despairCall.hint: "espair Call Monokumy działa i zostaje o" - Monokuma jest rodzaju męskiego (PL4) (T21)
-
-### T23 (itemQuotes, 1)
+### T23 (1)
 
 - lang/pl.json DRPG.Action.found: "sz „<strong>{item}</strong>” (" - an item's name stands in „{item}” (DB31; T23)
-
-### T24 (colonChains, 5)
-
-- lang/en.json DRPG.Action.dcAnalyze: 3 colons in one string - more than two is a chain of labels (T24, X7)
-- lang/en.json DRPG.Mastermind.verdictSummary: 3 colons in one string - more than two is a chain of labels (T24, X7)
-- lang/en.json DRPG.Panel.whoIsAliveNote: 3 colons in one string - more than two is a chain of labels (T24, X7)
-- lang/pl.json DRPG.Action.dcAnalyze: 3 colons in one string - more than two is a chain of labels (T24, X7)
-- lang/pl.json DRPG.Mastermind.verdictSummary: 3 colons in one string - more than two is a chain of labels (T24, X7)
 
 ## T9, read (C12's sheet beside the code)
 
@@ -201,13 +169,19 @@ and 116 new keys are not read here: they were written in both languages by the t
 T13 stays a report (737 findings, below), so no allow row is written yet; when it turns to FAIL these are its rows, with the two reasons
 above.
 
-## What was switched, and what was not
+## What was switched, and what was moved to 1.2.114
 
-- T25 (bareLeft) to FAIL: it found nothing after the merges.
-- T9 stays FAIL (since C1), now at 0.
-- Not switched: every other detector the plan names as FAIL from E71 or E25 (T4, T5, T7, T8, T11, T12, T13, T15, T16, T21, T24). Each
-  has findings in text this line does not own (the table above: lang/ and config prose, the four text lines'; docs/handbooks/, the
-  handbooks line's; scripts/, T13's 737 literals). Turned to FAIL today each would turn `node tools/check.mjs text` red until
-  those texts change or an owner writes an allow row for each finding, and an allow row needs a reason a reader of that text gives. The
-  lists are in this file (the small ones) and in `node tools/check.mjs text --all` (all of them). T17, T18, T19, T22, T23 and T27 have no
-  FAIL stage in MODES and stay reports.
+Switched to FAIL in C12, each at 0 on this tree (the "After the merges" column is what each found before):
+- T25 bareLeft - nothing to do.
+- T21 monokumaVoice - its one Polish text reworded to the English.
+- T24 colonChains - two readouts allowed (tests-text.mjs COLON_CHAIN_ALLOW, each with its reason and the file it is drawn in), one
+  English sentence split.
+- T16 secondPersonToMany - six keys allowed, each read by one person at its call site (SECOND_PERSON_ALLOW, each with the site and why).
+- T15 renderChecks - 33 placeholder names given values in tools/text-render.mjs (the findings were the render's, not the texts').
+- T9 staleTranslations - FAIL since C1; 212 read and stamped here, 43 Polish corrected.
+
+Moved to 1.2.114, each a report with its count now (the coordinator's word of 14.11.2026: a mode that cannot be made green by the
+release stays a report): T4 lengthOver 325 (lang and config prose), T5 patterns 212 (lang and config prose), T7 ruleNumberWords 23 (a
+rule number in words should come from a placeholder, M5: code and text together, the keys' owners'), T8 glossaryHits 27, T11 loanGender
+12 and T12 loanDeclension 17 (all three now in the handbooks alone: T8's one lang finding and T11's three were fixed in C12), T13
+uiLiterals 737 (scripts; gm-store.mjs's 25 decided above). T17, T18, T19, T22, T23 and T27 have no FAIL stage in MODES and stay reports.
