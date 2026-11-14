@@ -494,7 +494,7 @@ export const blackenedStore = defineGmStore({
  * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). `loot` is split, a stamp per
  * record (E05 fix r2-G3): it was one list, and two GMs each adding a loot kept only the
  * later write - see handover.mjs `oweLootBullet`. Written by the kill
- * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's
+ * (death.mjs `killCharacter`), dropped by the publication, a revival or the reset's
  * "deaths" group; a dropped row's tombstone is what a player's copy weighs its loss
  * against. No old key: a death before 1.2.64 was published at the kill.
  */
@@ -746,7 +746,7 @@ export const offerStore = defineGmStore({
  * would otherwise be one row, and the second verdict's would take the first's place. Written
  * by a wrong verdict (level-up.mjs `deferAdvancement`), applied and dropped by the class's
  * next correct verdict or the Final Trial's (`runAdvancementBatch`, the owner's Q7), dropped
- * by a kill (chapter.mjs `killCharacter`) and cut by the reset's "advancement" group - the
+ * by a kill (death.mjs `killCharacter`) and cut by the reset's "advancement" group - the
  * two ways it lapses. No player copy and no old key: a 1.2.63 world applied it at once.
  */
 export const deferredOfferStore = defineGmStore({
@@ -1015,7 +1015,7 @@ export const watchStore = defineGmStore({
  * the required number of students, the module should ask the GM before it moves the players to the body, plays the sound,
  * etc."). A row per room where the witnesses reached the count, keyed `<sceneId>:<room>`: `{ room, sceneId, victimId,
  * deathId, witnessIds, chapter, epoch, at }` - `victimId` the body the walk found first, named by the announcement.
- * Written by the primary's walk check (chapter.mjs `checkBodyFound`), read by its prompt (`askPendingBodies`) and the
+ * Written by the primary's walk check (body.mjs `checkBodyFound`), read by its prompt (`askPendingBodies`) and the
  * GM's discovery window, dropped by the discovery that announces its room or when its body is no longer one to find.
  * Synced, so the GM who becomes the primary asks it; backed up. Cut by the reset's "deaths" group, with the deaths it
  * waits on. No player copy: which body waits, and who saw it, is the GMs'.
@@ -1029,7 +1029,7 @@ export const pendingBodyStore = defineGmStore({
  * THE BODIES EACH CHARACTER HAS HEARD (1.2.113; the owner's decision B of 13.11.2026: the finders get the discovery sound
  * "even when they are alone in the room ... It is enough that they enter a room with a body"). A row per character and
  * body, keyed `<actorId>:<bodyId>`: `{ deathId, at }`, the death heard - a body revived and killed again is heard again.
- * Written by the primary (chapter.mjs `checkBodySound`, and the announcement for everyone it gathers), read by it alone.
+ * Written by the primary (body.mjs `checkBodySound`, and the announcement for everyone it gathers), read by it alone.
  * Synced and backed up, so a reload or another primary plays nothing twice. Cut by the reset's "deaths" group. No player
  * copy.
  */
@@ -1463,7 +1463,7 @@ export const rerollJournalStore = defineGmStore({
  * `tokenId`, `attempt`, the Sanity before and after, `free`, `erased` (the trace's whole
  * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack` - and, for a
  * reshape put to the GMs, its `proposal` (written before the card goes) and `ruled` (who ruled,
- * on which GM's browser, which way; E09 C10, cleanup.mjs `claimRuling`). Until
+ * on which GM's browser, which way; E09 C10, cleanup-reshape.mjs `claimRuling`). Until
  * 1.2.67 a Map on the GM's browser that resolved the attempt, so a GM's reload lost it while
  * the player's Reroll still said the clean-up was replayed. Synced between the GMs and not
  * backed up: a row is worth one Reroll, minutes long - the Reroll's bookmark's trade. Cut by
@@ -1603,12 +1603,12 @@ export const diceLookStore = defineGmStore({
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the
  * others filed under `archive` when the clock left them. A row is a chapter's already, so
- * nothing is filed when the chapter ends (investigation.mjs `keyPlan`), and a stamp per
+ * nothing is filed when the chapter ends (key-remnants.mjs `keyPlan`), and a stamp per
  * field lets a GM writing one slot and another GM another both keep theirs (`setKeyPlan`
  * writes only what it changes). No `exists`: a row outlives the trace it names, as the
  * world key's entries did - a chapter's plan stays until a reset's cut takes it. A reset
  * that keeps the plan (E05 fix r1-G5, M3) keeps ONE chapter's rows, not every chapter's:
- * investigation.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
+ * key-remnants.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
  * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
  * no season stamped on it, so any chapter left standing would otherwise have read as planned
@@ -1616,7 +1616,7 @@ export const diceLookStore = defineGmStore({
  * until E09 C7, the case rows since). No old key: the first
  * rows come out of the world by `liftKeyPlan`. Beside a chapter's slots, one case row since
  * E09 C6, `${chapter}:case`: `{ keys }`, the closed case's Key Remnant count
- * (investigation.mjs `recordCaseKeys`), which no slot reader takes - kept under the
+ * (key-remnants.mjs `recordCaseKeys`), which no slot reader takes - kept under the
  * chapter the case opened in, and dropped by a reset that keeps the plan, since E09 fix
  * r1-G3.
  */

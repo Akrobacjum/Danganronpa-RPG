@@ -5,7 +5,7 @@
  * WHAT IT MODELS. There are no Daggerheart sheets here. Each client opens a stand-in sheet app (`installStand` below):
  * a root shaped as Daggerheart 2.10.5's resource-bar.hbs and sidebar.hbs draw it - the bar layout, or with `pips` the
  * pip layout - with the Hope diamonds, the tab bar, the features, inventory and biography parts; its own `render`
- * (on its prototype, as ApplicationV2's is, so sheet.mjs `installRenderPlan` wraps it) builds the root again from the
+ * (on its prototype, as ApplicationV2's is, so sheet-repaint.mjs `installRenderPlan` wraps it) builds the root again from the
  * actor and calls the render hooks the module listens on (`renderCharacterSheet`, then `renderActorSheetV2`, the base
  * class's, which anonymity.mjs reads), and counts each call (`calls`); its `close` takes the root
  * out of the page and fires `closeCharacterSheet`. It is registered in the actor's `apps` and stands as the actor's

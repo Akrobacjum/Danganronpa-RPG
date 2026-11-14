@@ -1427,7 +1427,7 @@ export function traceLabel(entry = null) {
  * @param {boolean} [options.propagate=true]  `false` leaves the Truth Bullets already copied
  *   from the trace as their finders found them: the ledger takes the patch, and the token is
  *   still kept neutral (`propagatePublic`). A killer's reshape, approved, and the Reroll that
- *   takes a clean-up back pass it (cleanup.mjs `reshapeTrace`, `undoLastCleanup`; E09 C9).
+ *   takes a clean-up back pass it (cleanup-reshape.mjs `reshapeTrace`, cleanup.mjs `undoLastCleanup`; E09 C9).
  *   `true` sends the copies the fields this write changed, and nothing else (E09 fix r2-G1).
  */
 export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true } = {}) {
@@ -2368,7 +2368,7 @@ export async function tieChapterTraces(chapter, { waitFor = null } = {}) {
  * So a tie to the crime written while the death it tells of is not the table's says in its ledger
  * row what it waits for (`tieWaitsFor`): the running fight (`fightKey`) or a death the GMs keep
  * (the victim's id). A copy made meanwhile is undecided (`tieForCopy`). A kept death takes the
- * fight's waits over (chapter.mjs `incidentVictimDied`, `handTiesOn`) and its publication sends
+ * fight's waits over (death.mjs `incidentVictimDied`, chapter.mjs `handTiesOn`) and its publication sends
  * them (`publishDeath`, `publishTiesFor`); a death made public at once sends the fight's; the close
  * sends what a fight left with no death (murder-rules.mjs `closeIncident`; 1.2.70 sent it sooner,
  * at the swing), and a revival hands a kept death's back to the fight still running, or sends
