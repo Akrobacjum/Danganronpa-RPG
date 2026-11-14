@@ -19981,18 +19981,18 @@ const INVARIANTS = [
             neighbours: (fold => [fold?.querySelector(":scope > summary")?.textContent.trim() === L("DRPG.Vault.neighboursLine"),
                 (fold?.textContent ?? "").replace(/\s+/g, " ").includes(L("DRPG.Vault.neighboursNote").replace(/\s+/g, " ")),
                 Boolean(pane("doors")?.querySelector(`[data-tooltip="${CSS.escape(L("DRPG.Vault.neighboursNote"))}"]`))])(pane("doors")?.querySelector("details[data-drpg-neighbours]")),
-            lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")), !text("passages").includes(L("DRPG.Passage.tab.intro")),
+            // The old notes these lines replaced (Passage.tab.intro, SearchTokens.roomSetupNote, Facility.editor.tabNote,
+            // Vault.fogNote) are gone from both files since the needsCode line (R6904), so their absence is no longer read here.
+            lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")),
                 text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupLine", { max: SearchTokensMax() })),
-                !text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupNote", { max: SearchTokensMax() })),
-                text("rest").includes(L("DRPG.Facility.editor.tabLine")), !text("rest").includes(L("DRPG.Facility.editor.tabNote")),
-                !text("fog").includes(L("DRPG.Vault.fogNote"))]
+                text("rest").includes(L("DRPG.Facility.editor.tabLine"))]
         };
         equal(stableJson(read), stableJson({
             over: true, first: ["bedrooms", L("DRPG.Vault.tabRooms")],
             rooms: [L("DRPG.Vault.room"), L("DRPG.Vault.isRoomColumn"), L("DRPG.Vault.owner"), L("DRPG.Vault.notSharedColumn")], ratio: true,
             doors: [L("DRPG.Vault.room"), L("DRPG.Vault.lockedColumn"), L("DRPG.Vault.lockedAtStartColumn"), L("DRPG.Vault.brokenColumn"), L("DRPG.Vault.neighboursColumn")],
             neighbours: [true, true, false],
-            lines: [true, true, true, true, true, true, true]
+            lines: [true, true, true]
         }), "{the Apply line over the tabs; the first tab; Rooms' heads and its count; Doors' heads; the neighbours' fold [its summary the line, the note inside, a tooltip of the note]; the tabs' own lines: passages' intro new and old, "
             + "Search's tokens line new and old (arrows), room actions' line new and old, no line under Fog}");
     }],
@@ -30006,14 +30006,12 @@ const INVARIANTS = [
             "the create button or the rename does not ask the name's check, or the window does not come back on the field's tab "
             + "[createPoolFrom, wirePaneHeading, openItemTables]");
 
-        const lang = async code => (await (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" })).json());
-        const [en, pl] = [await lang("en"), await lang("pl")];
-        const placeholder = words => foundry.utils.getProperty(words, "DRPG.Tables.newTierPoolPlaceholder") ?? "";
+        // The tier pool's own name field and its placeholder (`Tables.newTierPoolPlaceholder`) went with E101's Tier pools tab;
+        // the key with the needsCode line (R6904). What stays is the window's placeholders dimmed.
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
         const dim = [...css.matchAll(/([^{}]*::placeholder[^{}]*)\{([^}]*)\}/g)]
             .some(([, sel, body]) => /drpg-window-tables/.test(sel) && /color:\s*var\(--drpg-dim\)/.test(body));
-        equal(stableJson([placeholder(en).startsWith("e.g. "), placeholder(pl).startsWith("np. "), dim]), stableJson([true, true, true]),
-            `the tier pool's placeholder reads like a typed value [en "${placeholder(en)}", pl "${placeholder(pl)}", dimmed ${dim}]`);
+        equal(stableJson([dim]), stableJson([true]), `the tables window's placeholders read like typed values [dimmed ${dim}]`);
     }],
     ["R974 - the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row with its buttons in columns of their own, the list in whole rows, each group's caption above its boxes, the help to the left, every labelled field in one grid (E14-48, S08-24, S08-25, S08-27)", async () => {
         /*
@@ -30138,14 +30136,15 @@ const INVARIANTS = [
         const points = words => {
             const install = get(words, `${T}installAction`), tiers = get(words, `${T}tabTierPools`), rooms = get(words, `${T}tabRoomPools`);
             must(install && tiers && rooms, "the window's button or tab names are missing - this would measure nothing");
-            return [["noTierPools", install], ["newTierPoolNote", install], ["installTabNote", install], ["tierTargetNone", tiers],
+            // newTierPoolNote went with the needsCode line (R6904): nothing drew it since E101.
+            return [["noTierPools", install], ["installTabNote", install], ["tierTargetNone", tiers],
                 ["noRoomTables", rooms]].map(([key, name]) => get(words, T + key).includes(name));
         };
-        const lastTab = words => ["noTierPools", "newTierPoolNote", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
+        const lastTab = words => ["noTierPools", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
         equal(stableJson([points(en), points(pl), lastTab(en), lastTab(pl)]),
-            stableJson([[true, true, true, true, true], [true, true, true, true, true], [], []]),
+            stableJson([[true, true, true, true], [true, true, true, true], [], []]),
             "a line of the tables window does not name the button or the tab it sends the GM to, or still sends them to the last tab "
-            + "[EN noTierPools, newTierPoolNote, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
+            + "[EN noTierPools, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
             + "Room pools; PL the same; the keys that say last tab, EN, PL]");
 
         const { CONFIG_TABLES } = await import("./i18n-config.mjs");
@@ -37784,6 +37783,34 @@ const INVARIANTS = [
             damage: [false, true, true, false], refunds: [true, true], pick: [false, true, true, true] }),
             "[projectRefusal refuses a take from 0; progressEffect refunds an unmoved bar; progressRefused named, in en, in pl; damageEffect: English literals, "
             + "Reserve keys, listOf, a hand join; the refunds' price with its unit (Hope, Despair); pickItem: the literal row, carriedBy, in en, in pl]");
+    }],
+
+    ["R6904 - the keys the text lines found dead are gone from both language files and no script names them (needsCode, 14.11.2026): `Vault.fogNote`, `Look.uiScaleAuto` and `uiScaleSlider` with look.mjs `scaleNote` that read them and nothing called, `TrialScene.noWayBack`, `hallDark` and `prepare`, `Season.note`, `Panel.checksSetup` and `seasonChecks`, `SearchTokens.roomSetupNote`, `Tables.newTierPool`, `newTierPoolPlaceholder` and `newTierPoolNote`, `Zones.open`, `Facility.editor.tabNote`, `Passage.tab.intro` and `pick.cancel`, `Monocub.nobodyDead`, `manageTitle`, `dialogIntro`, `isOne`, `tickFirst` and `student`, `Floor.startPanic`, `startClosing` and `startTrialNoHall`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #50, #53, #58, #59, #73, #96, #113, #115,
+         * #129, #130, #133, S6, S8, S9, S11. Each was read against the code before it went: no literal names it and no
+         * template can make it (TrialScene's `${key}` reads zoneA, zoneB, preparePlaylist, prepareVoice; Panel's `${key}`
+         * the three A/V checks; Monocub's a row's choices and the critical's two keys; startPanic and startClosing are
+         * action names). TrialScene.scenesIntro, named with them in line C's notes, is read (trial-scene.mjs) and stays.
+         * Red at 729987e4: every key in both files, and scaleNote in look.mjs.
+         */
+        const DEAD = ["Vault.fogNote", "Look.uiScaleAuto", "Look.uiScaleSlider", "TrialScene.noWayBack", "TrialScene.hallDark", "TrialScene.prepare",
+            "Season.note", "Panel.checksSetup", "Panel.seasonChecks", "SearchTokens.roomSetupNote", "Tables.newTierPool", "Tables.newTierPoolPlaceholder",
+            "Tables.newTierPoolNote", "Zones.open", "Facility.editor.tabNote", "Passage.tab.intro", "Passage.pick.cancel", "Monocub.nobodyDead",
+            "Monocub.manageTitle", "Monocub.dialogIntro", "Monocub.isOne", "Monocub.tickFirst", "Monocub.student", "Floor.startPanic",
+            "Floor.startClosing", "Floor.startTrialNoHall"];
+        const sources = new Map(await otherSources());
+        must(sources.size > 100 && sources.has("look.mjs"), "the module's sources did not load - this reads nothing");
+        const all = [...sources.values()].map(stripComments).join("\n");
+        const read = { scripts: DEAD.filter(k => new RegExp(`DRPG\\.${k.replace(/\./g, "\\.")}(?![\\w.])`).test(all)),
+            scaleNote: /\bfunction scaleNote\b/.test(sources.get("look.mjs")) };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            must(file?.DRPG?.Monocub && file?.DRPG?.Tables, `lang/${lang}.json has no DRPG.Monocub or Tables - this reads nothing`);
+            read[lang] = DEAD.filter(k => foundry.utils.getProperty(file.DRPG, k) !== undefined);
+        }
+        equal(stableJson(read), stableJson({ scripts: [], scaleNote: false, en: [], pl: [] }),
+            "[the dead keys a script names; look.mjs still has scaleNote; the dead keys each file still holds]");
     }],
 
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {

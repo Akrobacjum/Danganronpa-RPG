@@ -211,7 +211,7 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
    (E49 A1d's shots: as a line of the section it fell under the section's last row). The window's render keeps it
    following the field before Save. Since E101 table note 5 the total alone (the owner: a player reads what it does, not
    how the factors ride on each other): under Stained Glass this screen's factor times the slider, under Legacy the
-   slider; the Look window's longer line (look.mjs `scaleNote`) is not drawn here. */
+   slider; the Look window's longer line (look.mjs `scaleNote`) was drawn nowhere and went with the needsCode line (R6904). */
 function scaleNow(slider) {
     const total = Math.round((isStainedGlass() ? slider * autoScale() : slider) * 100);
     return game.i18n.format("DRPG.SettingsWindow.scaleNow", { total });

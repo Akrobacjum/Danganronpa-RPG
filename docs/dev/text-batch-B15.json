@@ -1687,50 +1687,6 @@
       "owner": null
     },
     {
-      "key": "DRPG.Season.note",
-      "group": "window",
-      "surface": "gm-diagnostics",
-      "screen": "unassigned",
-      "readers": [
-        "gm"
-      ],
-      "source": "written",
-      "pilot": null,
-      "facts": [
-        {
-          "fact": "No file under scripts/ reads DRPG.Season.note: the checklist's closing note went with E101 item 2.",
-          "file": "scripts/season-setup.mjs",
-          "fn": "openSeasonChecklist",
-          "note": "grep of scripts/ for the key, 14.11.2026"
-        }
-      ],
-      "kept": [
-        0
-      ],
-      "en": {
-        "before": "Every row is something a season needs, in the order a season is built.",
-        "after": "Every row is something a season needs, in the order a season is built."
-      },
-      "pl": {
-        "before": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon się buduje.",
-        "after": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon się buduje."
-      },
-      "removed": [
-        "unchanged: no code draws it; the early pass's text (X10) is kept"
-      ],
-      "needsCode": [
-        "DRPG.Season.note is read by no file under scripts/ since E101: remove the key from lang/en.json and lang/pl.json, or draw it again."
-      ],
-      "disagreements": [],
-      "reviews": {
-        "en": null,
-        "coldEn": null,
-        "pl": null,
-        "mechanics": null
-      },
-      "owner": null
-    },
-    {
       "key": "DRPG.Season.resourcesButton",
       "group": "window",
       "surface": "button",
@@ -14216,51 +14172,6 @@
       "owner": null
     },
     {
-      "key": "DRPG.Panel.checksSetup",
-      "group": "window",
-      "surface": "tab",
-      "screen": "season-setup",
-      "readers": [
-        "gm"
-      ],
-      "source": "written",
-      "pilot": null,
-      "facts": [
-        {
-          "fact": "No code reads this key: preSessionReport builds the room pictures, the voice, the dice look and the anonymity parts, and the cast's part became the Season checklist's rows in E101 item 2 (docs/dev/e101/STATUS.md lists it among the keys kept only so the texts line's edits merge).",
-          "file": "scripts/season-setup.mjs",
-          "fn": "preSessionReport",
-          "note": null
-        }
-      ],
-      "kept": [
-        0
-      ],
-      "en": {
-        "before": "Cast",
-        "after": "Cast"
-      },
-      "pl": {
-        "before": "Obsada",
-        "after": "Obsada"
-      },
-      "removed": [
-        "unchanged: a key no screen draws; nothing to fit to a screen",
-        "PL: unchanged: the Polish holds the guide; no rule calls for a change"
-      ],
-      "needsCode": [
-        "DRPG.Panel.checksSetup is read by no code since E101 item 2; the sweep docs/dev/e101/STATUS.md names removes it in both files."
-      ],
-      "disagreements": [],
-      "reviews": {
-        "en": null,
-        "coldEn": null,
-        "pl": null,
-        "mechanics": null
-      },
-      "owner": null
-    },
-    {
       "key": "DRPG.Panel.checksAvVideo",
       "group": "window",
       "surface": "gm-diagnostics",
@@ -14804,51 +14715,6 @@
       ],
       "needsCode": [
         "room-setup.mjs pictureWarning fills {mb} with toFixed(1), so a Polish page reads \"2.5\" where Pre-season checks read \"2,5\": the number goes through utils.mjs localeFormat (O5's E66 note, T20)."
-      ],
-      "disagreements": [],
-      "reviews": {
-        "en": null,
-        "coldEn": null,
-        "pl": null,
-        "mechanics": null
-      },
-      "owner": null
-    },
-    {
-      "key": "DRPG.Panel.seasonChecks",
-      "group": "window",
-      "surface": "window-title",
-      "screen": "season-setup",
-      "readers": [
-        "gm"
-      ],
-      "source": "written",
-      "pilot": null,
-      "facts": [
-        {
-          "fact": "No code reads this key since E101 item 2 (docs/dev/e101/STATUS.md lists it among the keys kept only so the texts line's edits merge): Pre-season checks is the Season checklist's button, named by another key.",
-          "file": "scripts/season-setup.mjs",
-          "fn": "preSessionReport",
-          "note": null
-        }
-      ],
-      "kept": [
-        0
-      ],
-      "en": {
-        "before": "Pre-season checks",
-        "after": "Pre-season checks"
-      },
-      "pl": {
-        "before": "Kontrola przed sezonem",
-        "after": "Kontrola przed sezonem"
-      },
-      "removed": [
-        "unchanged: a key no screen draws; the glossary's window-pre-season-checks name",
-        "PL: unchanged: the Polish holds the guide; no rule calls for a change"
-      ],
-      "needsCode": [
-        "DRPG.Panel.seasonChecks is read by no code since E101 item 2; the sweep docs/dev/e101/STATUS.md names removes it in both files."
       ],
       "disagreements": [],
       "reviews": {
