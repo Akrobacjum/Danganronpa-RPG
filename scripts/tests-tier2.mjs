@@ -198,10 +198,57 @@ async function thrown(fn) {
     }
 }
 
+/**
+ * A FIXTURE'S MASKS ENDED IN THE GMS' WORLD IT RAN IN (t2-restore, 14.11.2026). A test inside `withGmStoreWorld` whose
+ * opening is on Hope masks its killer (mask-gm.mjs `maskKiller`), and the mask's row - the tokens' look - is that stand-in
+ * world's: once the test leaves it, `restore` finds no row to end, and the tokens stay a "?" with the killer's player's
+ * BROADCAST_AUDIO blocked. Measured on 6dd02975 and on 8f8aed2b: "a GM that never saw the incident closes it clean" (Botan)
+ * and "the cast comes back by hand when this browser lost it" (Aiko), 1 run of 1 each. `fn` wrapped: every mask that
+ * world holds ended (`endMask`) before it is left, whether `fn` returned or threw.
+ */
+function unmaskedAfter(fn) {
+    return async (...args) => {
+        try {
+            return await fn(...args);
+        } finally {
+            const { maskStore } = await import("./gm-stores.mjs");
+            const { endMask } = await import("./mask-gm.mjs");
+            for (const killerId of Object.keys(maskStore.entries() ?? {})) await endMask(killerId, "suite");
+        }
+    };
+}
+
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
     const { remnantsOn } = await import("./remnants.mjs");
     const { setDespair, getDespair } = await import("./despair.mjs");
+
+    /*
+     * THE MASKS THAT WENT UP, TAKEN DOWN BEFORE THE STORES GO BACK (t2-restore, 14.11.2026). From E69 C8 (merged into the
+     * 1.2.113 assembly at ad89e657) a direct murder's opening on Hope or a critical hides the killer behind a "?"
+     * (mask-gm.mjs `maskKiller`): their tokens renamed "?", their ring and name and bars off, a flag `masked`, and their
+     * player's BROADCAST_AUDIO blocked - and what the tokens looked like is kept in the GMs' store `masks` alone. The mask
+     * outlives the incident by design (docs/dev/e69/STATUS.md: it ends at the reveal or the next time of day), so the
+     * runner's `endMurder` leaves it, and the raw write of the stores' keys below dropped its row with the look in it:
+     * the tokens stayed a "?" and the block stood, with nothing left that could give either back. Measured on 6dd02975:
+     * every run's first test through `swingFixture` (its opening is a 24 on Hope) ended "could not restore the world"
+     * - PlayerOne's BROADCAST_AUDIO (none) -> false, Aiko's token "?" with the flag, ring, name and bars off - and every
+     * later one masked a token already masked, its diff reported once. Ended here by the module's own road
+     * (`endMask`), while the row still holds the look: the tokens get it back, the block is lifted. A mask that stood
+     * when tier 2 began (`snap.masks`, a real table's) is left to the stores' write, which keeps its row. FIRST, before
+     * the clock: a test that moved the time of day has its clock put back just below, and `drpgTimeOfDayChanged` ends
+     * every mask from the hook (`masksAtNewTimeOfDay`), not awaited - placed after the clock (8f8aed2b), that end's
+     * `gmTrialMute` drop landed after the stores' write: "restore left: ...gmTrialMute...d.USERP10000000000 (none) ->
+     * #e0978d3c" after "the case's Key count outlives the incident's close" (1 run of 1, 14.11.2026). Ended here, the
+     * hook finds none to end.
+     */
+    {
+        const { maskStore } = await import("./gm-stores.mjs");
+        const { endMask } = await import("./mask-gm.mjs");
+        for (const killerId of Object.keys(maskStore.entries() ?? {})) {
+            if (!snap.masks?.has(killerId)) await endMask(killerId, "suite");
+        }
+    }
 
     /*
      * THE CLOCK FIRST (E01, 24.09.2026; audit S14-10). It used to go back last, and
@@ -239,28 +286,6 @@ async function restore(snap) {
        despairPools.settled" after the conversion's test. Asked here and waited for, it runs now,
        and one asked later finds the mark where it is and writes nothing. */
     await (await import("./despair.mjs")).settleOwed();
-
-    /*
-     * THE MASKS THAT WENT UP, TAKEN DOWN BEFORE THE STORES GO BACK (t2-restore, 14.11.2026). From E69 C8 (merged into the
-     * 1.2.113 assembly at ad89e657) a direct murder's opening on Hope or a critical hides the killer behind a "?"
-     * (mask-gm.mjs `maskKiller`): their tokens renamed "?", their ring and name and bars off, a flag `masked`, and their
-     * player's BROADCAST_AUDIO blocked - and what the tokens looked like is kept in the GMs' store `masks` alone. The mask
-     * outlives the incident by design (docs/dev/e69/STATUS.md: it ends at the reveal or the next time of day), so the
-     * runner's `endMurder` leaves it, and the raw write of the stores' keys below dropped its row with the look in it:
-     * the tokens stayed a "?" and the block stood, with nothing left that could give either back. Measured on 6dd02975:
-     * every run's first test through `swingFixture` (its opening is a 24 on Hope) ended "could not restore the world"
-     * - PlayerOne's BROADCAST_AUDIO (none) -> false, Aiko's token "?" with the flag, ring, name and bars off - and every
-     * later one masked a token already masked, its diff reported once. Ended here by the module's own road
-     * (`endMask`), while the row still holds the look: the tokens get it back, the block is lifted. A mask that stood
-     * when tier 2 began (`snap.masks`, a real table's) is left to the stores' write, which keeps its row.
-     */
-    {
-        const { maskStore } = await import("./gm-stores.mjs");
-        const { endMask } = await import("./mask-gm.mjs");
-        for (const killerId of Object.keys(maskStore.entries() ?? {})) {
-            if (!snap.masks?.has(killerId)) await endMask(killerId, "suite");
-        }
-    }
 
     /*
      * THE TRACES THAT APPEARED, REMOVED BEFORE THE SETTINGS GO BACK (E04, 1.2.63).
@@ -54258,7 +54283,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const [killer, victim, third] = cast(3);
         const clock = getClock() ?? {};
         const offer = { thirdId: third.id, killerId: killer.id, chapter: clock.chapter, day: clock.day };
-        await E.withGmStoreWorld(`suite-close-${foundry.utils.randomID(8)}`, async () => {
+        await E.withGmStoreWorld(`suite-close-${foundry.utils.randomID(8)}`, unmaskedAfter(async () => {
             const theirsAt = E.gmStoreStamp();
             const stale = { killerId: killer.id, victimId: victim.id, lastCrisis: { key: "SUITE", actorId: killer.id },
                 swung: { [killer.id]: "SUITEE04ITEM0000" }, betrayal: offer };
@@ -54288,7 +54313,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 `the new incident holds a field of one it never had: ${stableJson(opened)}`);
             equal(stableJson([opened?.killerId, opened?.victimId, opened?.betrayal]), stableJson([victim.id, killer.id, offer]),
                 "the new incident's cast, or the betrayal offer, is not what was opened");
-        });
+        }));
     }],
 
     ["the cast comes back by hand when this browser lost it", async () => {
@@ -54309,7 +54334,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const S = await import("./gm-stores.mjs");
         const M = await import("./murder.mjs");
         const [killer, victim] = cast(2);
-        await E.withGmStoreWorld(`suite-byhand-${foundry.utils.randomID(8)}`, async () => {
+        await E.withGmStoreWorld(`suite-byhand-${foundry.utils.randomID(8)}`, unmaskedAfter(async () => {
             await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             equal(M.murderState()?.killerId, killer.id, "the fixture incident did not open");
@@ -54332,7 +54357,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(stableJson([M.murderState()?.turnSide, M.murderState()?.killerTurnId, M.murderState()?.turn]), stableJson(["killer", killer.id, 1]),
                 "the incident does not run on the cast entered by hand, or its round does not start again at 1");
             ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "incident"), "the health report still says the incident has no cast here");
-        });
+        }));
     }],
 
     ["a Blackened of another chapter or season does not count, and a stale copy cannot bring one back", async () => {
