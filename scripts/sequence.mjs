@@ -197,7 +197,7 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     host.dataset.drpgSequenceMode = still ? "still" : "motion";
     // the event is told to a screen reader by its own card and the HUD (a11y.mjs hears the phase); this is a picture
     host.setAttribute("aria-hidden", "true");
-    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then, onEnd, gate: null };
+    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then, onEnd, gate: null, notBefore: 0 };
     running = run;
     /* THE GATE (fix-113r, the owner at a table on 1.2.112, 13.11.2026: "the closed curtain should last until the next
        scene has switched"). A frame at or after `gate.at` ms is played that long after the later of `gate.at` and the
@@ -235,6 +235,9 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
         },
         /** Something outside the host the sequence changed, put back however the sequence ends. */
         undo: fn => run.undo.push(fn),
+        /** The sequence's own end comes no sooner than `ms` from now (`performance.now()`), however late this is asked:
+            a frame that started a crossing of `ms` is given all of it (R6850). Escape and a cut still end it at once. */
+        endNotBefore: ms => { run.notBefore = Math.max(run.notBefore, performance.now() + Math.max(0, ms)); },
         ARRIVE, LEAVE
     };
     try {
@@ -255,7 +258,24 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
         } else ctx.at(times.still, () => endSequence("ended"));
     } else {
         if (sound) ctx.at(times.sound, sound);
-        ctx.at(times.end, () => endSequence("ended"));
+        /* THE END WAITS FOR WHAT IS STILL CROSSING (R6850, 14.11.2026). The end was a timer at `times.end` and nothing
+           else, so a frame timed before it whose own timer came late ran short: on the GM page of the headless harness,
+           with 150-600 ms stalls of its own thread, the entry's hand-back began at 3255 and 3360 ms and the end came at
+           3401 both times - 146 and 41 ms of its 400 - in 2 of 20 runs (R4420's red: docs/dev/r4420/STATUS.md). The
+           copies then went with the live curtain still near 0: the blink the hand-over is there to take away, on a slow
+           table. So the end is at `times.end` and at least as late as every `endNotBefore`, both read on
+           `performance.now()` - the second look also holds a timer that fires a millisecond early (Node's timer clock
+           counts whole milliseconds from the turn's start: 2999 ms for a frame at 3000, run 2 of the same 20). */
+        const end = () => {
+            const left = run.notBefore - performance.now();
+            if (left > 0) later(left, end); else endSequence("ended");
+        };
+        ctx.at(times.end, () => {
+            // the moment `at` aimed this frame at: behind a gate, as much later as the gate opened past its `at`
+            const shift = run.gate ? run.gate.opened - run.gate.at : 0;
+            run.notBefore = Math.max(run.notBefore, t0 + shift + times.end);
+            end();
+        });
     }
     return run.mode;
 }
@@ -515,6 +535,8 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
             at(T.end - T.hand, () => {
                 anim(curtain, [{ opacity: 1 }, { opacity: 0 }], { duration: T.hand, easing: "linear", fill: "forwards" });
                 glass.handBack?.(T.hand);
+                // the copies fall and the live curtain rises over `hand` ms from now, so the end gives them all of it
+                ctx.endNotBefore(T.hand);
             });
             const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
             const growIn = slideCanvas(glass.close.fill, glass.W, glass.H, glass.acc), growOut = slideCanvas(glass.open.fill, glass.W, glass.H, glass.acc);

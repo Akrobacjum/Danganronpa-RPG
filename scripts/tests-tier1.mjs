@@ -54400,19 +54400,32 @@ const INVARIANTS = [
         const S = await import("./sequence.mjs"), G = await import("./glass.mjs");
         const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
         const T = S.SEQUENCE_TIMES.trialEntry, read = {};
+        /* WHAT IS READ IS ORDER AND LOWER BOUNDS, NOT A WINDOW OF THE WALL CLOCK (R6850, 14.11.2026). Until then the
+           hand-back and the release were each held to [want, want + 250] ms on `performance.now()`: red in 1 of 3 and 1
+           of 7 full tier-1 runs on two other lines, green alone, and on the GM page with 150-600 ms stalls of its own thread red in 6 of 20 -
+           three of them a release 287-356 ms past its 3400 with every call in order, two a hand-back that began at 3255
+           and 3360 and was cut short by the end at 3401 (the module's own defect, R6850's), one a hand-back's timer read
+           at 2999 for 3000 (Node's timer clock counts whole milliseconds from its turn's start). A late timer is the
+           machine; what the hand-over promises is that nothing comes early and nothing is cut short: held at once, handed
+           back no sooner than `end - hand` (less a tick, TICK), let go no sooner than `end` nor than `hand` after the
+           hand-back, and the host gone by the release's own turn. A release that never comes leaves `calls` short at
+           `until`'s deadline. Raw times, not rounded ones, so the gap is read as the module made it. */
+        const TICK = 2;
         const stand = () => {
             const calls = [], t0 = performance.now();
-            const at = () => Math.round(performance.now() - t0);
-            return { calls, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
-                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]), release: () => calls.push(["release", null, at()]) };
+            const at = () => performance.now() - t0;
+            const me = { calls, gone: null, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]),
+                release: () => { calls.push(["release", null, at()]); queueMicrotask(() => { me.gone = !document.getElementById(S.SEQUENCE_HOST_ID); }); } };
+            return me;
         };
-        const near = (got, want, slack = 250) => Number.isFinite(got) && got >= want && got <= want + slack;
         const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}`, trialCut: true });
         try {
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
             const m = stand(), c = clock("m");
             read.motion = await S.playTrialEntry(c, { pieces: m });
+            read.heldAtOnce = m.calls.map(x => x.slice(0, 2));
             read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
             read.covered = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
             await wait(T.closed + 150);
@@ -54420,9 +54433,9 @@ const INVARIANTS = [
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + 1500);
             const [hold, back, rel] = ["hold", "handBack", "release"].map(k => m.calls.find(x => x[0] === k));
             read.calls = m.calls.map(x => x[0]);
-            read.hold = hold?.[1] === T.handIn && hold?.[2] < 100;
-            read.back = back?.[1] === T.hand && near(back?.[2], T.end - T.hand);
-            read.release = near(rel?.[2], T.end);
+            read.hold = hold?.[1] === T.handIn;
+            read.back = back?.[1] === T.hand && back?.[2] >= T.end - T.hand - TICK;
+            read.release = rel?.[2] >= T.end && rel?.[2] >= back?.[2] + T.hand && m.gone === true;
             read.again = await S.playTrialEntry(c, { pieces: stand() });
             S.endSequence("cut");
             body.classList.add("drpg-reduced-motion");
@@ -54453,10 +54466,56 @@ const INVARIANTS = [
         read.coverNames = ["#drpg-hud", "#drpg-despair", "#countdowns", "#drpg-room-tile", "#drpg-voice-tile"].every(x => String(S.COVERED ?? "").includes(x));
         read.washRule = /drpg-seq-pulse/.test(css);
         equal(stableJson(read), stableJson({
-            motion: "motion", look: "glass", covered: true, wash: 0, calls: ["hold", "handBack", "release"], hold: true, back: true, release: true, again: null,
+            motion: "motion", heldAtOnce: [["hold", T.handIn]], look: "glass", covered: true, wash: 0, calls: ["hold", "handBack", "release"], hold: true, back: true, release: true, again: null,
             still: "still", stillHold: [["hold", 0]], stillEnd: ["hold", "release"],
             pulse: { stood: true, resumed: true, runs: true }, cover: [], coverNames: true, washRule: false
-        }), "[in motion: what played, its look, the cover; a wash at the closed curtain; the stand-in's calls in order; held over handIn at the start; handed back over hand before the end; let go at the end; the same event again; still: what played, held at once, let go at its end; the pulse's clock held, resumed and running; blocks of COVERED the stylesheet's cover leaves out; the cover names the blocks; a wash rule left in the stylesheet]");
+        }), "[in motion: what played, held before the play answered, its look, the cover; a wash at the closed curtain; the stand-in's calls in order; held over handIn; handed back over hand, no sooner than end - hand; let go no sooner than end nor than hand after the hand-back, the host gone by then; the same event again; still: what played, held at once, let go at its end; the pulse's clock held, resumed and running; blocks of COVERED the stylesheet's cover leaves out; the cover names the blocks; a wash rule left in the stylesheet]");
+    }],
+    ["R6850 - the end of the trial's entry and exit gives the hand-back all of its `hand` ms, however late its frame came (scripts/sequence.mjs `playSequence`'s `endNotBefore`, `drawTrialEntry`; R4420's red under load, docs/dev/r4420/STATUS.md): on a stand-in for the curtain's pieces, with the page's thread held from before the hand-back's frame to past the sequence's `end` - a slow table's stall - the hand-back is called over `hand`, and the curtain is let go no sooner than `hand` ms after it, with the host gone by then; the entry and the exit alike", async () => {
+        /* 14.11.2026. Red at 1463f22b: the end was a timer at `end` and nothing else, so a hand-back whose timer came late
+           was cut short by it - here, both timers overdue as the stall ends, the release came in the same turn as the
+           hand-back. The stall is the case's own (a busy loop on this page from `end - hand - 100` to `end + 50` ms on the
+           stand-in's clock), so it measures the same on an idle machine and a loaded one; `stalled` says it took. */
+        const S = await import("./sequence.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const read = {};
+        const stand = () => {
+            const calls = [], t0 = performance.now();
+            const at = () => performance.now() - t0;
+            const me = { calls, t0, gone: null, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]),
+                release: () => { calls.push(["release", null, at()]); queueMicrotask(() => { me.gone = !document.getElementById(S.SEQUENCE_HOST_ID); }); } };
+            return me;
+        };
+        const stall = (me, T) => setTimeout(() => { const to = me.t0 + T.end + 50; while (performance.now() < to) { /* the stall */ } }, Math.max(0, me.t0 + T.end - T.hand - 100 - performance.now()));
+        const reading = (me, T) => {
+            const back = me.calls.find(x => x[0] === "handBack"), rel = me.calls.find(x => x[0] === "release");
+            return {
+                calls: me.calls.map(x => x[0]), stalled: back?.[2] >= T.end - T.hand + 300, over: back?.[1] === T.hand,
+                full: rel?.[2] - back?.[2] >= T.hand, gone: me.gone
+            };
+        };
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            const T = S.SEQUENCE_TIMES.trialEntry, m = stand();
+            const played = await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6850e:${Date.now()}`, trialCut: true }, { pieces: m });
+            if (played === "motion") stall(m, T);
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + T.hand + 1500);
+            read.entry = { played, ...reading(m, T) };
+            S.endSequence("cut");
+            const X = S.SEQUENCE_TIMES.trialExit, x = stand();
+            const out = await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `R6850x:${Date.now()}`, trialCut: true }, { pieces: x, on: true });
+            if (out === "motion") stall(x, X);
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), X.end + X.hand + 1500);
+            read.exit = { played: out, ...reading(x, X) };
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        const want = played => ({ played, calls: ["hold", "handBack", "release"], stalled: true, over: true, full: true, gone: true });
+        equal(stableJson(read), stableJson({ entry: want("motion"), exit: want("motion") }),
+            "[for the entry and then the exit: what played; the stand-in's calls in order; the stall held the hand-back's frame past its time; the hand-back over hand; let go no sooner than hand after it; the host gone by then]");
     }],
     ["R4421 - the trial's exit is E61's and names a new day in the same write (scripts/transitions.mjs `transitionFor`, `onClockHeard`; the owner's decision of 12.11.2026, every default accepted): out of the Class Trial into Daily Life is `{ kind: \"trialExit\", owner: \"E61\" }` with no direction for the curtain, and with `newDay` when the same write opened a later day (a chapter's end whose next morning lands in one run of the clock's row); the Investigation's way out stays the curtain's; heard, it hands the curtain no direction", async () => {
         /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was `{ kind: "trialExit", how: "centre" }`, a hint for
