@@ -148,6 +148,7 @@ These are not checked yet, and none of them has a limit on how often:
 - that a chat card exists, when, who posted it and to whom it is whispered; the words of the module's own private cards travel beside it, to their readers alone;
 - Daggerheart's Countdowns, which are the projects: a secret project's name, its progress and who may see it (section 11; this version does not move them);
 - the picture on each project's token, which is the project's tray icon, a secret project's too, so a console reads what kind of project stands in a room, even one its player may not see;
+- where a secret project's token stands, which tells its room, but not the room of one with no token on the map, nor whether a secret project is an indirect murder: both are the GMs', and the players in on it and the Spectators are sent them;
 - every other module's world settings (section 9.5 has the one that matters);
 - other players' Truth Bullets: that they exist, their name, the words their holder has read, and the room and time they were found, but not their answer key and not which Remnant they came from.
 

@@ -148,6 +148,7 @@ Tych rzeczy nic jeszcze nie sprawdza i żadna z nich nie ma limitu częstotliwo�
 - To, że karta czatu istnieje, kiedy, kto ją wystawił i do kogo jest szeptem; słowa prywatnych kart modułu idą obok niej, tylko do ich czytelników.
 - Countdowny Daggerhearta, czyli projekty: nazwa tajnego projektu, jego postęp i to, kto może go widzieć (sekcja 11). Ta wersja nie przenosi danych tajnych projektów.
 - Obrazek na tokenie każdego projektu, którym jest ikona projektu w zasobniku, także tajnego. Konsola odczyta więc, jaki projekt stoi w pokoju, nawet taki, którego jej gracz nie widzi.
+- Miejsce, w którym stoi token tajnego projektu, a więc jego pokój, ale nie pokój projektu bez tokenu na mapie ani to, czy tajny projekt jest morderstwem pośrednim: jedno i drugie należy do GM-ów, a dostają je gracze, którzy o projekcie wiedzą, i Widzowie.
 - Ustawienia świata każdego innego modułu; to, które się liczy, opisuje sekcja 9.5.
 - Truth Bullety innych graczy: to, że istnieją, ich nazwa, słowa, które przeczytał ich posiadacz, oraz pokój i czas znalezienia, ale nie ich klucz odpowiedzi ani to, z którego Remnantu pochodzą.
 
