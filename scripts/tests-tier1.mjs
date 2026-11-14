@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -815,7 +815,7 @@ const INVARIANTS = [
         ok(REMNANT_TYPES[becomes], `a reshape turns traces into "${becomes}", which is not a type`);
 
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
+            await cleanupFetch());
 
         // One writer, so the two roads cannot part company.
         const body = bodyOf(src, "async function reshapeTrace", { length: 1400 });
@@ -843,7 +843,7 @@ const INVARIANTS = [
          * rather than sharing a promise to stay in step.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
+            await cleanupFetch());
 
         // E64 C4 (12.11.2026): the list is `bodyReach`'s - the connected rooms and, for a critical, those two away
         // through them (R3957) - and `bodyDestinations` answers its near half.
@@ -978,7 +978,7 @@ const INVARIANTS = [
          * accomplice's presence a penalty on the clean-up.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
+            await cleanupFetch());
 
         const body = bodyOf(src, "function witnessesTo", { length: 400 });
         ok(/isCleaner\(actor\)/.test(body),
@@ -11767,7 +11767,7 @@ const INVARIANTS = [
 
         const files = new Map(await otherSources());
         // E41 C4 (1.2.97): `workOnProject` and `performSabotage` moved into action-project.mjs.
-        must(["use-items.mjs", "action-project.mjs", "cleanup.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
+        must(["use-items.mjs", "action-project.mjs", "cleanup.mjs", "cleanup-reshape.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
         const src = file => stripComments(files.get(file));
         // A statement of its own: a road that asked a Fear of its own first (`if (roll.withFear) await ...`) would
         // spend a tier 0 tool on a Despair alone again, and still "call" it.
@@ -26989,8 +26989,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.saySomethingWithItTooltip","trial.mjs","pickObjectionEvidence"],
             ["DRPG.Tips.Trial.overruleTooltip","trial.mjs","openObjectionLog"],
             ["DRPG.Tips.Trial.rePointTooltip","trial.mjs","repointDialog"],
-            ["DRPG.Tips.Trial.callItNameTooltip","cleanup.mjs","reshapeFields"],
-            ["DRPG.Tips.Trial.andItLooksLikeTooltip","cleanup.mjs","reshapeFields"],
+            ["DRPG.Tips.Trial.callItNameTooltip","cleanup-reshape.mjs","reshapeFields"],
+            ["DRPG.Tips.Trial.andItLooksLikeTooltip","cleanup-reshape.mjs","reshapeFields"],
             ["DRPG.Tips.Trial.whichRemnantTooltip","cleanup.mjs","openCleanupDialog"],
             ["DRPG.Tips.Trial.scrubAtItTooltip","cleanup.mjs","openCleanupDialog"],
             ["DRPG.Tips.Trial.carryItThereTooltip","cleanup.mjs","openMoveBodyDialog"],
@@ -42564,8 +42564,8 @@ const INVARIANTS = [
             ["action-search.mjs#chooseSearchCategory", /gmRoute: o\.value === "specific",/, "DRPG.Action.goalSpecificHint"],
             ["action-project.mjs#startProject", /gmRoute: \[\{\s*action: "create",\s*label: game\.i18n\.localize\("DRPG\.Project\.proposeButton"\)/, "DRPG.Project.proposeButton"],
             ["call-gm.mjs#askForRequest", /gmRoute: \[\{\s*action: "send",\s*label: game\.i18n\.localize\("DRPG\.Bridge\.send"\)/, "DRPG.Bridge.send"],
-            ["cleanup.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
-            ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
+            ["cleanup-reshape.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
+            ["cleanup-reshape.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
             ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
             // Since E72 by calls.mjs `callAsksGm` (a row a GM rules, or Talent's tile of two such rows; read in `tiles` below).
             ["calls.mjs#confirmCall", /gmRoute: asksGm,/, "DRPG.Calls.waitsForGm"],
@@ -42604,7 +42604,7 @@ const INVARIANTS = [
         const refusal = { en: /(?:refus\w*|if not)[^.]*(?:nothing[^.]*back|back nothing)/i, pl: /odmow\w*[^.]*(?:nie wraca|przepada)/i };
         read.reshape = ["DRPG.Cleanup.transformActionHint", "DRPG.Cleanup.transformActionNote", "DRPG.Cleanup.transformNote"]
             .filter(key => !refusal.en.test(said("en", key) ?? "") || !refusal.pl.test(said("pl", key) ?? ""));
-        read.erase = /secondary: \[\{\s*action: "erase",/.test(fnSource(src("cleanup.mjs"), "askTransform"));
+        read.erase = /secondary: \[\{\s*action: "erase",/.test(fnSource(cleanupBy(src), "askTransform"));
         // The one class.
         const U = await import("./utils.mjs");
         const { BUTTON_ROLES } = await import("./ui-kit.mjs");
@@ -57722,7 +57722,7 @@ const INVARIANTS = [
         const { CLEANUP } = await import("./config.mjs");
         must(typeof Cl.cleanupDc === "function", "cleanup.mjs exports no cleanupDc - this would measure nothing");
         const src = await moduleSources();
-        const file = src.get("cleanup.mjs");
+        const file = cleanupText(src);
         must(typeof file === "string" && file.length > 1000, "cleanup.mjs's source was not read - this would measure nothing");
         const lift = typeof Cl.atLeastFloor === "function" ? [0, -3, 7, 8, 12].map(n => Cl.atLeastFloor(n)) : null;
         const body = name => { try { return fnSource(file, name); } catch { return ""; } };
@@ -57893,7 +57893,7 @@ const INVARIANTS = [
         const Cl = await import("./cleanup.mjs");
         const { CLEANUP } = await import("./config.mjs");
         must(typeof Cl.bodyLanding === "function" && typeof Cl.bodyReach === "function", "cleanup.mjs exports no bodyLanding or bodyReach - a critical still carries the body one room");
-        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        const src = stripComments(cleanupText(await moduleSources()));
         must(src.length > 5000, "cleanup.mjs was not read - this would measure nothing");
         const reach = { near: ["Kitchen", "Hall"], far: ["Library"], via: { Library: "Kitchen" } };
         const at = (room, n) => { const l = Cl.bodyLanding(reach, room, n); return [l.room, l.short]; };
@@ -57921,7 +57921,7 @@ const INVARIANTS = [
          * Read in source, cut with the kit: a refusal follows the charge in both roads. A run of the whole road is not here:
          * it needs a clean-up the GM would otherwise score (a found trace, an incident). Red at 37d96462: no refusal.
          */
-        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        const src = stripComments(cleanupText(await moduleSources()));
         must(src.length > 10000, "cleanup.mjs was not read");
         const refusal = /nothing was carried out: no action was left to pay for it/;
         // Cut with the kit (R156): the 900 characters after the charge, which must() the marker is there.
@@ -57950,7 +57950,7 @@ const INVARIANTS = [
          */
         const { CLEANUP, PRICE_CHAINS } = await import("./config.mjs");
         const src = await moduleSources();
-        const code = ["cleanup.mjs", "gm-stores.mjs", "settings.mjs", "window-scale.mjs"].map(f => stripComments(src.get(f) ?? ""));
+        const code = ["cleanup.mjs", "cleanup-reshape.mjs", "gm-stores.mjs", "settings.mjs", "window-scale.mjs"].map(f => stripComments(src.get(f) ?? ""));
         must(code.every(c => c.length > 5000), "cleanup.mjs, gm-stores.mjs or settings.mjs was not read - this would measure nothing");
         const langs = [];
         for (const lang of ["en", "pl"]) {
@@ -57975,7 +57975,7 @@ const INVARIANTS = [
         const Cl = await import("./cleanup.mjs");
         must(typeof Cl.tamperPriceSkip === "function", "cleanup.mjs exports no tamperPriceSkip - this would measure nothing");
         const student = { id: "zR3959", getFlag: () => undefined, system: { resources: {} } };
-        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        const src = stripComments(cleanupText(await moduleSources()));
         must(src.length > 5000, "cleanup.mjs was not read - this would measure nothing");
         const valid = fnSource(src, "validPrice");
         const unclaimed = /\bfunction chargeUnclaimed\(/.test(src) ? fnSource(src, "chargeUnclaimed") : "";
