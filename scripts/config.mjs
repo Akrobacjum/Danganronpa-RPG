@@ -1068,7 +1068,7 @@ export const TRUTH_BULLET_TYPES = {
     },
     neutral: {
         label: "Neutral Truth Bullet",
-        hint: "A trace of undetermined origin. Analyze it to find out what it really is.",
+        hint: "A Remnant of undetermined origin. Analyze it to find out what it really is.",
         /*
          * THE SENTENCE FOR A BULLET THAT HAS BEEN ANALYSED AND IS STILL NEUTRAL
          * (ACT-10, 20.09).

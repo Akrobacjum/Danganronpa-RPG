@@ -13475,7 +13475,7 @@ const REGRESSIONS = [
             en: { three: { 2: "Two", 3: "Three", 4: "Four" }, bar: { 4: ["below four", "fewer than four"] },
                 tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
                 daily: { player: /No roll is scored on the Daily Life row either: no Remnant is of that kind\. It is the ladder your Observe briefing/,
-                    gm: /No roll is scored on the Daily Life column: no trace is of that kind\. It is the ladder Observe's briefing/ } },
+                    gm: /No roll is scored on the Daily Life column: no Remnant is of that kind\. It is the ladder Observe's briefing/ } },
             pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
                 tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
                 daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden Remnant nie jest tego rodzaju\. To drabina, którą briefing Observe/,
@@ -15631,7 +15631,7 @@ const REGRESSIONS = [
                 gm: {
                     tunnel: ["albo tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch", "**+ Tunel lub schody**, potem kliknięcie w każdym z dwóch pokoi",
                         "Koniec poza pokojem, oba końce w jednym pokoju albo koniec na polu, na którym kończy się już inny tunel, są odrzucane."],
-                    goThrough: ["przechodzi nim, gdy jego token zostanie przeciągnięty na jeden z jego końców", "naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
+                    goThrough: ["przechodzi nim, gdy jego token zostanie przeciągnięty na jeden z jego końców", "naciska **Przejdź** obok niego pod **Znane tajne przejścia** w arkuszu postaci",
                         "jeśli tokenu nie da się tam przesunąć, cena wraca"],
                     doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
                         "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],

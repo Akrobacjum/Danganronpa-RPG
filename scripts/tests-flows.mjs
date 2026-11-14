@@ -427,8 +427,8 @@ export const FLOWS = Object.freeze([
         entry: { api: ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"],
             calls: ["trial-scene.mjs#followPhase", "trial-scene.mjs#selfRepair", "trial-scene.mjs#watchCast"] },
         scenarios: ["41-trial-scene"], status: "covered", stage: "1.2.74" },
-    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, each player's copy of which traces their own came from, and a GM's Give carried to the primary so one copy is made across two GMs (E38, bullet.give)",
-        entry: { sockets: ["truth-bullets.mjs"], bridge: ["bullet.give"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary", "97-two-gms"], status: "partial", stage: "E38" },
+    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, each player's copy of which traces their own came from, and a GM's Give carried to the primary so one copy is made across two GMs (E38, bullet.give); covered since 1.2.113, D153 across two GMs by R5000 (E54) and 97 G",
+        entry: { sockets: ["truth-bullets.mjs"], bridge: ["bullet.give"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary", "97-two-gms"], status: "covered", stage: "1.2.113" },
     { id: "voice", what: "Voice rooms: who hears whom",
         entry: { sockets: ["voice.mjs", "voice-client.mjs"] }, scenarios: [], status: "planned", stage: "E58" }
 ]);

@@ -61,7 +61,7 @@ of it (the versions are the owner's).
 | 64-migration-drill is not built | README.md:201 | needs a local Foundry: a v14 sandbox and copies of the v1.1.0, 1.2.13 and 1.2.56 worlds under DRPG_FIXTURES (LIVE-E38-03) | release notes |
 | audit/live has no third account, no gm2, `reload` or `makePrimary`, so 97 and 98 cannot run at the local gate | audit/live/sandbox-cluster.mjs:20, :60 | needs a local Foundry: GM, second GM and two players (LIVE-E38-04) | release notes |
 | Item transfers are not chained across two GMs on two browsers | inventory.mjs:1010 | open | release notes |
-| FLOWS "truth-bullets" stays `partial`, stage E38, though `bullet.give` landed; README row 98 describes the card to an absent p2 as before C5; STATUS's item numbers contradict themselves (508-511 vs 519-522) | tests-flows.mjs:430-431; README.md:228 vs 98-chaos.mjs:94; e38/STATUS.md:81, :84-90 | open, stale words | release notes |
+| README row 98 describes the card to an absent p2 as before C5; STATUS's item numbers contradict themselves (508-511 vs 519-522). (This row also held FLOWS "truth-bullets" left `partial`, stage E38; closed in 1.2.113, which marks it covered by R5000 and 97 G.) | README.md:228 vs 98-chaos.mjs:94; e38/STATUS.md:81, :84-90 | open, stale words | release notes |
 | Q-E37-4's carried items and SIER-R1's D041, D086, D094, D120, D146, D175, D177 | the source file is not in this checkout | not checked | release notes |
 
 ## E39 - behaviour tests: movement, items, actions, projects

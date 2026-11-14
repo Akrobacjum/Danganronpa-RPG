@@ -23542,7 +23542,7 @@ const INVARIANTS = [
         equal(stableJson(names.filter(name => first.html.includes(foundry.utils.escapeHTML(name)) || first.html.includes(name))), "[]",
             `a name of something ${target.name} carries is in the Palm window's HTML`);
     }],
-    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; one form of the row's words in each language, in the window, the Palm hint, the brochure and the GM handbook's Palm row; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'; the row says what to do as the Palm's other two rows do, 'See what they carry' / 'Zobacz, co nosi', and a Frisk's notice is titled by a key of its own, 'Frisk' (H81-11)", async () => {
+    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; one form of the row's words in each language, in the window, the Palm hint, the brochure and the GM handbook's Palm row; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'; the row says what to do as the Palm's other two rows do, 'See what they carry' / 'Zobacz, co ktoś nosi', and a Frisk's notice is titled by a key of its own, 'Frisk' (H81-11)", async () => {
         /*
          * E80 part 2 C5, 19.10.2026; the A11 design's steps 14 and 15 and its A11-17. The harm: a Frisk text with no
          * Polish twin shows a Polish table its key; a number typed into a text, or a handbook that says Body 12 while the
@@ -23623,7 +23623,7 @@ const INVARIANTS = [
             "player-handbook.en Palm": [`| It works (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Unseen (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
                 "**See what they carry**", `**Body ${n.force}+**`, `Shadow first, ${n.cover}+`, `then Hand, ${n.hand}+`],
             "player-handbook.pl Palm": [`| Udaje się (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Niezauważony (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
-                "**Zobacz, co nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
+                "**Zobacz, co ktoś nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
             "player-handbook.en Body": ["making somebody turn out their pockets"],
             "player-handbook.pl Body": ["zmuszanie kogoś do pokazania kieszeni"],
             "gm-handbook.en Palm row": ["| Shadow, then Hand", `Take: ${n.take} to succeed, ${n.takeUnseen} on Shadow`, `Plant: ${n.plant}, unseen ${n.plantUnseen}`,
@@ -23634,7 +23634,7 @@ const INVARIANTS = [
             "gm-handbook.pl Palm": ["**Frisk**", `Body ${n.force} na oczach pokoju`, "klient GM-a"],
             "player-brochure.en Palm": [`Take (${n.take}+, unseen ${n.takeUnseen}+)`, `plant (${n.plant}+, unseen ${n.plantUnseen}+)`, "see what they carry",
                 `Body ${n.force}+ after a refusal`, `unseen Shadow ${n.cover}+ then Hand ${n.hand}+`],
-            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co nosi",
+            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co ktoś nosi",
                 `Body ${n.force}+ po odmowie`, `ukradkiem Shadow ${n.cover}+, potem Hand ${n.hand}+`]
         });
         const missing = n => Object.entries(expected(n)).flatMap(([where, said]) => said.filter(s => !passages[where].includes(s)).map(s => `${where}: "${s}"`));
@@ -23651,6 +23651,7 @@ const INVARIANTS = [
         // form, docs/glossary.json `see-what-they-carry` "zobacz, co ktoś nosi" (stage E71), ahead of the row, the brochure
         // and the GM handbook, which E71 moves; so the Polish hint is read for that form, and for none of the row's words.
         // The English hint says the row's words, as before. Red on C7's landed tree with the row's words asked of it.
+        // E71 (1.2.113) moved the row, the brochure and the handbooks to the same form, so the hint and the row agree again.
         const HINT_WORDS = { pl: "zobacz, co ktoś nosi" };
         const oneForm = lang => {
             const words = lowered(flats[lang]["DRPG.Frisk.rowLabel"]);
@@ -23659,7 +23660,7 @@ const INVARIANTS = [
                 ...[passages[`player-brochure.${lang} Palm`], passages[`gm-handbook.${lang} Palm row`]].map(text => Boolean(words) && text.includes(words))];
         };
         equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, oneForm("en"), oneForm("pl"), /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
-            J(["Zobacz, co nosi", ["see what they carry", true, true, true], ["zobacz, co nosi", true, true, true], false]),
+            J(["Zobacz, co ktoś nosi", ["see what they carry", true, true, true], ["zobacz, co ktoś nosi", true, true, true], false]),
             "[the Polish row; in English and in Polish the row's words and whether the Palm hint (in Polish the glossary's 'zobacz, co ktoś nosi', since B01a), the brochure's Palm row and the GM handbook's Palm row say them; the Polish GM handbook's Palm says 'GMa']");
         const toast = stripComments(fnSource((await moduleSources()).get("frisk.mjs") ?? "", "toast"));
         equal(J([flats.en["DRPG.Frisk.rowLabel"] ?? null, flats.en["DRPG.Frisk.noticeTitle"] ?? null, flats.pl["DRPG.Frisk.noticeTitle"] ?? null,

@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.112, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.113, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -142,7 +142,7 @@ These are not checked yet, and none of them has a limit on how often:
 **What every browser holds anyway.** The module keeps its secrets out of the world's data. The rest of the world is Foundry's to send, and Foundry sends it to every browser, where a console reads it whatever the screen shows:
 
 - where every token stands and when it moved, hidden tokens and the Eclipse included;
-- the description and the picture of every room, which travel like a scene's background. Room setup's Description tab says so: "Every browser holds the descriptions and pictures of all rooms, so keep a room's secrets in its stashes and traces.";
+- the description and the picture of every room, which travel like a scene's background. Room setup's Description tab says so: "Every browser holds the descriptions and pictures of all rooms, so keep a room's secrets in its stashes and Remnants.";
 - every actor's data: a victim's Health at 0 before anybody has found the body, the new maxima of a Level Up (the class picks together, which hides the moment and not the amount: a Blackened (a chapter's killer, section 13) who walked out of a wrong vote takes 4 picks where the others take 1), action budgets, and Hope, a conversion's included (section 7);
 - every item on every sheet, and each move of one from sheet to sheet;
 - that a chat card exists, when, who posted it and to whom it is whispered; the words of the module's own private cards travel beside it, to their readers alone;
@@ -1375,7 +1375,7 @@ The roll is scored against the Remnant's real type and visibility (the table bel
 | Subtle | 18 | 12 | 18 | 15 |
 | Hidden | 21 | 15 | 21 | 18 |
 
-These are the Observe DCs. Neutral is priced as Prep, and Final Truth as Key. No roll is scored on the Daily Life column: no trace is of that kind. It is the ladder Observe's briefing shows the player for something with no Remnant behind it, and the scale to hold an **Examine point of interest** to.
+These are the Observe DCs. Neutral is priced as Prep, and Final Truth as Key. No roll is scored on the Daily Life column: no Remnant is of that kind. It is the ladder Observe's briefing shows the player for something with no Remnant behind it, and the scale to hold an **Examine point of interest** to.
 
 ### 14.7 Analyze
 
@@ -2396,7 +2396,7 @@ What the table gets instead, by row. A setting or flag the module holds has a ro
 | `countdown-row-menu` | a project row's menu is Daggerheart's: Reveal and Hide are shown, and Delete removes only the countdown |
 | `countdown-update` | Daggerheart's own tick of the countdowns runs outside the projects' queue, and a project's change made in the same moment can be lost |
 | `door-controls` | every door control is shown as Foundry shows it |
-| `token-ruler` | a token's ruler keeps the colour that Foundry or another module gives it |
+| `token-ruler` | a token's ruler keeps the color that Foundry or another module gives it |
 | `actions-resource` | a character has no Actions resource |
 | `sidebar-calls` | Foundry's own calls neither show nor place the Foundry tools window |
 | `relay-guard` | requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load |
@@ -2407,7 +2407,7 @@ What the table gets instead, by row. A setting or flag the module holds has a ro
 | `hook-character-sheet-close` | a closed sheet's observer keeps watching a detached element until the page is reloaded |
 | `hook-countdowns-render` | the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it |
 | `hook-dice-so-nice-ready` | the dice looks are not swept |
-| `hook-dice-so-nice-message` | Dice So Nice throws such a roll on every screen, in the GM's colours |
+| `hook-dice-so-nice-message` | Dice So Nice throws such a roll on every screen, in the GM's colors |
 | `hook-dice-so-nice-roll-start` | every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser |
 | `hook-livekit-initialized` | the voice rooms, the voice tile and the trial's speakers do not follow the voice client |
 | `hook-image-popout-header` | a room picture's window shows Foundry's share control and any a module adds |

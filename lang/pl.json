@@ -1981,7 +1981,7 @@
     "Tips": {
       "Actions": {
         "maskRevealTooltip": "Ofiara i pokój znów widzą twój token i twoje imię, a mikrofon wraca.",
-        "maskStayTooltip": "Zostań za „?” do końca pory dnia. Ujawnij się zostaje na twoim kaflu głosu.",
+        "maskStayTooltip": "Zostań za „?” do końca pory dnia. Ujawnij się zostaje na twoim kafelku głosu.",
         "difficultyTooltip": "Najniższy wynik, który rzut ucznia musi osiągnąć",
         "statisticTooltip": "Statystyka, na którą rzuca uczeń",
         "refuseTooltip": "Odrzuca akcję. Uczeń zachowuje akcję.",
@@ -2883,7 +2883,7 @@
       "crowdedTitle": "Za dużo osób",
       "crowded": "{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany.",
       "crowdedNote": "Nikt nie ginie, ale utracone Health i Sanity nie wracają, a postawione Remnanty zostają na miejscu.",
-      "freeResolution": "W tej turze weź Survive albo Role reversal: działa bez rzutu. Akcja zablokowana albo odebrana w tym incydencie odpada.",
+      "freeResolution": "W tej turze weź Survive albo Role Reversal: działa bez rzutu. Akcja zablokowana albo odebrana w tym incydencie odpada.",
       "trackerCastGone": "Ten incydent wskazuje kogoś, kogo nie ma już w świecie ({who}). Pomoże tylko „Zakończ morderstwo”.",
       "castMissingHere": "Ta przeglądarka nie zna obsady trwającego incydentu, więc nie oddasz tu tury ani nie wpuścisz trzeciej osoby. Użyj „Wpisz obsadę ręcznie” w oknie „Sprawa w tej przeglądarce”.",
       "castNotArrived": "Obsada incydentu od pozostałych GM-ów jeszcze tu nie dotarła. Spróbuj za chwilę.",
@@ -3119,7 +3119,7 @@
       "descriptionColumn": "Jak wygląda",
       "descriptionPlaceholder": "np. Długie stoły, okienko do wydawania i zapach wybielacza, którego nikt nie umie umiejscowić.",
       "descriptionIntro": "Jak wygląda każdy pokój. Kto w nim stoi, widzi opis i zdjęcie na kafelku pokoju.",
-      "descriptionNote": "Zwykły tekst, pokazany tak, jak wpisano; pusta linia zaczyna nowy akapit. Zdjęcia tylko z plików tej gry, a na The Forge z twojej Assets Library. Każda przeglądarka ma opisy i zdjęcia wszystkich pokoi, więc sekrety pokoju trzymaj w skrytkach i śladach.",
+      "descriptionNote": "Zwykły tekst, pokazany tak, jak wpisano; pusta linia zaczyna nowy akapit. Zdjęcia tylko z plików tej gry, a na The Forge z twojej Assets Library. Każda przeglądarka ma opisy i zdjęcia wszystkich pokoi, więc sekrety pokoju trzymaj w skrytkach i Remnantach.",
       "imageColumn": "Zdjęcie",
       "imagePick": "Wybierz zdjęcie",
       "imageClear": "Usuń zdjęcie",
@@ -5510,7 +5510,7 @@
         "isoWelcome": "Okno powitalne Isometric Perspective zostaje zamknięte u wszystkich.",
         "dhWelcome": "Dziennik powitalny Daggerheart nie otwiera się nikomu.",
         "liveKitInFoundry": "Głos LiveKit zostaje w oknie Foundry u wszystkich.",
-        "rtcDock": "Dok kamer Foundry jest zwinięty, gdy działa kafel głosu, i żadna kamera nie wyskakuje w osobnym oknie.",
+        "rtcDock": "Dok kamer Foundry jest zwinięty, gdy działa kafelek głosu, i żadna kamera nie wyskakuje w osobnym oknie.",
         "sceneVision": "Na scenach z pokojami własne widzenie, mgłę i globalne światło Foundry przejmują pokoje: wyłączenie „Pokoje decydują, co widzą gracze” je oddaje.",
         "diceLook": "Przy jednym wyglądzie dla stołu w ustawieniu „Wygląd kości przy stole” każdy gracz i Asystent GM-a rzuca kośćmi Dice So Nice w wyglądzie jednego pełnego Gamemastera. Oddanie tego nie zmienia i nikomu nie wraca jego dawny wygląd: moduł go nie zachował."
       },
@@ -5685,7 +5685,7 @@
       "wPlanting": "{who} wsuwa „{item}” do kieszeni postaci {target}, a {target} to zauważa."
     },
     "Frisk": {
-      "rowLabel": "Zobacz, co nosi",
+      "rowLabel": "Zobacz, co ktoś nosi",
       "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
       "noticeTitle": "Frisk",
       "unseenLabel": "Ukradkiem",
@@ -7215,7 +7215,7 @@
         },
         "neutral": {
           "label": "Neutral Truth Bullet",
-          "hint": "Ślad nieustalonego pochodzenia. Użyj Analyze, by ustalić, czym naprawdę jest.",
+          "hint": "Remnant nieustalonego pochodzenia. Użyj Analyze, by ustalić, czym naprawdę jest.",
           "analysedHint": "Nic w nim nigdzie nie prowadzi. Albo zostawił go nikt w szczególności, albo jego pochodzenia nigdy nie zapisano."
         },
         "faint": {
@@ -8319,7 +8319,7 @@
         "hook-dice-so-nice-ready": "wyglądy kości nie są porządkowane",
         "hook-dice-so-nice-message": "Dice So Nice rzuca taki rzut na każdym ekranie, w kolorach GM-a",
         "hook-dice-so-nice-roll-start": "każda kość Hope i Despair rysuje się w wyglądzie, który nadał jej Daggerheart osoby rzucającej, a raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce",
-        "hook-livekit-initialized": "pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu",
+        "hook-livekit-initialized": "pokoje głosowe, kafelek głosu i mówcy rozprawy nie podążają za klientem głosu",
         "hook-image-popout-header": "okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł",
         "token-bars-reserve": "paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity",
         "state-icons-off-token": "ikony Breakdown i Wounded są widoczne na każdym żetonie, dla każdego",
@@ -8333,8 +8333,8 @@
         "notifications-lifetime": "historia trzyma własny czas, cokolwiek robią powiadomienia Foundry",
         "tooltip-clean-html": "słowa podpowiedzi w historii mogą się różnić od tego, co pokazała podpowiedź Foundry",
         "client-setting-sync-write": "ostatnich powiadomień sprzed przeładowania może brakować w historii",
-        "livekit-room-events": "kafel głosu i mówcy rozprawy nie pokazują, kto mówi, i nie śledzą, kto dołącza ani wychodzi",
-        "livekit-participant-user": "uczestnik, którego rozmowa nie potrafi nazwać, jest pominięty w kaflu głosu i wśród mówców rozprawy",
+        "livekit-room-events": "kafelek głosu i mówcy rozprawy nie pokazują, kto mówi, i nie śledzą, kto dołącza ani wychodzi",
+        "livekit-participant-user": "uczestnik, którego rozmowa nie potrafi nazwać, jest pominięty w kafelku głosu i wśród mówców rozprawy",
         "livekit-attach-audio": "wyciszony tu mówca może znów być słyszany, gdy LiveKit podepnie jego dźwięk od nowa",
         "voice-modes": "tryb, którego kafel nie zna, jest pokazywany jako otwarty mikrofon",
         "livekit-connected-users": "stan pokoju jest czytany tylko z pokoju rozmowy",

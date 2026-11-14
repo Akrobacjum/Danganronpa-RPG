@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.112, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.113, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z miejsca gracza: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co nacisnąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje". Jak moduł działa od środka, opisuje rozdział 17.
 
@@ -461,7 +461,7 @@ Palm to ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko sp
 
 Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Gdy cię zauważą, dowiadują się, czyja to była ręka i co wziąłeś albo zostawiłeś, a wszyscy inni w pokoju widzą, czyja to była ręka; przy Despair na twoim rzucie Shadow widzą też, co wziąłeś albo zostawiłeś. Bierzesz to, co wyjdzie, a krytyk pozwala ci wybrać. Limity noszenia wciąż obowiązują (rozdział 7), a jedna akcja Palm przenosi jedną sztukę ze stosu, czyli z kilku takich samych rzeczy trzymanych w jednym wierszu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie: dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, gdy nie masz już miejsca, żeby to nieść, trafia do twojej skrytki, a gdy nie masz skrytki, zostaje u nich. Palm nigdy nie sięga do skrytki. Palm odrzucony, zanim kości zostaną odczytane (cel wyszedł, zaczął się Class Trial), oddaje ci akcję; zostawienie czegoś w pełnych kieszeniach było próbą i ta akcja przepada.
 
-**Zobacz, co nosi** (Frisk) niczego nie zabiera. Kosztuje 1 akcję i robisz go jawnie albo ukradkiem.
+**Zobacz, co ktoś nosi** (Frisk) niczego nie zabiera. Kosztuje 1 akcję i robisz go jawnie albo ukradkiem.
 
 **Jawnie** prosisz tę osobę, żeby pokazała kieszenie; o to samo możesz poprosić każdego ucznia raz na porę dnia, a ponowna prośba oddaje ci akcję. Jeśli się zgodzi, widzisz to, co miała przy sobie w chwili prośby: przekazanie czegoś dalej w czasie namysłu tego nie ukryje. Jeśli odmówi albo nie odpowie w ciągu 60 sekund, możesz ją zmusić, chyba że GM to wyłączył: potrzebujesz **Body 12+**, a rzut musi zapaść w ciągu 30 sekund. Wszyscy w pokoju i tak to widzą. Gdy kieszenie zostaną opróżnione, pokazane albo przeszukane siłą, każdy w pokoju widzi, co w nich jest, tak jak ty. Jeśli gracza tej postaci nie ma, nikt nie odpowiada; za postać bez gracza odpowiada GM.
 
