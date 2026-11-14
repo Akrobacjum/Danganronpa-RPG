@@ -43,7 +43,8 @@ const NODE = names(`process console setTimeout clearTimeout setInterval clearInt
 // 123f8242, 394 files: 96 without ignoreRestSiblings, 74 with it; 0 after E56 part 1's three commits.
 // no-duplicate-imports (E56 part 2, 14.11.2026; the plan's "double imports"): one import statement a module, so a
 // name added to a file joins the line that already imports its module. On f63a2485 (the tooltip sweep merged), 405
-// files: 48 statements in 43 files of scripts/ (40 of ui-kit.mjs, 2 of utils.mjs, 1 of settings.mjs); 0 after.
+// files: 48 statements in 42 files of scripts/ (ui-kit.mjs in 40 of them, utils.mjs in 2, settings.mjs in 1;
+// projects-ui.mjs held two); 0 after. run-all's lint part plants a doubled import in each folder, red without the rule.
 const RULES = { "no-undef": ["error", { typeof: true }], "no-import-assign": "error",
     "no-unused-vars": ["error", { args: "none", varsIgnorePattern: "^_", ignoreRestSiblings: true }],
     "no-duplicate-imports": "error" };
