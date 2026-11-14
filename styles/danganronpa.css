@@ -12066,11 +12066,6 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     box-shadow: var(--drpg-panel-shadow);
 }
 
-/* The one that carries no accent of its own (the player list was the second, until E23 fix L). */
-#countdowns {
-    border-color: var(--drpg-line-strong);
-}
-
 /* ==========================================================================
    THE PROJECTS TRAY
    --------------------------------------------------------------------------
@@ -12081,6 +12076,9 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
    ========================================================================== */
 
 #countdowns {
+    /* the one block that carries no accent of its own (the player list was the second, until E23 fix L); its rule stood
+       apart above this section until E55 S3 */
+    border-color: var(--drpg-line-strong);
     --drpg-project-row: 34px;
     --drpg-project-gap: 6px;
     padding-bottom: 2px;
