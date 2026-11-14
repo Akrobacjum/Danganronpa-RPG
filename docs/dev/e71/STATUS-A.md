@@ -42,14 +42,28 @@ Keys by batch (a family once), and what of them is not rewritten:
 | B04 | 219 (with TraitRuling, Kit, Character) | 13 | 2 (`Action.dynamicHint`, `dynamicDescription`) | 28 | 3 |
 | B05 | 124 | 6 | 3 (`Cleanup.transformActionHint`, `Tamper.coverHint`, `frameHint`) | 33 | 2 |
 
-### Q-E71-1 by the map
+### Q-E71-1: the namespaces no batch names
 
-`node tools/text-map.mjs` on 1463f22b: 159 screens, keys 6855, 6448 assigned, 407 unassigned. Of the namespaces no
-batch's list names, each namespace's literal keys were read off the screens that hold them, and the batch whose
-namespaces hold most literal keys on those screens counted. Three come out on group A's B04 screens (action-tiles,
-call-gm, betrayal, murder-cards): `DRPG.TraitRuling` (23 leaves), `DRPG.Kit` (11), `DRPG.Character` (7). They go into B04.
-`DRPG.Dialog` (1 leaf) is B04-heavy too but stands in B13's range "Safeword .. DAGGERHEART" (en.json's order), so it is
-left to B13. `DRPG.Rest` (19 leaves, rest.mjs) comes out B08-heavy and is not taken.
+The coordinator's map of 14.11.2026 (binding for the four lines, measured by where each namespace's keys are used in
+scripts/) gives group A, beside its named batches: `DRPG.Despair`, `Overflow` and `Motive` (with B01b, the Despair
+Calls), `Mastermind`, `Mask` and `Body` (with B03), `Rest`, `Reserve`, `Unit`, `Infiltrate` and `TraitRuling` (with
+B04). This line's own reading (`node tools/text-map.mjs` on 1463f22b: 159 screens, keys 6855, 6448 assigned, 407
+unassigned) had put `Kit` and `Character` on B04's screens too; by the map they are group B's, and this line does not
+edit them.
+
+| Added to | Namespace | EN leaves | Keys (a family once) |
+| --- | --- | --- | --- |
+| B01b | `DRPG.Despair` | 34 | |
+| B01b | `DRPG.Overflow` | 83 | |
+| B01b | `DRPG.Motive` | 22 | 124 in all |
+| B03 | `DRPG.Mastermind` | 49 | |
+| B03 | `DRPG.Mask` | 6 | |
+| B03 | `DRPG.Body` | 2 | 57 in all |
+| B04 | `DRPG.Rest` | 19 | |
+| B04 | `DRPG.Reserve` | 7 | |
+| B04 | `DRPG.Unit` | 8 | |
+| B04 | `DRPG.Infiltrate` | 69 | |
+| B04 | `DRPG.TraitRuling` | 23 | 96 and 18 |
 
 ### Group A's screens
 
@@ -85,11 +99,11 @@ T12 and T25 find nothing in these namespaces. T13 (literals in code) in the file
 
 ## Questions (each with the default this line runs on)
 
-| Id | Question | Default |
+| Id | Question | Answer |
 | --- | --- | --- |
-| A-Q1 | `FROZEN.md` froze 38 keys of group A's namespaces for branches that have since shipped (E64, E72, E93) or are in the base (e100, r112). Are they released? | Kept unedited; each listed with what a check found. |
-| A-Q2 | The batch files and `tools/text-render.mjs` `BATCH_FILES` (one line, B01a only; `isOut` is B01a's Appendix C) | This line writes `docs/dev/text-batch-B01b.json` .. `-B05.json` in the B01a schema and checks each with `batchSchema` from a script (Appendix C aside); `BATCH_FILES` is not edited here (four lines would conflict on one line). |
-| A-Q3 | Q-E71-1 by the map: TraitRuling, Kit, Character into B04 | Yes (above). |
+| A-Q1 | `FROZEN.md` froze keys of group A's namespaces for branches that have since shipped or are in the base. Released? | The coordinator, 14.11: released for every branch in the base or not to merge; gaps-a's keys stay frozen. None of group A's frozen keys is gaps-a's, so all are rewritten in their batch (listed per batch below). |
+| A-Q2 | The batch files and `tools/text-render.mjs` `BATCH_FILES` | The coordinator, 14.11: line B makes the list a glob of `docs/dev/text-batch-*.json` and scopes `isOut` to B01a; until that lands this line checks its files with `batchSchema` from a script. |
+| A-Q3 | Q-E71-1 by the map | The coordinator's map (above). |
 
 ## Needs a local Foundry
 
