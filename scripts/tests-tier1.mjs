@@ -38056,6 +38056,33 @@ const INVARIANTS = [
             stableJson([[false, false], [true, true], true, true]),
             "[caseKeyCells, schemaEditor say leave it; they say no room yet; case-realize keeps leave it; the key exists]");
     }],
+    ["R6405 - the clean-up card of the free attempt after a critical Finishing Blow names no Sanity spent (scripts/cleanup.mjs `report`, `resolveCleanup`, `resolveTransformRoad`; D13; E71 line A, 14.11.2026), and a list of broken tools is joined by `listOf` (`destroyTools`, `Cleanup.toolsBroken`; EN2)", async () => {
+        /*
+         * E71 line A, B05's code faults (the coordinator, 14.11.2026). Red at b86d37b3: `report` printed
+         * `Cleanup.stressSpent` whenever `charged` was null - the free attempt among them, beside `Cleanup.freeAttempt`
+         * ("costs no Sanity"), so one card said both; and `destroyTools` joined the broken tools with ", ". Read from
+         * source: the clean-up runs on a GM in an incident's Stage 6, which tier 2 drives.
+         */
+        const sources = new Map(await otherSources());
+        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        must(cleanup.length > 1000, "cleanup.mjs did not load - this reads nothing");
+        const rep = fnSource(cleanup, "report") ?? "";
+        const resolve = fnSource(cleanup, "resolveCleanup") ?? "";
+        const road = fnSource(cleanup, "resolveTransformRoad") ?? "";
+        const tools = fnSource(cleanup, "destroyTools") ?? "";
+        must(rep.includes("DRPG.Cleanup.stressSpent") && tools.includes("DRPG.Cleanup.toolsBroken"), "report or destroyTools no longer names its key - this reads nothing");
+        const calls = [...`${resolve}\n${road}`.matchAll(/await report\(actor, data, \{([^}]*)\}\)/g)].map(m => m[1]);
+        const read = {
+            freeParam: /\bfree\s*=\s*false\s*\}\)\s*\{/.test(rep),
+            guarded: /free\s*\?/.test(rep) || /!free/.test(rep),
+            calls: calls.length, callsPassFree: calls.filter(c => /\bfree\b/.test(c)).length,
+            roadTakesFree: /\bfree\s*=\s*false\s*\}\)\s*\{/.test(road),
+            toolsJoin: /destroyed\.join\(", "\)\s*\}\)\}/.test(tools) || /items: foundry\.utils\.escapeHTML\(destroyed\.join/.test(tools),
+            toolsListOf: /listOf\(/.test(tools)
+        };
+        equal(stableJson(read), stableJson({ freeParam: true, guarded: true, calls: 2, callsPassFree: 2, roadTakesFree: true, toolsJoin: false, toolsListOf: true }),
+            "[report takes free and guards the price line on it; its two calls pass free; the transform road takes it; destroyTools's card joins with \", \" or listOf]");
+    }],
 
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*

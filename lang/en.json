@@ -3931,7 +3931,7 @@
       "oneOff": "One-off",
       "oneOffHint": "These happen once, at once.",
       "emptyPool": "Nothing is ticked, so the Overflow never fires and never spends its counter. Tick an effect to put it in the hat.",
-      "silenced": "Silence: nobody can use a Hope Call this time of day.",
+      "silenced": "Silence. Nobody can use a Hope Call this time of day.",
       "noHopeNow": "Despair: nobody gains Hope this time of day.",
       "name": {
         "darkness": "Darkness",

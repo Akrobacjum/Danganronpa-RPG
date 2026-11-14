@@ -858,7 +858,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
      * and left signs of the disturbing (D8).
      */
 async function resolveTransformRoad(actor, token, data, verdict, {
-    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null
+    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null, free = false
 }) {
     const { band, success, dc } = verdict;
     const byTheKiller = isCleaner(actor);
@@ -912,7 +912,7 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         if (line) done.push(line);
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free: Boolean(receipt?.free) });
+    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free });
     await keepAttempt(receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
@@ -1222,7 +1222,7 @@ export async function resolveCleanup({
 
     if (transforming && success) {
         const road = await resolveTransformRoad(actor, token, data, verdict,
-            { change, isCritical, total, viaAction, receipt, done, paidStep, charged, grant, by });
+            { change, isCritical, total, viaAction, receipt, done, paidStep, charged, grant, by, free });
         await keepAttemptFact(rolls, roll, actorId, receipt);
         return road;
     }
@@ -2559,7 +2559,7 @@ async function report(actor, data, {
     band, success, total, dc, done, viaAction = false,
     /** What the attempt paid, as a price receipt, or null when nothing said. */
     charged = null,
-    /** The free attempt (the receipt's `free`): it owes no Sanity, and `Cleanup.freeAttempt` in `done` says so. */
+    /** The free attempt after a critical Finishing Blow (D13): `done` already says it cost nothing, so no price line. */
     free = false
 }) {
     const summary = done.map(line => `<li>${line}</li>`).join("");
@@ -2584,8 +2584,6 @@ async function report(actor, data, {
             // pays Sanity from the tile, and an investigator in Stage 6's window
             // pays an action).
             ? `<p><small>${paidLine(charged)}</small></p>`
-            // Not under the free attempt (the needsCode line, R6914): "each attempt costs 1 Sanity" stood beside
-            // Cleanup.freeAttempt there.
             : free ? "" : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
                 n: RESOLUTION_STRESS_COST })}</small></p>`}`,
         success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });

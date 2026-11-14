@@ -1025,7 +1025,7 @@
         "Telegraph style (X6)."
       ],
       "needsCode": [
-        "report should leave this line out when the attempt was the free one (receipt.free)."
+        "report should leave this line out when the attempt was the free one (receipt.free). Done in the E71 code-fault commit after E54 (R6405): report takes `free` and prints no price line on the free attempt."
       ],
       "disagreements": [
         "For the owner: report prints this line when `charged` is null, which is the free attempt (resolveCleanup sets it null when `free`) or a packet with nothing charged; a line saying what was spent would be false on the free attempt's card beside DRPG.Cleanup.freeAttempt, so the text states the rule with its exception, true in both cases."
@@ -1997,7 +1997,7 @@
         "\"still evidence\" goes from the English: no function makes a broken item evidence (M2), and the Polish says the same."
       ],
       "needsCode": [
-        "destroyTools joins {items} with \", \" and no quotes; it could quote each name (EN17, PL-g) and join them through utils.mjs listOf for the Oxford comma (EN2)."
+        "destroyTools joins {items} with \", \" and no quotes; it could quote each name (EN17, PL-g) and join them through utils.mjs listOf for the Oxford comma (EN2). listOf done after E54 (R6405); the names' quotes still need a key, since English and Polish quote differently."
       ],
       "disagreements": [],
       "reviews": {
