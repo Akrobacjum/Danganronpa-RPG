@@ -1228,6 +1228,8 @@ export function injectSelectPickerSkin() {
         + ".drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection))";
     const style = document.createElement("style");
     style.id = "drpg-select-picker-skin";
+    // The chosen option (`:checked`, last) in the attention colour, as every selection since E48 K1 (E59 C2, R6755: it
+    // was gold, Hope's). Said here, not in the sheet: a comment inside the string is text T13 reads as a screen's English.
     style.textContent = `
         ${GROUP} select option {
             background: var(--drpg-ink, #1d1a21);
@@ -1237,7 +1239,6 @@ export function injectSelectPickerSkin() {
         ${GROUP} select option:focus {
             background: color-mix(in srgb, var(--drpg-bone, #e4ded8) 12%, var(--drpg-ink, #1d1a21));
         }
-        /* the chosen option in the attention colour, as every selection since E48 K1 (E59 C2, R6755: it was gold, Hope's) */
         ${GROUP} select option:checked {
             background: color-mix(in srgb, var(--drpg-attention, #e4ded8) 18%, var(--drpg-ink, #1d1a21));
         }
