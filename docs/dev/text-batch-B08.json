@@ -8969,58 +8969,6 @@
    "owner": null
   },
   {
-   "key": "DRPG.Facility.editor.tabNote",
-   "group": "window",
-   "surface": "gm-diagnostics",
-   "screen": "file:scripts/facility-editor.mjs",
-   "readers": [
-    "unknown"
-   ],
-   "source": "written",
-   "pilot": null,
-   "facts": [
-    {
-     "fact": "Room setup's Facilities tab now shows a shorter line, DRPG.Facility.editor.tabLine, which says what the tab holds; this key is no longer drawn anywhere: tier 1's R4470 checks that its text does not appear in the tab.",
-     "file": "scripts/room-setup.mjs",
-     "fn": "roomSetupContent",
-     "note": null
-    },
-    {
-     "fact": "The room's editor, opened from that tab, writes the room's actions as soon as its Save is pressed, not with Room setup's Apply.",
-     "file": "scripts/facility-editor.mjs",
-     "fn": "editRoomActions",
-     "note": null
-    }
-   ],
-   "kept": [
-    1
-   ],
-   "en": {
-    "before": "Room actions: how many the room has, and the button that opens them. Their window saves at once, not on Apply.",
-    "after": "Room actions: how many the room has, and the button that opens them. Their window saves at once, without Apply."
-   },
-   "pl": {
-    "before": "Akcje w pokoju: ile ich ma pokój i przycisk, który je otwiera. Ich okno zapisuje od razu, nie przy Apply.",
-    "after": "Okno akcji w pokoju zapisuje od razu, bez Zastosuj."
-   },
-   "removed": [
-    "X3 (T5): the antithesis 'X, not on Apply' is said as 'at once, without Apply'.",
-    "pl: 20 słów przy limicie zakładki 8 (T4), antyteza „nie przy Apply” (X3), a przycisk Room setup po polsku to „Zastosuj”, nie Apply; pierwsza część to dziś tabLine.",
-    "surface: a note in the facility editor, a GM's window, drawn nowhere today (R4470); the budgets' rule by name files it as a tab"
-   ],
-   "needsCode": [
-    "The key is not rendered (R4470 asserts its absence); T4 places it as a tab by its name (`.tab...`) and finds it over the tab limit. Either remove the key with R4470's absence check, or add an allow row for T4 with that reason; no wording of a whole sentence fits a tab's 8 words."
-   ],
-   "disagreements": [],
-   "reviews": {
-    "en": null,
-    "coldEn": null,
-    "pl": null,
-    "mechanics": null
-   },
-   "owner": null
-  },
-  {
    "key": "DRPG.Facility.editor.projectNote",
    "group": "window",
    "surface": "tile-hint",
@@ -10531,67 +10479,6 @@
     "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
    ],
    "needsCode": [],
-   "disagreements": [],
-   "reviews": {
-    "en": null,
-    "coldEn": null,
-    "pl": null,
-    "mechanics": null
-   },
-   "owner": null
-  },
-  {
-   "key": "DRPG.Vault.fogNote",
-   "group": "window",
-   "surface": "player-card",
-   "screen": "none (the map reaches no screen)",
-   "readers": [
-    "unknown"
-   ],
-   "source": "written",
-   "pilot": null,
-   "facts": [
-    {
-     "fact": "No code renders this key: the code sites the input names are other keys in the same templates, and the fog tab of Room setup shows only its intro line, its warning, the two bulk buttons and the matrix.",
-     "file": "scripts/room-setup.mjs",
-     "fn": "roomSetupContent",
-     "note": null
-    },
-    {
-     "fact": "A test holds that the fog tab does not show it.",
-     "file": null,
-     "fn": null,
-     "note": "R4470 asserts the fog pane does not contain the localized key.; read in scripts/tests-tier1.mjs, a document with no function"
-    },
-    {
-     "fact": "What it describes is still how the tab works: the two bulk buttons tick or clear every box for every character, and nothing is written until Apply.",
-     "file": "scripts/room-setup.mjs",
-     "fn": "roomSetupContent",
-     "note": null
-    }
-   ],
-   "kept": [
-    0
-   ],
-   "en": {
-    "before": "Discover all / Hide all tick or clear every checkbox above for every character at once. Nothing changes until you press Apply. The individual checkboxes are for one room, one character.",
-    "after": "The Discover all and Hide all buttons tick or clear every checkbox above, for every character at once. Nothing changes until you press Apply. Each checkbox is one room for one character."
-   },
-   "pl": {
-    "before": "Odkryj wszystko / Ukryj wszystko zaznaczają albo czyszczą każde pole powyżej dla każdej postaci naraz. Nic się nie zmienia, dopóki nie klikniesz Zastosuj. Pojedyncze pola to jeden pokój, jedna postać.",
-    "after": "Przyciski Odkryj wszystko i Ukryj wszystko zaznaczają albo odznaczają naraz wszystkie pola powyżej, dla każdej postaci. Nic się nie zmienia, dopóki nie klikniesz Zastosuj. Każde pole to jeden pokój dla jednej postaci."
-   },
-   "removed": [
-    "pl: A slash between the two button names and a telegraphic last sentence (X6).",
-    "surface: whispered to its player (whisperToOwner, read at its code site)",
-    "review: en: taken - the slash and the telegraphic last sentence go (X6), as in the Polish.",
-    "review: coldEn: taken - the same text.",
-    "review: pl: taken - „odznaczają” for \"clear\"; the key stays unused (needsCode).",
-    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
-   ],
-   "needsCode": [
-    "The key is unused (R4470 holds it absent from the fog tab); a code stage may delete it from both language files."
-   ],
    "disagreements": [],
    "reviews": {
     "en": null,

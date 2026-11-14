@@ -34,8 +34,8 @@ import { SEARCH_FLAGS, SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, plural, workingScene,
-    forcedDeletion, wirePortraitPickers, localeFormat
+    dialogContent, plural, workingScene, localeFormat,
+    forcedDeletion, wirePortraitPickers, listOf
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
@@ -1094,7 +1094,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             const unknown = (row.neighbours ?? "").split(", ").filter(name => name && !roomsAfter.has(name));
             if (unknown.length) {
                 ui.notifications.warn(game.i18n.format("DRPG.Vault.neighboursUnknown",
-                    { room: row.room, names: unknown.join(", ") }));
+                    { room: row.room, names: listOf(unknown) }));
             }
         }
 

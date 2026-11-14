@@ -1687,50 +1687,6 @@
       "owner": null
     },
     {
-      "key": "DRPG.Season.note",
-      "group": "window",
-      "surface": "gm-diagnostics",
-      "screen": "unassigned",
-      "readers": [
-        "gm"
-      ],
-      "source": "written",
-      "pilot": null,
-      "facts": [
-        {
-          "fact": "No file under scripts/ reads DRPG.Season.note: the checklist's closing note went with E101 item 2.",
-          "file": "scripts/season-setup.mjs",
-          "fn": "openSeasonChecklist",
-          "note": "grep of scripts/ for the key, 14.11.2026"
-        }
-      ],
-      "kept": [
-        0
-      ],
-      "en": {
-        "before": "Every row is something a season needs, in the order a season is built.",
-        "after": "Every row is something a season needs, in the order a season is built."
-      },
-      "pl": {
-        "before": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon się buduje.",
-        "after": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon się buduje."
-      },
-      "removed": [
-        "unchanged: no code draws it; the early pass's text (X10) is kept"
-      ],
-      "needsCode": [
-        "DRPG.Season.note is read by no file under scripts/ since E101: remove the key from lang/en.json and lang/pl.json, or draw it again."
-      ],
-      "disagreements": [],
-      "reviews": {
-        "en": null,
-        "coldEn": null,
-        "pl": null,
-        "mechanics": null
-      },
-      "owner": null
-    },
-    {
       "key": "DRPG.Season.resourcesButton",
       "group": "window",
       "surface": "button",
@@ -10099,7 +10055,7 @@
       "facts": [
         {
           "fact": "The safeword button is drawn on a student's sheet; a Monokuma's and a Spectator's sheet have none.",
-          "file": "scripts/sheet-sidebar.mjs",
+          "file": "scripts/safeword.mjs",
           "fn": "safeword",
           "note": null
         },
@@ -14207,51 +14163,6 @@
         "PL: unchanged: the Polish holds the guide; no rule calls for a change"
       ],
       "needsCode": [],
-      "disagreements": [],
-      "reviews": {
-        "en": null,
-        "coldEn": null,
-        "pl": null,
-        "mechanics": null
-      },
-      "owner": null
-    },
-    {
-      "key": "DRPG.Panel.checksSetup",
-      "group": "window",
-      "surface": "tab",
-      "screen": "season-setup",
-      "readers": [
-        "gm"
-      ],
-      "source": "written",
-      "pilot": null,
-      "facts": [
-        {
-          "fact": "No code reads this key: preSessionReport builds the room pictures, the voice, the dice look and the anonymity parts, and the cast's part became the Season checklist's rows in E101 item 2 (docs/dev/e101/STATUS.md lists it among the keys kept only so the texts line's edits merge).",
-          "file": "scripts/season-setup.mjs",
-          "fn": "preSessionReport",
-          "note": null
-        }
-      ],
-      "kept": [
-        0
-      ],
-      "en": {
-        "before": "Cast",
-        "after": "Cast"
-      },
-      "pl": {
-        "before": "Obsada",
-        "after": "Obsada"
-      },
-      "removed": [
-        "unchanged: a key no screen draws; nothing to fit to a screen",
-        "PL: unchanged: the Polish holds the guide; no rule calls for a change"
-      ],
-      "needsCode": [
-        "DRPG.Panel.checksSetup is read by no code since E101 item 2; the sweep docs/dev/e101/STATUS.md names removes it in both files."
-      ],
       "disagreements": [],
       "reviews": {
         "en": null,

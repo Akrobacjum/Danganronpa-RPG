@@ -422,7 +422,7 @@ An easy feat leaves a plain Remnant and a hard one a faint Remnant. A Search run
 |---|---|---|
 | 12 | a simple repair, 2 progress | Subtle |
 | 18 | a complex repair, 6 progress | Evident |
-| Critical | a hidden-difficulty repair, 8 progress | Obvious |
+| Critical | a Desperate repair, 8 progress | Obvious |
 | Failure | - | still leaves a Hidden Remnant |
 
 With somebody else in the room the saboteur also rolls Shadow against **16** to cover what they are doing. On Despair they fumble and the sabotage is 1 harder, and a Despair result with witnesses is told to the players of the students in the room and to the GMs. A sabotaged project is frozen until its repair project is finished.
@@ -1412,7 +1412,7 @@ The Class Trial runs from one console in one window: **The case > Class Trial**.
 
 While a trial runs the console also reads *Trial time: used of budget min (estimate)*: the minutes since the trial opened, against 270 minutes for sixteen players, in proportion to the players who took part when it opened. Like every time in this section, it is an estimate for planning and blocks nothing. When the trial runs long, what to cut is yours, but never cut Monokuma's Reveal, the Closing Argument or the vote.
 
-**The console's footer** keeps every button in its place while the trial moves on: the console is redrawn in place. The next step - the one the first line names - stands on the right, and Enter presses it. On the left stand **Close** and what cannot be undone - **End the trial**, **End the chapter** and **Start the Final Trial** - and Enter never presses one of those. While an Objection or its rebuttal holds the floor, the next step keeps its place and Enter presses nothing. **Start the Final Trial** is grayed while no Mastermind is set, and says why on hover: *No Mastermind set. Pick one from the GM panel first.* The Mastermind is picked in **Season setup > The Mastermind** (section 8).
+**The console's footer** keeps every button in its place while the trial moves on: the console is redrawn in place. The next step - the one the first line names - stands on the right, and Enter presses it. On the left stand **Close** and what cannot be undone - **End the trial**, **End the chapter** and **Start the Final Trial** - and Enter never presses one of those. While an Objection or its rebuttal holds the floor, the next step keeps its place and Enter presses nothing. **Start the Final Trial** is grayed while no Mastermind is set, and says why on hover: *No Mastermind set. Pick one in Season setup first.* The Mastermind is picked in **Season setup > The Mastermind** (section 8).
 
 **The footer follows the trial.** **The verdict** appears once the vote is counted, and **End the chapter** once the verdict and the case summary are done; each is then the console's next step. **Start the Final Trial** is not offered while an ordinary Class Trial runs. A chapter that ends without a verdict ends from the part at the bottom of **Edit campaign**.
 

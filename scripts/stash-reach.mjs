@@ -30,7 +30,7 @@ import { locateActor, sceneOfActor } from "./movement.mjs";
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
 import { iAmTheMastermind, isDeadForGm, getClock } from "./settings.mjs";
-import { whisperToOwner, whisperToGms, log, error, esc } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, error, esc, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { placeScenes } from "./rooms.mjs";
@@ -134,7 +134,7 @@ export async function stow(actor, item) {
 export function tellNotHere(actor, room = null) {
     const rooms = room ? [room] : stashRoomsFor(actor, sceneOfActor(actor)).map(entry => entry.room);
     ui.notifications.warn(rooms.length
-        ? game.i18n.format("DRPG.Vault.notHere", { room: rooms.join(", ") })
+        ? game.i18n.format("DRPG.Vault.notHere", { room: listOf(rooms, { type: "disjunction" }) })
         : game.i18n.localize("DRPG.Vault.noStashOnScene"));
 }
 
@@ -282,7 +282,7 @@ export async function rifleStashDialog(actor) {
     const stocked = stashes.filter(entry => entry.items.length);
     if (!stocked.length) {
         ui.notifications.warn(game.i18n.format("DRPG.Vault.stashEmpty", {
-            who: stashes.map(entry => entry.owner.name).join(", ")
+            who: listOf(stashes.map(entry => entry.owner.name))
         }));
         return false;
     }
@@ -318,7 +318,7 @@ export async function rifleStashDialog(actor) {
         classes: ["drpg-panel"],
         body: `<form>
             <p>${game.i18n.format("DRPG.Vault.rifleIntro", {
-                who: esc(stocked.map(entry => entry.owner.name).join(", ")),
+                who: esc(listOf(stocked.map(entry => entry.owner.name))),
                 room: esc(room)
             })}</p>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
@@ -642,7 +642,7 @@ async function tellStashDisturbedNow(owner, room, scene) {
         return false;
     }
     await whisperToGms(`<p data-drpg-stash-gm="told">${esc(game.i18n.format("DRPG.Vault.gmTold", {
-        owner: owner.name, room, names: thieves.join(", ")
+        owner: owner.name, room, names: listOf(thieves)
     }))}</p>`).catch(err => error("Could not tell the GMs which reaches a stash's notice settled", err));
     log(`${owner.name} was told somebody had been in their stash in ${room}.`);
     return true;

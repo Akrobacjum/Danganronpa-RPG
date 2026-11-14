@@ -20312,18 +20312,18 @@ const INVARIANTS = [
             neighbours: (fold => [fold?.querySelector(":scope > summary")?.textContent.trim() === L("DRPG.Vault.neighboursLine"),
                 (fold?.textContent ?? "").replace(/\s+/g, " ").includes(L("DRPG.Vault.neighboursNote").replace(/\s+/g, " ")),
                 Boolean(pane("doors")?.querySelector(`[data-tooltip="${CSS.escape(L("DRPG.Vault.neighboursNote"))}"]`))])(pane("doors")?.querySelector("details[data-drpg-neighbours]")),
-            lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")), !text("passages").includes(L("DRPG.Passage.tab.intro")),
+            // The old notes these lines replaced (Passage.tab.intro, SearchTokens.roomSetupNote, Facility.editor.tabNote,
+            // Vault.fogNote) are gone from both files since the needsCode line (R6904), so their absence is no longer read here.
+            lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")),
                 text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupLine", { max: SearchTokensMax() })),
-                !text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupNote", { max: SearchTokensMax() })),
-                text("rest").includes(L("DRPG.Facility.editor.tabLine")), !text("rest").includes(L("DRPG.Facility.editor.tabNote")),
-                !text("fog").includes(L("DRPG.Vault.fogNote"))]
+                text("rest").includes(L("DRPG.Facility.editor.tabLine"))]
         };
         equal(stableJson(read), stableJson({
             over: true, first: ["bedrooms", L("DRPG.Vault.tabRooms")],
             rooms: [L("DRPG.Vault.room"), L("DRPG.Vault.isRoomColumn"), L("DRPG.Vault.owner"), L("DRPG.Vault.notSharedColumn")], ratio: true,
             doors: [L("DRPG.Vault.room"), L("DRPG.Vault.lockedColumn"), L("DRPG.Vault.lockedAtStartColumn"), L("DRPG.Vault.brokenColumn"), L("DRPG.Vault.neighboursColumn")],
             neighbours: [true, true, false],
-            lines: [true, true, true, true, true, true, true]
+            lines: [true, true, true]
         }), "{the Apply line over the tabs; the first tab; Rooms' heads and its count; Doors' heads; the neighbours' fold [its summary the line, the note inside, a tooltip of the note]; the tabs' own lines: passages' intro new and old, "
             + "Search's tokens line new and old (arrows), room actions' line new and old, no line under Fog}");
     }],
@@ -30307,7 +30307,8 @@ const INVARIANTS = [
         // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
         const dialog = fnSource(stripComments(vaultText(await otherSources())), "rifleStashDialog");
         must(dialog, "the stash's family has no rifleStashDialog - this reads nothing");
-        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(stocked\.map\(entry => entry\.owner\.name\)\.join\(", "\)\),\s*room: esc\(room\)/.test(dialog);
+        // The owners' list through utils.mjs `listOf` since the needsCode line (R6900, EN2), not joined with ", ".
+        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(listOf\(stocked\.map\(entry => entry\.owner\.name\)\)\),\s*room: esc\(room\)/.test(dialog);
         equal(stableJson(read), stableJson({ en: [true, true, [], true], pl: [true, true, [], true], enSheet: [true, []], plSheet: [true, []], dialog: true }),
             "the rifle's window or the sheet's note does not say what a reach takes (per language: [both placeholders, once each time of day, the old "
             + "words still there, a hidden stash not found]; per language, the sheet's note: [once each time of day, the old words still there]; and "
@@ -30567,14 +30568,12 @@ const INVARIANTS = [
             "the create button or the rename does not ask the name's check, or the window does not come back on the field's tab "
             + "[createPoolFrom, wirePaneHeading, openItemTables]");
 
-        const lang = async code => (await (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" })).json());
-        const [en, pl] = [await lang("en"), await lang("pl")];
-        const placeholder = words => foundry.utils.getProperty(words, "DRPG.Tables.newTierPoolPlaceholder") ?? "";
+        // The tier pool's own name field and its placeholder (`Tables.newTierPoolPlaceholder`) went with E101's Tier pools tab;
+        // the key with the needsCode line (R6904). What stays is the window's placeholders dimmed.
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
         const dim = [...css.matchAll(/([^{}]*::placeholder[^{}]*)\{([^}]*)\}/g)]
             .some(([, sel, body]) => /drpg-window-tables/.test(sel) && /color:\s*var\(--drpg-dim\)/.test(body));
-        equal(stableJson([placeholder(en).startsWith("e.g. "), placeholder(pl).startsWith("np. "), dim]), stableJson([true, true, true]),
-            `the tier pool's placeholder reads like a typed value [en "${placeholder(en)}", pl "${placeholder(pl)}", dimmed ${dim}]`);
+        equal(stableJson([dim]), stableJson([true]), `the tables window's placeholders read like typed values [dimmed ${dim}]`);
     }],
     ["R974 - the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row with its buttons in columns of their own, the list in whole rows, each group's caption above its boxes, the help to the left, every labelled field in one grid (E14-48, S08-24, S08-25, S08-27)", async () => {
         /*
@@ -30699,14 +30698,15 @@ const INVARIANTS = [
         const points = words => {
             const install = get(words, `${T}installAction`), tiers = get(words, `${T}tabTierPools`), rooms = get(words, `${T}tabRoomPools`);
             must(install && tiers && rooms, "the window's button or tab names are missing - this would measure nothing");
-            return [["noTierPools", install], ["newTierPoolNote", install], ["installTabNote", install], ["tierTargetNone", tiers],
+            // newTierPoolNote went with the needsCode line (R6904): nothing drew it since E101.
+            return [["noTierPools", install], ["installTabNote", install], ["tierTargetNone", tiers],
                 ["noRoomTables", rooms]].map(([key, name]) => get(words, T + key).includes(name));
         };
-        const lastTab = words => ["noTierPools", "newTierPoolNote", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
+        const lastTab = words => ["noTierPools", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
         equal(stableJson([points(en), points(pl), lastTab(en), lastTab(pl)]),
-            stableJson([[true, true, true, true, true], [true, true, true, true, true], [], []]),
+            stableJson([[true, true, true, true], [true, true, true, true], [], []]),
             "a line of the tables window does not name the button or the tab it sends the GM to, or still sends them to the last tab "
-            + "[EN noTierPools, newTierPoolNote, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
+            + "[EN noTierPools, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
             + "Room pools; PL the same; the keys that say last tab, EN, PL]");
 
         const { CONFIG_TABLES } = await import("./i18n-config.mjs");
@@ -30779,7 +30779,7 @@ const INVARIANTS = [
         equal(stableJson([roads, warned]), stableJson([
             [[GOOD, 2, [REFUSED, "true", "R976 refused it"]], [null, 2, [REFUSED, "true", "R976 refused it"]], ["R976 Old name", 1, null]],
             [say("DRPG.Vault.notHere", { room: "R976 Library" }),
-                rooms.length ? say("DRPG.Vault.notHere", { room: rooms.join(", ") }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
+                rooms.length ? say("DRPG.Vault.notHere", { room: (await import("./utils.mjs")).listOf(rooms, { type: "disjunction" }) }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
         ]), "a rename handed back a refused name, asked again without the typed name and its refusal, or asked when nothing changed; or a stash "
             + "out of reach was not named [the rename: refused then good, refused then closed, unchanged - each its answer, the prompts asked, "
             + "the second prompt's field: value, aria-invalid, the sentence; the warnings: a stash in R976 Library, the student's own as found]");
@@ -38229,6 +38229,398 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ scripts: [], en: [], pl: [] }), "[the dead keys a script names; the dead keys each file still holds]");
     }],
 
+    ["R6900 - the lists group B's texts name are joined by utils.mjs `listOf`, and a taken item's name stands in its own quotes (needsCode, 14.11.2026; EN2, EN17, DB31, DB35): stash-reach.mjs `tellNotHere` (`Vault.notHere`, an \"or\" list), `rifleStashDialog` (`Vault.stashEmpty`, `rifleIntro`), `tellStashDisturbedNow` (`Vault.gmTold`), vault-store.mjs `keyCopiesAfterOwnerLeft` (`Vault.keyCopiesTakenGm`) and `clearSplitPiece` (`Rooms.renameJoined`, `pieceSplit`), room-setup.mjs `applyRoomRows` (`Vault.neighboursUnknown`), anonymity.mjs `takeFromBody` (`Loot.took`, `tookUnfound`), handover.mjs `lootCover` (`Loot.seenTaking`) and `markBodyDisturbed` (`Loot.traceNote`), through `quotedList`, passages-tab.mjs `rowHtml` (`Passage.tab.shared`, `pending`), movement.mjs `notConnectedText` (`Move.notConnected`); what is left joined by hand is the console's English log; the four Loot texts quote no placeholder, `Loot.itemQuoted` does, per language", async () => {
+        /*
+         * The needsCode line (claude/needscode-113), from group B's batches B08 and B09 (docs/dev/e71/NEEDSCODE.md #40-#48,
+         * #54, S3, S4). Red at a6aee63b: every site joined its names with ", " - \"A, B, C\" in English (no \"and\") and in
+         * Polish (no „i”) - and the Loot texts wrapped several names in one pair of quotes. Read from source: the cards come
+         * from a theft, a rifle, a Take and a rename, which tier 2 drives. `joins` is what stays joined by hand in the
+         * function: its `log(...)` lines, English for the console.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["stash-reach.mjs", "tellNotHere", ["DRPG.Vault.notHere"], 0],
+            ["stash-reach.mjs", "rifleStashDialog", ["DRPG.Vault.stashEmpty", "DRPG.Vault.rifleIntro"], 0],
+            ["stash-reach.mjs", "tellStashDisturbedNow", ["DRPG.Vault.gmTold"], 0],
+            ["vault-store.mjs", "keyCopiesAfterOwnerLeft", ["DRPG.Vault.keyCopiesTakenGm"], 1],
+            ["vault-store.mjs", "clearSplitPiece", ["DRPG.Rooms.renameJoined", "DRPG.Rooms.pieceSplit"], 1],
+            ["room-setup.mjs", "applyRoomRows", ["DRPG.Vault.neighboursUnknown"], 0],
+            ["anonymity.mjs", "takeFromBody", ["DRPG.Loot.took", "DRPG.Loot.tookUnfound", "DRPG.Loot.itemQuoted"], 0],
+            ["handover.mjs", "lootCover", ["DRPG.Loot.seenTaking"], 0],
+            ["handover.mjs", "markBodyDisturbed", ["DRPG.Loot.traceNote"], 0],
+            ["handover.mjs", "quotedList", ["DRPG.Loot.itemQuoted"], 0],
+            ["passages-tab.mjs", "rowHtml", ["DRPG.Passage.tab.shared", "DRPG.Passage.tab.pending"], 0],
+            ["movement.mjs", "notConnectedText", ["DRPG.Move.notConnected"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(`"${key}"`)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\b(?:listOf|quotedList)\(/.test(bodies[i])]);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const quoted = [en, pl].map(file => ["took", "tookUnfound", "traceNote", "seenTaking"].filter(k => /[“„”]\{/.test(String(file?.DRPG?.Loot?.[k] ?? ""))));
+        equal(stableJson({ read, quoted, itemQuoted: [en?.DRPG?.Loot?.itemQuoted, pl?.DRPG?.Loot?.itemQuoted] }),
+            stableJson({ read: SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true]), quoted: [[], []], itemQuoted: ["“{item}”", "„{item}”"] }),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf; the Loot texts that quote a placeholder, EN and PL; Loot.itemQuoted EN and PL]");
+    }],
+
+    ["R6901 - the lists the trial's texts name are joined by utils.mjs `listOf` (needsCode, 14.11.2026; EN2, DB35): trial-floor-ui.mjs `endClassTrial` (`Floor.endTrialExecutes`), `trialConsoleHtml` and `openVoteDialog` (`Vote.stillOut`, `recipients`), vote.mjs `closeRound` (`Vote.accusesLineMany`), verdict.mjs `openVerdictDialog` (`Vote.namedByTable`, `accusedDead`, `unfoundDead`), `askBlackenedRule` (`Vote.blackenedRuleUnfound`), `postVerdictCard` (`Vote.executionPending`, `executionNow`) and `verdictDespair` (`Vote.despairFilled`), events.mjs `afterVerdictCard` (`Vote.executionPending`) and trial-modes.mjs `startRound` (`Floor.round.startedLine`); what stays joined by hand is a label's list (the known Blackened) and English for the console", async () => {
+        /*
+         * The needsCode line (claude/needscode-113), from line C's batch B10a (docs/dev/e71/NEEDSCODE.md #60-#68, #70,
+         * #71; askBlackenedRule's line is the same fault, found beside them). Red at 747c91eb: each joined its names with
+         * ", ", so \"A, B, C\" in English and in Polish. Read from source; the cards and windows are tier 2's and 63's.
+         * `joins`: what stays by hand in the function - in openVerdictDialog the known Blackened after their label.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["trial-floor-ui.mjs", "endClassTrial", ["DRPG.Floor.endTrialExecutes"], 0],
+            ["trial-floor-ui.mjs", "trialConsoleHtml", ["DRPG.Vote.stillOut"], 0],
+            ["trial-floor-ui.mjs", "openVoteDialog", ["DRPG.Vote.recipients", "DRPG.Vote.stillOut"], 0],
+            ["vote.mjs", "closeRound", ["DRPG.Vote.accusesLineMany"], 1],
+            ["verdict.mjs", "openVerdictDialog", ["DRPG.Vote.namedByTable", "DRPG.Vote.accusedDead", "DRPG.Vote.unfoundDead"], 1],
+            ["verdict.mjs", "askBlackenedRule", ["DRPG.Vote.blackenedRuleUnfound"], 0],
+            ["verdict.mjs", "postVerdictCard", ["DRPG.Vote.executionPending", "DRPG.Vote.executionNow"], 0],
+            ["verdict.mjs", "verdictDespair", ["DRPG.Vote.despairFilled"], 0],
+            ["events.mjs", "afterVerdictCard", ["DRPG.Vote.executionPending"], 0],
+            ["trial-modes.mjs", "startRound", ["DRPG.Floor.round.startedLine"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(`"${key}"`)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\blistOf\(/.test(bodies[i])]);
+        equal(stableJson(read), stableJson(SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true])),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf]");
+    }],
+
+    ["R6902 - the rest of the lists group C and D's texts name are joined by utils.mjs `listOf`, and a roll's sources write a negative with \"-\" (needsCode, 14.11.2026; EN2, DB35, the dash rule): roll-dialog.mjs `explainAdvantage` (`RollDialog.stackedAdvantage`, `stackedDisadvantage`), gm-team-dialog.mjs `wireMonokumaLive` (`Monokuma.sharedPool`), action-project.mjs `performSabotage` (`Project.allSabotaged`, `someSabotaged`), enforced.mjs `holdPermissions` (`Enforced.filesFirstHold`: each role's permissions; the roles stay \"; \"-separated), user-match.mjs `tellGms` (`Users.match.*`), season-wipe.mjs `wipeSeason` (`Season.reportCard.stayed`), gm-stores.mjs `backupCase` (`Case.backupEarly`) and `gmStoreHealth` (`Case.row.skew`)", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #33, #34, #79, #82, #86, #87, #106, #122,
+         * #124. Red at 1d2b2125: each joined its names with ", " (\"A, B, C\": no \"and\", no Polish „i”), and
+         * explainAdvantage wrote U+2212 before a negative value. `joins`: what stays joined by hand - in wipeSeason the
+         * console's English log and the report's label lists, in holdPermissions the roles' groups and in user-match the
+         * owners' list after a label.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["roll-dialog.mjs", "explainAdvantage", ["DRPG.RollDialog.source."], 0],
+            ["gm-team-dialog.mjs", "wireMonokumaLive", ["DRPG.Monokuma.sharedPool"], 0],
+            ["action-project.mjs", "performSabotage", ["DRPG.Project.allSabotaged", "DRPG.Project.someSabotaged"], 0],
+            ["enforced.mjs", "holdPermissions", ["DRPG.Enforced.filesFirstHold"], 1],
+            ["user-match.mjs", "tellGms", ["DRPG.Users.match.owned", "DRPG.Users.match.owns"], 0],
+            ["season-wipe.mjs", "wipeSeason", ["DRPG.Season.reportCard.stayed"], 7],
+            ["gm-stores.mjs", "backupCase", ["DRPG.Case.backupEarly"], 0],
+            ["gm-stores.mjs", "gmStoreHealth", ["DRPG.Case.row.skew"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(key)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\blistOf\(/.test(bodies[i])]);
+        const minus = /\\u2212|\u2212/.test(bodies[0]);
+        equal(stableJson({ read, minus }), stableJson({ read: SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true]), minus: false }),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf; explainAdvantage writes U+2212]");
+    }],
+
+    ["R6903 - a Call says what it did in the page's words and keeps no price for nothing (needsCode, 14.11.2026; the GM handbook 6.2 \"A Call that would change nothing is refused before it is paid\"; EN2, EN17): call-effects.mjs `projectRefusal` refuses a Call that takes progress from a project at 0, `progressEffect` throws `NothingToDo` (the refund) when the GM's write moved nothing and `Calls.progressRefused` is gone; `damageEffect` says each reserve through `DRPG.Reserve.*` joined by `listOf`; calls.mjs's two refunds give `Calls.refunded` the price with its unit; call-pickers.mjs `pickItem` names a living student's item through `Calls.carriedBy`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md S1 (Q-B-2), #30, #31, #32. Red at d2afa5f4:
+         * Game Integrity on a project at 0 was paid, moved nothing and was not refunded (projectRefusal let it through,
+         * progressEffect pushed `Calls.progressRefused`, so applyCall saw no failure); damageEffect wrote \"Health\" and
+         * \"Sanity\" as literals joined by \", \"; the refunds passed the bare number (\"koszt (2) wraca\"); pickItem's row
+         * for a living student was the literal \"Name - Item\". Read from source; tier 2 drives the Calls.
+         */
+        const sources = new Map(await otherSources());
+        const fx = stripComments(sources.get("call-effects.mjs") ?? ""), calls = stripComments(sources.get("calls.mjs") ?? "");
+        const pickers = stripComments(sources.get("call-pickers.mjs") ?? "");
+        const refusal = fnSource(fx, "projectRefusal") ?? "", progress = fnSource(fx, "progressEffect") ?? "", damage = fnSource(fx, "damageEffect") ?? "";
+        const pick = fnSource(pickers, "pickItem") ?? "";
+        const hope = fnSource(calls, "spendHopeCall") ?? "", despair = fnSource(calls, "spendDespairCallFor") ?? "";
+        must(refusal && progress && damage && pick && hope && despair, "a Call's function is gone - this reads nothing");
+        const refundOf = body => (body.match(/"DRPG\.Calls\.refunded", \{[^}]*\}/) ?? [""])[0];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const read = {
+            refusesEmpty: /call\.progress\s*<\s*0/.test(refusal) && /\.current\b/.test(refusal),
+            refundsUnmoved: /changed\s*===\s*false[\s\S]{0,240}throw new NothingToDo/.test(progress),
+            progressRefused: [progress.includes("DRPG.Calls.progressRefused"), Object.hasOwn(en?.DRPG?.Calls ?? {}, "progressRefused"), Object.hasOwn(pl?.DRPG?.Calls ?? {}, "progressRefused")],
+            damage: [/"Health"|"Sanity"/.test(damage), /DRPG\.Reserve\./.test(damage), /\blistOf\(/.test(damage), /\.join\(", "\)/.test(damage)],
+            refunds: [refundOf(hope).includes("DRPG.Calls.costsHopeShort"), refundOf(despair).includes("DRPG.Calls.costsDespairShort")],
+            pick: [/`\$\{actor\.name\} - \$\{item\.name\}`/.test(pick), pick.includes("\"DRPG.Calls.carriedBy\""), Boolean(en?.DRPG?.Calls?.carriedBy), Boolean(pl?.DRPG?.Calls?.carriedBy)]
+        };
+        equal(stableJson(read), stableJson({ refusesEmpty: true, refundsUnmoved: true, progressRefused: [false, false, false],
+            damage: [false, true, true, false], refunds: [true, true], pick: [false, true, true, true] }),
+            "[projectRefusal refuses a take from 0; progressEffect refunds an unmoved bar; progressRefused named, in en, in pl; damageEffect: English literals, "
+            + "Reserve keys, listOf, a hand join; the refunds' price with its unit (Hope, Despair); pickItem: the literal row, carriedBy, in en, in pl]");
+    }],
+
+    ["R6904 - the keys the text lines found dead are gone from both language files and no script names them (needsCode, 14.11.2026): `Vault.fogNote`, `Look.uiScaleAuto` and `uiScaleSlider` with look.mjs `scaleNote` that read them and nothing called, `TrialScene.noWayBack`, `hallDark` and `prepare`, `Season.note`, `Panel.checksSetup`, `SearchTokens.roomSetupNote`, `Tables.newTierPool`, `newTierPoolPlaceholder` and `newTierPoolNote`, `Zones.open`, `Facility.editor.tabNote`, `Passage.tab.intro` and `pick.cancel`, `Monocub.nobodyDead`, `manageTitle`, `dialogIntro`, `isOne`, `tickFirst` and `student`, `Floor.startPanic`, `startClosing` and `startTrialNoHall`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #50, #53, #58, #59, #73, #96, #113, #115,
+         * #129, #130, #133, S6, S8, S9, S11. Each was read against the code before it went: no literal names it and no
+         * template can make it (TrialScene's `${key}` reads zoneA, zoneB, preparePlaylist, prepareVoice; Panel's `${key}`
+         * the three A/V checks; Monocub's a row's choices and the critical's two keys; startPanic and startClosing are
+         * action names). TrialScene.scenesIntro, named with them in line C's notes, is read (trial-scene.mjs) and stays; so does
+         * Panel.seasonChecks, which docs/design/windows.md's M4 row (the owner's approval) names and R1334 holds.
+         * Red at 729987e4: every key in both files, and scaleNote in look.mjs.
+         */
+        const DEAD = ["Vault.fogNote", "Look.uiScaleAuto", "Look.uiScaleSlider", "TrialScene.noWayBack", "TrialScene.hallDark", "TrialScene.prepare",
+            "Season.note", "Panel.checksSetup", "SearchTokens.roomSetupNote", "Tables.newTierPool", "Tables.newTierPoolPlaceholder",
+            "Tables.newTierPoolNote", "Zones.open", "Facility.editor.tabNote", "Passage.tab.intro", "Passage.pick.cancel", "Monocub.nobodyDead",
+            "Monocub.manageTitle", "Monocub.dialogIntro", "Monocub.isOne", "Monocub.tickFirst", "Monocub.student", "Floor.startPanic",
+            "Floor.startClosing", "Floor.startTrialNoHall"];
+        const sources = new Map(await otherSources());
+        must(sources.size > 100 && sources.has("look.mjs"), "the module's sources did not load - this reads nothing");
+        const all = [...sources.values()].map(stripComments).join("\n");
+        const read = { scripts: DEAD.filter(k => new RegExp(`DRPG\\.${k.replace(/\./g, "\\.")}(?![\\w.])`).test(all)),
+            scaleNote: /\bfunction scaleNote\b/.test(sources.get("look.mjs")) };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            must(file?.DRPG?.Monocub && file?.DRPG?.Tables, `lang/${lang}.json has no DRPG.Monocub or Tables - this reads nothing`);
+            read[lang] = DEAD.filter(k => foundry.utils.getProperty(file.DRPG, k) !== undefined);
+        }
+        equal(stableJson(read), stableJson({ scripts: [], scaleNote: false, en: [], pl: [] }),
+            "[the dead keys a script names; look.mjs still has scaleNote; the dead keys each file still holds]");
+    }],
+
+    ["R6905 - a Monocub's browser asks what a move costs it now, as the GM charges it (needsCode, 14.11.2026; E72 C17, DC34: a move done to order costs its action and no Hope): monocub.mjs `performCubAbility` reads `priceOf(actor, row)` for the actions and the Hope it checks, never the row's bare `cost` or `hopeCost`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #76, #77. Red at 2883945f: the check read
+         * `row.cost` and `row.hopeCost`, so a Monocub with an open order and no Hope was told it lacked Hope and refused on
+         * its own browser, though the GM charges `priceOf` (no Hope for a move to order) and would carry it out. The sheet's
+         * button (sheet.mjs `abilityButton`) asks the same and is E54's file: it waits for that stage.
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "monocub.mjs")?.[1] ?? "");
+        const body = fnSource(src, "performCubAbility") ?? "";
+        must(body.includes("DRPG.Monocub.needHope"), "performCubAbility no longer says needHope - this reads nothing");
+        equal(stableJson([/priceOf\(actor, row\)/.test(body), /\brow\.hopeCost\b/.test(body), /\brow\.cost\b/.test(body)]),
+            stableJson([true, false, false]), "[performCubAbility: priceOf asked; row.hopeCost read; row.cost read]");
+    }],
+
+    ["R6906 - a project's scale and a picture's size are written in the page's language (needsCode, 14.11.2026; T20): action-project.mjs `startProject` builds its Scale options with `plural(\"DRPG.Project.scaleOption\")`, as projects-ui.mjs does, and its proposal's summary with the same, not \"<label> - <n> progress\" in English; room-setup.mjs `pictureWarning` fills `Panel.checksImagesBytes`'s {mb} through utils.mjs `localeFormat`, not `toFixed(1)`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #83, #114. Red at 173256af: the player's
+         * Start a project window and the proposal card the GM reads said \"progress\" in English on a Polish page, and
+         * Room setup's picture warning read \"2.5\" where Pre-season checks read \"2,5\" (season-setup.mjs's `mb`).
+         */
+        const sources = new Map(await otherSources());
+        const start = fnSource(stripComments(sources.get("action-project.mjs") ?? ""), "startProject") ?? "";
+        const warn = fnSource(stripComments(sources.get("room-setup.mjs") ?? ""), "pictureWarning") ?? "";
+        must(start && warn.includes("DRPG.Panel.checksImagesBytes"), "startProject or pictureWarning is gone - this reads nothing");
+        equal(stableJson({ english: /\d*\}? progress[`<]/.test(start) || /\$\{s\.progress\} progress/.test(start) || /\$\{result\.target\} progress/.test(start),
+            plural: (start.match(/plural\("DRPG\.Project\.scaleOption"/g) ?? []).length, toFixed: /toFixed\(/.test(warn), locale: /localeFormat\("number"/.test(warn) }),
+            stableJson({ english: false, plural: 2, toFixed: false, locale: true }),
+            "[startProject: \"progress\" typed in English; plural(scaleOption) calls; pictureWarning: toFixed, localeFormat]");
+    }],
+
+    ["R6907 - a count before a Polish noun is a plural family (needsCode, 14.11.2026; PL-b): `Season.resetPools` (despair.mjs `tallySeasonDespair`, the pools not empty) and `Diagnostics.cast.experiences` (diagnostics.mjs `diagnoseCharacters`, STARTING.experiences) are one/other in English and one/few/many/other in Polish, read through utils.mjs `plural`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #105, #144. Red at 4522d6f7: both were one
+         * string, so the Polish read „(1 niepustych)” for one pool, and „{n} doświadczenia” is right for 2-4 alone (5 wants
+         * „doświadczeń”) - right today only because STARTING.experiences is 2.
+         */
+        const sources = new Map(await otherSources());
+        const tally = fnSource(stripComments(sources.get("despair.mjs") ?? ""), "tallySeasonDespair") ?? "";
+        const diag = stripComments(sources.get("diagnostics.mjs") ?? "");
+        must(tally && diag.includes("experiencesFix"), "tallySeasonDespair or the cast's check is gone - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const forms = (file, key) => { const v = foundry.utils.getProperty(file, key); return v && typeof v === "object" ? Object.keys(v).sort() : typeof v; };
+        const KEYS = ["DRPG.Season.resetPools", "DRPG.Diagnostics.cast.experiences"];
+        equal(stableJson({ callers: [/plural\("DRPG\.Season\.resetPools"/.test(tally), /plural\("DRPG\.Diagnostics\.cast\.experiences"/.test(diag)],
+            en: KEYS.map(k => forms(en, k)), pl: KEYS.map(k => forms(pl, k)),
+            words: [foundry.utils.getProperty(pl, "DRPG.Season.resetPools.one"), foundry.utils.getProperty(pl, "DRPG.Diagnostics.cast.experiences.many")].map(v => /niepusta\)|doświadczeń/.test(String(v))) }),
+            stableJson({ callers: [true, true], en: [["one", "other"], ["one", "other"]], pl: [["few", "many", "one", "other"], ["few", "many", "one", "other"]], words: [true, true] }),
+            "[the callers use plural; the English forms; the Polish forms; PL one pool „niepusta”, many experiences „doświadczeń”]");
+    }],
+
+    ["R6908 - three lines say what happened as it happened (needsCode, 14.11.2026): use-items.mjs `grantItemEffect` puts `Items.used` and its summary in two paragraphs, as `useItem` does, never \"Used “X”. - ...\"; the Take's cover roll is titled with its threshold, `Loot.coverTitle` {n} as every other roll title (`Action.palmTitle`), in English and Polish; case-summary.mjs `showCaseSummary` tells the GM `CaseSummary.sent`, which no caller read", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #37, #41, #128. Red at a5030c9c: the GM's
+         * ruling on an item joined a full sentence and its summary with \" - \"; the Take's Shadow roll was the only roll
+         * title without the number it must beat; trial-floor-ui.mjs `manageClassTrial` awaited showCaseSummary and dropped
+         * the line it answered, so no GM ever read it.
+         */
+        const sources = new Map(await otherSources());
+        const grant = fnSource(stripComments(sources.get("use-items.mjs") ?? ""), "grantItemEffect") ?? "";
+        const anon = stripComments(sources.get("anonymity.mjs") ?? "");
+        const show = fnSource(stripComments(sources.get("case-summary.mjs") ?? ""), "showCaseSummary") ?? "";
+        must(grant.includes("DRPG.Items.usedNothing") && anon.includes("DRPG.Loot.coverTitle") && show.includes("DRPG.CaseSummary.sent"), "a site is gone - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        equal(stableJson({ dashJoin: /\}\)\} - \$\{summary/.test(grant),
+            coverTitle: [/localize\("DRPG\.Loot\.coverTitle"\)/.test(anon), (anon.match(/format\("DRPG\.Loot\.coverTitle", \{ n: LOOT\.cover\.threshold \}\)/g) ?? []).length,
+                String(en?.DRPG?.Loot?.coverTitle).includes("{n}"), String(pl?.DRPG?.Loot?.coverTitle).includes("{n}")],
+            sent: /const (\w+) = L\("DRPG\.CaseSummary\.sent"\);\s*ui\.notifications\.info\(\1\)/.test(show) }),
+            stableJson({ dashJoin: false, coverTitle: [false, 2, true, true], sent: true }),
+            "[grantItemEffect joins with \" - \"; coverTitle: localized bare, formatted with the threshold, {n} in en, in pl; showCaseSummary tells the GM]");
+    }],
+
+    ["R6909 - a zone mode that cannot start says why to the GM who pressed it (needsCode, 14.11.2026): trial-zones.mjs `zoneArgsRefusal` reads the start as zone-machine.mjs `zoneStart` will - a Straw Poll or a Scrum with an answer blank is `Zones.noAnswers`, a Logic Dive with no set `Zones.noSet`, a set's blank question `Zones.noQuestion` - and `startZone` warns that reason before it asks the primary; `Zones.notStarted` is left for what only the primary finds", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #134-#137. Red at 99d1541c: trial-floor.mjs
+         * `zoneStartInStep` answers null on the machine's refusal, so startZone could only say notStarted, which lists
+         * every reason; noAnswers, noQuestion and noSet never reached a GM. Asked here of the pure reading, nothing written.
+         */
+        let Z = null;
+        try { Z = await import("./trial-zones.mjs"); } catch { Z = null; }
+        must(Z, "trial-zones.mjs did not load - this reads nothing");
+        const ask = async (op, args) => (typeof Z.zoneArgsRefusal === "function" ? await Z.zoneArgsRefusal(op, args) : "no zoneArgsRefusal");
+        const read = [await ask("straw", { text: "Q?", a: "Yes", b: "" }), await ask("scrum", { text: "Q?", a: "", b: "No", thesis: "" }),
+            await ask("dive", { set: "", from: 0 }), await ask("straw", { text: "Q?", a: "Yes", b: "No" })];
+        const start = fnSource(stripComments((await otherSources()).find(([name]) => name === "trial-zones.mjs")?.[1] ?? ""), "startZone") ?? "";
+        must(start, "startZone is gone - this reads nothing");
+        equal(stableJson({ read, asksFirst: /zoneArgsRefusal\(op, args\)[\s\S]*floorStep\(op, args\)/.test(start) }),
+            stableJson({ read: ["DRPG.Zones.noAnswers", "DRPG.Zones.noAnswers", "DRPG.Zones.noSet", null], asksFirst: true }),
+            "[the reason for: a Straw Poll with no B, a Scrum with no A, a Logic Dive with no set, a whole Straw Poll; startZone asks it before the primary]");
+    }],
+
+    ["R6910 - a Logic Dive set started and never ended is not said to have ended (needsCode, 14.11.2026): trial-zones-ui.mjs `replayWarning` gives a set with `usedAt` and no `endedAt` nor a stopping place `Zones.dive.replayUnfinished` (\"started {when} and not finished\"), an ended set `Zones.dive.replay` with its outcome as before, a stopped one `replayStopped`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #139. Red at the R6909 commit: an unfinished
+         * set read \"it ended {when} (played)\" - `outcome` null put \"played\" in replay's \"it ended\". Pure: asked of
+         * three made-up sets, nothing written.
+         */
+        let U = null;
+        try { U = await import("./trial-zones-ui.mjs"); } catch { U = null; }
+        must(typeof U?.replayWarning === "function", "trial-zones-ui.mjs has no replayWarning - this reads nothing");
+        const { localeFormat } = await import("./utils.mjs");
+        const at = 1700000000000, when = localeFormat("dateTime", at);
+        const F = (key, data) => game.i18n.format(key, data);
+        equal(stableJson([U.replayWarning({ usedAt: at }), U.replayWarning({ usedAt: at - 5, endedAt: at, outcome: "solved" }),
+            U.replayWarning({ usedAt: at, stoppedAt: 1, outcome: "stopped" }), game.i18n.has("DRPG.Zones.dive.replayUnfinished")]),
+            stableJson([F("DRPG.Zones.dive.replayUnfinished", { when }), F("DRPG.Zones.dive.replay", { when, outcome: game.i18n.localize("DRPG.Zones.dive.outcome.solved") }),
+                F("DRPG.Zones.dive.replayStopped", { when, n: 2, outcome: game.i18n.localize("DRPG.Zones.dive.outcome.stopped") }), true]),
+            "[a set started, not ended; one ended solved; one stopped at question 2; the key exists]");
+    }],
+
+    ["R6911 - a room action's Search Tokens line says how many came back, not how many were asked (needsCode, 14.11.2026): facilities-gm.mjs `applyEffects` counts what search-tokens.mjs `giveBack` answered - each token capped at the room's maximum, none on a GM that is not the primary - and says `Facility.applied.searchToken` with that count, or `searchTokenFull` when none came back", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #51. Red at 1c89f07a: the line passed
+         * `effect.n`, the GM's number, so a full room read \"+3\" with nothing given back. Read from source; tier 2 runs the
+         * room actions.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "facilities-gm.mjs")?.[1] ?? ""), "applyEffects") ?? "";
+        must(body.includes("giveBack"), "applyEffects no longer gives Search Tokens back - this reads nothing");
+        equal(stableJson([/t\("searchToken", \{ n: effect\.n\b/.test(body), /const \w+ = await SearchTokens\.giveBack\(/.test(body), /"searchTokenFull"/.test(body),
+            game.i18n.has("DRPG.Facility.applied.searchTokenFull")]), stableJson([false, true, true, true]),
+            "[the line says effect.n; giveBack's answer read; searchTokenFull said; the key exists]");
+    }],
+
+    ["R6912 - where a token stands reaches a sentence as a phrase with its own preposition, so a spot outside the rooms reads right in Polish (needsCode, 14.11.2026; docs/text-style.md section 14, as `Explain.phase.eclipseReach`): rooms.mjs `roomPhrase(kind, room)` (a leaf movement.mjs and movement-audit.mjs both read) gives `DRPG.Movement.at`, `into` or `out` (`.room` with the room's name, `.none` outside the rooms); `Movement.ruleSentBack`, `dropRemoved`, `unlawfulArrival`, `droppedFromNowhere` and `Panel.refundCrossingNote` take it, and none of their Polish writes „pokoju {…}” or „do {…}” around a room's placeholder", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #117, S2 (Q-B-6). Red at 4b30a27a: the
+         * hosts wrote „do pokoju {room}”, „w pokoju {room}”, „z pokoju {from}” and „z powrotem do {from}”, and with no room
+         * the code put `Movement.outsideRooms` („poza pokojami”) there: „do pokoju poza pokojami”. English read
+         * \"moved into a spot outside the rooms\", which stands.
+         */
+        let M = null;
+        try { M = await import("./rooms.mjs"); } catch { M = null; }
+        must(M, "rooms.mjs did not load - this reads nothing");
+        const phrase = typeof M.roomPhrase === "function" ? M.roomPhrase : null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const HOSTS = ["Movement.ruleSentBack", "Movement.dropRemoved", "Movement.unlawfulArrival", "Movement.droppedFromNowhere", "Panel.refundCrossingNote"];
+        const bent = HOSTS.filter(k => /pokoju \{|do \{/.test(String(foundry.utils.getProperty(pl.DRPG, k) ?? "")));
+        const fragments = ["at", "into", "out"].flatMap(kind => ["room", "none"].map(form => [`Movement.${kind}.${form}`,
+            game.i18n.has(`DRPG.Movement.${kind}.${form}`), foundry.utils.getProperty(pl.DRPG, `Movement.${kind}.${form}`) !== undefined]));
+        const sources = new Map(await otherSources());
+        const sites = [["movement-audit.mjs", "auditMove"], ["movement.mjs", "removeDrop"], ["movement.mjs", "tellUnlawful"], ["movement.mjs", "tellDropped"],
+            ["gm-students.mjs", "refundButton"]].map(([file, fn]) => {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn) ?? stripComments(sources.get(file) ?? "");
+            return [file, fn, /roomPhrase\(/.test(body)];
+        });
+        equal(stableJson({ phrase: phrase ? [phrase("at", "Library"), phrase("into", null)] : null, bent, fragments, sites }),
+            stableJson({ phrase: [game.i18n.format("DRPG.Movement.at.room", { room: "Library" }), game.i18n.localize("DRPG.Movement.into.none")], bent: [],
+                fragments: ["at", "into", "out"].flatMap(kind => ["room", "none"].map(form => [`Movement.${kind}.${form}`, true, true])),
+                sites: sites.map(([file, fn]) => [file, fn, true]) }),
+            "[roomPhrase for a room and for none; the Polish hosts that bend a room's placeholder; each fragment in en and pl; each site asks roomPhrase]");
+    }],
+
+    ["R6913 - a Level Up the GM grants from its own window says the GM granted it, not that the class named the Blackened or a wrong vote freed them (needsCode, 14.11.2026): level-up.mjs `openAdvancementFor` (the sheet's menu, the Students window, `game.drpg.advanceFor`) opens the GM's picks with `reasons: [\"DRPG.Advance.reason.granted\"]`, in English and Polish", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #75. Red at 4bc27697: openAdvancement was
+         * called with no reasons, so the reason was the kind's (`DRPG.Advance.reason.${kind}`): a Reinforced Level Up the
+         * menu's hint offers \"for an exceptional chapter\" told the player a wrong vote let the Blackened go free. An offer
+         * the GM sends from the same window (`offerAdvancement`) still carries the kind alone: its record and its bridge row
+         * carry no reason, a change left open in NEEDSCODE.md.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "level-up.mjs")?.[1] ?? ""), "openAdvancementFor") ?? "";
+        must(body.includes("openAdvancement(actor"), "openAdvancementFor no longer opens the GM's picks - this reads nothing");
+        const calls = [...body.matchAll(/openAdvancement\(actor, [^)]*\)/g)].map(m => m[0]);
+        equal(stableJson({ granted: calls.length > 0 && calls.every(c => c.includes("GRANTED")) && /const GRANTED = \{ reasons: \["DRPG\.Advance\.reason\.granted"\] \}/.test(body),
+            key: game.i18n.has("DRPG.Advance.reason.granted") }), stableJson({ granted: true, key: true }),
+            "[every call of the GM's picks gives the granted reason; the key exists]");
+    }],
+
+    ["R6914 - a clean-up's report keeps to what was paid, and a broken tool's name stands in its quotes (needsCode, 14.11.2026, after E54; EN2, EN17): cleanup.mjs `report` takes `free` and says `Cleanup.stressSpent` only for an attempt that was not the free one, both its callers (`resolveCleanup`, `resolveTransformRoad`) passing it; `destroyTools` names each broken item through `Loot.itemQuoted`, the list joined by `listOf`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #28, #29, held for E54's split of
+         * cleanup.mjs. Red at 7a5be797: `report` printed \"Each clean-up attempt costs 1 Sanity\" under the free attempt
+         * (charged null, so the fallback line), beside `Cleanup.freeAttempt`; destroyTools wrote \"Knife, Rope\" with no
+         * quotes and no \"and\".
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "cleanup.mjs")?.[1] ?? "");
+        const rep = fnSource(src, "report") ?? "", tools = fnSource(src, "destroyTools") ?? "";
+        const roads = ["resolveCleanup", "resolveTransformRoad"].map(fn => fnSource(src, fn) ?? "");
+        must(rep.includes("DRPG.Cleanup.stressSpent") && tools.includes("DRPG.Cleanup.toolsBroken") && roads.every(Boolean), "a clean-up function is gone - this reads nothing");
+        equal(stableJson({ free: /\bfree = false\b/.test(rep) && /free \?/.test(rep),
+            callers: roads.map(body => /await report\([^)]*\bfree\b/.test(body)),
+            tools: [/destroyed\.join\(", "\)\s*\}\)/.test(tools) || /items: foundry\.utils\.escapeHTML\(destroyed\.join/.test(tools), /\blistOf\(/.test(tools), tools.includes("DRPG.Loot.itemQuoted")] }),
+            stableJson({ free: true, callers: [true, true], tools: [false, true, true] }),
+            "[report takes free and branches on it; each caller passes free; destroyTools: joined by hand, listOf, quoted]");
+    }],
+
+    ["R6915 - the GMs' card of a trace that found no token names the action as the Remnant card does (needsCode, 14.11.2026, after E54): remnants.mjs `dropRemnant` fills `Remnant.noTokenGm`'s {action} with `actionLabelOf(action)`, the action's name in the page's language, not its id", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #36, held for E54's split. Red at 9fb06bdb:
+         * the card read \"search\" or \"resolution\", the raw id, while the Remnant card's Action row says the name.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "remnants.mjs")?.[1] ?? ""), "dropRemnant") ?? "";
+        must(body.includes("DRPG.Remnant.noTokenGm"), "dropRemnant no longer tells the GMs of a missing token - this reads nothing");
+        equal(stableJson([/action: foundry\.utils\.escapeHTML\(action\)/.test(body), /action: foundry\.utils\.escapeHTML\(actionLabelOf\(action\)/.test(body)]),
+            stableJson([false, true]), "[the raw id passed; actionLabelOf passed]");
+    }],
+
+    ["R6916 - a Monocub's tile on the sheet prices a move as the GM charges it (needsCode, 14.11.2026, after E54; E72 C17, DC34): sheet-actions.mjs `abilityButton` reads monocub.mjs `priceOf(actor, def)` for what it checks, greys and says, never the row's bare `cost` or `hopeCost` - the sheet's half of R6905", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #76, the sheet's half, held for E54's split
+         * of sheet.mjs. Red at 527c5546: the tile tested `def.cost` and `def.hopeCost`, so a Monocub with an open order
+         * and no Hope saw the move greyed with `Monocub.cannotMeddle` though the GM would charge no Hope.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "sheet-actions.mjs")?.[1] ?? ""), "abilityButton") ?? "";
+        must(body.includes("DRPG.Monocub.cannotMeddle"), "abilityButton no longer says cannotMeddle - this reads nothing");
+        equal(stableJson([/priceOf\(actor, def\)/.test(body), /\bdef\.(?:cost|hopeCost)\b/.test(body)]), stableJson([true, false]),
+            "[abilityButton: priceOf asked; the row's own cost or hopeCost read]");
+    }],
+
+    ["R6917 - sharing a room key says what a key's copy is, not a Truth Bullet's analysis (needsCode, 14.11.2026; O13): handover.mjs `askRecipient` gives a key (its `BEDROOM_KEY_FLAG`) `Handover.shareKeyNote` and a Truth Bullet `Handover.shareNote`; the key's note names no Analyze, in English or Polish", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #38. The batch named sheet.mjs
+         * `addHandoverButton`, which sends a key down the share road (E54's file); the note itself is handover.mjs's.
+         * Red at d3d9dbe0: a key's share window read \"If your Analyze of it failed, they can still Analyze theirs\".
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "handover.mjs")?.[1] ?? ""), "askRecipient") ?? "";
+        must(body.includes("DRPG.Handover.shareNote"), "askRecipient no longer gives the share note - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const note = [en, pl].map(file => file?.DRPG?.Handover?.shareKeyNote ?? null);
+        equal(stableJson({ asks: /BEDROOM_KEY_FLAG/.test(body) && body.includes("DRPG.Handover.shareKeyNote"), note: note.map(n => typeof n === "string" && !/Analy[sz]e/.test(n)) }),
+            stableJson({ asks: true, note: [true, true] }), "[askRecipient tells a key by its flag and gives it shareKeyNote; the key's note in en, pl, with no Analyze]");
+    }],
+
+    ["R6918 - a planned room not picked yet reads as \"no room yet\", not \"leave it\" (needsCode, 14.11.2026, after E54): investigation.mjs `caseKeyCells` (the Key plan's planned room) and `schemaEditor` (a planned Remnant's room) open their room select on `Investigation.noRoomYet`; `CaseRealize.noRoom` (\"- leave it -\") stays case-realize.mjs's, where a row is left as it is", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #127, held for E54's split of
+         * investigation.mjs. Red at 16fbae2a: both selects reused CaseRealize.noRoom, whose \"- leave it -\" /
+         * „- zostaw -” reads oddly where it means that no room is planned yet.
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "investigation.mjs")?.[1] ?? "");
+        const cells = fnSource(src, "caseKeyCells") ?? "", editor = fnSource(src, "schemaEditor") ?? "";
+        must(cells.includes("<select") && editor.includes("<select"), "caseKeyCells or schemaEditor is gone - this reads nothing");
+        const realize = stripComments((await otherSources()).find(([name]) => name === "case-realize.mjs")?.[1] ?? "");
+        equal(stableJson([[cells, editor].map(b => b.includes("DRPG.CaseRealize.noRoom")), [cells, editor].map(b => b.includes("DRPG.Investigation.noRoomYet")),
+            realize.includes("DRPG.CaseRealize.noRoom"), game.i18n.has("DRPG.Investigation.noRoomYet")]),
+            stableJson([[false, false], [true, true], true, true]),
+            "[caseKeyCells, schemaEditor say leave it; they say no room yet; case-realize keeps leave it; the key exists]");
+    }],
     ["R6405 - the clean-up card of the free attempt after a critical Finishing Blow names no Sanity spent (scripts/cleanup.mjs `report`, `resolveCleanup`, `resolveTransformRoad`; D13; E71 line A, 14.11.2026), and a list of broken tools is joined by `listOf` (`destroyTools`, `Cleanup.toolsBroken`; EN2)", async () => {
         /*
          * E71 line A, B05's code faults (the coordinator, 14.11.2026). Red at b86d37b3: `report` printed
@@ -38255,6 +38647,32 @@ const INVARIANTS = [
         };
         equal(stableJson(read), stableJson({ freeParam: true, guarded: true, calls: 2, callsPassFree: 2, roadTakesFree: true, toolsJoin: false, toolsListOf: true }),
             "[report takes free and guards the price line on it; its two calls pass free; the transform road takes it; destroyTools's card joins with \", \" or listOf]");
+    }],
+
+    ["R6919 - the texts the handbooks line found untrue say what the code does (needsCode, the handbooks line's list, 14.11.2026; docs/dev/e57/STATUS-HANDBOOKS.md): Analyze's critical hint is a question the player asks, a critical Sabotage needs a Desperate repair (action-project.mjs `sabotageRepairScale`), the Mastermind is picked in Season setup; and the words: Bribe's \"favor\" (EN1), „Przebij {n}”, „Twój Hope jest pełny.”, \"analyzed\" in Chapter.revealKeeps", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md H6, H7, H14, H31, H33, H34 (in part). Red at
+         * 81db3b2d: each text below as the handbooks line read it. H1, the Loaded Die's \"next roll\", is an owner-approved text (B01a): a question, not
+         * changed here. config.mjs's English prose is read off the module's
+         * tables (the harness runs in English), the Polish off lang/pl.json.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const P = key => String(foundry.utils.getProperty(pl.DRPG, key) ?? "");
+        const E = key => String(foundry.utils.getProperty(en.DRPG, key) ?? "");
+        must(C.HOPE_CALLS?.freeCrit && C.ACTIONS?.analyze && C.ACTIONS?.sabotage && pl.DRPG?.Config, "config.mjs's tables or pl.json did not load - this reads nothing");
+        const read = {
+            hint: [/^You ask the GM/.test(C.ACTIONS.analyze.hintCritical.result), /^Zadajesz GM-owi/.test(P("Config.ACTIONS.analyze.hintCritical.result"))],
+            sabotage: [/hidden/.test(C.ACTIONS.sabotage.critical.result), /ukrytej/.test(P("Config.ACTIONS.sabotage.critical.result")),
+                /Desperate/.test(C.ACTIONS.sabotage.critical.result), /Desperacki/.test(P("Config.ACTIONS.sabotage.critical.result"))],
+            favor: /favour/.test(C.HOPE_CALLS.bribe.effect),
+            mastermind: [/GM panel/.test(E("Mastermind.noneSet")), /panelu GM-a/.test(P("Mastermind.noneSet"))],
+            words: [P("Murder.thresholdShort"), P("Monocub.hopeFull"), /analysed/.test(E("Chapter.revealKeeps"))]
+        };
+        equal(stableJson(read), stableJson({ hint: [true, true], sabotage: [false, false, true, true], favor: false,
+            mastermind: [false, false], words: ["Przebij {n}", "Twój Hope jest pełny.", false] }),
+            "[the critical hint EN, PL; Sabotage's critical: hidden EN, PL, Desperate EN, PL; favour; noneSet's GM panel EN, PL; PL thresholdShort, hopeFull; analysed]");
     }],
 
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {

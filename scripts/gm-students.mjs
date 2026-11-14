@@ -30,6 +30,7 @@ import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
+import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher } from "./spectator-dead.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 
@@ -292,8 +293,8 @@ export async function changeRole(actor, to, roads = {}) {
 function refundButton(actor) {
     const row = crossingStore.get(actor.id);
     if (!row || row.refunded) return "";
-    const outside = game.i18n.localize("DRPG.Movement.outsideRooms");
-    const note = game.i18n.format("DRPG.Panel.refundCrossingNote", { from: row.from ?? outside, to: row.to ?? outside });
+    // Leaving where the crossing put them, back to where it started: phrases with their prepositions (rooms.mjs `roomPhrase`).
+    const note = game.i18n.format("DRPG.Panel.refundCrossingNote", { leaving: roomPhrase("out", row.to ?? null), returning: roomPhrase("into", row.from ?? null) });
     // On the kit's secondary role (E47-C8): a button that answers nothing of the window's, beside the row's procedures.
     return ` ${roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-refund": actor.id, "data-tooltip": note }, label: game.i18n.localize("DRPG.Panel.refundCrossing") })}`;
 }

@@ -44,9 +44,11 @@ export const accounts = [{ who: "gm0", id: "USERGA0000000000", name: "Returning 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 /* The first hold's card (enforced.mjs `holdPermissions`, `first`) as the GM's language words it: `want` whole,
-   with the Trusted Player's two permissions, and `tail`, the words after the list, which any such card carries. */
-const FIRST_HOLD = `const L = key => game.i18n.localize(key);
-        const lost = L("DRPG.Enforced.lost.trusted") + ": " + L("DRPG.Enforced.lost.browse") + ", " + L("DRPG.Enforced.lost.upload");
+   with the Trusted Player's two permissions - joined by utils.mjs `listOf` since the needsCode line (R6902, EN2) - and
+   `tail`, the words after the list, which any such card carries. */
+const FIRST_HOLD = repoUrl => `const L = key => game.i18n.localize(key);
+        const { listOf: listOfHeld } = await import("${repoUrl}/scripts/utils.mjs");
+        const lost = L("DRPG.Enforced.lost.trusted") + ": " + listOfHeld([L("DRPG.Enforced.lost.browse"), L("DRPG.Enforced.lost.upload")]);
         const want = game.i18n.format("DRPG.Enforced.filesFirstHold", { lost });
         const tail = want.slice(want.indexOf(lost) + lost.length);`;
 
@@ -59,7 +61,7 @@ const FIRST_HOLD = `const L = key => game.i18n.localize(key);
 async function nextReadyQuiet({ gm0, p1, check, repoUrl }) {
     const back = await gm0.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
         const { isPrimaryGm } = await import("${repoUrl}/scripts/utils.mjs");
-        ${FIRST_HOLD}
+        ${FIRST_HOLD(repoUrl)}
         let cards = 0;
         for (const m of game.messages.contents) if (m.author?.id === game.user.id && String(await wordsOf(m, 2000) ?? "").includes(tail)) cards++;
         return { primary: isPrimaryGm(), cards };`);
@@ -130,7 +132,7 @@ export async function run({ gm, gm0, p1, p2, p3, check, phase, settle, connect, 
 async function heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl }) {
     phase("the start-up windows and the file browser held");
     const first = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
-        ${FIRST_HOLD}
+        ${FIRST_HOLD(repoUrl)}
         const found = [];
         for (const m of game.messages.contents) { const words = String(await wordsOf(m, 2000) ?? "");
             if (words.includes(tail)) found.push({ exact: words.includes(want), whisper: m.whisper ?? [] }); }

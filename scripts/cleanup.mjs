@@ -2998,7 +2998,8 @@ async function destroyTools(actor, categories) {
 
     if (destroyed.length) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.toolsBroken", {
-            items: foundry.utils.escapeHTML(listOf(destroyed))
+            // Each name in its quotes, the list in the page's language (EN17, EN2; the needsCode line, R6914).
+            items: foundry.utils.escapeHTML(listOf(destroyed.map(item => game.i18n.format("DRPG.Loot.itemQuoted", { item }))))
         })}</p>`);
         log(`Cleanup: ${destroyed.join(", ")} used by ${actor.name} is broken and still on them.`);
     }

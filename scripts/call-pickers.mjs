@@ -548,7 +548,7 @@ async function pickItem(ask) {
                 value: item.uuid,
                 label: isDeadForGm(actor)
                     ? game.i18n.format("DRPG.Calls.onTheBody", { name: actor.name, item: item.name })
-                    : `${actor.name} - ${item.name}`
+                    : game.i18n.format("DRPG.Calls.carriedBy", { name: actor.name, item: item.name })
             });
         }
     }

@@ -422,7 +422,7 @@ Wyniki **Sabotage**:
 |---|---|---|
 | 12 | prostej naprawy, 2 postępu | Subtle |
 | 18 | złożonej naprawy, 6 postępu | Evident |
-| Krytyk | naprawy o ukrytej trudności, 8 postępu | Obvious |
+| Krytyk | naprawy w skali Desperacki, 8 postępu | Obvious |
 | Porażka | - | i tak zostaje Hidden Remnant |
 
 Gdy w pokoju jest ktoś jeszcze, sabotażysta rzuca też Shadow przeciw **16**, by ukryć, co robi; z Despair fuszeruje i sabotaż jest o 1 trudniejszy. Wynik z Despair przy świadkach poznają gracze uczniów obecnych w pokoju i GM-owie. Zepsuty projekt jest zamrożony do ukończenia projektu naprawy.
@@ -1412,7 +1412,7 @@ Class Trial prowadzisz z jednej konsoli w jednym oknie: **Sprawa > Class Trial**
 
 W trakcie rozprawy konsola pokazuje też *Czas Class Trial: użyte z budżetu min (szacunkowo)*: minuty od otwarcia rozprawy wobec 270 minut na szesnastu graczy, przeliczanych na liczbę graczy, którzy brali udział w otwarciu. Jak każdy czas w tej sekcji, to szacunek do planowania, który niczego nie blokuje. Gdy rozprawa się przeciąga, o tym, co skrócić, decydujesz ty, ale nigdy nie skracaj Ujawnienia Monokumy, Closing Argument ani głosowania.
 
-**Stopka konsoli** zostawia każdy przycisk na jego miejscu, gdy rozprawa idzie dalej: konsola odświeża się w tym samym miejscu. Następny krok, ten, który nazywa pierwsza linia, stoi po prawej i to jego naciska Enter. Po lewej stoją **Zamknij** i to, czego nie da się cofnąć: **Zakończ Class Trial**, **Zakończ rozdział** i **Zacznij Final Trial**, a żadnego z nich Enter nie naciska. Gdy trwa Objection albo jego rebuttal, następny krok zostaje na swoim miejscu, a Enter nic nie naciska. Przycisk **Zacznij Final Trial** jest wyszarzony, dopóki nie ustawiono Masterminda, i po najechaniu mówi dlaczego: *Nie ustawiono Masterminda. Najpierw wybierz go w panelu GM-a.* Masterminda wybierasz w **Ustawienia sezonu > Mastermind** (sekcja 8).
+**Stopka konsoli** zostawia każdy przycisk na jego miejscu, gdy rozprawa idzie dalej: konsola odświeża się w tym samym miejscu. Następny krok, ten, który nazywa pierwsza linia, stoi po prawej i to jego naciska Enter. Po lewej stoją **Zamknij** i to, czego nie da się cofnąć: **Zakończ Class Trial**, **Zakończ rozdział** i **Zacznij Final Trial**, a żadnego z nich Enter nie naciska. Gdy trwa Objection albo jego rebuttal, następny krok zostaje na swoim miejscu, a Enter nic nie naciska. Przycisk **Zacznij Final Trial** jest wyszarzony, dopóki nie ustawiono Masterminda, i po najechaniu mówi dlaczego: *Nie ustawiono Masterminda. Najpierw wybierz go w Ustawieniach sezonu.* Masterminda wybierasz w **Ustawienia sezonu > Mastermind** (sekcja 8).
 
 **Stopka zmienia się wraz z rozprawą.** **Werdykt** pojawia się, gdy głosy są policzone, a **Zakończ rozdział**, gdy werdykt i podsumowanie sprawy są gotowe; każdy z nich jest wtedy następnym krokiem konsoli. Przycisku **Zacznij Final Trial** konsola nie pokazuje w trakcie zwykłego Class Trial. Rozdział bez werdyktu kończy się w dolnej części okna **Edytuj kampanię**.
 

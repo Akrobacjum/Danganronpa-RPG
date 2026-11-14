@@ -81,6 +81,7 @@ export const PLACEHOLDERS = Object.freeze({
         "drain", "mult", "worth", "fewest",
         // E57 C12: "Alive: {alive}/{total}", the fog's diagnosis in pixels, a reserve's maximum, a lock's bands, a Bounty's Hope, a count.
         "alive", "amplitude", "core", "d", "openings", "span", "y", "hpMax", "sanity", "sanityMax", "clean", "cover", "reward", "entered", "grid", "section"],
+        // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): the sequences' living count (`Sequence.daySub`), "alive" above.
         values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },
     trait: { names: ["trait", "proposed"], from: "trait" },
@@ -98,7 +99,10 @@ export const PLACEHOLDERS = Object.freeze({
         "ballots",
         // E57 C12: a straw poll's answer and question, a solved dive's finding, a split's counts, a project's life, a badge's end, a
         // silenced warning, the case map's node and reference, a zone's letter, the module's name in a diagnosis.
-        "answer", "question", "finding", "counts", "life", "until", "warning", "node", "ref", "zone", "module"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
+        "answer", "question", "finding", "counts", "life", "until", "warning", "node", "ref", "zone", "module",
+        // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): a timed effect's end and a trace's life, phrases the
+        // code builds; and rooms.mjs `roomPhrase`'s phrases, a room with its preposition (R6912).
+        "at", "into", "leaving", "returning"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },

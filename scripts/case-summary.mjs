@@ -102,5 +102,8 @@ export async function showCaseSummary() {
            carries no `sfx` */
         flags: { [MODULE_ID]: { caseSummary: true, caseBoard: { at, ...payload } } }
     });
-    return L("DRPG.CaseSummary.sent");
+    // Said to the GM who sent it (the needsCode line, R6908): the console awaited this and dropped the line, so no GM read it.
+    const sent = L("DRPG.CaseSummary.sent");
+    ui.notifications.info(sent);
+    return sent;
 }

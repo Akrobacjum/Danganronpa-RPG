@@ -482,7 +482,6 @@
       "spendOne": "Wydaj jeden",
       "giveOne": "Oddaj jeden",
       "refillRoom": "Odnów ten pokój",
-      "roomSetupNote": "Liczba Search Tokenów na pokój to {max}. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.",
       "roomColumn": "Pokój",
       "tokensColumn": "Tokeny",
       "sealed": "Tego pokoju nie przeszukasz: nie ma tu nic do znalezienia o żadnej porze dnia.",
@@ -775,7 +774,6 @@
         "originProject": "Projekt",
         "howShared": "udostępnione",
         "howBuilt": "zbudowane",
-        "intro": "Przez tajne przejście przechodzą tylko ci, którzy je znają, jak przez drzwi. Przyciski tej zakładki działają od razu.",
         "rooms": "Pokoje",
         "kind": "Rodzaj",
         "shape": "Kształt",
@@ -888,7 +886,6 @@
         "step": "Kliknięcie {n} z 2",
         "first": "Kliknij, gdzie zaczyna się tajne przejście, na ścianie między dwoma pokojami. Esc anuluje.",
         "second": "Kliknij, gdzie kończy się tajne przejście, na tej samej ścianie. Esc anuluje.",
-        "cancel": "Anuluj",
         "repick": "Wskaż ponownie",
         "made": "Tajne przejście {passage} gotowe. Daj je uczniowi w zakładce Tajne przejścia.",
         "moved": "Tajne przejście {passage} znów jest na swojej ścianie.",
@@ -1283,7 +1280,7 @@
       "redeem": "Redeem",
       "ask": "Ask for Hope",
       "redeemUsed": "Redeem wykorzystany dziś. Wraca jutro.",
-      "hopeFull": "Masz pełne Hope.",
+      "hopeFull": "Twój Hope jest pełny.",
       "darkened": "Zaciemnienie blokuje Hope w tej porze dnia.",
       "askStillOpen": "Twoje Ask for Hope wciąż czeka na GM-a.",
       "moveRefused": "Ten ruch teraz nie przechodzi. Nie tracisz akcji ani Hope.",
@@ -1295,8 +1292,6 @@
       "askGiven": "{n} Hope od: {name}.",
       "askDeclined": "{name}: nie teraz.",
       "askNotNowTold": "Twoje Ask for Hope: nie teraz. Możesz poprosić znowu.",
-      "tickFirst": "Najpierw zaznacz Monocub",
-      "student": "Uczeń",
       "panelTitle": "Monocub",
       "meddleCost": {
         "one": "{hope} Hope, {actions} akcja.",
@@ -1308,10 +1303,6 @@
       "mustBeDead": "Monocubem może zostać tylko martwy uczeń.",
       "opted": "{name} jest teraz Monocubem.",
       "unopted": "{name} nie jest już Monocubem.",
-      "nobodyDead": "Nikt jeszcze nie zginął.",
-      "manageTitle": "Monocuby",
-      "dialogIntro": "Po swoim Class Trial martwy gracz może dołączyć jako Monocub.",
-      "isOne": "Monocub",
       "hope": "Hope",
       "giveHope": "Zamień Despair Monokumy w Hope",
       "giveHopeColumn": "Despair → Hope",
@@ -1436,7 +1427,7 @@
       "nobody": "- nie ustawiono -",
       "dialogIntro": "Wybierz, który uczeń jest Mastermindem.",
       "hopeReadout": "Mastermind ma teraz {held} Hope.",
-      "noneSet": "Nie ustawiono Masterminda. Najpierw wybierz go w panelu GM-a.",
+      "noneSet": "Nie ustawiono Masterminda. Najpierw wybierz go w Ustawieniach sezonu.",
       "toggleFinalTrial": "Zacznij albo zakończ Final Trial",
       "confirmStart": "Zacząć Final Trial? Ogłoszenie zobaczy cały stół.",
       "confirmEnd": "Zakończyć Final Trial? Stół nie dostanie ogłoszenia; publiczna jest tylko karta werdyktu. Nic, co już zaszło, się nie cofnie.",
@@ -1472,7 +1463,6 @@
       "finalPlacedIn": "Final Truth Remnant postawiony w: {room}."
     },
     "Zones": {
-      "open": "Strefy sali",
       "end": "Zakończ ten tryb",
       "busy": "Głos ma inny tryb. Najpierw go zakończ albo zamknij debatę.",
       "noZones": "Sala rozpraw nie ma Strefy A i Strefy B. Wybierz je w Ustawieniach sezonu.",
@@ -1501,6 +1491,7 @@
         "skipped": "GM pomija pytanie {n}.",
         "replay": "Ten zestaw już był grany: skończył się {when} ({outcome}). Gracze mogą go pamiętać.",
         "replayStopped": "Ten zestaw już był grany: zatrzymał się na pytaniu {n}, {when} ({outcome}). Po wybraniu zacznie się od tego pytania.",
+        "replayUnfinished": "Ten zestaw zaczęto grać {when}, ale go nie dokończono. Gracze mogą go pamiętać.",
         "outcome": {
           "played": "zagrany",
           "solved": "rozwiązany",
@@ -1782,7 +1773,6 @@
       "gateVote": "Werdykt otwiera się po policzeniu głosów.",
       "startTrialNote": "Stoper pory dnia na HUD-zie liczy od zera od startu Class Trial i jeszcze raz od jego końca.",
       "startTrialHall": "Wszyscy przechodzą do sali {hall}; uczniowie zaznaczeni niżej dostają tam token, a koniec rozprawy go zabiera.",
-      "startTrialNoHall": "Żadna sala rozpraw nie jest podpięta, więc stół zostaje na scenie, na której jest. Podepnij ją w zakładce Sceny okna Ustawienia pokoi.",
       "tableRuleDead": "Zasada stołu: umarli słuchają, ale nie mówią w rozprawie.",
       "tableRuleVoices": "Zmarli mają wyłączone mikrofony do końca rozprawy, także ci, których śmierci nikt jeszcze nie odkrył. Monocub może mówić tylko w dyskusji przed głosowaniem, a w rozprawie o własnej śmierci tylko słucha. Skazani umierają, gdy rozprawa się kończy.",
       "openDebateIntro": "Ustaw, ile ma trwać ta debata. Każda debata ma własny budżet, a pole podpowiada długość ostatniej debaty z tego Class Trial.",
@@ -1821,7 +1811,6 @@
       },
       "holdingRound": "{mode}: jeszcze przez {seconds} s mówi {who}. Potem mówi {next}.",
       "holdingRoundLast": "{mode}: jeszcze przez {seconds} s mówi {who}. To ostatnia tura.",
-      "startPanic": "Panic Round",
       "endRound": "Zakończ rundę",
       "closing": {
         "opened": "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu {seconds} s; GM zatwierdza mówcę.",
@@ -1866,7 +1855,6 @@
         },
         "inExchange": "Objection przerwało Closing Argument. Gdy skończy się Rebuttal, zdecydujesz, kto mówi dalej. Jeśli Objection przepadnie, zostanie wycofane albo oddalone, albo jeśli naciśniesz Z powrotem do debaty, mówca od razu kontynuuje z czasem, który mu został."
       },
-      "startClosing": "Closing Argument",
       "endClosing": "Zakończ Closing Argument",
       "pickerLabel": "Zacznij tryb"
     },
@@ -2207,7 +2195,6 @@
     },
     "Look": {
       "launcherTooltip": "Ustawienia",
-      "uiScaleAuto": "Ten ekran ma {w} x {h}, więc motyw Stained Glass sam skaluje interfejs do {auto}% układu 1440p; z suwakiem to {total}%.",
       "messengerSound": "Dźwięki komunikatora",
       "stepUp": "O jeden więcej",
       "stepDown": "O jeden mniej",
@@ -2216,7 +2203,6 @@
       "atMost": "Najwyżej {n}",
       "atLeast": "Co najmniej {n}",
       "note": "Wszystko w tym oknie dotyczy tylko tej przeglądarki. Inni przy stole niczego nie zauważą.",
-      "uiScaleSlider": "Ten ekran ma {w} x {h}. W motywie Monokuma Legacy rozmiar zależy tylko od suwaka ({slider}%).",
       "contrastAuto": "Twój system prosi o większy kontrast, więc Wysoki kontrast działa także przy wyłączonym przełączniku."
     },
     "Sound": {
@@ -2811,7 +2797,7 @@
       "actionSpent": "Ta jest w tym incydencie już zużyta.",
       "actionDenied": "Ta akcja nie jest teraz dla ciebie dostępna.",
       "failedNothing": "Nic z tego nie wychodzi.",
-      "thresholdShort": "Pobij {n}",
+      "thresholdShort": "Przebij {n}",
       "thresholdDefended": {
         "victim": "Pobij {n} (+{d} za {trait} ofiary)",
         "killer": "Pobij {n} (+{d} za {trait} zabójcy)"
@@ -2963,6 +2949,7 @@
       "bullets": "Truth Bullets",
       "keysHeld": "Key",
       "unidentified": "Bez analizy",
+      "noRoomYet": "- bez pokoju -",
       "breakdown": "Klucz odpowiedzi",
       "breakdownTooltip": "Czym jest każdy Truth Bullet według klucza GM-ów, niezależnie od tego, co widzi jego posiadacz.",
       "createHere": "Utwórz na mapie",
@@ -3141,7 +3128,6 @@
       "tabScenes": "Sceny",
       "fogIntro": "Które pokoje każdy uczeń już odkrył na tej scenie (Mastermind zna wszystkie). Odkryty pokój, w którym uczeń akurat nie stoi, widzi przez lekką zasłonę; nieodkryty zakrywa pełna mgła.",
       "fogUncovered": "{pct}% powierzchni tej sceny leży poza regionami pokoi i będzie widoczne jako stała mgła. Zwykle znaczy to, że jakiś pokój trzeba jeszcze narysować.",
-      "fogNote": "Przyciski Odkryj wszystko i Ukryj wszystko zaznaczają albo odznaczają naraz wszystkie pola powyżej, dla każdej postaci. Nic się nie zmienia, dopóki nie klikniesz Zastosuj. Każde pole to jeden pokój dla jednej postaci.",
       "discoverAll": "Odkryj wszystko",
       "fogMastermind": "Mastermind zna każdy pokój.",
       "hideAll": "Ukryj wszystko",
@@ -3406,8 +3392,6 @@
       "hallHasRooms": "Ta scena ma regiony oznaczone jako pokoje: {names}. W sali rozpraw nie liczą się jako pokoje, więc jeśli to mapa szkoły, wybierz na salę inną scenę. Regiony bez oznaczenia pokoju mogą tu zostać.",
       "duplicateInHall": "Niektóre postacie mają w sali więcej niż jeden token, a rozprawa pokazuje tylko pierwszy z nich. Ukryte zostaną te tokeny: {names}.",
       "unlinkedToken": "Te tokeny w sali nie są powiązane ze swoją postacią: {names}. Nakładka śmierci i sterowanie gracza biorą się z postaci, więc powiąż każdy token z jego postacią.",
-      "hallDark": "Sala rozpraw nadal ma włączone widzenie tokenów Foundry, wyłączone światło globalne albo włączoną mgłę eksploracji. Żeby każdy widział całą salę, zaznacz „Przygotuj salę” w Ustawieniach pokoi na karcie Sceny i naciśnij Zastosuj.",
-      "prepare": "Przygotuj salę: wszyscy widzą całą salę (bez mgły, pełne światło)",
       "preparePlaylist": "Wyczyść też playlistę sali",
       "prepareVoice": "Wyłącz też w sali Proximity Voice Chat",
       "prepareDone": "Sala rozpraw {scene} jest przygotowana.",
@@ -3418,7 +3402,6 @@
       "noHallLine": "Żadna sala rozpraw nie jest podpięta, więc stół zostaje na scenie, na której jest. Podepnij ją w Ustawieniach sezonu.",
       "hallDarkLine": "Sala rozpraw nadal ma włączone widzenie tokenów Foundry, wyłączone światło globalne albo włączoną mgłę eksploracji. Żeby każdy widział całą salę, zaznacz „Przygotuj salę przy Zapisz” w Ustawieniach sezonu i naciśnij Zapisz.",
       "noWayBackLine": "Żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw. Podepnij szkołę w Ustawieniach sezonu.",
-      "noWayBack": "Żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw. Podepnij szkołę w Ustawieniach sezonu.",
       "phaseSwitchesScene": "Przenosi też wszystkich do sali rozpraw {hall} i stawia tokeny wybranych do niej uczniów.",
       "castPickHeading": "Kto bierze udział w tej rozprawie",
       "notPlaced": {
@@ -3557,6 +3540,7 @@
       "shareIntro": "Jesteś w pokoju {room}. Komu dajesz kopię „{name}”?",
       "giveIntro": "Jesteś w pokoju {room}. Komu przekazujesz przedmiot „{name}”?",
       "who": "Komu?",
+      "shareKeyNote": "Odbiorca dostaje własną kopię klucza, a ty zachowujesz swoją. Nie wydajesz akcji.",
       "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Nie wydajesz akcji.",
       "giveNote": "Przedmiot przechodzi do odbiorcy i znika z twojego ekwipunku; gdy masz kilka sztuk, przechodzi jedna. Jeśli odbiorca nosi już tyle rzeczy tej kategorii, ile może, przekazanie nie dochodzi do skutku i przedmiot zostaje u ciebie. Nie wydajesz akcji.",
       "nobodyHere": "W pokoju {room} nie ma nikogo poza tobą, więc nie masz komu niczego przekazać.",
@@ -3950,7 +3934,6 @@
         "roomTitle": "Facilities: {room}",
         "saveProject": "Zapisz akcję",
         "actionN": "Akcja {n}",
-        "tabNote": "Okno akcji w pokoju zapisuje od razu, bez Zastosuj.",
         "tabLine": "Akcje w pokoju: ile ich ma pokój i przycisk do ich edycji.",
         "roomIntro": "Akcje w pokoju {room}. Każda to rzut i kosztuje akcję; po użyciu jest zamknięta dla wszystkich do następnej pory dnia. Wiersz bez nazwy znika.",
         "roomNote": "Zapis od razu zmienia akcje pokoju. Widzi je tylko postać stojąca w pokoju.",
@@ -3991,6 +3974,7 @@
         "freeMove": "{name}: +{n} Free Move",
         "text": "{name}: słowa GM-a wysłane",
         "searchToken": "{room}: Search Tokeny +{n}",
+        "searchTokenFull": "{room}: żaden Search Token nie wrócił, bo pokój ma już ich komplet",
         "overflowDown": "Overflow: Despair -{n}",
         "durability": {"one": "{name}: „{item}”, +{n} wytrzymałości", "few": "{name}: „{item}”, +{n} wytrzymałości", "many": "{name}: „{item}”, +{n} wytrzymałości", "other": "{name}: „{item}”, +{n} wytrzymałości"},
         "durabilityNone": "{name}: nie ma nic zużytego do naprawy",
@@ -4165,7 +4149,6 @@
       "progressedTo": "{name} jest teraz na {current}/{target}.",
       "progressSent": "{name}: {n} postępu wysłano do GM-a.",
       "overflowFed": "Do Overflow trafia {n} Despair.",
-      "progressRefused": "Postęp projektu {name} się nie zmienia, a koszt Calla nie wraca.",
       "progressSecret": "Postęp projektu się zmienia.",
       "hopeGranted": "{name} zyskuje {n} Hope.",
       "cannotAfford": "Nie masz na to dość.",
@@ -4189,6 +4172,7 @@
       "gatherCancelled": "Zgromadzenie w pokoju {room} odwołane.",
       "gatherNoRefund": "Despair nie wraca, bo wszyscy już usłyszeli ogłoszenie.",
       "onTheBody": "Ciało postaci {name}: „{item}”",
+      "carriedBy": "„{item}” przy postaci {name}",
       "alreadyArmed": "{name} ma już niewykorzystany {call} na następny rzut, więc drugiego nie da się dodać.",
       "nothingToMark": "{name} nie ma już czego stracić. Despair zostaje w twojej puli.",
       "alreadySealed": "Pokój {room} jest już zapieczętowany.",
@@ -4407,13 +4391,16 @@
       "murderWindowLocked": "Podczas Eclipse nie otworzysz incydentu. Karta pułapki zachowuje swój przycisk, więc użyjesz go po Eclipse."
     },
     "Movement": {
-      "unlawfulArrival": "Postać {name} weszła do pokoju {room} przejściem, na które zasady nie pozwalają, i jej token nie wrócił na miejsce. Dopóki nie stanie tam, dokąd mogła dojść z pokoju {from}, nie jest świadkiem przy ciele ani trzecią osobą przy morderstwie. Gdy token przesunie GM, nowe miejsce jest dozwolone.",
+      "unlawfulArrival": "Postać {name} weszła {into} przejściem, na które zasady nie pozwalają, i jej token nie wrócił na miejsce. Dopóki nie stanie tam, dokąd mogła dojść {from}, nie jest świadkiem przy ciele ani trzecią osobą przy morderstwie. Gdy token przesunie GM, nowe miejsce jest dozwolone.",
       "outsideRooms": "poza pokojami",
+      "at": { "room": "w pokoju {room}", "none": "poza pokojami" },
+      "into": { "room": "do pokoju {room}", "none": "poza pokoje" },
+      "out": { "room": "z pokoju {room}", "none": "spoza pokoi" },
       "wallCrossed": "Gracz przesunął token postaci {name} przez ścianę na scenie {scene}; token wrócił tam, gdzie stał.",
       "floorJumped": "Gracz przeniósł token postaci {name} na scenie {scene} na inne piętro, na które nie prowadzą schody; token wrócił tam, gdzie stał.",
-      "ruleSentBack": "Gracz przesunął token postaci {name} na scenie {scene} do pokoju {room}, do którego zasady tej postaci nie wpuszczają; token wrócił tam, gdzie postać ostatnio stała zgodnie z zasadami.",
-      "dropRemoved": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Token został usunięty.",
-      "droppedFromNowhere": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, na której ta postać nie miała wcześniej tokenu. Moduł traktuje to jak wejście spoza pokoi: zasada połączonych pokoi nie działa, ale zasady zamków, pieczęci i sypialni obowiązują dalej, a postać liczy się tam jako świadek. Jeśli token nie powinien tam stać, GM może go przesunąć."
+      "ruleSentBack": "Gracz przesunął token postaci {name} na scenie {scene} {into}, choć zasady nie pozwalają tam tej postaci wejść; token wrócił tam, gdzie postać ostatnio stała zgodnie z zasadami.",
+      "dropRemoved": "Gracz postawił token postaci {name} {at} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Token został usunięty.",
+      "droppedFromNowhere": "Gracz postawił token postaci {name} {at} na scenie {scene}, na której ta postać nie miała wcześniej tokenu. Moduł traktuje to jak wejście spoza pokoi: zasada połączonych pokoi nie działa, ale zasady zamków, pieczęci i sypialni obowiązują dalej, a postać liczy się tam jako świadek. Jeśli token nie powinien tam stać, GM może go przesunąć."
     },
     "Move": {
       "notConnectedShort": "Pokój {to} nie łączy się z pokojem {from}.",
@@ -5081,9 +5068,6 @@
       "tabRoomPools": "Pule pokoi",
       "noTierPools": "Nie ma jeszcze pul. Naciśnij „Zainstaluj / przeinstaluj”.",
       "noRoomPools": "Nie ma jeszcze pul pokoi. Nazwij jedną poniżej.",
-      "newTierPool": "Nowa pula Tier",
-      "newTierPoolPlaceholder": "np. DRPG Tools - Tier 2",
-      "newTierPoolNote": "Pulę Tier nazywa się jej kategorią i jej Tier, tak jak „DRPG Tools - Tier 2”. Zwykle nie tworzy się jej ręcznie: „Zainstaluj / przeinstaluj” poniżej buduje wszystkie.",
       "newTierPoolForms": "„{name}” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: {forms}, gdzie N to Tier od {low} do {high}.",
       "renameOtherPool": "„{name}” to nazwa innej puli. Ta tabela zawiera przedmioty puli „{pool}”, więc zostaw w nazwie jej kategorię i Tier.",
       "tabNewItem": "Nowy przedmiot",
@@ -5312,7 +5296,6 @@
         "other": "Zmieniono {n} postaci."
       },
       "stateUnchanged": "Nic się nie zmieniło.",
-      "checksSetup": "Obsada",
       "checksAvVideo": "Ten świat wysyła wideo, którego nikt nie ogląda: ustaw tryb A/V na sam dźwięk.",
       "checksAvOff": "A/V jest wyłączone, więc kafelek głosu nie działa. Włącz A/V albo wyłącz kafelek.",
       "checksAvVideoOnly": "Ten świat ma ustawione samo wideo: nikt nie wysyła dźwięku. Ustaw tryb A/V na sam dźwięk.",
@@ -5336,7 +5319,7 @@
       "whoIsAliveNote": "Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
       "doColumn": "Zrób",
       "refundCrossing": "Zwróć ostatnie przejście",
-      "refundCrossingNote": "Z powrotem: {to} → {from}",
+      "refundCrossingNote": "{leaving} z powrotem {returning}",
       "nextChapterEndStopped": "Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.",
       "nextTrialOutlived": "Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.",
       "refilled": "Odnowiono akcje i Search Tokeny. Motive, pieczęcie i Overflow zostają bez zmian, a na czat nie trafiła karta pory dnia.",
@@ -5374,6 +5357,7 @@
       "reason": {
         "standard": "Klasa wskazała Blackened.",
         "reinforced": "Błędne głosowanie zostawiło Blackened na wolności.",
+        "granted": "Ten Level Up przyznał GM.",
         "withClass": "Reinforced Level Up za błędne głosowanie przychodzi razem z tym Level Upem."
       },
       "buttonTooltip": "Level Up",
@@ -5487,8 +5471,9 @@
       "bulletText": "Ta rzecz pochodzi z ciała postaci {who}.",
       "traceNote": "Ktoś przeszukał to ciało. Brakuje: {items}.",
       "noCharacter": "Nie masz w tej grze postaci, która mogłaby to dostać.",
-      "took": "Bierzesz „{item}”. Każda wzięta rzecz daje ci Truth Bullet, który mówi, co to jest i z czyjego ciała pochodzi.",
-      "tookUnfound": "Bierzesz „{item}”. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw.",
+      "took": "Bierzesz {item}. Każda wzięta rzecz daje ci Truth Bullet, który mówi, co to jest i z czyjego ciała pochodzi.",
+      "tookUnfound": "Bierzesz {item}. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw.",
+      "itemQuoted": "„{item}”",
       "pickNone": "Najpierw zaznacz, co chcesz wziąć.",
       "windowTitle": "Take from the Body",
       "open": "Take from the Body",
@@ -5500,7 +5485,7 @@
       "toStash": "{category}. Masz pełne ręce, więc ta rzecz trafi do twojej skrytki w pokoju {room}.",
       "rowHandsFull": "Nosisz już najwięcej rzeczy z kategorii {category}, ile możesz ({limit}), i nie masz skrytki.",
       "rollTitle": "Take from the Body - Hand",
-      "coverTitle": "Take from the Body - Shadow",
+      "coverTitle": "Take from the Body - Shadow, przebij {n}",
       "coverHeld": "Nikt w pomieszczeniu nie widzi, co bierzesz.",
       "coverMissed": "Ktoś w pomieszczeniu widzi, jak przeszukujesz ciało.",
       "seenAtBody": "{actor} przeszukuje kieszenie ciała postaci {body}.",
@@ -6358,7 +6343,7 @@
         "allSet": "Każdy uczeń ma zasoby na start.",
         "ultimate": "Każdy ma Ultimate",
         "ultimateFix": "Ustaw je na arkuszu, pod imieniem.",
-        "experiences": "Każdy ma {n} doświadczenia",
+        "experiences": { "one": "Każdy ma {n} doświadczenie", "few": "Każdy ma {n} doświadczenia", "many": "Każdy ma {n} doświadczeń", "other": "Każdy ma {n} doświadczenia" },
         "experiencesFix": "Każde na +2, ustalone przy tworzeniu postaci.",
         "item": "Każdy nosi swój przedmiot startowy",
         "itemFix": "Każdy uczeń zaczyna z jednym przedmiotem poziomu {tier} związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.",
@@ -6394,7 +6379,6 @@
       "title": "Ustawienia sezonu",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć i bez nich.",
       "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Przed pierwszą sesją przeczytaj dalsze sprawdzenia poniżej.",
-      "note": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon się buduje.",
       "resourcesButton": "Nadaj zasoby startowe",
       "cursorButton": "Ukryj kursor GM-ów",
       "openIt": "Otwórz",
@@ -6538,7 +6522,7 @@
         "many": "{n} notatek przed sesją napisanych przez GM-ów",
         "other": "{n} notatek przed sesją napisanych przez GM-ów"
       },
-      "resetPools": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}",
+      "resetPools": { "one": "każda pula Despair do zera ({n} niepusta) i każdy Hope z powrotem do {hope}", "few": "każda pula Despair do zera ({n} niepuste) i każdy Hope z powrotem do {hope}", "many": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}", "other": "każda pula Despair do zera ({n} niepustej) i każdy Hope z powrotem do {hope}" },
       "resetKeeps": "To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, zespół Monokum i nazwa kampanii.",
       "resetType": "Wpisz {word}, by potwierdzić",
       "resetWord": "RESET",
@@ -7291,7 +7275,7 @@
             }
           },
           "hintCritical": {
-            "result": "Zadają ci jedno pytanie - np. „Czy ofiara naprawdę zginęła w tym pokoju?”"
+            "result": "Zadajesz GM-owi jedno pytanie - np. „Czy ofiara naprawdę zginęła w tym pokoju?”"
           },
           "hintFailure": "Bez pomocy."
         },
@@ -7367,7 +7351,7 @@
             }
           },
           "critical": {
-            "result": "Sukces. Cel wymaga projektu naprawy o ukrytej trudności."
+            "result": "Sukces. Cel wymaga projektu naprawy w skali Desperacki."
           },
           "failure": "Nic się nie dzieje."
         }

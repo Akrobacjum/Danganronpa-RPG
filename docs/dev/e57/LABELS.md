@@ -763,7 +763,7 @@ Quoted labels: 3053 (EN 1477, PL 1576).
 | gm-handbook.en | 1415 | End the chapter | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.en | 1415 | Start the Final Trial | `DRPG.Mastermind.startFinalTrial` |
 | gm-handbook.en | 1415 | Start the Final Trial | `DRPG.Mastermind.startFinalTrial` |
-| gm-handbook.en | 1415 | No Mastermind set. Pick one from the GM panel first. | `DRPG.Mastermind.noneSet` |
+| gm-handbook.en | 1415 | No Mastermind set. Pick one in Season setup first. | `DRPG.Mastermind.noneSet` |
 | gm-handbook.en | 1417 | The verdict | `DRPG.Vote.verdictTitle` |
 | gm-handbook.en | 1417 | End the chapter | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.en | 1417 | Start the Final Trial | `DRPG.Mastermind.startFinalTrial` |
@@ -1921,7 +1921,7 @@ Quoted labels: 3053 (EN 1477, PL 1576).
 | gm-handbook.pl | 1415 | Zakończ rozdział | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.pl | 1415 | Zacznij Final Trial | `DRPG.Mastermind.startFinalTrial` |
 | gm-handbook.pl | 1415 | Zacznij Final Trial | `DRPG.Mastermind.startFinalTrial` |
-| gm-handbook.pl | 1415 | Nie ustawiono Masterminda. Najpierw wybierz go w panelu GM-a. | `DRPG.Mastermind.noneSet` |
+| gm-handbook.pl | 1415 | Nie ustawiono Masterminda. Najpierw wybierz go w Ustawieniach sezonu. | `DRPG.Mastermind.noneSet` |
 | gm-handbook.pl | 1417 | Werdykt | `DRPG.Vote.verdictTitle` |
 | gm-handbook.pl | 1417 | Zakończ rozdział | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.pl | 1417 | Zacznij Final Trial | `DRPG.Mastermind.startFinalTrial` |
@@ -2894,7 +2894,7 @@ Quoted labels: 3053 (EN 1477, PL 1576).
 | player-handbook.pl | 967 | Bounty | `DRPG.Config.DESPAIR_CALLS.bounty.label` |
 | player-handbook.pl | 968 | Ghost Bet | `DRPG.Events.ticker.betHope`, `DRPG.Vote.verdictSteps.bets`, `DRPG.Vote.verdictSteps.finalBets`, `DRPG.Config.MONOCUB.abilities.bet.label` |
 | player-handbook.pl | 969 | Redeem wykorzystany dziś. Wraca jutro. | `DRPG.Monocub.redeemUsed` |
-| player-handbook.pl | 969 | Masz pełne Hope. | `DRPG.Monocub.hopeFull` |
+| player-handbook.pl | 969 | Twój Hope jest pełny. | `DRPG.Monocub.hopeFull` |
 | player-handbook.pl | 969 | Twoje Ask for Hope wciąż czeka na GM-a. | `DRPG.Monocub.askStillOpen` |
 | player-handbook.pl | 988 | Czat z GM-em | `DRPG.Messenger.playerWindowTitle` |
 | player-handbook.pl | 992 | Czat | `DRPG.Messenger.tabChat`, `DRPG.Config.SFX_CATEGORIES.chat.label` |

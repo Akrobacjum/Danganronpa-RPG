@@ -524,7 +524,8 @@ function tallySeasonDespair() {
     } catch {
         held = 0;
     }
-    return [game.i18n.format("DRPG.Season.resetPools", { n: held, hope: STARTING.hope })];
+    // A family on {n} (the needsCode line, R6907): the Polish read „(1 niepustych)”.
+    return [plural("DRPG.Season.resetPools", { n: held, hope: STARTING.hope })];
 }
 
 registerSeasonState({ group: "despair", clear: clearSeasonDespair, tally: tallySeasonDespair, settings: [SETTINGS.despairPools] });

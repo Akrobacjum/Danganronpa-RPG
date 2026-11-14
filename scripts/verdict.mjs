@@ -149,17 +149,17 @@ export async function openVerdictDialog() {
     const votesFor = id => (progress.accused ?? []).find(r => r?.id === id)?.n ?? 0;
     const namedLine = accusedIds.length
         ? `<p>${game.i18n.format("DRPG.Vote.namedByTable", {
-            names: accusedIds.map(id => esc(named(id))).join(", "),
+            names: listOf(accusedIds.map(id => esc(named(id)))),
             n: Math.min(...accusedIds.map(votesFor)), total: progress.total ?? 0 })}</p>`
         : "";
     const deadAccused = accusedIds.filter(id => dead.has(id));
     const deadLine = deadAccused.length
         ? box("warning", `${game.i18n.format("DRPG.Vote.accusedDead", {
-            names: deadAccused.map(id => esc(named(id))).join(", ") })}`)
+            names: listOf(deadAccused.map(id => esc(named(id)))) })}`)
         : "";
     const unfoundLine = unfound.length
         ? box("warning", `${game.i18n.format("DRPG.Vote.unfoundDead", {
-            names: unfound.map(a => esc(a.name)).join(", ") })}`)
+            names: listOf(unfound.map(a => esc(a.name))) })}`)
         : "";
     const executedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyExecuted")}</option>${
         candidateOptions(verdictCandidates(students, { accusedIds, known: knownIds, dead }))}`;
@@ -311,7 +311,7 @@ export async function askBlackenedRule(unfound = []) {
     let text = "";
     const unfoundLine = unfound.length
         ? box("warning", `${game.i18n.format("DRPG.Vote.blackenedRuleUnfound", {
-            names: unfound.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}`)
+            names: listOf(unfound.map(actor => foundry.utils.escapeHTML(actor.name))) })}`)
         : "";
 
     try {
@@ -693,7 +693,7 @@ export async function postVerdictCard(record) {
        sound; nobody dies at the verdict now. In the trial it says the sentence waits for the trial's end; a verdict
        given after End the trial is carried out straight after this card (`runVerdict`), whose own card says so. The
        death's sound and the owner's note went to that card (`postExecutionCard`). */
-    const names = executed.map(actor => esc(actor.name)).join(", ");
+    const names = listOf(executed.map(actor => esc(actor.name)));
     const lines = executed.length
         ? [game.i18n.format(getClock().phase === "classTrial" ? "DRPG.Vote.executionPending" : "DRPG.Vote.executionNow", { names })]
         : [game.i18n.localize("DRPG.Vote.nobodyExecuted")];
@@ -861,7 +861,7 @@ async function verdictDespair(context) {
     if (!TRIAL.wrong.fillDespair) return;
     if ((await fillAllDespair()) == null) return false;
     context.lines.push(game.i18n.format("DRPG.Vote.despairFilled", {
-        who: monokumas().map(poolLabel).join(", ")
+        who: listOf(monokumas().map(poolLabel))
     }));
 }
 

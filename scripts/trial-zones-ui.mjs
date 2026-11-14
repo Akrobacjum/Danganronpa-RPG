@@ -107,9 +107,10 @@ export function replayWarning(set) {
     const when = localeFormat("dateTime", Number(set.endedAt || set.usedAt));
     const at = Number.isInteger(set.stoppedAt) ? set.stoppedAt + 1 : null;
     const outcome = game.i18n.localize(`DRPG.Zones.dive.outcome.${set.outcome ?? "played"}`);
-    return at
-        ? game.i18n.format("DRPG.Zones.dive.replayStopped", { when, n: at, outcome })
-        : game.i18n.format("DRPG.Zones.dive.replay", { when, outcome });
+    if (at) return game.i18n.format("DRPG.Zones.dive.replayStopped", { when, n: at, outcome });
+    // Started and never ended or stopped (the needsCode line, R6910): replay's "it ended {when} (played)" was not true.
+    if (!set.endedAt) return game.i18n.format("DRPG.Zones.dive.replayUnfinished", { when });
+    return game.i18n.format("DRPG.Zones.dive.replay", { when, outcome });
 }
 
 /**
