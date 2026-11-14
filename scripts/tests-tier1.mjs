@@ -37754,6 +37754,38 @@ const INVARIANTS = [
             "[each site: the keys it no longer names, its joins by hand, calls listOf; explainAdvantage writes U+2212]");
     }],
 
+    ["R6903 - a Call says what it did in the page's words and keeps no price for nothing (needsCode, 14.11.2026; the GM handbook 6.2 \"A Call that would change nothing is refused before it is paid\"; EN2, EN17): call-effects.mjs `projectRefusal` refuses a Call that takes progress from a project at 0, `progressEffect` throws `NothingToDo` (the refund) when the GM's write moved nothing and `Calls.progressRefused` is gone; `damageEffect` says each reserve through `DRPG.Reserve.*` joined by `listOf`; calls.mjs's two refunds give `Calls.refunded` the price with its unit; call-pickers.mjs `pickItem` names a living student's item through `Calls.carriedBy`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md S1 (Q-B-2), #30, #31, #32. Red at d2afa5f4:
+         * Game Integrity on a project at 0 was paid, moved nothing and was not refunded (projectRefusal let it through,
+         * progressEffect pushed `Calls.progressRefused`, so applyCall saw no failure); damageEffect wrote \"Health\" and
+         * \"Sanity\" as literals joined by \", \"; the refunds passed the bare number (\"koszt (2) wraca\"); pickItem's row
+         * for a living student was the literal \"Name - Item\". Read from source; tier 2 drives the Calls.
+         */
+        const sources = new Map(await otherSources());
+        const fx = stripComments(sources.get("call-effects.mjs") ?? ""), calls = stripComments(sources.get("calls.mjs") ?? "");
+        const pickers = stripComments(sources.get("call-pickers.mjs") ?? "");
+        const refusal = fnSource(fx, "projectRefusal") ?? "", progress = fnSource(fx, "progressEffect") ?? "", damage = fnSource(fx, "damageEffect") ?? "";
+        const pick = fnSource(pickers, "pickItem") ?? "";
+        const hope = fnSource(calls, "spendHopeCall") ?? "", despair = fnSource(calls, "spendDespairCallFor") ?? "";
+        must(refusal && progress && damage && pick && hope && despair, "a Call's function is gone - this reads nothing");
+        const refundOf = body => (body.match(/"DRPG\.Calls\.refunded", \{[^}]*\}/) ?? [""])[0];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const read = {
+            refusesEmpty: /call\.progress\s*<\s*0/.test(refusal) && /\.current\b/.test(refusal),
+            refundsUnmoved: /changed\s*===\s*false[\s\S]{0,240}throw new NothingToDo/.test(progress),
+            progressRefused: [progress.includes("DRPG.Calls.progressRefused"), Object.hasOwn(en?.DRPG?.Calls ?? {}, "progressRefused"), Object.hasOwn(pl?.DRPG?.Calls ?? {}, "progressRefused")],
+            damage: [/"Health"|"Sanity"/.test(damage), /DRPG\.Reserve\./.test(damage), /\blistOf\(/.test(damage), /\.join\(", "\)/.test(damage)],
+            refunds: [refundOf(hope).includes("DRPG.Calls.costsHopeShort"), refundOf(despair).includes("DRPG.Calls.costsDespairShort")],
+            pick: [/`\$\{actor\.name\} - \$\{item\.name\}`/.test(pick), pick.includes("\"DRPG.Calls.carriedBy\""), Boolean(en?.DRPG?.Calls?.carriedBy), Boolean(pl?.DRPG?.Calls?.carriedBy)]
+        };
+        equal(stableJson(read), stableJson({ refusesEmpty: true, refundsUnmoved: true, progressRefused: [false, false, false],
+            damage: [false, true, true, false], refunds: [true, true], pick: [false, true, true, true] }),
+            "[projectRefusal refuses a take from 0; progressEffect refunds an unmoved bar; progressRefused named, in en, in pl; damageEffect: English literals, "
+            + "Reserve keys, listOf, a hand join; the refunds' price with its unit (Hope, Despair); pickItem: the literal row, carriedBy, in en, in pl]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

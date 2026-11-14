@@ -33,7 +33,7 @@ import { overflowBlocksHope } from "./overflow.mjs";
 // cycle - the notes on the imports in both of those files say there is none.
 // Every use below is lazy.
 import {
-    announce, whisperToOwner, log, error, plural, cardHead, isPrimaryGm, primaryGmId, forcedDeletion
+    announce, whisperToOwner, log, error, plural, cardHead, isPrimaryGm, primaryGmId, forcedDeletion, listOf
 } from "./utils.mjs";
 // A Confusion's armed Calls are the GMs' store and the owner's copy (E06 fix r2-G4), read
 // synchronously beside the flag - gm-stores.mjs reaches a domain module only by `import()`.
@@ -929,6 +929,12 @@ export async function projectRefusal(call, choice = {}) {
     if (!project || isComplete(project) || isFrozen(project.id)) {
         return game.i18n.localize("DRPG.Project.noneToMove");
     }
+    // A Call that takes progress from a project at 0 would change nothing (the needsCode line, 14.11.2026; Q-B-2, the GM
+    // handbook 6.2): refused here, before the price, as a finished project is. Until then Game Integrity on it was paid,
+    // moved nothing and kept its price. R6903.
+    if (call.progress < 0 && (Number(project.current) || 0) <= 0) {
+        return game.i18n.format("DRPG.Project.alreadyEmpty", { name: project.name });
+    }
     return null;
 }
 
@@ -1064,7 +1070,7 @@ async function damageEffect(actor, call, choice, done) {
             const next = Math.min(maxOf(resource) ?? 0, marks + amount);
             if (next === marks) continue;
             update[`system.resources.${resource}.value`] = next;
-            landed.push(`${next - marks} ${resource === "hitPoints" ? "Health" : "Sanity"}`);
+            landed.push(plural(resource === "hitPoints" ? "DRPG.Reserve.health" : "DRPG.Reserve.sanity", { n: next - marks }));
         }
         if (landed.length) await trustedWrite(choice.target, update, { reason: "call" });
         return landed;
@@ -1075,7 +1081,7 @@ async function damageEffect(actor, call, choice, done) {
     }
     done.push(game.i18n.format("DRPG.Calls.damaged", {
         name: choice.target.name,
-        what: landed.join(", ")
+        what: listOf(landed)
     }));
 }
 
@@ -1125,8 +1131,12 @@ async function progressEffect(actor, call, choice, done, { key, kind, secret = [
         // A GM's write says outright whether the bar moved. A player's
         // is forwarded, so the answer comes back as a whisper instead -
         // never claim a number this side of the socket.
+        // The bar did not move - a race with a freeze, a finish or an emptied bar, which `projectRefusal` asked before the
+        // price: nothing to do, so the price goes back (`NothingToDo`, as a full track's Pain), and addProgress has already
+        // said why on this GM's screen (Project.alreadyFull, alreadyEmpty). Until the needsCode line (R6903) the line
+        // `Calls.progressRefused` stood on the card and the price stayed spent.
         if (applied.changed === false) {
-            say(game.i18n.format("DRPG.Calls.progressRefused", { name: project.name }));
+            throw new NothingToDo(`${project.name} did not move`);
         } else if (applied.changed) {
             say(game.i18n.format("DRPG.Calls.progressedTo", {
                 name: project.name, current: applied.to, target: applied.target

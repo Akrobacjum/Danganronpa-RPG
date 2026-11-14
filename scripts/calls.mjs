@@ -314,7 +314,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
                 "system.resources.hope.value": Math.min(maxOf("hope") || STARTING.hopeMax, now + call.cost)
             }, { reason: "refund" }));
             ui.notifications.warn(game.i18n.format("DRPG.Calls.refunded", {
-                call: call.label, cost: call.cost
+                call: call.label, cost: game.i18n.format("DRPG.Calls.costsHopeShort", { cost: call.cost })
             }));
             log(`${call.label} failed; ${call.cost} Hope returned to ${actor.name}.`);
             return null;
@@ -492,7 +492,7 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             const { adjustDespair } = await import("./despair.mjs");
             await adjustDespair(user.id, call.cost);
             ui.notifications.warn(game.i18n.format("DRPG.Calls.refunded", {
-                call: call.label, cost: call.cost
+                call: call.label, cost: game.i18n.format("DRPG.Calls.costsDespairShort", { cost: call.cost })
             }));
             log(`${call.label} failed; ${call.cost} Despair returned to ${user.name}.`);
             return null;

@@ -414,7 +414,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         const was = game.drpg.getDespair(game.user.id);
         await game.drpg.setDespair(game.user.id, 6);
         const told = game.i18n.format("DRPG.Calls.gatherNoRoom", { room: "Boiler", scene: academy.name });
-        const refunded = game.i18n.format("DRPG.Calls.refunded", { call: call.label, cost: call.cost });
+        const refunded = game.i18n.format("DRPG.Calls.refunded", { call: call.label, cost: game.i18n.format("DRPG.Calls.costsDespairShort", { cost: call.cost }) });
         const count = text => globalThis.__notifications.filter(n => n.msg === text).length, w0 = count(told), r0 = count(refunded);
         const refuse = room => CE.gatherRefusal ? CE.gatherRefusal(call, { room }, monokuma) : "no gatherRefusal";
         let out = null;
