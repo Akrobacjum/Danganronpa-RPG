@@ -42,15 +42,16 @@
       ],
       "en": {
         "before": "Wiping a Remnant costs {n} Sanity.",
-        "after": "Each attempt costs {n} Sanity instead of an action, hit or miss; the first after a critical Finishing Blow costs none."
+        "after": "Each attempt costs {n} Sanity, hit or miss; the first after a critical Finishing Blow costs none."
       },
       "pl": {
         "before": "Wytarcie Remnantu kosztuje {n} Sanity.",
-        "after": "Sprzątasz po sobie: każda próba kosztuje {n} Sanity zamiast akcji, poza pierwszą po krytycznym Finishing Blow."
+        "after": "Sprzątasz po sobie: każda próba kosztuje {n} Sanity, poza pierwszą po krytycznym Finishing Blow."
       },
       "removed": [
         "\"Wiping\" becomes \"Erasing\", the verb of Erase a Trace (O14).",
-        "The free first attempt after a critical Finishing Blow (D13) is now in the text, in both languages."
+        "The free first attempt after a critical Finishing Blow (D13) is now in the text, in both languages.",
+        "Tier 1 R307 (scripts/tests-tier1.mjs, the Tamper words) holds that the clean-up's opening line names no action: \"instead of an action\" taken out of both afters after the first tier 1 run."
       ],
       "needsCode": [],
       "disagreements": [],
@@ -2231,48 +2232,6 @@
       "owner": null
     },
     {
-      "key": "DRPG.Cleanup.reshapeRulingWas",
-      "group": "window",
-      "surface": "gm-card",
-      "screen": "cleanup",
-      "readers": [
-        "gm"
-      ],
-      "source": "written",
-      "pilot": null,
-      "facts": [
-        {
-          "fact": "The GMs' part of the reshape card: the Remnant's labels before and after.",
-          "file": "scripts/cleanup.mjs",
-          "fn": "reshapeCardParts",
-          "note": null
-        }
-      ],
-      "kept": [
-        0
-      ],
-      "en": {
-        "before": "{was} would read as: {now}.",
-        "after": "{was} would become {now}."
-      },
-      "pl": {
-        "before": "{was} - po zmianie będzie to: {now}.",
-        "after": "{was} po zmianie będzie {now}."
-      },
-      "removed": [
-        "\"would read as:\" with its colon (X7)."
-      ],
-      "needsCode": [],
-      "disagreements": [],
-      "reviews": {
-        "en": null,
-        "coldEn": null,
-        "pl": null,
-        "mechanics": null
-      },
-      "owner": null
-    },
-    {
       "key": "DRPG.Cleanup.reshapeRulingQuieter",
       "group": "window",
       "surface": "gm-card",
@@ -2905,10 +2864,11 @@
       },
       "pl": {
         "before": "Najpierw twoje słowa zatwierdza GM, a po odmowie nic, co zapłacono, nie wraca. Po zatwierdzeniu Remnant staje się Tamper Remnant, który przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. Krytyk dodatkowo wycisza go o jeden stopień i zwraca koszt.",
-        "after": "Twoją wersję najpierw zatwierdza GM, a odmowa niczego nie zwraca. Po zgodzie Remnant staje się Tamper Remnant; krytyk sprawia też, że o stopień trudniej go zauważyć, i zwraca ci koszt."
+        "after": "Twoją wersję najpierw zatwierdza GM, a po odmowie koszt nie wraca. Po zgodzie Remnant staje się Tamper Remnant; krytyk sprawia też, że o stopień trudniej go zauważyć, i zwraca ci koszt."
       },
       "removed": [
-        "\"which admits that somebody handled it and lies about everything else\" goes: rationale (O9)."
+        "\"which admits that somebody handled it and lies about everything else\" goes: rationale (O9).",
+        "Tier 1 R121 holds the Reshape's sentences to a refusal that gives nothing back (pl /odmow...nie wraca|przepada/): the Polish after says „po odmowie koszt nie wraca” after the first tier 1 run."
       ],
       "needsCode": [],
       "disagreements": [],
@@ -3032,15 +2992,16 @@
       ],
       "en": {
         "before": "Nobody sees you decide. Erasing happens now. Leaving something else waits for a GM's approval first: whoever finds it then finds your story, as a Tamper Remnant. If the GM refuses, the Remnant is erased all the same and nothing you paid comes back.",
-        "after": "Erasing happens now. A new story waits for a GM's approval, and then the Remnant becomes a Tamper Remnant with your words. If the GM refuses, the Remnant is erased anyway, and what your critical gave back stays yours."
+        "after": "Erasing happens now. A new story waits for a GM's approval, and then the Remnant becomes a Tamper Remnant with your words. If the GM refuses, the Remnant is erased anyway and nothing else you paid comes back."
       },
       "pl": {
         "before": "Nikt nie widzi, jak decydujesz. Usunięcie działa od razu. Zostawienie czegoś innego najpierw zatwierdza GM: kto potem znajdzie ten Remnant, znajdzie twoją wersję jako Tamper Remnant. Po odmowie GM-a Remnant i tak znika, a to, co zapłacono, nie wraca.",
-        "after": "Wymazanie działa od razu. Nową wersję najpierw zatwierdza GM, a po zgodzie Remnant staje się Tamper Remnant; po odmowie Remnant i tak znika, a to, co krytyk ci oddał, zostaje przy tobie."
+        "after": "Wymazanie działa od razu. Nową wersję najpierw zatwierdza GM, a po zgodzie Remnant staje się Tamper Remnant; po odmowie Remnant i tak znika, a reszta kosztu nie wraca."
       },
       "removed": [
         "\"Nobody sees you decide\" goes (O10).",
-        "\"nothing you paid comes back\" goes: the critical already gave back 1 of what was paid."
+        "\"nothing you paid comes back\" goes: the critical already gave back 1 of what was paid.",
+        "Tier 1 R121 holds the Reshape's sentences to a refusal that gives nothing back: both afters say what else was paid does not come back, the critical's refund aside, after the first tier 1 run."
       ],
       "needsCode": [],
       "disagreements": [

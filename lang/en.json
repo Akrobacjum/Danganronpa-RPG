@@ -2304,7 +2304,7 @@
     "Cleanup": {
       "title": "Cleaning up",
       "action": "Erase a Trace",
-      "intro": "Each attempt costs {n} Sanity instead of an action, hit or miss; the first after a critical Finishing Blow costs none.",
+      "intro": "Each attempt costs {n} Sanity, hit or miss; the first after a critical Finishing Blow costs none.",
       "priceGone": "Hiding what you were doing took your last Sanity, so this attempt stops here; that Sanity stays spent.",
       "actionBack": {
         "one": "You get {n} action back.",
@@ -2400,7 +2400,7 @@
       "alreadyRuled": "{name} has already ruled on this reshape.",
       "reshapeDeclinedErased": "{name} refused your story, but your critical still erased the Remnant.",
       "reshapeRulingTitle": "A Remnant made to read differently",
-      "reshapeRulingWas": "{was} would become {now}.",
+      "reshapeRulingWas": "{was} would read as: {now}.",
       "reshapeRulingQuieter": "The roll also makes it one band harder to spot.",
       "reshapeRulingBand": "Band: {band}.",
       "reshapeRulingTies": "The student is the killer, so approving also ties the Remnant to the murder.",
@@ -2422,7 +2422,7 @@
       "transformTitle": "A clean job",
       "transformIntro": "Your critical lets you do more than erase this Remnant: erase it, or give it a new name and description and choose how easy it is to spot.",
       "transformVisibility": "And this hard to spot",
-      "transformNote": "Erasing happens now. A new story waits for a GM's approval, and then the Remnant becomes a Tamper Remnant with your words. If the GM refuses, the Remnant is erased anyway, and what your critical gave back stays yours.",
+      "transformNote": "Erasing happens now. A new story waits for a GM's approval, and then the Remnant becomes a Tamper Remnant with your words. If the GM refuses, the Remnant is erased anyway and nothing else you paid comes back.",
       "transformErase": "Erase it",
       "transformChange": "Leave something else"
     },

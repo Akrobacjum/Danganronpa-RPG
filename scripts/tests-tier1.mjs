@@ -37444,7 +37444,7 @@ const INVARIANTS = [
                 analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
                 tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and Tamper takes nothing else."],
                 raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
-                    `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
+                    `Their opponent cannot use ${sv} for 1 turn.`, "You get 1 action back.", "You get 1 Sanity back."]
             },
             pl: {
                 broken: [],
