@@ -25692,6 +25692,12 @@ const REGRESSIONS = [
         const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipse");
         ok(/murderState\(\)/.test(end) && /DRPG\.Eclipse\.ended/.test(bodyOf(end, "if (advance)", { until: "} else {" })), "endEclipse tells the bystanders nothing of the lights coming back while an incident runs");
     }],
+    ["R7181 - the Eclipse wins over the Spectator talk switch (E59 C-115, CHAINS.md B-S5; Q-115-8's default): during an Eclipse no player is in voice (GM 9.5), and voice.mjs `placeVoices` moved an account whose talk switch is on to the Spectators' room after the Eclipse's claim, with no Eclipse asked; the Spectators' room rule passes over every account while `eclipse` holds", async () => {
+        const place = stripComments(fnSource(stripComments(new Map(await otherSources()).get("voice.mjs") ?? ""), "placeVoices"));
+        const rule = bodyOf(place, "for (const [userId, row] of byUser) {\n        if (", { length: 160 });
+        ok(/spectatorTalks\(/.test(rule), `the Spectators' room rule was not found where it stood: ${rule}`);
+        ok(/\beclipse\b/.test(rule), `the Spectators' room rule does not ask the Eclipse: ${rule}`);
+    }],
 ];
 
 

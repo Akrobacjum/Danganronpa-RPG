@@ -1063,8 +1063,10 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
        holds one LiveKit room at a time (voice-client.mjs `applyBreakout` - a reading of this code, not of avclient-livekit;
        LIVE-E92-01), so the switch moves the account: its row's room is the Spectators', in every phase, until the switch
        is off and it goes back to its token's room. A Spectator is never a witness either way (`witness` below). */
+    // NOT IN AN ECLIPSE (E59 on the 1.2.115 line, CHAINS.md B-S5; R7181; Q-115-8's default): no player is in voice then,
+    // and the switch moved the account into the Spectators' room after the Eclipse's claim.
     for (const [userId, row] of byUser) {
-        if (!row.user || !spectatorTalks(row.user, { actors })) continue;
+        if (eclipse || !row.user || !spectatorTalks(row.user, { actors })) continue;
         byUser.set(userId, { ...row, room: null, target: SPECTATOR_ROOM, claim: CLAIM.inRoom, kept: false, keep: false,
             why: voiceText("DRPG.Voice.plan.why.spectatorTalks") });
     }
