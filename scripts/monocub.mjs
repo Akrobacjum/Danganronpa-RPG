@@ -1123,13 +1123,17 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
         return null;
     }
 
-    if (actionsLeft(actor) < row.cost) {
+    // What the move costs now, as the GM charges it (`priceOf`: a move done to order its action and no Hope, E72 C17).
+    // The row's own price stood here until the needsCode line (R6905): a Monocub with an open order and no Hope was
+    // refused on its own browser for a move the GM would carry out.
+    const price = priceOf(actor, row);
+    if (actionsLeft(actor) < price.cost) {
         ui.notifications.warn(plural("DRPG.Actions.notEnough", {
-            actor: actor.name, left: actionsLeft(actor), needed: row.cost
+            actor: actor.name, left: actionsLeft(actor), needed: price.cost
         }, "left"));
         return null;
     }
-    if (cubHopeTotal(actor) < row.hopeCost) {
+    if (cubHopeTotal(actor) < price.hopeCost) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.needHope"));
         return null;
     }

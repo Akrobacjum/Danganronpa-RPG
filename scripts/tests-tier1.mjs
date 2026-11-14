@@ -37813,6 +37813,20 @@ const INVARIANTS = [
             "[the dead keys a script names; look.mjs still has scaleNote; the dead keys each file still holds]");
     }],
 
+    ["R6905 - a Monocub's browser asks what a move costs it now, as the GM charges it (needsCode, 14.11.2026; E72 C17, DC34: a move done to order costs its action and no Hope): monocub.mjs `performCubAbility` reads `priceOf(actor, row)` for the actions and the Hope it checks, never the row's bare `cost` or `hopeCost`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #76, #77. Red at 2883945f: the check read
+         * `row.cost` and `row.hopeCost`, so a Monocub with an open order and no Hope was told it lacked Hope and refused on
+         * its own browser, though the GM charges `priceOf` (no Hope for a move to order) and would carry it out. The sheet's
+         * button (sheet.mjs `abilityButton`) asks the same and is E54's file: it waits for that stage.
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "monocub.mjs")?.[1] ?? "");
+        const body = fnSource(src, "performCubAbility") ?? "";
+        must(body.includes("DRPG.Monocub.needHope"), "performCubAbility no longer says needHope - this reads nothing");
+        equal(stableJson([/priceOf\(actor, row\)/.test(body), /\brow\.hopeCost\b/.test(body), /\brow\.cost\b/.test(body)]),
+            stableJson([true, false, false]), "[performCubAbility: priceOf asked; row.hopeCost read; row.cost read]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
