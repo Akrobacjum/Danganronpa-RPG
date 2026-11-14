@@ -41,7 +41,7 @@ import { remnantsOn, remnantData } from "./remnants.mjs";
 
 import { whisperToGms, log, error, plural, esc, isPrimaryGm, primaryGmId, serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
-import { drpgWindow, box } from "./ui-kit.mjs";
+import { drpgWindow, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { columnsHtml } from "./ui-columns.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
@@ -52,7 +52,6 @@ import { caseMark } from "./gm-stores.mjs";
 
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { bulletsHeldBy, keepBulletDeletions } from "./death.mjs";
 export { faintPrepCandidates, promoteFaintPrep, discoverBody, deathAnnounced, announceBody, BODY_ANNOUNCED_HOOK, announceArrivedBodies, registerBodyAnnounced, announcedIn, bodiesToDiscover, witnessesOf, maybeBodyFound, pendingBodyDiscoveries, answersBodyPrompt, askPendingBodies, registerPendingBodies, bodiesLyingIn, openBodyDiscoveryDialog } from "./body.mjs";
 export { livingStudents, livingStudentsForGm, markDeceased, killCharacter, incidentVictimDied, publishDeath, tellUnfoundDeaths, reviveCharacter, clearSeasonDeaths, clearSeasonBodies, openDeathDialog } from "./death.mjs";

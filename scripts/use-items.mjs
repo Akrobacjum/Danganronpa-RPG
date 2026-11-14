@@ -43,9 +43,8 @@ import { bodyDiscovery, bodyFoundSinceTrial, isDeadForGm, getClock } from "./set
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
-import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 
 /** Flag marking the one item of its category the character is holding ready. */

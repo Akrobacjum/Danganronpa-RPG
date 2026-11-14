@@ -179,7 +179,7 @@ async function lint() {
     }
     const PROBE = "drpgLintProbeUndefinedName";
     const probeDirs = ["scripts", "tools", "audit/harness", "audit/harness/lib", "audit/gate", "audit/live"];
-    let heard = 0, unusedHeard = 0;
+    let heard = 0, unusedHeard = 0, twiceHeard = 0;
     for (const dir of probeDirs) {
         const [res] = await eslint.lintText(`export const probe = ${PROBE};\n`, { filePath: path.join(REPO, dir, "__lint-probe__.mjs") });
         if (res?.messages.some(m => m.ruleId === "no-undef" && m.message.includes(PROBE))) heard++;
@@ -188,6 +188,11 @@ async function lint() {
         const [unused] = await eslint.lintText(`const ${PROBE}Unused = 1;\n`, { filePath: path.join(REPO, dir, "__lint-probe__.mjs") });
         if (unused?.messages.some(m => m.ruleId === "no-unused-vars" && m.message.includes(`${PROBE}Unused`))) unusedHeard++;
         else problems.push(`${dir}/: a name declared and never read was not reported there - no-unused-vars is not on for that folder`);
+        // no-duplicate-imports (E56 part 2): a module imported in two statements, planted the same way, must be reported.
+        const [twice] = await eslint.lintText(`import { a } from "./${PROBE}.mjs";\nimport { b } from "./${PROBE}.mjs";\nexport { a, b };\n`,
+            { filePath: path.join(REPO, dir, "__lint-probe__.mjs") });
+        if (twice?.messages.some(m => m.ruleId === "no-duplicate-imports")) twiceHeard++;
+        else problems.push(`${dir}/: a module imported in two statements was not reported there - no-duplicate-imports is not on for that folder`);
     }
     /* THE BRIDGE-RESULT RULE, SHOWN ITS FIXTURE (E31, 25.09.2026). drpg/bridge-result
        reads a use of a request's answer, and a rule that reported nothing would pass
@@ -207,7 +212,7 @@ async function lint() {
     }
     for (const m of otherwise) problems.push(`the bridge-result fixture:${m.line}: ${m.message}`);
     const counts = `${results.length} files, ${messages} problem(s); `
-        + `no-undef at error level in ${ruled}/${results.length}, a planted undefined name reported in ${heard}/${probeDirs.length} folders, an unread one in ${unusedHeard}/${probeDirs.length}; `
+        + `no-undef at error level in ${ruled}/${results.length}, a planted undefined name reported in ${heard}/${probeDirs.length} folders, an unread one in ${unusedHeard}/${probeDirs.length}, a doubled import in ${twiceHeard}/${probeDirs.length}; `
         + `drpg/bridge-result reports ${flagged.length} of its fixture's lines, which marks ${marked.length}`;
     console.log(`lint: ${counts}`);
     for (const p of problems.slice(0, 40)) console.log(`  ${p}`);

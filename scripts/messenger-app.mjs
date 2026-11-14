@@ -21,7 +21,7 @@
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
-import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId } from "./ui-kit.mjs";
+import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId, tipText, setTip, tipAttr } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -35,7 +35,6 @@ import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
 
-import { tipText, setTip, tipAttr } from "./ui-kit.mjs";
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
 

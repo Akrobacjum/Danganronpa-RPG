@@ -28,7 +28,7 @@ import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./
 import { cardWarn } from "./chat-card.mjs";
 import { whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen, RAISED } from "./live.mjs";
 import { showRoomGroup } from "./ui-hold.mjs";
@@ -38,7 +38,6 @@ import {
     tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName
 } from "./tables-pools.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**

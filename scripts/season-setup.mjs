@@ -60,7 +60,7 @@ import { foundryGivenBack, openGiveBackFoundry, permissionsInForce } from "./enf
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
-import { stepperId, drpgWindow, checkList, formGrid, box, roleButton } from "./ui-kit.mjs";
+import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
 import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
@@ -69,9 +69,7 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
@@ -1461,7 +1459,6 @@ export async function openFoundryReport() {
 /** Foundry and modules' body: the contract (`contract` a run of patches.mjs `runContract`, the world's unless handed) and the dice look's console line with its button. */
 export async function foundryReport({ contract = null } = {}) {
     const { runContract } = await import("./patches.mjs");
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     const title = game.i18n.localize("DRPG.DiceLook.diag.title");
     return `<div>
             ${contractSection(contract ?? runContract(), esc)}
@@ -1484,7 +1481,6 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
     const [{ auditAnonymity }, { videoUnwatched, avOffForTile, videoWithoutAudio }, { checkRoomImages }] = await Promise.all([
         import("./anonymity.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs")
     ]);
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 
     const anon = await auditAnonymity({ toChat: false });
     // E78 C5 (the owner's Q11, the A9 design's "avVideo", here voice-tile.mjs `videoUnwatched`): a world in

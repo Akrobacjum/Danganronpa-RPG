@@ -12,9 +12,8 @@
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
     BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
-import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, serialWrite, worldLocalize } from "./utils.mjs";
 // E57 C3 (D34): an item's tier line in the world's document language; its own line.
-import { worldLocalize } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 
 /** Flag keys stored on every item this module creates. */

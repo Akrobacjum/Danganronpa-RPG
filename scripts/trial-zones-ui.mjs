@@ -22,10 +22,9 @@ import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDeba
     deleteFinding, confirmFinding } from "./trial-zones.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { drpgWindow, drpgConfirm, formGrid, box } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, formGrid, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { esc, error, serverNow, localeFormat } from "./utils.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** A name of `actorId`, escaped. */
 function nameOf(id) {

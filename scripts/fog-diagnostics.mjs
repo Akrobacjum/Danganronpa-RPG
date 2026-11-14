@@ -46,7 +46,7 @@ import {
 } from "./fog-doorways.mjs";
 import { roomOutline, HALO_NAMES } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
-import { plural, localeFormat } from "./utils.mjs";
+import { plural, localeFormat, esc } from "./utils.mjs";
 import { tipAttr } from "./ui-kit.mjs";
 // From vault-store.mjs, which reaches this file by no static import; not from its facade vault.mjs (E41 C6), which
 // reaches it through palm.mjs and fog.mjs, so that import would close a static cycle (R161).
@@ -689,7 +689,6 @@ export function roomCheckProblems(findings) {
  * finding's row names its floor under the room, and its button carries the floor (`data-drpg-level`).
  */
 export function roomCheckHtml(findings, sceneId = null) {
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     const legend = new Map();
     for (const f of findings ?? []) if (f.kind && f.why && !legend.has(f.kind)) legend.set(f.kind, f);
     const marks = { error: "✕", warning: "!", info: "·" };

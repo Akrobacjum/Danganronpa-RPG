@@ -1,6 +1,6 @@
 /**
- * What `npm run lint` holds the code to (E30, audit S17-05): no-undef, no-import-assign (E34) and no-unused-vars (E56
- * part 1), and, for scripts/, drpg/bridge-result (E31).
+ * What `npm run lint` holds the code to (E30, audit S17-05): no-undef, no-import-assign (E34), no-unused-vars (E56
+ * part 1) and no-duplicate-imports (E56 part 2), and, for scripts/, drpg/bridge-result (E31).
  * ---------------------------------------------------------------------------
  * Run from audit/harness (`npm run lint`, or `node run-all.mjs lint`), which
  * points ESLint at the repository root and this file. It imports nothing, so
@@ -41,8 +41,13 @@ const NODE = names(`process console setTimeout clearTimeout setInterval clearInt
 // an argument is never reported (`args: "none"`: handlers and hooks take what Foundry hands them), nor a name starting
 // with `_`, nor a name a rest element leaves out (`const { a, ...rest } = x`, the module's way to drop a field). On
 // 123f8242, 394 files: 96 without ignoreRestSiblings, 74 with it; 0 after E56 part 1's three commits.
+// no-duplicate-imports (E56 part 2, 14.11.2026; the plan's "double imports"): one import statement a module, so a
+// name added to a file joins the line that already imports its module. On f63a2485 (the tooltip sweep merged), 405
+// files: 48 statements in 42 files of scripts/ (ui-kit.mjs in 40 of them, utils.mjs in 2, settings.mjs in 1;
+// projects-ui.mjs held two); 0 after. run-all's lint part plants a doubled import in each folder, red without the rule.
 const RULES = { "no-undef": ["error", { typeof: true }], "no-import-assign": "error",
-    "no-unused-vars": ["error", { args: "none", varsIgnorePattern: "^_", ignoreRestSiblings: true }] };
+    "no-unused-vars": ["error", { args: "none", varsIgnorePattern: "^_", ignoreRestSiblings: true }],
+    "no-duplicate-imports": "error" };
 /*
  * drpg/bridge-result (E31, 25.09.2026; audit S17-09). A request to the GM answers
  * the bridge's result, `{ ok, pending?, value?, refused?, reason? }`, and an object

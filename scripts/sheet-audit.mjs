@@ -149,10 +149,9 @@ import { readDuality } from "./despair-award.mjs";
 import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
-import { box, roleButton } from "./ui-kit.mjs";
+import { box, roleButton, tipText } from "./ui-kit.mjs";
 import { readSpectatorsWith } from "./spectator.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
