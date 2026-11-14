@@ -40,7 +40,7 @@
         "id": "avclient-livekit",
         "type": "module",
         "manifest": "https://github.com/bekriebel/fvtt-module-avclient-livekit/releases/latest/download/module.json",
-        "reason": "Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you."
+        "reason": "Voice follows the rooms: a player hears the people in the room their character is in, and moving to another room changes who hears them."
       }
     ]
   },

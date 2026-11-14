@@ -72,7 +72,7 @@ The largest button in the bottom-right corner opens **GM Chat**: one thread betw
 
 | Button | Opens |
 |---|---|
-| The gear | **DRPG Settings**: language, theme, sounds, and voice. |
+| The gear | **Danganronpa RPG settings**: language, theme, sounds, and voice. |
 | The book | This brochure and the Player Handbook. |
 | The stack of cards on a notice | The **Notice history**: the notices you were shown. |
 
