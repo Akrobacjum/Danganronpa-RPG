@@ -2317,6 +2317,51 @@ export const UI_LITERAL_ALLOW = Object.freeze({
 });
 
 /**
+ * T13's allowed fields (E57 rest, 14.11.2026): a property of a script's data table whose value only the console and
+ * the author's report read, by file and property name, each with its reason. A literal is the property's when it
+ * stands in the property's own value - after `name:` with no call's "(", no "[" and no "{" left open between them, so a call's
+ * argument there (`title: format("...")`) is not - every piece of a string sum, a ternary or a template included.
+ * Not a bucket: the screen that shows such a table reads lang/ for what it shows (patches.mjs `targetOf`, `insteadOf`, `unreadOf`), and a field that reaches a screen as it is written has no row here. Read by `uiLiterals`; a fixture
+ * passes its own through `uiFields` (UI_LITERAL_FIELDS since the T13 reconcile; T13b's UI_LITERAL_ALLOW keys by declaration).
+ */
+export const UI_LITERAL_FIELDS = Object.freeze({
+    "scripts/patches.mjs": Object.freeze({
+        target: "a row's target as the code names it, for the console, diagnosePatches() and the author; the notice, Pre-season and the newer-system window show DRPG.Contract.target.<key> (targetOf), and fall back to this only for a row whose target is names alone",
+        road: "what fires a hook, in English for the console's note; Pre-season shows DRPG.Contract.road.<id> (unreadOf)",
+        note: "a probe's note, read in the console and diagnostics.mjs's report; Pre-season shows an unread row's reason from DRPG.Contract.unread.* (unreadOf)",
+        why: "a row's reason, read only in diagnosePatches()'s console table and the source",
+        when: "when a row is installed, read only in diagnosePatches()'s console table and in a note of a row not in use, which no screen shows (an ok row)",
+        fallback: "what the table gets, in English for the console's warning and the report; a screen shows DRPG.Contract.instead.<key> (insteadOf, R1562)",
+        what: "SHEET_ANCHORS: what a selector finds, read by nobody but the source",
+        optional: "SHEET_ANCHORS: the road sheet.mjs takes without a place, written into a note of an ok row, which no screen shows",
+        changed: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        unnamed: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        backstop: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        notFound: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        noApi: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)"
+    })
+});
+
+/* The property whose own value holds the literal at `at` in blanked code, or null: read back to the "," ";" or the
+   opening bracket that starts the value at depth 0 (a grouping parenthesis read through), then `name:` (not `::`) at its
+   head. */
+function fieldOf(blank, at) {
+    let depth = 0, k = at - 1;
+    for (; k >= 0; k--) {
+        const c = blank[k];
+        if (c === ")" || c === "]" || c === "}") depth++;
+        else if (c === "(" || c === "[" || c === "{") {
+            if (depth > 0) { depth--; continue; }
+            // A grouping "(" (after an operator, a ":" or nothing) is part of the value; a call's, an array's or an object's is not.
+            if (c === "(" && !/[\w$)\]]\s*$/.test(blank.slice(Math.max(0, k - 40), k))) continue;
+            break;
+        }
+        else if ((c === "," || c === ";") && depth === 0) break;
+    }
+    return /^\s*([A-Za-z_$][\w$]*)\s*:(?!:)/.exec(blank.slice(k + 1, at))?.[1] ?? null;
+}
+
+/**
  * T13 (plan, S18-46; report, FAIL from E71): English written into the code of a
  * script that draws UI (UI_FILE) - a string or a template piece whose shown text
  * (shownOf) holds two or more English words (so never a key, which has no
@@ -2342,6 +2387,7 @@ export function uiLiterals(bag = {}) {
     const S = asMap(bag.scripts);
     const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0, consoleArg: 0, claims: 0, allowed: 0 };
     const allow = bag.uiAllow ?? UI_LITERAL_ALLOW, tally = new Map();
+    const fields = bag.uiFields ?? UI_LITERAL_FIELDS;
     const guardFile = S.get("scripts/bridge-guards.mjs");
     const guards = guardFile === undefined ? [] : [...lx.blankComments(String(guardFile)).matchAll(/^export function (\w+)\s*\(([^)]*)\)/gm)]
         .filter(m => /(?<![\w$])why(?![\w$])/.test(m[2])).map(m => m[1]);
@@ -2394,6 +2440,8 @@ export function uiLiterals(bag = {}) {
                 || inside(selectorArgs, s)) { counts.notText++; continue; }
             if (/(?<![\w$.])claims\s*:\s*\{[^{}]*$/.test(blank.slice(Math.max(0, s.start - 300), s.start))) { counts.claims++; continue; }
             if (has.some(h => h < s.start && s.start - h < 200 && !/[;{}]/.test(blank.slice(h, s.start))) || textFallback(blank, s.start)) { counts.fallback++; continue; }
+            const field = Object.hasOwn(fields, file) ? fieldOf(blank, s.start) : null;
+            if (field && Object.hasOwn(fields[file], field)) { counts.allowed++; continue; }
             const row = `${file} ${declarationAt(decls, s.start)}`;
             if (Object.hasOwn(allow, row)) { counts.allowed++; tally.set(row, (tally.get(row) ?? 0) + 1); continue; }
             const line = lineOf(code, s.start), words = shown.replace(/\s+/g, " ").trim();
@@ -3577,13 +3625,14 @@ export const FIXTURES = Object.freeze({
         flags: ["scripts/fx-text.mjs:1 string", "scripts/fx-ui.mjs:1 string", "scripts/fx-ui.mjs:2 template", "scripts/fx-ui.mjs:15 template",
             "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string", "scripts/fx-ui.mjs:27 string",
             "scripts/fx-ui.mjs:37 string", "scripts/fx-ui.mjs:51 string", "scripts/fx-ui.mjs:54 string",
-            "scripts/fx-allow.mjs fxTwo allow"],
-        counts: { allowed: 2 },
+            "scripts/fx-register.mjs:1 string", "scripts/fx-register.mjs:3 string", "scripts/fx-allow.mjs fxTwo allow"],
+        counts: { allowed: 5 },
         input: {
             uiAllow: {
                 "scripts/fx-allow.mjs fxReason": { n: 1, why: "the fixture's reason, read by no screen" },
                 "scripts/fx-allow.mjs fxTwo": { n: 2, why: "a row that names more literals than its declaration holds" }
             },
+            uiFields: { "scripts/fx-register.mjs": { quiet: "a register's reason, read in the console alone" } },
             scripts: {
                 "scripts/fx-ui.mjs": [
                     "const d = new foundry.applications.api.DialogV2({ window: { title: \"Pick a student\" } });",     // flagged
@@ -3655,6 +3704,12 @@ export const FIXTURES = Object.freeze({
                     "export function fxReason(a) { if (!a) return \"the sender is not here\"; return null; }",          // an allow row's one literal: allowed
                     "export function fxTwo(a) { return a ? \"the packet is another world's\" : null; }",                // its row names 2, it holds 1: the row is flagged
                     "el.textContent = name;"
+                ].join("\n"),
+                "scripts/fx-register.mjs": [
+                    "export const ROWS = [{ id: \"a-row\", target: \"the chat log's notify\",",                       // a field a screen reads: flagged
+                    "    quiet: \"Quiets the chat tab\" + (veiled ? \" for a veiled card\" : \" on every card\"),",  // the allowed field (uiFields), every piece: passes
+                    "    note: \"read in the console\" }];",                                                         // a field not allowed: flagged
+                    "ui.notifications.warn(game.i18n.localize(\"DRPG.Fx.notice\"));"
                 ].join("\n"),
                 "scripts/fx-text.mjs": "el.textContent = \"Nobody is here yet\";",                                     // textContent makes a UI file: flagged
                 "scripts/fx-data.mjs": "export const LINE = \"An English line no screen of this file draws\";",        // no UI in the file: not read

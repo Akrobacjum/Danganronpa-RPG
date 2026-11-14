@@ -1577,7 +1577,9 @@ function diceLookSection(findings, esc) {
 /**
  * Pre-season's lines of the contract (E52 C2, E52-05): each failed row with a cross, its target, file:symbol and what
  * the table gets instead - the rows the primary GM's notice names; the rows nobody could read on one line, never
- * green; a check only when every row holds.
+ * green; a check only when every row holds. The target and an unread row's reason in the table's language since
+ * E57's rest (patches.mjs `targetOf`, `unreadOf`: `shownTarget`, `shownUnread`; R7030), the register's English kept
+ * for a run made by an older caller.
  *
  * @param {{rows: object[], failed: object[], unknown: object[]}} contract  patches.mjs `runContract`
  * @param {function(*): string} esc
@@ -1586,13 +1588,13 @@ function diceLookSection(findings, esc) {
 function contractSection(contract, esc) {
     const failed = contract?.failed ?? [], unknown = contract?.unknown ?? [];
     // A failed row a warning (E46-C5b): the table gets what it names instead, and the load's notice said so.
-    const rows = failed.map(r => ({ key: r.id ?? null, state: "warning", title: `${r.target} (${r.where}): ${r.instead ?? r.fallback}` }));
+    const rows = failed.map(r => ({ key: r.id ?? null, state: "warning", title: `${r.shownTarget ?? r.target} (${r.where}): ${r.instead ?? r.fallback}` }));
     if (!rows.length && !unknown.length) rows.push({ key: "allOk", state: "done", title: plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 }) });
     // The unread rows as one counted line, their list folded under it (E52 C4, C3's gap): about two dozen on
     // every world (table-only checks, hooks not seen firing yet) drowned the failed rows above. Never a check.
     const fold = unknown.length
         ? `<details class="drpg-check-unknown"><summary>${esc(plural("DRPG.Contract.checksUnknown", { n: unknown.length }))}</summary>${
-            unknown.map(r => `<div>${esc(`${r.target} (${r.where}): ${r.note}`)}</div>`).join("")}</details>`
+            unknown.map(r => `<div>${esc(`${r.shownTarget ?? r.target} (${r.where}): ${r.shownUnread ?? r.note}`)}</div>`).join("")}</details>`
         : "";
     const title = game.i18n.localize("DRPG.Contract.checksTitle");
     return checkPart("contract", title, `${rows.length ? checkList(rows, { label: title }) : ""}${fold}`);

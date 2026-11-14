@@ -36280,6 +36280,90 @@ const INVARIANTS = [
         equal(mod.runContract({ rows: [failing] }).failed[0]?.fallback, real.fallback, "the run lost the register's own fallback");
     }],
 
+    ["R7030 - a contract row's target and an unread row's reason reach a screen in the table's words: each row whose target is English words has DRPG.Contract.target.<key>, each hook row DRPG.Contract.road.<id>, each unread reason its DRPG.Contract.unread.* in both languages, and the notice, Pre-season's line and its fold carry them, not the register's English (E57 rest, T13, S18-46)", async () => {
+        /*
+         * E57 rest, 14.11.2026 (T13 in patches.mjs). R1562 put a failed row's `instead` in the table's language; the
+         * row's `target` beside it, and in Pre-season's fold of the unread rows the probe's `note`, were still the
+         * register's English - "the chat log's notify", "no camera popped out now" - inside a Polish line. A screen now
+         * reads patches.mjs `targetOf` (DRPG.Contract.target.<targetKey or id>, falling back to the code's name for a
+         * row whose target is names alone) and `unreadOf` (a hook's DRPG.Contract.road.<id> in unread.hook, a table
+         * check's unread.table, the row's own unread.<unreadKey, insteadKey or id>, else unread.noMark or
+         * unread.cannotTell); the console and the report keep the English. Held here to the register both ways, then
+         * to stand-in rows whose English is a marker no language file holds. Red before: no such keys, the notice
+         * and the fold carrying `target` and `note`.
+         */
+        const mod = await import("./patches.mjs");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json()))?.DRPG?.Contract ?? {};
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/patches.mjs`, { cache: "no-cache" }).then(lfText);
+        // T13's reading of "English words" (tests-text.mjs `twoWords`): a target that is names alone needs no sentence.
+        const words = t => /[A-Za-z][^\S\n]+[A-Za-z]/.test(t) && (String(t).match(/[A-Za-z]{2,}/g) ?? []).length >= 2 && /[a-z]{3,}/.test(t);
+        const rows = mod.PATCHES;
+        const worded = rows.filter(r => words(r.target));
+        must(worded.length >= 25, `${worded.length} row(s) with a worded target - this test would read nothing`);
+        const targetKeys = new Set(worded.map(r => r.targetKey ?? r.id));
+        const hookIds = new Set(rows.filter(r => r.kind === "hook").map(r => r.id));
+        must(hookIds.size >= 10, `${hookIds.size} hook row(s) - this test would read nothing`);
+        const unreadKeys = new Set(["hook", "table", "noMark", "cannotTell", ...rows.map(r => r.insteadKey ?? r.id),
+            ...[...source.matchAll(/\bunreadKey: "([\w-]+)"/g)].map(m => m[1])]);
+        const wrong = [];
+        const hold = (group, wanted, mayHold) => {
+            for (const key of wanted) {
+                for (const code of ["en", "pl"]) if (typeof lang[code][group]?.[key] !== "string" || !lang[code][group][key].trim()) wrong.push(`${code} has no ${group}.${key}`);
+                if (lang.en[group]?.[key] && lang.en[group][key] === lang.pl[group]?.[key]) wrong.push(`${group}.${key}: the Polish is the English`);
+            }
+            for (const code of ["en", "pl"]) for (const key of Object.keys(lang[code][group] ?? {})) if (!mayHold.has(key)) wrong.push(`${code} has ${group}.${key}, which nothing reads`);
+        };
+        hold("target", targetKeys, targetKeys);
+        hold("road", hookIds, hookIds);
+        hold("unread", Object.keys(lang.en.unread ?? {}), unreadKeys);
+        for (const key of source.matchAll(/\bunreadKey: "([\w-]+)"/g)) if (!lang.en.unread?.[key[1]]) wrong.push(`unreadKey ${key[1]} has no sentence`);
+        equal(stableJson(wrong), "[]", "a worded target, a hook's road or an unread reason has no sentence in a language, the Polish is the English, or a sentence has no row");
+
+        // The notice and Pre-season's line: a held template filled, the register's English nowhere.
+        const MARK = "zz register english zz";
+        const real = rows.find(r => r.id === "door-controls");
+        must(real, "the register has no door-controls row");
+        const failing = { ...real, id: "door-controls", target: MARK, targetKey: "held-flag", targetData: { key: "drpg.probeFlag" }, probe: () => ({ present: false, ours: null }) };
+        const shown = game.i18n.format("DRPG.Contract.target.held-flag", { key: "drpg.probeFlag" });
+        must(!shown.startsWith("DRPG.") && shown.includes("drpg.probeFlag") && !shown.includes("{"), `the held flag's target does not fill: ${shown}`);
+        const notices = [];
+        mod.announceContract({ rows: [failing], told: new Set(), notify: text => notices.push(String(text)) });
+        equal(stableJson([notices.length, notices[0]?.includes(shown), notices[0]?.includes(MARK)]), stableJson([1, true, false]),
+            "the notice does not name the row by its lang target, or still names it by the register's [notices | lang's | the register's]");
+        const SS = await import("./season-setup.mjs");
+        const el = document.createElement("div");
+        el.innerHTML = await SS.foundryReport({ contract: mod.runContract({ rows: [failing] }) });
+        equal(stableJson([el.textContent.includes(shown), el.textContent.includes(MARK)]), stableJson([true, false]),
+            "Pre-season's line does not name the row by its lang target, or still by the register's [lang's | the register's]");
+
+        // The fold of the unread rows: a hook's road, a row's own reason, a probe's key, a table check - lang's each, no probe note.
+        // `inUse` off: a row not in use on this world is ok, never unread, and these stand in whatever the world runs.
+        const byId = id => ({ ...(rows.find(r => r.id === id) ?? must(false, `the register has no ${id} row`)), inUse: undefined });
+        const unread = note => ({ present: null, ours: null, note });
+        const standIns = [
+            { ...byId("hook-countdowns-render"), probe: () => ({ present: true, ours: null, note: `${MARK} 1` }) },
+            { ...byId("token-ruler"), probe: () => unread(`${MARK} 2`) },
+            { ...byId("iso-refresh-state"), probe: () => ({ ...unread(`${MARK} 3`), unreadKey: "token-class" }) },
+            { ...byId("voice-modes") }
+        ];
+        const run = mod.runContract({ rows: standIns });
+        equal(stableJson(run.unknown.map(r => r.id)), stableJson(standIns.map(r => r.id)), "a stand-in row is not unread");
+        const expected = [
+            game.i18n.format("DRPG.Contract.unread.hook", { line: game.i18n.localize("DRPG.Contract.road.hook-countdowns-render") }),
+            game.i18n.localize("DRPG.Contract.unread.token-ruler"),
+            game.i18n.localize("DRPG.Contract.unread.token-class"),
+            game.i18n.localize("DRPG.Contract.unread.table")
+        ];
+        equal(stableJson(run.unknown.map(r => r.shownUnread)), stableJson(expected), "an unread row's reason is not lang's [hook | own | probe's key | table]");
+        el.innerHTML = await SS.foundryReport({ contract: run });
+        const fold = el.querySelector("details.drpg-check-unknown")?.textContent ?? "";
+        equal(stableJson([...expected.map(text => fold.includes(text)), fold.includes(MARK), fold.includes(standIns[3].note ?? "a probe cannot read it")]),
+            stableJson([true, true, true, true, false, false]), "Pre-season's fold does not give lang's reasons, or still gives a probe's English note [four reasons | the marker | the table row's note]");
+        // The console and the report keep the English the author reads: the run still carries `target` and `note`.
+        equal(stableJson([mod.runContract({ rows: [failing] }).failed[0]?.target, run.unknown[1]?.note]), stableJson([MARK, `${MARK} 2`]), "the run lost the register's English");
+    }],
+
     ["R1563 - the GM handbook, English and Polish, tells the table the contract, diagnose() with Copy report, migrate() and the macro API as the code has them (E52 C7, E52-23)", async () => {
         /*
          * E52 C7, 30.10.2026; E52-23. The books carry what C1-C6 built: the one report (game.drpg.diagnose(), the
