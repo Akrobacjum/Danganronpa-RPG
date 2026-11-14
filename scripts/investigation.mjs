@@ -36,6 +36,8 @@ import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import { plural, wirePortraitPickers, log, workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
 import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
@@ -2194,6 +2196,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
     /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the windows it opens and the body secondary; Close, which
        keeps what was typed in an open node (below). No destructive button since E64-inv. */
     const action = await drpgWindow({
+        help: WINDOW_HELP.investigation,
         title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
         /* One stated width, the action windows' (ui-columns.mjs WIDE, 1120 px; E97 C2, Q-D). Until C2 the window was

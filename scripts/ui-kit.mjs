@@ -1201,7 +1201,9 @@ export function frame({ id, classes, title, closeLabel, data = {} } = {}) {
  * opens the handbook on that section: a section id as handbooks.mjs `markSections` anchors it ("9.1", the same in both
  * languages, E57 C4a), so one row serves both. The rows are Q-E57-2's default, the sections read off the GM handbook's
  * headings on 14.11.2026 (docs/dev/e57/SPEC.md section 4); R6601 holds each to a heading both languages have, and each
- * opener to its row. The Investigation dashboard's row and its tabs' come with E54, which splits investigation.mjs.
+ * opener to its row. The Investigation dashboard came after E54 split investigation.mjs; its three tabs share its
+ * one "?" in the header: section 14 has no numbered sub-section a tab could open (Q-E57-17), so a row per tab would open
+ * the same place three times. A `tabs` map on the row is the place for one if the handbook grows them.
  */
 export const WINDOW_HELP = Object.freeze({
     gmPanel: Object.freeze({ book: "gm-handbook", section: "3" }),
@@ -1210,6 +1212,8 @@ export const WINDOW_HELP = Object.freeze({
     /* The case window (Back up, Restore) is the last paragraphs of section 14, Investigation. */
     theCase: Object.freeze({ book: "gm-handbook", section: "14" }),
     trialConsole: Object.freeze({ book: "gm-handbook", section: "15" }),
+    /* The dashboard and its tabs, section 14 (the case file, the Map, Save, the Key Remnants, Observe and Analyze). */
+    investigation: Object.freeze({ book: "gm-handbook", section: "14" }),
     /* Edit campaign's fields and its chapter's end are section 4, the clock. */
     editCampaign: Object.freeze({ book: "gm-handbook", section: "4" })
 });

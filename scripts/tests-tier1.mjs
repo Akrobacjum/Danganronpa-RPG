@@ -2028,9 +2028,10 @@ const INVARIANTS = [
         const OPENERS = {
             gmPanel: ["gm-panel.mjs", "openGmPanel"], seasonSetup: ["season-setup.mjs", "openSeasonSetup"],
             roomSetup: ["room-setup.mjs", "openRoomSetupDialog"], theCase: ["gm-stores.mjs", "openCaseWindow"],
-            trialConsole: ["trial-floor-ui.mjs", "manageClassTrial"], editCampaign: ["gm-campaign.mjs", "openClockDialog"]
+            trialConsole: ["trial-floor-ui.mjs", "manageClassTrial"], editCampaign: ["gm-campaign.mjs", "openClockDialog"],
+            investigation: ["investigation.mjs", "openInvestigationDashboard"]
         };
-        equal(Object.keys(kit.WINDOW_HELP).sort().join(), Object.keys(OPENERS).sort().join(), "WINDOW_HELP names other windows than the six this test reads");
+        equal(Object.keys(kit.WINDOW_HELP).sort().join(), Object.keys(OPENERS).sort().join(), "WINDOW_HELP names other windows than the seven this test reads");
         for (const [row, [file, fn]] of Object.entries(OPENERS)) {
             const source = fnSource(await lfText(await fetch(`/modules/${MODULE_ID}/scripts/${file}`)), fn);
             ok(source && new RegExp(`\\bhelp: WINDOW_HELP\\.${row}\\b`).test(source), `${file} ${fn} does not hand drpgWindow its "?" (help: WINDOW_HELP.${row})`);
