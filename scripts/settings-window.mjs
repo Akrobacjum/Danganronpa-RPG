@@ -60,7 +60,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting, autoScale, diceLookChoice, diceLookWrites, DICE_LOOK_CHOICES } from "./settings.mjs";
+import { SETTINGS, getSetting, autoScale, UI_SCALE, diceLookChoice, diceLookWrites, DICE_LOOK_CHOICES } from "./settings.mjs";
 import { esc, error, wholeNumber, firstSentence, restOf } from "./utils.mjs";
 import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
@@ -216,7 +216,10 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
    slider; the Look window's longer line (look.mjs `scaleNote`) was drawn nowhere and went with the needsCode line (R6904). */
 function scaleNow(slider) {
     const total = Math.round((isStainedGlass() ? slider * autoScale() : slider) * 100);
-    return game.i18n.format("DRPG.SettingsWindow.scaleNow", { total });
+    /* Under 80 % the line says the text is smaller than the module's readable size (14.11.2026; settings.mjs `UI_SCALE`):
+       here and not in the hint, which stays one short line with no tooltip (R4061), and only while the field is under it. */
+    const small = slider < UI_SCALE.readable ? ` ${game.i18n.localize("DRPG.SettingsWindow.scaleSmall")}` : "";
+    return `${game.i18n.format("DRPG.SettingsWindow.scaleNow", { total })}${small}`;
 }
 
 function scaleLine(key, value) {

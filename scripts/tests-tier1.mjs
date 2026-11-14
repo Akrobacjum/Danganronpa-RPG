@@ -61320,6 +61320,45 @@ const INVARIANTS = [
             ["", "gap", "gap pad", "gap pad track", "above track"]]),
             "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
+    ["R7331 - the Interface scale reaches down to 25 % (the owner, 14.11.2026: \"Chcialbym powiekszyc tez zakres zmniejszenia ui (aktualnie minimum to 0.8, celujmy w 0.25\"): settings.mjs states the range once (`UI_SCALE`: 0.25 to 1.4 by 0.05), the setting is registered with it, and `clampSlider` holds a stored value to it - 0.25 and 1.4 kept, below and above them clamped, a value that is no number read as 1; the setting's hint names 25% and 140% in both languages, and the window's line under the slider (`DRPG.SettingsWindow.scaleSmall`, the hint itself stays one line, R4061) says below 80% the text is smaller than the module's readable size", async () => {
+        /*
+         * Red at adc15d2d: registered 0.8 to 1.4, `sliderScale` clamped at 0.8, no `UI_SCALE` and no `clampSlider`, the hints
+         * said 80% to 140%. Read: the registration, a pure clamp, both language files; nothing written.
+         */
+        const S = await import("./settings.mjs");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.uiScale}`);
+        const clamp = typeof S.clampSlider === "function" ? S.clampSlider : null;
+        const lang = async code => (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json())).DRPG;
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const says = d => [/25\s?%/.test(d.Settings.uiScale.hint) && /140\s?%/.test(d.Settings.uiScale.hint), /80\s?%/.test(d.SettingsWindow.scaleSmall ?? "")];
+        equal(stableJson([reg?.range ?? null, S.UI_SCALE ?? null, clamp ? [0.1, 0.25, 0.5, 0.8, 1, 1.4, 2, Number.NaN, "x"].map(clamp) : null, says(en), says(pl)]),
+            stableJson([{ min: 0.25, max: 1.4, step: 0.05 }, { min: 0.25, max: 1.4, step: 0.05, readable: 0.8 }, [0.25, 0.25, 0.5, 0.8, 1, 1.4, 1.4, 1, 1], [true, true], [true, true]]),
+            "[the registered range; UI_SCALE; the clamp of 0.1, 0.25, 0.5, 0.8, 1, 1.4, 2, NaN and a word; the English hint names 25% and 140%, the window's small-scale line 80%; the Polish the same]");
+    }],
+
+    ["R7332 - under 80 % the readability floor follows the Interface scale down in proportion, and from 80 % up it holds (the owner's 25 %, 14.11.2026; R60 keeps the 11 px from 80 % up): settings.mjs `floorScaleOf` is the slider over 0.8 under it and 1 from it, `applyTheme` stamps it as `--drpg-floor-scale` on the document and the body, and every 11 px floor the module's served sheets write reads it - no bare `max(11px` or `min(11px` is left; under the glass the floor (`--drpg-sg-floor`) already rides on the type scale, which carries the slider", async () => {
+        /*
+         * Red at adc15d2d: no `floorScaleOf`, no `--drpg-floor-scale`, 24 floors written `max(11px, ...)` (13 in
+         * danganronpa.css, 11 in components.css) and one `min(11px, 0.6875rem)`: at 25 % the words would have stood at
+         * 11 px in boxes drawn at a quarter. Read: a pure function, the settings source and the served sheets' text.
+         */
+        const S = await import("./settings.mjs");
+        const of = typeof S.floorScaleOf === "function" ? S.floorScaleOf : null;
+        const settingsSrc = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        const stamped = /setProperty\("--drpg-floor-scale"/.test(settingsSrc) && /floorScaleOf\(sliderScale\(\)\)/.test(settingsSrc);
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        let bare = 0, scaled = 0;
+        for (const href of manifest.styles ?? []) {
+            const css = (await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text())).replace(/\/\*[\s\S]*?\*\//g, " ");
+            bare += (css.match(/(?:max|min)\(\s*11px/g) ?? []).length;
+            scaled += (css.match(/calc\(11px \* var\(--drpg-floor-scale, 1\)\)/g) ?? []).length;
+        }
+        const glass = /--drpg-sg-floor:\s*calc\(21px \* var\(--drpg-sg-scale, 1\)\)/.test(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()));
+        must(scaled + bare > 20, `${scaled + bare} floors read - the sheets were not read`);
+        equal(stableJson([of ? [0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4].map(of) : null, stamped, bare, scaled >= 25, glass]),
+            stableJson([[0.3125, 0.5, 0.625, 0.9875, 1, 1, 1], true, 0, true, true]),
+            "[floorScaleOf at 0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4; applyTheme stamps it; bare 11 px floors left; the floors that read it (25); the glass's floor rides on its scale]");
+    }],
 ];
 
 /**

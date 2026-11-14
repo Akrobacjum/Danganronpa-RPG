@@ -416,7 +416,7 @@
       },
       "uiScale": {
         "name": "Skala interfejsu",
-        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 80% do 140%. Mapy nie skaluje. Dotyczy tylko tej przeglądarki."
+        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 25% do 140%. Mapy nie skaluje. Dotyczy tylko tej przeglądarki."
       },
       "debug": {
         "name": "Szczegółowe logi w konsoli",
@@ -449,6 +449,7 @@
       "scopeWorld": "Cały stół",
       "uiScaleHint": "Powiększa albo pomniejsza tekst i okna modułu, a z nimi Foundry, w tej przeglądarce.",
       "scaleNow": "Na tym ekranie: {total}%.",
+      "scaleSmall": "Poniżej 80% tekst jest mniejszy niż czytelny rozmiar modułu.",
       "glassOnly": "Tylko Stained Glass: wybierz ten motyw, by to zmienić.",
       "legacyOnly": "Tylko Monokuma Legacy: wybierz ten motyw, by to zmienić.",
       "gameTitle": "Ustawienia gry",

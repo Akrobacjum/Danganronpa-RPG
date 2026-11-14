@@ -1873,7 +1873,7 @@ export function registerSettings() {
         scope: "client",
         config: false,
         type: Number,
-        range: { min: 0.8, max: 1.4, step: 0.05 },
+        range: { min: UI_SCALE.min, max: UI_SCALE.max, step: UI_SCALE.step },
         default: 1,
         onChange: () => applyTheme()
     });
@@ -4377,9 +4377,30 @@ export function autoScale() {
     const f = Math.min(w / 2560, h / 1440);
     return Math.round(Math.min(1, Math.max(0.7, f)) * 100) / 100;
 }
-/** The slider on its own, 0.8 to 1.4, with no screen factor in it. */
+/**
+ * THE SLIDER'S RANGE, STATED ONCE (14.11.2026; the owner: "Chcialbym powiekszyc tez zakres zmniejszenia ui (aktualnie
+ * minimum to 0.8, celujmy w 0.25"). 0.25 to 1.4 by 0.05; until then 0.8 to 1.4. `readable` is where the readability
+ * floor stops holding: from 0.8 up every 11 px floor stands at 11 px, as it always did (R60), and under it the floor
+ * follows the slider down in proportion (`floorScaleOf`), so the words shrink with their boxes instead of spilling out of
+ * them - at 25 % about 3.4 px, unreadable by design, which the window's line says (DRPG.SettingsWindow.uiScaleHint). The
+ * setting is this browser's alone (client scope): only who picks it pays. R7331, R7332.
+ */
+export const UI_SCALE = Object.freeze({ min: 0.25, max: 1.4, step: 0.05, readable: 0.8 });
+
+/** A stored slider held to `UI_SCALE`; a value that is no number is 1. Pure; exported for R7331. */
+export function clampSlider(value) {
+    const n = Number(value);
+    return Math.min(UI_SCALE.max, Math.max(UI_SCALE.min, Number.isFinite(n) && n !== 0 ? n : 1));
+}
+
+/** The readability floor's factor at a slider: 1 from `UI_SCALE.readable` up, in proportion under it. Pure; R7332. */
+export function floorScaleOf(slider) {
+    return Math.round(Math.min(1, clampSlider(slider) / UI_SCALE.readable) * 10000) / 10000;
+}
+
+/** The slider on its own, `UI_SCALE.min` to `UI_SCALE.max`, with no screen factor in it. */
 export function sliderScale() {
-    return Math.min(1.4, Math.max(0.8, Number(getSetting(SETTINGS.uiScale)) || 1));
+    return clampSlider(getSetting(SETTINGS.uiScale));
 }
 /**
  * The factor the theme's TYPE uses: the slider, with a gentle screen term under it.
@@ -4565,6 +4586,13 @@ export function applyTheme() {
     const slider = String(sliderScale());
     document.body.style.setProperty("--drpg-slider-scale", slider);
     document.documentElement.style.setProperty("--drpg-slider-scale", slider);
+    /* THE READABILITY FLOOR UNDER 80 % (14.11.2026; `UI_SCALE`): 1 from 80 % up, so every `max(calc(11px * ...)` floor
+       stands at 11 px as before; under it the slider over 0.8, so the floor shrinks with the boxes. Both themes: the
+       glass's own floor (`--drpg-sg-floor`) rides on the type scale, which carries the slider, and its 11 px kit floors
+       read this one. */
+    const floor = String(floorScaleOf(sliderScale()));
+    document.body.style.setProperty("--drpg-floor-scale", floor);
+    document.documentElement.style.setProperty("--drpg-floor-scale", floor);
     // the windows standing open when the slider moved, which will not render again on their own
     for (const app of foundry.applications.instances.values()) {
         const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];

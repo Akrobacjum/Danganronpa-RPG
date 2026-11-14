@@ -420,7 +420,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 80% to 140%. The map keeps its size. Only affects this browser."
+        "hint": "Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 25% to 140%. The map keeps its size. Only affects this browser."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -449,6 +449,7 @@
       "scopeWorld": "The whole table",
       "uiScaleHint": "Makes the module's text and windows, and Foundry's with them, larger or smaller in this browser.",
       "scaleNow": "On this screen: {total}%.",
+      "scaleSmall": "Below 80% the text is smaller than the module's readable size.",
       "glassOnly": "Stained Glass only: pick that theme to change it.",
       "legacyOnly": "Monokuma Legacy only: pick that theme to change it.",
       "gameTitle": "Game settings",

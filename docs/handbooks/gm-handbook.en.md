@@ -1734,7 +1734,7 @@ The sections stand in a list on the left - **Look**, **Effects and accessibility
 |---|---|
 | **Language** | English or Polski, per browser, English by default, separate from Foundry's core language on purpose; a change asks to reload, and game names such as Truth Bullet stay in English |
 | **Theme** | *Stained Glass* (the current identity: black broken glass along the screen edges, color in the seams) or *Monokuma Legacy* (the look before it, with the **Pixel font** switch) |
-| **Interface scale** | 80% to 140% on the module's own type and panels |
+| **Interface scale** | 25% to 140% on the module's own type and panels; below 80% the text is smaller than the module's readable size |
 | **Glass pulse**, **State name behind the clock** and **Glass blurs the map** | under Stained Glass |
 | **Reduced motion** and **High contrast** | under both themes; each is also switched on by the operating system's own preference |
 
