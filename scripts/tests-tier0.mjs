@@ -15688,7 +15688,7 @@ const REGRESSIONS = [
         equal(JSON.stringify([texts(lang.en), texts(lang.pl), lang.pl?.Config?.SFX_EVENTS?.passageFound?.label,
             /znajduje tajne przejście/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "") && /pokazał/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "")]),
             JSON.stringify([["Go through", "Secret passage to {room}", "You find no hidden passage here.", "Find Passage", "+ Tunnel or stairs", "Make public", "Make secret", "Convert to passages", "Hide", "Show"],
-                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Find Passage", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
+                ["Przejdź", "Tajne przejście do pokoju {room}", "Nie znajdujesz tu tajnego przejścia.", "Find Passage", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
                 "Poznajesz tajne przejście", true]),
             "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
     }],

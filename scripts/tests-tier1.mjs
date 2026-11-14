@@ -24086,7 +24086,7 @@ const INVARIANTS = [
         const size = [Math.max(20, Math.round(grid * 0.36)), Math.max(4, Math.round(grid * 0.07)), Math.round(grid * 0.38)];
         const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
         equal(J([drew, texts, [en?.DRPG?.Passage?.mark?.from, pl?.DRPG?.Passage?.mark?.from]]),
-            J([2, [[words("DRPG.Passage.mark.to", "R903 Lab"), ...size], [words("DRPG.Passage.mark.from", "R903 Dorm"), ...size]], ["Secret passage from {room}", "Tajne przejście z: {room}"]]),
+            J([2, [[words("DRPG.Passage.mark.to", "R903 Lab"), ...size], [words("DRPG.Passage.mark.from", "R903 Dorm"), ...size]], ["Secret passage from {room}", "Tajne przejście z pokoju {room}"]]),
             `[the marks drawn, each mark's words as [text, size, keyline, below its centre] at grid ${grid}, the way out's words in English and in Polish]`);
     }],
     ["R904 - 'Known passages' says what to do with each passage (H81-03, H81-04, H81-02): a passage in a wall is to be walked through its gap and has no button, a tunnel keeps 'Go through' enabled wherever the token stands, a one-way tunnel says which way in the rooms as the row names them, and a refusal away from an end says where to stand, in English and in Polish", async () => {
