@@ -508,7 +508,7 @@ export const PATCHES = [
         kind: "override",
         target: "render, as an own property on each open character sheet",
         owner: "foundry",
-        file: "sheet.mjs",
+        file: "sheet-repaint.mjs",
         symbol: "installRenderPlan",
         why: "A resource-only update (renderContext \"updateActor\", renderData of Health, Sanity or Hope) is repainted in place, so the sheet does not flicker on every Hope or Health change; anything else renders.",
         when: "per sheet, from its first render",

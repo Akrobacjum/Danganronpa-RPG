@@ -2146,7 +2146,7 @@
    "why": "none needed: Each row shows its label and hint."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-sidebar.mjs",
    "unit": "tidyBiography",
    "kind": "dom:textarea",
    "key": "DRPG.Sheet.biographyPlaceholder",
@@ -2154,7 +2154,7 @@
    "why": "none needed: The legend and the placeholder say what goes in it."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-inventory.mjs",
    "unit": "buildOpenStashSection",
    "kind": "dom:button",
    "key": "DRPG.Vault.rifle",
@@ -2162,7 +2162,7 @@
    "why": "none needed: The note above it says one thing may be taken from each stash, once each time of day."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-inventory.mjs",
    "unit": "bulletSortSwitch",
    "kind": "dom:button",
    "key": "DRPG.Sheet.bulletsByRoom",
@@ -2170,7 +2170,7 @@
    "why": "none needed: A two-button switch under the label 'Group by'."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-inventory.mjs",
    "unit": "addPresentButton",
    "kind": "dom:button",
    "key": null,
@@ -2182,7 +2182,7 @@
    }
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-actions.mjs",
    "unit": "callButton",
    "kind": "dom:button",
    "key": null,
@@ -2194,7 +2194,7 @@
    }
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-actions.mjs",
    "unit": "actionButton",
    "kind": "dom:button",
    "key": null,
@@ -2206,7 +2206,7 @@
    }
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-sidebar.mjs",
    "unit": "lairBlock",
    "kind": "button",
    "key": "DRPG.Mastermind.lair.open",
@@ -2214,7 +2214,7 @@
    "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-actions.mjs",
    "unit": "injectMonocubPanel",
    "kind": "dom:button",
    "key": "DRPG.Monocub.bribeAccept",
