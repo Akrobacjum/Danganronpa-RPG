@@ -9820,7 +9820,7 @@
       ],
       "en": {
         "before": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}, projects: {projects}, things left behind for a trap: {plants}, other rooms' Neighbours lists: {lists}, the Mastermind's room: {lair}, a called assembly: {gather}, the seal of a Despair Call: {sealed}, bodies found there: {bodies}.",
-        "after": "“{from}” on {scene} is now “{to}”. Carried over: keys {keys}, stashed items {items}, notes of a found stash {found}, discoveries {cells}, projects {projects}, things left for a trap {plants}, other rooms' Neighbours lists {lists}, the Mastermind's room {lair}, a called assembly {gather}, a Despair Call's seal {sealed}, and bodies found there {bodies}."
+        "after": "“{from}” on {scene} is now “{to}”. Carried over: keys {keys}, stashed items {items}, notes of a found stash {found}, discoveries {cells}, projects {projects}, things left for a trap {plants}, other rooms' Neighbors lists {lists}, the Mastermind's room {lair}, a called assembly {gather}, a Despair Call's seal {sealed}, and bodies found there {bodies}."
       },
       "pl": {
         "before": "„{from}” na scenie {scene} nazywa się teraz „{to}”, a to, co wskazywało pokój starą nazwą, wskazuje nową - klucze: {keys}, schowane przedmioty: {items}, notatki o znalezionej skrytce: {found}, postacie, które go odkryły: {cells}, projekty: {projects}, rzeczy zostawione dla pułapki: {plants}, listy Sąsiadów innych pokoi: {lists}, pokój Masterminda: {lair}, zwołane zebranie: {gather}, pieczęć z Despair Call: {sealed}, znalezione tam ciała: {bodies}.",
@@ -9830,11 +9830,11 @@
         "\" - keys: {keys}, ...: {bodies}\": the dash (X4) and the chain of eleven label-colon-values (X7, T24) became one tally after one colon, 71 words to 52 (T4, the GM card's limit); \"what pointed at the room by its old name points at the new one\" folded into \"Carried over\" (O2).",
         "PL: \" - klucze: {keys}, ...: {bodies}\": the dash (X4) and the chain of eleven label-colon-values (X7) became one tally after one colon (T4, the GM card's limit); \"a to, co wskazywało pokój starą nazwą, wskazuje nową\" folded into \"Przeniesiono na nową nazwę\" (O2); \"pieczęć z Despair Call\" left an uninflected genitive (PL-a) for \"nałożona przez Despair Call\"; \"postacie, które go odkryły\" became \"odkrycia pokoju\", one per character (O2).",
         "REV: pl: every count in brackets, so „przez Despair Call {sealed}” no longer reads as a Call's name with a number.",
-        "REV: en: \"Neighbors\" back to \"Neighbours\": the text names the Room setup column as its label reads today (DRPG.Vault.neighboursColumn), which the GM handbook quotes too."
+        "REV: en: \"Neighbors\" back to \"Neighbours\": the text names the Room setup column as its label reads today (DRPG.Vault.neighboursColumn), which the GM handbook quotes too.",
+        "FIX: Neighbours -> Neighbors (EN1, glossary neighbor), in one commit with DRPG.Vault.neighboursColumn (group B's, already Neighbors), DRPG.Vault.neighboursNote and the GM handbook's quotes (the coordinator, 14.11.2026)"
       ],
       "needsCode": [
-        "DRPG.Rooms.renamed prints every count, zeros too: a list of only the non-zero rows, joined by utils.mjs listOf (EN2), would be shorter and is code work in fog.mjs carryRename.",
-        "DRPG.Rooms.renamed, DRPG.Vault.neighboursColumn and the column's note move from \"Neighbours\" to \"Neighbors\" (EN1, glossary neighbor) together, in one change with the GM handbook's quotes; until then this text keeps \"Neighbours\"."
+        "DRPG.Rooms.renamed prints every count, zeros too: a list of only the non-zero rows, joined by utils.mjs listOf (EN2), would be shorter and is code work in fog.mjs carryRename."
       ],
       "disagreements": [],
       "reviews": {

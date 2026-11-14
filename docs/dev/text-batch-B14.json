@@ -1975,12 +1975,13 @@
       },
       "pl": {
         "before": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Sprintem. Wyłączone: ruch rozliczasz ręcznie.",
-        "after": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Sprintem. Wyłączone: ruch rozliczasz ręcznie."
+        "after": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Callem Sprint. Wyłączone: ruch rozliczasz ręcznie."
       },
       "removed": [
         "unchanged: the early pass's text, built on the pilot's approved pair 25; 31 words, over the target and under the limit (B1); T22's report is the Polish punctuation",
         "PL: the owner's approved after of the text pilot, pair 25 (docs/text-style.md section 12, stage E71), carried as approved in place of the early pass's shortening (\"Wyłączone: ruch rozliczasz ręcznie.\", X7).",
-        "PL: unchanged: an owner-approved text (B01a or the pilot); the proposed change is kept in disagreements for the owner"
+        "PL: unchanged: an owner-approved text (B01a or the pilot); the proposed change is kept in disagreements for the owner",
+        "FIX: group B review, 14.11.2026: \"Sprintem\" -> \"Callem Sprint\" (D33a: a Call keeps its English name whole; the pilot pair 25 writes \"Callem Sprint\")"
       ],
       "needsCode": [],
       "disagreements": [

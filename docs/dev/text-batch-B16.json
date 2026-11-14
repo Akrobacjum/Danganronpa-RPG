@@ -2211,7 +2211,7 @@
       ],
       "en": {
         "before": "Not analysed",
-        "after": "Not analysed"
+        "after": "Not analyzed"
       },
       "pl": {
         "before": "Bez analizy",
@@ -2219,20 +2219,13 @@
       },
       "removed": [
         "\"analysed\" becomes \"analyzed\" (EN1, D33e, the glossary's US spelling).",
-        "EN: unchanged for now: see needsCode (R357)"
+        "EN: unchanged for now: see needsCode (R357)",
+        "MERGE: \"Not analysed\" -> \"Not analyzed\" (EN1, D33e) came with line C (claude/e71-c 69e4fa50), together with DRPG.Chapter.typeless, which R357 holds to this term; the coordinator allowed it (14.11.2026)"
       ],
-      "needsCode": [
-        "DRPG.Investigation.unidentified becomes \"Not analyzed\": also names it: DRPG.Chapter.typeless (one and other, \"not analysed\"), which R357 holds to this key's term (docs/dev/e71/STATUS.md, run ab); the two must land together, Chapter.typeless's \"analysed\" turned to \"analyzed\" in the same commit.",
-        "EN: 'Not analysed' -> 'Not analyzed' (D33e) waits: DRPG.Chapter.typeless (group C's namespace) uses the same term and R357 holds the two together; change both in one commit"
-      ],
+      "needsCode": [],
       "disagreements": [],
       "reviews": {
-        "en": {
-          "verdict": "change",
-          "points": [
-            "open: a fixed limit of this batch: R357 holds the key together with DRPG.Chapter.typeless, another line's key, so \"Not analyzed\" lands with it in one commit (needsCode). Unchanged, but it breaks EN1 (DB9, American spelling everywhere); the rest of the batch writes Analyze and analysis the American way. Propose \"Not analyzed\"."
-          ]
-        },
+        "en": null,
         "coldEn": {
           "verdict": "unnatural",
           "points": [

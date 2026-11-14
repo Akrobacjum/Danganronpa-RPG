@@ -313,9 +313,9 @@ Written by `node tools/text-render.mjs` (E65 C10). Fixtures: tools/text-render.m
 - `DRPG.Panel.refundCrossing` (by prefix)
   - Zwróć ostatnie przejście
 - `DRPG.Panel.refundCrossingNote` (by prefix)
-  - #1: Warsztat z powrotem do Warsztat
-  - #2: Biblioteka z powrotem do Biblioteka
-  - #3: Kino z powrotem do Kino
+  - #1: Z powrotem: Warsztat → Warsztat
+  - #2: Z powrotem: Biblioteka → Biblioteka
+  - #3: Z powrotem: Kino → Kino
 - `DRPG.Panel.resetHint`
   - Daje wszystkim pełne akcje. Przy samej poprawce zostaw wyłączone.
 - `DRPG.Panel.role.student` (by prefix)
@@ -1017,9 +1017,9 @@ Written by `node tools/text-render.mjs` (E65 C10). Fixtures: tools/text-render.m
 - `DRPG.Panel.refundCrossing`
   - Zwróć ostatnie przejście
 - `DRPG.Panel.refundCrossingNote`
-  - #1: Warsztat z powrotem do Warsztat
-  - #2: Biblioteka z powrotem do Biblioteka
-  - #3: Kino z powrotem do Kino
+  - #1: Z powrotem: Warsztat → Warsztat
+  - #2: Z powrotem: Biblioteka → Biblioteka
+  - #3: Z powrotem: Kino → Kino
 - `DRPG.Panel.role.student`
   - Uczeń
 - `DRPG.Panel.roleColumn`
@@ -3012,7 +3012,7 @@ Written by `node tools/text-render.mjs` (E65 C10). Fixtures: tools/text-render.m
 - `DRPG.Settings.bulletSort.name`
   - Jak grupowane są Truth Bullets
 - `DRPG.Settings.chargeMovement.hint`
-  - Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Sprintem. Wyłączone: ruch rozliczasz ręcznie.
+  - Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Callem Sprint. Wyłączone: ruch rozliczasz ręcznie.
 - `DRPG.Settings.chargeMovement.name`
   - Przejście między pokojami kosztuje Move
 - `DRPG.Settings.debug.hint`

@@ -49617,7 +49617,8 @@ const INVARIANTS = [
         await settle();
         const after = said();
         const L = (k, d) => game.i18n.format(k, d);
-        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: (await import("./utils.mjs")).localeFormat("number", 9, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}` });
+        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9" })}` });
+        // "9", not "9.0", since E71 group D (14.11.2026, R6552): the size goes through utils.mjs localeFormat, as Pre-season's checks.
         const facts = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 200, bytes: ROOM_IMAGE_LIMITS.bytes + 1 }) });
         const missing = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 404, bytes: null }) });
         const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "wirePictureWarnings")
@@ -59712,6 +59713,36 @@ const INVARIANTS = [
         equal(stableJson([required, /optional/i.test(title("en") ?? "optional"), /opcjonaln/i.test(title("pl") ?? "opcjonalnie")]),
             stableJson([true, false, false]),
             "[module.json requires dice-so-nice; the row's English title says optional; its Polish title says so]");
+    }],
+    ["R6552 - a room picture's size reads the same in Room setup as in Pre-season's checks, in the page's number format (scripts/room-setup.mjs `pictureWarning`; scripts/season-setup.mjs, its `mb`; utils.mjs `localeFormat`; lang DRPG.Panel.checksImagesBytes; E71 group D, group B's review of 14.11.2026: `toFixed` wrote \"2.5\" on a Polish page, where the number is \"2,5\")", async () => {
+        /*
+         * E71 group D, 14.11.2026. Both windows fill DRPG.Panel.checksImagesBytes's {mb}; Pre-season's checks with
+         * localeFormat("number", ..., { maximumFractionDigits: 1 }), Room setup's with `toFixed(1)`, which ignores the page's
+         * language (a Polish page read "2.5 MB") and writes a whole number with a ".0". Measured on whole and half
+         * megabytes, so the English harness sees the difference too. Red at 7cfbf294: "3.0 MB" against "3 MB".
+         */
+        const R = await import("./room-setup.mjs"), U = await import("./utils.mjs");
+        must(typeof R.pictureWarning === "function" && typeof U.localeFormat === "function", "room-setup.mjs pictureWarning or utils.mjs localeFormat is missing - this would measure nothing");
+        const sizes = [3, 2.5].map(n => {
+            const said = R.pictureWarning({ heavy: true, bytes: n * 1048576 });
+            const want = game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: U.localeFormat("number", n, { maximumFractionDigits: 1 }) });
+            return [said.includes(want), /\d\.0\b/.test(said)];
+        });
+        equal(stableJson(sizes), stableJson([[true, false], [true, false]]),
+            "[3 MB: Room setup says Pre-season's size, and no \"N.0\"; 2.5 MB: the same]");
+    }],
+    ["R6553 - investigation.mjs holds no English literal a screen shows: T13 (uiLiterals) finds nothing in it, the case map's failures read from lang/ (DRPG.CaseMap.failed.*; E71 group D, after E54 split the file, 14.11.2026)", async () => {
+        /*
+         * E71 group D, 14.11.2026, the literals of the E54 files the batches cover. investigation.mjs's case map named
+         * what failed in English ("add a node", ...) inside "The case map could not ..." on the Debug log a GM reads.
+         * Red at c621e842: T13's five findings in investigation.mjs. The same reading as R6550's.
+         */
+        const all = await moduleSources();
+        must(all.has("investigation.mjs"), "investigation.mjs was not read - this would measure nothing");
+        const scripts = new Map(["investigation.mjs", "bridge-guards.mjs"].filter(file => all.has(file)).map(file => [`scripts/${file}`, all.get(file)]));
+        const r = TEXT_DETECTORS.uiLiterals({ scripts, lexer: { blankComments, blankLiterals, callArgs } });
+        equal(stableJson([r.counts.files > 0, r.found.filter(f => f.file === "scripts/investigation.mjs").map(f => f.what)]), stableJson([true, []]),
+            "[investigation.mjs draws UI, so T13 reads it; T13's findings in it]");
     }],
     ["R4801 - scaleWindow stands once on each of the two render hooks after init (E54 W2): registered by `registerWindows`, and a second call of it changes neither the hooks nor the readers", async () => {
         /*

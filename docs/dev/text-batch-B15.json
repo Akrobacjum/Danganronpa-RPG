@@ -10072,7 +10072,7 @@
       ],
       "en": {
         "before": "The word that stops the scene. It shows on every sheet. Blank - the default.",
-        "after": "The word that stops the scene, shown on each student's sheet. Leave it blank for the default."
+        "after": "This word stops the scene, and each student's sheet shows it. Leave it blank for the default."
       },
       "pl": {
         "before": "Słowo, które zatrzymuje scenę. Widać je na każdym arkuszu. Puste - domyślne.",
@@ -10080,7 +10080,8 @@
       },
       "removed": [
         "\"Blank - the default\" (X4, X6) became a sentence with its verb; \"every sheet\" became \"each student's sheet\": a Monokuma's and a Spectator's sheet show none (M2). Built on the early pass (T29).",
-        "PL: „Puste - domyślne” (X4, X6) stało się zdaniem z orzeczeniem; „na każdym arkuszu” stało się „na arkuszu każdego ucznia”: arkusz Monokumy i Widza go nie ma (M2)."
+        "PL: „Puste - domyślne” (X4, X6) stało się zdaniem z orzeczeniem; „na każdym arkuszu” stało się „na arkuszu każdego ucznia”: arkusz Monokumy i Widza go nie ma (M2).",
+        "FIX: line C's review, 14.11.2026: the opening noun phrase becomes a sentence (X6); the facts (it stops the scene; every student's sheet shows it; blank means the default) kept"
       ],
       "needsCode": [],
       "disagreements": [],
@@ -15065,10 +15066,11 @@
       },
       "pl": {
         "before": "{to} z powrotem do {from}",
-        "after": "{to} z powrotem do {from}"
+        "after": "Z powrotem: {to} → {from}"
       },
       "removed": [
-        "unchanged: the crossing as two placeholders; no rule calls for a change"
+        "unchanged: the crossing as two placeholders; no rule calls for a change",
+        "FIX: group B review, 14.11.2026: the Polish put a room name in the nominative after \"do\" ({from} can be \"poza pokojami\"); a shape with no preposition, the arrow as in DRPG.Price.giveHopeColumn. The needsCode line for a case-ready fragment stands"
       ],
       "needsCode": [
         "PL: „{to} z powrotem do {from}” puts a room name in the nominative after „do” (and {from} can be DRPG.Movement.outsideRooms „poza pokojami”, giving „do poza pokojami”); the Polish needs a case-ready fragment (section 14) or a shape with no preposition, which the code must supply; kept unchanged until then"
