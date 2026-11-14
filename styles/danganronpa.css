@@ -927,6 +927,13 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     color: var(--color-text-primary, inherit);
     text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.35);
     line-height: 1.25;
+    /* The Eclipse's own slow drain of the map keeps its long time; the phase edge
+       moves on the clock's own token. Both of these now actually run: `renderHud`
+       keeps the element instead of replacing it, which is what a transition needs.
+       (A rule of its own in the motion section until E55 S3.) */
+    transition: filter var(--drpg-t-eclipse) ease-in-out,
+                border-color var(--drpg-t-turn) var(--drpg-ease-arrive),
+                box-shadow var(--drpg-t-turn) var(--drpg-ease-arrive);
 }
 
 /* At the top of the left rail, at the size it has always been.
@@ -1748,14 +1755,8 @@ body.drpg-eclipse:not(.drpg-fog-active) #board {
    own it beat the phase rule on specificity and snapped - which is the second
    half of "the animation does not work during an Eclipse". */
 
-/* The Eclipse's own slow drain of the map keeps its long time; the phase edge
-   moves on the clock's own token. Both of these now actually run: `renderHud`
-   keeps the element instead of replacing it, which is what a transition needs. */
-#drpg-hud {
-    transition: filter var(--drpg-t-eclipse) ease-in-out,
-                border-color var(--drpg-t-turn) var(--drpg-ease-arrive),
-                box-shadow var(--drpg-t-turn) var(--drpg-ease-arrive);
-}
+/* The Eclipse's slow drain and the phase edge's turn are the clock's own rule's `transition`, further up (a rule of its
+   own here until E55 S3). */
 
 /* The Eclipse badge that used to be appended here is gone: the time row now
    renders the Eclipse's own name ("Night Eclipse") while one is running, so this
