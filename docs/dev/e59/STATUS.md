@@ -13,7 +13,7 @@ taken out, audit/README in English, the issue and PR templates, BRANCHES.md).
 | C2 - every window, as tests | done: seven rules, each a tier 0 test over every window (162 in 165 sites) with a planted case; the small breaches fixed red first; the rest kept with a reason and a line of GAPS.md | scripts/tests-windows.mjs, R6750-R6756, WINDOWS.md (the census by name), commit d2f9c54b |
 | C1, headless - expectedRed to 0 | nothing to close: 0 markers at the base (`node tools/stages.mjs check`), 0 scenario `expectedRed` options; the ten known leaks are all Foundry limits | GATES.md, "expectedRed: 0" |
 | C1, headless - the gate list | done: each gate of the plan's point (1), whether it exists, its command, whether ci runs it, and for each not run the reason and the stage | GATES.md |
-| C6 - the gap list | see GAPS.md | GAPS.md |
+| C6 - the gap list | done: every stage of the 1.2.113 plan, E53 and E58 read headless; a line each, with where it was read and "release notes" or "fix window" | GAPS.md |
 | C3 - the screenshot rating | not this line (Q-E59-4's default: the auditor's pass after the local gate) | "Needs a local Foundry", below; LIVE-E59-01 |
 
 ## What C2 fixed, and what it kept
