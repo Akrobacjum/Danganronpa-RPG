@@ -4126,6 +4126,11 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
     transition: border-color var(--drpg-t-snap, 120ms), background var(--drpg-t-snap, 120ms);
     flex: none;
     --checkbox-checked-color: var(--drpg-sg-check, var(--drpg-glass-accent));
+    /* the box is the mark's containing block, and it stands on its label's line (A RADIO IS ROUND and ON ITS LABEL'S
+       LINE, below; a second rule there until E55 S3) */
+    position: relative;
+    vertical-align: middle;
+    align-self: center;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"])::after {
     content: none;
@@ -4156,6 +4161,15 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
     image-rendering: pixelated;
     transform: scale(0);
     transition: transform var(--drpg-t-snap, 90ms) var(--drpg-ease-arrive, ease-out);
+    /* laid across the box and grown about its centre, whatever else positions a mark there (A RADIO IS ROUND, below;
+       a second rule there until E55 S3) */
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    transform-origin: center;
+    translate: none;
+    rotate: none;
+    scale: none;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]::before {
     width: 10px;
@@ -4163,6 +4177,8 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
     background-color: var(--drpg-sg-check, var(--drpg-glass-accent));
     -webkit-mask: none;
     mask: none;
+    /* the radio's dot is round (A RADIO IS ROUND, below) */
+    border-radius: 50%;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):checked::before { transform: scale(1); }
 /* A RADIO IS ROUND, AND ITS DOT IS PINNED TO THE MIDDLE (gaps-radio, R4650; the owner's table on 1.2.109, 13.11.2026:
@@ -4178,27 +4194,13 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
    bottom edge as its baseline, so in a plain label the control stood on the words' baseline - 4.50 px above the middle
    of the line, Reset the season's three radios and thirty checkboxes (audit/radio-sweep.mjs). Those labels are flex,
    lined up on their baselines (`.drpg-inline-check`), where `vertical-align` does nothing and the control's baseline is
-   its bottom edge again: so `middle` in a line of text, as Legacy's radio, and `center` as a flex item. */
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]) {
-    position: relative;
-    vertical-align: middle;
-    align-self: center;
-}
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"])::before {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    transform-origin: center;
-    translate: none;
-    rotate: none;
-    scale: none;
-}
+   its bottom edge again: so `middle` in a line of text, as Legacy's radio, and `center` as a flex item.
+   ONE DEFINITION (E55 S3, 14.11.2026): the box's place on the line, the mark's position and the dot's round corners are
+   declared in the definitions above, where gaps-radio had stated each selector a second time here; the radio's own
+   round box stays below, its one rule. */
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"] {
     border-radius: 50%;
     clip-path: none;
-}
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]::before {
-    border-radius: 50%;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):disabled {
     border-style: dashed;
