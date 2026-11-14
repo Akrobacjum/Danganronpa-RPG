@@ -61169,6 +61169,21 @@ const INVARIANTS = [
             yields: [["keyReveal", "present"], ["newRule", "motive", "publicAnnouncement"]]
         }), "{each floor opening's sounds; scrumTurn: [a Scrum turn of mine, the same again, the next of mine, another's]; yields: [truthBullet, despairCall]}");
     }],
+    ["R7166 - a Panic Round's first speaker hears the *your turn* sound alone (E59 C-115, CHAINS.md B-T8; GM 15, \"The speaker ... hears the your turn sound alone\"): sfx.mjs `floorSounds` plays \"Panic Round starts\" on every other browser as the round opens, and on the browser of the speaker whose turn opens it only \"Your turn\" - the two played in one pass there; a Closing's start and its first turn are two writes, and stay two sounds", async () => {
+        const S = await import("./sfx.mjs");
+        const none = { known: true, floorOpen: false, floorMode: null, turnStep: null, closingAt: null };
+        const panic = { active: true, mode: "panic", holderId: "O", round: { mode: "panic", order: ["O", "P"], index: 0, step: 1, openedAt: 5 } };
+        const first = S.floorSounds(none, panic, { mine: id => id === "O" });
+        const next = S.floorSounds({ ...first.was, known: true }, { ...panic, holderId: "P", round: { ...panic.round, index: 1, step: 2 } }, { mine: id => id === "P" });
+        const read = {
+            speaker: first.play,
+            other: S.floorSounds(none, panic, { mine: () => false }).play,
+            nextSpeaker: next.play,
+            testimony: S.floorSounds(none, { ...panic, mode: "testimony", round: { ...panic.round, mode: "testimony" } }, { mine: id => id === "O" }).play
+        };
+        equal(stableJson(read), stableJson({ speaker: ["yourTurn"], other: ["panicStart"], nextSpeaker: ["yourTurn"], testimony: ["yourTurn"] }),
+            "{the sounds as a Panic Round opens: its first speaker's, another's; the next speaker's; a Testimony's first speaker's}");
+    }],
     ["R7107 - the sounds and the music the survey found missing (E110 part 3, 14.11.2026): three new effects in the catalogue with their words in English and Polish - \"present\" (the Present's card, the whole table), \"stashFound\" (a Find Stash's find, the searcher and the GMs) and \"bedroomEntered\" (the bedroom's owner alone) - each on its card's flag, a Find Stash's miss playing \"searchNothing\"; and the vote's own music (music-states.mjs `voteMusicPlays`) from the vote's opening to the verdict, only with a playlist mapped", async () => {
         /* Pure but for the catalogue and three sources read. Red at 98f60442: no such keys, no voteMusicPlays. */
         const { SFX_EVENTS } = await import("./config.mjs");
