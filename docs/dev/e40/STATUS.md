@@ -1,6 +1,6 @@
 # E40 - status (the work line of E39 and E40)
 
-Updated 13.11.2026. The plan is `docs/dev/plans/E40.md` on the planner's branch `plan-130` (read whole). Same branch as
+Updated 14.11.2026 (the line claude/e39-43-113; before it 13.11.2026). The plan is `docs/dev/plans/E40.md` on the planner's branch `plan-130` (read whole). Same branch as
 E39 (this branch), same R range R5100-R5199, same rules. E39's commits are below this file in the branch; E40 starts
 at C1 here. Scenario 18-trial (the README's planned row) is this stage's, as is any new tier-2 test (named, not
 R-numbered).
@@ -248,6 +248,32 @@ The plan's items 2-6, in its order, with what each would take:
     be true at once). Not measured: a slower machine (CI's), and each site alone (the sets were removed together).
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
   wiring is not this line's to touch.
+
+## The line claude/e39-43-113 (14.11.2026, base 1463f22b, R block R6200-R6299)
+
+| Commit | What | Where |
+| --- | --- | --- |
+| dce86743 | **18-trial with two Blackened**: a second public death, Daichi's, in the register beside Chie's; the vote asks each ballot for two names (`picks` 2; a ballot of one is refused `wrongCount`, measured), each player casts Botan and Aiko, both accused, sentenced by the wrong verdict naming both Blackened and executed at the close; the world and chat scans after every step look for both Blackened's ids and names | audit/harness/scenarios/18-trial.mjs |
+| c94e3d6e | **checkState after a season's reset**: 72's season end (E43's season walk on this line) asks `game.drpg.checkState({ quiet: true })` on the GM at once after `resetSeason` with every group ticked: ok, no problem. This is the plan's "season-wipe on a copy" as far as the harness's world goes - its seeded world, not a played one | audit/harness/scenarios/72-canary.mjs |
+
+| Mutant | Check | Verdict |
+| --- | --- | --- |
+| verdict.mjs `postVerdictCard`: the public card's flags carrying the register's Blackened past the first (`trialBlackenedIds().slice(1)`) | 18-trial | KILLED: world and chat [verdict], world [close] read ACTORDAICHI00000 on p1 and p2 |
+
+checkState's invariants: none added on this line. The three it holds are the ones a stage states (world-secrets.mjs's
+rules, the A10/A11 key filter, the clock's phase and counters); no other rule read on this line is both stated and
+readable off world data alone (the Mask's, the register's and the trial's are GM stores, which `stateProblems` does not
+read by design).
+
+## Needs a local Foundry
+
+- **LIVE-E40-01** (audit/AUDIT-1.2.42.md 9.2 item 532, written on this line): `checkState()` at a real primary GM's
+  start, on a copy of a v14 world played through at least a chapter - warnings only, each true.
+- **Season-wipe on a real world copy**: `resetSeason` with every group on a copy of a played v14 world (scenes with walls
+  and Levels, real chat history in the hundreds, Daggerheart's own Countdowns), then `checkState()` and the whole-world
+  diff (the local gate's) around it. The harness runs it on its seeded world only (65 D, 72 season end).
+- **18-trial's local layer**: the same five steps with the ballot windows drawn and pressed on real browsers, and the
+  verdict's cut-in seen on each screen.
 
 ## Questions for the owner
 
