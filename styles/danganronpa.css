@@ -694,11 +694,6 @@ body {
     margin-bottom: 0 !important;
 }
 
-/* Match the label above each trait to the frame. */
-.character-header-sheet .character-traits .trait {
-    --dh-trait-color-border: var(--drpg-eye);
-}
-
 .character-header-sheet .character-traits .trait .trait-name {
     border-radius: 2px;
 }
@@ -1522,6 +1517,8 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
    turned off rolling, not editing, and left only the little label clickable.
    Editing is blocked where it belongs, in resource-guard.mjs. */
 .character-header-sheet .character-traits .trait {
+    /* the label above each trait matched to the frame (its own rule until E55 S3) */
+    --dh-trait-color-border: var(--drpg-eye);
     cursor: pointer;
 }
 
@@ -8780,6 +8777,9 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor h3 .drpg-group-count.fu
     height: auto;
     justify-content: center;
     row-gap: 3px;
+    /* no gap between the value and the max, so they keep to one line (VALUE AND MAX ON ONE LINE, below; a rule of its
+       own there until E55 S3) */
+    column-gap: 0;
 }
 
 .application.sheet.actor .character-sidebar-sheet .drpg-resource-bar {
@@ -9050,9 +9050,6 @@ body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg
    a full line beneath them; what changes is that the numerals themselves fit.
    Smaller, per Dawid - they are a caption under a bar that already carries the
    proportion, not the headline they were sized as. */
-.application.sheet.actor .character-sidebar-sheet .status-value:has(.drpg-resource-bar) {
-    column-gap: 0;
-}
 
 .application.sheet.actor .character-sidebar-sheet
     .status-value:has(.drpg-resource-bar) > :where(:not(.drpg-reserve-row)) {
@@ -14256,10 +14253,6 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
     border-color: var(--drpg-eye) !important;
 }
 
-.application.sheet.actor .drpg-row-button i,
-.application.sheet.actor .drpg-inventory-group button i {
-    color: var(--drpg-bone) !important;
-}
 
 /* The one exception, and it is a state rather than an action: the tool this
    character is holding ready. Gold on the row, gold on the button. */
@@ -14279,6 +14272,10 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
     background: rgba(var(--drpg-bone-rgb), 0.04);
     border: 1px solid var(--drpg-line);
     border-radius: 2px;
+    /* the row grows with its buttons, or the taller buttons push its own padding out of shape and the list starts to
+       look loose (a rule of its own after the buttons' until E55 S3) */
+    min-height: 32px;
+    padding: 2px 4px;
 }
 
 .application.sheet.actor .drpg-inventory-list > li:hover {
@@ -14633,6 +14630,8 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 
 .application.sheet.actor .drpg-row-button i,
 .application.sheet.actor .drpg-inventory-group button i {
+    /* Bone (a rule of its own further up until E55 S3) */
+    color: var(--drpg-bone) !important;
     font-size: var(--drpg-text-sm);
 }
 
@@ -14663,13 +14662,6 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
     /* the glass's own button: a dark plate, and the label the brush's ink when it is on */
     background: rgba(7, 7, 10, 0.55) !important;
     color: var(--brush-ink, var(--drpg-sg-bone)) !important;
-}
-
-/* The row grows with them, or the taller buttons push its own padding out of
-   shape and the list starts to look loose. */
-.application.sheet.actor .drpg-inventory-list > li {
-    min-height: 32px;
-    padding: 2px 4px;
 }
 
 /* ==========================================================================
