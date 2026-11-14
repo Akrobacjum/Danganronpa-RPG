@@ -3808,6 +3808,9 @@
       },
       "shut": {
         "knock": "Someone tries the door and cannot get in.",
+        "whyEclipse": "Not during an Eclipse.",
+        "whyBedroom": "This is somebody else's bedroom.",
+        "whyDoors": { "one": "This room has more than {n} open door.", "other": "This room has more than {n} open doors." },
         "seenBy": "{name} barricades {room} from inside.",
         "done": "You barricade {room}. Until you leave or the time of day ends, nobody walks in through a door unless they force it."
       },

@@ -25628,6 +25628,21 @@ const REGRESSIONS = [
         const shut = fnSource(stripComments(sources.get("trial-progress.mjs") ?? ""), "shutVoteAtExit");
         ok(/open:\s*false/.test(shut) && /trialProgressChapter\(\)/.test(shut) && /\.open\b/.test(shut), `shutVoteAtExit does not write an open vote of the clock's chapter closed: ${shut.replace(/\s+/g, " ").slice(0, 300)}`);
     }],
+    ["R7173 - Shut the Door's row is shut before it costs anything where the GM would refuse it (E59 C-115, CHAINS.md B-R5): action-doors.mjs `performShut` pays and rolls before the GM's judgement (doors-gm.mjs `shutRefusal`), and a refusal gives nothing back - a refund after the roll would hand out the roll's Hope for free (action-pipeline.mjs `spentAfterRoll`); so action-listen.mjs `infiltrateRows` shuts the row with its reason by `shutShutWhy`, which reads what the player's browser knows of the GM's reasons - an Eclipse, somebody else's bedroom, more open doors than `INFILTRATE.shut.maxExits` - each a key in both languages", async () => {
+        const sources = new Map(await otherSources());
+        const listen = stripComments(sources.get("action-listen.mjs") ?? "");
+        ok(/key === "shut" \? shutShutWhy\(actor\)/.test(fnSource(listen, "infiltrateRows")), "infiltrateRows does not ask shutShutWhy for Shut the Door's row");
+        const why = fnSource(listen, "shutShutWhy");
+        const gm = fnSource(stripComments(sources.get("doors-gm.mjs") ?? ""), "shutRefusal");
+        ok(/isEclipse\(\)/.test(gm) && /ROOM_OWNER_FLAG/.test(gm) && /maxExits/.test(gm), "shutRefusal no longer refuses an Eclipse, another's bedroom and too many doors - this test reads the wrong rule");
+        const read = { eclipse: /isEclipse\(\)/.test(why), bedroom: /ROOM_OWNER_FLAG/.test(why), doors: /INFILTRATE\.shut\.maxExits/.test(why) && /isLocked\(/.test(why) };
+        equal(JSON.stringify(read), JSON.stringify({ eclipse: true, bedroom: true, doors: true }), "{shutShutWhy: whether it reads the Eclipse, the bedroom's owner and the open doors}");
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const shut = text?.DRPG?.Infiltrate?.shut ?? {};
+            ok(typeof shut.whyEclipse === "string" && typeof shut.whyBedroom === "string" && typeof shut.whyDoors?.other === "string", `${lang}.json lacks Shut the Door's row reasons`);
+        }
+    }],
 ];
 
 

@@ -14,9 +14,10 @@
  * family it reads the shared layer alone.
  */
 
-import { ACTIONS, INFILTRATE } from "./config.mjs";
+import { ACTIONS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { spendAction, actionsLeft } from "./actions.mjs";
-import { roomOfActor, locateActor, neighbouringRooms } from "./movement.mjs";
+import { roomOfActor, locateActor, neighbouringRooms, isLocked } from "./movement.mjs";
+import { roomFlag } from "./rooms.mjs";
 import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
@@ -62,7 +63,8 @@ export function infiltrateRows(actor) {
         const why = !BUILT.has(key) ? game.i18n.localize("DRPG.Infiltrate.notBuilt")
             : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours")
                 : key === "keepWatch" ? watchShutWhy()
-                    : key === "echoes" ? echoesShutWhy() : null;
+                    : key === "echoes" ? echoesShutWhy()
+                        : key === "shut" ? shutShutWhy(actor) : null;
         return {
             value: key, icon: ROW_ICONS[key] ?? "fa-circle",
             label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
@@ -87,6 +89,25 @@ const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch", "echoes"]);
  */
 export function echoesShutWhy({ eclipse = isEclipse() } = {}) {
     return eclipse ? game.i18n.localize("DRPG.Infiltrate.echoes.notInEclipse") : null;
+}
+
+/**
+ * Why Shut the Door's row is shut now, or null (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R5; R7173). The action
+ * is paid and rolled before the GM judges it (doors-gm.mjs `shutRefusal`), and a refusal gives nothing back: a refund
+ * after the roll would hand out its Hope for free (action-pipeline.mjs `spentAfterRoll`). So what this browser knows of
+ * the GM's reasons shuts the row before it costs anything: an Eclipse, somebody else's bedroom, more open doors than
+ * `INFILTRATE.shut.maxExits`. A body nobody has found and another's barricade are the GMs' to know, and stay their refusal.
+ */
+export function shutShutWhy(actor, { eclipse = isEclipse() } = {}) {
+    if (eclipse) return game.i18n.localize("DRPG.Infiltrate.shut.whyEclipse");
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
+    if (!room) return null;
+    const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
+    if (owner && owner !== actor?.id) return game.i18n.localize("DRPG.Infiltrate.shut.whyBedroom");
+    const max = INFILTRATE.shut.maxExits;
+    if (neighbouringRooms(place.scene, room).filter(other => !isLocked(place.scene, other)).length > max) return plural("DRPG.Infiltrate.shut.whyDoors", { n: max });
+    return null;
 }
 
 /**

@@ -4075,6 +4075,9 @@
       },
       "shut": {
         "knock": "Ktoś próbuje wejść, ale drzwi nie ustępują.",
+        "whyEclipse": "Nie w czasie Eclipse.",
+        "whyBedroom": "To cudza sypialnia.",
+        "whyDoors": { "one": "Ten pokój ma więcej niż {n} otwarte drzwi.", "few": "Ten pokój ma więcej niż {n} otwarte drzwi.", "many": "Ten pokój ma więcej niż {n} otwartych drzwi.", "other": "Ten pokój ma więcej niż {n} otwartych drzwi." },
         "seenBy": "{name} barykaduje od środka: {room}.",
         "done": "Barykadujesz pokój {room}. Dopóki z niego nie wyjdziesz albo nie skończy się pora dnia, nikt nie wejdzie drzwiami, chyba że je wyważy."
       },
