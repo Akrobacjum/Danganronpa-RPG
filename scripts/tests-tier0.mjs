@@ -25655,6 +25655,12 @@ const REGRESSIONS = [
         const lapse = fnSource(cub, "lapseBounties");
         ok(/\.season\b/.test(lapse) && /seasonEpoch\(\)/.test(lapse), "lapseBounties gives a Bounty's Despair back whatever season it was posted in");
     }],
+    ["R7177 - an open Remnant card stays true while it is open, as a project's card does (E59 C-115, CHAINS.md B-R2): remnant-ring.mjs `showRemnantCard` wrote the card once - a player's from their own Truth Bullet (an Analyze updates that item), a GM's from the GMs' ledger (`remnantStore`) and the trace's token flags - and nothing drew it again; it keeps the card a live region (live.mjs `keepLive`) that hears the items, the tokens and the ledger, and a GM's card is wired again after each draw", async () => {
+        const ring = stripComments(new Map(await otherSources()).get("remnant-ring.mjs") ?? "");
+        const card = fnSource(ring, "showRemnantCard");
+        ok(/\bkeepLive\(/.test(card), "showRemnantCard writes the card once and keeps nothing live");
+        ok(/items:\s*true/.test(card) && /tokens:\s*true/.test(card) && /remnantStore/.test(card) && /after:/.test(card), `the Remnant card's live region does not hear the items, the tokens and the ledger, or does not wire a GM's card again: ${card.replace(/\s+/g, " ").slice(-500)}`);
+    }],
 ];
 
 
