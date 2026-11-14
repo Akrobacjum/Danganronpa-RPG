@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -3363,7 +3363,7 @@ const REGRESSIONS = [
 
         // The class is decided in JS, so the block exists once - and the switch is
         // not one of the theme-only effects.
-        const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
+        const settings = stripComments(settingsText(new Map(await otherSources())));
         ok(/export function highContrastOn\(/.test(settings),
             "nothing decides whether high contrast is on");
         ok(/prefers-contrast: more/.test(settings),
@@ -3818,7 +3818,7 @@ const REGRESSIONS = [
         ok(WINDOW_WIDTHS?.panel?.ultrawide?.legacy === true && WINDOW_WIDTHS?.wide?.legacy === true,
             "on an ultrawide screen the GM panel is the one window whose box ignores the slider");
 
-        const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
+        const settings = stripComments(settingsText(new Map(await otherSources())));
         // E54 W2: the function's own end - its render hooks stand in `registerWindows` since, after this function.
         const body = bodyOf(settings, "function scaleWindow", { until: "\n}\n" });
         ok(body.length > 400, "scaleWindow has moved or gone");
@@ -5270,7 +5270,7 @@ const REGRESSIONS = [
          * band widened the plaque for a long name and jumped at the end of a short one.
          */
         const sources = new Map(await otherSources());
-        const settings = stripComments(sources.get("settings.mjs") ?? "");
+        const settings = stripComments(settingsText(sources));
         const scale = bodyOf(settings, "function scaleWindow(", { until: "\n}" });
         ok(!/window-resize-handle.*remove\(\)|resizable = false/.test(scale),
             "the sheet's handle is removed by a one-way edit a theme switch cannot undo");
@@ -5869,7 +5869,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         ok(/"drpg-resources-locked", Boolean\(getSetting\(SETTINGS\.lockPlayerResources\)\)/.test(stripComments(sources.get("module.mjs") ?? "")),
             "nothing stamps the class when the world loads");
-        ok(/lockPlayerResources, \{[\s\S]{0,500}onChange: value => document\.body\.classList\.toggle\("drpg-resources-locked"/.test(stripComments(sources.get("settings.mjs") ?? "")),
+        ok(/lockPlayerResources, \{[\s\S]{0,500}onChange: value => document\.body\.classList\.toggle\("drpg-resources-locked"/.test(stripComments(settingsText(sources))),
             "switching the setting does not move the class");
     }],
 
@@ -12483,7 +12483,7 @@ const REGRESSIONS = [
                 .filter(where => where !== `${file}#${name}`);
         });
         const sources = new Map(await otherSources());
-        must(fnSource(sources.get("settings.mjs"), "recordBodyFound"), "settings.mjs declares no recordBodyFound");
+        must(fnSource(settingsText(sources), "recordBodyFound"), "settings.mjs declares no recordBodyFound");
         equal(JSON.stringify([callers("recordBodyFound", /\brecordBodyFound\s*\(/g), callers("announceBody", /\bannounceBody\s*\(/g),
             callers("recordBodyFound", /settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.bodiesFound\b/g)]),
             JSON.stringify([["chapter.mjs#announceBody"], ["chapter.mjs#runDiscovery"], ["settings.mjs#carryBodyRooms", "chapter.mjs#clearSeasonBodies"]]),
@@ -12787,7 +12787,7 @@ const REGRESSIONS = [
             "the GM's reading of a trace, or a clean-up's copy of one, drops its season - a trace put back is this season's");
         ok(/chapter: getClock\(\)\.chapter,\s*epoch: seasonEpoch\(\)/.test(fnSource(rules, "setMotive")), "the motive does not name its season");
         // Read last: before 1.2.73 there was no such reader, and `fnSource` throws for a function it cannot find.
-        const same = fnSource(src("settings.mjs"), "sameSeason");
+        const same = fnSource(settingsBy(src), "sameSeason");
         ok(/return record\.epoch === epoch/.test(same) && /record\.placedAt \?\? record\.at/.test(same),
             "settings.mjs `sameSeason` does not compare the season, or a record from before 1.2.73 by its own stamp");
     }],
@@ -14355,7 +14355,7 @@ const REGRESSIONS = [
                 && /sealed\.filter\(room => stillStands \|\| room !== from\)/.test(fnSource(code("call-world.mjs"), "carrySealedRoom")),
             renameBodies: /bodies: await carryBodyRooms\(scene\.id, from, to, firstHere\)/.test(world)
                 && /const firstHere = at >= 0 && !places\.slice\(0, at\)\.some\(s => roomRegions\(s, from\)\.length\);/.test(world)
-                && /row\?\.room === from && \(row\.sceneId \? row\.sceneId === sceneId : firstHere\)/.test(fnSource(code("settings.mjs"), "carryBodyRooms")),
+                && /row\?\.room === from && \(row\.sceneId \? row\.sceneId === sceneId : firstHere\)/.test(fnSource(settingsBy(code), "carryBodyRooms")),
             trapScene: /trap\.trigger\.kind === "item" \? await sceneOfEvent\(actor\) : onScene \?\? projectScene\(trap\.id\)/.test(fnSource(code("traps.mjs"), "alert"))
                 && /scene: esc\(scene\?\.name \?\? "\?"\)/.test(fnSource(code("traps.mjs"), "alert")),
             oneScene: /place\.scene\.id === projectScene\(countdownId\)\?\.id/.test(fnSource(code("projects.mjs"), "standsAtProject"))
@@ -20848,7 +20848,7 @@ const REGRESSIONS = [
          * shown a planted list first - one group missing, one registered twice, one in a file that is no owner. Red
          * before C3: season-reset.mjs absent.
          */
-        const LEAF = ["config.mjs", "utils.mjs", "windows.mjs", "settings.mjs", "season-exceptions.mjs"];
+        const LEAF = ["config.mjs", "utils.mjs", "windows.mjs", "settings.mjs", "window-scale.mjs", "season-exceptions.mjs"];
         const OWNERS = {
             incident: "incident-store.mjs", seals: "call-world.mjs", assembly: "call-world.mjs", projects: "projects.mjs",
             mastermind: "mastermind.mjs", passages: "passages-gm.mjs", deaths: "chapter.mjs", bodyFound: "chapter.mjs",
@@ -23899,7 +23899,7 @@ const REGRESSIONS = [
         });
         const shown = [...game.settings.settings.entries()].filter(([full, r]) => full.startsWith(`${MODULE_ID}.`) && r?.config === true).map(([full]) => full);
         const menus = [...(game.settings.menus?.entries?.() ?? [])].filter(([key]) => key.startsWith(`${MODULE_ID}.`));
-        const src = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        const src = stripComments(settingsText(await moduleSources()));
         must(src.length > 10000, "settings.mjs was not read - this reads nothing of its registrations");
         const menuCalls = [...src.matchAll(/registerMenu\??\.?\(\s*MODULE_ID\s*,\s*(\w+)/g)].map(m => m[1]);
         const read = {
@@ -25135,7 +25135,7 @@ const REGRESSIONS = [
          * `registerWindows`, and the three readers called in `scaleWindow` (two of them) and `scaleMemo` (one).
          */
         const sources = new Map(await otherSources());
-        const settings = stripComments(sources.get("settings.mjs") ?? ""), module = stripComments(sources.get("module.mjs") ?? "");
+        const settings = stripComments(settingsText(sources)), module = stripComments(sources.get("module.mjs") ?? "");
         must(settings.length > 100000 && module.length > 5000, "settings.mjs or module.mjs was not read - this would measure nothing");
         const HOOK = /^\s*Hooks\.on\("renderApplication(?:V2)?", scaleWindow\);/gm;
         const register = fnSource(settings, "registerWindows") ?? "";
@@ -25173,7 +25173,7 @@ const REGRESSIONS = [
             for (const m of text.matchAll(WRITE)) writers.add(`${file}#${decls.findLast(d => d.at <= m.index)?.name ?? "(top level)"}`);
         }
         must(scanned > 100, `only ${scanned} module files were read - this would measure nothing`);
-        const settings = stripComments(new Map(sources).get("settings.mjs") ?? "");
+        const settings = stripComments(settingsText(new Map(sources)));
         must(settings.length > 100000, "settings.mjs was not read - this would measure nothing");
         const themeSetting = bodyOf(settings, "game.settings.register(MODULE_ID, SETTINGS.theme, {", { until: "});" });
         const apply = fnSource(settings, "applyTheme") ?? "";
