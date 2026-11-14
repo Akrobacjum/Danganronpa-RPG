@@ -1831,7 +1831,7 @@
       "incidentSub": "{killer} against {victim}",
       "incidentSubRoom": "{killer} against {victim}, in {room}",
       "safewordTitle": "The scene is stopped",
-      "safewordSub": "Somebody called the safeword.",
+      "safewordSub": "Somebody used the safeword.",
       "safewordMeta": "Nothing moves until the table picks it back up.",
       "safewordMetaGm": "Unpause when everyone is ready, and not before.",
       "voteTitle": "The vote is open",

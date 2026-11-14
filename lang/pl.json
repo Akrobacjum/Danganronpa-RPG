@@ -4955,7 +4955,7 @@
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",
         "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
-        "noBudget": "Brak Free Move i brak akcji.",
+        "noBudget": "Nie masz już Free Move ani akcji.",
         "eclipseSpent": "Przejścia Eclipse wyczerpane.",
         "roundMovedOn": "GM pyta ponownie: odpowiedz na nowe pytanie.",
         "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest."
