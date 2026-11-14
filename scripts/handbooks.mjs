@@ -343,10 +343,10 @@ function toHtml(markdown) {
  * ON THE KIT'S FRAME (E21 C6a, 07.11.2026). A `DrpgApp` (ui-kit.mjs): `drpg-ui` on the root, the window held to the screen
  * less 8 px a side, and the book's two columns (`.drpg-handbook-main`) the kit's region - the contents list and the text
  * scroll inside it, each on its own, as before. Until C6a Stained Glass held the window to the height it was opened or
- * resized to through `--drpg-window-h`, which `_onPosition` mirrored (22.09: the 70 KB book came out 1038 px tall with its
- * foot off the screen); the frame's `max-height` does that now in both themes, and the two rules went with the mirror.
- * Under Stained Glass the window is as tall as the screen less 16 px once a book is in it (the glass's `height: auto`),
- * not the 760 px it was asked for: not seen at a table.
+ * resized to through `--drpg-window-h`, which its `ApplicationV2#_onPosition` override mirrored (22.09: the 70 KB book
+ * came out 1038 px tall with its foot off the screen); the frame's `max-height` does that now in both themes, and the
+ * two rules went with the mirror. Under Stained Glass the window is as tall as the screen less 16 px once a book is in
+ * it (the glass's `height: auto`), not the 760 px it was asked for: not seen at a table.
  */
 class HandbookApp extends DrpgApp() {
     static DEFAULT_OPTIONS = {

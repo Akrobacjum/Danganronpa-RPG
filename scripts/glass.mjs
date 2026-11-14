@@ -2212,7 +2212,7 @@ function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass";
  * complaint (14 frames a second in portrait).
  */
 function glassRoom() { return themeOn() && !(narrowLayout() && shortScreen()); }
-/* `effectsOn()` is gone with the setting it read. It gated the pulse, the seam flashes, the
+/* `effectsOn()` is gone (already by 1.2.70) with the setting it read. It gated the pulse, the seam flashes, the
    pane beat and (until 08.09) the state crossfade - which meant one switch could stop the
    theme moving at all, and with it off the curtain was a still picture that nobody could
    explain. Reduced motion still stops everything: that is a preference about motion, not a

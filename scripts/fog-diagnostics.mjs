@@ -577,7 +577,7 @@ export function checkRegions(scene = canvas?.scene) {
      * `canvas.dimensions.sceneX` is NOT it: on this project's own scene it is
      * 641 against a grid of 20, so measuring from there puts every corner four
      * pixels out and the check fires on all eighteen rooms - a check that has
-     * learnt to cry wolf is worse than no check. `getSnappedPoint` is no help
+     * learnt to cry wolf is worse than no check. `BaseGrid#getSnappedPoint` is no help
      * either; asked about a dirty coordinate it hands the same one back.
      *
      * The honest question is not "where does Foundry think the grid starts" but

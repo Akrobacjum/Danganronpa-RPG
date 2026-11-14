@@ -430,7 +430,7 @@ export async function startProject(actor) {
                 label: game.i18n.localize("DRPG.Project.approveButton"),
                 // Lowercase keys only: `data-*` attributes arrive through
                 // `dataset`, which lowercases everything, so `killerId` would
-                // come back as `killerid` and quietly read undefined.
+                // come back as `dataset.killerid` and quietly read undefined.
                 data: {
                     by: actor.id,
                     pname: result.name,

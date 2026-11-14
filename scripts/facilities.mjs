@@ -15,7 +15,7 @@
  *     GM's switch says it costs none (08.11).
  *
  * This file is what every browser reads: the cleaning of what a GM typed (`cleanAction`, `cleanFacility`), the room's
- * actions (`roomActions`), a project's action and whether its lifetime runs (`projectAction`, `facilityLive`), the
+ * actions (`roomActions`), a project's action and whether its lifetime runs (`projectFacilityOf`, `facilityLive`), the
  * marks that say which time of day a use belongs to (`facilityMark`, `facilityOrdinal`), what is closed now
  * (`closedNow`), and what an action costs and whether the Despair Overflow shuts it (`facilityCost`, `facilityShut`).
  * The use itself is judged and carried out on the primary GM (facilities-gm.mjs, the bridge's `facility.use`); a

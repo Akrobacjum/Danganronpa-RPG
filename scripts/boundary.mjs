@@ -45,12 +45,12 @@
  * part RR (two GMs, one round), tier 2 E37-T3 and E37-T9, tier 1 R1204.
  *
  * AN INCIDENT'S START TELLS NOTHING (E37 fix FG1b, 02.11.2026; STATUS E37 Open 52). FG1 ended an open round "stop" at
- * the incident's start (`endBarredRound`, on every write of `murderState`), and every player of the round was told at
- * that moment that the GM was waiting a little longer: a timing signal to the bystanders, beside the clock the incident
- * hides from them. The incident's start writes nothing to the round now - no write of `readyRound`, so no window closes
- * and nobody is told - and the round stands until the GM's own press: its "go" is asked of `roundAllowed` again on the
- * primary, nothing moves, and that GM is told in one line (`DRPG.Ready.barred`), at a moment the GM chose. Tier 2
- * E37-T9; a bystander's own page is LIVE-E37-06.
+ * the incident's start (`endBarredRound`, on every write of `murderState`; removed by this fix), and every player of
+ * the round was told at that moment that the GM was waiting a little longer: a timing signal to the bystanders, beside
+ * the clock the incident hides from them. The incident's start writes nothing to the round now - no write of
+ * `readyRound`, so no window closes and nobody is told - and the round stands until the GM's own press: its "go" is
+ * asked of `roundAllowed` again on the primary, nothing moves, and that GM is told in one line (`DRPG.Ready.barred`),
+ * at a moment the GM chose. Tier 2 E37-T9; a bystander's own page is LIVE-E37-06.
  *
  * A BARRED "GO" ENDS THE ROUND AS ANY "GO" (E37 fix FG1c, 02.11.2026; STATUS E37 Open 55 and 56). FG1b wrote that "go"
  * "stop", at the GM's press and at the window's own go-on at the last Done alike, and every player of the round was

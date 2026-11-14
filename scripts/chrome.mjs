@@ -23,12 +23,13 @@
  * tables were dressed outside that branch, so a Daggerheart sheet's table or
  * another module's got `data-drpg-chrome` and `num` / `act` classes (R1328).
  *
- * THE NUMBER FIELD was a third family here until E44 C4b: `dressNumberField`
- * put a pixel - and + round every number input under Stained Glass only, so
- * under Monokuma Legacy each was the browser's spinner. The twelve fields are
- * ui-kit.mjs `stepper`s now, with their - and + in the markup, and this pass
- * wires them (`wireSteppers`) in both themes, before its theme gate (R1327).
- * Under "Monokuma Legacy" nothing else in this file runs.
+ * THE NUMBER FIELD was a third family here until E44 C4b: `dressNumberField` (gone
+ * since, c671ed01, 04.11.2026) put a pixel - and + round every number input
+ * under Stained Glass only, so under Monokuma Legacy each was the browser's
+ * spinner. The twelve fields are ui-kit.mjs `stepper`s now, with their - and +
+ * in the markup, and this pass wires them (`wireSteppers`) in both themes,
+ * before its theme gate (R1327). Under "Monokuma Legacy" nothing else in this
+ * file runs.
  */
 
 import { log } from "./utils.mjs";

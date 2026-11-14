@@ -93,8 +93,9 @@ export function isCharacterSettings(app, element) {
 }
 
 /**
- * The wrapper a field stands in: Foundry's `formGroup` draws `div.form-group > .form-fields > input`, and Max Evasion
- * Increase stands in a `span` of its own (the tooltip's) inside the grid, which is the grid's cell and so the one hidden.
+ * The wrapper a field stands in: Foundry's `foundry.applications.fields.createFormGroup` draws `div.form-group >
+ * .form-fields > input`, and Max Evasion Increase stands in a `span` of its own (the tooltip's) inside the grid, which
+ * is the grid's cell and so the one hidden.
  */
 function wrapperOf(input) {
     const group = input.closest(".form-group") ?? input;
@@ -172,12 +173,13 @@ function wordCharacterSettings(element) {
 }
 
 /*
- * EACH FIELD NAMED BY ITS LABEL'S WORDS (13.11.2026, R3920). Foundry's `formGroup` draws `label + .form-fields > input`
- * and ties the two by `for` only where the field has an id; Daggerheart's template gives it none, so a screen reader read
- * Max Health, Max Sanity and the three hidden fields with no name - and once the window wears `drpg-panel`, a11y.mjs's
- * sweep reported each (tier 2's "every control in the module's own chrome has a name", whenever R3551 drew the window
- * first). The hidden three are named too: the sweep reads every field in the window, shown or not. After the wording, so
- * the name is the module's word where WINDOW_WORDS has one. A field with a name of its own keeps it.
+ * EACH FIELD NAMED BY ITS LABEL'S WORDS (13.11.2026, R3920). Foundry's `foundry.applications.fields.createFormGroup`
+ * draws `label + .form-fields > input` and ties the two by `for` only where the field has an id; Daggerheart's template
+ * gives it none, so a screen reader read Max Health, Max Sanity and the three hidden fields with no name - and once the
+ * window wears `drpg-panel`, a11y.mjs's sweep reported each (tier 2's "every control in the module's own chrome has a
+ * name", whenever R3551 drew the window first). The hidden three are named too: the sweep reads every field in the
+ * window, shown or not. After the wording, so the name is the module's word where WINDOW_WORDS has one. A field with a
+ * name of its own keeps it.
  */
 function nameFormGroups(element) {
     for (const group of element.querySelectorAll(".form-group")) {

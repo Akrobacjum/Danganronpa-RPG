@@ -1003,7 +1003,8 @@ export const DrpgApi = {
 
     /** The Monocub's table (E33 C10): `performCubAbility(actor, key, { targetId, choice })`, its picker
      *  `cubAbilityDialog(actor, key)`, who it could be aimed at, and the GM-side run. Confusion is `key`
-     *  "meddle" with `choice` "help" or "hinder"; `performMeddle` and `meddleDialog` were its names until 1.2.68. */
+     *  "meddle" with `choice` "help" or "hinder"; `performMeddle` and `meddleDialog` were its names until 1.2.68, both
+     *  gone since. */
     cubTargets,
     cubAbilityDialog,
     performCubAbility,
