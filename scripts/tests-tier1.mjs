@@ -7844,7 +7844,7 @@ const INVARIANTS = [
         const verdictCode = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
         const table = bodyOf(verdictCode, "const FINAL_VERDICT_STEPS = ", { until: ";" });
         const sentence = fnSource(verdictCode, "finalVerdictSentence").indexOf("finalSentenced: [mastermind.id]"),
-            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null,");
+            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(aliveAsTableKnows(executed && mastermind ? [mastermind.id] : []), null,");
         ok(sentence > 0 && batch > 0 && table.indexOf('"finalLevelUps"') > table.indexOf('"finalSentence"') && table.indexOf('"finalSentence"') > 0,
             "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),

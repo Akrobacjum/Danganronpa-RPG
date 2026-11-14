@@ -25440,6 +25440,24 @@ const REGRESSIONS = [
         equal(JSON.stringify(stale), "[]", "a RED_KEPT row names no red read any longer - take it off (and its line of GAPS.md)");
         equal(JSON.stringify(r.found), "[]", `red on a window's button off the GM's road, of ${r.read.length} rule(s) read`);
     }],
+
+    /*
+     * THE MODULE AS ONE CHAIN (E59 on the 1.2.115 line, 14.11.2026; the owner's word of the same day: code, handbooks
+     * and texts agree, and the mechanics mesh). docs/dev/e59/CHAINS.md is the map and its breaks; each test below holds
+     * one break closed, or a class of them, where the source can be read without a Foundry.
+     */
+    ["R7160 - both verdicts advance the class alive as the table knows it (E59 C-115, CHAINS.md B-T3; E05 fix r2-G1's rule A): the ordinary verdict's survivors and the Final Trial's batch read one helper, `aliveAsTableKnows`, the roster less the table's dead (`isDeceased` of the flags the GMs hold), and verdict.mjs reads `livingStudentsForGm` nowhere - the Final Trial's batch read it, so a Reinforced Level Up waiting for a student whose body nobody had found was given at an ordinary right verdict and lapsed at the Final one", async () => {
+        const code = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
+        must(code.length > 10000, "verdict.mjs was not read");
+        const helper = fnSource(code, "aliveAsTableKnows");
+        ok(/studentActors\(\)/.test(helper) && /isDeceased\(flagsHeldNow\(/.test(helper), `aliveAsTableKnows is not the roster less the table's dead: ${helper.slice(0, 200)}`);
+        const reads = {
+            verdictHeld: /\baliveAsTableKnows\(/.test(fnSource(code, "verdictHeld")),
+            finalVerdictLevelUps: /\baliveAsTableKnows\(/.test(fnSource(code, "finalVerdictLevelUps"))
+        };
+        equal(JSON.stringify(reads), JSON.stringify({ verdictHeld: true, finalVerdictLevelUps: true }), "{the verdict's survivors and the Final Trial's batch: whether each reads aliveAsTableKnows}");
+        equal((code.match(/\blivingStudentsForGm\b/g) ?? []).length, 0, "verdict.mjs still reads the GMs' list of the living somewhere");
+    }],
 ];
 
 
