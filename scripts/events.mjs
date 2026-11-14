@@ -943,28 +943,108 @@ function startTrialClock() {
     }, 1000);
 }
 
-/**
- * WHETHER THE PANEL HOLDS MORE THAN ITS BOX, READ WHENEVER EITHER CHANGES (E23 fix G3, 08.11.2026; the end review's
- * correctness m2). The box's cap is one size a layout and theme (the stylesheets' `--drpg-events-h`, C3b; under it the
- * panel is as tall as its cards since E49 A6), the panel takes
- * no clicks, and `data-drpg-scrolls` gives it the wheel while what it holds is taller than the box. Read once a redraw
- * until this fix - once a change of what the cards say - so a theme switch (whose render finds the same cards), a desk
- * turned into a stack and the scale slider (no render at all) left a panel that came to overflow its new box without
- * the attribute: its lower cards cut and out of reach. Now it is read on every render, the same cards' too, and by one
- * ResizeObserver a panel on the panel and each card (the box, and a card that grows with late fonts or a new width);
- * the panel's last observer is let go when a new panel is drawn. R1430.
+/*
+ * THE PANEL NEVER SCROLLS (owner-115 item 3, 14.11.2026; the owner at a table on 1.2.114: "Na karcie eventu pojawil sie
+ * scroll w trakcie morderstwa. Na karcie eventu nigdy nie powinno byc scrolla"). Until then the panel had one cap a theme
+ * (the stylesheets' `--drpg-events-h`, E23 C3b; a `max-height` since E49 A6) and scrolled past it, taking the wheel only
+ * while it did (`data-drpg-scrolls`, E23 fix G3, R1430): audit/events-murder-fit.mjs drew every panel a murder puts up -
+ * the victim's, the killer's, a GM's in the fight and at the opening, a safeword's - in both themes and languages at
+ * 1280x720, 1366x768 and 1920x1080, and every one of the 60 scrolled at e0ee06ef (192 px of Legacy's box for 454 to 803 of
+ * cards, 269 of the glass's for 627 to 1086).
+ * Now, in the coordinator's order (the owner's word, the defaults of 14.11): a card shows its whole text; the panel is
+ * as tall as its cards, up to the room the layout leaves under it (`eventsRoom`: to the screen's bottom, or the top of a
+ * corner launcher, the HUD or Foundry's hotbar below it, 8 px clear); and when the cards are taller than that room, they
+ * fold to their titles from the last up - the panel's order is its priority (`renderEvents`: the safeword first) - the
+ * first kept open (`fitEvents`). A folded card is a button: a click or Enter opens it, and the others fold as the room
+ * needs (`wireEventsPanel`); the card opened stays open across redraws while it stands. With no room every card folds.
+ * Fitted on every render, the same cards' too, and by one ResizeObserver a panel on the panel and each card (late fonts,
+ * a theme switch, a desk turned into a stack, the scale slider), as the scroll's marker was read before (R1430). R7401.
  */
 let eventsBoxWatch = null;
 
-function markEventsScrolls(panel) {
-    panel.toggleAttribute("data-drpg-scrolls", panel.scrollHeight > panel.clientHeight + 1);
+/** The kind of the card this browser's reader opened last, kept open while it stands (`wireEventsPanel`). */
+let openedKind = null;
+
+const FOLDED = "data-drpg-folded";
+const ROOM_GAP = 8;
+/* What the panel must not reach as it grows: the corner launchers (glass.mjs `LAUNCHERS`), the HUD and Foundry's hotbar. */
+const BELOW = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster], #drpg-hud, #hotbar";
+
+/** The height the panel may take from its top: to the screen's bottom or the top of what stands below it, `ROOM_GAP` clear. */
+export function eventsRoom(panel) {
+    const box = panel?.getBoundingClientRect?.();
+    if (!box) return Infinity;
+    let limit = (window.innerHeight || document.documentElement?.clientHeight || 0) - ROOM_GAP;
+    for (const el of document.querySelectorAll(BELOW)) {
+        if (panel.contains(el) || !el.getClientRects().length) continue;
+        const r = el.getBoundingClientRect();
+        if (r.top >= box.top && r.left < box.right && box.left < r.right) limit = Math.min(limit, r.top - ROOM_GAP);
+    }
+    return limit > 0 && Number.isFinite(limit) ? limit - box.top : Infinity;
+}
+
+const boxHeight = el => el.getBoundingClientRect().height;
+
+function fold(card, folded) {
+    card.toggleAttribute(FOLDED, folded);
+    if (folded) {
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-expanded", "false");
+        card.tabIndex = 0;
+    } else {
+        card.removeAttribute("role");
+        card.removeAttribute("aria-expanded");
+        card.removeAttribute("tabindex");
+    }
+}
+
+/**
+ * Fit the panel's cards to `room`: all open where they fit, else folded from the last up, the card `open` names (or the
+ * first) kept open; with no room for that either, every card folded. Answers the kinds folded. `height` and `room` are
+ * the suite's to hand (jsdom lays nothing out). R7401.
+ */
+export function fitEvents(panel, { room = eventsRoom(panel), height = boxHeight, open = openedKind } = {}) {
+    const cards = [...(panel?.children ?? [])].filter(c => c.classList?.contains("drpg-event"));
+    for (const card of cards) fold(card, false);
+    const fits = () => height(panel) <= room + 0.5;
+    if (!cards.length || fits()) return [];
+    const keep = cards.find(c => c.dataset.kind === open) ?? cards[0];
+    for (const card of [...cards].reverse()) {
+        if (card === keep) continue;
+        fold(card, true);
+        if (fits()) break;
+    }
+    if (!fits()) fold(keep, true);
+    return cards.filter(c => c.hasAttribute(FOLDED)).map(c => c.dataset.kind);
+}
+
+/** A folded card opens on a click or Enter (Space too), and the panel is fitted again around it. Once a panel. */
+export function wireEventsPanel(panel) {
+    if (!panel || panel.drpgFoldWired) return;
+    panel.drpgFoldWired = true;
+    const openOne = event => {
+        const card = event.target?.closest?.(`.drpg-event[${FOLDED}]`);
+        if (!card || !panel.contains(card)) return;
+        if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
+        event.preventDefault?.();
+        openedKind = card.dataset.kind;
+        fitEvents(panel);
+        if (!card.hasAttribute(FOLDED)) card.focus?.({ preventScroll: true });
+    };
+    panel.addEventListener("click", openOne);
+    panel.addEventListener("keydown", openOne);
 }
 
 function watchEventsBox(panel) {
     eventsBoxWatch?.disconnect();
     eventsBoxWatch = null;
     if (typeof ResizeObserver !== "function") return;
-    eventsBoxWatch = new ResizeObserver(() => { if (panel.isConnected) markEventsScrolls(panel); });
+    let queued = false;
+    eventsBoxWatch = new ResizeObserver(() => {
+        if (queued || !panel.isConnected) return;
+        queued = true;
+        requestAnimationFrame(() => { queued = false; if (panel.isConnected) fitEvents(panel); });
+    });
     eventsBoxWatch.observe(panel);
     for (const card of panel.children) eventsBoxWatch.observe(card);
 }
@@ -985,7 +1065,7 @@ export function renderEvents() {
         // Redraw only when something changed: the panel is on the curtain, and
         // every rebuild of it is a recut of the glass around it.
         const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine, c.clock]));
-        if (existing && existing.dataset.signature === signature) { markEventsScrolls(existing); return; }
+        if (existing && existing.dataset.signature === signature) { fitEvents(existing); return; }
 
         const rail = document.getElementById("drpg-despair");
         // the card follows the rail wherever it stands, including into the narrow stack
@@ -1004,12 +1084,11 @@ export function renderEvents() {
         if (rail ? panel.previousElementSibling !== rail : panel.parentElement !== host) {
             if (rail) rail.after(panel); else host.append(panel);
         }
-        /* The box has one cap whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`, a `max-height` since E49
-           A6, under which the panel is as tall as its cards), so what is taller than it
-           scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
-           holds more than its box. Read now, on a render of the same cards, and whenever the panel or a card changes
-           size (`watchEventsBox`, above). */
-        markEventsScrolls(panel);
+        /* Never a scroll (owner-115 item 3, above `eventsRoom`): fitted now, on a render of the same cards, and whenever
+           the panel or a card changes size (`watchEventsBox`). An opened card that is gone frees its kind. */
+        if (openedKind && !cards.some(c => c.kind === openedKind)) openedKind = null;
+        wireEventsPanel(panel);
+        fitEvents(panel);
         watchEventsBox(panel);
     } catch (err) {
         error("Could not render the Event panel", err);

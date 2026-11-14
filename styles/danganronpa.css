@@ -10126,33 +10126,38 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
    the band under a short card's last line (the glass harness's `drpgEventCheck` at 1366x768 before this: the owner's
    incident 64.9 px under the glass, 39.4 under Legacy; a safeword's 113 and 68.5), so the panel follows its cards and
    only what is taller than the cap scrolls. The owner's newer word replaces the 04.10 one for the height; the width
-   stays one token. The panel holds no control, so no control moves with it (the rule of 10.11). */
+   stays one token. The panel holds no control, so no control moves with it (the rule of 10.11).
+   NEVER A SCROLL (owner-115 item 3, 14.11.2026; the owner at a table on 1.2.114: "Na karcie eventu nigdy nie powinno
+   byc scrolla"). The cap and the scroll past it are gone: every murder-time panel scrolled at e0ee06ef, 60 of 60
+   (audit/events-murder-fit.mjs). The panel is as tall as its cards up to the room under it, and past that room its
+   cards fold to their titles (events.mjs `fitEvents`, `eventsRoom`); a folded card is the panel's one control, a click
+   or Enter opens it (`wireEventsPanel`; Q-OWN115-5, against the rule of 10.11 above). R7401, R1394. */
 #drpg-events {
     --drpg-events-w: 412px;
-    --drpg-events-h: calc(192px * var(--drpg-legacy-scale, 1));
     order: 15;
     width: var(--drpg-events-w);
     max-width: 100%;
     height: auto;
-    max-height: var(--drpg-events-h);
+    max-height: none;
     box-sizing: border-box;
-    /* never shrunk by the column it stands in: a flex item that scrolls has no minimum height of its own, and in the
-       stack's column (narrow.css) the panel came out 0 px tall (the glass harness at 1024x768 and 393x852) */
+    /* never shrunk by the column it stands in: in the stack's column (narrow.css) a panel that could scroll came out
+       0 px tall (the glass harness at 1024x768 and 393x852, while it scrolled) */
     flex: 0 0 auto;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
     margin: 8px auto 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    /* The panel says things; it has no button in it, so it takes no clicks and
-       the map underneath stays draggable through it - except while it holds more
-       than its box (`data-drpg-scrolls`, events.mjs `renderEvents`), when the wheel
-       has to reach it to read the rest. */
+    /* The panel says things, so it takes no clicks and the map underneath stays draggable through it - but for a
+       folded card, which opens on a click (owner-115 item 3, below). */
     pointer-events: none;
 }
-#drpg-events[data-drpg-scrolls] { pointer-events: auto; }
+/* A FOLDED CARD (owner-115 item 3): its title alone, a button that opens it (events.mjs `fitEvents`, `wireEventsPanel`). */
+#drpg-events .drpg-event[data-drpg-folded] { pointer-events: auto; cursor: pointer; }
+/* the glyph too: under Stained Glass it is a 34 px block over the title, and a folded card with it read 80 px (Chromium,
+   the glass harness at 1280x720) - five such titles took the room an open card needed */
+#drpg-events .drpg-event[data-drpg-folded] > :not(.drpg-event-title) { display: none; }
+#drpg-events .drpg-event[data-drpg-folded]:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
 
 .drpg-event {
     --acc: var(--drpg-gold-antique);

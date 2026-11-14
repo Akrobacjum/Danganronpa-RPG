@@ -700,14 +700,13 @@ body.drpg-theme-stained-glass .drpg-glass-band > :not(canvas) {
 
 /* ---- the Event panel: under the Despair rail, as wide as it, no button in it -------------- */
 body.drpg-theme-stained-glass #drpg-events {
-    /* the glass's box (E23 C3b): the drawn width below (C-J), and the cap - the height of the tallest single card, an
-       incident's with the longest texts of lang - so one card always fits whole; under the cap the panel is as tall as
-       its cards (E49 A6: see the base sheet's `#drpg-events`) */
+    /* the glass's box (E23 C3b): the drawn width below (C-J); no cap since owner-115 item 3 (it was 316 px, the tallest
+       single card's): the panel is as tall as its cards up to the room under it, and folds them past that (the base
+       sheet's `#drpg-events`, events.mjs `fitEvents`) */
     --drpg-events-w: calc(355px * var(--drpg-sg-scale));
-    --drpg-events-h: calc(316px * var(--drpg-sg-scale));
     max-width: 100%;
     height: auto;
-    max-height: var(--drpg-events-h);
+    max-height: none;
     margin: 8px auto 0;
     padding: 0;
     font-family: var(--drpg-font-chrome);
