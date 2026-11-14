@@ -104,13 +104,13 @@ B-M5 (fixed, 4a5865ed) and the questions of B-R8.
 
 | Id | Break | Evidence | Kind | State |
 | --- | --- | --- | --- | --- |
-| B-H1 | Emptying the pools drops the Bounties' owed rows, and a Bounty's lapse then pays its cost back into the emptied pool | despair.mjs `clearOwed`:696, `returnOwed`:651; monocub.mjs `lapseBounties`:1853 | behaviour | listed: `returnOwed`'s header says so on purpose ("after a zero, `n` comes back", the owner's default of 13.11, A113-C6-3); the reset road (despair ticked, actions not) is Q-115-2 |
-| B-H2 | The Overflow's card at a boundary is public while an incident runs; the time of day's card and the due motive at the same boundary are veiled to the incident's audience | overflow.mjs `announceOverflow`:975 ("public by design"); clock.mjs:907; rules.mjs:195 | behaviour | question Q-115-1 |
-| B-H3 | An Eclipse started at Stage 6 opens on a public card and sound, and its end rides the time of day's card, veiled while the incident stands | eclipse.mjs:180, :360, :410; clock.mjs:907 | behaviour, sound | question Q-115-1 |
-| B-H4 | Bribe is the one Hope Call with no `hopeCall`, Bounty the one Despair Call with no `despairCall`; GM 17 lists both kinds without exception | calls.mjs:161, :465; GM:1712 | sound, doc | question Q-115-3 |
+| B-H1 | Emptying the pools drops the Bounties' owed rows, and a Bounty's lapse then pays its cost back into the emptied pool | despair.mjs `clearOwed`:696, `returnOwed`:651; monocub.mjs `lapseBounties`:1853 | behaviour | fixed 3ca4b201, R7176: a Bounty keeps its season and gives back only within it (the reset road); inside one season the pay-back after a zero stays the owner's default (A113-C6-3) |
+| B-H2 | The Overflow's card at a boundary is public while an incident runs; the time of day's card and the due motive at the same boundary are veiled to the incident's audience | overflow.mjs `announceOverflow`:975 ("public by design"); clock.mjs:907; rules.mjs:195 | behaviour | fixed 1bce99a6, R7180 (Q-115-1): veiled as the clock's card while an incident runs |
+| B-H3 | An Eclipse started at Stage 6 opens on a public card and sound, and its end rides the time of day's card, veiled while the incident stands | eclipse.mjs:180, :360, :410; clock.mjs:907 | behaviour, sound | fixed 1bce99a6, R7180 (Q-115-1): its own public end card during an incident |
+| B-H4 | Bribe is the one Hope Call with no `hopeCall`, Bounty the one Despair Call with no `despairCall`; GM 17 lists both kinds without exception | calls.mjs:161, :465; GM:1712 | sound, doc | documented 0f68a072 (Q-115-3: silent, GM 17 names it) |
 | B-H5 | GM 16.2's clock row says the reset refills everyone's actions; the clock group writes the clock only, the refill is the cast's action group | GM:1652; season-wipe.mjs `clearSeasonClock`:660; actions.mjs:491 | doc | fixed 3f3a9eb7 |
-| B-H6 | The reset's "actions" group clears Bounties, Confusions, room-action effects, lock picks, eavesdrops, masks, tails, watches, crossings and the rolls' records, its label names the budget, the rests and the barricades | gm-stores.mjs:999-1524; en.json `DRPG.Season.group.actions` | text | listed (a label and GM 16.2's row; a fix window, with E109's H20 `Season.resetKeeps` beside it) |
-| B-H7 | The Despair widget has three names: "Despair Pools" (its title), "the Despair bar", "the Despair rail"; no glossary entry | en.json `DRPG.Despair.widgetTitle`; GM:558, :337, :123; PH:547 | text | question Q-115-4 |
+| B-H6 | The reset's "actions" group clears Bounties, Confusions, room-action effects, lock picks, eavesdrops, masks, tails, watches, crossings and the rolls' records, its label names the budget, the rests and the barricades | gm-stores.mjs:999-1524; en.json `DRPG.Season.group.actions` | text | E109's (it meets H20 `Season.resetKeeps`); handed over by the coordinator |
+| B-H7 | The Despair widget has three names: "Despair Pools" (its title), "the Despair bar", "the Despair rail"; no glossary entry | en.json `DRPG.Despair.widgetTitle`; GM:558, :337, :123; PH:547 | text | fixed 95e0af72 (Q-115-4: the Despair Pools; glossary row despair-pools) |
 | B-H8 | PH 2 says every time of day refills the actions; the code and GM 4 refill at the Eclipse (or Skip the Eclipse) | PH:110; GM:308; clock.mjs:345 | doc | fixed 3f3a9eb7 |
 
 ### Rooms, Search, Remnants, projects (B-R)
@@ -118,42 +118,42 @@ B-M5 (fixed, 4a5865ed) and the questions of B-R8.
 | Id | Break | Evidence | Kind | State |
 | --- | --- | --- | --- | --- |
 | B-R1 | A player's copy of the GMs' sight of secret projects changes and only the tray and the tokens redraw; the room tile's "a project here" and the sheet's Projects tile read the same copy through `canSee` | projects.mjs:1823; projects-secrecy.mjs:275; room-tile.mjs:168, :753 | behaviour (the 14.11 kind) | fixed 9bd4f615, R7162 |
-| B-R2 | An open Remnant card is a snapshot; the project card is live | remnant-ring.mjs `showRemnantCard`:191; projects-map.mjs:832 | behaviour | listed |
-| B-R3 | Traces of the door actions and the facilities (`action: "infiltrate"`, `"facility"`) have no icon, even analyzed; PH says an analyzed Remnant wears its maker's icon | doors-gm.mjs:453; facilities-gm.mjs:192; remnant-icons.mjs:51; PH:646 | behaviour, doc | listed (needs two icons: the glyph set's owner) |
-| B-R4 | The GM's diagnostics call every neutral Remnant a mistake; doors, facilities and handovers leave neutral ones on purpose | diagnostics.mjs:1242; doors-gm.mjs:453; handover.mjs:773 | text | listed |
-| B-R5 | Shut the Door pays and rolls, then can be refused with nothing given back (an Eclipse, three open doors, a bedroom, a body, another's barricade); Search refuses before paying | action-doors.mjs:25-46; doors-gm.mjs:82-99; PH:243, :424 | behaviour | listed (a refund road through the bridge: not one line) |
+| B-R2 | An open Remnant card is a snapshot; the project card is live | remnant-ring.mjs `showRemnantCard`:191; projects-map.mjs:832 | behaviour | fixed 70f9a808, R7177 |
+| B-R3 | Traces of the door actions and the facilities (`action: "infiltrate"`, `"facility"`) have no icon, even analyzed; PH says an analyzed Remnant wears its maker's icon | doors-gm.mjs:453; facilities-gm.mjs:192; remnant-icons.mjs:51; PH:646 | behaviour, doc | fixed 29b620d6, R7178 (the tiles' own glyphs re-published by tools/token-icons.mjs) |
+| B-R4 | The GM's diagnostics call every neutral Remnant a mistake; doors, facilities and handovers leave neutral ones on purpose | diagnostics.mjs:1242; doors-gm.mjs:453; handover.mjs:773 | text | fixed 3c6694bb, R7179 |
+| B-R5 | Shut the Door pays and rolls, then can be refused with nothing given back (an Eclipse, three open doors, a bedroom, a body, another's barricade); Search refuses before paying | action-doors.mjs:25-46; doors-gm.mjs:82-99; PH:243, :424 | behaviour | fixed 9abdf454, R7173: the row is shut before it costs anything for the three reasons the player's browser knows; the two the GMs alone know stay a refusal after the roll (a refund after the roll is `spentAfterRoll`'s free generator), and the handbooks say so |
 | B-R6 | The banging of a forced door names the room by its real name to a listener who never found it; a breach's crash names it as Listen does | doors-gm.mjs:183; passages-gm.mjs:838 | behaviour (privacy) | fixed b6a2be34, R7164; PH 4's quote 3f3a9eb7 |
 | B-R7 | "Who is in the room" three ways: movement.mjs `countsAsPresent` (no Monokuma, Spectator, dead, hidden), the door cards (Spectators in), the breach's cards (the dead and Spectators in) | movement.mjs:3679; doors-gm.mjs:131; passages-gm.mjs:828 | behaviour | fixed 9edb4f66, R7163 |
-| B-R8 | Neighbouring sounds: a forced door's banging is a silent whisper beside a breach's `wallBreached`; Search's success silent beside Observe's; Force, Pick, Shut and Dash silent | as the sound table | sound | question Q-115-3 |
+| B-R8 | Neighbouring sounds: a forced door's banging is a silent whisper beside a breach's `wallBreached`; Search's success silent beside Observe's; Force, Pick, Shut and Dash silent | as the sound table | sound | documented 0f68a072 (Q-115-3) |
 | B-R9 | The handbooks' "turned back by" lists leave out the barricade | movement.mjs:2102; PH:168-178; GM 9.3:778 | doc | fixed 3f3a9eb7 |
-| B-R10 | The cue "Your bedroom was entered" also plays when its lock is repaired | doors-gm.mjs:285, :56 | text | listed |
+| B-R10 | The cue "Your bedroom was entered" also plays when its lock is repaired | doors-gm.mjs:285, :56 | text | fixed f7a1f029 (the label names the lock) |
 
 ### The murder, the body, the Investigation (B-M)
 
 | Id | Break | Evidence | Kind | State |
 | --- | --- | --- | --- | --- |
-| B-M1 | Once a body is announced, no later body is found by walking in, and no lone finder is told, until Daily Life; the walker still hears `bodyFound` (the sound runs before the gate); the betrayal stays open through the Investigation | body.mjs:731, :753, :812; GM:1236, :1242; PH:830 | behaviour | question Q-115-5 |
-| B-M2 | A discovery waiting for the GM keeps the room it was written with; Move the Body does not touch the row, so the card and the gather name the old room | body.mjs:858, :922; cleanup.mjs `applyMoveBody`:1922 | behaviour | listed |
-| B-M3 | No warm scene's -3 for a second incident while the first body's hold stands: `freshSceneBonus` answers 0 on the hold before it asks for an incident | cleanup.mjs:413; settings.mjs:3958; GM:1205 | behaviour | question Q-115-5 (the hold's zero is written on purpose: "the corridor is full of people the moment the body is found"; R3950 holds the readings) |
-| B-M4 | The walk-in sound and the discovery disagree about the third party after the close | body.mjs:978, :798; incident-store.mjs:1026 | behaviour | listed (the witness rule needs design) |
+| B-M1 | Once a body is announced, no later body is found by walking in, and no lone finder is told, until Daily Life; the walker still hears `bodyFound` (the sound runs before the gate); the betrayal stays open through the Investigation | body.mjs:731, :753, :812; GM:1236, :1242; PH:830 | behaviour | as written (Q-115-5); the sound before the gate listed with B-M4's question |
+| B-M2 | A discovery waiting for the GM keeps the room it was written with; Move the Body does not touch the row, so the card and the gather name the old room | body.mjs:858, :922; cleanup.mjs `applyMoveBody`:1922 | behaviour | fixed a2138850, R7174 |
+| B-M3 | No warm scene's -3 for a second incident while the first body's hold stands: `freshSceneBonus` answers 0 on the hold before it asks for an incident | cleanup.mjs:413; settings.mjs:3958; GM:1205 | behaviour | as written (Q-115-5) |
+| B-M4 | The walk-in sound and the discovery disagree about the third party after the close | body.mjs:978, :798; incident-store.mjs:1026 | behaviour | question Q-115-9 (new): does an incident's third count as having been there, for the discovery as for its sound? Default: yes for both, as GM 13.4 says, the third kept on the death's row at the close |
 | B-M5 | A missed Misleading Trail or Move the Body plays no `cleanupFailed`; a missed Erase or Reshape does; the cue's hint names a Tamper roll | cleanup.mjs:1844, :2589; config.mjs:5312 | sound | fixed 4a5865ed, R7165 (the hint names all five rolls) |
-| B-M6 | "-3 on every DC" and "a Cleaning Tool takes its tier off the DC" read as every clean-up roll; the trail takes neither | cleanup.mjs:1791; config.mjs:4726; GM:1196, :1205 | doc | listed (E109's H11 is Move the Body's floor, beside it) |
+| B-M6 | "-3 on every DC" and "a Cleaning Tool takes its tier off the DC" read as every clean-up roll; the trail takes neither | cleanup.mjs:1791; config.mjs:4726; GM:1196, :1205 | doc | E109's (it meets H11, Move the Body's DC floor); handed over by the coordinator |
 | B-M7 | The Remnants tab's rule line says a Key Remnant narrows to "at most half the cast"; config and the handbooks say the Keys together narrow to 2-4 | en.json `DRPG.Investigation.neverOnePerson`; config.mjs:1387; GM:1328 | text | fixed 9f649b06, R7171 |
 | B-M8 | The trap victim's failure text speaks of a walk-in, and nobody walks in on a trap | config.mjs:3737; murder-rules.mjs:3255; PH:747 | text | fixed 227b1b86 |
-| B-M9 | A second incident in the chapter overwrites the case's Key Remnant count | murder-rules.mjs:3506; key-remnants.mjs:367; GM:1330 | doc, design | question Q-115-6 |
+| B-M9 | A second incident in the chapter overwrites the case's Key Remnant count | murder-rules.mjs:3506; key-remnants.mjs:367; GM:1330 | doc, design | documented 8be5bbce (Q-115-6: the last close's count) |
 
 ### The Class Trial (B-T)
 
 | Id | Break | Evidence | Kind | State |
 | --- | --- | --- | --- | --- |
-| B-T1 | The floor's mute and the floor's seat pick a player's student by different rules (the lowest id; the first in `game.actors`; the assigned character; `viewerActor`), so a player with two students can be held on their own turn | voice.mjs:1587; vote.mjs:573; camera-view.mjs:229; hud.mjs:1511 | behaviour | listed (unverified at a table; one seating helper is a design change across four files) |
-| B-T2 | "Who takes part in this trial" ticks place the hall's tokens alone; the vote, the rounds, the Reveal and the zones read `trialParticipants`, which ignores them | trial-scene.mjs (`trialCastStore`); vote.mjs `trialParticipants`; en.json:3188; GM:1439, :1554 | text, design | question Q-115-7 |
+| B-T1 | The floor's mute and the floor's seat pick a player's student by different rules (the lowest id; the first in `game.actors`; the assigned character; `viewerActor`), so a player with two students can be held on their own turn | voice.mjs:1587; vote.mjs:573; camera-view.mjs:229; hud.mjs:1511 | behaviour | fixed 38349f27 + a40dae28, R7175: `holdsTheFloor` - a speaker or any student of the speaker's player |
+| B-T2 | "Who takes part in this trial" ticks place the hall's tokens alone; the vote, the rounds, the Reveal and the zones read `trialParticipants`, which ignores them | trial-scene.mjs (`trialCastStore`); vote.mjs `trialParticipants`; en.json:3188; GM:1439, :1554 | text, design | fixed 96d1c168 (Q-115-7: the tick is named "In the hall" / "W sali", and GM 15 says it places tokens alone) |
 | B-T3 | The Final Trial's Level Ups read the GMs' list of the living; the ordinary verdict reads the table's | verdict.mjs:647, :1361 | behaviour | fixed 10d07d9b, R7160 |
 | B-T4 | GM 13.4 says a kept death's player is sent a ballot; the vote skips `mutedDead` | GM:1255; vote.mjs:583 | doc | fixed 3f3a9eb7 |
 | B-T5 | PH 12 says the module silences only the dead; since 1.2.114 the floor holds who has not got it | PH:872; voice.mjs `floorHeld` | doc | fixed cd81893a, R7170 |
-| B-T6 | The vote can outlive the trial: the exit closes no open vote, and a ballot is taken with no phase check | clock.mjs:987; vote.mjs:186, :219, :241, :932 | behaviour | listed (unverified whether End the trial refuses an open vote) |
-| B-T7 | The Final Trial's verdict plays no sound and no cut-in | verdict.mjs:1309; sequence.mjs:788 | sound | question Q-115-3 |
-| B-T8 | A Panic Round's first speaker hears `panicStart` and `yourTurn` in one pass; a Scrum Debate's Finding and end are silent beside a Straw Poll's | sfx.mjs:291, :298; zone-machine.mjs:236, :251 | sound | the double fixed 83fde695, R7166; the Scrum's silent ends question Q-115-3 |
+| B-T6 | The vote can outlive the trial: the exit closes no open vote, and a ballot is taken with no phase check | clock.mjs:987; vote.mjs:186, :219, :241, :932 | behaviour | fixed 0d3fd126, R7172: checked first - End the trial refuses nothing for an open vote; the trial's exit closes it, uncounted |
+| B-T7 | The Final Trial's verdict plays no sound and no cut-in | verdict.mjs:1309; sequence.mjs:788 | sound | documented 0f68a072 (Q-115-3) |
+| B-T8 | A Panic Round's first speaker hears `panicStart` and `yourTurn` in one pass; a Scrum Debate's Finding and end are silent beside a Straw Poll's | sfx.mjs:291, :298; zone-machine.mjs:236, :251 | sound | the double fixed 83fde695, R7166; the Scrum's silent ends documented 0f68a072 (Q-115-3) |
 | B-T9 | GM 15.2 says the zone modes play the debate's music; since 1.2.114 each has its own state when mapped | GM:1585; music-states.mjs:63 | doc | fixed 3f3a9eb7 |
 
 ### Voice, Spectator, sounds (B-S)
@@ -162,9 +162,9 @@ B-M5 (fixed, 4a5865ed) and the questions of B-R8.
 | --- | --- | --- | --- | --- |
 | B-S1 | The vote's music is not followed: the watch does not name `trialProgress` | music-play.mjs:240; music-states.mjs:197 | behaviour, sound | fixed 73a28152, R7161 |
 | B-S2 | The handbooks say the module never holds a Monocub's or a living player's microphone in the trial; since E110 the floor does | GM:812, :834; PH:872, :1172, :229 | doc | fixed cd81893a, R7170 |
-| B-S3 | A Spectator has no chat but keeps the messenger: hears `chatReceive`, every send refused | messenger.mjs:96; spectator-ui.mjs:69; PH:98 | behaviour, doc | question Q-115-8 |
+| B-S3 | A Spectator has no chat but keeps the messenger: hears `chatReceive`, every send refused | messenger.mjs:96; spectator-ui.mjs:69; PH:98 | behaviour, doc | documented 9e575ffb (Q-115-8: the messenger kept, PH 1 and GM 8 say what it does) |
 | B-S4 | A Truth Bullet's and a Level Up's sound go to the first owner only; `yourTurn` and `monocub` to every owner | sfx-play.mjs:515; utils.mjs:608; sfx.mjs:318 | sound | fixed e8d8df60, R7167 |
-| B-S5 | A Spectator with the talk switch on is in voice during an Eclipse; GM 9.5 says no player is | voice.mjs:1061; GM:810 | behaviour, doc | question Q-115-8 |
+| B-S5 | A Spectator with the talk switch on is in voice during an Eclipse; GM 9.5 says no player is | voice.mjs:1061; GM:810 | behaviour, doc | fixed 9e575ffb, R7181 (Q-115-8: the Eclipse wins) |
 | B-S6 | The talk switch survives a Spectator unmarked; marked again, the microphone opens without a press | monokuma.mjs:242; voice.mjs:1453 | behaviour | fixed 697abbd5, R7168 |
 | B-S7 | GM 9.5 calls a Spectator "an account with no character"; since E92 it is a flagged character, placed by its token | GM:810; voice.mjs:912, :1037 | doc | fixed cd81893a |
 | B-S8 | The Spectators' room is still "the dead channel" in the voice plan's row and in the handbooks | voice.mjs:2226, :2511; en.json `DRPG.Voice.plan.deadChannel`; GM:814; PH:234 | text | fixed cd81893a, R7170 |
@@ -186,6 +186,9 @@ B-M5 (fixed, 4a5865ed) and the questions of B-R8.
 | Q-115-6 | B-M9: a second incident in a chapter writes its opening's Key Remnant count over the first's (the case's row). First, last, or the lower? | Last, as now; GM 14.4 to say so in a fix window |
 | Q-115-7 | B-T2: "Who takes part in this trial" places the hall's tokens alone; the vote, the rounds, the Reveal and the zones read every living student. Rename the tick ("In the hall") or seat the trial by it? | Rename in a fix window; the seating unchanged |
 | Q-115-8 | B-S3, B-S5: a Spectator has no chat but keeps the messenger (it hears a GM's message, its replies are refused); a Spectator with the talk switch on is in voice during an Eclipse, where GM 9.5 says no player is. | Keep the messenger (a GM may still reach a watcher); the Eclipse: the switch yields to the Eclipse - a fix window, as it is a voice change needing a LiveKit check |
+| Q-115-9 | B-M4: after an incident closes, the walk-in sound counts its third as "there" no longer (body.mjs `inThatDeath` reads the running incident's `thirdId`, gone at the close), and the discovery's witnesses never leave the third out (`involved`: the Blackened and the running killers). Does the third of an incident count as having been there, for the discovery as for its sound? | Yes for both, as GM 13.4 says ("the third of its incident (they were there)"): the third kept on the death's row at the close and read by both - not built here, it changes who discovers a body |
+
+The coordinator's word of 14.11.2026 on Q-115-1..8: the defaults taken, and every "fix window" part done on this line (each row of part 3 names its commit); Q-115-2's label goes to E109 with H20, B-H6 and B-M6 to E109 with H20 and H11. Q-115-9 is new, from the second pass.
 
 ## 5. Not read here
 
