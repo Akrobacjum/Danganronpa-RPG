@@ -19074,7 +19074,7 @@ const REGRESSIONS = [
                 ["mirror", "T22", "report"],
                 ["monokumaVoice", "T21", "fail"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "fail"],
                 ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "fail"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "fail"], ["secondPersonToMany", "T16", "fail"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
-                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
+                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "fail"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 4, 4], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
@@ -19168,7 +19168,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 2, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 2, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []], ["uiLiterals", true, 0, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
