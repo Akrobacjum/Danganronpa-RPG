@@ -212,7 +212,7 @@ async function fixCursorPermission() {
     return before.length - after.length;
 }
 
-/** The rooms-per-student line under the room count step: the Doors tab's own sentence (vault-store.mjs `roomRatioLine`, E20 C1). */
+/** The rooms-per-student line under the room count step: Room setup's own sentence, on its Rooms tab since E101 (vault-store.mjs `roomRatioLine`, E20 C1). */
 function roomCountLine(census, living) {
     return `<div class="notes">${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
 }

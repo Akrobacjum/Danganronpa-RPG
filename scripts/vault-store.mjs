@@ -1339,7 +1339,7 @@ export function roomCensus(scene) {
     })));
 }
 
-/** The rooms-per-student sentence of the Doors tab and the season checklist: a census against the living students. */
+/** The rooms-per-student sentence of Room setup's Rooms tab (the Doors tab's until E101) and the season checklist: a census against the living students. */
 export function roomRatioLine(census, living) {
     const want = roomsWantedFor(living);
     const line = game.i18n.format("DRPG.Vault.roomRatio", {

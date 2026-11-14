@@ -31,7 +31,7 @@ import { debug } from "./utils.mjs";
 /**
  * The five parts of a season, in the order the window shows them.
  *
- * Sections are for the window only - a list of twenty-eight ticks with no headings
+ * Sections are for the window only - a list of thirty ticks with no headings
  * is a list nobody reads to the end.
  */
 export const RESET_SECTIONS = ["case", "cast", "board", "log", "world"];

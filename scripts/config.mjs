@@ -4715,8 +4715,9 @@ export const CLEANUP = {
      *   misleadingTrail  leave something that points at somebody else.
      *   moveBody         the body is evidence too, and it can be carried.
      *
-     * All three cost 1 Sanity and need the killer in the room, per
-     * RESOLUTION_STRESS_COST and `isCleaner`.
+     * In the killer's own clean-up all three cost 1 Sanity and need the killer in the room, per
+     * RESOLUTION_STRESS_COST and `isCleaner`; anybody else's Tamper costs 1 action and no Sanity (E64:
+     * cleanup.mjs `tamperPriceSkip`; the handbooks line's reading, 14.11.2026).
      */
     actions: {
         eraseTrace: {

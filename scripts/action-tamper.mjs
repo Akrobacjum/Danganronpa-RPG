@@ -225,8 +225,9 @@ export async function performTamper(actor, def, options) {
      *                            trace list is the WHOLE ROOM, because the
      *                            guide opens their eyes to their own scene.
      *                            Carrying the body is offered.
-     *   anybody, any afternoon   an action, or a Sanity mark once the actions
-     *                            are gone. The trace list is only what this
+     *   anybody, any afternoon   an action, and with none left no Tamper
+     *                            (E64: cleanup.mjs `tamperPriceSkip`; it was
+     *                            a Sanity mark until 1.2.105). The trace list is only what this
      *                            character has actually found (see
      *                            `cleanableTracesForPlayer`). No body.
      */

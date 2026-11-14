@@ -2593,7 +2593,8 @@ function landedNote(actor, changes) {
  * Guide, the Samoobrona row: Hope unlocks "obie akcje kryzysowe rozwiązania
  * ofiary", Despair only "odwrócenie ról", and a critical unlocks both AND stops
  * the drain - "Ofiara przestaje tracić hp i stress". Either success also
- * "blokuje akcję kryzysową: Samoobrona", so there is exactly one attempt at it.
+ * "blokuje akcję kryzysową: Samoobrona": a success ends it, and a miss leaves it usable (the handbooks line's
+ * reading, 14.11.2026; this comment said "exactly one attempt").
  *
  * Written as config rather than as a special case here, so a second gated
  * action later is a table entry and not another branch - see `unlocks` and
