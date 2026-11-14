@@ -1750,13 +1750,13 @@
       "facts": [
         {
           "fact": "The discovery card is public with { key: \"bodyFound\", gm: true }.",
-          "file": "scripts/chapter.mjs",
+          "file": "scripts/body.mjs",
           "fn": "runDiscovery",
           "note": null
         },
         {
           "fact": "checkBodySound plays bodyFound to a walking student's connected players, once per body and death, not in an Eclipse and not for a body whose death they were part of.",
-          "file": "scripts/chapter.mjs",
+          "file": "scripts/body.mjs",
           "fn": "checkBodySound",
           "note": null
         },

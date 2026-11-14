@@ -2605,13 +2605,13 @@
       "facts": [
         {
           "fact": "Only a GM's sheet makes the action pips clickable; the tooltip and the aria-label carry the pip's number.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "actionPips",
           "note": null
         },
         {
           "fact": "A click on pip i sets the actions left to i, and a click on the last filled pip (i equal to the actions left) sets them to one fewer.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "actionPips",
           "note": null
         },
@@ -2723,7 +2723,7 @@
       "facts": [
         {
           "fact": "A pip beyond the budget is drawn locked; its tooltip is shown to the owner and the GMs, never to a viewer.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "actionPips",
           "note": null
         },
@@ -2779,7 +2779,7 @@
       "facts": [
         {
           "fact": "A player's own sheet and status strip show this on the action pips, with the actions left and the time of day's maximum; the family is keyed on the maximum.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "actionPips",
           "note": null
         },
@@ -2791,7 +2791,7 @@
         },
         {
           "fact": "The pips are not clickable for a player: actions are spent by taking actions.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "actionPips",
           "note": null
         }
@@ -2916,7 +2916,7 @@
         },
         {
           "fact": "The legend follows the row's own sentence in the sheet's and the strip's tooltips.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "freeMovePip",
           "note": null
         }
@@ -3019,7 +3019,7 @@
         },
         {
           "fact": "The count is what is left, not the allowance.",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "freeMovePip",
           "note": null
         }
@@ -3082,7 +3082,7 @@
         },
         {
           "fact": "The text stands alone as a tooltip, opens a tooltip sentence followed by \". \" and the legend, and is one item of the sheet's budget line joined by \" · \".",
-          "file": "scripts/sheet.mjs",
+          "file": "scripts/sheet-header.mjs",
           "fn": "freeMovePip",
           "note": null
         }
