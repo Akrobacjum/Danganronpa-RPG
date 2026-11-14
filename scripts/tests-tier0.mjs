@@ -25685,6 +25685,13 @@ const REGRESSIONS = [
         equal(JSON.stringify(["infiltrate", "facility", "loot"].filter(a => !list.includes(`"${a}"`))), "[]", "actions that leave a Neutral Remnant by design and are not exempted");
         ok(/NEUTRAL_BY_DESIGN\.has\(/.test(bodyOf(diag, "const neutral = [];", { until: "if (neutral.length)" })), "the Neutral count does not pass over the actions that leave one by design");
     }],
+    ["R7180 - while an incident runs the boundary's cards go where its clock card goes, and an Eclipse ends for everyone it began for (E59 C-115, CHAINS.md B-H2, B-H3; Q-115-1): clock.mjs `announceTimeOfDay` veils the time of day's card to the GMs and the incident's audience while `murderState` stands, and overflow.mjs `announceOverflow` posted a darkening drawn at that boundary to the whole table with its sound; it veils it the same way. An Eclipse opened at Stage 6 starts on a public card and sound, and its end rode the veiled time-of-day card, so the bystanders never heard the lights come back: eclipse.mjs `endEclipse`, during an incident, posts its own public end card with `eclipseEnd` and the veiled time-of-day card carries no sound", async () => {
+        const sources = new Map(await otherSources());
+        const over = fnSource(stripComments(sources.get("overflow.mjs") ?? ""), "announceOverflow");
+        ok(/murderState\(\)/.test(over) && /incidentAudienceIds\(/.test(over) && /veiled:\s*true/.test(over), "announceOverflow posts a darkening to the whole table while an incident runs");
+        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipse");
+        ok(/murderState\(\)/.test(end) && /DRPG\.Eclipse\.ended/.test(bodyOf(end, "if (advance)", { until: "} else {" })), "endEclipse tells the bystanders nothing of the lights coming back while an incident runs");
+    }],
 ];
 
 
