@@ -155,10 +155,6 @@
       "citations": 1,
       "doubledJsdoc": 0
     },
-    "scripts/investigation.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
     "scripts/iso-shield.mjs": {
       "citations": 2,
       "doubledJsdoc": 0
@@ -348,6 +344,10 @@
       "doubledJsdoc": 0
     },
     "scripts/sheet-actions.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/key-remnants.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
     }
