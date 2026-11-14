@@ -25,6 +25,7 @@ import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
 import { isEclipse } from "./settings.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
+import { isMaskedActor, MASK_NAME } from "./mask-gm.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -87,6 +88,16 @@ const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch", "echoes"]);
  */
 export function echoesShutWhy({ eclipse = isEclipse() } = {}) {
     return eclipse ? game.i18n.localize("DRPG.Infiltrate.echoes.notInEclipse") : null;
+}
+
+/**
+ * WHO LISTEN NAMES BEHIND A DOOR (owner-115 item 1, 14.11.2026; the owner: "Tozsamosc mordercy przy odpowiednim rzucie
+ * powinna byc tajna tez dla osob postronnych, tak samo jak dla ofiary"). A character behind a "?" (mask-gm.mjs, E69 C8) is
+ * "?" to the listener, read off the tokens this browser holds (`isMaskedActor`, its one flag); anyone else by name, as
+ * before. Its Reroll's lines on the GM (reroll.mjs `listenLines`) name the same way, for the same listener.
+ */
+export function listenName(other) {
+    return isMaskedActor(other) ? MASK_NAME : other?.name ?? "";
 }
 
 /**
@@ -193,7 +204,7 @@ export async function performListen(actor, def, options) {
     if (roll.isCritical) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
-            const who = occupantsOf(room, actor, scene).map(a => a.name);
+            const who = occupantsOf(room, actor, scene).map(listenName);
             return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
@@ -202,7 +213,7 @@ export async function performListen(actor, def, options) {
         outcome = { success: true, isCritical: true, rooms: neighbours };
     } else if (hit && hit.min >= namedFrom) {
         // Named.
-        const who = occupantsOf(target, actor, scene).map(a => a.name);
+        const who = occupantsOf(target, actor, scene).map(listenName);
         lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
             room: foundry.utils.escapeHTML(shownAs),
             who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
