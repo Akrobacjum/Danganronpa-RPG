@@ -41,7 +41,7 @@
  */
 
 import { error, listOf } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
@@ -50,7 +50,6 @@ import {
 } from "./passages-gm.mjs";
 import { viewPassage, oneWayOf } from "./passages.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);

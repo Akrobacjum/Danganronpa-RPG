@@ -24,20 +24,18 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { error, markFired, markLanguage, serialWrite } from "./utils.mjs";
-import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode } from "./ui-kit.mjs";
+import { error, markFired, markLanguage, serialWrite, plural } from "./utils.mjs";
+import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode, tipAttr, tipText } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 // The scale option's count (E71, 12.11.2026): its own line, so the utils import above stays as other lines edit it.
-import { plural } from "./utils.mjs";
 import {
     leaveIconOnly, keepNarrativeShown, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     addTrayTitle, labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
 

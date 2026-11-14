@@ -26,10 +26,9 @@ import { whisperToOwner, log, error, plural, cardHead, forcedDeletion, isPrimary
 // the last piece, and a piece drawn and marked after the room was set up took its rest away.
 import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { overflowBlocksShortRest } from "./overflow.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /** Flags set on a Scene Region. */
 export const REST_FLAGS = {
