@@ -84,7 +84,9 @@ holds every actor, so a console still reaches the name.
 | scenario 21 widened (next door, in the room), without the Listen change | 11/12: Listen named "Aiko Hoshino", "Chie Mori" |
 | scenario 21 widened, with every change | 12/12 |
 | `npm run quick` | green: lint 406 files 0 problems, check 24 parts, gate 37/37 |
-| tier 1, scenarios 13, 33, 83 | see the item's report (running at the time of writing) |
+| tier 1, at c1bae24f | 1687 passed, 0 failed, 16 skipped, 0 red |
+| scenarios at c1bae24f | 21: 12/12; 13: 87/87; 33: 89/90, 0 failed, 1 expected red (foundry-cub-purse, a Foundry limit); 83: 111/111 |
+| tier 2 `--only`, at c1bae24f | 17 passed, 0 failed: the incident's cards, a trap's last card, the third who leaves, the drawn dice and their audience, the drawn statistic read and headed, a Reroll's dice, E60-T16, E60-T21, E69-T7, E43-T1, a dice look put back |
 
 ### Needs a local Foundry
 
