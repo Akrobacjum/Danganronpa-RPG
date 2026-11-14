@@ -1943,6 +1943,8 @@ async function settleGmRuling(actor, bookmark, after, done) {
             withHope: after.withHope,
             withFear: after.withFear
         },
+        // A critical owes its hint again on an Observe or an Analyze alone (R7121).
+        criticalHint: ["observe", "analyze"].includes(bookmark.actionKey),
         body: `<p class="drpg-warning">${game.i18n.format("DRPG.Reroll.rulingVoid", {
             old: bookmark.total ?? "?", new: after.total
         })}</p>`,

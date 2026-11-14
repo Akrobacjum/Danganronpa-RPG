@@ -27,12 +27,11 @@ import { isMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error, listOf } from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**

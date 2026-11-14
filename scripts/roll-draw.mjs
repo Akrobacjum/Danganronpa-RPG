@@ -66,9 +66,8 @@ import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
-import { box, roleButton } from "./ui-kit.mjs";
+import { box, roleButton, tipText } from "./ui-kit.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");

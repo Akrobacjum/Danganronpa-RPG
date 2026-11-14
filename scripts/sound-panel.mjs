@@ -27,12 +27,11 @@
 import { SITUATIONAL_PLAYLIST, MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { error, esc, firstSentence } from "./utils.mjs";
-import { emptyOption, box, dataTable, toggle } from "./ui-kit.mjs";
+import { emptyOption, box, dataTable, toggle, tipAttr } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
 
-import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * GM SCREEN

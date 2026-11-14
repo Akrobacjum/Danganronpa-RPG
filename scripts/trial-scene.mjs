@@ -144,10 +144,9 @@ import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { gatherEveryone, carryAcross, clearCarriedFrom, CARRIED_FROM } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
-import { formGrid, dataTable, toggle, box } from "./ui-kit.mjs";
+import { formGrid, dataTable, toggle, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { storedZones, zoneCandidates, zoneWarnings } from "./zone-geometry.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
 export const TRIAL_RETURN_FLAG = "trialReturnTo";

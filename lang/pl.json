@@ -1106,7 +1106,7 @@
       "whichBullet": "Który Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "Nie masz teraz żadnego Truth Bulletu do analizy.",
-      "sent": "Analizujesz Truth Bullet „{name}”. Wynik pokazuje osobna karta.",
+      "sent": "Analizujesz Truth Bullet „{name}”. Wynik przyjdzie na osobnej karcie.",
       "identifiedTitle": "Zidentyfikowano",
       "identified": "{name} to {type}.",
       "failedTitle": "Donikąd",
@@ -2241,7 +2241,7 @@
           "shareProjectTooltip": "Tajny projekt, któremu zmieniasz dostęp; jawnych projektów nie ma na liście.",
           "sharePlayerTooltip": "Gracz, który zyskuje albo traci wgląd w projekt; GM-owie i tak widzą każdy projekt.",
           "saveManagerTooltip": "Zapisuje zmienione na tej liście pokoje, znaczniki i zaznaczenia graczy.",
-          "createFromManagerTooltip": "Otwiera okno nowego projektu, a potem znów tę listę; niezapisane tu zmiany przepadają.",
+          "createFromManagerTooltip": "Zapisuje zmiany z tej listy, otwiera okno nowego projektu i wraca tutaj.",
           "passRollTooltip": "Zachowujesz to, co miało być zapłacone, i nie rzucasz; GM zobaczy w twoim wątku, że rezygnujesz."
         },
         "Trial": {
@@ -2357,7 +2357,7 @@
           "newItemRoomTableTooltip": "Przy dodawaniu wkłada przedmiot także do tej tabeli pokoju",
           "newItemNameTooltip": "Nazwa, pod którą przedmiot trafi na arkusz postaci znalazcy",
           "newItemDescriptionTooltip": "To, co znalazca przeczyta w opisie przedmiotu. Możesz zostawić to pole puste",
-          "renameTableTooltip": "Zmienia nazwę widocznej tabeli. Pokój, który losował z niej pod starą nazwą, przestaje, dopóki nie wybierzesz jej znowu w Ustawieniach pokoi",
+          "renameTableTooltip": "Zmienia nazwę widocznej tabeli. Pokoje, które z niej losują, losują dalej, już pod nową nazwą",
           "tabRoomPoolsTooltip": "Twoje własne tabele. W Ustawieniach pokoi każdy pokój może losować z jednej z nich",
           "tabNewItemTooltip": "Tworzy jeden przedmiot i dodaje go do jego tabeli Tier i do zaznaczonych tabel pokoi"
         },
@@ -2925,9 +2925,9 @@
       "openedTitle": "Morderstwo otwarte",
       "opened": "{killer} rusza na postać {victim}. Prośbę o rzut otwarcia dostaje {roller}.",
       "openedSelf": "{name} targa się na własne życie. Prośba o rzut otwarcia trafia do gracza tej postaci.",
-      "openedSelfNote": "Walki nie ma. Jeśli rzut otwarcia się uda, incydent przechodzi od razu do sprzątania; jeśli nie, kończy się i nikt nie ginie. Śmierć zostaje zapisana dopiero przy zamknięciu incydentu, więc do tego czasu uczeń żyje i może przygotować scenę.",
-      "selfWentThrough": "<strong>Stało się.</strong> Walki nie ma. Na twoim arkuszu otwiera się sprzątanie: dopóki żyjesz, widzisz własne Remnanty i możesz je posprzątać.",
-      "resolutionNoteSelf": "Przy śmierci z własnej ręki incydent przechodzi do sprzątania. Uczeń widzi własne Remnanty i może je posprzątać; śmierć zostaje zapisana dopiero przy zamknięciu incydentu.",
+      "openedSelfNote": "Walki nie ma. Jeśli rzut otwarcia się uda, incydent przechodzi od razu do etapu Tamper; jeśli nie, kończy się i nikt nie ginie. Śmierć zostaje zapisana dopiero przy zamknięciu incydentu, więc do tego czasu uczeń żyje i może przygotować scenę.",
+      "selfWentThrough": "<strong>Stało się.</strong> Walki nie ma. Na twoim arkuszu otwiera się etap Tamper: dopóki żyjesz, widzisz własne Remnanty i możesz je posprzątać.",
+      "resolutionNoteSelf": "Przy śmierci z własnej ręki incydent przechodzi do etapu Tamper. Uczeń widzi własne Remnanty i może je posprzątać; śmierć zostaje zapisana dopiero przy zamknięciu incydentu.",
       "trackerStateSelf": "{stage} · bez tur",
       "trackerStateOver": "{stage} · tury się skończyły",
       "afterSelf": "Z własnej ręki: w pokoju nie było nikogo innego.",
@@ -2987,7 +2987,7 @@
       "escapeKiller": "{killer} nie jest Blackened. Poza tym, że wiedzą o tym dwie osoby, nic się nie zmieniło.",
       "escapeRemnants": "Otwórz Investigation",
       "afterSurvived": "{killer} atakuje, ale {victim} przeżywa. Nie ma ciała i nikt nie zostaje Blackened, a Remnanty zostają tam, gdzie są.",
-      "afterInterrupted": "Incydent skończył się przed sprzątaniem, więc nikt nie zginął. Nie ma ciała, sekcji zwłok ani nikogo Blackened.",
+      "afterInterrupted": "Incydent skończył się przed etapem Tamper, więc nikt nie zginął. Nie ma ciała, sekcji zwłok ani nikogo Blackened.",
       "closedYou": "Incydent się skończył.",
       "closedVictimYou": "Incydent się skończył. Możesz znowu działać.",
       "none": "Żadne morderstwo nie trwa.",
@@ -3022,7 +3022,7 @@
       "rolesSwapped": "Role się odwracają: dawny zabójca jest teraz ofiarą i co turę traci Sanity, a gdy Sanity się skończy, Health. Tura przechodzi do nowego zabójcy, a odblokowane i zużyte akcje oraz utrudnienia liczą się od nowa.",
       "incidentEnded": "Incydent zakończony.",
       "victimDead": "Ofiara nie żyje. Zabójca jest Blackened.",
-      "resolutionNote": "Zaczyna się sprzątanie. Zabójca widzi teraz Remnanty na mapie i może próbować je sprzątać; Reinforced Remnantów nie usunie żadne sprzątanie. Użyte narzędzie zbrodni psuje się dopiero przy zamknięciu incydentu.",
+      "resolutionNote": "Zaczyna się etap Tamper. Zabójca widzi teraz Remnanty na mapie i może próbować je sprzątać; Reinforced Remnantów nie usunie żadne sprzątanie. Użyte narzędzie zbrodni psuje się dopiero przy zamknięciu incydentu.",
       "thirdTitle": "Wchodzisz na to",
       "thirdIntro": "Możesz wybrać jedno: Escape Together, Partners in Crime, Double Role Reversal albo Averted Eyes.",
       "band": {
@@ -3038,7 +3038,7 @@
       "stage": {
         "openingRoll": "Otwarcie",
         "incident": "Incydent",
-        "resolution": "Rozstrzygnięcie"
+        "resolution": "Tamper"
       },
       "actionLocked": "Zablokowane, dopóki nie uda się: {name}.",
       "actionSpent": "Ta jest w tym incydencie już zużyta.",
@@ -3125,7 +3125,7 @@
       "criticalChoiceHp": "Oba z Health",
       "criticalChoiceStress": "Oba z Sanity",
       "ranOutTwoKillers": "{victim} nie ma już Health ani Sanity, a po stronie zabójców stoją {killers}. Zakończyć incydent?",
-      "ranOutTwoKillersNote": "Po „Zakończ incydent” zaczyna się sprzątanie. Po „Anuluj” tury idą dalej, a incydent zakończysz później w oknie śledzenia incydentu.",
+      "ranOutTwoKillersNote": "Po „Zakończ incydent” zaczyna się etap Tamper. Po „Anuluj” tury idą dalej, a incydent zakończysz później w oknie śledzenia incydentu.",
       "ranOutEndNow": "Zakończ incydent",
       "crowdedTitle": "Za dużo osób",
       "crowded": "{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany.",
@@ -4002,7 +4002,7 @@
         "project": "Projekt",
         "dynamic": "Dynamic Action",
         "incident": "Incydent",
-        "resolution": "Sprzątanie",
+        "resolution": "Tamper",
         "discard": "Wyrzucone",
         "loot": "Zabrane z ciała",
         "manual": "Postawione przez GM-a",
@@ -4481,7 +4481,7 @@
       "deadStill": "Poza Class Trial nadal mówisz przy stole. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
     },
     "Overflow": {
-      "hopeBlocked": "Zaciemnienie blokuje Hope Calls o tej porze dnia. Hope zostaje przy tobie.",
+      "hopeBlocked": "Zaciemnienie blokuje Hope o tej porze dnia.",
       "title": "Overflow",
       "caption": "Overflow",
       "clear": "Wyzeruj Overflow",
@@ -4953,7 +4953,7 @@
       "proposeLabel": "Którą statystykę proponujesz?",
       "howLabel": "Jak to robisz? (opcjonalnie)",
       "projectBody": "Ten projekt zapisano bez statystyki. Zaproponuj jedną: GM ją zatwierdza albo zmienia i zostaje ona statystyką projektu.",
-      "propose": "Zaproponuj",
+      "propose": "Wyślij do GM-a",
       "howSearch": "Jak szukasz? (opcjonalnie)"
     },
     "DiceLook": {
@@ -7363,7 +7363,7 @@
         "crimeTool": {
           "label": "Narzędzie zbrodni",
           "plural": "Narzędzia zbrodni",
-          "hint": "W ręku daje przewagę na Self-Defense i Role Reversal. Cios bronią zabiera tym więcej Health, im wyższy jej tier, a bez broni w ręku rzucasz z utrudnieniem. Użyte w incydencie psuje się, gdy kończy się sprzątanie."
+          "hint": "W ręku daje przewagę na Self-Defense i Role Reversal. Cios bronią zabiera tym więcej Health, im wyższy jej tier, a bez broni w ręku rzucasz z utrudnieniem. Użyte w incydencie psuje się, gdy kończy się etap Tamper."
         },
         "cleaningTool": {
           "label": "Narzędzie do sprzątania",
@@ -7624,7 +7624,7 @@
         "subProjects": {
           "0": {
             "label": "Prepare the Weapon",
-            "note": "Może wymagać konkretnego pokoju z właściwym sprzętem, chyba że zabójca ma już narzędzie."
+            "note": "Może wymagać konkretnego pokoju z właściwym sprzętem."
           },
           "1": {
             "label": "Set the Trap",
@@ -9274,6 +9274,8 @@
       "send": "Wyślij wszystkim",
       "sent": "Podsumowanie wysłane.",
       "already": "Już wysłane w tej rozprawie.",
+      "replay": "Odtwórz podsumowanie",
+      "replayNone": "Karty podsumowania nie ma już na czacie, więc nie ma czego odtworzyć.",
       "noVerdict": "Podsumowanie pokażesz dopiero po werdykcie.",
       "title": "Podsumowanie sprawy, rozdział {chapter}",
       "speaker": "Podsumowanie sprawy",

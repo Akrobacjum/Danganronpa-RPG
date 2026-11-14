@@ -69,14 +69,13 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { DrpgApp, tile as kitTile } from "./ui-kit.mjs";
+import { DrpgApp, tile as kitTile, setTip } from "./ui-kit.mjs";
 import { error, markFired, plural } from "./utils.mjs";
 import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";
 import { trialScene, roomNames } from "./rooms.mjs";
 import { hallRoom, HALL_ROOM_FLAG } from "./trial-scene.mjs";
 
-import { setTip } from "./ui-kit.mjs";
 
 const TILE_ID = "drpg-room-tile";
 const PROSE_ID = "drpg-room-tile-prose";

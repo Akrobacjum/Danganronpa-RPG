@@ -7,7 +7,8 @@
  * The owner, 13.11.2026, on 1.2.109: under Stained Glass a radio is a dark SQUARE box with a pink border, and the
  * checked one shows a pink dot in the box's top-left corner (the zone picker's Mode: Straw Poll, Logic Dive, Scrum
  * Debate). This reads every radio of every captured window that has one (probe 08's captures: audit/windows/, or
- * `--windows <dir>`; `--pl-windows <dir>` the Polish ones, read first), in both themes, at 1366x768, at device scale
+ * `--windows <dir>`; `--pl-windows <dir>` the Polish ones, read first: audit/windows-pl, probe 08 run with
+ * DRPG_CAPTURE_LANG=pl DRPG_CAPTURE_OUT=../windows-pl on f85a0071, 14.11.2026, 102 of 104 rows captured), in both themes, at 1366x768, at device scale
  * 1 and 2, on the style harness (`audit/style-harness.html?w=<id>`, the module's sheets, no Foundry core sheet), and
  * holds each to:
  *   - drawn by the module: `appearance: none` (Foundry's own control at a table is a square with a mark in a corner,

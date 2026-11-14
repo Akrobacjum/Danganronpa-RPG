@@ -36,11 +36,10 @@ import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, reserveNote, reserveView } from "./character.mjs";
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, formGrid, dataTable, emptyState, box } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, formGrid, dataTable, emptyState, box, tipAttr } from "./ui-kit.mjs";
 import { murderState, killerIds, isDeadSilenced, silenceDeadNow } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
 
-import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * THE GM'S TRACKER

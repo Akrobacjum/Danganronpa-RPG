@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
-import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
+import { emptyOption, drpgWindow, drpgConfirm, box, checkList, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -33,9 +33,7 @@ import { WORLD_SECRET_RULES } from "./world-secrets.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 

@@ -41,7 +41,7 @@ import { runSteps } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 import {
-    announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow
+    announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow, esc
 } from "./utils.mjs";
 
 /** A vote nobody has opened in this trial: the blank of `trialProgress().vote`. */
@@ -418,7 +418,6 @@ export function entryPatch(now, { seconds = TRIAL.speakSeconds } = {}) {
 export function findingsHtml(findings = []) {
     const list = (Array.isArray(findings) ? findings : []).filter(f => f && typeof f.text === "string" && f.text);
     if (!list.length) return "";
-    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
     const line = f => `<li data-drpg-finding="${esc(f.id ?? "")}">${esc(f.text)}${f.mode ? ` <small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}${
         f.confirmed ? ` <strong>${esc(game.i18n.localize("DRPG.Zones.findings.confirmedMark"))}</strong>` : ""}</li>`;
     return `<div class="drpg-findings"><p><strong>${esc(game.i18n.localize("DRPG.Zones.findings.title"))}</strong></p><ul>${list.map(line).join("")}</ul></div>`;

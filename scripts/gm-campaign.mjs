@@ -24,13 +24,11 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 
 /**

@@ -37,9 +37,8 @@ import {
 import { SETTINGS } from "./settings.mjs";
 import { observeStore } from "./gm-stores.mjs";
 import { stableJson } from "./gm-store.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** How the player said they were looking. */
 export const DECLARATIONS = {

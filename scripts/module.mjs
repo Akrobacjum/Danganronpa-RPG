@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { registerSettings, registerWindows, sliderScale, layoutHeight, settingsRegistered } from "./settings.mjs";
+import { registerSettings, registerWindows, sliderScale, layoutHeight, settingsRegistered, SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
 import { openGmStores, registerCaseHealth } from "./gm-stores.mjs";
@@ -106,7 +106,6 @@ import { registerDiceSync } from "./dice-sync.mjs";
 import { registerDiceLook } from "./dice-look.mjs";
 import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
-import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";

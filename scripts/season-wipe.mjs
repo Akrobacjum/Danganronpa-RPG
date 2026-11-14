@@ -53,10 +53,12 @@ import { runSteps } from "./steps.mjs";
  * the cast, the map and the room setup along with the season - an hour of work
  * to undo a chapter.
  *
- * The line it draws is between the CAST and the CHAPTER. Actors, scenes, room
- * regions and who watches whom are the table's; the clock, the projects, the
- * traces, the evidence, the deaths and every trace of an incident belong to the
- * season that just ended. That split is why this is safe to offer at all - the
+ * The line it draws is between the CAST and the CHAPTER. Actors, scenes and room
+ * regions are the table's; the clock, the projects, the traces, the evidence, the
+ * deaths and every trace of an incident belong to the season that just ended.
+ * Who watches whom (the Monokuma assignments) goes with the `assignments` group,
+ * ticked by default, as `Season.resetKeeps` says since E71's B15 (H20; the owner,
+ * 14.11.2026: "Kod zostaje"). That split is why this is safe to offer at all - the
  * expensive half is never touched.
  * ========================================================================== */
 
