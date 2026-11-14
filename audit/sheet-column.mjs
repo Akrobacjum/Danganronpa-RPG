@@ -265,8 +265,8 @@ for (const c of cases) {
     await ctx.close();
     const why = [];
     if (m.scrollWidth > m.clientWidth) why.push(`scrolls: ${m.scrollWidth} in ${m.clientWidth}, [${m.culprits.join(", ")}]`);
-    // 200 px at 80 % and up; under it the column follows the slider (the rail's floor, danganronpa.css), so does this
-    if (m.clientWidth < 200 * Math.min(1, SCALE / 0.8)) why.push(`measured nothing: the column ${m.clientWidth} px wide`);
+    // 200 px of a 275 px rail at 100 %; the rail follows the slider, and under 100 % so does this
+    if (m.clientWidth < 200 * Math.min(1, SCALE)) why.push(`measured nothing: the column ${m.clientWidth} px wide`);
     if (c.lists === "empty" && !m.emptyDrawn) why.push("measured nothing: the Experience's empty line not drawn");
     if (c.lists !== "empty" && m.rows !== 2) why.push(`measured nothing: ${m.rows} experience rows, not 2`);
     const stray = m.equipped.filter(li => !li.mine && li.display !== "none");

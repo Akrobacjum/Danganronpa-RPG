@@ -11086,6 +11086,16 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
     width: auto !important;
 }
 
+/* THE EQUIPPED ROWS UNDER 80 % (14.11.2026, the Interface scale down to 25 %). Daggerheart draws each as its compact item
+   row, a grid of `40px 1fr min-content` with an 8 px gap (inventory-item.less), in a layer above the module's sheets, so
+   only `!important` could restate it and the sheets' budget holds those. Under 80 % the list is zoomed by the floor's
+   factor instead (`--drpg-floor-scale`, 1 from 80 % up): the picture's track, the gap and the row's type shrink together.
+   audit/sheet-column.mjs --scale: a Legacy row 129 px in a 127 px column at 50 %, 80 to 98 px in 58 at 25 % (Chromium,
+   704a1472). The row's type is then the floor's twice over - unreadable, as all type under 80 % is by design. */
+.application.sheet.actor .character-sidebar-sheet .equipment-section .items-sidebar-list {
+    zoom: var(--drpg-floor-scale, 1);
+}
+
 /* One definition for the action grid, and it reflows.
 
    Five across when there is room, fewer when there is not - and never more.

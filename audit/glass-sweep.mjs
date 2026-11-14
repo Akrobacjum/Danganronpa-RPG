@@ -246,6 +246,17 @@ const args = process.argv.slice(2);
 const opt = k => { const i = args.indexOf(k); return i < 0 ? null : args[i + 1]; };
 const root = path.resolve(opt("--root") ?? path.join(HERE, ".."));
 const page0 = opt("--page") ?? "audit/glass-harness.html";
+/* THE PINS ARE 100 %'S (14.11.2026; the Interface scale down to 25 %). PINS, PIN_BOX, PIN_PANE, PIN_TILT and PIN_CORNER
+   are the layout's own answers at the slider's 100 %, read in Chromium and written down; they do not scale with the
+   slider, because the layout does not either - the room tile's box keeps floors read off its type, its place turns on
+   them: at 1920x1080 under the glass the box read 250x343 at 80 % (the pin 265x364, x 0.94 not 0.8), 156x221 at 50 %
+   (x 0.59 and 0.61), 78x120 at 25 % (x 0.29 and 0.33), and at 1366x768 the place moved from 'notes' to 'clock' at 50 %.
+   So with `--page ...?scale=s` and s not 1 they are not compared (each line says "pins at 100 % only") and every check that
+   reads the layout itself still runs: the corner's launchers found, none hidden or off the screen, no pane over
+   another, the notices, the windows, the voice tile's buttons inside it and its name shown (64 px times s), its state
+   word at the floor (11 px, times s over 0.8 under 80 %). */
+const pageScale = Number(/[?&]scale=([\d.]+)/.exec(page0)?.[1] ?? 1);
+const pinsHold = pageScale === 1;
 const themes = (opt("--themes") ?? "stained,legacy").split(",").filter(Boolean);
 const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
@@ -2264,26 +2275,27 @@ try {
                        not a silent one - drpgRoomCheck checks the place against F, and F against nothing. */
                     const got = rc.expect === "row" ? "row" : rc.place ?? "-", pin = PINS[`${theme} ${role} ${size}`];
                     line += pin ? (pin === got ? " | pin ok" : ` | pin ${got}/${pin}`) : " | unpinned";
-                    if (pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
+                    if (!pinsHold) line += " | pins at 100 % only";
+                    if (pinsHold && pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
                     if (!pin) unpinned++;
                     /* THE BOX PIN (E78 C0): a placed tile's width and height, as PIN_BOX records them. */
                     const boxPin = PIN_BOX[`${theme} ${role} ${size}`], box = rc.box ? `${rc.box.w}x${rc.box.h}` : "-";
                     if (rc.expect === "placed" || rc.expect === "flat") {
                         line += boxPin ? (boxPin === box ? " | box pin ok" : ` | box ${box}/${boxPin}`) : " | box unpinned";
-                        if (boxPin && boxPin !== box) fails.push(`room: box ${box} where PIN_BOX has ${boxPin}`);
+                        if (pinsHold && boxPin && boxPin !== box) fails.push(`room: box ${box} where PIN_BOX has ${boxPin}`);
                         if (!boxPin) unboxed++;
                     }
                     /* THE PANE PIN (E78 fix h76-HF4): beside the notices, the room pane's bounds as PIN_PANE records them. */
                     const panePin = PIN_PANE[`${theme} ${role} ${size}`], paneGot = rc.notes?.pane ? rc.notes.pane.join("x") : "-";
                     if (panePin || rc.notes) {
                         line += panePin ? (panePin === paneGot ? " | pane pin ok" : ` | pane ${paneGot}/${panePin}`) : " | pane unpinned";
-                        if (panePin !== paneGot) fails.push(`room: pane ${paneGot} where PIN_PANE has ${panePin ?? "none"}`);
+                        if (pinsHold && panePin !== paneGot) fails.push(`room: pane ${paneGot} where PIN_PANE has ${panePin ?? "none"}`);
                     }
                     /* THE TILT PIN (E78 fix r1-G3): beside the notices, the tile's turn in degrees as PIN_TILT records it. */
                     const tiltPin = PIN_TILT[`${theme} ${role} ${size}`], tiltGot = rc.notes ? rc.notes.tilt : undefined;
                     if (tiltPin !== undefined || rc.notes) {
                         line += tiltPin !== undefined ? (tiltPin === tiltGot ? " | tilt pin ok" : ` | tilt ${tiltGot}/${tiltPin}`) : " | tilt unpinned";
-                        if (tiltPin !== tiltGot) fails.push(`room: tilt ${tiltGot} where PIN_TILT has ${tiltPin ?? "none"}`);
+                        if (pinsHold && tiltPin !== tiltGot) fails.push(`room: tilt ${tiltGot} where PIN_TILT has ${tiltPin ?? "none"}`);
                     }
                     if (control && !paneControlled && rc.notes) {
                         paneControlled = true;
@@ -2349,7 +2361,7 @@ try {
                     if (vc.expect === "wall") {
                         const cornerPin = PIN_CORNER[`${theme} ${role} ${size}`], cornerGot = pr?.corner?.length ? pr.corner.map(c => c.join(",")).join(" ") : "-";
                         line += cornerPin ? (cornerPin === cornerGot ? " | corner pin ok" : ` | corner ${cornerGot}/${cornerPin}`) : ` | corner ${cornerGot} unpinned`;
-                        if (cornerPin !== cornerGot) fails.push(`voice: buttons at ${cornerGot} where PIN_CORNER has ${cornerPin ?? "none"}`);
+                        if (pinsHold && cornerPin !== cornerGot) fails.push(`voice: buttons at ${cornerGot} where PIN_CORNER has ${cornerPin ?? "none"}`);
                     }
                     if (theme !== "legacy" && r.c && !r.stacked && vc.expect !== "wall") fails.push(`voice: a desk with glass reads ${vc.expect}`);
                     if (vc.expect === "wall") voiceRead = true;
