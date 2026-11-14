@@ -73,3 +73,9 @@ goes, so a restart loses nothing.
   `viewedDocuments`' owner and the like) were written from the code that calls them, the harness's copies of
   Daggerheart's dice and general knowledge of Foundry v13-v14, not from v14's source: a reader with v14's source can
   confirm them; nothing at a table depends on them.
+
+## The tip
+
+On 05ababdc (14.11.2026, this machine, 4 cores): `node run-all.mjs lint check gate` green (lint 405 files 0 problems,
+check 24 parts green, gate 37/37); `node run-tests.mjs --tier 1`: **1674 passed, 0 failed, 16 skipped, 0 red**, 1689
+tests, 558 s wall. This commit adds only this section.
