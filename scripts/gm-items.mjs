@@ -1506,7 +1506,7 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
 
 /**
  * GIVE A TRUTH BULLET TO EVERYONE (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to everyone'
- * option"): the window's own give (`giveBulletNow`) once for each living student (chapter.mjs `livingStudentsForGm`; who
+ * option"): the window's own give (`giveBulletNow`) once for each living student (death.mjs `livingStudentsForGm`; who
  * that is, config.mjs `RECIPIENT_EVERYONE`), one after another, so each copy takes the road a single give takes - its
  * queue, its answer key, its receipt when Tell the player is ticked, and its own line. On the browser of the GM who
  * pressed Give, as a single give is (`giveBullet`'s note). A copy that is not made (the give answered no, or threw) is

@@ -225,12 +225,12 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
  * undrawn.
  *
  * OPTIONAL, A PLACE SHEET.MJS DRAWS WITHOUT (E52 fix round, line A, 30.10.2026; review G-1). Three places have their
- * own road in sheet.mjs when missing: the equipment heading is found by its text (`findHeadingByText`), the loadout
+ * own road in sheet-sidebar.mjs when missing: the equipment heading is found by its text (`findHeadingByText`), the loadout
  * heading too, and the passages list goes at the sidebar's end with no Experience to follow (`injectKnownPassages`'s
  * `host.append`). Until this round their absence failed the row and gave the GM a permanent notice saying a thing
  * is not drawn that is. `optional` names that road; such a place is named in the row's note and fails nothing (R1548).
  *
- * THE PIP LAYOUT'S PLACES (E24 C1a, 08.11.2026). sheet.mjs `paintReserves` draws Health and Sanity in either of the
+ * THE PIP LAYOUT'S PLACES (E24 C1a, 08.11.2026). sheet-sidebar.mjs `paintReserves` draws Health and Sanity in either of the
  * system's layouts (the owner's D46): the bar layout's places stay as they were, and the pip layout's slots, found by
  * their toggles, are optional - a client on the bar layout has none, and draws the bars instead.
  *
@@ -508,7 +508,7 @@ export const PATCHES = [
         kind: "override",
         target: "render, as an own property on each open character sheet",
         owner: "foundry",
-        file: "sheet.mjs",
+        file: "sheet-repaint.mjs",
         symbol: "installRenderPlan",
         why: "A resource-only update (renderContext \"updateActor\", renderData of Health, Sanity or Hope) is repainted in place, so the sheet does not flicker on every Hope or Health change; anything else renders.",
         when: "per sheet, from its first render",

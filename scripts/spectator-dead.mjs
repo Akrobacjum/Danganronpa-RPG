@@ -138,7 +138,7 @@ export function tokensOf(actor) {
 /*
  * WHO WAS FADED (the auditor's A113-C2-5, 13.11.2026; the coordinator's default: one sound per moment per browser). The
  * Spectator's token made at a death in play plays `deathFade` on its owners' browsers (`playMoment`), and the death's own
- * sound (`death`) went to the same players when they were in the incident's audience (chapter.mjs `killCharacter`): two
+ * sound (`death`) went to the same players when they were in the incident's audience (death.mjs `killCharacter`): two
  * sounds, by default one file, on the victim's browser (scenario 79 measured it). So the users a fade went to are kept
  * here, by the student's id, for the death's sound to leave out (`takeFadedFor`, once).
  */
@@ -256,7 +256,7 @@ export async function removeDeadSpectator(student, { silent = false, row = undef
 }
 
 /**
- * THE SEASON'S END (the storyboard's F; season-reset's "deaths" group, chapter.mjs `clearSeasonDeaths`): every watcher
+ * THE SEASON'S END (the storyboard's F; season-reset's "deaths" group, death.mjs `clearSeasonDeaths`): every watcher
  * the GMs know of - a kept death's row naming one, a watcher flagged with its student - taken away silently, its tokens
  * first. Answers how many went.
  */

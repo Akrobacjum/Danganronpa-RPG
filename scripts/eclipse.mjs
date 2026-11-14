@@ -148,7 +148,7 @@ export function startRefusalOf(clock, { body = null, incident = null } = {}) {
     /*
      * NOT OVER A BODY NOBODY HAS ANSWERED (E11 C3, 1.2.73; audit S06-05). A body found holds the
      * game until the Investigation starts (`bodyDiscovery`, whose record lasts until the phase
-     * moves - D5's rule, clock.mjs `setClock`), and a discovery is refused during an Eclipse (chapter.mjs `runDiscovery`) -
+     * moves - D5's rule, clock.mjs `setClock`), and a discovery is refused during an Eclipse (body.mjs `runDiscovery`) -
      * but this was the other way round and nothing refused it: an Eclipse opened over the hold
      * refilled every budget and moved the clock with the hold still standing, and the players
      * read that a body had been found and "Drag your token" at once. Refused here, the one place

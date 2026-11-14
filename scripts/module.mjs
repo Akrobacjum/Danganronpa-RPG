@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { registerSettings } from "./settings.mjs";
+import { registerSettings, registerWindows, sliderScale, layoutHeight, settingsRegistered } from "./settings.mjs";
 import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
 import { openGmStores, registerCaseHealth } from "./gm-stores.mjs";
@@ -192,6 +192,8 @@ Hooks.once("init", () => {
 
     // Settings first and unguarded: every other subsystem reads them, so if this
     // cannot run there is nothing worth continuing to.
+    /* The windows' size before the settings (E54 W2): its hooks wait on `registered`, as they did at import. */
+    safely("the windows' size", () => registerWindows({ scale: sliderScale, height: layoutHeight, registered: settingsRegistered }));
     registerSettings();
     // Straight after, and before anything reads a string: the language file is
     // fetched now and merged the moment Foundry's own translations exist.

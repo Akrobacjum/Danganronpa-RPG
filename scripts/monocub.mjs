@@ -74,7 +74,7 @@ export function isMonocub(actor) {
  * rozprawa w twojej sprawie"). A student who died in this chapter of this season, not by an execution, and whose chapter
  * has no verdict yet (the record's `lastVerdictAt`, E70 C4): the trial running is theirs, so as a Monocub they listen -
  * information only, the module mutes no Monocub. A second murder in a chapter whose first trial gave its verdict (D17)
- * is told by the verdict its death names (`sinceVerdict`, chapter.mjs `verdictBefore`, E70 fix p1-G3): its case is open
+ * is told by the verdict its death names (`sinceVerdict`, death.mjs `verdictBefore`, E70 fix p1-G3): its case is open
  * while no later verdict came. `clock`, `record` (the stored trial record) and `epoch` can be handed in (tier 1 R1034).
  */
 export function ownCaseOpen(actor, { clock = getClock(), record, epoch = seasonEpoch() } = {}) {
@@ -93,7 +93,7 @@ export function caseOpen(death, clock, record, epoch) {
     if (death.epoch !== undefined && death.epoch !== null && death.epoch !== epoch) return false;
     const stored = record ?? {};
     const verdict = stored.chapter === clock.chapter ? (stored.lastVerdictAt ?? null) : null;
-    // A death that names the verdict before it (E70 fix p1-G3, chapter.mjs `verdictBefore`): open while no later verdict
+    // A death that names the verdict before it (E70 fix p1-G3, death.mjs `verdictBefore`): open while no later verdict
     // came; an older record, written before the field, as before - open only in a chapter with no verdict yet.
     if (Object.hasOwn(death, "sinceVerdict")) return !verdict || verdict === death.sinceVerdict;
     return !verdict;
@@ -168,7 +168,7 @@ export async function setMonocub(actor, value = true, { quiet = false, watcher =
     await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
 
     /* THE BODY (E63 C0, 11.11.2026; the owner on E95 Q3: "Nie gdy zostaje Monocubem"): becoming a Monocub lays nothing.
-       The death laid it (chapter.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked
+       The death laid it (death.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked
        or ticked again, the tile stays, and it goes at the trial's end, a revive or the reset. */
     // Unconditional on purpose: clearing the mark is also the repair for a
     // silence left behind by a cub who is no longer one (the GMs' row since E72 C2).
@@ -537,7 +537,7 @@ export async function setSilenced(actor, silenced) {
 
     const was = isCrimeSilenced(actor);
     // The chapter and its season (E11 fix r2-H2), as a death's record names them: `isCrimeSilenced`. And the chapter's
-    // verdict before it, as a death's row names it (chapter.mjs `verdictBefore`), so the wrong verdict's card can tell a
+    // verdict before it, as a death's row names it (death.mjs `verdictBefore`), so the wrong verdict's card can tell a
     // witness of this case from one of the chapter's earlier case (`wrongVerdictTouches`; the 1.2.110 review's V4).
     const chapter = getClock().chapter;
     const record = getSetting(SETTINGS.trialProgress) ?? {};

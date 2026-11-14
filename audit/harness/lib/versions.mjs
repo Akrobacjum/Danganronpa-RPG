@@ -102,7 +102,7 @@ export const UNCONFIRMED = [
        `render(false, { renderContext: "update<Doc>", renderData: <the changes> })` after the update hook on every
        client, the writer's included, and a descendant's create, update or delete rendering its root's apps the same
        (client-entry.mjs `renderApps`) - from v13/v14 notes as remembered, not from v14's source. Scenario 71 and the
-       sheet's own render (sheet.mjs `renderPlan`) read the repaint on that model. E45's other live rows (the wrapper's
+       sheet's own render (sheet-repaint.mjs `renderPlan`) read the repaint on that model. E45's other live rows (the wrapper's
        way out, 71's parts at a table, a Monocub's tile) are read on the same model: */
     "LIVE-E45-01",
     /* E45-C3b's (09.11.2026; AUDIT items 425-427): the wrapper's way out for a render signature it does not know (R1477 on

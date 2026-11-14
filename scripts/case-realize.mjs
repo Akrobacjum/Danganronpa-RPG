@@ -194,7 +194,7 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
 
 /**
  * THE QUESTION AT A BODY (C11; Q4: both roads, the primary GM alone, once a chapter). On the browser that wrote the
- * discovery (`writer`, the primary - chapter.mjs `runDiscovery` runs there on both roads), a payload not the suite's
+ * discovery (`writer`, the primary - body.mjs `runDiscovery` runs there on both roads), a payload not the suite's
  * rehearsal, a chapter with a case built (a schema row or a Key slot not yet on the map) whose realization has not
  * run and that was not asked yet: a small window, "Show the preview" or "Not now". Nothing is handed `waitUntil`: the
  * gather does not wait for it, and the window opens after the stamp. Answering writes `askedAt`, so a second body asks

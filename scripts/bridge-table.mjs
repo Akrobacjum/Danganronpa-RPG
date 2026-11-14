@@ -1148,7 +1148,7 @@ export const BRIDGE_ACTIONS = table({
      * THE KEY FEE, CHARGED ON THE PRIMARY GM (E09 fix r1-G3, 08.10.2026; the round-1 goal
      * review's G3a). A Class Trial opens on whichever GM moved the phase (clock.mjs
      * `reconcilePhase`); the fee counts the Key copies by the GMs' marks, which are the
-     * primary's, so another GM asks it here (investigation.mjs `askToChargeForUnfoundKeys`).
+     * primary's, so another GM asks it here (key-remnants.mjs `askToChargeForUnfoundKeys`).
      * Carries nothing: the charge reads the clock, the trial's stamp and the case on this side.
      */
     [ACTION_KEYS_CHARGE]: {
@@ -1510,7 +1510,7 @@ export const BRIDGE_ACTIONS = table({
      * each GM's ruling used to run on its own browser against its own copy of the synced
      * attempt store: two GMs - or Approve and Decline on one card - both wrote. The primary
      * reads the proposal off the attempt's row and marks the row ruled in one step
-     * (cleanup.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).
+     * (cleanup-reshape.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).
      * A GM's alone: the card's buttons are drawn for GMs.
      */
     [ACTION_RESHAPE_RULING]: {
