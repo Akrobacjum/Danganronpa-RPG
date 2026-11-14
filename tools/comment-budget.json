@@ -79,10 +79,6 @@
       "citations": 1,
       "doubledJsdoc": 0
     },
-    "scripts/chapter.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
     "scripts/chrome.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
@@ -350,6 +346,10 @@
     "scripts/key-remnants.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
+    },
+    "scripts/death.mjs": {
+      "citations": 0,
+      "doubledJsdoc": 1
     }
   }
 }
