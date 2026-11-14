@@ -7955,6 +7955,7 @@ html body {
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
     --drpg-stat-mark-size: 22px;
     padding-inline-start: calc(var(--drpg-stat-mark-size) - 4px);
+    box-sizing: border-box;
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark {
     display: flex;
@@ -8011,9 +8012,6 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     flex: 1 1 auto;
     word-break: normal;
     overflow-wrap: anywhere;
-}
-body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
-    box-sizing: border-box;
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
     --drpg-trait-gap: 0.5rem;
