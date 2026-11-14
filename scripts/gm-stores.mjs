@@ -494,7 +494,7 @@ export const blackenedStore = defineGmStore({
  * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). `loot` is split, a stamp per
  * record (E05 fix r2-G3): it was one list, and two GMs each adding a loot kept only the
  * later write - see handover.mjs `oweLootBullet`. Written by the kill
- * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's
+ * (death.mjs `killCharacter`), dropped by the publication, a revival or the reset's
  * "deaths" group; a dropped row's tombstone is what a player's copy weighs its loss
  * against. No old key: a death before 1.2.64 was published at the kill.
  */
@@ -746,7 +746,7 @@ export const offerStore = defineGmStore({
  * would otherwise be one row, and the second verdict's would take the first's place. Written
  * by a wrong verdict (level-up.mjs `deferAdvancement`), applied and dropped by the class's
  * next correct verdict or the Final Trial's (`runAdvancementBatch`, the owner's Q7), dropped
- * by a kill (chapter.mjs `killCharacter`) and cut by the reset's "advancement" group - the
+ * by a kill (death.mjs `killCharacter`) and cut by the reset's "advancement" group - the
  * two ways it lapses. No player copy and no old key: a 1.2.63 world applied it at once.
  */
 export const deferredOfferStore = defineGmStore({
@@ -1015,7 +1015,7 @@ export const watchStore = defineGmStore({
  * the required number of students, the module should ask the GM before it moves the players to the body, plays the sound,
  * etc."). A row per room where the witnesses reached the count, keyed `<sceneId>:<room>`: `{ room, sceneId, victimId,
  * deathId, witnessIds, chapter, epoch, at }` - `victimId` the body the walk found first, named by the announcement.
- * Written by the primary's walk check (chapter.mjs `checkBodyFound`), read by its prompt (`askPendingBodies`) and the
+ * Written by the primary's walk check (body.mjs `checkBodyFound`), read by its prompt (`askPendingBodies`) and the
  * GM's discovery window, dropped by the discovery that announces its room or when its body is no longer one to find.
  * Synced, so the GM who becomes the primary asks it; backed up. Cut by the reset's "deaths" group, with the deaths it
  * waits on. No player copy: which body waits, and who saw it, is the GMs'.
@@ -1029,7 +1029,7 @@ export const pendingBodyStore = defineGmStore({
  * THE BODIES EACH CHARACTER HAS HEARD (1.2.113; the owner's decision B of 13.11.2026: the finders get the discovery sound
  * "even when they are alone in the room ... It is enough that they enter a room with a body"). A row per character and
  * body, keyed `<actorId>:<bodyId>`: `{ deathId, at }`, the death heard - a body revived and killed again is heard again.
- * Written by the primary (chapter.mjs `checkBodySound`, and the announcement for everyone it gathers), read by it alone.
+ * Written by the primary (body.mjs `checkBodySound`, and the announcement for everyone it gathers), read by it alone.
  * Synced and backed up, so a reload or another primary plays nothing twice. Cut by the reset's "deaths" group. No player
  * copy.
  */

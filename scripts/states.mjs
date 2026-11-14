@@ -114,7 +114,7 @@ export function registerStates() {
  * published (`deceased`) and a Monocub made (`monocub`), see `heldNone`.
  *
  * A FLAG TAKEN AWAY IS A CHANGE TOO (E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3). A
- * revive (chapter.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the
+ * revive (death.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the
  * key a deletion arrives under is the flag's own (a ForcedDeletion, as the harness writes it) or
  * `-=deceased` (a `-=` spelling; which one v14's `unsetFlag` hands this hook is LIVE-E30-03's, not
  * measured): read only by its own name, a revived student showed no Wounded or Breakdown until the

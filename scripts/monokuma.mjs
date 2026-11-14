@@ -60,7 +60,7 @@ export function isSpectator(actor) {
  * NPC the GMs keep on a sheet - a teacher, a shopkeeper - was handed a ballot, named on the verdict's list, offered a
  * Level Up after a right verdict and put in the murder window as its default victim. The one roster is read by 71
  * calls in 19 files (`studentCensus`, `actingStudents`, the vote's candidates, its size and `trialParticipants`, the
- * verdict's survivors, the murder window's cast through chapter.mjs `livingStudentsForGm`, assignments.mjs, the GM
+ * verdict's survivors, the murder window's cast through death.mjs `livingStudentsForGm`, assignments.mjs, the GM
  * panel), so the flag is read here once and every one of them leaves the NPC out (R1453).
  *
  * AS THE GMS HOLD THE TWO FLAGS, ON THE GMS' ROADS (E24 fix G1, 09.11.2026; the end review's S-1). Both flags are a GM's

@@ -1042,7 +1042,7 @@ export const REMNANT_TYPES = {
 /**
  * "EVERYONE" AS A TRUTH BULLET'S RECIPIENT (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to
  * everyone' option"): the value Give a Truth Bullet's recipient select and a Planned Truth Bullet's `recipient` hold for
- * every living student - chapter.mjs `livingStudentsForGm`, the roster less the dead for the GMs, so no Monocub (a dead
+ * every living student - death.mjs `livingStudentsForGm`, the roster less the dead for the GMs, so no Monocub (a dead
  * student back), no Spectator, no Monokuma and no NPC (monokuma.mjs `studentActors`): the planned Autopsies' roster
  * (case-realize.mjs). No actor id is 8 letters long, so it never names one. Each gets a copy of their own
  * (gm-items.mjs `giveToEveryone`).

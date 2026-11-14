@@ -7276,7 +7276,7 @@ const REGRESSIONS = [
          * this census of the module's sources (the suite's files are not read: their
          * fixtures write the flag as a table's world might) holds that the flag is read
          * only by settings.mjs's `deathRecord` and `isDeceased`, named only where config.mjs
-         * defines it, written only by chapter.mjs's `markDeceased` and `reviveCharacter`
+         * defines it, written only by death.mjs's `markDeceased` and `reviveCharacter`
          * (the "dead" status likewise), and read as a change's key only by voice.mjs's
          * updateActor hook (its `reconcileTrigger` since E19 C2), which reconciles on the change and asks the predicates after.
          * Attribution is by the top-level function or constant the mention sits in. A
@@ -8282,7 +8282,7 @@ const REGRESSIONS = [
          * no for a second owner. Read here, comments blanked, every module file: each file's `ownerOf(` calls are the
          * census below, each with why one owner is right there; no `ownerOf(...)?.id ===` or `!==` outside the
          * Mastermind's (actsAsMastermind and the door: one player on purpose, R560); messenger-app.mjs's rulings post to
-         * `rulingThread` (the card's own thread); chapter.mjs `tellLoneFinder` reads `ownerIdsOf`. Rolls and an
+         * `rulingThread` (the card's own thread); body.mjs `tellLoneFinder` reads `ownerIdsOf`. Rolls and an
          * incident's audience took every owner at E18 fix e1-G7, and cards go to every owner (`whisperToOwner`). Red
          * before C6: incident-store.mjs, sfx.mjs, trial-prompt.mjs and chapter.mjs called it, messenger-app.mjs seven
          * times.
@@ -9376,14 +9376,14 @@ const REGRESSIONS = [
          * `restoreStartingSheet` (OPEN at the base, held now), `applyAdvancement`, `wipeStudent` and the
          * two `advancement.apply` packets.
          * E11 fix r1-G2 (1.2.73) added two places: events.mjs `bodyCard` (named above), which reads
-         * the deaths of the bodies it draws since, and chapter.mjs `announcedAlready`, the death
+         * the deaths of the bodies it draws since, and body.mjs `announcedAlready`, the death
          * record the GM's announcement and its window compare with this chapter's stamps; on the
          * harness on 10.10.2026 this test read 72 places (28 PACKET, 4 SOCKET, 1 CHAT, 31 SHEET,
          * 8 STORE) against the 72 rows.
          * The merge of E11's side fix line into its main line (1.2.73) holds both: C10's and C10b's two
          * places and fix r1-G2's two - 74 rows counted in the source on 11.10.2026 (28 PACKET, 4 SOCKET,
          * 1 CHAT, 33 SHEET, 8 STORE), and this test passed against them on the merged tree.
-         * E11 fix r2-J1 (1.2.73) added one place, chapter.mjs `runDiscovery` (SHEET): it now awaits
+         * E11 fix r2-J1 (1.2.73) added one place, body.mjs `runDiscovery` (SHEET): it now awaits
          * `judgedFor` of the named victim and reads `flagsHeldNow` itself, so the reader sees it; the test
          * failed on it in the fast set of 11.10.2026 (e11run/r2j1: `unclassified` held exactly that one
          * place) and passed once the row was in.
@@ -12381,7 +12381,7 @@ const REGRESSIONS = [
          * this chapter on its record, was a body, and so was a body a discovery had already
          * announced once the hold that remembered it was gone - measured at 4aad1fd on 65-season
          * B4, a second card after End the trial for Daichi (found) and Botan (executed). The rule is
-         * chapter.mjs `bodiesToDiscover`, driven here on fakes: each student hands its flags as the
+         * body.mjs `bodiesToDiscover`, driven here on fakes: each student hands its flags as the
          * GMs hold them (`held`) and the GMs' rows (`pending`), so nothing in this browser is read
          * or written. Twelve students, chapter 2 of season 7: a death kept by the GMs and one public
          * at once, both in Daily Life; an execution (`classTrial`, as `killCharacter` writes it
@@ -12425,7 +12425,7 @@ const REGRESSIONS = [
          * E11 C1, 1.2.73; audit S06-14 (S13-02 is the same defect); DC7/DX1. The witnesses of a
          * walk-in were every student's token in the room but a hidden one and a body: a dead student
          * lying there from an earlier death counted toward the two, so one living student walking in
-         * beside an old body announced a new one. chapter.mjs `witnessesOf`, driven on fake tokens
+         * beside an old body announced a new one. body.mjs `witnessesOf`, driven on fake tokens
          * (`roomOf` reads the token's `room`), flags as the GMs hold them (`held`) and the GMs' rows
          * (`pending`): the living, a public death, a death the GMs keep, a Monocub, a hidden token,
          * the body itself, a Monokuma (no student), the living in another room, a token of no
@@ -12462,7 +12462,7 @@ const REGRESSIONS = [
          * E11 C1, 1.2.73; decision D8; the ledger's G2. The stamp `SETTINGS.bodiesFound` is what
          * the watcher, and later E19's channel, E13's trial room and E70, read to know a body was
          * found - so it has one writer, settings.mjs `recordBodyFound`, and that has one caller,
-         * chapter.mjs `announceBody`, which `runDiscovery` calls once per discovery. Read in every
+         * body.mjs `announceBody`, which `runDiscovery` calls once per discovery. Read in every
          * module source but the suite's, comments stripped: each call of `recordBodyFound`, of
          * `announceBody`, and each `game.settings.set` naming the stamp, by the top-level function
          * it stands in. A second writer - a GM button stamping a body by hand - is a second place
@@ -12472,7 +12472,7 @@ const REGRESSIONS = [
          * `carryBodyRooms`, which a GM's rename of the room a body was found in calls on the primary
          * (fog.mjs `carryRoomInWorld`). It rewrites the `room` of the stamps that name the renamed room
          * and nothing else, so the stamp's shape and chapter are still decided in one place.
-         * And the season reset's (E42 C3): the bodyFound entry's clear, chapter.mjs `clearSeasonBodies`, writes the
+         * And the season reset's (E42 C3): the bodyFound entry's clear, death.mjs `clearSeasonBodies`, writes the
          * stamps empty - a reset decides no stamp's shape or chapter; until C3 the same write stood in
          * season-setup.mjs `wipeSeason` in a form this reader did not see (`emptied(SETTINGS.bodiesFound, {})`).
          */
@@ -23474,7 +23474,7 @@ const REGRESSIONS = [
         }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
     }],
 
-    ["R3145 - the body's announcement is spelt once and called from the stamp alone (chapter.mjs `BODY_ANNOUNCED_HOOK`, E95 C4): the hook's name stands in one place of the module's code, it is called in `callBodyAnnounced` alone, which `announceBody` awaits after the stamp is written and `announceArrivedBodies` calls, and `runDiscovery` announces before it gathers everyone", async () => {
+    ["R3145 - the body's announcement is spelt once and called from the stamp alone (body.mjs `BODY_ANNOUNCED_HOOK`, E95 C4): the hook's name stands in one place of the module's code, it is called in `callBodyAnnounced` alone, which `announceBody` awaits after the stamp is written and `announceArrivedBodies` calls, and `runDiscovery` announces before it gathers everyone", async () => {
         /*
          * E95 C4, 10.11.2026; E72 amend[16] ("woła tu nazwany hook drpgBodyAnnounced"), QUESTIONS Q5, Q6. The harm: a
          * second spelling is a second hook a listener of E62, E69 or E72 does not hear, and a call before the stamp, or
@@ -23616,7 +23616,7 @@ const REGRESSIONS = [
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
     }],
-    ["R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \"gdy postać umiera ... Nie gdy zostaje Monocubem\"): body-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased`, the one function every public death passes, handed the record it just wrote, and from migrate.mjs's pass for a 1.2.104 world (E63 C3) alone; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs", async () => {
+    ["R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \"gdy postać umiera ... Nie gdy zostaje Monocubem\"): body-tile.mjs `leaveBody` is called from death.mjs `markDeceased`, the one function every public death passes, handed the record it just wrote, and from migrate.mjs's pass for a 1.2.104 world (E63 C3) alone; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs", async () => {
         /*
          * E63 C0, 11.11.2026; STAGE E63 items 1, 3 and 5. Read off the served sources with their comments taken out:
          * every `leaveBody(` call outside body-tile.mjs's own definition, as [file, the top-level function it stands in],

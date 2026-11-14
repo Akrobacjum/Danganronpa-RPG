@@ -136,7 +136,7 @@ async function snapshot(cast) {
         }, [])),
         messages: new Set(game.messages.map(m => m.id)),
         /* EVERY SCENE'S TILES, by scene (E95 C2 fix, 10.11.2026; CI run 42748964937, suite 2/8). From E95 C2 a
-           Monocub's false-to-true edge laid a body tile (body-tile.mjs `leaveBody`; from E63 every death made public does, chapter.mjs `markDeceased`), as a trace's roll drops a token,
+           Monocub's false-to-true edge laid a body tile (body-tile.mjs `leaveBody`; from E63 every death made public does, death.mjs `markDeceased`), as a trace's roll drops a token,
            and a test that marks a death by its flag alone and takes the flag back after ("E51-T21") leaves the tile:
            no revive runs, and the revive is what takes a body off the map. The restore removed the embedded documents
            that appeared only as traces' tokens, so the dump read "restore left: Scene ... tiles.<id> appeared". Recorded
@@ -480,7 +480,7 @@ function drawnAdvanceButton(student, { lit = false } = {}) {
 
 /**
  * THE DISCOVERY'S PROMPT, ANSWERED (1.2.113; the owner's decision A of 13.11.2026). Two witnesses leave a discovery waiting
- * for the GM's word (chapter.mjs `askPendingBodies`): a walk-in test's stand-in `wait` answers its window "announce", as the
+ * for the GM's word (body.mjs `askPendingBodies`): a walk-in test's stand-in `wait` answers its window "announce", as the
  * GM's press would, and every other window nothing (`announceTheBody`). `bodyRowsNow` and `bodyRowsBack` drop again the rows
  * a walk wrote in the GMs' discoveries waiting and bodies heard (gm-stores.mjs `pendingBodyStore`, `bodyHeardStore`).
  */
@@ -845,7 +845,7 @@ async function fightOpen(M, killer, victim) {
 
 /**
  * A BODY THE GM MADE, WITH STAGE 6 TAKEN (E32 C6): the running incident's victim killed as
- * the GM's "A character dies" kills them (chapter.mjs `killCharacter`, kept by the GMs),
+ * the GM's "A character dies" kills them (death.mjs `killCharacter`, kept by the GMs),
  * and its "the victim died - Stage 6?" (`offerStageSix`) answered yes, which is
  * `beginResolution("victimKilled")` over a death. For a trap, whose builder deals no blow.
  * Any other window is answered no and its title returned. The caller revives the victim.
@@ -2695,7 +2695,7 @@ async function withBodyTile(run) {
             const data = B.bodyTileSpec({ tokenDoc: { x: spot.x, y: spot.y, width: bodyToken.width, height: bodyToken.height,
                 elevation: bodyToken.elevation, texture: { src: bodyToken.texture?.src ?? null }, parent: scene },
             actorId: body.id, record: deathRecord(body), level: levelOf(bodyToken), at: Date.now() });
-            /* E63 C0 (11.11.2026): the death lays its own tile at the token (chapter.mjs `markDeceased`); it is moved into the
+            /* E63 C0 (11.11.2026): the death lays its own tile at the token (death.mjs `markDeceased`); it is moved into the
                other room as a GM would, and laid by the suite only where the death laid none. */
             const own = B.bodyTileOf(body)?.doc ?? null;
             if (own) { await own.update({ x: data.x, y: data.y }); tile = own; }
@@ -12227,7 +12227,7 @@ const SCENARIOS = [
 
     ["the witnesses of what one student does to another are the students the GMs read in the room, a Monocub among them, less the two (A11-12's helper)", async () => {
         /*
-         * E80 part 2 C1, 19.10.2026; the A11 design's step 9 (`roomWitnessesOnGm`, on chapter.mjs `witnessesOf`). The
+         * E80 part 2 C1, 19.10.2026; the A11 design's step 9 (`roomWitnessesOnGm`, on body.mjs `witnessesOf`). The
          * harm: an open Frisk is seen by whoever stands in the room, and a list of them that drifts from the rule a body
          * found counts its witnesses by tells a hidden token, a Monokuma or a body of it, or forgets a Monocub (whose
          * owner a Bounty or a Bribe pays). Three students stand alone in a room; read: the ids the helper names with the
@@ -13253,7 +13253,7 @@ const SCENARIOS = [
     ["a death the table knows is no Frisk's on any road (E80 part 2 fix r1-G1, rc2-1): once it is published, an unseen Frisk is refused, an open ask is 'That is a body now' and a Reroll of a hand that missed finds the moment passed, as for a death the GMs keep known to the asker; the same three at the living target go through", async () => {
         /*
          * E80 part 2 fix r1-G1, 19.10.2026; the review's rc2-1, the A11 design's resolved 20 and its A11-9 (P2-08). The harm: a
-         * published death drops the GMs' row of it (chapter.mjs `publishDeath`), and the three roads asked only that row
+         * published death drops the GMs' row of it (death.mjs `publishDeath`), and the three roads asked only that row
          * (incident-store.mjs `knowsOfDeath`), so a body every player knows read as a death the asker did not know: the
          * unseen Frisk listed its pockets ('nobody saw it', as a body notices nothing), the open ask went to nobody as for
          * a secret death, and the Reroll of a missed hand sent the list. A player's character and another alone in a room
@@ -25396,7 +25396,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a death and a sweep take the Truth Bullets the GMs hold, and keep a player's deletion of one, which no Undo makes again", async () => {
         /*
          * E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (c). A death the table learns of takes the student's Truth
-         * Bullets (chapter.mjs `destroyBullets`), and a GM's sweep every student's but the Faint and the Final ones
+         * Bullets (death.mjs `destroyBullets`), and a GM's sweep every student's but the Faint and the Final ones
          * (`sweepTruthBullets`, the Investigation Dashboard's button); both chose by the category on the document
          * (truth-bullets.mjs `bulletsOf`), where a player's write the audit puts back stands until its put-back lands,
          * or for good where it fails. And a player's deletion of a bullet the GMs hold is flagged, the GMs' copy kept
@@ -25767,7 +25767,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * onto the second's body was told nothing. Who knows is the row's to say (`knowsOfDeath` in
          * `tellLoneFinder`); the chapter's killers stay "involved" for the rule of two witnesses.
          * The two are stood alone in a room while both live, the death is kept by the GMs after,
-         * and the watcher (chapter.mjs `maybeBodyFound`) is asked about the finder's token.
+         * and the watcher (body.mjs `maybeBodyFound`) is asked about the finder's token.
          */
         const [finder, victim] = cast(2);
         needs(world.ownedByPlayer(finder), "a lone finder is told through their player");
@@ -27901,7 +27901,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          *
          * THE VICTIM'S QUESTION, ANSWERED (E21 C3 fix 2, 06.11.2026; CI run 42212137059, suite 6/8 hung 90 min). The
          * execution is `killCharacter` on the incident's victim, which asks "That was the victim of the incident"
-         * (chapter.mjs `offerStageSix`) and waits for the answer. Until E21 C3a that was DialogV2.confirm, which the
+         * (death.mjs `offerStageSix`) and waits for the answer. Until E21 C3a that was DialogV2.confirm, which the
          * harness answers yes on the GM; on the kit (`drpgConfirm`) it is DialogV2.wait, which the suite's GM draws as a
          * window, and nobody pressed it: `executeAtExit` waited for good (measured headless, the window still open at
          * 390 s, c3fix2/red-one.log). So the test answers it as the confirm was answered - yes, Stage 6 taken - and
@@ -31130,7 +31130,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * investigation.mjs `schemaEditor`'s planned Truth Bullet, `givePlannedBullet` -> gm-items.mjs
          * `giveTruthBulletDialog` with config.mjs `RECIPIENT_EVERYONE` -> `giveToEveryone`, which runs the window's own
-         * `giveBulletNow` once per student of chapter.mjs `livingStudentsForGm`. Fixtures: of four students, the third dead
+         * `giveBulletNow` once per student of death.mjs `livingStudentsForGm`. Fixtures: of four students, the third dead
          * for the GMs (the deaths store) and back as a Monocub (its flag), the fourth a Spectator (its flag); both put back
          * after. A plan set to Everyone in its node and closed; given through its window; every character's new Truth
          * Bullets counted and the plan's `given` read. Then a second plan to Everyone with a `preCreateItem` hook refusing
@@ -34153,7 +34153,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a Faint verdict reaches the copy's answer key and its flag if identified", async () => {
         /*
          * E09 C2, 08.10.2026; S05-19. A GM's Faint on a trace (the Investigation Dashboard's Save, remnants.mjs
-         * `setRemnantFlags`) and a body discovery's promotion of a Faint Prep (chapter.mjs `promoteFaintPrep`,
+         * `setRemnantFlags`) and a body discovery's promotion of a Faint Prep (body.mjs `promoteFaintPrep`,
          * `setRemnantFlagsMany`) move into every copy's answer key, which the chapter's sweep reads (chapter.mjs
          * `sparedBySweep`), and onto the item only where the GMs hold the copy identified (truth-bullets.mjs
          * `propagateVerdicts`, `bulletAsHeld`). A Faint trace and its three copies (`traceCopies`: analysed, not,
@@ -47355,7 +47355,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * primary, the clock and the record written raw. (1) An exit's kill failed: the record holds the sentence,
          * `execution.failed` and no stamp, and the phase is Daily Life. Asked again (trial-progress.mjs `retrySentence`, which the
          * primary's ready and every later change of phase ask), A dies executed in the trial's phase, the record is
-         * stamped, and no walk past A finds a body (chapter.mjs `bodiesToDiscover`, the death's phase - E70-16's
+         * stamped, and no walk past A finds a body (body.mjs `bodiesToDiscover`, the death's phase - E70-16's
          * "discovery stamp" is the death record's phase, STATUS). (2) A Final verdict's sentence waits and this browser's
          * GM store holds another verdict's: `pendingSentence` names nobody and the GMs are told, once; the store is backed
          * up. (3) `trialSizeNow` counts each player account holding a student who takes part, connected or not. Red at
@@ -53368,7 +53368,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * handed the knife over, placed before the fight, and an identified copy of it on a third
          * student; the killer swings the knife with the dice thrown (`swingFixture`); the victim
          * dies as the GM's "A character dies" kills them, kept by the GMs; then the death is made
-         * known (chapter.mjs `publishDeath`, which the discovery runs for its bodies). Read: in the
+         * known (death.mjs `publishDeath`, which the discovery runs for its bodies). Read: in the
          * fight, the ledger's tie, the copy's answer key and its flag; the key and the flag at the
          * death; both once the death is the table's. Red at f88133d (A1, 08.10.2026): the key and
          * the flag tied in the fight.
@@ -53431,7 +53431,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * real type from the item hub (gm-items.mjs `openItemManager`, its windows answered as the GM
          * would). Then two copies begun in the window and made once the death is known: an Observe
          * aimed at the other trace, and the GM's window for the fourth, in which the death is made
-         * known (chapter.mjs `publishDeath`) before it is answered; the Observe is resolved after.
+         * known (death.mjs `publishDeath`) before it is answered; the Observe is resolved after.
          * Read: the first two copies' answer keys and flags in the window; all four's once the death
          * is known. Red at f88133d (A1, 08.10.2026): both copies made in the window tied, key and
          * flag.
@@ -53529,7 +53529,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * victim killed and kept by the GMs; the GM's close; the killer loots the body; the GM hands a copy
          * of the loot's trace to a third student, as its real type, from the item hub (gm-items.mjs
          * `openItemManager`, its windows answered as the GM would); then the death is made known
-         * (chapter.mjs `publishDeath`, which the discovery calls). Read: the copy's answer key and flag
+         * (death.mjs `publishDeath`, which the discovery calls). Read: the copy's answer key and flag
          * before the publication, and after it.
          */
         needs(world.atLeast("livingStudents", 3), "a killer, a victim and the student handed the copy");
@@ -53651,7 +53651,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F3. Two roads make the running fight's
          * victim the table's dead at once, with no body to find: the GM's "A character dies" with
-         * "kept until found" unticked (chapter.mjs `killCharacter`, `secret: false`), and the
+         * "kept until found" unticked (death.mjs `killCharacter`, chapter.mjs `secret: false`), and the
          * Students list's "dead" on a living victim (gm-students.mjs `applyAliveStates`). Each ties the
          * chapter's undecided traces (`incidentVictimDied`), and C4 sent the ties to nobody. For each
          * road, a fight of its own over an undecided trace of the chapter and a Search's trace that
@@ -53718,7 +53718,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * holder what a second death, still kept by the GMs, had tied. An undecided trace of this
          * chapter with an identified copy on a fourth student; the fight's victim dies kept by the
          * GMs and the fight is closed; a second student dies kept, outside any fight; then that
-         * second body is found (chapter.mjs `discoverBody`, in a room nobody stands in, the GM's
+         * second body is found (body.mjs `discoverBody`, in a room nobody stands in, the GM's
          * windows closed at once); then the first death is made known (`publishDeath`). Read: the
          * second death known and the copy's answer key and flag after the discovery; the key and
          * the flag after the first death is known. Red at f88133d (A1, 08.10.2026): the key and the
@@ -53839,7 +53839,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E09 fix r1-G1, 08.10.2026. A death the GMs keep ties the chapter's undecided traces in the
          * ledger and the copies wait for its publication; C4 sent them at the chapter's next
          * discovery, whoever's, which since this fix sends only its own bodies' ties. A death taken
-         * back once its fight is over (chapter.mjs `reviveCharacter`) will never be published, so it
+         * back once its fight is over (death.mjs `reviveCharacter`) will never be published, so it
          * sends what it held, and the copies agree with the ledger. An undecided trace of this
          * chapter with an identified copy on a third student; the victim dies kept by the GMs; the
          * fight is closed; the death is taken back. Read: the copy's answer key and flag after the
@@ -59996,7 +59996,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a repair moves the flags and says nothing: markDeceased writes the record and the dead marker and posts, tells and deletes nothing; the Students window's dead is no death procedure; setMonocub tells only a change it made, and clears a silence mark either way (E40 item 4: R67's rule, driven; was R67)", async () => {
         /*
          * E40 item 4, 13.11.2026. R67 (tier 0, its killCharacter and incidentVictimDied orders kept there as a text guard)
-         * read chapter.mjs `markDeceased` and monocub.mjs `setMonocub` as text: the flag and the marker named, four loud
+         * read death.mjs `markDeceased` and monocub.mjs `setMonocub` as text: the flag and the marker named, four loud
          * calls not named, `const was = isMonocub(actor)` and `if (was === Boolean(value))`. It passed a markDeceased that
          * posted a card through any other name than the four, and a setMonocub whose `was` read nothing (mutants m3 and m2,
          * docs/dev/e40/ITEM4-C.md). Here the repair is driven on a living student with a token on the scene on screen:
@@ -60077,7 +60077,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * call-world.mjs `gatherEveryone` for a death's predicate named anywhere in it (`isDeceased(` or `isDeadForGm(`),
          * and passed a filter that turned the Monocub's exception round - the dead walked and the Monocub stayed - with
          * both names still in it (mutant m2, docs/dev/e40/ITEM4-C.md). Here the gather is driven: three students with a
-         * token on the scene on screen, one dead (chapter.mjs `markDeceased`), one dead and a Monocub, one living, and a
+         * token on the scene on screen, one dead (death.mjs `markDeceased`), one dead and a Monocub, one living, and a
          * room none of them stands in; `gatherEveryone(room, scene)`. Read: whether each token moved, and whether the
          * gather's packet to the clients names it (not where it lands: the harness's regions have no `teleportTokens`, and
          * the fallback's ring can leave a token outside a small room - "the gather tells each client where its token
@@ -62089,7 +62089,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * the hold (`SETTINGS.bodyFound`), which the next phase change clears, so nothing could tell a
          * body found from one nobody had found once the Investigation began (65-season B4: a second
          * card after End the trial). Now each discovery writes one stamp, under the chapter and season
-         * it happened in (settings.mjs `recordBodyFound`, through chapter.mjs `announceBody`). A death
+         * it happened in (settings.mjs `recordBodyFound`, through body.mjs `announceBody`). A death
          * kept by the GMs, found by the GM's own road (`discoverBody`, in a room nobody stands in, the
          * GM's windows closed at once). Read: the rows of this chapter and season before and after,
          * the new row's bodies, road and room, whether the body reads announced and the chapter found;
@@ -62139,7 +62139,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["the dead channel opens when the body is found", async () => {
         /*
          * E19 C3; A9, audit S11-26 (E19-13). A death kept by the GMs keeps its voice in the room until something makes
-         * it known, and the body found is one of those things: `deathVoiceGone` asks chapter.mjs `deathAnnounced`, which
+         * it known, and the body found is one of those things: `deathVoiceGone` asks body.mjs `deathAnnounced`, which
          * reads this chapter's and season's discovery stamps (settings.mjs `bodiesFound`, E11) against the death's own
          * record. The stamp is a world setting a tier-1 test cannot write, so the trigger is read here, on the GM's
          * own road as the E11 test above: a death kept by the GMs, found in a room nobody stands in. The incident is
@@ -62188,7 +62188,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E11 C1, 1.2.73; audit S06-03 (the plan's 1.x item 8: an execution is public at once and
          * its record carried this chapter, so the executed student was a body); the prep's note on
          * E10 fix r1-G4. A verdict that executes a student whose death the GMs hold publishes that
-         * death with the kill's record (vote.mjs `executeSentenced` -> chapter.mjs `publishDeath`),
+         * death with the kill's record (vote.mjs `executeSentenced` -> death.mjs `publishDeath`),
          * so the record named the kill's chapter and phase and nothing said "execution". The
          * convict killed in Daily Life with `secret: true`, the right verdict executing them as the
          * window's `read` gives it, the phase Daily Life as End the trial leaves it; then the body
@@ -62255,7 +62255,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a walk-in during the Class Trial discovers no body - one the GMs still hold included", async () => {
         /*
          * E11 C1, 1.2.73; audit S06-03 (the plan's 1.x item 8: the guard missed `classTrial`). The
-         * watcher's guard (chapter.mjs `checkBodyFound`) admitted every phase but the Investigation,
+         * watcher's guard (body.mjs `checkBodyFound`) admitted every phase but the Investigation,
          * so a death the GMs still held - a body nobody had found, of this chapter, killed in Daily
          * Life - was discovered by two students the trial moved through its room. The bodies were
          * found before the trial began, and the trial is no walk: the guard now refuses the Class
@@ -63664,7 +63664,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E11 fix r1-G3; early review EARLY-C2-3. The GM panel's next line names a body nobody has
          * found yet (E11 C2) and told the GM "Two witnesses find it" for every one of them - but a
          * walk-in finds only a body whose token is on the walk's scene, not hidden and in a room
-         * (chapter.mjs `checkBodyFound`). A death the GMs keep, its token on the scene on screen in a
+         * (body.mjs `checkBodyFound`). A death the GMs keep, its token on the scene on screen in a
          * room, then hidden on every scene. Read off the panel as it is drawn (`openGmPanel`, its
          * window answered at once and its content kept): the line and its button before the token is
          * hidden and after.
@@ -64080,7 +64080,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * was a body to find again. In Daily Life, two deaths the GMs keep, each announced by the GM's road
          * in a room no region has (nobody is gathered): a student holding two Truth Bullets, and the
          * player's own character, kept with their Truth Bullets (a death whose bullets are deleted waits
-         * for the queue first: chapter.mjs `bulletsHeldBy`), with that player's write handed to the judge
+         * for the queue first: death.mjs `bulletsHeldBy`), with that player's write handed to the judge
          * just before the announcement and its judgement held at its write of the mark until the
          * announcement has returned - a save at a table takes its round trip, and the harness's stores
          * answer at once (measured 11.10.2026 at bc20730: with the judgement not held both cases read
@@ -80960,7 +80960,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3 (C4's gap: the hook's trigger on a published death was
          * not driven by itself, and no test drove a revive). On the primary: a living student given full Health and
-         * Sanity marks and synced (the control), killed in public (chapter.mjs `killCharacter`), then revived
+         * Sanity marks and synced (the control), killed in public (death.mjs `killCharacter`), then revived
          * (`reviveCharacter`); after each, only `settle()` - no `syncStates` of the test's - and the two conditions
          * read. The harness's `unsetFlag` writes a ForcedDeletion under the flag's name; the `-=` spelling v14 may
          * hand the hook instead is R980's.
@@ -95555,7 +95555,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     const why = await gate();
                     const second = await B.leaveBody(body);
                     if (second) laid.push(second);
-                    // E63 C0: chapter.mjs `markDeceased` hands `leaveBody` the record it wrote - the GMs' (RV-6 by construction).
+                    // E63 C0: death.mjs `markDeceased` hands `leaveBody` the record it wrote - the GMs' (RV-6 by construction).
                     const { flagsHeldNow } = await import("./sheet-audit.mjs");
                     const { deathRecord } = await import("./settings.mjs");
                     const handed = await B.leaveBody(body, { record: deathRecord(flagsHeldNow(body)) });
@@ -95573,12 +95573,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         });
     }],
 
-    ["every death leaves its body where its token lies (E63 C0; the owner's 11.11.2026 on E95 Q2, Q3; QUESTIONS E63 Q5, Q7): a public death (chapter.mjs `killCharacter`) lays one tile at the token's corner, its size in pixels, its picture and floor, flagged with the death; a second `markDeceased` of the same death lays none; the Players window's \"dead\" lays one; an execution lays one; a student with no token on a scene with rooms leaves none and the GM is told, except for a death in the Class Trial", async () => {
+    ["every death leaves its body where its token lies (E63 C0; the owner's 11.11.2026 on E95 Q2, Q3; QUESTIONS E63 Q5, Q7): a public death (death.mjs `killCharacter`) lays one tile at the token's corner, its size in pixels, its picture and floor, flagged with the death; a second `markDeceased` of the same death lays none; the Players window's \"dead\" lays one; an execution lays one; a student with no token on a scene with rooms leaves none and the GM is told, except for a death in the Class Trial", async () => {
         /*
          * E63 C0, 11.11.2026; STAGE E63 items 1, 2 and 4. On this GM: a student with a token on the scene on screen,
          * killed in public; their body tiles (body-tile.mjs `bodyTilesOf`) read - the count, and the one's scene, corner,
          * size against the token's squares on the scene's grid, picture, hidden, the death's `deathId`, the token's floor
-         * and the room the body is read in; then chapter.mjs `markDeceased` again with the record it wrote (the count);
+         * and the room the body is read in; then death.mjs `markDeceased` again with the record it wrote (the count);
          * revived, and made dead through gm-students.mjs `applyAliveStates` (the Players window's "dead", the F16 repair:
          * Q7); revived, and executed (`cause: "executed"`, phase classTrial). Then two students made by the suite with no
          * token anywhere, one killed in Daily Life's phase as the clock has it and one in the trial's: the tiles, and the
@@ -95652,10 +95652,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "executed: count, cause; noToken: [counts, warnings naming each] for a death now and in the trial, the words a key's]");
     }],
 
-    ["a kept death leaves no body until it is the table's (E63 C0; QUESTIONS E63 Q1): a death the GMs keep lays no tile on any scene; its token moved to another room as Stage 6's Move the body would, its publication (chapter.mjs `publishDeath`) lays one at the token's new place", async () => {
+    ["a kept death leaves no body until it is the table's (E63 C0; QUESTIONS E63 Q1): a death the GMs keep lays no tile on any scene; its token moved to another room as Stage 6's Move the body would, its publication (death.mjs `publishDeath`) lays one at the token's new place", async () => {
         /*
          * E63 C0, 11.11.2026; STAGE E63 item 3. On this GM: a student with a token on the scene on screen killed with the
-         * death kept (`secret: true`: chapter.mjs `recordSecretDeath`, a deathStore row); the body tiles of that student
+         * death kept (`secret: true`: death.mjs `recordSecretDeath`, a deathStore row); the body tiles of that student
          * on every scene this GM holds (a player's browser holds no more: the harness sends every tile to every client);
          * the token moved into another room by the GM, with the death still kept (cleanup.mjs `applyMoveBody` teleports the
          * same way); then `publishDeath`: the tiles, and whether the one lies at the token's new corner and in its new
@@ -95890,7 +95890,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E63 C3, 11.11.2026; STAGE E63 item 8. On the primary GM, two living students with tokens on the scene on screen,
          * each made dead in public as 1.2.104 left them: their `deceased` flag and the dead status written by hand
-         * (chapter.mjs `markDeceased` would lay the tile now), with the clock's chapter and epoch; the second also a
+         * (death.mjs `markDeceased` would lay the tile now), with the clock's chapter and epoch; the second also a
          * Monocub, with a 1.2.104 tile laid by the suite at their token (body-tile.mjs `bodyTileSpec`). Then migrate.mjs
          * `layOpenCaseBodies` (the clause's pass): the report and each one's tiles; again: the report; then the stamp
          * set to 1.2.105 and `migrate1_2_0({ only: ["openCaseBodies"] })`: whether it skipped it, and the tiles. Red at
@@ -95909,7 +95909,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const stamp = getSetting(SETTINGS.migratedVersion);
         const monoWas = b._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
         const clock = getClock(), trial = getSetting(SETTINGS.trialProgress) ?? {};
-        // As chapter.mjs `verdictBefore` writes it: the chapter's last verdict, or null.
+        // As death.mjs `verdictBefore` writes it: the chapter's last verdict, or null.
         const death = () => ({ chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch(),
             deathId: foundry.utils.randomID(), sinceVerdict: trial?.chapter === clock.chapter ? (trial.lastVerdictAt ?? null) : null });
         const at = x => B.bodyTilesOf(x.id).map(({ doc }) => doc.x === tokenOf(x).x && doc.y === tokenOf(x).y);
@@ -96024,9 +96024,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E95 C2, 10.11.2026; QUESTIONS Q7 (the reset's "deaths" group) and Q8 (a revived student has no body). On this
          * GM, the primary: a student killed in public with a body tile laid by the suite (body-tile.mjs `bodyTileSpec`,
          * the data `leaveBody` lays, so this test does not lean on `setMonocub`), a body tile of a student who is no
-         * longer in the world (an orphan), and a plain tile with no flag. chapter.mjs `reviveCharacter`: the student's
+         * longer in the world (an orphan), and a plain tile with no flag. death.mjs `reviveCharacter`: the student's
          * tile gone, the two others kept. The student killed again, a tile laid again, and the reset's deaths entry
-         * (season-reset.mjs `seasonStateFor("deaths").clear`, chapter.mjs `clearSeasonDeaths`) run with its other parts
+         * (season-reset.mjs `seasonStateFor("deaths").clear`, death.mjs `clearSeasonDeaths`) run with its other parts
          * held: `everyStudent` recorded and not run (it would revive and wipe every student), the GMs' store of deaths
          * nobody found recorded and not cleared. Read: which tiles are left. Red at E95 C1: both kept every tile.
          *
@@ -96459,12 +96459,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E95 C4, 10.11.2026; E72 amend[16], item (2) ("woła tu nazwany hook drpgBodyAnnounced z rozdziałem i id
          * ofiary"); QUESTIONS Q5 (a) (every browser) and Q6 (`waitUntil`, at most 1500 ms, chosen, not measured). On
-         * this GM, the primary, with a listener of the suite's own on `drpgBodyAnnounced`: chapter.mjs `announceBody`
+         * this GM, the primary, with a listener of the suite's own on `drpgBodyAnnounced`: body.mjs `announceBody`
          * with stamps of chapter 97 of this season (a chapter no world reaches), plain, with a listener's promise that
          * settles at 300 ms, and with one that never settles; then the setting written as another GM's stamp would
          * arrive (a row added by a plain write), written again with no new row, a room renamed (settings.mjs
          * `carryBodyRooms`), a stamp that cannot be written (no chapter: `recordBodyFound` answers null) and the
-         * reset's clear (chapter.mjs `clearSeasonBodies`). Read: the calls heard after each, as [writer, waitUntil's
+         * reset's clear (death.mjs `clearSeasonBodies`). Read: the calls heard after each, as [writer, waitUntil's
          * type]; on the writer whether the hook came before `announceBody` answered, how long it waited and whether the
          * 300 ms promise had settled by then; the payload's fields against the stamp in this browser's setting. The two
          * settings put back as they were. Red at E95 C3: no hook, nothing heard.
