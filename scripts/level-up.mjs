@@ -17,9 +17,8 @@ import { listExperiences } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**
