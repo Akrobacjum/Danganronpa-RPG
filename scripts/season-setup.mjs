@@ -70,6 +70,8 @@ import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 
 import { tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
@@ -1140,6 +1142,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     let resetAsked = false;
 
     const result = await drpgWindow({
+        help: WINDOW_HELP.seasonSetup,
         classes: ["drpg-panel", "drpg-window-season"],
         /* THE TABLES' WIDTH, 58rem (E49 A1d, the owner's approval of 11.11.2026: the footer in one row and the window on
            the screen at 1366x768). With Reset the season the footer holds four buttons; at "wide" (44rem, 704 px) they

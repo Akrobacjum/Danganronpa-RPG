@@ -11,6 +11,7 @@
  * equal tab widths fitted to one line, and I1's fine print.
  *
  *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal, fit, width, prompt })   a DialogV2 on the kit's frame
+ *   WINDOW_HELP, dressHelp(root, help)   the header's "?" (E57 C4, D35): a GM window's handbook section, and its button
  *   PROMPT_CLASS                  the class of a window the game waits on, kept above the sheet (stacking.mjs; E23 C5a)
  *   fitKitWidth(app)              a `fit` window as wide as its widest table (E21 C2a: tableDialog's measure, moved)
  *   WINDOW_WIDTHS, kitWidth(spec) the widths a window states by name (`width`), and the inline width one comes to
@@ -1192,6 +1193,69 @@ export function frame({ id, classes, title, closeLabel, data = {} } = {}) {
     return { frame: madeBy(el, "frame"), head, body, close };
 }
 
+/* ---- the header's "?" (E57 C4, D35) ---------------------------------------------------------------------------- */
+
+/**
+ * THE "?" OF D35 (E57 C4, 14.11.2026; the owner's D35: "yes, before 1.3.0, in seven GM windows and the dashboard tabs,
+ * by a section number shared by EN and PL"). A window that names a row here as its `help` gets a "?" in its header that
+ * opens the handbook on that section: a section id as handbooks.mjs `markSections` anchors it ("9.1", the same in both
+ * languages, E57 C4a), so one row serves both. The rows are Q-E57-2's default, the sections read off the GM handbook's
+ * headings on 14.11.2026 (docs/dev/e57/SPEC.md section 4); R6601 holds each to a heading both languages have, and each
+ * opener to its row. The Investigation dashboard's row and its tabs' come with E54, which splits investigation.mjs.
+ */
+export const WINDOW_HELP = Object.freeze({
+    gmPanel: Object.freeze({ book: "gm-handbook", section: "3" }),
+    seasonSetup: Object.freeze({ book: "gm-handbook", section: "2" }),
+    roomSetup: Object.freeze({ book: "gm-handbook", section: "9.1" }),
+    /* The case window (Back up, Restore) is the last paragraphs of section 14, Investigation. */
+    theCase: Object.freeze({ book: "gm-handbook", section: "14" }),
+    trialConsole: Object.freeze({ book: "gm-handbook", section: "15" }),
+    /* Edit campaign's fields and its chapter's end are section 4, the clock. */
+    editCampaign: Object.freeze({ book: "gm-handbook", section: "4" })
+});
+
+/** The class of the header's "?". */
+export const HELP_CLASS = "drpg-help-button";
+
+/* The words of the "?" by book: "Open the GM Handbook at section {section}". Only the GM handbook has a row yet. */
+const HELP_WORDS = Object.freeze({ "gm-handbook": "DRPG.Help.gm" });
+
+/**
+ * Put the "?" of `help` (`{ book, section }`, a row of WINDOW_HELP) into the header of the window at `root`, before
+ * its close, once: a second dressing (a window drawn again) finds it and adds none. Its press opens the handbook on
+ * the section (handbooks.mjs `openHandbooks`, read by `import()`: handbooks.mjs draws its window with this kit). Answers
+ * the button, or null where there is no help or no header (the harness's frame has none: R6601 dresses a stood-in one).
+ */
+export function dressHelp(root, help) {
+    if (!root || !help?.section) return null;
+    const header = root.querySelector(":scope > .window-header");
+    if (!header) return null;
+    const had = header.querySelector(`:scope > .${HELP_CLASS}`);
+    if (had) return had;
+    const book = help.book ?? "gm-handbook";
+    const section = String(help.section);
+    const words = game.i18n.format(HELP_WORDS[book] ?? HELP_WORDS["gm-handbook"], { section });
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `header-control icon fa-solid fa-circle-question ${HELP_CLASS}`;
+    button.setAttribute("aria-label", words);
+    button.dataset.tooltip = words;
+    button.dataset.drpgHelpBook = book;
+    button.dataset.drpgHelpSection = section;
+    /* Its own press only: the header's drag and double-click (Foundry folds a window on it) are not the "?"'s. */
+    button.addEventListener("pointerdown", event => event.stopPropagation());
+    button.addEventListener("dblclick", event => event.stopPropagation());
+    button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        import("./handbooks.mjs").then(m => m.openHandbooks(book, { section, remember: false })).catch(err => error("The handbook could not be opened from a window's \"?\"", err));
+    });
+    const close = header.querySelector(':scope > [data-action="close"]');
+    if (close) header.insertBefore(button, close);
+    else header.append(button);
+    return button;
+}
+
 /* ---- the frame -------------------------------------------------------------------------------------------------- */
 
 /** The root classes of every kit window, beside its own `drpg-window-*`. */
@@ -1218,9 +1282,10 @@ export const PROMPT_CLASS = "drpg-prompt";
  * a kit window's width (R1376): a window without either takes the module's popup width rules. `prompt` puts PROMPT_CLASS
  * on a window the game waits on (above). `pinned` (E49 A1e, 12.11.2026; the owner: Season setup's row of windows "always
  * at the bottom, always visible") is markup drawn under the body that scrolls, in `div.drpg-kit-pinned`, which keeps its
- * height as the tab bar and the footer do; a window that names none draws what it drew before, byte for byte.
+ * height as the tab bar and the footer do; a window that names none draws what it drew before, byte for byte. `help`
+ * (E57 C4) is a row of WINDOW_HELP: the header's "?" (`dressHelp`, above); a window that names none has none.
  */
-export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, prompt = false, pinned = null, ...rest } = {}) {
+export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, prompt = false, pinned = null, help = null, ...rest } = {}) {
     const DialogV2 = foundry.applications.api.DialogV2;
     const sized = width === null ? null : widthSpec(width);
     const list = footerButtons(footer);
@@ -1246,9 +1311,13 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
                 if (sized) stateWidth(root, sized);
                 keepFooter(dialog, list);
                 dressFrame(root, list, tabs, onMode, dialog);
+                dressHelp(root, help);
                 // A later render of the same window draws Foundry's footer again: it is dressed again, as the last
-                // footer `liveFooter` drew (E46-C1).
-                dialog.addEventListener?.("render", () => dressFrame(dialog.element, dialog.drpgFooter ?? list, tabs, onMode, dialog));
+                // footer `liveFooter` drew (E46-C1); the "?" stays, or is put back where the header was drawn again.
+                dialog.addEventListener?.("render", () => {
+                    dressFrame(dialog.element, dialog.drpgFooter ?? list, tabs, onMode, dialog);
+                    dressHelp(dialog.element, help);
+                });
             } catch (err) {
                 error("A kit window could not be dressed", err);
             }
@@ -1504,6 +1573,8 @@ export function DrpgApp() {
             region?.classList.add("drpg-kit-body");
             this._kitStop?.();
             this._kitStop = wireKit(root);
+            /* `options.help` (E57 C4): a row of WINDOW_HELP, the header's "?". */
+            dressHelp(root, this.options?.help ?? null);
         }
 
         _onClose(options) {

@@ -1969,6 +1969,9 @@
         "caution": "Ostrożnie"
       }
     },
+    "Help": {
+      "gm": "Otwórz Podręcznik GM w sekcji {section}"
+    },
     "Kit": {
       "close": "Zamknij",
       "cancel": "Anuluj",

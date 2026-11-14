@@ -1881,6 +1881,9 @@
         "caution": "Caution"
       }
     },
+    "Help": {
+      "gm": "Open the GM Handbook at section {section}"
+    },
     "Kit": {
       "close": "Close",
       "cancel": "Cancel",

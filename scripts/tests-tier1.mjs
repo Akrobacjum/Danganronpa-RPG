@@ -1781,6 +1781,38 @@ const INVARIANTS = [
             await app?.close();
         }
 
+        /* A WINDOW'S "?" ON FOUNDRY'S OWN FRAME (E57 C4, D35; R6601 reads the kit's dressing on a stood-in header, as the
+           harness draws none): the GM panel's header has its "?" before the close, and its press opens the GM handbook
+           with section 3's heading 8 px under the text's top, as above. A GM's part: a player has no GM window. */
+        if (game.user.isGM) {
+            const { openGmPanel } = await import("./gm-panel.mjs");
+            openGmPanel();
+            let panel = null, help = null, book = null;
+            try {
+                for (let i = 0; i < 40 && !help; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    panel = [...foundry.applications.instances.values()].find(a => a.element?.classList.contains("drpg-gm-panel-window")) ?? null;
+                    help = panel?.element.querySelector(":scope > .window-header > .drpg-help-button") ?? null;
+                }
+                ok(help, "the GM panel's header has no \"?\"");
+                ok(help?.offsetWidth > 0, "the GM panel's \"?\" is in its header and has no width - it is not drawn");
+                help?.click();
+                for (let i = 0; i < 40 && !book?.rendered; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    book = foundry.applications.instances.get("drpg-handbooks") ?? null;
+                }
+                await book?.shown;
+                equal(`${book?.book} ${book?.landed}`, "gm-handbook 3", "the GM panel's \"?\" did not land on the GM handbook's section 3");
+                const text = book?.element.querySelector(".drpg-handbook-text");
+                const third = text?.querySelector('[data-drpg-section="3"]');
+                ok(third && Math.abs(third.getBoundingClientRect().top - text.getBoundingClientRect().top - 8) <= 2,
+                    "the GM handbook's section 3 is not at the top of the text after the \"?\"");
+            } finally {
+                await book?.close();
+                await panel?.close();
+            }
+        }
+
         /* The boxes are GitHub's alert syntax, so one file reads right in both places: a
            `> [!KIND]` quote becomes a titled box of that kind, and any other quote stays one. */
         const { markdownToHtml } = await import("./handbooks.mjs");
@@ -1977,6 +2009,141 @@ const INVARIANTS = [
             equal(getSetting(SETTINGS.handbookBook), remembered, "asked with no book, openHandbooks remembered one");
         } finally {
             if (!wasOpen) await app?.close();
+        }
+    }],
+
+    ["R6601 - the \"?\" of D35 (E57 C4): each GM window the kit's WINDOW_HELP names passes its own row as `help` where it opens, and each row names a section the GM handbook has in English and in Polish; the kit draws one \"?\" in a window's header, named in the page's language with its section, a second dressing draws no second, a window with no `help` gets none, and the press opens the GM handbook on that section without changing the book the corner's book opens next", async () => {
+        /*
+         * E57 C4 (14.11.2026; D35: "?" in seven GM windows and the dashboard tabs, each opening the handbook on a section
+         * id shared by EN and PL). The rows are data in ui-kit.mjs (WINDOW_HELP) and each window hands its own row to
+         * drpgWindow (`help: WINDOW_HELP.<row>`), read here in the opener's source. The section is held to the GM
+         * handbook's headings as R4720 cuts them from the Markdown (no showdown headless) and markSections anchors them.
+         * The header itself is Foundry's frame, which the harness's ApplicationV2 does not draw: the kit's `dressHelp` is
+         * run on a stood-in root with a `.window-header`, as Foundry v14 puts it under the window's root; that a real
+         * window's header takes it and the handbook lands there is R111's (a layout) and LIVE-E57-01.
+         */
+        const kit = await import("./ui-kit.mjs");
+        const { markSections, sectionHeading, handbookPath } = await import("./handbooks.mjs");
+        must(kit.WINDOW_HELP && typeof kit.dressHelp === "function", "the kit has no \"?\" yet (WINDOW_HELP, dressHelp)");
+        const OPENERS = {
+            gmPanel: ["gm-panel.mjs", "openGmPanel"], seasonSetup: ["season-setup.mjs", "openSeasonSetup"],
+            roomSetup: ["room-setup.mjs", "openRoomSetupDialog"], theCase: ["gm-stores.mjs", "openCaseWindow"],
+            trialConsole: ["trial-floor-ui.mjs", "manageClassTrial"], editCampaign: ["gm-campaign.mjs", "openClockDialog"]
+        };
+        equal(Object.keys(kit.WINDOW_HELP).sort().join(), Object.keys(OPENERS).sort().join(), "WINDOW_HELP names other windows than the six this test reads");
+        for (const [row, [file, fn]] of Object.entries(OPENERS)) {
+            const source = fnSource(await lfText(await fetch(`/modules/${MODULE_ID}/scripts/${file}`)), fn);
+            ok(source && new RegExp(`\\bhelp: WINDOW_HELP\\.${row}\\b`).test(source), `${file} ${fn} does not hand drpgWindow its "?" (help: WINDOW_HELP.${row})`);
+        }
+        /* And the kit's two frames dress what they are handed: drpgWindow on its first render and on every later one, the
+           ApplicationV2 class on each (read in the source: the harness draws no header for either to be seen in). */
+        const kitSource = await lfText(await fetch(`/modules/${MODULE_ID}/scripts/ui-kit.mjs`));
+        equal((fnSource(kitSource, "drpgWindow").match(/dressHelp\((root|dialog\.element), help\)/g) ?? []).length, 2,
+            "drpgWindow does not dress its \"?\" on the first render and on a later one");
+        ok(/dressHelp\(root, this\.options\?\.help \?\? null\)/.test(fnSource(kitSource, "DrpgApp")), "DrpgApp does not dress its \"?\" from options.help");
+        const headingsOf = markdown => {
+            const root = document.createElement("div");
+            let fence = false;
+            for (const line of String(markdown).split(/\r?\n/)) {
+                if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue; }
+                const m = fence ? null : /^(#{2,3}) (.+)$/.exec(line);
+                if (!m) continue;
+                const heading = document.createElement(m[1].length === 2 ? "h2" : "h3");
+                heading.textContent = m[2].trim();
+                root.append(heading);
+            }
+            return root;
+        };
+        for (const lang of ["en", "pl"]) {
+            const root = headingsOf(await lfText(await fetch(handbookPath("gm-handbook", lang))));
+            markSections(root);
+            for (const [row, help] of Object.entries(kit.WINDOW_HELP)) {
+                equal(help.book, "gm-handbook", `${row}'s "?" opens another book than the GM handbook`);
+                ok(sectionHeading(root, help.section), `gm-handbook.${lang} has no section ${help.section}, which ${row}'s "?" opens`);
+            }
+        }
+        /* The kit's dressing, on a stood-in frame, and its press: the handbooks' window opens on the row's section. */
+        const frame = () => {
+            const root = document.createElement("div");
+            root.className = "application drpg-ui";
+            root.innerHTML = '<header class="window-header"><h1 class="window-title">T</h1><button type="button" class="header-control" data-action="close"></button></header><div class="window-content"></div>';
+            document.body.append(root);
+            return root;
+        };
+        const root = frame(), bare = frame();
+        let app = null;
+        try {
+            const help = kit.WINDOW_HELP.roomSetup;
+            kit.dressHelp(root, help);
+            kit.dressHelp(root, help);
+            kit.dressHelp(bare, null);
+            const buttons = root.querySelectorAll(":scope > .window-header .drpg-help-button");
+            equal(buttons.length, 1, "a window dressed twice has not exactly one \"?\" in its header");
+            equal(bare.querySelectorAll(".drpg-help-button").length, 0, "a window with no help got a \"?\"");
+            const words = game.i18n.format("DRPG.Help.gm", { section: help.section });
+            ok(words && !words.startsWith("DRPG."), "DRPG.Help.gm has no words in the page's language");
+            equal(buttons[0]?.getAttribute("aria-label"), words, "the \"?\" is not named in the page's language with its section");
+            equal(buttons[0]?.dataset.tooltip, words, "the \"?\" has no tooltip of the same words");
+            ok(buttons[0]?.nextElementSibling?.dataset.action === "close", "the \"?\" does not stand before the header's close");
+            const remembered = game.settings.get(MODULE_ID, "handbookBook");
+            buttons[0]?.click();
+            for (let i = 0; i < 40 && !app; i++) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                app = foundry.applications.instances.get("drpg-handbooks") ?? null;
+            }
+            ok(app, "the \"?\" opened no handbook");
+            equal(`${app?.book} ${app?.sectionAsked}`, `gm-handbook ${help.section}`, "the \"?\" opened the handbook on another book or section");
+            equal(game.settings.get(MODULE_ID, "handbookBook"), remembered, "the \"?\" changed the book the corner's book opens next");
+        } finally {
+            root.remove();
+            bare.remove();
+            await app?.close();
+        }
+    }],
+
+    ["R6602 - a handbook's \"section N\" references are jumps (E57 C4, D35 of 26.09): \"section\", \"sections\" and the Polish \"sekcj*\" before a section number of the book become an entry with no href that puts that section 8 px under the text's top, as the contents list does, on a press and on Enter; one in code or a heading stays text; a number the book has no section for stays text and is listed; and in the six books as served every reference names a section of its own book", async () => {
+        /*
+         * E57 C4 (14.11.2026). The owner's 26.09 note to D35: "section N" references become clickable jumps by the same
+         * mechanism as the "?". The entries take no href for E27's reason (fillContents' header: Foundry opens any
+         * a[href] in a new tab). Measured on this tree (14.11.2026): GM handbook 136 references in English, 122 in
+         * Polish, the player handbook 1 and 1, the brochure none; none names a section its book lacks, and none points
+         * into another book (the one "player ... section 5" is the GM handbook's own section 5).
+         */
+        const { markSections, linkSections, sectionReferences, handbookPath } = await import("./handbooks.mjs");
+        must(typeof linkSections === "function" && typeof sectionReferences === "function", "handbooks.mjs has no section jumps yet (linkSections, sectionReferences)");
+        const text = document.createElement("article");
+        text.innerHTML = "<h2>1. One</h2><p>See section 2 and sekcji 2.1, not section 9.</p><p><code>section 2</code></p><h2>2. Two</h2><h3>2.1 Sub</h3><p>b</p>";
+        document.body.append(text);
+        try {
+            markSections(text);
+            const r = linkSections(text);
+            const links = [...text.querySelectorAll(".drpg-section-link")];
+            equal(links.map(a => `${a.textContent}>${a.dataset.drpgGoto}`).join(), "section 2>2,sekcji 2.1>2.1", "the references were not made jumps to their sections");
+            ok(links.every(a => !a.hasAttribute("href") && a.getAttribute("role") === "link" && a.tabIndex === 0), "a jump has an href, or is no link a keyboard reaches");
+            equal(r.unknown.join(), "9", "a reference to a section the book lacks is not listed");
+            equal(text.querySelector("code").textContent, "section 2", "a reference in code was touched");
+            equal(linkSections(text).linked, 0, "a second pass made jumps of jumps");
+            const sub = text.querySelector("h3");
+            text.getBoundingClientRect = () => ({ top: 100 });
+            sub.getBoundingClientRect = () => ({ top: 400 });
+            text.scrollTop = 20;
+            links[1].click();
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "the jump does not put its section 8 px under the text's top");
+            text.scrollTop = 20;
+            links[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "Enter on a jump does not go to its section");
+        } finally {
+            text.remove();
+        }
+        /* The six books as served, their headings and references cut from the Markdown (no showdown headless). */
+        for (const id of ["player-brochure", "player-handbook", "gm-handbook"]) {
+            for (const lang of ["en", "pl"]) {
+                const markdown = await lfText(await fetch(handbookPath(id, lang)));
+                const refs = sectionReferences(markdown);
+                const missing = refs.filter(n => !refs.sections.has(n));
+                equal(missing.join(), "", `${id}.${lang}: a "section N" reference names no section of the book`);
+                if (id === "gm-handbook") ok(refs.length > 100, `${id}.${lang}: only ${refs.length} "section N" reference(s) read - the pattern reads less than the book holds`);
+            }
         }
     }],
 

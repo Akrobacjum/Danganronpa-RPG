@@ -228,6 +228,78 @@ export function goToSection(text, section) {
     return heading;
 }
 
+/*
+ * "SECTION N" REFERENCES ARE JUMPS (E57 C4; the owner's 26.09 note to D35: they become clickable "by the same mechanism"
+ * as the "?"). A reference is "section", "sections" or a form of the Polish "sekcja" before a section number, in the
+ * text a reader reads - not in code, a heading, a link or the contents list. It becomes an entry with no href, for
+ * fillContents' reason (Foundry opens any a[href] in a new tab), that goes to the section with goToSection. Only the
+ * number right after the word is a jump ("sections 6 and 7" makes 6 one); a number the book has no section for stays
+ * text and is listed (`unknown`). Measured 14.11.2026: every reference of the six books names a section of its own book
+ * (R6602), so a jump never needs another book.
+ */
+const SECTION_REFERENCE = /\b(sections?|sekcj(?:a|i|ę|ą|e|ach|ami|om))(\s+)(\d+(?:\.\d+)?)(?![\d.]*\d)/giu;
+
+/** The "section N" references of a book's Markdown, in order, with the book's own sections as `sections` (a Set). */
+export function sectionReferences(markdown) {
+    const sections = new Set();
+    const refs = [];
+    let place = 0, fence = false;
+    for (const line of String(markdown).split(/\r?\n/)) {
+        if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue; }
+        if (fence) continue;
+        const h2 = /^## (.+)$/.exec(line), h3 = /^### (\d+\.\d+)(?!\d)/.exec(line);
+        if (h2) { place += 1; sections.add(/^(\d+)\./.exec(h2[1])?.[1] ?? String(place)); continue; }
+        if (h3) { sections.add(h3[1]); continue; }
+        if (/^#{1,6} /.test(line)) continue;
+        for (const m of line.replace(/`[^`]*`/g, "").matchAll(SECTION_REFERENCE)) refs.push(m[3]);
+    }
+    return Object.assign(refs, { sections });
+}
+
+/** Make a rendered book's references jumps; answers how many it made and the numbers it found no section for. */
+export function linkSections(text) {
+    const out = { linked: 0, unknown: [] };
+    if (!text) return out;
+    /* SHOW_TEXT is 4 (DOM Level 2); the harness's page has no NodeFilter global, a browser has. */
+    const walker = document.createTreeWalker(text, globalThis.NodeFilter?.SHOW_TEXT ?? 4);
+    const nodes = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.parentElement?.closest("code, pre, a, h1, h2, h3, h4, .drpg-handbook-toc")) nodes.push(node);
+    }
+    for (const node of nodes) {
+        const value = node.nodeValue;
+        const matches = [...value.matchAll(SECTION_REFERENCE)];
+        if (!matches.length) continue;
+        const parts = document.createDocumentFragment();
+        let at = 0;
+        for (const m of matches) {
+            const section = m[3];
+            if (!sectionHeading(text, section)) { out.unknown.push(section); continue; }
+            parts.append(value.slice(at, m.index));
+            const link = document.createElement("a");
+            link.setAttribute("role", "link");
+            link.tabIndex = 0;
+            link.className = "drpg-section-link";
+            link.dataset.drpgGoto = section;
+            link.textContent = m[0];
+            const go = event => {
+                event.preventDefault();
+                event.stopPropagation();
+                goToSection(text, section);
+            };
+            link.addEventListener("click", go);
+            link.addEventListener("keydown", event => { if (event.key === "Enter") go(event); });
+            parts.append(link);
+            at = m.index + m[0].length;
+            out.linked += 1;
+        }
+        if (!at) continue;
+        parts.append(value.slice(at));
+        node.replaceWith(parts);
+    }
+    return out;
+}
+
 function toHtml(markdown) {
     const Converter = globalThis.showdown?.Converter;
     if (!Converter) return `<pre>${foundry.utils.escapeHTML(markdown)}</pre>`;
@@ -382,6 +454,7 @@ class HandbookApp extends DrpgApp() {
         text.innerHTML = html;
         text.scrollTop = 0;
         fillContents(toc, text);
+        linkSections(text);
         this.loaded = id;
         if (section === null) return null;
         const heading = goToSection(text, section);
@@ -435,15 +508,17 @@ export function fillContents(toc, text) {
 /**
  * Open the handbooks, on `book` (remembered, as a tab's press is) and at `section` (E57 C4a: a section id as
  * `markSections` gives it, "9" or "9.1", the same in both languages). An open window is handed both; its `shown` is
- * the promise of where it lands. A section the book lacks leaves the text at its top.
+ * the promise of where it lands. A section the book lacks leaves the text at its top. `remember: false` (E57 C4) opens
+ * the book without making it the one the corner's book opens next: a window's "?" (ui-kit.mjs `dressHelp`) shows the
+ * GM handbook for that window, which is no choice of a book.
  */
-export async function openHandbooks(book = null, { section = null } = {}) {
+export async function openHandbooks(book = null, { section = null, remember = true } = {}) {
     const open = alreadyOpen(WINDOW_CLASS);
     if (open) {
-        if (book || section !== null) open.shown = open.show(book ?? open.book, { remember: Boolean(book), section });
+        if (book || section !== null) open.shown = open.show(book ?? open.book, { remember: Boolean(book) && remember, section });
         return open;
     }
-    if (book) rememberBook(book);
+    if (book && remember) rememberBook(book);
     return new HandbookApp({ ...(book ? { book } : {}), ...(section !== null ? { section: String(section) } : {}) }).render({ force: true });
 }
 

@@ -7,6 +7,13 @@
       "dropped": 0,
       "baseline": true,
       "note": "E57 C1: the baseline, every Polish key as it stood at 30053fec (the 1.2.113 assembly 1463f22b under E57 C4a); written from the tree, not a read"
+    },
+    {
+      "date": "2026-11-14",
+      "keys": 1,
+      "dropped": 0,
+      "baseline": false,
+      "note": "E57 C4: the \"?\" label, written in both languages beside each other"
     }
   ],
   "keys": {
@@ -3032,6 +3039,7 @@
     "DRPG.Handover.stuckFor.steal": "9ca297cb:8683c9ca:b",
     "DRPG.Handover.theirHandsFull": "3f0f3ee0:438eabe4:b",
     "DRPG.Handover.who": "d105e830:16222ad2:b",
+    "DRPG.Help.gm": "7d012b27:1fdadb54",
     "DRPG.Hud.assignHint": "0cae6b04:205949e4:b",
     "DRPG.Hud.chapter": "4ed7dd72:567deff2:b",
     "DRPG.Hud.controlFailed": "120c53cc:d596e7ce:b",

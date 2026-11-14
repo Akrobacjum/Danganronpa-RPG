@@ -14041,6 +14041,13 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     color: var(--drpg-eye);
 }
 
+/* A "section N" jump (E57 C4, handbooks.mjs `linkSections`) has no href, for the contents list's reason, so the
+   browser draws it as text: the underline and the pointer say it can be pressed. */
+.drpg-handbook-text a.drpg-section-link {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 /* THE FIVE BOXES. One colour each, fixed rather than taken from the theme's
    accent, because the colour is what the kind means: blue a note, green a tip,
    violet a rule people miss, amber a cost, red the irreversible. */

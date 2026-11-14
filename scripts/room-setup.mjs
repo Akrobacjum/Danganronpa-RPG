@@ -38,6 +38,8 @@ import {
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import { roomActions } from "./facilities.mjs";
 import {
@@ -1277,6 +1279,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const initial = roomSetupTab(tab);
 
     const result = await drpgWindow({
+        help: WINDOW_HELP.roomSetup,
         title: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: scene?.name ?? "" }),
         // `drpg-projects` as well as `drpg-panel`: that is the class the
         // stylesheet hangs the table treatment on - full width, a scrolling
