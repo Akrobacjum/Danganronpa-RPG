@@ -7,8 +7,8 @@
      gap, as in v13), the status strip and the tray share `#ui-right-column-1` beside the
      sidebar, and the tray carries Daggerheart's own countdown markup. One module dialog and
      one popup stand in for the windows. Not part of the package (audit/ is export-ignored).
-     `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
-     computes it); `?theme=legacy` the other theme - its body class and, since E77 fix r1-M1, the
+     `?scale=1.4` sets the Interface scale slider (otherwise 100 %), and the page stamps what
+     applyTheme computes from it and the screen; `?theme=legacy` the other theme - its body class and, since E77 fix r1-M1, the
      theme setting too, so no curtain is mounted, as at a table (before it the curtain stayed
      mounted at 0x0 and its observers placed the Legacy tile, which a table's never do: the sweep's
      Legacy lines read the same with either, 13.10.2026, but only this one measures
@@ -2637,18 +2637,19 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     /* A resize that is an on-screen keyboard over the page restamps nothing, as the module's own listeners cut nothing
        then (E21 C1d: settings.mjs `keyboardUp`, glass.mjs `schedule`). */
     if (st.keyboardUp()) return;
-    const auto = st.autoScale(), type = Math.round(Math.max(0.85, auto) * 100) / 100;
+    /* `?scale=` IS THE SLIDER (15.11.2026), read through the settings shim's `uiScale` as applyTheme reads it: geometry the
+       slider on the screen's factor (`effectiveScale`), type the slider on that factor clamped at 0.85 (`typeScale`), and
+       the slider's own, Legacy's (the glass pins it at 1) and the floor's tokens. Until then `?scale=s` stamped s itself
+       for both of the first two, so `?scale=1` drew 1.00 where the module draws 0.75 at 1920x1080 and 0.70 at 1366x768
+       (`autoScale`), and glass-sweep's pins, read without `?scale`, failed at `?scale=1` (room box 312x285 against 265x364,
+       Chromium, e7a0971b). Now `?scale=1` and no `?scale` stamp the same. */
+    const slider = st.sliderScale();
     for (const el of [document.body, document.documentElement]) {
-      el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
-      el.style.setProperty("--drpg-type-scale", q.get("scale") || String(type));
-      /* `?scale=` stands for the slider too (14.11.2026, the slider down to 25 %): the slider's own factor, Legacy's (the
-         glass pins it at 1) and the readability floor's, as applyTheme stamps them from the slider. */
-      if (q.get("scale")) {
-        const slider = st.clampSlider(q.get("scale"));
-        el.style.setProperty("--drpg-slider-scale", String(slider));
-        el.style.setProperty("--drpg-legacy-scale", q.get("theme") === "legacy" ? String(slider) : "1");
-        el.style.setProperty("--drpg-floor-scale", String(st.floorScaleOf(slider)));
-      }
+      el.style.setProperty("--drpg-ui-scale", String(st.effectiveScale()));
+      el.style.setProperty("--drpg-type-scale", String(st.typeScale()));
+      el.style.setProperty("--drpg-slider-scale", String(slider));
+      el.style.setProperty("--drpg-legacy-scale", q.get("theme") === "legacy" ? String(slider) : "1");
+      el.style.setProperty("--drpg-floor-scale", String(st.floorScaleOf(slider)));
     }
     document.body.classList.toggle("drpg-stacked", st.narrowScreen());
     document.body.classList.toggle("drpg-short", st.shortScreen());
