@@ -265,6 +265,27 @@ rules, the A10/A11 key filter, the clock's phase and counters); no other rule re
 readable off world data alone (the Mask's, the register's and the trial's are GM stores, which `stateProblems` does not
 read by design).
 
+## The line claude/e39-40-116 (15.11.2026, base e9f4a791, 1.2.115)
+
+Baseline at e9f4a791: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 passed, 0 failed, 16 skipped, 0 red
+(486 s); 18-trial alone 26/26 checks, about 10 s inside the cluster.
+
+| Commit | What | Where |
+| --- | --- | --- |
+| C1 | **18-trial, a second trial with "Nobody"**: after the first trial's close, in the same chapter, Botan and Aiko put back by the GM (a fixture step), the trial ended and started again (Daily Life between; the first verdict's lock and its execution's stamp cleared), a new vote of a later round with none of the first trial's ballots counted at its open, cast and counted on Botan and Aiko, and the verdict the window sends for "Nobody is executed" (verdict.mjs `read`: `executedIds: []`), wrong, naming both Blackened: nobody sentenced, the public card says "Nobody is executed" and its cut-in names nobody, and the trial's close executes nobody. The scans after each of the five new steps. 26 checks to 51; 18-trial alone about 10 s to about 19 s inside the cluster, 23.9 s by `run-all.mjs scenarios --only 18-trial` | audit/harness/scenarios/18-trial.mjs |
+
+| Mutant | Check | Verdict |
+| --- | --- | --- |
+| trial-progress.mjs `TRIAL_RECORD.executedAt`: a trial's entry keeps the stamp (`atEntry: now => now.executedAt`) | 18-trial [second trial] | KILLED |
+| `TRIAL_RECORD.verdictApplied`: a trial's entry keeps the lock | 18-trial [second trial], [nobody] (the verdict refused) | KILLED |
+| `TRIAL_RECORD.vote`: a trial's entry starts the round at 0 | 18-trial [second ballots]: the first trial's three ballots counted at the open | KILLED |
+| `sentenceOf`: an empty sentence falls back to the record's `accusedIds` | 18-trial [second close]: Botan and Aiko executed | KILLED |
+| verdict.mjs `postVerdictCard`: the "Nobody is executed" line dropped | 18-trial [nobody] | KILLED |
+
+Gates of C1: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 passed, 0 failed, 16 skipped, 0 red (483 s); 18-trial
+by `run-all.mjs scenarios --only 18-trial` green. No tier-2 test changed, so none was run by name. No case was red on
+main.
+
 ## Needs a local Foundry
 
 - **LIVE-E40-01** (audit/AUDIT-1.2.42.md 9.2 item 537, written on this line; 532 on its branch, renumbered in the 1.2.113 assembly): `checkState()` at a real primary GM's

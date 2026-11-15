@@ -24,8 +24,13 @@
  * and every scan below looks for both Blackened's ids and names; Chie's player is the one cast player to look for
  * (Daichi has none).
  *
+ * A SECOND TRIAL WITH "NOBODY" (E40, 15.11.2026 on the line claude/e39-40-116): after the close, in the same chapter,
+ * the trial ended and started again, a new vote of a later round counted with none of the first one's ballots, and the
+ * verdict the window sends for "Nobody is executed", which sentences and executes nobody; scanned after each step.
+ * Five mutants, each KILLED here (docs/dev/e40/STATUS.md).
+ *
  * Not here (63-class-trial's and 72-canary's): the ballot windows, a late player, a GM's reload in the vote, the verdict's
- * window, a second trial, the Level Ups of a correct verdict; the markers of the GMs' other secrets.
+ * window, the Level Ups of a correct verdict; the markers of the GMs' other secrets.
  */
 export const layers = ["ci"];
 export const timeoutMs = 300000;
@@ -109,6 +114,81 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         check("close: the trial's end executes Botan and Aiko once and stamps the record",
             J(closed?.executed) === J([...ACCUSED].sort()) && closed.at === true && closed.botanDead === true && closed.aikoDead === true, J(closed));
         await scan("close");
+
+        /* A SECOND TRIAL, AND ITS VERDICT "NOBODY" (E40, 15.11.2026 on the line claude/e39-40-116; the plan's "a second
+           trial (D17)" and "a verdict with ... 'Nobody'"). 63 H drives the second trial's start on its own GMs and 63 F
+           reads that the verdict's window offers "Nobody is executed"; no scenario gave that verdict and read what it
+           leaves. Here, in the same chapter: Botan and Aiko put back by the GM (a fixture step, as the finally does), the
+           trial ended and started again (yes to "a new trial"), a new vote - no ballot of the first one counted, its
+           round carried on - cast and counted on Botan and Aiko again, and the verdict the window sends for "Nobody is
+           executed" (verdict.mjs `read`: `executedIds: []`), wrong, naming both Blackened. Nobody is sentenced, and the
+           trial's close kills nobody: Botan and Aiko alive after it. The scans run after every step, as above. */
+        phase("second trial", { flow: "class-trial" });
+        const again = await gm.eval(`const C = ${imp("chapter.mjs")}, V = ${imp("vote.mjs")}, UI = ${imp("trial-floor-ui.mjs")};
+            const { getClock } = ${imp("settings.mjs")};
+            for (const id of ${J(ACCUSED)}) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+            globalThis.__dialogAnswers.push(true);
+            const ended = await UI.endClassTrial();
+            const between = getClock().phase;
+            globalThis.__dialogAnswers.push("ok", "ok");
+            const started = await UI.startClassTrial();
+            const p = V.trialProgress();
+            return { ended: Boolean(ended), between, started, phase: getClock().phase, verdictApplied: Boolean(p.verdictApplied),
+                vote: p.vote ?? null, executedAt: p.executedAt ?? null,
+                alive: ${J(ACCUSED)}.every(id => !game.drpg.isDeadForGm(game.actors.get(id))) };`, { timeout: 60000 });
+        await settle(1200);
+        check("second trial: ended and started again in the same chapter - Daily Life between, the Class Trial after, the first verdict's lock and its execution's stamp cleared, Botan and Aiko alive",
+            again?.between !== "classTrial" && again.started === true && again.phase === "classTrial" && again.verdictApplied === false
+                && again.executedAt === null && again.alive === true, J(again));
+        await scan("second trial");
+
+        phase("second ballots", { flow: "class-trial" });
+        const sent2 = await gm.eval(`const V = ${imp("vote.mjs")}; const issued = await game.drpg.openVote();
+            return { issued, round: V.trialProgress().vote?.round ?? null, picks: V.trialProgress().vote?.picks ?? null, inAtOpen: V.votesIn() };`, { timeout: 60000 });
+        await settle(1200);
+        const cast2 = c => c.eval(`const B = ${imp("gm-bridge.mjs")};
+            const r = await B.requestBallotCast(${J(sent2?.round ?? 0)}, ${J(ACCUSED)});
+            return { ok: r?.ok ?? null, reason: r?.reason ?? null };`, { timeout: 30000 });
+        const answers2 = { p1: await cast2(p1), p2: await cast2(p2), p3: await cast2(p3) };
+        await settle(1200);
+        const inNow2 = await gm.eval(`return (${imp("vote.mjs")}).votesIn();`);
+        check("second ballots: three handed out for a round after the first trial's, none of the first trial's ballots counted at the open, and the three cast and counted",
+            sent2?.issued === 3 && sent2.round > (sent?.round ?? Infinity) && sent2.picks === 2 && sent2.inAtOpen === 0
+                && Object.values(answers2).every(a => a.ok === true) && inNow2 === 3, J({ sent2, firstRound: sent?.round ?? null, answers2, inNow2 }));
+        await scan("second ballots");
+
+        phase("second count", { flow: "class-trial" });
+        const count2 = await gm.eval(`const V = ${imp("vote.mjs")}; await V.closeVote();
+            const p = V.trialProgress(); return { closed: p.voteClosed, accused: p.accusedIds ?? null };`, { timeout: 60000 });
+        await settle(1200);
+        check("second count: closed and counted, Botan and Aiko accused again",
+            count2?.closed === true && J([...(count2.accused ?? [])].sort()) === J([...ACCUSED].sort()), J(count2));
+        await scan("second count");
+
+        phase("nobody", { flow: "class-trial" });
+        const nobody = await gm.eval(`const V = ${imp("vote.mjs")}, D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
+            D.wait = async () => null;
+            const from = game.messages.size;
+            try { await V.applyVerdict({ correct: false, executedIds: [], blackenedIds: ${J([IDS.chie, IDS.daichi])} }); }
+            finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            const p = V.trialProgress();
+            const card = game.messages.contents.slice(from).find(m => m.getFlag("danganronpa-rpg", "verdictAt") === p.verdict?.at);
+            return { stage: p.verdict?.stage ?? null, sentenced: p.verdict?.sentenced ?? null,
+                saysNobody: Boolean(card?.content?.includes(game.i18n.localize("DRPG.Vote.nobodyExecuted"))),
+                cut: card?.getFlag("danganronpa-rpg", "verdictCut")?.sentenced ?? null };`, { timeout: 60000 });
+        await settle(1500);
+        check("nobody: the wrong verdict that executes nobody is given - nobody sentenced, its public card says \"Nobody is executed\" and its cut-in names nobody",
+            nobody?.stage === "done" && J(nobody.sentenced) === J([]) && nobody.saysNobody === true && J(nobody.cut) === J([]), J(nobody));
+        await scan("nobody");
+
+        phase("second close", { flow: "class-trial" });
+        const closed2 = await gm.eval(`const V = ${imp("vote.mjs")}; const done = await V.executeAtExit();
+            return { executed: [...(done?.executed ?? [])], deadNow: [...${J(ACCUSED)}, "${IDS.chie}", "${IDS.daichi}"].filter(id => game.drpg.isDeadForGm(game.actors.get(id))) };`,
+        { timeout: 60000 });
+        await settle(1500);
+        check("second close: the trial's end after \"Nobody\" executes nobody - Botan, Aiko, Chie and Daichi all alive",
+            J(closed2?.executed) === J([]) && J(closed2.deadNow) === J([]), J(closed2));
+        await scan("second close");
     } finally {
         await gm.eval(`const C = ${imp("chapter.mjs")}, { blackenedStore } = ${imp("gm-stores.mjs")}, w = globalThis.__s18 ?? {};
             for (const id of ${J(ACCUSED)}) { const a = game.actors.get(id);
