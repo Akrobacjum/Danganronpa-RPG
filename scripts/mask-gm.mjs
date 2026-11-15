@@ -216,7 +216,28 @@ export async function maskKiller(state) {
     const killer = game.actors.get(state?.killerId ?? "");
     if (!killer) return false;
     await maskStore.whenHydrated();
-    if (maskStore.get(killer.id)) return false;
+    /* A ROW ALREADY STANDING (E112 item 2, the coordinator's H2 of 15.11.2026): this returned false and patched nothing,
+       so a row left standing - restored from a backup (the store is backed up), or not ended because no primary was
+       there at the time of day's change - met the next opening with cards that said "someone" and tokens that wore the
+       real art. Read off the code, not seen at a table. Now every token of the killer the row does not hold masked is
+       adopted (`adoptToken`) and masked; the row's own looks stay as kept. */
+    if (maskStore.get(killer.id)) {
+        let n = 0;
+        for (const { token } of tokensOf(killer)) {
+            const listed = (maskStore.get(killer.id)?.tokens ?? []).some(row => row.tokenId === token.id);
+            if (!listed) await adoptToken(token);
+            else if (!isMaskedToken(token)) await token.update(maskPatch()).catch(err => maskFailed(killer, err));
+            else continue;
+            n++;
+        }
+        // The portrait as well, kept first where the row has none (a row of 1.2.115 kept no portrait).
+        if (killer._source?.img !== MASK_IMG) {
+            if (!maskStore.get(killer.id)?.portrait) await maskStore.patch(killer.id, { portrait: portraitOf(killer) });
+            await killer.update({ img: MASK_IMG }).catch(err => error(`Could not mask ${killer.name}'s portrait`, err));
+            n++;
+        }
+        return n > 0;
+    }
     const tokens = tokensOf(killer).map(({ scene, token }) => ({ sceneId: scene.id, tokenId: token.id, look: lookOf(token) }));
     await maskStore.patch(killer.id, { killerId: killer.id, victimId: state.victimId ?? null, userIds: ownersOf(killer),
         mark: await markNow(), tokens, portrait: portraitOf(killer), at: Date.now() });
@@ -224,7 +245,7 @@ export async function maskKiller(state) {
     // microphone is blocked, before anybody sees the "?".
     await settleBlock();
     await placeVoicesNow();
-    for (const { token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => error(`Could not mask a token of ${killer.name}`, err));
+    for (const { token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => maskFailed(killer, err));
     // And the portrait (E112 item 2b), after the tokens: the map is what the room looks at.
     await killer.update({ img: MASK_IMG }).catch(err => error(`Could not mask ${killer.name}'s portrait`, err));
     await retell();
@@ -233,6 +254,18 @@ export async function maskKiller(state) {
     await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.card"))}</p>` }, { veiled: true });
     log(`${killer.name} hides behind a "?" until they reveal themselves or the time of day ends.`);
     return true;
+}
+
+/**
+ * A TOKEN THE MASK COULD NOT WRITE IS SAID ON THE GM'S SCREEN (E112 item 2, the coordinator's H4 of 15.11.2026): it was
+ * only logged, on the primary's console, so a table saw the real art and nobody knew why. Said once a character a load.
+ */
+const failedFor = new Set();
+function maskFailed(actor, err) {
+    error(`Could not mask a token of ${actor?.name ?? "a character"}`, err);
+    if (failedFor.has(actor?.id ?? "")) return;
+    failedFor.add(actor?.id ?? "");
+    ui.notifications?.error?.(game.i18n.format("DRPG.Mask.tokenFailed", { name: actor?.name ?? "?" }));
 }
 
 /** End `killerId`'s mask (`why` for the log): every token's look put back, the block lifted, the cast sent again. */
@@ -456,6 +489,54 @@ export async function lightsJudged() {
     return settleVeils();
 }
 
+/* ------------------------------ a token made while a mask or a veil stands ------------------------------ */
+
+/*
+ * A TOKEN MADE WHILE A MASK OR A VEIL STANDS (E112 item 2, the coordinator's H1 of 15.11.2026). Both rows list the tokens
+ * that stood when they went up, and nothing looked at a token made afterwards: one made from the prototype (a GM's drag,
+ * the trial hall) wore the real art, and one carried to another scene (call-world.mjs `carryAcross`, a whole copy under a
+ * new id) kept the "?" or `hidden` after the end, its row naming only the token it replaced. Read off the code, not seen
+ * at a table: whether this is the owner's map of 15.11 waits on their answers. So the primary adopts every token of such
+ * a character as it is created: the row gains it - the look, or the `hidden`, of the token it was carried from where the
+ * carry's mark names one, else its own as made - and it is masked or veiled if it is not already. Answers what it did.
+ */
+const CARRY_MARK = "carriedFrom";
+
+/** The id of the token `tokenDoc` was carried from (call-world.mjs `carryAcross` marks it "sceneId.tokenId"), or null. */
+function carriedFrom(tokenDoc) {
+    const mark = (tokenDoc?.flags ?? tokenDoc?._source?.flags)?.[MODULE_ID]?.[CARRY_MARK];
+    return typeof mark === "string" && mark.includes(".") ? mark.split(".")[1] || null : null;
+}
+
+export async function adoptToken(tokenDoc) {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    const actorId = tokenDoc?.actorId ?? null, sceneId = tokenDoc?.parent?.id ?? null;
+    if (!actorId || !sceneId) return null;
+    await maskStore.whenHydrated();
+    await veilStore.whenHydrated();
+    const from = carriedFrom(tokenDoc);
+    const out = { masked: false, veiled: false };
+    const mask = maskStore.get(actorId);
+    if (mask && !(mask.tokens ?? []).some(row => row.tokenId === tokenDoc.id)) {
+        const rows = mask.tokens ?? [];
+        const look = (from && rows.find(row => row.tokenId === from)?.look) ?? (isMaskedToken(tokenDoc) ? rows[0]?.look ?? null : lookOf(tokenDoc));
+        if (look) await maskStore.patch(actorId, { tokens: [...rows, { sceneId, tokenId: tokenDoc.id, look }] });
+        if (!isMaskedToken(tokenDoc)) await tokenDoc.update(maskPatch()).catch(err => maskFailed(game.actors.get(actorId), err));
+        out.masked = true;
+    }
+    const veil = veilStore.get(actorId);
+    if (veil && !(veil.tokens ?? []).some(row => row.tokenId === tokenDoc.id)) {
+        const rows = veil.tokens ?? [];
+        const own = Boolean(tokenDoc._source?.hidden ?? tokenDoc.hidden);
+        const kept = from ? rows.find(row => row.tokenId === from)?.hidden : undefined;
+        const hidden = kept ?? (isVeiledToken(tokenDoc) ? Boolean(rows[0]?.hidden) : own);
+        await veilStore.patch(actorId, { tokens: [...rows, { sceneId, tokenId: tokenDoc.id, hidden }] });
+        if (!isVeiledToken(tokenDoc) || !own) await tokenDoc.update(veilPatch()).catch(err => error("Could not veil a token made behind a veil", err));
+        out.veiled = true;
+    }
+    return out;
+}
+
 /* ------------------------------ the killer's browser ------------------------------ */
 
 let askedFor = null;
@@ -517,6 +598,8 @@ export function registerMasks() {
     Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) settle(); });
     Hooks.once("ready", settle);
     Hooks.on("userConnected", (user, connected) => { if (!connected && user?.isGM) settle(); });
+    // A token made while a mask or a veil stands joins it (E112, `adoptToken`).
+    Hooks.on("createToken", tokenDoc => { if (isPrimaryGm()) adoptToken(tokenDoc).catch(err => error("Could not mask or veil a new token", err)); });
     import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.
     import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands })).catch(err => error("Could not hand the cards the masked names", err));

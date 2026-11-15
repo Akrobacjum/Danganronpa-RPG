@@ -17498,14 +17498,95 @@ const SCENARIOS = [
             await K.endMask(killer.id, "suite");
             await settle();
             read.back = stableJson(face()) === stableJson(before);
+            // The coordinator's H2: a row left standing (as a backup's restore brings one back, with no portrait, as 1.2.115
+            // kept none) met the next opening, which returned early and masked nothing.
+            const S = await import("./gm-stores.mjs");
+            await S.maskStore.patch(killer.id, { killerId: killer.id, victimId: victim.id, userIds: [], mark: "SUITE stale",
+                tokens: tokens().map(t => ({ sceneId: t.parent.id, tokenId: t.id, look: K.lookOf(t) })), at: Date.now() });
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            read.stale = [killer._source.img === K.MASK_IMG, tokens().every(t => t._source.texture?.src === K.MASK_IMG)];
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.endMask(killer.id, "suite");
+            await settle();
+            read.staleBack = stableJson(face()) === stableJson(before) && tokens().every(t => !t._source.flags?.[MODULE_ID]?.masked);
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
             if (stableJson(face()) !== stableJson(before)) await killer.update({ img: before[0], "prototypeToken.texture.src": before[1] });
             await settle();
         }
-        equal(stableJson(read), stableJson({ masked: [true, true], back: true }),
-            `a mask left the killer's portrait or a token showing their face, or did not give the portrait back exactly (masked: the portrait, the tokens; back) [${stableJson([before, face()])}]`);
+        equal(stableJson(read), stableJson({ masked: [true, true], back: true, stale: [true, true], staleBack: true }),
+            `a mask left the killer's portrait or a token showing their face, or did not give the portrait back exactly (masked: the portrait, the tokens; back; a row left standing: the portrait, the tokens; back) [${stableJson([before, face()])}]`);
+    }],
+
+    ["E112 - a token made while a mask or a veil stands joins it: one made from the prototype is masked or veiled, a carried copy keeps the look it was carried from, and each gets its own back at the end", async () => {
+        /*
+         * E112 item 2, the coordinator's H1 (15.11.2026): the mask's and the veil's rows list the tokens that stood when
+         * they went up. A token made afterwards from the prototype wore the killer's real art, and a copy carried to
+         * another scene (call-world.mjs `carryAcross`: the old token's data under a new id, marked `carriedFrom`) kept
+         * the "?" after the end, its row naming only the token it replaced. A direct murder between two students with
+         * players. The mask (an opening on Hope): a token made from the prototype and a copy of the killer's token made
+         * as `carryAcross` makes it; read each one's picture and flag, then after `endMask` each one's look against what
+         * it should get back - the prototype's own, the carried token's. The veil (a murder opened): a token made from
+         * the prototype; read its `hidden` and flag, then after the close its own `hidden`. Red on e9f4a791: the new
+         * token wears the real art, the copy stays "?" after the end.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const first = game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id))[0];
+        must(first, `${killer.name} has no token - this would measure nothing`);
+        const scene = first.parent;
+        const made = [];
+        const make = async data => {
+            const [doc] = await scene.createEmbeddedDocuments("Token", [data]);
+            made.push(doc?.id);
+            await settle();
+            return scene.tokens.find(t => t.id === doc?.id) ?? null;
+        };
+        const fromPrototype = async () => make((await killer.getTokenDocument({ x: first.x, y: first.y })).toObject());
+        const flags = t => t?._source?.flags?.[MODULE_ID] ?? {};
+        const look = t => [t?._source?.name ?? null, t?._source?.texture?.src ?? null];
+        const read = {};
+        const firstLook = look(first);
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await K.settleVeils();
+            const veiled = await fromPrototype();
+            read.veil = [veiled?._source?.hidden === true, flags(veiled).veiled === true];
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            read.veilBack = [veiled?._source?.hidden === false, flags(veiled).veiled ?? null];
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            const protoLook = [killer._source.prototypeToken?.name ?? null, null];
+            const fresh = await fromPrototype();
+            const data = first.toObject();
+            delete data._id;
+            data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), carriedFrom: `${scene.id}.${first.id}` } };
+            const copy = await make(data);
+            read.mask = [look(fresh)[1] === K.MASK_IMG && flags(fresh).masked === true, look(copy)[1] === K.MASK_IMG && flags(copy).masked === true];
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.endMask(killer.id, "suite");
+            await settle();
+            read.maskBack = [look(fresh)[1] !== K.MASK_IMG && look(fresh)[0] === protoLook[0] && Boolean(flags(fresh).masked) === false,
+                stableJson(look(copy)) === stableJson(firstLook) && Boolean(flags(copy).masked) === false];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            const ids = made.filter(id => scene.tokens.some(t => t.id === id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ veil: [true, true], veilBack: [true, null], mask: [true, true], maskBack: [true, true] }),
+            "a token made while a veil or a mask stood did not join it, or did not get its own back at the end (veil: hidden, flagged; after: own hidden, flag; mask: the prototype's token, the carried copy; after: each one's own look)");
     }],
 
     ["E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly: a success that opens a mask shows the token after the mask, a failure gives it its own hidden back, a trap and a self-inflicted death veil nothing, a row no opening holds is swept, and the lights' rows are taken over or lifted", async () => {
