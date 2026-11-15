@@ -217,7 +217,10 @@ The glass harness's `drpgEventCheck` now holds this rule: no cap, nothing styled
 | the count set as each title goes | **60/60** |
 | R7401 (new) | FAIL before (no cap rule held, no `fitEvents`), ok after |
 | R1394, R1430 | changed on purpose: they held the cap and the scroll marker (R1430 now reads the fit, with a stand-in second card, since the first card never folds) |
-| quick, the glass sweep (`--events` and whole), tier 1 | in the item's report |
+| quick at fb6f664b | RED, check part registry: R7401 reworded after its row was written; written again at 779026ce, green |
+| tier 1 at fb6f664b | 1689 passed, 0 failed, 16 skipped, 0 red |
+| `glass-sweep.mjs --events` at fb6f664b | EVENTS GREEN: 2 themes, 2 roles, 5 sizes, 2 controls |
+| `glass-sweep.mjs` whole at 779026ce | SWEEP GREEN: 2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing; 2929 s (a first run at fb6f664b was cut by my own 2400 s timeout, no size failed before it) |
 
 The pictures for the owner are in docs/dev/owner-115/shots/: `before-` and `after-event-panel-{gm,victim}-{glass,legacy}-1366x768.png`, at deviceScaleFactor 2.
 
