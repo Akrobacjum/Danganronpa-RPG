@@ -9,10 +9,13 @@ the setting's hint (EN, PL), the line under the slider while it is under 80 %, a
 The pictures: the character sheet, the GM panel and the HUD at 25 % and 50 %, Monokuma Legacy and Stained Glass,
 Chromium at deviceScaleFactor 2, 256 colours. The sheet is the stand-in of docs/dev/traits-115 (Daggerheart 2.12.8's
 stylesheet, the window at 850 or 1120 px times the slider); the GM panel is the style harness's captured window at its
-704 px times the slider; the HUD is the glass harness at 1366x768 with `?scale=`. Every factor is the slider here; at a
-table the glass's geometry also takes the screen's own factor (0.7 to 1). No Foundry stylesheet.
+704 px times the slider; the HUD is the glass harness at 1366x768 with `?scale=`. The sheet and the GM panel take the
+slider as their only factor; at a table the glass's geometry also takes the screen's own factor (0.7 to 1). The HUD's
+four shots were taken again on 15.11.2026, after the glass harness learned to stamp `?scale=` as applyTheme does (the
+slider on the screen's factor, e6c41260); before, they had the slider as the whole factor. `shots/` holds the two the
+coordinator asked for the owner: the HUD under the glass at 1366x768, 25 % and 50 %. No Foundry stylesheet.
 
-## Measured (Chromium, 14.11.2026)
+## Measured (Chromium, 14.11.2026; the HUD's rows 15.11.2026)
 
 | | 25 % | 50 % | 100 % |
 | --- | --- | --- | --- |
@@ -20,14 +23,18 @@ table the glass's geometry also takes the screen's own factor (0.7 to 1). No Fou
 | a window's close button, glass | 35 x 26 | 35 x 26 | 35 x 26 |
 | the smallest type, GM panel Legacy / glass | 2.9 / 5.3 px | 5.8 / 10.5 px | 11 / 21 px |
 | the HUD, Legacy (box, smallest type) | 219 x 96, 3.4 px | 234 x 110, 6.9 px | 430 x 134, 10 px |
-| the HUD, glass | 95 x 138, 3.5 px | 175 x 170, 7 px | 343 x 286, 13.3 px |
+| the HUD, glass | 81 x 126, 2.9 px | 152 x 156, 6 px | 292 x 249, 11.9 px |
 
 audit/glass-sweep.mjs at 1920x1080 and 1366x768, GM and player, both themes, `--page "audit/glass-harness.html?scale=N"`:
-at 100 % green; at 80, 50 and 25 % the corner's launchers found 5 of 5 (3 of 3 for a player), none hidden and none off
-the screen, no pane over another, the notices and the windows ok. Each scale under 100 % reads red on the sweep's pins
-(the room tile's box, the corner's place, the clock's place), which were written at 100 % and are compared as numbers.
+on 14.11.2026, at 100 % green and red under it on the sweep's pins, which were written at 100 %. Since 15.11.2026 (the
+harness's `?scale=` stamped as applyTheme stamps it, the pins read at each slider in glass-sweep.mjs `PINS_AT`, and the
+three faults below fixed) GREEN at 100, 80, 50 and 25 %.
 
-## What does not work at 25 %, measured
+## What did not work at 25 %, measured on 14.11.2026, and what came of it
+
+The voice tile and the sheet's column were fixed on 14.11.2026 (R7334), the room tile on 15.11.2026 (R7335): beside the
+notices its toggle, pips and paddings kept their pixels while its box shrank, so at 25 % they lay over the name, and at
+50 % on 1366x768 the open description was 0.8 lines tall; they follow the slider under 80 % now (4.2 lines there).
 
 - Under the glass the voice tile is drawn 65 x 94 px: its microphone button stands outside it (x -7) and the speaker's
   name shows 0 px of its 72. At 50 % it holds.

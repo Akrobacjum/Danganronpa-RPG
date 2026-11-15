@@ -42354,23 +42354,30 @@ const INVARIANTS = [
            compact wall tile is an inline-size container (components.css, `container: drpg-voice-tile / inline-size`), a
            declaration it wins at the curtain's compact place; the rules inside the `@container` block are not top-level and
            this cascade does not read them - 2:ce15ad40 -> 2:4b38d8b9, re-measured headless; every other print, `left` and the
-           @media rules as they were. */
+           @media rules as they were.
+           The room tile's six prints since its sizes follow the slider under 80 % (15.11.2026, R7335): the tile's padding
+           and gap, the project band's offsets, the toggle's place and size, the description's margins, the tokens' gaps and,
+           under the glass, the name's padding and brush, the notes place's gap and the pips read `calc(N px *
+           var(--drpg-floor-scale, 1))` - the same rules and, from 80 % up, the same values, another text: Legacy 1:bb393327
+           -> 1:319c66ac (curtain), 1:74d54c24 -> 1:5cbcd5a1 (desk), 1:a85b1630 -> 1:0a77909f (stacked); Stained Glass
+           1:1e31f8f3 -> 1:e19ef630, 1:23e449cb -> 1:10081416, 1:897a26e1 -> 1:980bf6c6, re-measured headless; every other
+           print, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
-            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
+            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:319c66ac", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:6fa9ceed", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
-            "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|room-tile": "1:e19ef630", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:4b38d8b9", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
-            "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
+            "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:5cbcd5a1",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
             "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:6fa9ceed", "desk|stained-glass|gm-launcher": "1:19e941be",
-            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
+            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:10081416", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
-            "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
+            "stacked|monokuma-legacy|room-tile": "1:0a77909f", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:2fe7a47f",
-            "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
+            "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:980bf6c6",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
@@ -55555,6 +55562,31 @@ const INVARIANTS = [
             zoom: /zoom:\s*var\(--drpg-floor-scale, 1\)/.test(rows)
         }), stableJson({ container: true, column: true, button: 4, face: true, band: true, rail: true, zoom: true }),
         "the compact voice tile's container rule and the sheet rail's floor and zoom, as served");
+    }],
+    ["R7335 - the room tile's fixed sizes follow the Interface scale under 80 % and hold from 80 % up (15.11.2026; the coordinator's item 4, the owner's 25 %): components.css writes the tile's padding and gap, the project band's offsets, the toggle's place and its size with a 24 px hit floor, the description's margins clear of that toggle, the search tokens' gaps, and under the glass the name's padding and brush, the notes place's column gap and the pips, each times `--drpg-floor-scale`, which is 1 from 80 % up", async () => {
+        /*
+         * Measured in Chromium on the glass harness (`?scale=`, the tile moved beside the notices by a taller clock, as
+         * glass-sweep's pin control moves it), before on 4a2beafb's components.css: at 50 % on 1366x768 the open
+         * description 0.8 lines tall in a 151x93 box (65x9 px); at 25 % on 1920x1080, in 82x45, no description drawn and
+         * the name under the pips and the 32 px toggle. After: 4.2 and 3.8 lines, every part inside the box; at 80 % and
+         * 100 % 3.1 and 2.3 lines, as before. Here, that the rules which did it are the ones served.
+         */
+        const kit = await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText).then(stripComments);
+        const F = "var\\(--drpg-floor-scale, 1\\)", TOG = `max\\(24px, calc\\(28px \\* ${F}\\)\\)`;
+        const has = (re, text = kit) => new RegExp(re).test(text);
+        equal(stableJson({
+            tile: has(`gap: calc\\(2px \\* ${F}\\);\\s*padding: calc\\(8px \\* ${F}\\) calc\\(12px \\* ${F}\\) calc\\(10px \\* ${F}\\);`),
+            band: has(`padding-bottom: calc\\(12px \\* ${F} \\+ var\\(--drpg-room-band\\)\\);`),
+            line: has(`left: calc\\(12px \\* ${F}\\);\\s*right: calc\\(12px \\* ${F}\\);\\s*bottom: calc\\(10px \\* ${F}\\);`),
+            toggle: has(`\\.drpg-room-tile-more \\{\\s*position: absolute;\\s*top: calc\\(6px \\* ${F}\\);\\s*right: calc\\(6px \\* ${F}\\);\\s*z-index: 1;\\s*width: ${TOG};\\s*height: ${TOG};`),
+            prose: has(`margin: calc\\(${TOG} \\+ 2px \\* ${F}\\) 0 calc\\(4px \\* ${F}\\);`),
+            notes: has(`column-gap: calc\\(8px \\* ${F}\\);`) && has(`margin: calc\\(6px \\* ${F}\\) calc\\(${TOG} \\+ 2px \\* ${F}\\) calc\\(4px \\* ${F}\\);`),
+            name: has(`padding: calc\\(1px \\* ${F}\\) calc\\(10px \\* ${F}\\) calc\\(2px \\* ${F}\\);`) && has(`inset: calc\\(1px \\* ${F}\\) calc\\(-5px \\* ${F}\\);`),
+            tokens: has(`gap: calc\\(3px \\* ${F}\\);\\s*align-items: center;\\s*margin-top: calc\\(1px \\* ${F}\\);`) && has(`gap: calc\\(4px \\* ${F}\\);\\s*margin-top: calc\\(3px \\* ${F}\\);`)
+                && has(`margin-left: calc\\(3px \\* ${F}\\);`),
+            pip: has(`#drpg-room-tile \\.drpg-hud-pip \\{\\s*width: calc\\(9px \\* ${F}\\);\\s*height: calc\\(9px \\* ${F}\\);`)
+        }), stableJson({ tile: true, band: true, line: true, toggle: true, prose: true, notes: true, name: true, tokens: true, pip: true }),
+        "the room tile's fixed sizes times the floor factor, as served");
     }],
     ["R3501 - Monokuma Legacy's sheet tab and its red grounds are readable (styles/danganronpa.css, tools/contrast-pairs.json; E48 K6, S12-25, S03-20, Q13): the active tab is Bone on Ink with the attention edge, the other Bone-on-Eye grounds the Eye's dark step, the theme's red lifted, and tools/contrast-pairs.json writes no Legacy pair `known` below AA", async () => {
         /*
