@@ -171,5 +171,116 @@
       ]
     }
   ],
-  "runs": []
+  "runs": [],
+  "budget": {
+    "about": "E53 C2 (15.11.2026; the plan's item 2): the most a measured reading may be, held by `node tools/check.mjs budget` (tools/perf-budget.mjs) against every run in `runs`, per theme, on the median of the run's repeats (perf-baseline.mjs `measure`). A line whose `blocks` is true fails the check over its budget; one whose `blocks` is false is printed as a warning and fails nothing. `max` null is no budget set: the line prints the reading and \"no budget set\". While `runs` is empty every line prints \"not measured\" and nothing is held. The plan put the budget in the root rules file, which this line may not edit (CLAUDE.md, held by the owner); it lives here, beside the readings it holds.",
+    "decision": "D27 (b): the frame time and the room switch block, at 1366x768 with the largest isometric map; the roll's round trip only warns. Every other line warns until the owner says otherwise. The thresholds are the owner's (Q1 of E53's first report, 15.11.2026): until given, each is null",
+    "lines": [
+      {
+        "key": "asIs",
+        "reads": "perf() \"As it stands\", ms a frame",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "sceneSwitch",
+        "reads": "perf-baseline.mjs `measure`: scene.view() to canvasReady onto the largest scene, the median of five",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "canvasTrialP95",
+        "reads": "perf() \"the canvas drawn entering the trial hall\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "canvasLeaveTrialP95",
+        "reads": "perf() \"the canvas drawn leaving the trial hall\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "drawnP95",
+        "reads": "perf() \"drawn for this browser, asked to dice shown\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "drewP95",
+        "reads": "perf() \"drawn here, packet in to answer out\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "pulseCost",
+        "reads": "perf() \"The pulse costs\"",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "blurCost",
+        "reads": "perf() \"The blur costs\"",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "windowOpen",
+        "reads": "perf() \"A window reaches the screen in\"",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "ownRingP95",
+        "reads": "perf() \"a student's ring drawn again\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "remnantRingP95",
+        "reads": "perf() \"a Remnant's ring drawn again\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "fogP95",
+        "reads": "perf() \"the fog repainted\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "dashboardP95",
+        "reads": "perf() \"the case dashboard rebuilt in place\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "chatCardP95",
+        "reads": "perf() \"a chat card painted\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "auditJudgedP95",
+        "reads": "perf() \"a sheet write judged by the GMs' audit\", p95 (the primary GM's browser)",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      }
+    ]
+  }
 }
