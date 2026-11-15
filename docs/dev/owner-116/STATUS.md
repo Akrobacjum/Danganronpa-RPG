@@ -107,3 +107,56 @@ A margin seen and not changed: float-sweep I6 under Legacy allows 35 frames for 
 trees - this commit 33, 34, 35, 34 and once 36 (a full run, red), 1.2.115's float-text.mjs 35 and 35. The untransformed
 road `holdSize` takes is the old one (the screen box), so the count is not this change's; the limit is the test's, left
 as it is for the coordinator.
+
+## Item 2 - hide a Monokuma's token: dropped (the owner, 15.11.2026)
+
+Built and not committed when the owner dropped it; thrown away, nothing of it pushed. R7407 and R7408 were taken for it and are left
+unused (never written to docs/dev/R-REGISTRY.md; the registry's next free number is past them); scenario number 77 is
+free again. What its reading found stays true of the tree: every
+Monokuma, hidden or not, is already nobody in a room (movement.mjs `countsAsPresent`).
+
+## Item 3 - the Spectators' voice global (the coordinator's option A)
+
+### Reading
+
+At 25e2d34e a Spectator's account listened where its token stood, its microphone held, unless its own User flag
+`spectatorTalk` was true, which took it to `SPECTATOR_ROOM` (voice.mjs `placeVoices`, `spectatorTalks`;
+`settleTrialVoices` held the microphone while the flag was off). Players' voices are per room and stay so.
+
+### Change
+
+- The Spectators' room is the default, from anywhere on the map, outside an Eclipse (unchanged: nobody is in voice then).
+- The switch is a new User flag, `spectatorListenHere` (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`,
+  `talksWithSpectators`): set, the account listens where its token stands, its microphone held by the trial's row as
+  before; taken off, back to the Spectators' room. The tile's button: "Listen in your room" / "Słuchaj w swoim pokoju"
+  (`DRPG.Spectator.talkBack`, the old "Go back to your room") while it is in the Spectators' room, "Talk with the
+  Spectators" while it listens; `aria-pressed` true in the Spectators' room, as before.
+- Old flags: `spectatorTalk` is read by nothing now. Its stored true meant the Spectators' room, the default now; its
+  absence meant the token's room, which the owner's change makes the Spectators' room. So neither value is read, and a
+  world that holds either keeps its Spectators in the Spectators' room. Reusing the old flag the other way round would
+  have taken the Spectators who chose the room out of it. `setSpectator` clears both flags off an account that stops
+  being a Spectator's (R7168's rule, now for the listen flag), so one marked again starts in the default.
+- The dead: unchanged (the death rules place them in the Spectators' room before this rule; a dead student's watcher
+  that sets the listen flag keeps the death rule's room).
+- What a GM may want to know: a Spectator's microphone is now open by default (in the Spectators' room), where it was
+  held by default; muting it is the player's own, as in any room. Question for the owner, default kept: yes, open.
+- Texts: one value changed in EN and PL (`DRPG.Spectator.talkBack`); the GM handbook's Spectator paragraph and the
+  player handbook's, EN and PL. Not changed: "their talk switch decides" in the modes' microphones paragraph (still
+  true of the switch).
+
+### Tests and numbers
+
+- R7409 (tier 1) red at 25e2d34e ("spectator.mjs has no SPECTATOR_LISTEN_FLAG or talksWithSpectators"; the same file's
+  R3860 read the Spectator with no flag in its token's room), green after: a Spectator with no flag, with the old flag
+  true and with it false in the Spectators' room; listening, in its token's room; a student in its room with any flag;
+  in an Eclipse not moved; the tile's reading.
+- Changed on purpose, each red on the old code and green on the new: R3860 and R7168 (the flag they read), R3853 (the
+  GMs' view of a Spectator with no flag: "spectatorTalk" now, "spectator" with the listen flag), the tier-2
+  "a Spectator's microphone is open in the Spectators' room by default, blocked ... while it listens" (was "... blocked
+  ..., lifted while its Spectator talk switch is on"), scenario 93's `voice` and `talk` checks (16/18 on the old code).
+- Green: tier 2 by name (18 tests, 22 passed); scenarios 93 (18/18), 94 (19/19), 75 (42/42).
+- Mutants (a copy of the tree): the reading's sense turned, the switch ignored, the trial block's sense turned, the
+  toggle written the wrong way, the role's tidy without the listen flag - killed; the immediate reconcile on the flag's
+  key (voice.mjs `updateUser`) - SURVIVED: scenario 93 reconciles within its 2 s settle by the other passes, so no check
+  here measures that the move is immediate; as it was for the old flag.
+- LIVE: one LiveKit connection in one room at a time (LIVE-E92-01, never measured) - unchanged.

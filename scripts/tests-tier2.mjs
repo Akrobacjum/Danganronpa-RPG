@@ -47509,13 +47509,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             size: [true, true, true]
         }), "(1) a failed sentence asked again: dead, the cause, the death's phase, the stamp, bodies to find; (2) a Final sentence not held here: named twice, the GMs told, the store backed up; (3) the trial's size: every player of a student who takes part, at least the ballot's, a listed student not counted");
     }],
-    ["a Spectator's microphone is blocked outside the trial and in it, by the trial's own write and row, lifted while its \"Spectator talk\" switch is on, and given back as it was found when the role is taken off (E92 C2, C6)", async () => {
+    ["a Spectator's microphone is open in the Spectators' room by default, blocked outside the trial and in it while it listens where its token stands, by the trial's own write and row, and given back as it was found when the role is taken off (E92 C2, C6; owner-116)", async () => {
         /*
          * E92 C2, 12.11.2026 (the owner's E92 goal (2): "always muted: the microphone is blocked in every phase"). On this
          * primary: a living student whose player is here and has no other voice is given a grant of its own, made a
          * Spectator by the GM's road (monokuma.mjs `setSpectator`), and the voices settled as the flag's hook settles them
          * (voice.mjs `settleTrialVoices`): (1) in Daily Life the player's BROADCAST_AUDIO off, the store's row naming the
          * grant it found; the switch on, the grant back and no row; off, blocked again (C6); (2) the Class Trial written raw and settled again: still blocked, one row; (3) the role taken off
+         * Since owner-116 (15.11.2026; the owner: "Spectatorzy - niech ich pokój voice chat będzie globalny") the Spectators'
+         * room is the default: made a Spectator, the account talks there, its grant kept and no row; its listen flag set
+         * (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`), blocked as above, in the trial too; taken off, open again.
          * and settled: the grant put back as found, no row. Red before C2: nothing blocked. The flag, the clock, the
          * player's permission and the store are put back.
          */
@@ -47540,25 +47543,25 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await user.update({ "permissions.BROADCAST_AUDIO": true });
             await setSpectator(actor, true);
             await settleNow();
-            read.daily = { perm: perm(user), row: row(), held: voice.moduleHoldsMic(user)?.reason ?? null };
-            // E92 C6: the "Spectator talk" switch on (the player's own User flag, written here by the GM): the block lifted
-            // while it talks in the Spectators' room, and written again when the switch is off.
-            await user.setFlag(MODULE_ID, "spectatorTalk", true);
+            read.talking = { perm: perm(user), row: row(), held: voice.moduleHoldsMic(user)?.reason ?? null };
+            // owner-116: the listen flag set (the player's own User flag, written here by the GM): the block written while it
+            // listens where its token stands, in Daily Life and in the trial, and lifted when the flag is off.
+            await user.setFlag(MODULE_ID, "spectatorListenHere", true);
             await settleNow();
-            read.talking = { perm: perm(user), row: row() };
-            await user.unsetFlag(MODULE_ID, "spectatorTalk");
-            await settleNow();
-            read.quiet = { perm: perm(user), row: row() };
+            read.listening = { perm: perm(user), row: row(), held: voice.moduleHoldsMic(user)?.reason ?? null };
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial", eclipse: false });
             await settleNow();
             read.trial = { perm: perm(user), rows: Object.keys(stores.trialMuteStore.entries()).filter(id => id === user.id).length };
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await user.unsetFlag(MODULE_ID, "spectatorListenHere");
+            await settleNow();
+            read.again = { perm: perm(user), row: row() };
             await setSpectator(actor, false);
             await settleNow();
             read.back = { perm: perm(user), row: row(), spectator: isSpectator(actor) };
         } finally {
             if (isSpectator(actor)) await setSpectator(actor, false);
-            if (user.getFlag(MODULE_ID, "spectatorTalk") !== undefined) await user.unsetFlag(MODULE_ID, "spectatorTalk");
+            for (const f of ["spectatorTalk", "spectatorListenHere"]) if (user.getFlag(MODULE_ID, f) !== undefined) await user.unsetFlag(MODULE_ID, f);
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
             await settleNow();
             if (JSON.stringify(perm(user)) !== JSON.stringify(before)) await user.update({ "permissions.BROADCAST_AUDIO": before[0] ? before[1] : forcedDeletion() });
@@ -47567,12 +47570,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(read), stableJson({
-            daily: { perm: [true, false], row: { had: true, value: true, wrote: true }, held: "spectator" },
-            talking: { perm: [true, true], row: null },
-            quiet: { perm: [true, false], row: { had: true, value: true, wrote: true } },
+            talking: { perm: [true, true], row: null, held: "spectatorTalk" },
+            listening: { perm: [true, false], row: { had: true, value: true, wrote: true }, held: "spectator" },
             trial: { perm: [true, false], rows: 1 },
+            again: { perm: [true, true], row: null },
             back: { perm: [true, true], row: null, spectator: false }
-        }), "a Spectator's microphone (1) in Daily Life: its permission, the store's row, the GMs' view; (2) in the Class Trial; (3) the role taken off");
+        }), "a Spectator's microphone (1) in Daily Life by default, then listening: its permission, the store's row, the GMs' view; (2) in the Class Trial, listening; (3) the flag off; (4) the role taken off");
     }],
     ["the dead are muted for the trial, a death nobody found too, and nobody else; a death in the trial joins, a new Monocub leaves; the exit puts back only what the trial wrote and leaves a GM's block (E70-T8)", async () => {
         /*

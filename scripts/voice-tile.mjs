@@ -133,7 +133,7 @@ import { reducedMotion, TURN } from "./motion.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { tile as kitTile, launcher, launcherState, pixelGlyph, sliderList, slider as kitSlider, setTip } from "./ui-kit.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
-import { spectatorViewer, talkSwitchOn } from "./spectator.mjs";
+import { spectatorViewer, talksWithSpectators } from "./spectator.mjs";
 import { toggleSpectatorTalk } from "./spectator-ui.mjs";
 import { tileRow } from "./narrow.mjs";
 import { objectionControl, renderHud } from "./hud.mjs";
@@ -1093,12 +1093,14 @@ export function paintObjection(tile, given = {}) {
 }
 
 /**
- * "TALK WITH THE SPECTATORS" ON THE TILE (E92 round 3, 12.11.2026; the owner's: "przycisk przenoszenia sie miedzy czatem
- * spectatorow a sluchaniem dajemy w panelu livekit po prawej stronie ekranu, tam gdzie reszta przyciskow"). A mini button
- * after the microphone and the speaker, on a Spectator's browser alone (scripts/spectator.mjs `spectatorViewer`): its
- * name, for a screen reader and the tooltip, says where a press takes the player - DRPG.Spectator.talk while the switch
- * is off, DRPG.Spectator.talkBack while it is on, `aria-pressed` with it - and a press writes the switch, the player's own
- * User flag (spectator-ui.mjs `toggleSpectatorTalk`), whose change repaints the tile (`registerVoiceTile`'s `updateUser`).
+ * THE SPECTATOR'S VOICE SWITCH ON THE TILE (E92 round 3, 12.11.2026; the owner's: "przycisk przenoszenia sie miedzy
+ * czatem spectatorow a sluchaniem dajemy w panelu livekit po prawej stronie ekranu, tam gdzie reszta przyciskow"). A mini
+ * button after the microphone and the speaker, on a Spectator's browser alone (scripts/spectator.mjs `spectatorViewer`):
+ * its name, for a screen reader and the tooltip, says where a press takes the player - DRPG.Spectator.talkBack ("Listen
+ * in your room") while it talks in the Spectators' room, the default since owner-116 (15.11.2026), DRPG.Spectator.talk
+ * while it listens where its token stands, `aria-pressed` true in the Spectators' room - and a press writes the
+ * player's own User flag (spectator-ui.mjs `toggleSpectatorTalk`, `SPECTATOR_LISTEN_FLAG`), whose change repaints the
+ * tile (`registerVoiceTile`'s `updateUser`).
  * Until round 3 the switch stood in a line under the clock. A Spectator has no OBJECTION! (hud.mjs `objectionControl`
  * draws it for a student alone), so the tile holds three buttons at most, as a student's; the stylesheets' third-button
  * rules read either. Written only where it differs, so a repaint swaps no button under the pointer or the focus.
@@ -1107,7 +1109,7 @@ export function paintObjection(tile, given = {}) {
  * @param {object} [given]  the suite's: `watching`, `talking` and the click's `onToggle`; left out, read here
  * @returns {HTMLElement|null} the button the tile shows, or `null`
  */
-export function paintSpectatorTalk(tile, { watching = spectatorViewer(), talking = talkSwitchOn(game.user), onToggle = toggleSpectatorTalk } = {}) {
+export function paintSpectatorTalk(tile, { watching = spectatorViewer(), talking = talksWithSpectators(game.user), onToggle = toggleSpectatorTalk } = {}) {
     const controls = tile?.querySelector(".drpg-voice-tile-controls");
     if (!controls) return null;
     let button = controls.querySelector(".drpg-voice-spectator-talk");

@@ -25626,7 +25626,8 @@ const REGRESSIONS = [
     ["R7168 - an account no longer a Spectator's leaves its talk switch behind (E59 C-115, CHAINS.md B-S6): the switch is the player's User flag (spectator.mjs `SPECTATOR_TALK_FLAG`), honoured for a Spectator's account alone, and nothing took it off - a player marked a Spectator again started in the Spectators' room with the microphone open, without a press; monokuma.mjs `setSpectator`, unmarking, unsets it for every account that stopped being a Spectator's (the users of `spectatorUserIds` before and not after)", async () => {
         const body = fnSource(stripComments(new Map(await otherSources()).get("monokuma.mjs") ?? ""), "setSpectator");
         ok(/\bbefore\b[\s\S]*\bnow\b/.test(body), "setSpectator no longer reads the Spectators' accounts before and after - this test reads the wrong road");
-        ok(/unsetFlag\(\s*MODULE_ID\s*,\s*SPECTATOR_TALK_FLAG\s*\)/.test(body), "setSpectator leaves the talk switch of an account that stopped being a Spectator's");
+        // since owner-116 (15.11.2026) the switch is the listen flag, unset with the old talk flag in one loop
+        ok(/\[\s*SPECTATOR_LISTEN_FLAG\s*,\s*SPECTATOR_TALK_FLAG\s*\]/.test(body) && /unsetFlag\(\s*MODULE_ID\s*,\s*flag\s*\)/.test(body), "setSpectator leaves the switch of an account that stopped being a Spectator's");
     }],
     ["R7169 - the Sound window's Test plays what the event plays (E59 C-115, CHAINS.md B-S12): an event left empty that names another to fall back to (`fallsBackTo`: \"Death fade\" plays the death's file) is played by sfx-play.mjs `pickSound` through `soundsFor`, which follows the fallback; `testSfx` asked `soundFor`, the event's own file, and said \"no file yet\" where the live sound plays; it asks `soundsFor` and never `soundFor`", async () => {
         const sfx = stripComments(new Map(await otherSources()).get("sfx-play.mjs") ?? "");
