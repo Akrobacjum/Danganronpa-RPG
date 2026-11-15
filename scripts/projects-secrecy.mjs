@@ -139,8 +139,12 @@ export function toldSight(countdownId) {
     if (!held || typeof held !== "object") return null;
     /* `murder` and `room` since the leak-pm line (14.11.2026): what `PROJECT_SECRET_WHILE_SECRET` took out of projectMeta
        for a secret project, sent to those who see it (projects.mjs `sightFor`). */
+    /* `facility` since P1 (15.11.2026): a secret project's room action, sent to those in on it (projects.mjs `sightFor`),
+       so a cleared chat log no longer takes it away. `undefined` where the GMs' answer carries no such key (a Spectator's
+       row, or a copy sent before P1), so a reader can fall back to the GM's card; null where it says there is none. */
     return { in: held.in === true, name: typeof held.name === "string" ? held.name : null,
-        murder: held.murder === true, room: typeof held.room === "string" && held.room ? held.room : null };
+        murder: held.murder === true, room: typeof held.room === "string" && held.room ? held.room : null,
+        facility: !Object.hasOwn(held, "facility") ? undefined : held.facility && typeof held.facility === "object" ? held.facility : null };
 }
 
 /**

@@ -32,7 +32,7 @@ import { MODULE_ID, FACILITIES, TRAITS, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { plural } from "./utils.mjs";
 import { roomFlag, writablePieces } from "./rooms.mjs";
-import { metaFor, secretsOf } from "./projects-secrecy.mjs";
+import { metaFor, secretsOf, toldSight } from "./projects-secrecy.mjs";
 import { cardMeta } from "./secret.mjs";
 
 /* ==========================================================================
@@ -237,8 +237,18 @@ export async function setProjectFacility(projectId, raw) {
  */
 export function projectFacilityOf(projectId) {
     const meta = metaFor(projectId);
-    const raw = secretsOf(projectId).facility ?? meta.facility ?? (game.user?.isGM ? null : toldFacility(projectId));
+    const raw = secretsOf(projectId).facility ?? meta.facility ?? (game.user?.isGM ? null : toldOnPlayer(projectId));
     return { facility: raw ? cleanFacility(raw) : null, completedAt: meta.completedAt ?? null };
+}
+
+/**
+ * A secret project's room action on a player's browser (P1, 15.11.2026): the GMs' sight copy's, which carries it to those
+ * in on it since P1 and outlives a cleared chat log (projects.mjs `sightFor`); the newest GM card's where the copy says
+ * nothing of it (a copy sent before P1).
+ */
+function toldOnPlayer(projectId) {
+    const sight = toldSight(projectId)?.facility;
+    return sight === undefined ? toldFacility(projectId) : sight;
 }
 
 /** The meta key of a GM's private card that carries a secret project's room action to its insiders (projects.mjs `tellFacility`). */

@@ -385,7 +385,11 @@ function sightFor(userId, { also = [], held = [] } = {}) {
         const inside = insidersOf(project.id).includes(userId);
         if (!inside && !watching) continue;
         const words = secretsOf(project.id).description;
-        sight[project.id] = { in: inside, name, ...(typeof words === "string" && words ? { description: words } : {}), ...sightExtras(project.id) };
+        /* Its room action, to those in on it (P1, 15.11.2026; the owner's DRPG-D1 "Dostaja"): a GM's private card carried it
+           alone until then, and a chat log cleared took the row out of the insider's Facilities (scenario 99). Not to a
+           Spectator, whom the card never told either. */
+        const facility = inside ? { facility: secretsOf(project.id).facility ?? null } : {};
+        sight[project.id] = { in: inside, name, ...(typeof words === "string" && words ? { description: words } : {}), ...sightExtras(project.id), ...facility };
         stamps[project.id] = now;
     }
     for (const id of [...also, ...held]) if (typeof id === "string" && !(id in stamps)) stamps[id] = now;
@@ -424,6 +428,8 @@ export async function retellSights() {
 async function receiveSight(sight, stamps) {
     const before = projectSightCopy.read() ?? {};
     const mine = {}, own = {};
+    // A row's room action (P1): kept cleaned, or null where the GMs say there is none; no key where they say nothing of it.
+    const { cleanFacility } = await import("./facilities.mjs");
     for (const [id, s] of Object.entries(stamps ?? {})) {
         if (typeof id !== "string" || !rawCountdown(id)) continue;
         own[id] = Number(s) || 0;
@@ -431,7 +437,8 @@ async function receiveSight(sight, stamps) {
         if (!row || typeof row !== "object") continue;
         mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null,
             ...(typeof row.description === "string" ? { description: row.description } : {}), murder: row.murder === true,
-            room: typeof row.room === "string" && row.room ? row.room : null };
+            room: typeof row.room === "string" && row.room ? row.room : null,
+            ...(Object.hasOwn(row, "facility") ? { facility: row.facility ? cleanFacility(row.facility) : null } : {}) };
     }
     const taken = await projectSightCopy.receive(mine, own);
     if (taken) noticeSight(before, projectSightCopy.read() ?? {});
@@ -503,6 +510,8 @@ async function tellFacility(countdownId) {
     if (!posted) return 0;
     for (const id of readers) told[id] = key;
     await projectSecretStore.patch(countdownId, { facilityTold: told }, { whole: true });
+    // And their copy of the sight, which carries the action since P1 (`sightFor`): a card deleted leaves it there.
+    for (const id of readers) await sendSightTo(id);
     return readers.length;
 }
 
