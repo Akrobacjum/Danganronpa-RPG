@@ -10,8 +10,9 @@ measured; what was not measured says so.
 | e1afdd84, 6116f17d | the first design: an encrypted copy in a world setting, under a GM passphrase (pushed) |
 | 9daba1a2 | the 1.2.115 assembly merged in (4fb0667a) |
 | 18df17c4 | the passphrase copy taken out whole: the owner, through the coordinator, 14.11.2026: "Bez hasel prosze - niech to bedzie dostepne dla kont gmow po prostu" |
-| (next) | the copy as a file on the server (this design) |
-| (after) | Clear the plan (the owner: "Brakuje mi tez w planerze zagadki opcji zresetowania zawartosci/wyczyszczenia recznie") |
+| 08eb5c3f | the copy as a file on the server (this design) |
+| 17f112c2 | Clear the plan (the owner: "Brakuje mi tez w planerze zagadki opcji zresetowania zawartosci/wyczyszczenia recznie") |
+| 36868715 | a quiet read that takes nothing does nothing; no copy while the suite holds the stores (found by scenario 61 B2, B3) |
 
 ## The server copy: what was built
 
@@ -39,7 +40,11 @@ Decisions taken on a default (each with its reason):
   a new world's empty planner says nothing.
 - **R numbers**: R7340-R7344 keep their registry rows, marked removed (the test rules: a number is never reused);
   the file road's tests are R7345-R7348.
-- **Tooltip family**: DRPG.Tips.CaseCopy (the coordinator's 14.11.2026 note), one key.
+- **Tooltip families**: DRPG.Tips.CaseCopy (the copy, one key) and DRPG.Tips.CasePlan (Clear the plan, three keys),
+  out of DRPG.Tips.Gm and DRPG.Tips.Case, whose keys R4753 and R4755 count exactly.
+- **A quiet read that takes nothing does nothing** (36868715): `restoreCase({ quiet })` runs a store's `afterRestore`
+  only when it took something from it, and the Faint pass only when it took anything; and the copy is neither written
+  nor read while the suite holds the stores (`gmStoresQuiet`), whose rows are then a fixture's.
 
 ## Red first
 
@@ -52,7 +57,7 @@ Decisions taken on a default (each with its reason):
 ## Numbers
 
 - The seed world's case as the server copy: 3172 B of JSON (scenario 34's NOTE).
-- Scenario 34: 14/14, 25.6-25.8 s (three runs here, 4 cores, 14.11.2026).
+- Scenario 34: 17/17 with phase F, 32.1-33.6 s (three runs here, 4 cores, 14.11.2026).
 
 ## Needs a local Foundry
 
@@ -72,7 +77,17 @@ Decisions taken on a default (each with its reason):
 
 ## Clear the plan
 
-(next commit)
+| Item of the coordinator's design | State | Where | Answered by |
+| --- | --- | --- | --- |
+| 1. a button in the planner, a chapter picker (the clock's chapter), a confirm that counts what goes | done | investigation.mjs footer `clearPlan` (in both views, Table and Map), `openClearPlan` (drpgWindow with the chapter, then drpgConfirm with a destructive Clear) | R7350, R3967, R1358 |
+| 2. only planning data: never a Remnant, Truth Bullet, trace, another chapter or the ticks; a placed one stays and the confirm says so | done | case-schema.mjs `planToClear` (slots `<ch>:<n>`, nodes, `<ch>:meta`; not `<ch>:reveal`, `<ch>:case`, caseTickStore) | R7349; 34 F1, F3 |
+| 3. removal by tombstones: clear on A, B (who held the rows) syncs, a fresh GM reads the file - all empty | done | `clearChapterPlan` -> `dropMany` on both stores | 34 F1-F3 (red at 08eb5c3f; mutant: schema not cleared, F1-F3 FAIL) |
+| 4. any GM, an Assistant too; never a player | done | GM guards in `clearChapterPlan` and `openClearPlan`; the dashboard is a GM's window | R7350 (read in the source; an Assistant's press not driven headless) |
+| 5. texts EN/PL, the handbook, tests | done | DRPG.Investigation.clearPlan.*, DRPG.Tips.CasePlan.*; GM handbook 14.4 EN/PL | `check parity`, `check text`, `check tooltips` |
+
+Placement: the button is in the Investigation window's footer, beside Realization preview, not inside the Key tab or the
+Map's tools row: the footer shows in both views, and the planner's own Save stands there. A deviation from "the Key tab
+and Map" in the letter, the same window in fact; say if it should move.
 
 ## Gate runs
 
