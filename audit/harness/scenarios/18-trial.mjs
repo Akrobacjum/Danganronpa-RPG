@@ -29,6 +29,10 @@
  * verdict the window sends for "Nobody is executed", which sentences and executes nobody; scanned after each step.
  * Five mutants, each KILLED here (docs/dev/e40/STATUS.md).
  *
+ * THE FINAL TRIAL (E40, 15.11.2026, the same line): then a student nobody plays made the Mastermind, the Final Trial's
+ * flag up, the trial started again, and a wrong Final verdict on Botan: one public card, the flag down, nobody
+ * executed at the close; the scans look for the Mastermind's id and name too. Four mutants, each KILLED here.
+ *
  * Not here (63-class-trial's and 72-canary's): the ballot windows, a late player, a GM's reload in the vote, the verdict's
  * window, the Level Ups of a correct verdict; the markers of the GMs' other secrets.
  */
@@ -45,9 +49,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const BLACKENED = [IDS.chie, IDS.daichi].sort();
     const ACCUSED = [IDS.botan, IDS.aiko];
     /* The scan after a step: p1's and p2's world data and their new cards, for Chie, her name and her player. */
+    /* The Final Trial's steps add the Mastermind's id and name (`also`). */
+    const also = { ids: [], names: [] };
     const scan = async step => {
-        await canary.worldScan({ phase: step, who: ["p1", "p2"], ids: [IDS.chie, IDS.daichi] });
-        await canary.chatScan({ phase: step, who: ["p1", "p2"], actorIds: [IDS.chie, IDS.daichi], names: [chieName, daichiName], userIds: [p3User] });
+        await canary.worldScan({ phase: step, who: ["p1", "p2"], ids: [IDS.chie, IDS.daichi, ...also.ids] });
+        await canary.chatScan({ phase: step, who: ["p1", "p2"], actorIds: [IDS.chie, IDS.daichi, ...also.ids], names: [chieName, daichiName, ...also.names], userIds: [p3User] });
     };
     await canary.chatMark({ who: ["p1", "p2"] });
 
@@ -189,13 +195,71 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         check("second close: the trial's end after \"Nobody\" executes nobody - Botan, Aiko, Chie and Daichi all alive",
             J(closed2?.executed) === J([]) && J(closed2.deadNow) === J([]), J(closed2));
         await scan("second close");
+
+        /* THE FINAL TRIAL (E40, 15.11.2026 on the line claude/e39-40-116; the plan's "Final Trial"). 63 K drives the Final
+           verdict's lock across two GMs and 65 D the flag through a season reset; neither scans a player's browser for the
+           Mastermind along the way. Here, in the same chapter after the second trial: a student nobody plays made the
+           Mastermind (mastermind.mjs `setMastermind`, the GMs' store), the Final Trial's flag up, the trial ended and
+           started again, and the class wrong - the Final verdict on Botan. The Mastermind is the GMs' (mastermind.mjs's
+           header): the scans after each step look for their id and name too, and the close executes nobody. */
+        phase("final trial", { flow: "class-trial" });
+        const final = await gm.eval(`const V = ${imp("vote.mjs")}, UI = ${imp("trial-floor-ui.mjs")}, MM = ${imp("mastermind.mjs")};
+            const { getClock } = ${imp("settings.mjs")}, { mastermindStore } = ${imp("gm-stores.mjs")};
+            const mm = await Actor.create({ name: "S18 Mastermind", type: "character" });
+            globalThis.__s18.mastermind = mm.id; globalThis.__s18.pick = mastermindStore.record()?.actorId ?? null;
+            globalThis.__dialogAnswers.push(true);
+            await UI.endClassTrial();
+            await MM.setMastermind(mm);
+            await MM.setFinalTrial(true);
+            globalThis.__dialogAnswers.push("ok", "ok");
+            const started = await UI.startClassTrial();
+            return { id: mm.id, name: mm.name, started, phase: getClock().phase, final: MM.inFinalTrial(), pick: MM.mastermindActor()?.id ?? null };`, { timeout: 60000 });
+        await settle(1200);
+        if (final?.id) { also.ids.push(final.id); also.names.push(final.name); }
+        const pSees = await p1.eval(`const MM = ${imp("mastermind.mjs")}; return { final: MM.inFinalTrial(), pick: MM.mastermindActor()?.id ?? null };`);
+        check("final trial: the Final Trial starts in the same chapter, its Mastermind the GMs' pick - on the GM, and none on p1",
+            final?.started === true && final.phase === "classTrial" && final.final === true && final.pick === final.id
+                && pSees?.final === true && pSees.pick === null, J({ final, pSees }));
+        await scan("final trial");
+
+        phase("final verdict", { flow: "class-trial" });
+        /* Every window answered null, as the verdict step above: the Final verdict's Level Up window, drawn on the GM and
+           pressed, threw in the harness (level-up.mjs `readFormData`: the shim has no FormDataExtended, and Node's own
+           FormData cannot read a jsdom form - a gap of the shim, measured 15.11.2026, not a road of v14's). */
+        const fv = await gm.eval(`const V = ${imp("vote.mjs")}, D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
+            D.wait = async () => null;
+            const from = game.messages.size;
+            let given = null;
+            try { given = await game.drpg.applyFinalVerdict({ correct: false, accusedId: "${IDS.botan}" }); }
+            finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            const p = V.trialProgress();
+            return { given, flagAfter: (${imp("mastermind.mjs")}).inFinalTrial(), stage: p.verdict?.stage ?? null, final: p.verdict?.final ?? null, pending: p.verdict?.sentencePending ?? null,
+                cards: game.messages.contents.slice(from).filter(m => !m.whisper?.length).length,
+                botanDead: game.drpg.isDeadForGm(game.actors.get("${IDS.botan}")), mmDead: game.drpg.isDeadForGm(game.actors.get("${final?.id ?? ""}")) };`,
+        { timeout: 60000 });
+        await settle(1500);
+        check("final verdict: the wrong Final verdict is given - the record final and done, no sentence waiting, one public card, the Final Trial's flag down, Botan and the Mastermind alive",
+            fv?.given?.executed === false && fv.flagAfter === false && fv.stage === "done" && fv.final === true && !fv.pending && fv.cards === 1
+                && fv.botanDead === false && fv.mmDead === false, J(fv));
+        await scan("final verdict");
+
+        phase("final close", { flow: "class-trial" });
+        const fc = await gm.eval(`const V = ${imp("vote.mjs")}; const done = await V.executeAtExit();
+            return { executed: [...(done?.executed ?? [])], deadNow: [...${J(ACCUSED)}, "${IDS.chie}", "${IDS.daichi}", "${final?.id ?? ""}"].filter(id => game.drpg.isDeadForGm(game.actors.get(id))) };`,
+        { timeout: 60000 });
+        await settle(1500);
+        check("final close: the trial's end after a wrong Final verdict executes nobody",
+            J(fc?.executed) === J([]) && J(fc.deadNow) === J([]), J(fc));
+        await scan("final close");
     } finally {
         await gm.eval(`const C = ${imp("chapter.mjs")}, { blackenedStore } = ${imp("gm-stores.mjs")}, w = globalThis.__s18 ?? {};
             for (const id of ${J(ACCUSED)}) { const a = game.actors.get(id);
                 if (a && game.drpg.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true }).catch(() => null); }
             for (const id of ${J([IDS.chie, IDS.daichi])}) if (blackenedStore.has(id)) await blackenedStore.drop(id);
-            if (w.clock) await game.drpg.setClock({ phase: w.clock.phase });
-            for (const id of [w.victim, w.second]) if (id) await game.actors.get(id)?.delete();
+            if (w.mastermind) { const MM = ${imp("mastermind.mjs")}; const pick = w.pick ? game.actors.get(w.pick) : null;
+                if (pick) await MM.setMastermind(pick); else await MM.clearMastermind(); }
+            if (w.clock) await game.drpg.setClock({ phase: w.clock.phase, finalTrial: Boolean(w.clock.finalTrial) });
+            for (const id of [w.victim, w.second, w.mastermind]) if (id) await game.actors.get(id)?.delete();
             return true;`, { timeout: 60000 }).catch(() => null);
     }
 }
