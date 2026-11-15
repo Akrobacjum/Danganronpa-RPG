@@ -838,11 +838,12 @@ export function hideSilhouettes({ stage = globalThis.canvas?.stage, tokens = glo
 let silhouetteFrame = null;
 function silhouettesSoon() {
     if (silhouetteFrame !== null || game.user?.isGM || !game.modules?.get?.("isometric-perspective")?.active) return;
-    const next = globalThis.requestAnimationFrame ?? (fn => setTimeout(fn, 16));
-    silhouetteFrame = next(() => {
+    const run = () => {
         silhouetteFrame = null;
         try { hideSilhouettes(); } catch { /* never break the canvas over this */ }
-    });
+    };
+    // Called where named (R571): a window function taken as a value runs on another object in some browsers.
+    silhouetteFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame(run) : setTimeout(run, 16);
 }
 
 function hide(token) {

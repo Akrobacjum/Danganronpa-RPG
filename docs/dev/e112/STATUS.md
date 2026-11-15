@@ -18,9 +18,14 @@ reproduced; that the critical they saw was the dice's own is a guess, not a read
 (roll-draw.mjs `appliedCalls`), so an opening's packet naming an armed Support got its die and spent it
 (tier 2 "E112 - the GM's draw of an opening applies its Loaded Die alone ...": `[[support],1,false]`).
 
-**The fix** (commit 8282b192), the owner's default through the coordinator: the opening is the murder's own roll, so an
-armed Loaded Die applies to it and is spent once, given back where it did not hold; no other Call reaches it.
-call-effects.mjs `SHIELD_PASSES`; action-pipeline.mjs `rollTrait`; roll-draw.mjs `appliedCalls`. Mutants 5/5 killed.
+**The fix**: first (8282b192) the Loaded Die alone, the coordinator's default; then, on the owner's answer "Inne tez"
+(406f96a4), every Call: the opening raises no shield (call-effects.mjs `TAKES_CALLS`), so the killer's armed Calls apply
+and are spent as on an action roll, the hindering ones counted unnamed on the GM (the owner confirmed), and a Resolve
+armed before the GM picks buys its picker (no GM window, the window unlocked). Palm alone spends no Call
+(roll-draw.mjs `SPENDS_NO_CALL`), and applies none of a packet's names. What `remember: false` still does on the opening:
+the roll is not bookmarked as the action's own. Red on e9f4a791 and green here: tier 2 "E112 - an armed Loaded Die ...",
+"E112 - the GM's draw of an opening takes the killer's armed Calls ..." (a Call armed on another character or on nobody
+gives nothing), "E112 - a Resolve armed on the killer buys the opening's picker". Mutants 5/5 and 5/5 killed.
 
 ## Item 1 - the opening's veil
 
@@ -51,6 +56,10 @@ wyciszony. Dopiero po rzucie odslaniamy token". The owner's five answers are in 
 **What it cannot hide**: a token's `hidden` reaches every browser (known leak `foundry-hidden-tokens`); and a hidden token is
 drawn on its owner's browser by this module, not by Foundry, so whether the killer keeps their own vision is LIVE-E112-01.
 
+**The room** (found by the related tier 2, 147 passed and 8 failed on d27da2a2): the module read Foundry's `hidden` as "not
+in the room" (movement.mjs `countsAsPresent` and nine more), so a veiled killer stopped being a witness, a Frisk's target,
+a finder, a tail's, an Echo's, and lost their own fog. utils.mjs `hiddenByGm` - hidden, but not veiled - at each.
+
 **Measured**: R7405 (pure rules, the voice and visibility readings, the order mask -> stage -> veil, the sweeps); tier 2
 "E112 - the opening veils ..." (roads A-F). Mutants: 11 run, 10 killed; "show refuses a hidden veiled token" survives -
 the harness has no canvas (LIVE-E112-01).
@@ -64,11 +73,25 @@ tylko o portret w karcie postaci - chodzi tez o ikone tokenu na mapie".
 (a grey silhouette, no question mark) and left `actor.img`. The map's root cause waits on the owner's answers (the version,
 whether the opening was on Hope or a critical - the mask opens only then - and what the map showed).
 
-**Done meanwhile**:
+**The owner's road, measured** (scenario 21, phase "road"): the killer's own browser throws the opening on Hope, the GM
+draws it and scores the bridge packet (`murder.openingResult`, its total, critical and Hope read off the GMs' record of
+the roll), read on the victim's, a bystander's and the killer's browsers. On e9f4a791's code the victim's browser reads
+the killer's token as `["?", "icons/svg/mystery-man.svg", masked]`: 1.2.115's road masks in the harness. The owner saw
+the real name and picture on the victim's screen after a successful direct opening on Hope (1.2.115, The Forge). What
+the code supports: a mask row left standing for that killer - `maskKiller` returned early and wrote nothing, so neither
+the name nor the picture changed (H2; masks are backed up and outlive a version); or a token update that failed and was
+only logged on the primary (H4). Both are answered here (below); neither was seen at a table.
+
+**Done**:
 
 - (a) icons/mask-unknown.svg, a "?" in the module's pixel manner (a light glyph and ring with a dark outline on a dark
   disc), the mask's token and ring picture (`MASK_IMG`). Read at 120 and 48 px on a light, a green, a dark and a black
   ground in Chromium (mask-unknown-grounds.png here), not on a map.
+- H1: a token made while a mask or the veil stands (from the prototype, or carried to another scene by call-world.mjs
+  `carryAcross`) joins the row (`adoptToken`); before, the first wore the real art and the second kept the "?" or
+  `hidden` after the end.
+- H2: a standing row no longer stops `maskKiller`; it masks every token the row does not hold masked, and the portrait.
+- H4: a token the mask could not write is said on the GM's screen (DRPG.Mask.tokenFailed).
 - (b) the portrait: `actor.img` wears the same picture while the mask stands, after the tokens; the actor's own picture
   and its prototype token's are kept on the mask's row and written back exactly (`portraitOf`, `portraitBack`). The
   killer's own sheet shows the "?" too while it stands.
@@ -96,5 +119,7 @@ itself and builds a sprite from each token's `token.mesh.texture` on every `upda
 that intersects an occluding tile - with no test of the token's visibility, and drawn at 30% brightness, not hidden. So:
 after the mask's texture write, the next refresh rebuilds it from the new texture (a frame of the old one between the
 `updateToken` hook and Foundry's redraw is possible and not measured); and with the setting on, a token this module hides
-(another room, an Eclipse, the veil) still shows its silhouette behind an occluding tile. That is the module's limit with
-that setting on, not fixed here: LIVE-E112-04.
+(another room, an Eclipse, the veil) still shows its silhouette behind an occluding tile. On the owner's answer to Q4 it
+is fixed in the module (visibility.mjs `hideSilhouettes`): a frame after each of those hooks, every sprite of that layer
+matching a token not visible on this browser (same texture, same position) is hidden; Isometric is not edited. R7407 on a
+stand-in stage, mutants 2/2; a real canvas, and whether a frame shows before it is hidden, LIVE-E112-05.
