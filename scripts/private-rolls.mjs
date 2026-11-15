@@ -65,6 +65,7 @@ import { readDuality } from "./despair-award.mjs";
 import { cardFlag } from "./secret.mjs";
 import { keepRoom } from "./notice-history.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
+import { sample, now as timingNow } from "./perf-timings.mjs";
 
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
@@ -186,7 +187,21 @@ function dualityOutcome(message, html) {
     return null;
 }
 
+/**
+ * The module's paint of one card as the log renders it, timed (E53 C1; perf-timings.mjs `chatCard.paint`): `perf()`'s
+ * line for a card's render. What is timed is this pass alone - the module's own share of a card's render on every
+ * browser that draws it - and not Foundry's render of the message, which no listener of the hook can see begin.
+ */
 function paintChatCard(message, element) {
+    const startedAt = timingNow();
+    try {
+        return paintCard(message, element);
+    } finally {
+        sample("chatCard.paint", timingNow() - startedAt);
+    }
+}
+
+function paintCard(message, element) {
     try {
         const html = element instanceof HTMLElement ? element : element?.[0];
         if (!html?.classList) return;

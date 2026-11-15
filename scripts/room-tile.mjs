@@ -75,6 +75,8 @@ import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";
 import { trialScene, roomNames } from "./rooms.mjs";
 import { hallRoom, HALL_ROOM_FLAG } from "./trial-scene.mjs";
+// The room tile's paints counted (E53 C1, the 11.10 amendment A8; perf-counters.mjs).
+import { count } from "./perf-counters.mjs";
 
 
 const TILE_ID = "drpg-room-tile";
@@ -238,6 +240,7 @@ const painted = new WeakMap();
  */
 export function paintRoomTile(tile, view = tileView()) {
     if (!tile) return false;
+    count("roomTile.paint");
     const key = JSON.stringify(view);
     const last = painted.get(tile);
     if (last?.key === key) return false;

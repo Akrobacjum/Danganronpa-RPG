@@ -152,6 +152,15 @@ async function probes(doc) {
     return { ran, couldNotRun };
 }
 
+/** E53 C1's cost lines, by the key each is filed under and the label diagnostics.mjs `costLines` prints. */
+export const COST_LINES = Object.freeze({
+    ownRing: "a student's ring drawn again", remnantRing: "a Remnant's ring drawn again", fog: "the fog repainted",
+    dashboard: "the case dashboard rebuilt in place", chatCard: "a chat card painted (the module's pass, not Foundry's render)",
+    canvas: "the canvas drawn, any scene", canvasTrial: "the canvas drawn entering the trial hall",
+    canvasLeaveTrial: "the canvas drawn leaving the trial hall", auditJudged: "a sheet write judged by the GMs' audit",
+    auditWaited: "a sheet write waiting for its judgement"
+});
+
 /** perf()'s lines as numbers; a line it did not print is null, never 0. */
 export function parsePerf(text) {
     const num = re => { const m = String(text).match(re); return m ? Number(m[1]) : null; };
@@ -167,13 +176,25 @@ export function parsePerf(text) {
            "none since this browser loaded", null where the block is not printed - a median, the slowest, and
            the step on the way. A GM's browser fills the first line, a player's the second. */
         drewCount: count(/^  drawn here, packet in to answer out: (\d+|none)/m),
-        drewMedian: num(/^  drawn here, packet in to answer out: \d+, median\s+([\d.]+) ms/m),
+        drewMedian: num(/^  drawn here, packet in to answer out: \d+, (?:median|p50)\s+([\d.]+) ms/m),
+        drewP95: num(/^  drawn here, packet in to answer out: \d+, p50\s+[\d.]+ ms, p95\s+([\d.]+) ms/m),
         drewSlowest: num(/^  drawn here, packet in to answer out: .*slowest\s+([\d.]+) ms/m),
-        drewWritten: num(/^  drawn here, packet in to answer out: .*the message written at median ([\d.]+) ms/m),
+        drewWritten: num(/^  drawn here, packet in to answer out: .*the message written at (?:median|p50) ([\d.]+) ms/m),
         drawnCount: count(/^  drawn for this browser, asked to dice shown: (\d+|none)/m),
-        drawnMedian: num(/^  drawn for this browser, asked to dice shown: \d+, median\s+([\d.]+) ms/m),
+        drawnMedian: num(/^  drawn for this browser, asked to dice shown: \d+, (?:median|p50)\s+([\d.]+) ms/m),
+        drawnP95: num(/^  drawn for this browser, asked to dice shown: \d+, p50\s+[\d.]+ ms, p95\s+([\d.]+) ms/m),
         drawnSlowest: num(/^  drawn for this browser, asked to dice shown: .*slowest\s+([\d.]+) ms/m),
-        drawnAnswered: num(/^  drawn for this browser, asked to dice shown: .*the answer in at median ([\d.]+) ms/m)
+        drawnAnswered: num(/^  drawn for this browser, asked to dice shown: .*the answer in at (?:median|p50) ([\d.]+) ms/m),
+        /* "What the table's own work cost on this browser" (E53 C1, diagnostics.mjs `costLines`): each line's count, p50
+           and p95 - the count 0 where it says "none since this browser loaded", every field null where the line is not
+           printed (an older body, or the audit's two lines off the primary GM). Since E53 C1 the trip lines read
+           "p50" where they read "median"; both are read above, so a run of either body parses. */
+        ...Object.fromEntries(Object.entries(COST_LINES).flatMap(([key, label]) => {
+            const at = String(text).split("\n").find(l => l.startsWith(`  ${label}: `));
+            const m = at?.match(/: (\d+), p50\s+([\d.]+) ms, p95\s+([\d.]+) ms/);
+            const n = at === undefined ? null : m ? Number(m[1]) : /: none since this browser loaded$/.test(at) ? 0 : null;
+            return [[`${key}Count`, n], [`${key}P50`, m ? Number(m[2]) : null], [`${key}P95`, m ? Number(m[3]) : null]];
+        }))
     };
 }
 const median = xs => { const v = xs.filter(x => x !== null).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : null; };

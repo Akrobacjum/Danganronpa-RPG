@@ -61900,6 +61900,83 @@ const INVARIANTS = [
         }), stableJson({ gm: true, drops: true, noTicks: true, button: true, runs: true, defaultChapter: true, destructive: true, counts: true }),
         "{a GM's only, dropped by tombstones on both stores, the ticks untouched, the button, its road, the clock's chapter picked, a destructive yes, the counts named}");
     }],
+    ["R7405 - perf() prints what the table's own work cost, each line with its count (E53 C1, the plan's item 1): perf-timings.mjs keeps the last fifty of each name, takes p50 and p95 by the nearest rank and keeps no reading that is not a finite non-negative number; `costLines` gives each cost `n, p50, p95, slowest` or \"none since this browser loaded\", and says the audit is not measured off the primary GM; each cost is fed where its work runs (a ring rebuilt on both painters, the fog's repaint past the dissolve's queue, a live region's rebuild, the audit's judgement and its wait, a chat card's paint, the canvas between canvasTearDown and canvasReady with the trial hall told apart); the roll's round trip reads p50 and p95; the room tile, the notice history and the movement audit count their runs", async () => {
+        /*
+         * E53 C1, 15.11.2026. The plan's goal: perf() also measures the rings, the roll round trip (p50, p95), the cost of
+         * E29's audit on the primary GM, canvas.draw entering and leaving the trial room, the card render, the dashboard
+         * rebuild and the fog; the 11.10 amendment adds counters for the notice history, the room tile and `auditMove`.
+         * Red before C1: no perf-timings.mjs, no `costLines`, the trip line read "median" and "slowest" only.
+         * The numbers are never asserted (jsdom's clock): what is held is how a line is taken and that each cost is fed.
+         */
+        let T = null;
+        try { T = await import("./perf-timings.mjs"); } catch { T = null; }
+        must(T, "scripts/perf-timings.mjs does not load");
+        const D = await import("./diagnostics.mjs");
+        const name = "r7405.probe";
+        for (let i = 1; i <= 60; i++) T.sample(name, i);
+        T.sample(name, Number.NaN); T.sample(name, -1); T.sample(name, Infinity); T.sample(name, "x");
+        const five = "r7405.five";
+        for (const v of [5, 1, 4, 2, 3]) T.sample(five, v);
+        // A name fed only junk keeps nothing (mutant M5 of C1: with 1..60 a kept -1 left p50, p95 and the slowest as they were).
+        const junk = "r7405.junk";
+        for (const v of [-1, -0.5, Number.NaN, Infinity, "x"]) T.sample(junk, v);
+        equal(stableJson([T.KEPT, T.stats(name), T.stats(five), T.stats("r7405.never"), T.stats(junk)]),
+            stableJson([50, { n: 50, p50: 35, p95: 58, max: 60 }, { n: 5, p50: 3, p95: 5, max: 5 }, { n: 0 }, { n: 0 }]),
+            "perf-timings [kept | 1..60 after junk: the newest fifty, p50 and p95 by nearest rank | five readings | a name never fed | a name fed only junk]");
+
+        must(typeof D.costLines === "function", "diagnostics.mjs exports no costLines");
+        const fed = { "ownRing.rebuilt": { n: 3, p50: 1.234, p95: 2, max: 2 }, "audit.judged": { n: 1, p50: 7, p95: 7, max: 7 } };
+        const onPrimary = D.costLines({ read: n => fed[n] ?? { n: 0 }, primary: true });
+        const offPrimary = D.costLines({ read: n => fed[n] ?? { n: 0 }, primary: false });
+        const labelled = (lines, bit) => lines.find(l => l.includes(bit)) ?? null;
+        equal(stableJson([
+            onPrimary.length, offPrimary.length,
+            labelled(onPrimary, "a student's ring drawn again"),
+            labelled(onPrimary, "a Remnant's ring drawn again"),
+            labelled(onPrimary, "judged by the GMs' audit"),
+            labelled(onPrimary, "waiting for its judgement"),
+            labelled(offPrimary, "audit of a sheet write"),
+            ["the fog repainted", "the case dashboard rebuilt", "a chat card painted", "the canvas drawn, any scene",
+                "entering the trial hall", "leaving the trial hall"].map(bit => /none since this browser loaded$/.test(labelled(onPrimary, bit) ?? ""))
+        ]), stableJson([10, 9,
+            "  a student's ring drawn again: 3, p50    1.23 ms, p95       2 ms, slowest       2 ms",
+            "  a Remnant's ring drawn again: none since this browser loaded",
+            "  a sheet write judged by the GMs' audit: 1, p50       7 ms, p95       7 ms, slowest       7 ms",
+            "  a sheet write waiting for its judgement: none since this browser loaded",
+            "  the GMs' audit of a sheet write: not measured here - it runs on the primary GM's browser",
+            [true, true, true, true, true, true]
+        ]), "costLines [lines on the primary | off it | a fed ring | an unfed ring | the audit fed | its wait unfed | off the primary | the other six unfed]");
+
+        const src = new Map(await moduleSources());
+        const read = file => { const text = src.get(file); must(text, `${file} was not read`); return text; };
+        const diag = read("diagnostics.mjs");
+        const perf = fnSource(diag, "perfReport");
+        const canvasHooks = fnSource(diag, "registerCanvasTimings");
+        const paintOf = file => fnSource(read(file), "paint");
+        equal(stableJson({
+            perfReadsCosts: /costLines\(\)/.test(perf),
+            tripP50P95: /p50 \$\{/.test(perf) && /p95 \$\{/.test(perf) && !/median \$\{/.test(perf),
+            ownRing: /rebuiltAt = now\(\)/.test(paintOf("own-ring.mjs")) && /sample\("ownRing\.rebuilt"/.test(paintOf("own-ring.mjs")),
+            remnantRing: /rebuiltAt = now\(\)/.test(paintOf("remnant-ring.mjs")) && /sample\("remnantRing\.rebuilt"/.test(paintOf("remnant-ring.mjs")),
+            fogAfterQueue: /queueBehindDissolve\(\)\) return false;\s*startedAt = clockNow\(\);/.test(fnSource(read("fog.mjs"), "repaintFog"))
+                && /sample\("fog\.repaint"/.test(fnSource(read("fog.mjs"), "repaintFog")),
+            live: /sample\(`live\.\$\{region\}`/.test(fnSource(read("live.mjs"), "keepLive")),
+            audit: /sample\("audit\.waited", Date\.now\(\) - seen\.at\)/.test(fnSource(read("sheet-audit.mjs"), "judgeWrite"))
+                && /sample\("audit\.judged"/.test(fnSource(read("sheet-audit.mjs"), "judgeWrite")),
+            card: /sample\("chatCard\.paint"/.test(fnSource(read("private-rolls.mjs"), "paintChatCard")),
+            canvas: /Hooks\.on\("canvasTearDown"/.test(canvasHooks) && /Hooks\.on\("canvasReady"/.test(canvasHooks)
+                && /sample\("canvas\.draw\.trial"/.test(canvasHooks) && /sample\("canvas\.draw\.leaveTrial"/.test(canvasHooks),
+            registered: /safely\("the canvas's timing", registerCanvasTimings\)/.test(read("module.mjs")),
+            roomTile: /count\("roomTile\.paint"\)/.test(fnSource(read("room-tile.mjs"), "paintRoomTile")),
+            notices: /count\("noticeHistory\.record"\)/.test(read("notice-history.mjs")),
+            auditMove: /count\("movement\.auditMove"\)/.test(fnSource(read("movement-audit.mjs"), "auditMove"))
+        }), stableJson({ perfReadsCosts: true, tripP50P95: true, ownRing: true, remnantRing: true, fogAfterQueue: true, live: true,
+            audit: true, card: true, canvas: true, registered: true, roomTile: true, notices: true, auditMove: true }),
+            "each cost fed where its work runs, and perf() reads them");
+        // Only the test's own names are forgotten: a GM's runTests() at a table keeps the table's readings.
+        T.forget(name); T.forget(five); T.forget(junk);
+        equal(stableJson([T.stats(name).n, T.names().includes(five)]), stableJson([0, false]), "perf-timings forgets a name it was told to");
+    }],
 ];
 
 /**

@@ -127,7 +127,7 @@ import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
     systemCompatibility, removeModuleStyles } from "./requirements.mjs";
-import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
+import { warnAboutPageTinting, verifyStylesheet, registerCanvasTimings } from "./diagnostics.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm, markModuleWindow } from "./utils.mjs";
 
 /**
@@ -229,6 +229,8 @@ Hooks.once("init", () => {
     safely("the GMs' audit of a sheet", registerSheetAudit);
     safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
+    // Each scene change timed from canvasTearDown to canvasReady, for `perf()` (E53 C1).
+    safely("the canvas's timing", registerCanvasTimings);
     safely("a piece renamed out of a room", registerRoomPieces);
     safely("the projects tray", registerProjectsUi);
     safely("projects on the map", registerProjectsMap);

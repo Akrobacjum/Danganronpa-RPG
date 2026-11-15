@@ -91,6 +91,8 @@ import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
 import { roomCensus } from "./vault-store.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+// A repaint is timed where it runs (E53 C1; perf-timings.mjs): `perf()`'s line for the fog.
+import { sample, now as clockNow } from "./perf-timings.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState, everyPart } from "./season-reset.mjs";
 export { seamWidth, rezoomRoomOutline } from "./fog-reveal.mjs";
@@ -3007,9 +3009,11 @@ export function repaintFog() {
     count("fog.repaintFog");
     // What the switcher offers moves with what this repaint answers to: a room found, a token on another floor.
     scheduleFloorSwitcher();
+    let startedAt = null;
     try {
         // Redrawn the moment the transition finishes - see "REPAINTS DO NOT INTERRUPT A DISSOLVE".
         if (queueBehindDissolve()) return false;
+        startedAt = clockNow();
         lastDrawn = null;
         lastShading = null;
         doorRooms = null;
@@ -3168,6 +3172,8 @@ export function repaintFog() {
     } finally {
         // Every way out, a stand-down included: the doors follow what was shaded, or Foundry (E12 C13).
         refreshDoorControls();
+        // Timed with the doors' refresh, the part of a repaint every way out pays (E53 C1).
+        if (startedAt !== null) sample("fog.repaint", clockNow() - startedAt);
     }
 }
 
