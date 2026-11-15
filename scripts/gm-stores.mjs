@@ -1159,6 +1159,22 @@ export const maskStore = defineGmStore({
 });
 
 /**
+ * THE OPENING'S VEIL (E112, 15.11.2026; the owner's request 1: "gdy morderca rzuca, dopoki nie rzuci otwarcia, jego token
+ * powinien byc niewidzialny dla ofiary, a sam morderca wyciszony"). A row per character the opening of a direct murder
+ * hides, keyed by its actor id: `{ actorId, userIds, why, openedAt, tokens, at }` - `userIds` its owners, whose microphone
+ * the veil blocks, `why` "lights" (put up as an Eclipse ends, for a declaration the lights judge) or "opening", `openedAt`
+ * the incident's, `tokens` each token's `{ sceneId, tokenId, hidden }`, its own `hidden` before the veil, written back at
+ * the end (mask-gm.mjs `liftVeil`). Written, read and dropped by the primary alone; synced, so a new primary lifts what no
+ * opening holds any more (`settleVeils`); not backed up: a row is worth one opening. Cut by the reset's "actions" group.
+ * No player copy - a player reads the token's flag, which names nobody - and no old key.
+ */
+export const veilStore = defineGmStore({
+    name: "veils", key: SETTINGS.gmVeils,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * AN OWNER'S EAVESDROPS (E69 C6): `{ actorId: { sceneId, from, into, mark, active } }` for the characters this user owns,
  * as the primary GM sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the voice
  * tile (its Stop listening, the microphone's reason) and the Listen window (a free repeat).

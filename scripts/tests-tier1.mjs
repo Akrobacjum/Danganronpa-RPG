@@ -58798,7 +58798,7 @@ const INVARIANTS = [
         ok(at.kind >= 0 && at.seen >= 0 && at.under > at.kind && at.under < at.seen,
             `paint puts a trace under the characters after the character's way out and before the visibility check (${stableJson(at)})`);
     }],
-    ["R7402 - a masked token's ring shows the \"?\" too, and gets its own picture back (scripts/mask-gm.mjs `maskPatch`, `lookOf`, `restorePatch`; owner-115 item 1b): the patch writes the mystery man as the dynamic ring's subject texture (v14's `ring.subject.texture`, fvtt-types 14.370 client/documents/token.d.mts RingSubjectSchema); the look kept holds the subject's own texture, and the patch back writes it", async () => {
+    ["R7402 - a masked token's ring shows the \"?\" too, and gets its own picture back (scripts/mask-gm.mjs `maskPatch`, `lookOf`, `restorePatch`; owner-115 item 1b; E112 item 2a): the patch writes the mask's picture as the dynamic ring's subject texture (v14's `ring.subject.texture`, fvtt-types 14.370 client/documents/token.d.mts RingSubjectSchema); the look kept holds the subject's own texture, and the patch back writes it", async () => {
         /* owner-115 item 1b, 14.11.2026; the coordinator's road (a): a v14 token with the dynamic ring on may draw its subject
            texture, which the mask did not touch, so the killer's art could stay on the ring. Pure readings. */
         const K = await import("./mask-gm.mjs");
@@ -58807,7 +58807,8 @@ const INVARIANTS = [
         const read = { patch: K.maskPatch()["ring.subject.texture"] ?? "none", kept: look.subject ?? "none",
             back: K.restorePatch(look, "GONE")["ring.subject.texture"] ?? "none",
             none: (patch => (Object.hasOwn(patch, "ring.subject.texture") ? patch["ring.subject.texture"] : "none"))(K.restorePatch(K.lookOf({ _source: { name: "B", texture: { src: "b.webp" } } }), "GONE")) };
-        equal(stableJson(read), stableJson({ patch: "icons/svg/mystery-man.svg", kept: "tokens/aiko-subject.webp", back: "tokens/aiko-subject.webp", none: null }),
+        // E112 item 2a (15.11.2026): the module's own "?" in place of Foundry's mystery man; changed on purpose.
+        equal(stableJson(read), stableJson({ patch: `modules/${MODULE_ID}/icons/mask-unknown.svg`, kept: "tokens/aiko-subject.webp", back: "tokens/aiko-subject.webp", none: null }),
             "{the patch's subject texture; the look's; the patch back's; a token with no subject gets null back}");
     }],
     ["R7403 - while a mask stands, every private card's words name the masked character \"?\" to a reader outside it (scripts/secret.mjs `wordsFor`, `setNameMask`, `maskNames`; scripts/mask-gm.mjs `namesHiddenFrom`, `registerMasks`; owner-115 item 1b): a reader whose names are hidden reads \"?\" in the text and in attributes, a longer name that starts the same is left alone, and another reader reads the name; the names hidden from a player are the masked tokens' characters they do not own, none from a GM; the masks register the cut at ready", async () => {
@@ -58870,7 +58871,8 @@ const INVARIANTS = [
         };
         equal(stableJson(read), stableJson({
             // owner-115 item 1b (R7402): the ring's subject texture is masked too and put back; changed on purpose.
-            patch: { name: "?", "texture.src": "icons/svg/mystery-man.svg", "ring.enabled": false, "ring.subject.texture": "icons/svg/mystery-man.svg", displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
+            // E112 item 2a (15.11.2026): the module's own "?" in place of Foundry's mystery man; changed on purpose.
+            patch: { name: "?", "texture.src": `modules/${MODULE_ID}/icons/mask-unknown.svg`, "ring.enabled": false, "ring.subject.texture": `modules/${MODULE_ID}/icons/mask-unknown.svg`, displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
             look: { name: "Aiko Mori", src: "tokens/aiko.webp", ring: true, displayName: 30, displayBars: 20, subject: null },
             back: { name: "Aiko Mori", "texture.src": "tokens/aiko.webp", "ring.subject.texture": null, "ring.enabled": true, displayName: 30, displayBars: 20, [`flags.${MODULE_ID}.masked`]: "GONE" },
             flag: [true, false, false], namesNobody: true
@@ -58901,6 +58903,73 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ hold: ["masked", true, "gmBlock"], gm: "masked", settle: true,
             closed: [true, false, false, false, false], words: [true, true] }),
             "{hold: [masked: reason, held; not masked]; gm; settle blocks a masked account; closed: [another player, the owner, a GM, a Spectator, no mask]; words}");
+    }],
+    ["R7405 - the opening's veil hides a direct murder's killers while the opening waits, mutes them and shows them to their own side (scripts/mask-gm.mjs `veilWanted`, `veilPatch`, `unveilPatch`; voice.mjs `micHold`, `moduleHoldsMic`, `settleTrialVoices`; visibility.mjs `tokenShownTo`; murder-rules.mjs `resolveKillerOpening`; E112): a direct opening veils its killer and a third on the killers' side, a trap, a self-inflicted death and any other stage none; the patch sets `hidden` and the one flag, the unveil writes the token's own `hidden` back; the killer's own `micHold` and a GM's `moduleHoldsMic` hold a veiled account, reason veiled, and the settle blocks it; a veiled token shows to its owner and the killers' side and hides from everyone else, a GM left to Foundry; the mask goes on before the stage and the veil comes off after it; the words in English and Polish", async () => {
+        /* E112, 15.11.2026. Plain facts and source; nothing written. Red on e9f4a791: mask-gm.mjs has no `veilWanted`. */
+        needs(env.primaryGm(), "a GM's `moduleHoldsMic` answers on a GM's browser alone");
+        const K = await import("./mask-gm.mjs");
+        const V = await import("./voice.mjs");
+        const { tokenShownTo } = await import("./visibility.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const settle = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText), "settleTrialVoices") ?? "");
+        const open = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText), "resolveKillerOpening") ?? "");
+        // The sweeps a GM gone or reloaded mid opening is answered by: the primary settles at its ready, when a GM leaves, and on every write of the incident.
+        const register = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText), "registerMasks") ?? "");
+        const wanted = typeof K.veilWanted === "function" ? K.veilWanted : () => "none";
+        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", indirect: false, selfInflicted: false };
+        const user = { id: "R7405USER0000000", name: "R7405", isGM: false, active: true };
+        const hold = veiled => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial: null, listening: null, masked: false, veiled });
+        const doc = { actorId: "K", actor: { type: "character" }, flags: { [MODULE_ID]: { veiled: true } } };
+        const viewer = (owns, side = [], extra = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false,
+            killersSide: new Set(side), owns: () => owns, ...extra });
+        const at = (from, to) => [open.indexOf(from), open.indexOf(to)];
+        const [maskAt, stageAt] = at("maskKiller(state)", "writeState(patch");
+        const veilAt = open.indexOf("settleVeils()");
+        const read = {
+            wanted: [wanted(base), wanted({ ...base, thirdId: "T", thirdSide: "killer" }), wanted({ ...base, thirdId: "T", thirdSide: "victim" }),
+                wanted({ ...base, indirect: true }), wanted({ ...base, selfInflicted: true, victimId: "K" }), wanted({ ...base, stage: "incident" }), wanted(null)],
+            patch: typeof K.veilPatch === "function" ? [K.veilPatch(), K.unveilPatch(false), K.unveilPatch(true, "GONE")] : null,
+            hold: [hold(true)?.reason ?? null, hold(true)?.held ?? null, hold(false)?.reason ?? null],
+            gm: V.moduleHoldsMic(user, { actors: [], eclipse: false, trial: false, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set([user.id]) })?.reason ?? null,
+            settle: settle.includes("veilMutedIds()"),
+            shown: [tokenShownTo(doc, viewer(true)), tokenShownTo(doc, viewer(false)), tokenShownTo(doc, viewer(false, ["K"])),
+                tokenShownTo(doc, viewer(false, [], { gm: true })), tokenShownTo(doc, viewer(false, ["K"], { eclipse: true }))],
+            order: maskAt > 0 && stageAt > maskAt && veilAt > stageAt,
+            sweeps: [/Hooks\.once\("ready",\s*settle\)/.test(register), /Hooks\.on\("userConnected"[^]*?settle\(\)/.test(register), register.includes("SETTINGS.murderState")],
+            words: [game.i18n.has("DRPG.Veil.card"), typeof pl?.DRPG?.Veil?.card === "string", game.i18n.has("DRPG.Voice.held.veiled"), typeof pl?.DRPG?.Voice?.held?.veiled === "string"]
+        };
+        const flag = `flags.${MODULE_ID}.veiled`;
+        equal(stableJson(read), stableJson({
+            wanted: [["K"], ["K", "T"], ["K"], [], [], [], []],
+            patch: [{ hidden: true, [flag]: true }, { hidden: false, [flag]: false }, { hidden: true, [flag]: "GONE" }],
+            hold: ["veiled", true, "gmBlock"], gm: "veiled", settle: true,
+            shown: ["show", "hide", "show", null, "hide"], order: true, sweeps: [true, true, true], words: [true, true, true, true] }),
+            "{wanted: [direct, a third on the killers' side, on the victim's, a trap, self-inflicted, another stage, none]; patch: [veil, unveil, unveil a hidden one]; hold; gm; settle; shown: [owner, stranger, the killers' side, a GM, the killers' side in an Eclipse]; order: mask, stage, veil; sweeps: [at ready, a GM leaving, the incident's writes]; words}");
+    }],
+    ["R7406 - the mask wears the module's own question mark, on the map and on the portrait (scripts/mask-gm.mjs `MASK_IMG`, `maskPatch`, `portraitOf`, `portraitBack`, `maskKiller`, `endMask`; icons/mask-unknown.svg; E112 item 2): the mask's picture is the module's icons/mask-unknown.svg, served and drawn crisp, the token's texture and its ring's subject; the portrait kept is the actor's own picture and its prototype token's, and given back as they were; the killer's portrait is masked after the tokens and given back at the end", async () => {
+        /* E112 item 2, 15.11.2026. Pure readings, one fetch and source; nothing written. Red on e9f4a791: MASK_IMG is
+           Foundry's mystery man and mask-gm.mjs has no `portraitOf`. */
+        const K = await import("./mask-gm.mjs");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText);
+        const mask = stripComments(fnSource(src, "maskKiller") ?? "");
+        const end = stripComments(fnSource(src, "endMask") ?? "");
+        const svg = await fetch(`/modules/${MODULE_ID}/icons/mask-unknown.svg`).then(r => (r.ok ? lfText(r) : "")).catch(() => "");
+        const actor = { _source: { img: "portraits/aiko.webp", prototypeToken: { texture: { src: "tokens/aiko.webp" } } } };
+        const portrait = typeof K.portraitOf === "function" ? K.portraitOf(actor) : null;
+        const read = {
+            img: K.MASK_IMG,
+            served: [/^<svg[^>]*shape-rendering="crispEdges"/.test(svg), (svg.match(/<path /g) ?? []).length >= 3],
+            patch: [K.maskPatch()["texture.src"] === K.MASK_IMG, K.maskPatch()["ring.subject.texture"] === K.MASK_IMG],
+            portrait,
+            back: typeof K.portraitBack === "function" ? K.portraitBack(portrait) : null,
+            none: typeof K.portraitOf === "function" ? K.portraitOf({ _source: {} }) : null,
+            order: mask.indexOf("maskPatch()") > 0 && mask.indexOf("img: MASK_IMG") > mask.indexOf("maskPatch()"),
+            given: end.includes("portraitBack(row.portrait)")
+        };
+        equal(stableJson(read), stableJson({ img: `modules/${MODULE_ID}/icons/mask-unknown.svg`, served: [true, true], patch: [true, true],
+            portrait: { img: "portraits/aiko.webp", proto: "tokens/aiko.webp" }, back: { img: "portraits/aiko.webp", "prototypeToken.texture.src": "tokens/aiko.webp" },
+            none: { img: null, proto: null }, order: true, given: true }),
+            "{the mask's picture; the file served crisp, with its paths; the token and its ring wear it; the portrait kept; given back; none kept; masked after the tokens; given back at the end}");
     }],
     ["R6030 - the mask is opened before the stage that sends the victim the cast, and taken back where the stage is lost (scripts/murder-rules.mjs `resolveKillerOpening`, `tellVictimTheIncidentBegan`; bridge-table.mjs `mask.reveal`; E69 C8): `maskKiller` is asked before the incident's stage is written and `endMask` where the write fails; the victim's first whisper of a masked killer is the line that names nobody; `mask.reveal` is a road owned by the sender's character, named in English and Polish, and the reveal's question has its words in both", async () => {
         /* E69 C8, 13.11.2026. Source and table read; nothing written. Red at f7e1721d. */

@@ -773,6 +773,13 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
         if (masks) await endMask(state.killerId, "lost");
         return null;
     }
+    /* THE VEIL COMES OFF AFTER THE "?" GOES ON (E112, mask-gm.mjs `settleVeils`): the mask was written above, the stage
+       is written, and only now are the killer's tokens shown again - so no browser draws the real face for a frame. */
+    try {
+        await (await import("./mask-gm.mjs")).settleVeils();
+    } catch (err) {
+        error("Could not lift the opening's veil", err);
+    }
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {
@@ -3555,6 +3562,13 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
         return null;
     }
     log(`Murder closed (${reason}).`);
+    // The opening's veil lifted with the incident (E112, mask-gm.mjs `settleVeils`): awaited here, so a close's
+    // caller finds every token as the veil found it. The write's own hook settles as well, on the primary.
+    try {
+        await (await import("./mask-gm.mjs")).settleVeils();
+    } catch (err) {
+        error("Could not lift the opening's veil", err);
+    }
 
     /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The
        suite's invariant grid (tests-grid.mjs, I4) counts closes with it: a betrayal that

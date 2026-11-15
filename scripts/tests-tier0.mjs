@@ -23230,7 +23230,8 @@ const REGRESSIONS = [
             "inventory.mjs": {"card": 2, "line": 3}, 
             "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4},
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
-            "mask-gm.mjs": {"card": 2}, "mastermind.mjs": {"message": 1},
+            // E112 (15.11.2026): the opening's veil adds the killer's one line before the roll (mask-gm.mjs `veilActor`).
+            "mask-gm.mjs": {"card": 3}, "mastermind.mjs": {"message": 1},
             "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`

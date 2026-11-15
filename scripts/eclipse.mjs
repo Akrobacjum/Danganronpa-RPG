@@ -416,6 +416,16 @@ export async function endEclipse({ advance = true } = {}) {
 
     log("Eclipse ended.");
 
+    /* THE OPENING'S VEIL FROM THE START OF THE TIME OF DAY (E112; the owner's answer (4)): the killers the lights below will
+       judge are veiled while the Eclipse still hides every token, and `lightsJudged` settles once they have judged
+       (mask-gm.mjs `veilAtTheLights`). On the primary GM; another GM's end veils at each open instead. */
+    try {
+        await pendingMurderStore.whenHydrated();
+        await (await import("./mask-gm.mjs")).veilAtTheLights(Object.keys(pendingMurders(ending)));
+    } catch (err) {
+        error("Could not veil the killers the lights will judge", err);
+    }
+
     // The other clients are told by the clock's write itself, on both branches below (clock.mjs `setClock` ->
     // `reconcileEclipseEnded`), AFTER the clock, for the same reason the flag goes with it: it redraws the HUD on every
     // other client, and sent first it redrew them into the half-finished state this function exists to skip past. ONE
@@ -516,6 +526,13 @@ export async function endEclipse({ advance = true } = {}) {
         await judgePendingMurders(ending, taken);
     } catch (err) {
         error("Could not judge the direct murders declared during the Eclipse", err);
+    } finally {
+        // Every row of "lights" no opening took over is lifted (E112); awaited, so the lights end with the veils settled.
+        try {
+            await (await import("./mask-gm.mjs")).lightsJudged();
+        } catch (err) {
+            error("Could not settle the opening's veil after the lights", err);
+        }
     }
     return true;
 }

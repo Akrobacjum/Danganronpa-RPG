@@ -530,6 +530,9 @@
       "card": "Jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, także po końcu incydentu. Wcześniej możesz się ujawnić przyciskiem „Ujawnij się” na swoim kafelku głosu.",
       "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy."
     },
+    "Veil": {
+      "card": "Do twojego rzutu otwarcia inni gracze nie widzą twoich tokenów, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy."
+    },
     "Listen": {
       "prompt": "Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?",
       "which": "Pokój",
@@ -6315,6 +6318,7 @@
         "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
         "masked": "Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.",
+        "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
@@ -8942,6 +8946,7 @@
         "lockpicks": "Kto może wejść do którego pokoju przez zamek otwarty wytrychem",
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
+        "veils": "Który zabójca jest ukryty i wyciszony do rzutu otwarcia i czy każdy jego token był ukryty już wcześniej",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole",
         "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",

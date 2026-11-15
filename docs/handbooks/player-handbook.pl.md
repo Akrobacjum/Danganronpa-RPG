@@ -744,6 +744,8 @@ Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszys
 
 Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął i kto na nią rusza; gdy zabójca jest ukryty za „?”, dowiaduje się tylko, że ktoś na nią rusza. Przy porażce ofiara niczego się nie dowiaduje.
 
+**Niewidoczny do rzutu otwarcia.** Od chwili, gdy zaczyna się Direct Murder, aż do rzutu otwarcia zabójcy pozostali gracze nie widzą tokenów zabójcy - także ofiara i wszyscy inni w pokoju - a mikrofon zabójcy jest wyłączony. Zabójca nadal słyszy pokój i dostaje o tym jedną linię. Wspólnik, który już jest po stronie zabójcy, jest ukryty i wyciszony tak samo i widzi zabójcę. Przy morderstwie zadeklarowanym w Eclipse zaczyna się to, gdy wracają światła, więc nikt nie widzi zabójcy na początku nowej pory dnia. Po rzucie tokeny zabójcy wracają takie, jakie były; jeśli rzut ukrywa zabójcę za „?”, najpierw pojawia się „?”. Pułapka i śmierć z własnej ręki nikogo nie ukrywają.
+
 **Morderstwo pośrednie (pułapka):** rzuca **ofiara**, Eye albo Head przeciw **20**, nocą tak samo jak za dnia; którą z dwóch, wybiera GM. Sama prośba o rzut jest ostrzeżeniem: słyszysz, że GM przygotowuje dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
 | Rzut ofiary | Co się dzieje |

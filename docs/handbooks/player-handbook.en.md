@@ -744,6 +744,8 @@ As the killer you are asked **Stay hidden?** **Reveal yourself** gives everyone 
 
 The victim sees nothing while the killer rolls: no card, no music, nothing on the Event panel. When the roll succeeds, they are told at once that the incident has begun and who is moving on them, or, behind a "?", only that *someone* is. A failure leaves them nothing at all.
 
+**Unseen until the opening roll.** From the moment a direct murder opens until the killer's opening roll lands, the other players do not see the killer's tokens - the victim and everyone else in the room included - and the killer's microphone is off; the killer still hears the room and is told so in one line. An accomplice already on the killer's side is hidden and muted the same way, and sees the killer. For a murder declared in an Eclipse this starts as the lights come back, so nobody sees the killer when the new time of day begins. When the roll lands the killer's tokens come back as they were - behind a "?" first, if the roll puts the killer behind one. A trap and a death by one's own hand hide nobody.
+
 **Indirect Murder (a trap):** the **victim** rolls Eye or Head against **20**, the same at Night as by day, and the GM picks which. Being asked to roll is itself the warning: you are told that the GM is setting up a roll for you, and the window reads "Something feels wrong".
 
 | Victim's roll | What happens |

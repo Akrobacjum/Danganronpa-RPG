@@ -542,6 +542,19 @@ export function tokenShownTo(tokenDoc, viewer) {
        for the same reason it does below: you have to be able to move it. */
     if (viewer.eclipse) return viewer.owns(tokenDoc) ? "show" : "hide";
 
+    /* THE OPENING'S VEIL (E112, mask-gm.mjs): a killer's token waiting on the opening is Foundry's `hidden` on every
+       browser, so Foundry draws it for no player. Its owner sees it - they have to be able to see themselves - and so
+       does the killers' side, where the room rule would show it (the accomplice beside the killer); nobody else, whatever
+       the setting. Read off the one flag (`veiled`, which names nobody) and this browser's own copy of the cast, which
+       holds the killers for the killers' side alone (incident-store.mjs `castCopyFor`). */
+    if (veiledToken(tokenDoc)) {
+        if (viewer.owns(tokenDoc)) return "show";
+        if (!viewer.killersSide?.has(tokenDoc.actorId)) return "hide";
+        if (!viewer.enforcing) return "show";
+        const at = roomOfToken(tokenDoc);
+        return at && viewer.rooms.has(at) ? "show" : "hide";
+    }
+
     // Everything below is the room rule, which is what the setting governs.
     if (!viewer.enforcing) return null;
 
@@ -578,6 +591,24 @@ export function tokenShownTo(tokenDoc, viewer) {
     return room && viewer.rooms.has(room) ? "room" : "hide";
 }
 
+/** Whether a token is veiled for a murder's opening (E112), by its one flag: inline, as voice.mjs `ownVeiled` reads it. */
+function veiledToken(tokenDoc) {
+    return Boolean((tokenDoc?.flags ?? tokenDoc?._source?.flags)?.[MODULE_ID]?.veiled);
+}
+
+/**
+ * THE KILLERS' SIDE AS THIS BROWSER KNOWS IT (E112): the killer and a third on the killers' side in this browser's copy of
+ * the cast, when this browser owns one of them - else none. A victim's or a bystander's copy holds no killer while the
+ * opening waits (incident-store.mjs `castCopyFor`), and owning none of them keeps a copy that does from showing anything.
+ */
+function killersSideHere() {
+    if (game.user?.isGM) return new Set();
+    const cast = incidentCast();
+    const side = [cast.killerId, cast.thirdSide === "killer" ? cast.thirdId : null].filter(Boolean);
+    const mine = side.some(id => game.actors?.get?.(id)?.isOwner);
+    return mine ? new Set(side) : new Set();
+}
+
 /**
  * This browser as `tokenShownTo`'s viewer; `owns` reads a token document's own `isOwner` unless
  * the caller hands another (`applyToToken` hands the sprite's). The rooms, the lair and the
@@ -597,6 +628,8 @@ export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
         // Whether this browser watches (E92 C4): read only when the rule gets to it, as the rooms are; a computed key, as
         // the lair's, so R22 does not read a call to a function `spectator`.
         get ["spectator"]() { return spectatorViewer(game.user); },
+        // The killers this browser sits beside (E112's veil): read only for a veiled token, a computed key as the others.
+        get ["killersSide"]() { return killersSideHere(); },
         owns
     };
 }
@@ -782,7 +815,8 @@ function hide(token) {
  * hidden from its owner too, which is what that control is for.
  */
 function show(token) {
-    if (token.document?.hidden) return;
+    // A token the opening veils is `hidden` on purpose (E112): its owner and the killers' side see it all the same.
+    if (token.document?.hidden && !veiledToken(token.document)) return;
     hiddenByUs.delete(token);
     token.visible = true;
     if (token.mesh) token.mesh.visible = true;
