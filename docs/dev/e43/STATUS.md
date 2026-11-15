@@ -51,7 +51,8 @@ E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress
 
 | Commit | What | Tests |
 | --- | --- | --- |
-| (E53 C4) | **projectLabel(id, user)**, the plan's goal, on S17-31's base (E93, 1.2.111; E101 R2): projects-secrecy.mjs `nameAs(id, user)` with its pure rule `labelFor`; `shownName` is `nameAs` for this browser's user (every list reads it through `allProjects`), and projects.mjs `projectLabel` with a countdown id and a user answers it. For this browser's own user it answers what `shownName` answered before, on a GM and a player's browser alike. Read on the way: **E43-F11** (FINDINGS), the repair card's readers, not measured and not fixed | R7406 (tier 1) red at e9f4a791 "projects-secrecy.mjs has no labelFor or nameAs", green after; R1106 green |
+| (E53 C4) | **projectLabel(id, user)**, the plan's goal, on S17-31's base (E93, 1.2.111; E101 R2): projects-secrecy.mjs `nameAs(id, user)` with its pure rule `labelFor`; `shownName` is `nameAs` for this browser's user (every list reads it through `allProjects`), and projects.mjs `projectLabel` with a countdown id and a user answers it. For this browser's own user it answers what `shownName` answered before, on a GM and a player's browser alike. Read on the way: **E43-F11** (FINDINGS), the repair card's readers | R7406 (tier 1) red at e9f4a791 "projects-secrecy.mjs has no labelFor or nameAs", green after; R1106 green |
+| (E43-F11) | a sealed repair's end card names its secret target to each reader as they may read it: readers grouped by `projectLabel(targetId, user)`, one card a group (projects.mjs, the `repairs` completion effect) | 72-canary "a sealed repair's end", red at 2832f8e4 (p2 read the name), green after |
 
 ## Not built, each with its reason
 

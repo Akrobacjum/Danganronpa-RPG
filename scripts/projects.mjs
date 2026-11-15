@@ -1004,9 +1004,10 @@ export const COMPLETION_EFFECTS = [
             const target = countdowns[targetId] ?? null;
             // Its name as the GMs hold it (S17-31: a secret target's countdown carries none).
             const targetName = target ? shownName(targetId, target) || "?" : "?";
-            const content = `<p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${
-                game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(targetName) })
+            const contentFor = named => `<p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${
+                game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(named) })
             }</p>`;
+            const content = contentFor(targetName);
             // A secret project's end goes to whoever can see it, veiled (E06 C10; audit S09-01): announced,
             // it told the table the name of a project the table may not know is there. Either half sealed
             // is enough: a repair made before 1.2.65 is public while its target may be secret, and a target
@@ -1020,7 +1021,20 @@ export const COMPLETION_EFFECTS = [
                 meta: target ? { [targetId]: { frozenBy: null } } : {},
                 remove: true,
                 after: async () => {
-                    await announce(whisper ? { content, veiled: true, whisper } : { content });
+                    /* EACH READER IN THE WORDS THEY MAY READ (E43-F11, 15.11.2026). A sealed repair's readers are not the
+                       target's once a GM shares the repair with another player, or takes one off the target: the one card
+                       named the target by the GMs' name to all of them (72-canary, red at 2832f8e4 on p2). The readers are
+                       grouped by the name each may read (`projectLabel(targetId, user)`: the GMs' for a GM and one in on the
+                       target, the countdown's neutral one for anyone else), one card a group; the GMs read the first. */
+                    const groups = new Map();
+                    for (const id of whisper ?? []) {
+                        const user = game.users.get(id);
+                        const named = !target ? "?" : user ? projectLabel(targetId, user) || "?" : targetName;
+                        if (!groups.has(named)) groups.set(named, []);
+                        groups.get(named).push(id);
+                    }
+                    const posts = whisper ? [...groups].map(([named, ids]) => ({ content: contentFor(named), veiled: true, whisper: ids })) : [{ content }];
+                    for (const post of posts) await announce(post);
                     log(`Repair "${name}" complete and removed; "${targetName}" is workable again.`);
                 }
             };
