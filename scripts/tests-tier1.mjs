@@ -58202,7 +58202,7 @@ const INVARIANTS = [
                 on2: [game.i18n.localize("DRPG.Spectator.talkBack"), "true"], off2: [game.i18n.localize("DRPG.Spectator.talk"), "false"] }),
             "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the tile's switch]");
     }],
-    ["R7409 - a Spectator talks in the Spectators' room by default (owner-116, 15.11.2026; the owner: \"Spectatorzy - niech ich pokój voice chat będzie globalny (graczy dalej per room)\"): voice.mjs `placeVoices` sends a Spectator's account with no flag to voice-client.mjs `SPECTATOR_ROOM`, from anywhere on the map; its own \"listen where my token stands\" flag (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`) keeps it in its token's room; the old switch (`spectatorTalk`, E92 C6) moves nothing either way; a student's account stays in its room with either flag; in an Eclipse nobody is moved; the tile's button reads the default as in the Spectators' room", async () => {
+    ["R7420 - a Spectator talks in the Spectators' room by default (owner-116, 15.11.2026; the owner: \"Spectatorzy - niech ich pokój voice chat będzie globalny (graczy dalej per room)\"): voice.mjs `placeVoices` sends a Spectator's account with no flag to voice-client.mjs `SPECTATOR_ROOM`, from anywhere on the map; its own \"listen where my token stands\" flag (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`) keeps it in its token's room; the old switch (`spectatorTalk`, E92 C6) moves nothing either way; a student's account stays in its room with either flag; in an Eclipse nobody is moved; the tile's button reads the default as in the Spectators' room", async () => {
         /*
          * owner-116, 15.11.2026. Stand-in accounts and characters, as R3860's; the room each stands in is handed. The old
          * flag read as nothing: a stored `spectatorTalk: true` meant the Spectators' room, the default now, and its absence
@@ -58216,13 +58216,13 @@ const INVARIANTS = [
         const account = (id, flags) => ({ id, name: id, isGM: false, active: true, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
         const LISTEN = S.SPECTATOR_LISTEN_FLAG, OLD = "spectatorTalk";
         const place = async (flags, { eclipse = false, student = false } = {}) => {
-            const watch = account("R7409watch", flags);
-            const who = e92Char("R7409-who", student ? {} : { spectator: true }, watch.id);
+            const watch = account("R7420watch", flags);
+            const who = e92Char("R7420-who", student ? {} : { spectator: true }, watch.id);
             const out = await V.placeVoices({ actors: [who], users: [watch], userOf: () => watch, dead: () => false, eclipse,
-                monokumaOf: () => false, death: { cast: new Set() }, locate: () => ({ scene: { id: "R7409scene", name: "R7409" }, room: "Gym" }) });
+                monokumaOf: () => false, death: { cast: new Set() }, locate: () => ({ scene: { id: "R7420scene", name: "R7420" }, room: "Gym" }) });
             return out.byUser.get(watch.id)?.target ?? null;
         };
-        const gym = V.liveKitRoomFor("R7409scene", "Gym");
+        const gym = V.liveKitRoomFor("R7420scene", "Gym");
         const reads = {
             spectator: [await place({}), await place({ [LISTEN]: true }), await place({ [OLD]: true }), await place({ [OLD]: true, [LISTEN]: true }), await place({ [OLD]: false })],
             student: [await place({}, { student: true }), await place({ [LISTEN]: true }, { student: true }), await place({ [OLD]: true }, { student: true })],

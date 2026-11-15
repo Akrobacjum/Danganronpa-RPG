@@ -2,6 +2,11 @@
 
 Branch `claude/owner-116` from `e9f4a791` (1.2.115). One section an item: the reading, the red test, the fix, the numbers.
 
+R numbers: this line's block is R7420-R7439 (the coordinator, 15.11.2026: the E112 line holds R7407 and R7408, which a
+`--next` on this tree alone does not see). Item 3's test, R7409 in e389c2ca, is R7420 since the commit after it; R7409
+keeps its registry row, marked "(removed in E39)" by `tools/registry.mjs --write` (a number is never reused; the stage
+name is the tool's own reading). If the E112 line needs R7409, that row is the one to settle at the assembly.
+
 ## Item 1 - the planner's nodes: always the edit view, wider, every field the node's width
 
 ### Reading (15.11.2026, before any change)
@@ -83,7 +88,9 @@ both themes):
 
 Fit to view puts the Map at 0.25-0.63 on the cases measured above, so a GM typing at fit typed in a field a quarter to
 two fifths of its node's width: the likeliest reading of "still narrower than it should be" after fix-113d, which measured
-the fields at 100%. The owner's screenshot has not reached this session, so that is a reading, not a match.
+the fields at 100%. The owner's screenshot did not reach this session; the coordinator read it (Stained Glass): the
+text boxes fill the node and the selects do not, each as wide as its words - the select defect below. So the selects
+are the owner's "narrower"; the floating field is a second defect found on the way, the owner's or not.
 Fix: float-text.mjs `holdSize` - the placeholder at the field's layout size (untransformed, the screen box to the fraction,
 as before: a first version with the rounded `offsetWidth` moved reveal-confirm's window by half a pixel under glass, which
 the full float sweep read). Tests: R7406 (pure, tier 0), float-sweep I7 (Chromium).
@@ -110,9 +117,8 @@ as it is for the coordinator.
 
 ## Item 2 - hide a Monokuma's token: dropped (the owner, 15.11.2026)
 
-Built and not committed when the owner dropped it; thrown away, nothing of it pushed. R7407 and R7408 were taken for it and are left
-unused (never written to docs/dev/R-REGISTRY.md; the registry's next free number is past them); scenario number 77 is
-free again. What its reading found stays true of the tree: every
+Built and not committed when the owner dropped it; thrown away, nothing of it pushed. R7407 and R7408 were taken for it and are released (never
+written to docs/dev/R-REGISTRY.md; the E112 line uses both); scenario number 77 is free again. What its reading found stays true of the tree: every
 Monokuma, hidden or not, is already nobody in a room (movement.mjs `countsAsPresent`).
 
 ## Item 3 - the Spectators' voice global (the coordinator's option A)
@@ -146,7 +152,7 @@ At 25e2d34e a Spectator's account listened where its token stood, its microphone
 
 ### Tests and numbers
 
-- R7409 (tier 1) red at 25e2d34e ("spectator.mjs has no SPECTATOR_LISTEN_FLAG or talksWithSpectators"; the same file's
+- R7420 (tier 1) red at 25e2d34e ("spectator.mjs has no SPECTATOR_LISTEN_FLAG or talksWithSpectators"; the same file's
   R3860 read the Spectator with no flag in its token's room), green after: a Spectator with no flag, with the old flag
   true and with it false in the Spectators' room; listening, in its token's room; a student in its room with any flag;
   in an Eclipse not moved; the tile's reading.
