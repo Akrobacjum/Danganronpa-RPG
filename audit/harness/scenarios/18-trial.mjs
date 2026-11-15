@@ -31,7 +31,7 @@
  * handed a fourth ballot at load, asks again, casts, and is told once that the vote is in. Two mutants, KILLED here.
  * Before it, the GM's browser reloads mid-vote (`reload`, as F5; not a late second GM) and counts p1's ballot from the
  * GMs' store; its scans read dice-sync.mjs's world copy, which names every actor alike (world-secrets.mjs
- * `uniformActorRows`, R7405).
+ * `uniformActorRows`, R7560).
  *
  * THE FINAL TRIAL (E40, 15.11.2026, the same line): then a student nobody plays made the Mastermind, the Final Trial's
  * flag up, the trial started again, and a wrong Final verdict on Botan: one public card, the flag down, nobody

@@ -173,7 +173,7 @@ export const WORLD_SECRET_RULES = Object.freeze({
        `stamps` map is a number (a stamp is when a row was written, its own for each actor made since the seed, so its
        shape is held and not its value). Once the rows name some actors only, or a watched actor's row is its own, the
        exemption stops and the scan finds the ids again. A watched id in a value, or in any other part of the setting, is
-       always found. Only the harness's id scans ask it: state-check.mjs reads the rule without ids. Tier 1 R7405 holds
+       always found. Only the harness's id scans ask it: state-check.mjs reads the rule without ids. Tier 1 R7560 holds
        both directions. */
     uniformActorRows: Object.freeze({
         diceLookWorld: Object.freeze({
