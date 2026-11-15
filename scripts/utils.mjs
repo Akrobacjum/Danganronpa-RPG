@@ -434,16 +434,6 @@ export function serverNow() {
 }
 
 /**
- * Exactly one client runs GM-side automation, so two GMs never both apply the
- * same effect.
- *
- * Full Gamemasters are preferred over Assistant GMs. `User#isGM` is true for
- * assistants too, so picking the lowest id across everyone with `isGM` can hand
- * the job to an assistant - and if that assistant is offline, or their id sorts
- * first while the real GM is the one running the game, the automation silently
- * never fires. Assistants are only used when no full GM is connected.
- */
-/**
  * WHETHER A GM HID A TOKEN (E112, 15.11.2026): Foundry's `hidden`, but not the opening's veil (mask-gm.mjs `VEIL_FLAG`),
  * which hides a killer's token from the other players and leaves them in the room - a witness, a target, a finder, as
  * before. Every reading of "a token the GM has hidden is not in the scene" asks this. Pure.
@@ -453,6 +443,16 @@ export function hiddenByGm(tokenDoc) {
     return Boolean(doc?.hidden) && !(doc?.flags ?? doc?._source?.flags)?.[MODULE_ID]?.veiled;
 }
 
+/**
+ * Exactly one client runs GM-side automation, so two GMs never both apply the
+ * same effect.
+ *
+ * Full Gamemasters are preferred over Assistant GMs. `User#isGM` is true for
+ * assistants too, so picking the lowest id across everyone with `isGM` can hand
+ * the job to an assistant - and if that assistant is offline, or their id sorts
+ * first while the real GM is the one running the game, the automation silently
+ * never fires. Assistants are only used when no full GM is connected.
+ */
 export function isPrimaryGm({ leaving = null } = {}) {
     // `game.user` is null for the first and last moments of a client's life,
     // and socket packets arrive in both.

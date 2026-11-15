@@ -9865,6 +9865,7 @@ const REGRESSIONS = [
             ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, and a player's is not one; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
             // E62 C3b: the dead's Spectator token, read on its owner's browser.
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
+            ["HOOK mask-gm.mjs#registerMasks#createToken:inline", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK visibility.mjs#registerVisibility#createRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
             ["HOOK visibility.mjs#registerVisibility#updateRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
@@ -10141,6 +10142,7 @@ const REGRESSIONS = [
             ["HOOK spectator-dead.mjs#deleteToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#updateToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#createToken#arrow2", "deleted, not judged (13.11.2026, scenario 78 part gm2): on the primary, a token made for a second Spectator of one student that this browser took away (`settleWatchers`, `lostWatchers`) is deleted when it arrives, and a token of a watcher sends its student's watchers to `settleWatchers`; neither reads nor judges a move into a room"],
+            ["HOOK mask-gm.mjs#createToken#arrow1", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK visibility.mjs#updateToken#arrow1", "out of scope: recomputes this client's draw on `hidden` or a move (visibility.mjs `registerVisibility`); C2's reveal and hide fire it on every client, expected"],
             ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -11263,6 +11265,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook and the Death fade on the dead student's browser; E79 adds no road through it"],
+            ["HOOK mask-gm.mjs#registerMasks#createToken/inline -> judge", "this file's own (E112): a token made while a mask or the veil stands joins it on the primary; no passage road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook on the dead student's browser when its Spectator token becomes the Monocub's; E79 adds no road through it"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -23564,7 +23567,8 @@ const REGRESSIONS = [
         const read = {
             gateReads: calls(gate),
             bodyBranch: /\bbody\s*\?\s*bodyPlaceOf\(target,\s*\{\s*held:\s*flagsHeldNow\s*\}\)\s*:\s*gmPlaceOf\(target\)/.test(gate),
-            hiddenFromPlace: /\bbody\s*\?\s*there\?\.hidden\s*:\s*there\?\.tokenDoc\?\.hidden/.test(gate),
+            // E112 (15.11.2026): the living road's `hidden` is read through utils.mjs `hiddenByGm`, which leaves the opening's veil in the room.
+            hiddenFromPlace: /\bbody\s*\?\s*there\?\.hidden\s*:\s*hiddenByGm\(there\?\.tokenDoc\)/.test(gate),
             friskImports: staticImports(src("frisk.mjs")).includes("body-tile.mjs"),
             lootBody: calls(fnSource(src("handover.mjs"), "lootBody")),
             lootAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker \}\)/.test(fnSource(src("handover.mjs"), "lootBody")),
@@ -25547,7 +25551,7 @@ const REGRESSIONS = [
         const movement = stripComments(sources.get("movement.mjs") ?? "");
         ok(/^export function countsAsPresent\(/m.test(movement), "movement.mjs does not export countsAsPresent");
         const present = fnSource(movement, "countsAsPresent");
-        ok(/FLAGS\.monokuma/.test(present) && /FLAGS\.spectator/.test(present) && /isDeadForGm\(/.test(present) && /\.hidden/.test(present), "countsAsPresent no longer leaves out the Monokumas, the Spectators, the dead and the hidden");
+        ok(/FLAGS\.monokuma/.test(present) && /FLAGS\.spectator/.test(present) && /isDeadForGm\(/.test(present) && /hiddenByGm\(/.test(present), "countsAsPresent no longer leaves out the Monokumas, the Spectators, the dead and the hidden");
         const readers = {
             tellRooms: fnSource(stripComments(sources.get("doors-gm.mjs") ?? ""), "tellRooms"),
             tellBreach: fnSource(stripComments(sources.get("passages-gm.mjs") ?? ""), "tellBreach")
