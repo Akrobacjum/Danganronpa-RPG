@@ -234,6 +234,34 @@ At a real table, both themes, at the owner's screen size, during a murder with s
 The harness has no Foundry layout. Its hotbar is in the list but not in the glass harness, and Foundry's players list is
 not counted.
 
+### A window over the lengthened panel (the coordinator's note of 15.11 on the "after" pictures)
+
+In the first "after" pictures the panel's lower part lay over the glass harness's own sample window, "Danganronpa - Advance
+the clock" (audit/glass-harness.html:169, a fixed `.application` with no z-index of its own, :101). That window's text
+showed through the glass panel's folded titles; under Legacy the panel covered it. At the old cap the panel ended above it.
+
+What decides which is on top, as far as it can be read here:
+
+| What | Where it stands | Read from |
+| --- | --- | --- |
+| `#drpg-events` | in `#ui-top`, inside Foundry's interface columns (`#interface` / `#ui-middle`), at `--z-index-app`, 30; the panel sets no z-index of its own | the module's sheets (danganronpa.css: "the interface's columns at `--z-index-app` (30)", about :17979; narrow.css :400-405) |
+| Under Stained Glass, the glass drawn behind it | the curtain's layer, `--z-index-window` - 2 = 98 | danganronpa.css about :17975-17995 |
+| A Foundry window, the module's own among them (the kit's DialogV2 and ApplicationV2, ui-kit.mjs) | raised from `--z-index-window`, 100: the first to 101 | the same note in danganronpa.css: "Foundry's window layer (`--z-index-window`, 100: the windows are raised from it, the first to 101)" |
+
+So at a table an open window, the module's own included, should stand over the panel and take its own clicks. The
+harness's sample window stood under the panel only because it has no z-index at all.
+
+Not measured: the values 30 and 100 are the module's notes and the glass harness's reading of v14, not v14's source, which
+is not on this machine. No window was opened over a lengthened panel in a real Foundry. LIVE-OWN115-03 (AUDIT 9.2, row
+549) asks for it: "an open window over the lengthened panel: which is on top, and is the text readable".
+
+The module's own windows sitting under the panel: not found in the sheets. No rule gives a module window a z-index under
+the window layer, and none gives the panel or `#ui-top` one over it. **No change proposed until the table says
+otherwise.**
+
+The "after" pictures are taken again with the harness's sample windows hidden for the shot, a shot setting
+(audit/events-murder-fit.mjs `--shots`): `after-...-clean.png` beside the first ones, which are kept.
+
 ### Questions, with the default taken
 
 - Q-OWN115-5. A folded card is a button, the panel's one control. That goes against the rule of 10.11 ("the panel holds

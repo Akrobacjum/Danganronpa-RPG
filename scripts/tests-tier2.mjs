@@ -24091,6 +24091,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             });
             fight = game.messages.contents.filter(m => !had.has(m.id));
             await M.endMurder({ reason: "test", followUp: false });
+            /* The opening on Hope masked the killer (E69 C8), and a mask outlives its incident; since owner-115 item 1b every
+               card is veiled while a mask stands (secret.mjs `standingMask`). The card after the fight is read with the
+               mask ended, as this test reads an incident's veil and nothing else. Changed on purpose. */
+            const { maskStands, endMask } = await import("./mask-gm.mjs");
+            if (maskStands(killer.id)) await endMask(killer.id, "suite");
             await settle();
             after = await wordsSent(async () => {
                 await useItem(bystander, items.later);

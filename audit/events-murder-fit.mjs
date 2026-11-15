@@ -150,7 +150,12 @@ for (const [w, h] of SIZES) for (const theme of ["glass", "legacy"]) for (const 
             // The panel, left standing for its picture, with the rail over it; then taken away.
             const [x, y, bw, bh] = r.box;
             const clip = { x: Math.max(0, x - 40), y: 0, width: Math.min(w - Math.max(0, x - 40), bw + 80), height: Math.min(h, y + bh + 24) };
-            await page.screenshot({ path: `${shots}/event-panel-${name}-${theme}-1366x768.png`, clip });
+            // The glass harness's own sample windows (`.application`, laid in the page with no z-index of their own) are
+            // hidden for the picture, so the panel is seen alone: at a table a window stands at Foundry's window layer,
+            // over the interface the panel is in (the item's STATUS says what of that is measured).
+            await page.evaluate(() => document.querySelectorAll(".application").forEach(e => { e.dataset.shotHidden = e.style.visibility; e.style.visibility = "hidden"; }));
+            await page.screenshot({ path: `${shots}/event-panel-${name}-${theme}-1366x768-clean.png`, clip });
+            await page.evaluate(() => document.querySelectorAll(".application").forEach(e => { e.style.visibility = e.dataset.shotHidden ?? ""; delete e.dataset.shotHidden; }));
             await page.evaluate(() => { document.getElementById("drpg-events")?.remove(); window.__glass?.refreshGlass?.(); });
         }
         const bad = r.err || r.why.length;
