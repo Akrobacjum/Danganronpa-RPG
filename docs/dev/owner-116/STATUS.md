@@ -166,3 +166,43 @@ At 25e2d34e a Spectator's account listened where its token stood, its microphone
   key (voice.mjs `updateUser`) - SURVIVED: scenario 93 reconciles within its 2 s settle by the other passes, so no check
   here measures that the move is immediate; as it was for the old flag.
 - LIVE: one LiveKit connection in one room at a time (LIVE-E92-01, never measured) - unchanged.
+
+## Item 2 (new, the owner, 15.11.2026) - Foundry's hide also hides the token's ruler
+
+The owner: "zamiast tego - przycisk hide w foundry bazowym (prawy na token - hide) niech ukrywa tez linie dystansu
+pokonywanego przez token".
+
+### Reading
+
+- The module already takes Foundry's ruler class over (fog-doorways.mjs `hourRulerFor`, `registerTokenRuler`; patches.mjs
+  row `token-ruler`; R1115): it colours the styles and nothing else.
+- visibility.mjs `hide` wrote a token's ruler off once (`hideMovementTrail`) when the module hid a token; Foundry writes
+  `visible` again on its next refresh, and Foundry's own hide (`TokenDocument.hidden`) never reached that code at all.
+
+### Change
+
+- fog-doorways.mjs: `HourTokenRuler` keeps `visible` and asks one predicate on every write of it (`setRulerShown`);
+  `visible` as an accessor on the class's chain or as a plain field (moved into a slot); `reRuler(token)` asks again.
+- visibility.mjs: `rulerShownTo(doc, viewer)` - a GM always; anyone else not for a hidden token (its owner's too) and not
+  where `tokenShownTo` hides the token; `rulerHere(token)` adds the tokens this file hid by its other rules (a Remnant, a
+  project). Set at registration; `passForTokenUpdate` asks the token's ruler again when `hidden` flips.
+- The coordinator's defaults, and one difference: "the token's owner keeps seeing their own" and "one rule, the token's"
+  differ for a hidden token, which Foundry draws for the GMs alone (its documented behaviour, not read at a table). The
+  rule follows the token: a hidden token's ruler is the GMs' alone, its owner's too. LIVE-E116-03 reads it at a table; if
+  Foundry shows an owner its hidden token, the rule must change to match.
+- No text in lang changes. GM handbook EN/PL: the players' rulers paragraph says that a hidden token's ruler is hidden,
+  and a token the module hides likewise.
+
+### Tests and numbers
+
+- R7421 (tier 0) red at c44db5a3 ("visibility.mjs has no rulerShownTo, or fog-doorways.mjs no setRulerShown or
+  reRuler"), green after: the rule's matrix (player, owner, GM, Eclipse, Spectator; hidden and not), two ruler classes
+  (accessor and field) as built, written, hidden while standing, unhidden before and after a write, the flip heard through
+  `passForTokenUpdate`, and the module's predicate the registered one. R1115 and R1203 green.
+- Mutants (a copy of the tree): the gate dropped, hidden ignored, the GM's line dropped, the registration dropped, the
+  field shape not moved, the room rule ignored, the flip not heard - 7 of 7 killed.
+- LIVE-E116-01 (the class's `visible` shape and whether path, waypoints and label all follow it), LIVE-E116-02 (a hidden
+  token's move, history and planned movement on a player's browser; the flip mid-move), LIVE-E116-03 (the owner of a
+  hidden token): AUDIT 9.2 items 553-555. The harness has no ruler and no canvas: nothing of what is drawn is measured.
+- Cost: the predicate runs on every write of a ruler's `visible` (Foundry's ruler refresh, often during a drag); for a
+  player it reads `tokenShownTo`, whose rooms are memoised per pass. Not measured at a table (scenario 86 has no ruler).

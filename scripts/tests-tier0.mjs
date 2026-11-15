@@ -24890,6 +24890,73 @@ const REGRESSIONS = [
         equal(JSON.stringify(reads), JSON.stringify([{ width: 351.5, height: 49.25 }, { width: 220, height: 49 }, { width: 220, height: 49 }, { width: 220, height: 49 }]),
             "[untransformed, the screen box kept to the fraction; zoom 0.5; zoom 2; zoom 0.5 with a content box, its padding and border added]");
     }],
+    ["R7421 - a hidden token's ruler is hidden too (owner-116, 15.11.2026; the owner: \"przycisk hide w foundry bazowym (prawy na token - hide) niech ukrywa tez linie dystansu pokonywanego przez token\"; visibility.mjs `rulerShownTo`, fog-doorways.mjs `hourRulerFor`, `setRulerShown`, `reRuler`): the ruler is shown to a GM always, and to anyone else only where the token is - not for a token Foundry hides, its owner's too, nor where `tokenShownTo` hides it; the ruler class asks the rule on every write of `visible`, with `visible` an accessor or a plain field, and a hide while a ruler stands takes it off at the next ask, an unhide waits for the next write", async () => {
+        /*
+         * owner-116, 15.11.2026. Pure, on fixtures: a token document's actor and a viewer as `viewerHere` builds one; two
+         * ruler classes of this test's own - one keeping `visible` behind an accessor whose constructor writes it, one as
+         * a plain field - since the harness has no TokenRuler (which shape v14's has is LIVE-E116-01). The predicate is
+         * this test's while it runs and the module's put back. Red at c44db5a3: no `rulerShownTo` and no `setRulerShown`.
+         */
+        const V = await import("./visibility.mjs");
+        const D = await import("./fog-doorways.mjs");
+        must(typeof V.rulerShownTo === "function" && typeof D.setRulerShown === "function" && typeof D.reRuler === "function",
+            "visibility.mjs has no rulerShownTo, or fog-doorways.mjs no setRulerShown or reRuler");
+        const actor = flags => ({ type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const doc = (hidden, flags = {}) => ({ hidden, actor: actor(flags), x: 0, y: 0, flags: {} });
+        const viewer = (o = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false, owns: () => false, ...o });
+        const rule = {
+            player: [V.rulerShownTo(doc(false), viewer()), V.rulerShownTo(doc(true), viewer())],
+            owner: [V.rulerShownTo(doc(false), viewer({ owns: () => true, enforcing: true })), V.rulerShownTo(doc(true), viewer({ owns: () => true }))],
+            gm: [V.rulerShownTo(doc(false), viewer({ gm: true })), V.rulerShownTo(doc(true), viewer({ gm: true }))],
+            eclipse: [V.rulerShownTo(doc(false), viewer({ eclipse: true })), V.rulerShownTo(doc(false), viewer({ eclipse: true, owns: () => true }))],
+            spectator: V.rulerShownTo(doc(false, { spectator: true }), viewer()),
+            none: V.rulerShownTo(null, viewer())
+        };
+        class Accessor { #v = false; constructor(token) { this.token = token; this.visible = true; } get visible() { return this.#v; } set visible(v) { this.#v = Boolean(v); } }
+        class Field { visible = true; constructor(token) { this.token = token; } }
+        const allowed = new Map();
+        const was = D.setRulerShown(token => allowed.get(token) !== false);
+        const run = Base => {
+            const Ruler = D.hourRulerFor(Base);
+            const shown = { id: "shown" }, hidden = { id: "hidden" };
+            allowed.set(shown, true); allowed.set(hidden, false);
+            const a = new Ruler(shown), b = new Ruler(hidden);
+            const built = [a.visible, b.visible];
+            a.visible = true; b.visible = true;
+            const written = [a.visible, b.visible];
+            // the flip: a ruler standing, its token hidden - taken off at the next ask; shown again - off until a write
+            allowed.set(shown, false); D.reRuler({ ruler: a });
+            const hiddenNow = a.visible;
+            allowed.set(shown, true); D.reRuler({ ruler: a });
+            const unhidNow = a.visible;
+            a.visible = true;
+            return { built, written, hiddenNow, unhidNow, refreshed: a.visible, own: Object.hasOwn(a, "visible") };
+        };
+        let rulers, flip;
+        try {
+            rulers = { accessor: run(Accessor), field: run(Field) };
+            // the hide heard (visibility.mjs `passForTokenUpdate`, `hidden` in the changes) asks the token's ruler again at once
+            const Ruler = D.hourRulerFor(Accessor), token = { id: "flip" };
+            allowed.set(token, true);
+            const ruler = new Ruler(token);
+            const standing = ruler.visible;
+            allowed.set(token, false);
+            try { V.passForTokenUpdate({ object: { ruler }, isOwner: false }, { hidden: true }); } catch { /* the pass after it reads a canvas: the ask came first */ }
+            flip = [standing, ruler.visible];
+        } finally {
+            D.setRulerShown(was);
+        }
+        // the module's own predicate stood before this test's: visibility.mjs's, set at its registration
+        equal(JSON.stringify({ registered: was?.name ?? null, rule, rulers, flip }), JSON.stringify({
+            registered: "rulerHere",
+            rule: { player: [true, false], owner: [true, false], gm: [true, true], eclipse: [false, true], spectator: false, none: true },
+            rulers: {
+                accessor: { built: [true, false], written: [true, false], hiddenNow: false, unhidNow: false, refreshed: true, own: false },
+                field: { built: [true, false], written: [true, false], hiddenNow: false, unhidNow: false, refreshed: true, own: false }
+            },
+            flip: [true, false]
+        }), "{the predicate the module set; the rule: a player (shown, hidden); the owner (shown, hidden); a GM (shown, hidden); an Eclipse (another's, own); another's Spectator; no document | the ruler classes: as built, written true, hidden while standing, shown again before a write, after Foundry's next write, no own field left; a standing ruler before and after its token's hide is heard}");
+    }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
          * perf-open line, 12.11.2026. The owner, at a table on 1.2.108 (Foundry 14.365 on a hosted server): the module's

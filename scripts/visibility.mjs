@@ -46,6 +46,9 @@ import { debug } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 
 export function registerVisibility() {
+    // A hidden token's ruler (owner-116): the ruler class asks this file's rule for each write of its `visible`.
+    import("./fog-doorways.mjs").then(m => { doorways = m; m.setRulerShown(rulerHere); })
+        .catch(err => debug("Visibility: the token ruler's rule could not be set", err));
     // `refreshToken` is the one that matters: Foundry recomputes `visible` from
     // its own vision logic on every refresh, so setting it from `sightRefresh`
     // alone was immediately overwritten - which is why standing at a gap in a
@@ -414,6 +417,8 @@ function recheckAtRest(doc) {
  * the scene on screen alone, so the camera is not read here: rooms.mjs CAMERA_READERS), and is asked nothing.
  */
 export function passForTokenUpdate(doc, changes) {
+    // Foundry's own hide flipped (owner-116): the token's ruler asked again at once, so one standing goes with the token
+    if (changes?.hidden !== undefined) doorways?.reRuler?.(doc?.object);
     // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
     const gm = Boolean(game.user?.isGM);
     const ownedMove = Boolean(doc?.isOwner) && isMoveChange(changes);
@@ -808,6 +813,35 @@ function show(token) {
  * during a real drag - the browser tool cannot drag the PIXI canvas. One drag
  * at the table, watched from a second seat, is what remains.
  */
+/*
+ * A HIDDEN TOKEN'S RULER (owner-116, 15.11.2026; the owner: "przycisk hide w foundry bazowym (prawy na token - hide)
+ * niech ukrywa tez linie dystansu pokonywanego przez token"). `hideMovementTrail` below writes a ruler off once, when
+ * this file hides a token; Foundry writes it on again at its next refresh, and Foundry's own hide (`hidden`) never came
+ * here at all. Since owner-116 the ruler class asks `rulerHere` on every write of its `visible` (fog-doorways.mjs
+ * `hourRulerFor`, `setRulerShown`): a GM always sees it; anyone else not for a token Foundry hides, nor where
+ * `tokenShownTo` hides the token (the room, the Eclipse, the Spectator), nor for one this file hid by its other rules
+ * (`hiddenByUs`: a Remnant, a project). One rule with the token's: a hidden token's ruler is the GMs' alone, its owner's
+ * too, as Foundry draws a hidden token for the GMs alone - read off Foundry's documented behaviour, not at a table
+ * (LIVE-E116-03); what reaches a player's browser of a hidden token's move is LIVE-E116-02.
+ */
+let doorways = null;
+
+/** Whether `viewer` may see `doc`'s ruler: the token's own answer (`tokenShownTo`), and never a hidden token's but a GM's. */
+export function rulerShownTo(doc, viewer) {
+    if (viewer?.gm) return true;
+    if (!doc) return true;
+    if (doc.hidden) return false;
+    return tokenShownTo(doc, viewer) !== "hide";
+}
+
+/** This browser's answer for a token's ruler (the ruler class's predicate). */
+function rulerHere(token) {
+    if (!token) return true;
+    if (game.user?.isGM) return true;
+    if (hiddenByUs.has(token)) return false;
+    return rulerShownTo(token.document, viewerHere(() => Boolean(token.isOwner)));
+}
+
 function hideMovementTrail(token) {
     const trail = token.ruler;
     if (trail && typeof trail === "object" && "visible" in trail) trail.visible = false;
