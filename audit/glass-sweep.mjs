@@ -2350,8 +2350,27 @@ try {
                             + ` - and there: room ${v.check.ok ? "ok" : "NOT ok"} ${v.check.box ? v.check.box.w + "x" + v.check.box.h : "-"}${v.check.flat ? ` gap ${v.check.flat.gap}/16 top ${v.check.flat.top} right ${v.check.flat.right ?? "-"}` : ""} ${String(v.check.why).slice(0, 110)}`);
                         if (v.got === pin) fails.push("pin control reads as a pass");
                         /* and the box (E78 C0): at the other place the tile's box must not read as this size's pin */
-                        const other = v.check.box ? `${v.check.box.w}x${v.check.box.h}` : "-";
-                        console.log(`  box control ${theme.padEnd(8)} ${other !== boxPin ? "sees it" : "MISSES IT"}: there the box reads ${other} where PIN_BOX has ${boxPin ?? "none"}`);
+                        let other = v.check.box ? `${v.check.box.w}x${v.check.box.h}` : "-", how = "there";
+                        /* Under Monokuma Legacy below 100 % both places draw the same box - its height the cap, its width the
+                           slider's (351x364 at 80 % at 1920x1080, Chromium, 27a4aaf7) - so the other place shows nothing here,
+                           and the box's fault is planted where it stands instead: the slider's two factors stamped 0.3 over
+                           the page's and the curtain recut, which glass.mjs places 391x364, 273x364 and 250-odd wide at 80,
+                           50 and 25 % (at 25 % a 0.1 step stays on the width's floor, 219), then the page's own put back.
+                           Widening the tile itself moves nothing: the box is glass.mjs's placement, not the tile's rect. */
+                        if (boxPin && other === boxPin && pageScale !== 1) {
+                            how = "the slider stamped 0.3 over, and";
+                            other = await page.evaluate(async s => {
+                                const wait = ms => new Promise(r => setTimeout(r, ms)), els = [document.body, document.documentElement];
+                                const was = els.map(el => ["--drpg-slider-scale", "--drpg-legacy-scale"].map(k => el.style.getPropertyValue(k)));
+                                for (const el of els) for (const k of ["--drpg-slider-scale", "--drpg-legacy-scale"]) el.style.setProperty(k, String(s + 0.3));
+                                window.__glass.refreshGlass(); await wait(1500);
+                                const c = await window.drpgRoomCheck({ cuts: false });
+                                els.forEach((el, i) => ["--drpg-slider-scale", "--drpg-legacy-scale"].forEach((k, j) => el.style.setProperty(k, was[i][j])));
+                                window.__glass.refreshGlass(); await wait(1500);
+                                return c.box ? `${c.box.w}x${c.box.h}` : "-";
+                            }, pageScale);
+                        }
+                        console.log(`  box control ${theme.padEnd(8)} ${other !== boxPin ? "sees it" : "MISSES IT"}: ${how} the box reads ${other} where PIN_BOX has ${boxPin ?? "none"}`);
                         if (!boxPin || other === boxPin) fails.push("box pin control reads as a pass");
                         if (!v.check.ok) fails.push("room, at the pin control's other place: " + v.check.why);
                     }

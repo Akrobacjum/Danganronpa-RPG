@@ -2465,6 +2465,12 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
     body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
         padding-inline: 2px;
     }
+    /* and the name's type follows the slider under 80 %, as the module's floors do (`--drpg-floor-scale`, 1 from 80 % up):
+       under the glass `--drpg-text-sm` is 13 px at every slider (`--drpg-legacy-scale` pinned at 1), and at 25 % on a
+       1366x768 desk the 11 px the buttons leave held less than "M" and its ellipsis, 14 px (Chromium, 27a4aaf7) */
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-name {
+        font-size: calc(var(--drpg-text-sm) * var(--drpg-floor-scale, 1));
+    }
 }
 
 /* A short name keeps the word's band on a stacked screen (H81 fix r1; danganronpa.css's rule of the same name): this
