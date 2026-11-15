@@ -334,7 +334,7 @@ During a Class Trial the time row names the trial's mode instead, the chevrons a
 
 The GM's status strip counts who is *Still to act*, or *Still placing* during an Eclipse (in a placement that allows any room: those who have not moved yet), over the students the panel's Next line counts: the living and the Monocubs. While an incident runs nobody spends the day's actions, so *Still to act* is not shown; in a Class Trial it stays.
 
-The **Event panel** under the Despair Pools carries the standing events as cards: the safeword's stop, the trial and its vote, the opening roll and the incident (to its participants and the GMs only), a body found (naming its room), the overflow's darkening, an assembly called and the motive. It keeps one size whatever it holds, and a card longer than it scrolls inside it.
+The **Event panel** under the Despair Pools carries the standing events as cards: the safeword's stop, the trial and its vote, the opening roll and the incident (to its participants and the GMs only), a body found (naming its room), the overflow's darkening, an assembly called and the motive. It never scrolls: it grows with its cards down to the next block under it or the bottom of the screen, and past that the cards below the first fold to their titles, from the last up. A folded card opens on a click or Enter, and titles that still do not fit are counted under the panel as "+N".
 
 **The clock's turns and the day's boards.** Each change of the time of day turns the curtain: an hour forward from the top, a new day or a rewind from the bottom, the Eclipse from the center. The Investigation opens with pane flashes, and a body's announcement makes the curtain flicker.
 
