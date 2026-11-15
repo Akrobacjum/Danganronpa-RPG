@@ -38,6 +38,7 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
 import { judgedFor } from "./sheet-audit.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { nameAsSeen } from "./mask-gm.mjs";
 
 /**
  * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
@@ -143,7 +144,7 @@ export async function choosePalm(actor, def, targets, mine) {
         extra: `<label class="drpg-specific-note">
                 <span>${game.i18n.localize("DRPG.Steal.whoPrompt")}</span>
                 <select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.palmWhoTooltip")}>${targets.map(a =>
-                    `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
+                    `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select>
             </label>${mine.length ? `<label class="drpg-specific-note" data-drpg-when="plant">
                 <span>${game.i18n.localize("DRPG.Steal.whatToPlant")}</span>
                 <select name="what"${tipAttr("DRPG.Tips.Sweep.Actions.plantWhatTooltip")}>${mine.map(i =>

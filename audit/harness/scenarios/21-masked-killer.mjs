@@ -79,21 +79,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     /* Everything of Chie's this browser holds outside the actor and its token's `actorId` (Foundry's limit, above). */
     const SECRETS = JSON.stringify([ids.chie, "Chie", "CHIEPORTRAIT", "CHIETOKEN", ...tokenIds, p3.userId]);
     const LEAKS = `const secrets = ${SECRETS};
-        const found = (where, text) => { for (const s of secrets) if (String(text ?? "").includes(s)) hits.push([where, s]); };
+        // Each hit with 80 characters around it, so a red run says what held the name.
+        const found = (where, text) => { const t = String(text ?? ""); for (const s of secrets) { const i = t.indexOf(s); if (i >= 0) hits.push([where, s, t.slice(Math.max(0, i - 50), i + 30)]); } };
         const hits = [];
+        // What stood before a phase that asked for a fresh read (globalThis.__since, message ids) is not read again.
+        const since = globalThis.__since ?? new Set();
         const net = globalThis.__maskNet;
         net.words.forEach((w, i) => found("words#" + i, w));
         net.dice.forEach((d, i) => found("dice.show#" + i, d));
         globalThis.__maskDsn.forEach((u, i) => found("dsn#" + i, u));
         for (const m of game.messages.contents) {
+            if (since.has(m.id)) continue;
             const d = m.toObject();
             found("doc:" + m.id, JSON.stringify([d.speaker, d.author, d.flags, d.content, d.system, d.rolls, d.title ?? null, d.flavor ?? null]));
             const li = await m.renderHTML();
             found("drawn:" + m.id, li?.outerHTML);
         }
-        document.querySelectorAll(".drpg-popup").forEach((n, i) => found("notice#" + i, n.outerHTML));
+        document.querySelectorAll(".drpg-popup").forEach((n, i) => { if (!since.has(n.dataset.drpgMessage)) found("notice#" + i, n.outerHTML); });
         const NH = await import("${repoUrl}/scripts/notice-history.mjs");
-        found("history", JSON.stringify(NH.noticeEntries()));
+        found("history", JSON.stringify(NH.noticeEntries().filter(e => !since.has(e.messageId))));
         const E = await import("${repoUrl}/scripts/events.mjs"); E.renderEvents();
         found("events", document.getElementById("drpg-events")?.outerHTML);
         const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
@@ -241,6 +245,68 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         && shown.hits.some(h => h[0] === "cast" && h[1] === ids.chie),
         JSON.stringify({ revealed, after, shownNamed, tokens: shown.tokens, hits: shown.hits.slice(0, 12) }), { flow: "murder-incident" });
 
+    /* ---- outside the fight (owner-115 item 1b, the coordinator's answer to Q-OWN115-3): while the mask stands - and it
+       outlives the incident, to the next time of day - the killer's own actions name them "?" to everyone not in on it.
+       The GM ends the incident and puts the mask back up (as an opening on Hope does: `maskKiller`); Botan steps into
+       Dorm A, where Chie and Aiko stand, with a note in his pocket. Read: the people Palm's window lists on p2's browser
+       (`nameAsSeen`); Chie's Steal from Botan, its unseen roll a miss so Botan sees her hand (the hand's roll a hit), and
+       her Frisk asked of Botan openly - the ask p2 is sent (`who`); then the scan on p1 and p2. The control: the mask
+       ended, p2's window lists Chie by name. */
+    phase("outside the fight", { flow: "give-take-stash" });
+    const outside = await gm.eval(`const K = await import("${repoUrl}/scripts/mask-gm.mjs");
+        const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+        const masked = await K.maskKiller({ killerId: "${ids.chie}", victimId: "${ids.aiko}" });
+        const bt = canvas.scene.tokens.find(t => t.actorId === "${ids.botan}");
+        if (bt) await bt.update({ x: 600, y: 600 }, { teleport: true, movementAction: "displace", animate: false });
+        const note = await INV.grantItem(game.actors.get("${ids.botan}"), { name: "Scenario 21 pocket note", category: "usable", tier: 1, override: true, quiet: true });
+        const chie = game.actors.get("${ids.chie}");
+        if (game.drpg.actionsLeft(chie) < 3) await game.drpg.setActions(chie, 3);
+        return { masked, note: note?.id ?? null };`, { timeout: 60000 });
+    await settle(900);
+    for (const c of [p1, p2, p3]) await c.eval(NET);
+    for (const c of [p1, p2]) await c.eval(`globalThis.__since = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    await p2.eval(`globalThis.__friskAsks = [];
+        if (!globalThis.__friskAskOn) { globalThis.__friskAskOn = true; game.socket.on("module.${MOD}", p => { if (p?.action === "frisk.ask") globalThis.__friskAsks.push(JSON.stringify(p)); }); }
+        return true;`);
+    const PICKER = `const M = await import("${repoUrl}/scripts/movement.mjs");
+        const actor = game.actors.get("${ids.botan}");
+        for (let i = 0; i < 50 && !M.othersInRoom(actor).some(a => a.id === "${ids.chie}"); i++) await new Promise(r => setTimeout(r, 100));
+        let html = null;
+        globalThis.__dialogAnswers.push(cfg => { const c = cfg?.content; html = typeof c === "string" ? c : (c?.outerHTML ?? ""); return null; });
+        try { await game.drpg.performAction(actor, "palm", {}); } finally { globalThis.__dialogAnswers.length = 0; }
+        const wrap = document.createElement("div"); wrap.innerHTML = html ?? "";
+        return [...wrap.querySelectorAll('select[name="who"] option')].map(o => o.textContent).sort();`;
+    const listed = await p2.eval(PICKER, { timeout: 60000 });
+    const PALM = (value, faces) => `const actor = game.actors.get("${ids.chie}");
+        globalThis.__dialogAnswers.push(() => ({ value: "${value}", form: { querySelector: sel => (sel.includes("who") ? { value: "${ids.botan}" } : null) } }));
+        const faces = ${JSON.stringify(faces)};
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        actor.rollTrait = async function (key, options) { globalThis.__forceRoll = faces.shift(); return own.call(actor, key, options); };
+        let r = null, err = null;
+        try { r = await game.drpg.performAction(actor, "palm", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete actor.rollTrait; delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; }
+        await new Promise(res => setTimeout(res, 800));
+        return { err, success: r?.success ?? null, seen: r?.seen ?? null, later: r?.later ?? null };`;
+    const stole = await p3.eval(PALM("steal", [{ hope: 2, fear: 1 }, { hope: 12, fear: 11 }]), { timeout: 90000 });
+    await settle(1200);
+    const frisked = await p3.eval(PALM("frisk", []), { timeout: 90000 });
+    await settle(1200);
+    const asks = await p2.eval(`return globalThis.__friskAsks.map(p => JSON.parse(p).who);`);
+    const victimOut = await p1.eval(LEAKS, { timeout: 60000 });
+    const botanOut = await p2.eval(LEAKS, { timeout: 60000 });
+    const botanWords = await p2.eval(`return globalThis.__maskNet.words.length;`);
+    check("outside the fight: with the mask standing, Palm's window on p2 lists Aiko and a \"?\", Chie's seen Steal and her Frisk's ask reach Botan, and the ask names a \"?\" - and nothing p1 or p2 was sent or draws names Chie or carries her pictures or ids",
+        outside.masked === true && Boolean(outside.note) && JSON.stringify(listed) === JSON.stringify(["?", "Aiko Hoshino"])
+        && !stole.err && stole.seen === true && !frisked.err && JSON.stringify(asks) === JSON.stringify(["?"]) && botanWords > 0
+        && victimOut.n === 0 && botanOut.n === 0,
+        JSON.stringify({ outside, listed, stole, frisked, asks, botanWords, p1: victimOut.hits, p2: botanOut.hits }), { flow: "give-take-stash" });
+    const unlisted = await gm.eval(`const K = await import("${repoUrl}/scripts/mask-gm.mjs"); return K.endMask("${ids.chie}", "suite");`, { timeout: 60000 });
+    await settle(900);
+    const listedAfter = await p2.eval(PICKER, { timeout: 60000 });
+    check("outside the fight: the mask ended, Palm's window on p2 names Chie again",
+        unlisted === true && JSON.stringify(listedAfter) === JSON.stringify(["Aiko Hoshino", "Chie Mori"]), JSON.stringify({ unlisted, listedAfter }), { flow: "give-take-stash" });
+
     await gm.eval(`const K = await import("${repoUrl}/scripts/mask-gm.mjs");
         if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
         if (K.maskStands("${ids.chie}")) await K.endMask("${ids.chie}", "suite");
@@ -250,6 +316,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         const a = game.actors.get("${ids.chie}");
         await a.update({ img: was.img, "prototypeToken.texture.src": was.proto, "system.resources": was.res.chie });
         await game.actors.get("${ids.aiko}").update({ "system.resources": was.res.aiko });
+        for (const a of game.actors) for (const i of a.items.filter(i => i.name === "Scenario 21 pocket note")) await i.delete();
         for (const r of was.tokens) await game.scenes.get(r.scene).tokens.get(r.id)?.update({ "texture.src": r.src, x: r.x, y: r.y }, { teleport: true, movementAction: "displace", animate: false });
         const botan = canvas.scene.tokens.find(t => t.actorId === "${ids.botan}");
         if (botan && Number.isFinite(${JSON.stringify(botanAt?.x ?? null)})) await botan.update({ x: ${botanAt?.x ?? 0}, y: ${botanAt?.y ?? 0} }, { teleport: true, movementAction: "displace", animate: false });

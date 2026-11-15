@@ -59,6 +59,7 @@ import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader, callRowsHtml, pickedRow } from "./call-pickers.mjs";
+import { nameAsSeen } from "./mask-gm.mjs";
 
 /* ==========================================================================
  * STATUS
@@ -1352,7 +1353,7 @@ export async function cubAbilityDialog(actor, key) {
         }),
         brief: `<p class="notes">${game.i18n.localize("DRPG.Monocub.tiersIntro")}</p>
             ${cubTiersHtml(row)}`,
-        body: `<form>${callRowsHtml(targets.map(a => ({ value: a.id, label: a.name, icon: row.target === "project" ? "fa-list-check" : "fa-user" })),
+        body: `<form>${callRowsHtml(targets.map(a => ({ value: a.id, label: row.target === "project" ? a.name : nameAsSeen(a), icon: row.target === "project" ? "fa-list-check" : "fa-user" })),
             { name: "target", prompt: game.i18n.localize("DRPG.Monocub.target") })}</form>`,
         // One button per choice of the row, the first the primary and the default, the others secondaries (the kit's
         // slots, E21 C5a); their labels are `DRPG.Monocub.<choice>` (R1's LITERAL_KEYS names the two the table has).

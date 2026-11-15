@@ -58731,6 +58731,63 @@ const INVARIANTS = [
         ok(at.kind >= 0 && at.seen >= 0 && at.under > at.kind && at.under < at.seen,
             `paint puts a trace under the characters after the character's way out and before the visibility check (${stableJson(at)})`);
     }],
+    ["R7402 - a masked token's ring shows the \"?\" too, and gets its own picture back (scripts/mask-gm.mjs `maskPatch`, `lookOf`, `restorePatch`; owner-115 item 1b): the patch writes the mystery man as the dynamic ring's subject texture (v14's `ring.subject.texture`, fvtt-types 14.370 client/documents/token.d.mts RingSubjectSchema); the look kept holds the subject's own texture, and the patch back writes it", async () => {
+        /* owner-115 item 1b, 14.11.2026; the coordinator's road (a): a v14 token with the dynamic ring on may draw its subject
+           texture, which the mask did not touch, so the killer's art could stay on the ring. Pure readings. */
+        const K = await import("./mask-gm.mjs");
+        const token = { _source: { name: "Aiko Mori", texture: { src: "tokens/aiko.webp" }, ring: { enabled: true, subject: { texture: "tokens/aiko-subject.webp", scale: 1 } } } };
+        const look = K.lookOf(token);
+        const read = { patch: K.maskPatch()["ring.subject.texture"] ?? "none", kept: look.subject ?? "none",
+            back: K.restorePatch(look, "GONE")["ring.subject.texture"] ?? "none",
+            none: (patch => (Object.hasOwn(patch, "ring.subject.texture") ? patch["ring.subject.texture"] : "none"))(K.restorePatch(K.lookOf({ _source: { name: "B", texture: { src: "b.webp" } } }), "GONE")) };
+        equal(stableJson(read), stableJson({ patch: "icons/svg/mystery-man.svg", kept: "tokens/aiko-subject.webp", back: "tokens/aiko-subject.webp", none: null }),
+            "{the patch's subject texture; the look's; the patch back's; a token with no subject gets null back}");
+    }],
+    ["R7403 - while a mask stands, every private card's words name the masked character \"?\" to a reader outside it (scripts/secret.mjs `wordsFor`, `setNameMask`, `maskNames`; scripts/mask-gm.mjs `namesHiddenFrom`, `registerMasks`; owner-115 item 1b): a reader whose names are hidden reads \"?\" in the text and in attributes, a longer name that starts the same is left alone, and another reader reads the name; the names hidden from a player are the masked tokens' characters they do not own, none from a GM; the masks register the cut at ready", async () => {
+        /* owner-115 item 1b, 14.11.2026; the owner's principle via the coordinator: while the mask stands, the killer's identity is
+           secret from everyone not in on it - a Frisk, a Steal, a Palm and any card or onlooker line. One cut for every card:
+           `wordsFor`, which every private card's words pass through for each reader. Stand-ins; nothing written. */
+        const S = await import("./secret.mjs");
+        const K = await import("./mask-gm.mjs");
+        ok(typeof S.setNameMask === "function" && typeof K.namesHiddenFrom === "function", "secret.mjs has no setNameMask, or mask-gm.mjs no namesHiddenFrom");
+        if (typeof S.setNameMask !== "function" || typeof K.namesHiddenFrom !== "function") return;
+        const html = '<h3>Frisk - Chie Mori</h3><p data-tooltip="Chie Mori">Chie Mori frisks Aiko. Chie Moriarty stays.</p>';
+        const before = S.setNameMask(id => (id === "R7403P1000000000" ? ["Chie Mori"] : []));
+        let cut;
+        try { cut = [S.wordsFor("R7403P1000000000", html), S.wordsFor("R7403P3000000000", html)]; } finally { S.setNameMask(before); }
+        const users = new Map([["P1", { id: "P1", isGM: false }], ["P3", { id: "P3", isGM: false }], ["GM", { id: "GM", isGM: true }]]);
+        const chie = { name: "Chie Mori", testUserPermission: (u, level) => u.id === "P3" && level === "OWNER" };
+        const scenes = [{ tokens: [{ flags: { [MODULE_ID]: { masked: true } }, actor: chie }, { flags: {}, actor: { name: "Aiko", testUserPermission: () => false } }] }];
+        const hidden = ["P1", "P3", "GM"].map(id => K.namesHiddenFrom(id, { scenes, users }));
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText), "registerMasks") ?? "");
+        equal(stableJson({ cut, hidden, wired: /setNameMask\(\s*namesHiddenFrom\s*,\s*\{\s*stands:\s*anyMaskStands\s*\}\s*\)/.test(src) }), stableJson({
+            cut: ['<h3>Frisk - ?</h3><p data-tooltip="?">? frisks Aiko. Chie Moriarty stays.</p>', html],
+            hidden: [["Chie Mori"], [], []], wired: true
+        }), "{cut: the words for a reader the name is hidden from, and for one it is not; hidden: from p1, from Chie's own player, from a GM; wired: registerMasks hands the cut its names}");
+    }],
+    ["R7404 - a list of the people in a room names a masked character \"?\" to a player who does not own them (scripts/mask-gm.mjs `nameAsSeen`; palm.mjs, action-tail.mjs, action-tamper.mjs, handover.mjs, call-pickers.mjs, monocub.mjs; frisk.mjs's ask; owner-115 item 1b): a masked character reads \"?\" to another player, its name to its own player and to a GM, and an unmasked one its name to all; the six pickers of a room's people draw `nameAsSeen`, none `a.name`; a Frisk's ask names a masked searcher by `namesHiddenFrom`", async () => {
+        /* owner-115 item 1b, 14.11.2026; the owner's principle via the coordinator: while the mask stands the killer's identity
+           is secret from everyone not in on it. Stand-ins and source; nothing written. Written with the change: the six
+           pickers' red is their `a.name`, which this reads as gone. */
+        const K = await import("./mask-gm.mjs");
+        const p1 = { id: "P1", isGM: false }, p3 = { id: "P3", isGM: false }, gm = { id: "GM", isGM: true };
+        const chie = { name: "Chie Mori", testUserPermission: (u, level) => u.id === "P3" && level === "OWNER" };
+        const seen = [p1, p3, gm].map(user => K.nameAsSeen(chie, { user, masked: true })).concat(K.nameAsSeen(chie, { user: p1, masked: false }));
+        const files = { "palm.mjs": "choosePalm", "action-tail.mjs": null, "action-tamper.mjs": null, "handover.mjs": null, "call-pickers.mjs": null, "monocub.mjs": null };
+        const drawn = {};
+        for (const file of Object.keys(files)) {
+            const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+            drawn[file] = src.includes("nameAsSeen(");
+        }
+        const frisk = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/frisk.mjs`).then(lfText));
+        const askAt = frisk.indexOf("action: FRISK_ASK, askId, who,");
+        const ask = askAt >= 0 ? lineAround(frisk, askAt) : "";
+        equal(stableJson({ seen, drawn, ask: [/who: searcher\.name, name: target\.name, ms:/.test(frisk), /namesHiddenFrom\(id\)/.test(frisk), ask.length > 0] }), stableJson({
+            seen: ["?", "Chie Mori", "Chie Mori", "Chie Mori"],
+            drawn: Object.fromEntries(Object.keys(files).map(f => [f, true])),
+            ask: [false, true, true]
+        }), "{seen: masked Chie to p1, to her own player, to a GM, unmasked to p1; drawn: each picker file draws nameAsSeen; ask: the player's ask still names searcher.name, it reads namesHiddenFrom, its line found}");
+    }],
     ["R6028 - a masked token is a \"?\" with Foundry's mystery man and one flag that names nobody, and its look comes back exactly (scripts/mask-gm.mjs `lookOf`, `maskPatch`, `restorePatch`, `isMaskedToken`; E69 C8): the patch writes the name \"?\", the mystery man, no ring, no name or bars drawn and `masked`; the look kept is the token's own name, picture, ring and display modes; the patch back writes those and takes the flag off; the flag alone marks a token masked", async () => {
         /* E69 C8, 13.11.2026. Pure readings. Red at f7e1721d. */
         let K = null;
@@ -58745,9 +58802,10 @@ const INVARIANTS = [
             namesNobody: !JSON.stringify(K.maskPatch()).includes("Aiko")
         };
         equal(stableJson(read), stableJson({
-            patch: { name: "?", "texture.src": "icons/svg/mystery-man.svg", "ring.enabled": false, displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
-            look: { name: "Aiko Mori", src: "tokens/aiko.webp", ring: true, displayName: 30, displayBars: 20 },
-            back: { name: "Aiko Mori", "texture.src": "tokens/aiko.webp", "ring.enabled": true, displayName: 30, displayBars: 20, [`flags.${MODULE_ID}.masked`]: "GONE" },
+            // owner-115 item 1b (R7402): the ring's subject texture is masked too and put back; changed on purpose.
+            patch: { name: "?", "texture.src": "icons/svg/mystery-man.svg", "ring.enabled": false, "ring.subject.texture": "icons/svg/mystery-man.svg", displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
+            look: { name: "Aiko Mori", src: "tokens/aiko.webp", ring: true, displayName: 30, displayBars: 20, subject: null },
+            back: { name: "Aiko Mori", "texture.src": "tokens/aiko.webp", "ring.subject.texture": null, "ring.enabled": true, displayName: 30, displayBars: 20, [`flags.${MODULE_ID}.masked`]: "GONE" },
             flag: [true, false, false], namesNobody: true
         }), "{patch; look kept; patch back; flag: [flagged, not, a token merely named ?]; the patch names nobody}");
     }],

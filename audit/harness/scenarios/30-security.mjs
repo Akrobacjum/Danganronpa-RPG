@@ -608,7 +608,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: anybody else asking for the whole room gets only what they know",
         !(aikoWhole ?? []).some(t => t.id === planted6.id) && JSON.stringify(aikoWhole) === JSON.stringify(aikoMine),
         JSON.stringify({ aikoWhole, aikoMine }));
-    await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
+    /* Botan's mask ends with the incident here (owner-115 item 1b, 14.11.2026). The opening above, on Hope, masks him
+       (mask-gm.mjs, E69 C8), and a mask outlives its incident to the next time of day: since item 1b a masked character is
+       "?" to everyone not in on it, Listen's lines among them, and this scenario's later reads (7l, a Listen's Reroll
+       naming Botan Kage in the Cafeteria) are of an unmasked Botan. Scenario 21 reads the mask. */
+    await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false });
+        const K = await import("${repoUrl}/scripts/mask-gm.mjs");
+        if (K.maskStands("${ids.botan}")) await K.endMask("${ids.botan}", "suite");
+        return true;`, { timeout: 60000 });
 
     /* A ROLE REVERSAL THE OPENING TOOK AWAY (E32+E07 C11a, 02.10.2026; audit S04-06). Botan
        opens on Chie with a Despair success, which takes Role reversal from the victim; the

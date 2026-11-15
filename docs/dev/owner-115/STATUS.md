@@ -234,6 +234,34 @@ At a real table, both themes, at the owner's screen size, during a murder with s
 The harness has no Foundry layout. Its hotbar is in the list but not in the glass harness, and Foundry's players list is
 not counted.
 
+### A window over the lengthened panel (the coordinator's note of 15.11 on the "after" pictures)
+
+In the first "after" pictures the panel's lower part lay over the glass harness's own sample window, "Danganronpa - Advance
+the clock" (audit/glass-harness.html:169, a fixed `.application` with no z-index of its own, :101). That window's text
+showed through the glass panel's folded titles; under Legacy the panel covered it. At the old cap the panel ended above it.
+
+What decides which is on top, as far as it can be read here:
+
+| What | Where it stands | Read from |
+| --- | --- | --- |
+| `#drpg-events` | in `#ui-top`, inside Foundry's interface columns (`#interface` / `#ui-middle`), at `--z-index-app`, 30; the panel sets no z-index of its own | the module's sheets (danganronpa.css: "the interface's columns at `--z-index-app` (30)", about :17979; narrow.css :400-405) |
+| Under Stained Glass, the glass drawn behind it | the curtain's layer, `--z-index-window` - 2 = 98 | danganronpa.css about :17975-17995 |
+| A Foundry window, the module's own among them (the kit's DialogV2 and ApplicationV2, ui-kit.mjs) | raised from `--z-index-window`, 100: the first to 101 | the same note in danganronpa.css: "Foundry's window layer (`--z-index-window`, 100: the windows are raised from it, the first to 101)" |
+
+So at a table an open window, the module's own included, should stand over the panel and take its own clicks. The
+harness's sample window stood under the panel only because it has no z-index at all.
+
+Not measured: the values 30 and 100 are the module's notes and the glass harness's reading of v14, not v14's source, which
+is not on this machine. No window was opened over a lengthened panel in a real Foundry. LIVE-OWN115-03 (AUDIT 9.2, row
+552) asks for it: "an open window over the lengthened panel: which is on top, and is the text readable".
+
+The module's own windows sitting under the panel: not found in the sheets. No rule gives a module window a z-index under
+the window layer, and none gives the panel or `#ui-top` one over it. **No change proposed until the table says
+otherwise.**
+
+The "after" pictures are taken again with the harness's sample windows hidden for the shot, a shot setting
+(audit/events-murder-fit.mjs `--shots`): `after-...-clean.png` beside the first ones, which are kept.
+
 ### Questions, with the default taken
 
 - Q-OWN115-5. A folded card is a button, the panel's one control. That goes against the rule of 10.11 ("the panel holds
@@ -241,3 +269,73 @@ not counted.
 - Q-OWN115-6. Where even the first card and the folded titles do not fit, the last titles are left out and counted as
   "+N" under the panel. There is no way to reach them until there is room. **Default: accepted. They are the
   lowest-priority cards; another choice would be a smaller font for the titles.**
+
+## Item 1b - a masked killer is "?" to everyone not in on it, outside the fight too; and the ring
+
+The coordinator's answer to Q-OWN115-3 (14.11.2026): "while the mask stands, the killer's identity is secret from everyone
+not in on it ... Frisk, Steal, Palm, and any other card or onlooker line that names an actor"; and road (a): the dynamic
+ring's subject texture.
+
+### What leaked (measured, scenario 21's new phase "outside the fight")
+
+The GM ends the incident and puts the mask back up (the mask outlives the incident). Botan then stands in Dorm A with
+Chie and Aiko. p2 opens Palm; Chie steals from Botan (seen), then asks to frisk him.
+
+- Palm's window on p2 listed "Chie Mori" among the people in the room. Six player-side pickers draw names this way:
+  palm.mjs `choosePalm`, action-tail.mjs, action-tamper.mjs's frame, handover.mjs, call-pickers.mjs's room picker, and
+  monocub.mjs's target rows.
+- The Frisk's ask sent to the target's player named the searcher (frisk.mjs, `who: searcher.name`).
+- Outside an incident, a card is not veiled: a Steal's and a Frisk's chat documents carried Chie's actor id and "Chie
+  Mori" as their speaker on every browser.
+- One of those cards was posted from p3's own browser, so its document named p3 as author on every browser, veiled or
+  not.
+- Any card's words naming the killer outside the fight (a Steal seen, onlooker lines) had no cut for the mask.
+- The token's dynamic ring subject (`ring.subject.texture`, in v14's TokenDocument schema per fvtt-types 14.370
+  client/documents/token.d.mts RingSubjectSchema) was not part of `maskPatch`.
+
+### The fix
+
+- mask-gm.mjs `maskPatch`, `lookOf` and `restorePatch` mask and restore `ring.subject.texture` (R7402; R6028 updated on
+  purpose).
+- mask-gm.mjs `namesHiddenFrom(userId)`: the masked tokens' characters that user does not own (none for a GM). It reads
+  the token flag, so a player's browser that posts a card knows it too.
+- secret.mjs `wordsFor` writes "?" for those names, in text and attributes, for that reader. It is the one cut every
+  private card's words pass for each reader. A longer name that only starts the same is left alone. The masks hand it in
+  at ready (`setNameMask`). secret.mjs cannot import mask-gm.mjs: gm-stores reaches secret through notice-history (R161).
+  R7403.
+- secret.mjs veils every card, and routes a player's card through the GM, while any mask stands (`standingMask`), as it
+  already did while an incident runs.
+- mask-gm.mjs `nameAsSeen` names a masked character "?" in the six pickers. The option's value is still the actor id,
+  which is Foundry's limit, as with the token's `actorId`. R7404.
+- frisk.mjs: the ask's `who` is "?" for a recipient outside the mask.
+- Accomplices outside the fight read "?" too (`namesHiddenFrom` does not know them). Inside the fight's cards they read
+  the name (`maskedName`).
+
+### Numbers
+
+| Run | Result |
+| --- | --- |
+| R7402, R7403 (tier 1) before | FAIL (no subject in the patch; no setNameMask) |
+| R7402, R7403, R7404 after | ok; R6028 ok with its new field; R161 ok (no static cycle) |
+| scenario 21 with the pickers, the ask and the cut, before the veil and the routing | 13/14: p1 and p2 held a Steal's and a Frisk's documents with Chie's actor id and name as speaker, and one authored by p3 |
+| scenario 21, the veil added | 13/14: a veiled card authored by p3 left |
+| scenario 21, the routing added | **14/14** |
+| R7404 | written with the change: its red is the pickers' `a.name`, which it reads as gone, not measured on a tree without it |
+| quick at 08f742ef | green |
+| tier 1 at 08f742ef | 1692 passed, 0 failed, 16 skipped, 0 red |
+| scenarios at 08f742ef | 21: 14/14; 13: 87/87; 40: 89/89; 72: 162/165, 3 expected red (Foundry limits), 0 failed; 83: 111/111; 30: 301/304, **1 failed** - 7l, a Listen's Reroll, read "In Cafeteria: ?": Botan stood masked from 30's opening on Hope (:424), which outlives its incident |
+| tier 2 by name at 08f742ef (17 names, 21 tests) | 20 passed, **1 failed**: "a use in a fight is carded veiled whoever makes it" - its card after the fight was veiled, as item 1b veils every card while a mask stands, and its opening on Hope had masked the killer |
+| both changed on purpose at acbab9e3 (the mask ended with the incident there; each commented) | scenario 30: 302/304, 2 expected red (Foundry limits), 0 failed; that tier-2 test: ok |
+
+### Needs a local Foundry
+
+LIVE-OWN115-01 covers it: at a table, with the mask standing after the fight, a Steal, a Frisk and the pickers on
+another player's screen, and a token with the dynamic ring on.
+
+### Questions, with the default taken
+
+- Q-OWN115-7. An accomplice reads "?" for their partner on cards outside the fight. **Default: accepted. Only the
+  killer's own players see through `namesHiddenFrom`.**
+- Q-OWN115-8. While a mask stands, every player's private card is posted through the GM, as it is during an incident.
+  A card waits for a GM to be connected. **Default: accepted. It is the incident's rule, kept for as long as a mask
+  stands.**
