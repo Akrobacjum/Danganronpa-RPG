@@ -454,6 +454,48 @@ export async function dropCaseNode(chapter, nodeId) {
 }
 
 /**
+ * CLEAR THE PLAN (E111, 14.11.2026; the owner: "Brakuje mi tez w planerze zagadki opcji zresetowania
+ * zawartosci/wyczyszczenia recznie"). What a chapter's plan holds and a clear would take, pure over the two stores'
+ * entries: the planned Key Remnant slots (`${chapter}:<slot>`, a whole number; `placed` counts those whose Remnant is
+ * on the map, by `tokenId`), the case schema's nodes (`${chapter}:<node>`) and its meta row (`${chapter}:meta`). Never
+ * the chapter's reveal row or its closed case's keys (`${chapter}:reveal`, `${chapter}:case`: the trial's and the
+ * Key fee's records, key-remnants.mjs), another chapter's rows, or the trial's ticks (`caseTickStore`, not read here).
+ */
+export function planToClear(chapter, plan = {}, schema = {}) {
+    const prefix = `${chapter}:`;
+    const of = (rows, test) => Object.keys(rows ?? {}).filter(k => k.startsWith(prefix) && test(k.slice(prefix.length))).sort();
+    const slots = of(plan, rest => /^\d+$/.test(rest));
+    return {
+        chapter, slots, placed: slots.filter(k => Boolean(plan[k]?.tokenId)).length,
+        nodes: of(schema, rest => rest !== META && validNodeId(rest)), meta: of(schema, rest => rest === META)
+    };
+}
+
+/** The chapters a GM's browser holds a plan or a schema for, and the clock's, in order. */
+export function plannedChapters() {
+    const chapters = new Set([Number(getClock().chapter)]);
+    for (const k of [...Object.keys(keyPlanStore.entries()), ...Object.keys(caseSchemaStore.entries())]) {
+        const n = Number(String(k).split(":")[0]);
+        if (Number.isInteger(n) && n > 0) chapters.add(n);
+    }
+    return [...chapters].filter(Number.isInteger).sort((a, b) => a - b);
+}
+
+/**
+ * Clear one chapter's plan on a GM's browser: every row `planToClear` names, removed by the stores' own removal (a
+ * stamped tombstone, `dropMany`), so every other GM's browser and the server copy (case-copy.mjs) carry the removal
+ * and a later merge does not bring a row back. A placed Key Remnant's Remnant stays on the map: only its plan row
+ * goes. Answers what was cleared, or null on a player's browser or for no chapter.
+ */
+export async function clearChapterPlan(chapter) {
+    if (!game.user?.isGM || !Number.isInteger(chapter) || chapter < 1) return null;
+    const what = planToClear(chapter, keyPlanStore.entries(), caseSchemaStore.entries());
+    if (what.slots.length) await keyPlanStore.dropMany(what.slots);
+    if (what.nodes.length || what.meta.length) await caseSchemaStore.dropMany([...what.nodes, ...what.meta]);
+    return what;
+}
+
+/**
  * WHAT THE STUDENTS CAN REACH (E97 C4, 11.11.2026; the owner's A and B of 09.11; R3376). Pure: `graph` of `graphOf`,
  * `holders` each evidence node's holders - actor ids, an object or a Map by node id (C7 builds it from the bullets'
  * answer keys) - `culpritId` the murder's culprit (`castStore` `killerId`), `living` the living students' ids (null:

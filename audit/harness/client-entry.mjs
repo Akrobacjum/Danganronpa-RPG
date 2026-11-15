@@ -254,6 +254,14 @@ globalThis.getComputedStyle = wrapGetComputedStyle(window);
 
 globalThis.fetch = async (url, _opts = {}) => {
     const u = String(url);
+    /* A file of a world's folder on the server (E111): served by the cluster to anybody who asks its path
+       (cluster.mjs case "files", `read`), as Foundry serves the data folder. The query string is dropped. */
+    const w = u.match(/^\/?(worlds\/[^?]+)(\?.*)?$/);
+    if (w) {
+        const got = await bus.files({ action: "read", path: decodeURIComponent(w[1]) }).catch(() => ({ ok: false }));
+        if (got?.ok) return { ok: true, status: 200, url: u, text: async () => got.text, json: async () => JSON.parse(got.text), headers: { get: () => null } };
+        return { ok: false, status: 404, url: u, text: async () => "Not Found", json: async () => { throw new Error("404"); }, headers: { get: () => null } };
+    }
     const m = u.match(/^\/?modules\/danganronpa-rpg\/(.+?)(\?.*)?$/);
     if (m) {
         const file = path.join(REPO, m[1]);
@@ -296,6 +304,14 @@ const bus = {
             const id = `${WHO}-${++reqSeq}`;
             pending.set(id, { resolve, reject });
             send({ t: "setting", id, key, value, ...(noHook ? { noHook: true } : {}) });
+        });
+    },
+    /* The server's files (E111; cluster.mjs case "files"): browse, mkdir, upload and read, each judged there. */
+    files(op) {
+        return new Promise((resolve, reject) => {
+            const id = `${WHO}-${++reqSeq}`;
+            pending.set(id, { resolve, reject });
+            send({ t: "files", id, op });
         });
     },
     socketEmit(channel, args) { send({ t: "socket", channel, args }); },

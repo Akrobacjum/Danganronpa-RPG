@@ -9043,7 +9043,8 @@ const INVARIANTS = [
             // The closing word's action "close": the owner's 13.11.2026 ("Nie, ma zapisywac") made it the kit's Close, which
             // keeps an open node's text (bc3445c9; investigation.mjs, the footer). From the planner's review until then it
             // was a Cancel answering "discard" (8d049f99).
-            bar: ["autopsy", "bodyFound", "close", "newTrace", "realize", "save"],
+            // E111 (the owner, 14.11.2026): Clear the plan, one chapter's plan behind its own question (investigation.mjs `openClearPlan`).
+            bar: ["autopsy", "bodyFound", "clearPlan", "close", "newTrace", "realize", "save"],
             endChapter: [true, true],
             trialLog: true,
             undo: [[], ["undo"], true]
@@ -43090,8 +43091,9 @@ const INVARIANTS = [
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 // E64-inv (the owner's pick of the Investigation review, 12.11.2026): no evidence log, no destructive row (R3967).
                 // Close, which keeps an open node's text, since the owner's 13.11.2026 (a discarding Cancel before it)
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", close: "close" },
-                ["save", "newTrace", "autopsy", "bodyFound", "realize", "close"]],
+                // E111: Clear the plan, a secondary of its own (investigation.mjs `openClearPlan` asks with a destructive Clear).
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", clearPlan: "secondary", close: "close" },
+                ["save", "newTrace", "autopsy", "bodyFound", "realize", "clearPlan", "close"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */
@@ -61620,6 +61622,94 @@ const INVARIANTS = [
             stableJson(["above track short", "wrap", "above track short",
                 ["agility", "presence", "knowledge"].map(k => game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${k}.short`))]),
             "[Legacy 667 px at 100 %, 667 px at 140 %, 934 px at 140 %; the short names of Leg, Shadow and Head]");
+    }],
+    /* E111 (14.11.2026; the owner: "Bez hasel prosze - niech to bedzie dostepne dla kont gmow po prostu"): the case's
+       copy on the server. Pure over case-copy.mjs's functions and source reads; nothing is written to the world. */
+    ["R7345 - the server copy is written only while no player can reach the files: case-copy.mjs `filesRefusal` answers \"switchOff\" with the module's switch enforcePlayerFiles off, \"roles\" when FILES_BROWSE or FILES_UPLOAD in force names the Player or the Trusted Player role, \"account\" when a player's account holds either by name, and nothing for a held table (an Assistant or a GM granted one by name is no refusal); and `filesPrivate` reads the switch of enforced.mjs's row playerFiles", async () => {
+        /* Red at 18df17c4: no case-copy.mjs (the import fails). */
+        const C = await import("./case-copy.mjs");
+        const roles = { PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 };
+        const held = { FILES_BROWSE: [3, 4], FILES_UPLOAD: [3, 4] };
+        const ask = more => C.filesRefusal({ switchOn: true, inForce: held, users: [], roles, ...more });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson({
+            held: ask({}), off: ask({ switchOn: false }), playerBrowse: ask({ inForce: { ...held, FILES_BROWSE: [1, 3, 4] } }),
+            trustedUpload: ask({ inForce: { ...held, FILES_UPLOAD: [2, 3, 4] } }),
+            account: ask({ users: [{ isGM: false, permissions: { FILES_BROWSE: true } }] }),
+            gmGrant: ask({ users: [{ isGM: true, permissions: { FILES_UPLOAD: true } }] }),
+            readsRow: /ENFORCED\.find\(r => r\.id === "playerFiles"\)/.test(fnSource(src, "filesPrivate")) && /permissionsInForce\(\)/.test(fnSource(src, "filesPrivate"))
+        }), stableJson({ held: null, off: "switchOff", playerBrowse: "roles", trustedUpload: "roles", account: "account", gmGrant: null, readsRow: true }),
+        "{each table's refusal; filesPrivate reads the playerFiles row and the permissions in force}");
+    }],
+    ["R7346 - an empty browser never writes before it has read: case-copy.mjs `copyRefusal` answers \"notGm\", \"notPrimary\", the files' refusal before anything else a GM is asked, \"quiet\" while the suite holds the stores or stands in another world (and `readServerCopies` reads nothing then), and \"notHydrated\" for a GM whose stores have not heard the other GMs; and `writeServerCopy` lists and merges every copy in the folder (`readServerCopies`) before it builds the case it uploads, asks the hydration again after that read, and uploads over the newest copy's name or a new one", async () => {
+        /* Red at 18df17c4: no case-copy.mjs. */
+        const C = await import("./case-copy.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const w = fnSource(src, "writeServerCopy");
+        const at = pattern => w.search(pattern);
+        const base = { isGM: true, primary: true, hydrated: true, files: null };
+        equal(stableJson({
+            ok: C.copyRefusal(base), notGm: C.copyRefusal({ ...base, isGM: false }), notPrimary: C.copyRefusal({ ...base, primary: false }),
+            unhydrated: C.copyRefusal({ ...base, hydrated: false }), filesFirst: C.copyRefusal({ ...base, hydrated: false, files: "roles" }),
+            quiet: C.copyRefusal({ ...base, quiet: true }), readQuiet: /if \(gmStoresQuiet\(\)\) return \{ refused: "quiet" \}/.test(fnSource(src, "readServerCopies")),
+            readBeforeBuild: at(/await readServerCopies\(\)/) > 0 && at(/await readServerCopies\(\)/) < at(/await caseFileNow\(\)/),
+            hydratedAfterRead: at(/await readServerCopies\(\)/) < at(/if \(!SEAL_DEPS\.hydrated\(\)\)/),
+            uploadLast: at(/await caseFileNow\(\)/) < at(/FP\.upload\("data", copyFolder\(\)/), newestName: /seen\.newest \? seen\.newest\.slice/.test(w)
+        }), stableJson({ ok: null, notGm: "notGm", notPrimary: "notPrimary", unhydrated: "notHydrated", filesFirst: "roles", quiet: "quiet", readQuiet: true,
+            readBeforeBuild: true, hydratedAfterRead: true, uploadLast: true, newestName: true }),
+        "{the refusals in order; the write reads the folder, asks the hydration again, builds, then uploads over the newest name}");
+    }],
+    ["R7347 - a copy's name is 128 random bits and stays with the GMs: `newCopyName` answers case- and 32 hex digits, two calls differ, `copyFolder` is the world's drpg-case folder in the data source; and case-copy.mjs writes no setting, flag, chat message or console line - nothing a player's browser could read the name from", async () => {
+        /* Red at 18df17c4: no case-copy.mjs. */
+        const C = await import("./case-copy.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const a = C.newCopyName(), b = C.newCopyName();
+        equal(stableJson({ a: /^case-[0-9a-f]{32}\.json$/.test(a), differ: a !== b, folder: C.copyFolder("R7347WORLD"),
+            pattern: C.COPY_NAME.test("worlds/w/drpg-case/" + a) && !C.COPY_NAME.test("worlds/w/drpg-case/case-123.json"),
+            writes: (src.match(/setSetting\(|\.setFlag\(|ChatMessage|whisperToGms|console\.\w+\(|debug\(/g) ?? []).length,
+            dataOnly: (src.match(/FP\.(browse|upload|createDirectory)\("data",/g) ?? []).length }),
+        stableJson({ a: true, differ: true, folder: "worlds/R7347WORLD/drpg-case", pattern: true, writes: 0, dataOnly: 3 }),
+        "{the name's shape, two names differ, the folder, the pattern, no road a player reads, every file call in the data source}");
+    }],
+    ["R7348 - the server copy is read with Restore's own merge and written from the backup's own file: `readServerCopies` calls gm-stores.mjs `restoreCase` quiet with no health check of its own for every copy it fetched; `writeServerCopy` uploads `caseFileNow`, which `backupCase` saves too; `restoreCase` with `quiet` neither toasts nor marks a store restored, and a quiet read that took nothing sends no player anything and runs no Faint pass; and the health check and the case window name the copy (`caseCopy` row, `copyLineText`, the button \"writeCopy\")", async () => {
+        /* Red at 18df17c4: no case-copy.mjs, no caseFileNow, no quiet. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const copy = await src("case-copy.mjs"), stores = await src("gm-stores.mjs");
+        const restore = fnSource(stores, "restoreCase");
+        equal(stableJson({
+            readMerge: /restoreCase\(file,\s*\{\s*quiet:\s*true,\s*recheck:\s*false\s*\}\)/.test(fnSource(copy, "readServerCopies")),
+            writeFile: /await caseFileNow\(\)/.test(fnSource(copy, "writeServerCopy")), backupFile: /await caseFileNow\(\)/.test(fnSource(stores, "backupCase")),
+            quietToast: /if \(!quiet\) ui\.notifications\.info\(/.test(restore), quietMark: /if \(!quiet\) handle\.markRestored\(\)/.test(restore),
+            quietNothing: /if \(quiet && !changed && !filled\) continue;/.test(restore) && /if \(!quiet \|\| tookAny\)/.test(restore),
+            healthRow: /add\("caseCopy"/.test(fnSource(stores, "gmStoreHealth")),
+            window: /action: "writeCopy"/.test(fnSource(stores, "openCaseWindow")) && /writeServerCopy\(\{ explicit: true \}\)/.test(fnSource(stores, "openCaseWindow"))
+        }), stableJson({ readMerge: true, writeFile: true, backupFile: true, quietToast: true, quietMark: true, quietNothing: true, healthRow: true, window: true }),
+        "{the read merges through restoreCase quiet; the write uploads caseFileNow, which Back up saves; quiet keeps the toast and the mark off; the health row and the window's button}");
+    }],
+    ["R7349 - Clear the plan takes one chapter's planning and nothing else (the owner, 14.11.2026: \"Brakuje mi tez w planerze zagadki opcji zresetowania zawartosci/wyczyszczenia recznie\"): case-schema.mjs `planToClear`, pure over the two stores' entries, names the chapter's planned Key Remnant slots (counting those placed on the map, by tokenId), its schema nodes and its meta row; never its reveal row, its closed case's keys, another chapter's rows or a row of no chapter", async () => {
+        /* Red at 08eb5c3f: no planToClear. */
+        const K = await import("./case-schema.mjs");
+        must(typeof K.planToClear === "function", "case-schema.mjs has no planToClear");
+        const plan = { "2:0": { name: "a" }, "2:1": { name: "b", tokenId: "TOK" }, "2:12": { name: "c" }, "2:reveal": { paid: 1 }, "2:case": { keys: 3 },
+            "3:0": { name: "other chapter" }, "20:0": { name: "chapter twenty" }, "R7349slot": { room: "no chapter" } };
+        const schema = { "2:node1": { kind: "deduction" }, "2:meta": { sort: "kind" }, "3:node1": { kind: "counter" }, "22:node1": { kind: "solution" } };
+        equal(stableJson(K.planToClear(2, plan, schema)), stableJson({ chapter: 2, slots: ["2:0", "2:1", "2:12"], placed: 1, nodes: ["2:node1"], meta: ["2:meta"] }),
+            "{the chapter's slots, the placed count, its nodes, its meta; nothing of reveal, case, chapters 3, 20, 22 or a row of no chapter}");
+    }],
+    ["R7350 - Clear the plan removes by the stores' own tombstones, a GM's only, behind a question: `clearChapterPlan` refuses a player's browser and drops the rows with `dropMany` on keyPlanStore and caseSchemaStore (so other GMs and the server copy carry the removal); the Investigation dashboard's footer carries \"clearPlan\" (R3967 reads it drawn), which `runDashboardButton` runs through `openClearPlan`, a GM's window that picks the chapter (the clock's by default) and asks with a destructive Clear naming the counts and the placed ones", async () => {
+        /* Red at 08eb5c3f: no clearChapterPlan, no openClearPlan. Source reads. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const schema = await src("case-schema.mjs"), inv = await src("investigation.mjs");
+        const clear = fnSource(schema, "clearChapterPlan"), open = fnSource(inv, "openClearPlan");
+        equal(stableJson({
+            gm: /if \(!game\.user\?\.isGM/.test(clear) && /if \(!game\.user\?\.isGM\) return null/.test(open),
+            drops: /keyPlanStore\.dropMany\(what\.slots\)/.test(clear) && /caseSchemaStore\.dropMany\(\[\.\.\.what\.nodes, \.\.\.what\.meta\]\)/.test(clear),
+            noTicks: !/caseTickStore/.test(clear),
+            button: /action: "clearPlan"/.test(fnSource(inv, "openInvestigationDashboard")), runs: /action === "clearPlan"\) return \{ said: await openClearPlan\(\) \}/.test(fnSource(inv, "runDashboardButton")),
+            defaultChapter: /n === now \? " selected" : ""/.test(open), destructive: /role: "destructive"/.test(open),
+            counts: /DRPG\.Investigation\.clearPlan\.slots/.test(open) && /DRPG\.Investigation\.clearPlan\.nodes/.test(open) && /DRPG\.Investigation\.clearPlan\.placed/.test(open)
+        }), stableJson({ gm: true, drops: true, noTicks: true, button: true, runs: true, defaultChapter: true, destructive: true, counts: true }),
+        "{a GM's only, dropped by tombstones on both stores, the ticks untouched, the button, its road, the clock's chapter picked, a destructive yes, the counts named}");
     }],
 ];
 

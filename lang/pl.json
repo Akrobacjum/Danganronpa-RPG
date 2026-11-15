@@ -2063,6 +2063,14 @@
         "carryItThereTooltip": "Rzut na przeciągnięcie ciała do wybranego pokoju",
         "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza"
       },
+      "CasePlan": {
+        "clearPlanTooltip": "Czyści zaplanowane Key Remnanty i schemat sprawy jednego rozdziału, po pytaniu, które je liczy",
+        "clearPlanChapterTooltip": "Rozdział, którego plan zostanie wyczyszczony",
+        "clearPlanNextTooltip": "Liczy, co zawiera plan rozdziału, i pyta, zanim cokolwiek wyczyści"
+      },
+      "CaseCopy": {
+        "writeNowTooltip": "Odczytuje kopię z serwera, a potem zapisuje na niej sprawę z tej przeglądarki"
+      },
       "Gm": {
         "minusTooltip": "Zabiera {n} Despair z tej puli",
         "plusTooltip": "Dodaje {n} Despair do tej puli",
@@ -3131,6 +3139,39 @@
       "trackerScore": "{total} wobec {n}"
     },
     "Investigation": {
+      "clearPlan": {
+        "button": "Wyczyść plan",
+        "title": "Wyczyść plan",
+        "intro": "Czyści plan jednego rozdziału: jego zaplanowane Key Remnanty i schemat sprawy. Remnanty już na mapie, Truth Bullety i węzły zaznaczone podczas Class Trial zostają.",
+        "which": "Rozdział",
+        "chapter": "Rozdział {n}",
+        "next": "Dalej",
+        "nothing": "Rozdział {n} nie ma planu do wyczyszczenia.",
+        "confirmTitle": "Wyczyścić plan rozdziału {n}?",
+        "goes": "Zniknie to, w przeglądarce każdego GM-a i w kopii na serwerze:",
+        "slots": {
+          "one": "{n} zaplanowany Key Remnant",
+          "few": "{n} zaplanowane Key Remnanty",
+          "many": "{n} zaplanowanych Key Remnantów",
+          "other": "{n} zaplanowanego Key Remnantu"
+        },
+        "nodes": {
+          "one": "{n} węzeł schematu sprawy",
+          "few": "{n} węzły schematu sprawy",
+          "many": "{n} węzłów schematu sprawy",
+          "other": "{n} węzła schematu sprawy"
+        },
+        "meta": "układ i sortowanie schematu sprawy",
+        "placed": {
+          "one": "{n} z nich jest już postawiony: jego Remnant zostaje na mapie, znika tylko jego plan.",
+          "few": "{n} z nich są już postawione: ich Remnanty zostają na mapie, znika tylko ich plan.",
+          "many": "{n} z nich jest już postawionych: ich Remnanty zostają na mapie, znika tylko ich plan.",
+          "other": "{n} z nich jest już postawionych: ich Remnanty zostają na mapie, znika tylko ich plan."
+        },
+        "stays": "Plany innych rozdziałów, Remnanty na mapie, Truth Bullety i węzły zaznaczone podczas Class Trial zostają. Tego nie da się cofnąć.",
+        "clear": "Wyczyść",
+        "done": "Plan rozdziału {n} wyczyszczony."
+      },
       "finalAskTitle": "Postaw Final Truth Remnant",
       "finalAskBody": "Final Truth Remnant ma już wybrany pokój, ale zamykasz okno, nie klikając Zapisz. Postawić go teraz?",
       "finalAskPlace": "Postaw",
@@ -8927,6 +8968,25 @@
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
         "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
       },
+      "copy": {
+        "writeNow": "Zapisz kopię teraz",
+        "emptyHere": "Planer sprawy jest tu pusty, a serwer nie ma jego kopii. Przywróć go z pliku kopii: panel GM-a, Diagnostyka, Sprawa.",
+        "done": {
+          "written": "Kopia na serwerze zapisana.",
+          "same": "Kopia na serwerze ma już tę sprawę."
+        },
+        "refused": {
+          "switchOff": "Na serwer nie trafia żadna kopia: ustawienie Bez przeglądarki plików dla graczy jest wyłączone. Włącz je, a kopia się zapisze.",
+          "roles": "Na serwer nie trafia żadna kopia: rola Gracz albo Zaufany gracz może przeglądać lub wysyłać pliki. Odbierz tym rolom oba uprawnienia w uprawnieniach Foundry.",
+          "account": "Na serwer nie trafia żadna kopia: konto gracza może przeglądać lub wysyłać pliki. Odbierz to uprawnienie temu kontu w ustawieniach użytkownika Foundry.",
+          "notGm": "Kopię sprawy zapisuje tylko GM.",
+          "notPrimary": "Kopię sprawy zapisuje tylko główny GM.",
+          "notHydrated": "Kopie sprawy od innych GM-ów jeszcze nie dotarły. Spróbuj za chwilę.",
+          "quiet": "Testy modułu trzymają teraz sprawę. Spróbuj, gdy się skończą.",
+          "list": "Ta przeglądarka nie mogła odczytać folderu sprawy na serwerze. Szczegóły są w konsoli.",
+          "failed": "Nie udało się zapisać kopii sprawy. Szczegóły są w konsoli."
+        }
+      },
       "row": {
         "traces": {
           "one": "{n} Remnant na mapie (z {of}) nie ma klucza odpowiedzi w tej przeglądarce.",
@@ -8968,6 +9028,13 @@
         "notices": "Historia powiadomień zajmuje ponadto {notices} KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.",
         "lastBackup": "Ostatnia kopia: {when} ({who}).",
         "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii.",
+        "copyNone": "Na serwerze nie ma jeszcze kopii sprawy. Przeglądarka głównego GM-a zapisze ją po zmianie sprawy.",
+        "copyFound": {
+          "one": "Kopia na serwerze: zapisana {when} przez {who}.",
+          "few": "{n} kopie sprawy na serwerze; najnowsza zapisana {when} przez {who}.",
+          "many": "{n} kopii sprawy na serwerze; najnowsza zapisana {when} przez {who}.",
+          "other": "{n} kopii sprawy na serwerze; najnowsza zapisana {when} przez {who}."
+        },
         "traceOrphans": {
           "one": "{n} klucz odpowiedzi Remnantu nie ma tokenu na żadnej scenie: zostaje, nic go nie czyta.",
           "few": "{n} klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.",
