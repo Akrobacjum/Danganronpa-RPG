@@ -89,6 +89,15 @@ Placement: the button is in the Investigation window's footer, beside Realizatio
 Map's tools row: the footer shows in both views, and the planner's own Save stands there. A deviation from "the Key tab
 and Map" in the letter, the same window in fact; say if it should move.
 
-## Gate runs
+## Gate runs (this machine, 4 cores, 14-15.11.2026)
 
-(filled in at the end)
+- On the tip 01ff2e30 (code as 36868715): `node run-tests.mjs --tier 1` 1716 ran, 1701 passed, 0 failed, 16 skipped,
+  0 red, 555 s wall.
+- `DRPG_SUITE_SHARD=1/8 node run-all.mjs suite` on 36868715: 01-runtests 22/22, suite 1704 passed, 0 failed,
+  16 skipped, 0 red; 2274.6 s wall (CLAUDE.md's 880 s is 18.10's; not timed apart here).
+- `npm run quick`: lint 0 problems, check 24 parts green, gate 37/37; config-prose missing 0, extra 0.
+- Scenarios on 36868715: 34-case-seal 17/17; 61-gmstore-case 114/114 (on 17f112c2 it was 112/114, B2 and B3, fixed by
+  36868715); on 17f112c2: 00-boot 35/35, 62-investigation 52/52, 72-canary 162/165 with the 3 expected red its known
+  leaks name, 0 failed.
+- Older tests changed on purpose: R3967 and R1358 (the dashboard's footer gains "clearPlan"); R2063 drove the Polish
+  wording off "Kopia sprawy" (the old tile's name).
