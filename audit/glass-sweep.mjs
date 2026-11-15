@@ -1926,8 +1926,12 @@ async function plantVoice() {
         res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
     }
     {   // inward (E78 fix r2-H3): the buttons side by side where 60741cf stood them, 69 px under the pane's top
-        const c = tile.querySelector(".drpg-voice-tile-controls"), put = { top: "62px", right: "26px", "flex-direction": "row", gap: "6px" };
-        if (tile.dataset.fit !== "compact") for (const [k, v] of Object.entries(put)) c.style.setProperty(k, v, "important");
+        /* On a compact tile - every tile at a slider of 25 %, where the buttons stand in a column at the right (components.css)
+           and the row above was planted on none, so the control read a pass (14.11.2026) - the column is let down to 40 px
+           under the pane's top instead: the same fault, the microphone off its corner, in the compact form's own shape. */
+        const compact = tile.dataset.fit === "compact";
+        const c = tile.querySelector(".drpg-voice-tile-controls"), put = compact ? { top: "40px" } : { top: "62px", right: "26px", "flex-direction": "row", gap: "6px" };
+        for (const [k, v] of Object.entries(put)) c.style.setProperty(k, v, "important");
         const r = await window.drpgVoiceCheck({ cuts: false });
         for (const k of Object.keys(put)) c.style.removeProperty(k);
         res.inward = { ok: r.ok, why: r.why, pass: !r.ok && /not at its corner/.test(r.why) };
