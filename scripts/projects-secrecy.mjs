@@ -148,10 +148,41 @@ export function toldSight(countdownId) {
  * store on a GM, this player's copy of the GMs' sight on a player's (`toldSight`), and `HIDDEN_NAME` failing those.
  */
 export function shownName(countdownId, countdown = rawCountdown(countdownId)) {
-    const name = countdown?.name ?? "";
-    if (!isSecret(countdownId)) return name;
-    if (game.user?.isGM) return secretsOf(countdownId).secretName ?? name;
-    return toldSight(countdownId)?.name ?? name;
+    return nameAs(countdownId, game.user, countdown);
+}
+
+/**
+ * A PROJECT'S NAME AS ONE USER MAY READ IT (E43's `projectLabel(id, user)`, built on S17-31; E53 C4, 15.11.2026). The
+ * plan's goal: one helper the tray, the token card, windows, chat and pickers read. `shownName` is this for this
+ * browser's own user, and every list reads it through `allProjects`; a GM naming a project in a card to somebody else
+ * asks it with that somebody. The countdown's name for a public project; for a secret one the GMs' `secretName` to a
+ * user who may see it (`canSee`: a GM, one in on it, a Spectator), and the countdown's neutral name (`HIDDEN_NAME`) to
+ * anyone else. On a player's browser only its own user is answerable - it holds no other player's sight - so another
+ * user gets the neutral name. The rule itself is `labelFor`, pure, which R7406 holds case by case.
+ */
+export function nameAs(countdownId, user = game.user, countdown = rawCountdown(countdownId)) {
+    const onGm = Boolean(game.user?.isGM);
+    const self = Boolean(user) && user.id === game.user?.id;
+    const secret = isSecret(countdownId);
+    return labelFor({
+        name: countdown?.name ?? "", secret, onGm, self,
+        // On a GM the GMs' rule (`canSee`); on a player's own browser the GMs' answer itself: its sight copy names a
+        // project only for a user they say sees it - in on it, or a Spectator (projects.mjs `sightFor`).
+        sees: !secret || !user ? false : onGm ? canSee(countdownId, user) : self ? Boolean(toldSight(countdownId)?.name) : false,
+        secretName: !secret ? null : onGm ? secretsOf(countdownId).secretName ?? null : self ? toldSight(countdownId)?.name ?? null : null
+    });
+}
+
+/**
+ * The rule of `nameAs`, from its facts alone: `name` the countdown's, `secret`, `secretName` as this browser holds it
+ * (the store's on a GM, the user's own sight on a player's), `sees` whether the user may see the project, `onGm` and
+ * `self` (the user asked about is this browser's). For this browser's own user it answers what `shownName` answered
+ * before E53 C4, on a GM and on a player's browser alike.
+ */
+export function labelFor({ name = "", secret = false, secretName = null, sees = false, onGm = false, self = true } = {}) {
+    if (!secret) return name;
+    if (!onGm && !self) return name;
+    return sees && secretName ? secretName : name;
 }
 
 /**

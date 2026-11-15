@@ -51,7 +51,7 @@ import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, toldSight, bothHalves
+    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, nameAs, toldSight, bothHalves
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
@@ -2662,9 +2662,15 @@ function scaleFor(target) {
  * `name - current/start, scale · room · stat [- complete]`, the Call picker `name - current/start` and the project
  * manager `current/start`, each by hand. Plain text, for the caller to escape: "Fix the door - 2/4, Everyday ·
  * Kitchen · Hand - complete". `name: false` is the progress alone (the manager's cell); `scale`, `room`, `stat` and
- * `complete` add their parts. R1106 holds the three readers to it.
+ * `complete` add their parts. R1106 holds the three readers to it. `projectLabel(id, user)` (E53 C4) is the other form:
+ * a countdown id, and the name alone as that user may read it (projects-secrecy.mjs `nameAs`; R7406).
  */
-export function projectLabel(project, { name = true, scale = false, room = false, stat = false, complete = false } = {}) {
+export function projectLabel(project, options = {}) {
+    /* `projectLabel(id, user)` (E43's goal, E53 C4): a countdown id and a user name the project as that user may read
+       it (projects-secrecy.mjs `nameAs`), so a GM's card to somebody names it as they may know it; with no user, as
+       this browser's own may. */
+    if (typeof project === "string") return nameAs(project, options?.id ? options : game.user);
+    const { name = true, scale = false, room = false, stat = false, complete = false } = options ?? {};
     if (!project) return "";
     const progress = `${project.current ?? 0}/${project.start ?? 0}`;
     if (!name) return progress;

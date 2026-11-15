@@ -61977,6 +61977,46 @@ const INVARIANTS = [
         T.forget(name); T.forget(five); T.forget(junk);
         equal(stableJson([T.stats(name).n, T.names().includes(five)]), stableJson([0, false]), "perf-timings forgets a name it was told to");
     }],
+    ["R7406 - a project's name as one user may read it (E43's `projectLabel(id, user)`, E53 C4): projects-secrecy.mjs `labelFor` gives a public project's name to anyone, a secret one's GMs' name to a user who may see it and the countdown's neutral name to anyone else, and on a player's browser names no other user's secret project; `nameAs` asks it with the GMs' rule on a GM (`canSee`) and the user's own sight on a player's; `shownName` is `nameAs` for this browser's user, and projects.mjs `projectLabel` with a countdown id and a user answers `nameAs`", async () => {
+        /*
+         * E53 C4, 15.11.2026; E43's plan goal ("one helper projectLabel(id, user) is read by the tray, the token card,
+         * windows, chat and pickers"), which waited for S17-31 (docs/dev/e43/STATUS.md). Every list already reads
+         * `shownName` through `allProjects`; this holds the rule for any user, and the routing.
+         * Red before C4: no `labelFor` or `nameAs`; projectLabel of a string read `.current` of a string ("undefined").
+         */
+        const S = await import("./projects-secrecy.mjs");
+        const P = await import("./projects.mjs");
+        must(typeof S.labelFor === "function" && typeof S.nameAs === "function", "projects-secrecy.mjs has no labelFor or nameAs");
+        const L = facts => S.labelFor({ name: "???", secretName: "Poison the tea", ...facts });
+        equal(stableJson([
+            S.labelFor({ name: "Fix the door", secret: false, onGm: false, self: false }),
+            L({ secret: true, onGm: true, self: true, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: false }),
+            L({ secret: true, onGm: false, self: true, sees: true }),
+            L({ secret: true, onGm: false, self: true, sees: false }),
+            L({ secret: true, onGm: false, self: false, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: true, secretName: null })
+        ]), stableJson(["Fix the door", "Poison the tea", "Poison the tea", "???", "Poison the tea", "???", "???", "???"]),
+            "labelFor [public | GM itself | a GM asking for one who sees it | for one who does not | a player in on it | a player not | a player asked about another | no name held]");
+
+        const src = new Map(await moduleSources());
+        const sec = src.get("projects-secrecy.mjs"), proj = src.get("projects.mjs");
+        must(sec && proj, "projects-secrecy.mjs or projects.mjs was not read");
+        const nameAs = fnSource(sec, "nameAs"), shown = fnSource(sec, "shownName"), label = fnSource(proj, "projectLabel");
+        equal(stableJson({
+            shownIsNameAs: /return nameAs\(countdownId, game\.user, countdown\);/.test(shown),
+            gmRule: /onGm \? canSee\(countdownId, user\)/.test(nameAs),
+            ownSight: /self \? Boolean\(toldSight\(countdownId\)\?\.name\)/.test(nameAs),
+            gmName: /onGm \? secretsOf\(countdownId\)\.secretName/.test(nameAs),
+            labelById: /if \(typeof project === "string"\) return nameAs\(project, options\?\.id \? options : game\.user\);/.test(label)
+        }), stableJson({ shownIsNameAs: true, gmRule: true, ownSight: true, gmName: true, labelById: true }),
+            "the routing [shownName is nameAs for this user | the GMs' rule on a GM | the own sight on a player | the GMs' name on a GM | projectLabel by id]");
+        // A countdown id no project holds: the empty name, for this browser's user and for another alike.
+        const other = game.users.find(u => u.id !== game.user.id) ?? null;
+        equal(stableJson([P.projectLabel("R7406NOPROJECT00"), P.projectLabel("R7406NOPROJECT00", other)]), stableJson(["", ""]),
+            "projectLabel of an id no project holds [this user | another]");
+    }],
 ];
 
 /**
