@@ -321,7 +321,11 @@ Chie and Aiko. p2 opens Palm; Chie steals from Botan (seen), then asks to frisk 
 | scenario 21, the veil added | 13/14: a veiled card authored by p3 left |
 | scenario 21, the routing added | **14/14** |
 | R7404 | written with the change: its red is the pickers' `a.name`, which it reads as gone, not measured on a tree without it |
-| quick, tier 1, scenarios 13, 30, 40, 72, 83, tier 2 by name | in the item's report |
+| quick at 08f742ef | green |
+| tier 1 at 08f742ef | 1692 passed, 0 failed, 16 skipped, 0 red |
+| scenarios at 08f742ef | 21: 14/14; 13: 87/87; 40: 89/89; 72: 162/165, 3 expected red (Foundry limits), 0 failed; 83: 111/111; 30: 301/304, **1 failed** - 7l, a Listen's Reroll, read "In Cafeteria: ?": Botan stood masked from 30's opening on Hope (:424), which outlives its incident |
+| tier 2 by name at 08f742ef (17 names, 21 tests) | 20 passed, **1 failed**: "a use in a fight is carded veiled whoever makes it" - its card after the fight was veiled, as item 1b veils every card while a mask stands, and its opening on Hope had masked the killer |
+| both changed on purpose at acbab9e3 (the mask ended with the incident there; each commented) | scenario 30: 302/304, 2 expected red (Foundry limits), 0 failed; that tier-2 test: ok |
 
 ### Needs a local Foundry
 
