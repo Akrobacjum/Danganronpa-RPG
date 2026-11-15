@@ -796,8 +796,8 @@ export function dressSpectator(token) {
  * ISOMETRIC PERSPECTIVE'S SILHOUETTES (E112, 15.11.2026; the owner's answer to Q4 through the coordinator: "a token the
  * module hides from a client must not show its silhouette on that client either"). Isometric Perspective 14.0.6
  * (occlusion.js, read at its commit 7122b36, not run) keeps a layer of its own on the stage, "OcclusionContainer" >
- * "OcclusionTokens", which it empties and fills again on every `canvasReady`, `canvasPan`, `canvasTokensRefresh`,
- * `updateToken`, `controlToken`, `refreshToken`, `preUpdateScene` and `updateScene` while its client setting "Token
+ * "OcclusionTokens", which it empties and fills again on eight hooks of Foundry's (canvasReady, canvasPan,
+ * canvasTokensRefresh, updateToken, controlToken, refreshToken, preUpdateScene, updateScene) while its client setting "Token
  * Silhouette" is on (off by default): a `new PIXI.Sprite(token.mesh.texture)` at the mesh's position for every token behind
  * an occluding tile, with no test of the token's visibility - so a token this browser hides (another room, an Eclipse,
  * the opening's veil, a GM's hidden) showed its 30%-dark silhouette there. The sprite names no token; it is matched back
