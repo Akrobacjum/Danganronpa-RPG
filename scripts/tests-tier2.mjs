@@ -4582,6 +4582,13 @@ const SCENARIOS = [
         await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
+        /* The opening on Hope masked the killer (E69 C8), and a mask outlives its incident; since owner-115 item 1b every
+           card is veiled while a mask stands (secret.mjs `standingMask`), so the card no longer holds the killer's name in
+           one piece, and a mask left standing stays standing for the tests after this one. This test reads where a hit
+           lands and what its card says, not the mask: the mask is ended before the fight. Changed on purpose. */
+        const { maskStands, endMask } = await import("./mask-gm.mjs");
+        if (maskStands(killer.id)) await endMask(killer.id, "suite");
+        await settle();
         must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
             `the fixture's fight is not at the victim's turn: ${stableJson(M.murderState())}`);
         const r = victim.system.resources;
@@ -4625,6 +4632,13 @@ const SCENARIOS = [
         const note = game.i18n.format("DRPG.Murder.theyLose", { name: foundry.utils.escapeHTML(killer.name), what: plural("DRPG.Reserve.sanity", { n: 1 }) });
         await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        /* The opening on Hope masked the killer (E69 C8), and a mask outlives its incident; since owner-115 item 1b every
+           card is veiled while a mask stands (secret.mjs `standingMask`), so the card no longer holds the killer's name in
+           one piece, and a mask left standing stays standing for the tests after this one. This test reads where a hit
+           lands and what its card says, not the mask: the mask is ended before the fight. Changed on purpose. */
+        const { maskStands, endMask } = await import("./mask-gm.mjs");
+        if (maskStands(killer.id)) await endMask(killer.id, "suite");
         await settle();
         must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
             `the fixture's fight is not at the victim's turn: ${stableJson(M.murderState())}`);

@@ -45222,7 +45222,11 @@ const INVARIANTS = [
             if (panel) { delete panel.getBoundingClientRect; panel.querySelector('[data-kind="r1430"]')?.remove(); panel.dataset.signature = "R1430"; }
             E.renderEvents();
         }
-        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: 1, resizedUnder: 0, sameCards: [true, 1] }),
+        /* Every card but the one kept open folds while the stand-in height never shrinks: with the test's card appended
+           that is `read.cards`. It read 1 here, true only while the trial's card was the panel's one card: in 01-runtests'
+           part A1 an incident is open and its card stands beside the trial's (cards 2), and two folded (CI on 326caf11,
+           shard 1; reproduced in a scratch scenario at A1's fixture, 15.11.2026). Changed on purpose. */
+        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: read.cards, resizedUnder: 0, sameCards: [true, read.cards] }),
             "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the cards folded (the test's second card) after the observer "
             + "fires with the panel taller than the screen, then 1 px tall; sameCards: a render of the same cards keeps the panel and fits it again (taller than the screen)}");
     }],
