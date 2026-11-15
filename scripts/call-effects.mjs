@@ -81,8 +81,31 @@ async function tell(actor, key, data = null) {
  */
 let shielded = 0;
 
-export function shieldCalls() { shielded += 1; }
-export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
+/*
+ * WHAT A SHIELD LETS THROUGH (E112 item 3, 15.11.2026; the owner: "loaded die nie zuzywa sie na otwarcie morderstwa").
+ * A murder's opening is thrown as a supporting roll, and the shield hid a Loaded Die armed for it as it hid every
+ * Call: the window showed none, the packet named none, the GM loaded nothing and spent nothing (tier 2 "E112 - an
+ * armed Loaded Die ...", red on e9f4a791: faces 3 and 5, `used.loaded` false, the die still armed, on the drawn
+ * road and on the GM's own). The opening is the murder's own roll, so a shield raised for it lets the grants
+ * `SHIELD_PASSES` names through - the Loaded Die's `critical` and nothing else - and every other Call stays off
+ * it, as before. Kept per shield, innermost first: a shield raised with no pass inside one with a pass hides all.
+ */
+export const SHIELD_PASSES = Object.freeze({ murderOpening: Object.freeze(["critical"]) });
+const passes = [];
+
+/** The grants the innermost shield lets through; none with no shield up or a shield that names none. */
+function passing() {
+    return shielded ? new Set(passes.at(-1) ?? []) : new Set();
+}
+
+export function shieldCalls({ pass = null } = {}) {
+    shielded += 1;
+    passes.push(Array.isArray(pass) ? [...pass] : []);
+}
+export function unshieldCalls() {
+    shielded = Math.max(0, shielded - 1);
+    passes.pop();
+}
 
 /**
  * Advantage that nobody paid Hope for.
@@ -120,7 +143,8 @@ export function clearSituational() { situational = 0; }
 /**
  * THE ROLL'S OWN DIE, WHICH THE SHIELD LEAVES ALONE (E32+E07 fix r2-G1, 03.10.2026; the
  * round-2 correctness review's M1). A murder's opening roll is thrown as a supporting
- * roll (`remember: false`, murder-rules.mjs `throwOpeningRoll`), so no Call is spent on it -
+ * roll (`remember: false`, murder-rules.mjs `throwOpeningRoll`), so no Call is spent on it (its Loaded Die alone since E112,
+ * `SHIELD_PASSES`) -
  * and its Night die, the killer's advantage and a trap's victim's disadvantage, was
  * armed as the action's (`armSituational`), where the same shield hid it: every
  * opening at Night rolled flat, measured at d9ee6e9 and read so in the oldest commit
@@ -177,7 +201,10 @@ export function situationalAdvantage() {
  * owner's copy, read here beside it (`armedConfusions`).
  */
 export function pendingCalls(actor) {
-    if (shielded) return [];
+    if (shielded) {
+        const through = passing();
+        return through.size ? pendingCallsRaw(actor).filter(entry => through.has(entry?.grants)) : [];
+    }
     return [...pendingCallsRaw(actor), ...armedConfusions(actor)];
 }
 
@@ -469,7 +496,13 @@ export async function consumeCalls(actor) {
  * Returns what was spent.
  */
 export async function consumeCallsByNonce(actor, nonces) {
-    if (shielded) return [];
+    if (shielded) {
+        // Only what the shield let through, which is all this roll could have applied (`SHIELD_PASSES`).
+        const through = passing();
+        const named = new Set(Array.isArray(nonces) ? nonces : []);
+        const own = pendingCallsRaw(actor).filter(entry => through.has(entry?.grants) && named.has(entry.nonce)).map(entry => entry.nonce);
+        return own.length ? spendCallsByNonce(actor, own) : [];
+    }
     return spendCallsByNonce(actor, nonces);
 }
 

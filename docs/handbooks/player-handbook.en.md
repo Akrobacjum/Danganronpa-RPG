@@ -532,7 +532,7 @@ Hope is yours, and you hold at most **6**. It comes back when rolls go your way 
 
 A Reroll of a Find Passage or a Find Stash searches again with the new dice, in the room its roll was thrown in and only while you still stand there; otherwise the Reroll is given back whole. Going up, it finds once. Going down, a stash it opened stays open, and a passage only that roll found is taken back.
 
-A Call that affects a roll (Support, Talent, Resolve, and Loaded Die) waits for your next roll, a statistic from your sheet included, and is spent the moment you throw; a Loaded Die waits for your next action roll. A roll that only goes with an action, such as Palm's roll to stay unseen, an opening roll, or a roll to conceal your intent, spends none.
+A Call that affects a roll (Support, Talent, Resolve, and Loaded Die) waits for your next roll, a statistic from your sheet included, and is spent the moment you throw; a Loaded Die waits for your next action roll. A roll that only goes with an action, such as Palm's roll to stay unseen or a roll to conceal your intent, spends none. A murder's opening roll is the murder's own roll: a Loaded Die you armed loads it and is spent on it, and no other Call reaches it.
 
 A Call armed on you after your roll window opened is not part of that roll: the window says so, and the Call waits for your next one. A Call that hinders you (a disadvantage or a negative bonus) is the exception once it is a minute old: armed more than a minute before you roll, it counts even if your window opened first and does not show it.
 
@@ -1142,7 +1142,7 @@ A Call that affects a roll (Support, Talent, Resolve, Loaded Die) is bought on t
 
 A Reroll is made on the GM's browser, which takes the Hope; with no GM connected it is not made, and nothing is spent.
 
-A hindering Call (a disadvantage or a negative bonus) armed more than a minute before the roll counts on a roll the GM's browser throws, named in the roll window or not: `HOSTILE_GRACE` (60 000 ms, config.mjs), roll-draw.mjs `hostileCalls`. The rolls that spend no Call are action-pipeline.mjs `rollTrait`'s `remember: false` rolls and roll-draw.mjs `SPENDS_NO_CALL` (Palm, the murder opening).
+A hindering Call (a disadvantage or a negative bonus) armed more than a minute before the roll counts on a roll the GM's browser throws, named in the roll window or not: `HOSTILE_GRACE` (60 000 ms, config.mjs), roll-draw.mjs `hostileCalls`. The rolls that spend no Call are action-pipeline.mjs `rollTrait`'s `remember: false` rolls and roll-draw.mjs `SPENDS_NO_CALL` (Palm, the murder opening); the opening takes its Loaded Die and no other Call (call-effects.mjs `SHIELD_PASSES`, since 1.2.116).
 
 The GMs' card that asks for a Talent's yes waits up to 5 minutes for an answer (`TIMING.hopeCallRulingMs`, call-gm.mjs `askHopeCallByCard`).
 

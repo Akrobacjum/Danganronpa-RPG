@@ -4449,8 +4449,8 @@ let openingPickOpen = false;
  * whose roll the GM throws.
  *
  * Resolve is no exception here: the opening is a supporting roll (`remember: false`), which
- * every Call is shielded from (call-effects.mjs `shieldCalls`), so an armed Resolve buys no
- * picker on it - read off the code, 02.10.2026 - and the GM picks whatever is armed.
+ * every Call is shielded from (call-effects.mjs `shieldCalls`) but its Loaded Die (`SHIELD_PASSES`, E112), so an
+ * armed Resolve buys no picker on it - read off the code, 02.10.2026 - and the GM picks whatever is armed.
  * Null when there is to be no roll: a GM closed the window - the tracker's "Ask for the
  * opening roll again" opens it once more - or the opening is no longer wanted by the time
  * they picked.

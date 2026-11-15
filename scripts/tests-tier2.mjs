@@ -1449,7 +1449,7 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * they were. Ask the world's rows first - it writes.
  */
 async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye",
-    window: throughWindow = false, experiences = null, situational = 0, requestId = null } = {}) {
+    window: throughWindow = false, experiences = null, situational = 0, requestId = null, thrower = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -1457,14 +1457,18 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
     let packet = null;
     const hook = Hooks.on(`${game.system.id}.postDualityRollConfiguration`, (roll, config) => {
-        if (!packet && config?.[P.ROLL_NONCE]) packet = D.drawPacketOf(roll, config, { subject: actor, actionKey });
+        // A `thrower`'s roll is packed with its own claim, as the roller's browser packs it (roll-draw.mjs `drawAndPlay`):
+        // the Calls its window applied and the context its road gave it ride on that claim's `facts`.
+        if (!packet && config?.[P.ROLL_NONCE]) packet = D.drawPacketOf(roll, config, (thrower && P.rollClaimOf(config[P.ROLL_NONCE])) || { subject: actor, actionKey });
     });
     const made = [];
     const rolling = game.drpg.suiteRolling;
     let thrown;
     try {
         if (throughWindow) game.drpg.suiteRolling = false;
-        thrown = await neutralRoll(actor, { trait, remember: throughWindow, experiences, situational });
+        // `thrower` (E112): a roll thrown as its own road throws it - the opening's `rollTrait` (murder-rules.mjs
+        // `throwOpeningRoll`) - answering `{ message }`; the faces are the GM's here, as everywhere in this helper.
+        thrown = thrower ? await thrower() : await neutralRoll(actor, { trait, remember: throughWindow, experiences, situational });
     } finally {
         game.drpg.suiteRolling = rolling;
         Hooks.off(`${game.system.id}.postDualityRollConfiguration`, hook);
@@ -17461,6 +17465,133 @@ const SCENARIOS = [
             watch.stop();
             for (const back of backs.reverse()) await back();
         }
+    }],
+
+    ["E112 - an armed Loaded Die loads the murder's opening roll and is spent on it, drawn for a player and thrown by the GM for one not connected", async () => {
+        /*
+         * E112 item 3, 15.11.2026; the owner: "loaded die nie zuzywa sie na otwarcie morderstwa (dziala, ale hope call
+         * nie jest wydany)". The opening is thrown as a supporting roll (`remember: false`, murder-rules.mjs
+         * `throwOpeningRoll`), and the shield that raises (call-effects.mjs `shieldCalls`) hid every Call from it, a
+         * Loaded Die included: the window saw none, the packet named none, and the GM's draw loaded nothing and spent
+         * nothing (roll-draw.mjs `SPENDS_NO_CALL`). The opening is the murder's own roll, so a Loaded Die armed for it
+         * applies and is spent once (the owner's default through the coordinator, 15.11.2026). A direct murder between
+         * two students with players, its invitation held (`heldInvitations`), a Loaded Die armed on the killer by the GM.
+         * Road A, a table's: the opening thrown as `throwOpeningRoll` throws it - `rollTrait` with its own options -
+         * through the roll window's glue, and the packet that makes judged as the killer's player's (`drawnForPlayer`),
+         * the GM's faces 3 and 5. Read: whether the packet named the die among its Calls and as its mark, the loaded
+         * die's face or Hope's, the other, the record's `used.loaded`, whether a critical Call is still armed (the
+         * assertion), then the killer's Hope after less before and the answers (in its message only). Road B: the same roll thrown on this GM's
+         * browser as for a killer whose player is not connected, faces 3 and 5, the Loaded Die armed again: its Free
+         * Critical and whether the Call is still armed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./call-effects.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const before = new Set(E.armedCallsShown(killer).map(c => c.nonce));
+        const criticals = () => E.armedCallsShown(killer).filter(c => c.grants === "critical" && !before.has(c.nonce)).map(c => c.nonce);
+        // The GM arms it under a nonce the test keeps (a Foundry id: the packet's `loaded` is sanitized as one). The roll
+        // that cuts road A's packet is this GM's own, which spends what it applied, and a mark loads once per browser
+        // (forced-roll.mjs `spent`) - on a table the roller's browser stands aside for a drawn roll and loads nothing.
+        // So the packet's names are read as cut, then turned to a second nonce armed the same way before the GM judges
+        // it (`windowDraw` arms again under one nonce; here the mark has to be new as well).
+        let die = null;
+        const entry = nonce => ({ key: "freeCrit", kind: "hope", grants: "critical", amount: null, from: null, nonce });
+        const arm = async () => {
+            die = entry(foundry.utils.randomID());
+            await E.appendArmedCall(killer, die);
+            must(criticals().length === 1, "the Loaded Die was not armed - this would measure nothing");
+        };
+        const second = foundry.utils.randomID();
+        let cut = null;
+        const turned = p => {
+            cut = [stableJson(p.calls) === stableJson([die.nonce]), p.loaded === die.nonce];
+            return { ...p, calls: p.calls.map(n => (n === die.nonce ? second : n)), loaded: p.loaded === die.nonce ? second : p.loaded };
+        };
+        const armedAgain = async () => {
+            if (!E.armedCallsShown(killer).some(c => c.nonce === second)) await E.appendArmedCall(killer, entry(second));
+        };
+        const hope = () => Number(killer.system?.resources?.hope?.value ?? 0);
+        const opening = () => rolls.rollTrait(killer, "body", { remember: false, byGm: true, actionKey: "murderOpening",
+            title: game.i18n.localize("DRPG.Roll.opening.killer"), dc: 8, context: { side: "killer" } });
+        const read = [];
+        let F = null;
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.stage === "openingRoll", `the incident is not waiting on its opening: ${stableJson(M.murderState()?.stage ?? null)}`);
+                await arm();
+                const hopeBefore = hope();
+                F = await drawnForPlayer(owner(killer), killer, { actionKey: "murderOpening", pay: false, window: true, faces: { hope: 3, fear: 5 }, edit: turned, ready: armedAgain,
+                    thrower: async () => { const outcome = await opening(); return { outcome, message: outcome?.raw?.message ?? null }; } });
+                const faces = F.record?.used?.at === "fear" ? [F.record.fear, F.record.hope] : [F.record?.hope ?? null, F.record?.fear ?? null];
+                read.push([...(cut ?? [null, null]), ...faces, F.record?.used?.loaded ?? null, criticals().length > 0, hope() - hopeBefore,
+                    F.sent.map(r => r.reason ?? r.action)]);
+            });
+            if (criticals().length) await E.consumeCallsByNonce(killer, criticals());
+            await arm();
+            const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+            let own = null;
+            try {
+                globalThis.__forceRoll = { hope: 3, fear: 5 };
+                own = await opening();
+            } finally {
+                if (hadForce) globalThis.__forceRoll = force;
+                else delete globalThis.__forceRoll;
+                await settle();
+            }
+            if (own?.raw?.message?.id) await game.messages.get(own.raw.message.id)?.delete();
+            read.push([own?.freeCritical ?? null, criticals().length > 0]);
+        } finally {
+            if (criticals().length) await E.consumeCallsByNonce(killer, criticals());
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await F?.putBack();
+        }
+        equal(stableJson([read[0]?.slice(0, 6) ?? null, read[1] ?? null]), stableJson([[true, true, 12, 3, true, false], [true, false]]),
+            `an armed Loaded Die did not load the opening or was not spent on it [road A: the packet named the die among its Calls, and as its mark; the loaded die or Hope, the other, loaded, still armed; then Hope's change and the answers; road B: Free Critical, still armed]: ${stableJson(read)}`);
+    }],
+
+    ["E112 - the GM's draw of an opening applies its Loaded Die alone: a packet naming an armed Support gets no die from it and leaves it armed", async () => {
+        /*
+         * E112 item 3, 15.11.2026. The GM's draw took every armed Call a packet named (roll-draw.mjs `appliedCalls`) and
+         * held a roll that spends no Call (`SPENDS_NO_CALL`) only to no hostile one, so a console's opening naming the
+         * killer's armed Support had its die and spent it - read off the source on e9f4a791, the shield on the roller's
+         * browser being the only thing that kept it off. Now an opening applies what its shield lets through
+         * (call-effects.mjs `SHIELD_PASSES`), the Loaded Die alone. A direct murder between two students with players,
+         * its invitation held; a Support armed on the killer by the GM; the killer's opening drawn as their player's
+         * (`drawnForPlayer`) with the packet naming the Support. Read: the Calls the record says it used, the advantage
+         * dice the GM read off Calls (`legal.read.calls`), whether the Support is still armed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./call-effects.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const support = { key: "support", kind: "hope", grants: "advantage", amount: null, from: victim.id, nonce: foundry.utils.randomID() };
+        const armed = () => E.armedCallsShown(killer).some(c => c.nonce === support.nonce);
+        let F = null, read = null;
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.stage === "openingRoll", `the incident is not waiting on its opening: ${stableJson(M.murderState()?.stage ?? null)}`);
+                await E.appendArmedCall(killer, support);
+                must(armed(), "the Support was not armed - this would measure nothing");
+                F = await drawnForPlayer(owner(killer), killer, { actionKey: "murderOpening", pay: false, faces: { hope: 3, fear: 5 },
+                    edit: p => ({ ...p, calls: [support.nonce], context: { side: "killer" } }) });
+                must(F.record, `the opening was not drawn: ${stableJson(F.sent)}`);
+                read = [F.record.used?.calls ?? null, F.record.legal?.read?.calls ?? null, armed()];
+            });
+        } finally {
+            if (armed()) await E.spendCallsByNonce(killer, [support.nonce]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await F?.putBack();
+        }
+        equal(stableJson(read), stableJson([[], 0, true]),
+            "an opening's draw applied a Call it does not take, or spent it (the record's Calls used, the advantage dice read off Calls, the Support still armed)");
     }],
 
     ["Stage 6's clean-ups each name a clean-up's roll", async () => {

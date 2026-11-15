@@ -103,6 +103,7 @@
     {"id": "E53", "planned": "1.2.116", "with": "E43", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E58", "planned": "1.2.116", "with": "E53", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E83", "planned": "1.2.116", "with": "E58", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E112", "planned": "1.2.116", "with": "E83", "version": null, "shipped": null, "touches": ["sockets", "rolls", "scenes"], "drills": []},
     {"id": "E26", "planned": "1.3.0", "version": null, "shipped": null, "touches": null, "drills": []}
   ]
 }
