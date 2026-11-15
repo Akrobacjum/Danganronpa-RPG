@@ -58971,6 +58971,24 @@ const INVARIANTS = [
             none: { img: null, proto: null }, order: true, given: true }),
             "{the mask's picture; the file served crisp, with its paths; the token and its ring wear it; the portrait kept; given back; none kept; masked after the tokens; given back at the end}");
     }],
+    ["R7407 - a token this browser hides shows no Isometric Perspective silhouette either (scripts/visibility.mjs `silhouetteLayer`, `silhouettesToHide`, `hideSilhouettes`; E112, the owner's answer to Q4): on a stand-in stage holding Isometric Perspective 14.0.6's layer (OcclusionContainer > OcclusionTokens, a sprite on a token's mesh texture at its position), the silhouette of a token not visible here is hidden, a visible one's and a sprite matching no token are left, a stage with no such layer hides nothing, and a GM's browser hides nothing", async () => {
+        /* E112, 15.11.2026. A stand-in stage and stand-in tokens (the harness draws no canvas); nothing written. Red on
+           e9f4a791: visibility.mjs has no `hideSilhouettes`. */
+        const V = await import("./visibility.mjs");
+        must(typeof V.hideSilhouettes === "function", "visibility.mjs has no `hideSilhouettes` - the silhouettes are not looked at");
+        const tex = name => ({ name });
+        const token = (name, visible, x, y) => ({ visible, mesh: { texture: tex(name), position: { x, y } } });
+        const hidden = token("hidden", false, 100, 200), shown = token("shown", true, 300, 200), elsewhere = token("moved", false, 500, 500);
+        const sprite = (t, x = t.mesh.position.x, y = t.mesh.position.y) => ({ texture: t.mesh.texture, position: { x, y }, visible: true });
+        const sprites = [sprite(hidden), sprite(shown), sprite(elsewhere, 1, 1), { texture: tex("none"), position: { x: 0, y: 0 }, visible: true }];
+        const stage = { children: [{ name: "SomethingElse", children: [] }, { name: "OcclusionContainer", children: [{ name: "OcclusionTokens", children: sprites }] }] };
+        const n = V.hideSilhouettes({ stage, tokens: [hidden, shown, elsewhere], isGm: false });
+        const again = sprites.map(s => ({ ...s, visible: true }));
+        const gmN = V.hideSilhouettes({ stage: { children: [{ name: "OcclusionContainer", children: [{ name: "OcclusionTokens", children: again }] }] }, tokens: [hidden], isGm: true });
+        equal(stableJson([n, sprites.map(s => s.visible), V.hideSilhouettes({ stage: { children: [] }, tokens: [hidden], isGm: false }), gmN]),
+            stableJson([1, [false, true, true, true], 0, 0]),
+            "[how many hidden; each sprite's visibility: the hidden token's, the shown one's, one at another place, one matching no token; a stage with no layer; a GM's]");
+    }],
     ["R6030 - the mask is opened before the stage that sends the victim the cast, and taken back where the stage is lost (scripts/murder-rules.mjs `resolveKillerOpening`, `tellVictimTheIncidentBegan`; bridge-table.mjs `mask.reveal`; E69 C8): `maskKiller` is asked before the incident's stage is written and `endMask` where the write fails; the victim's first whisper of a masked killer is the line that names nobody; `mask.reveal` is a road owned by the sender's character, named in English and Polish, and the reveal's question has its words in both", async () => {
         /* E69 C8, 13.11.2026. Source and table read; nothing written. Red at f7e1721d. */
         const R = await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText);

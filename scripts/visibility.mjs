@@ -60,6 +60,8 @@ export function registerVisibility() {
     Hooks.on("updateToken", (doc, changes) => passForTokenUpdate(doc, changes));
     Hooks.on("createToken", () => applyAll());
     Hooks.on("deleteToken", () => applyAll());
+    // Isometric Perspective's silhouettes of the tokens this browser hides (E112; `hideSilhouettes`).
+    for (const hook of SILHOUETTE_HOOKS) Hooks.on(hook, () => silhouettesSoon());
 
     // A new Truth Bullet is the other half of `myRemnantRefs()` going stale -
     // it can land on this user's actor from a socket reply with no token on
@@ -788,6 +790,59 @@ export function dressSpectator(token) {
     dressedSpectators.add(token);
     if (mesh) mesh.alpha = SPECTATOR_ALPHA * (token.document?.alpha ?? 1);
     return true;
+}
+
+/*
+ * ISOMETRIC PERSPECTIVE'S SILHOUETTES (E112, 15.11.2026; the owner's answer to Q4 through the coordinator: "a token the
+ * module hides from a client must not show its silhouette on that client either"). Isometric Perspective 14.0.6
+ * (occlusion.js, read at its commit 7122b36, not run) keeps a layer of its own on the stage, "OcclusionContainer" >
+ * "OcclusionTokens", which it empties and fills again on every `canvasReady`, `canvasPan`, `canvasTokensRefresh`,
+ * `updateToken`, `controlToken`, `refreshToken`, `preUpdateScene` and `updateScene` while its client setting "Token
+ * Silhouette" is on (off by default): a `new PIXI.Sprite(token.mesh.texture)` at the mesh's position for every token behind
+ * an occluding tile, with no test of the token's visibility - so a token this browser hides (another room, an Eclipse,
+ * the opening's veil, a GM's hidden) showed its 30%-dark silhouette there. The sprite names no token; it is matched back
+ * by the mesh's texture and position (`silhouettesToHide`) and hidden, a frame after the hook, since which of the two
+ * modules hears a hook first is not ours to say. A GM's browser hides nothing of the cast and is left alone. Nothing of
+ * Isometric's is edited. Read on a stand-in stage (R7407); a real canvas is LIVE-E112-05.
+ */
+const SILHOUETTE_HOOKS = Object.freeze(["canvasReady", "canvasPan", "canvasTokensRefresh", "updateToken", "controlToken", "refreshToken", "updateScene"]);
+
+/** The sprites of `sprites` drawn for a token of `tokens` that is not visible here: same texture, same position. Pure (R7407). */
+export function silhouettesToHide(sprites = [], tokens = []) {
+    const out = [];
+    for (const sprite of sprites ?? []) {
+        if (!sprite?.texture) continue;
+        const token = (tokens ?? []).find(t => t?.mesh?.texture === sprite.texture
+            && t.mesh.position?.x === sprite.position?.x && t.mesh.position?.y === sprite.position?.y);
+        if (token && token.visible === false) out.push(sprite);
+    }
+    return out;
+}
+
+/** Isometric Perspective's silhouette layer on `stage`, or null where it has none. */
+export function silhouetteLayer(stage = globalThis.canvas?.stage) {
+    const box = stage?.children?.find?.(child => child?.name === "OcclusionContainer") ?? null;
+    return box?.children?.find?.(child => child?.name === "OcclusionTokens") ?? null;
+}
+
+/** Hide this browser's hidden tokens' silhouettes; answers how many. */
+export function hideSilhouettes({ stage = globalThis.canvas?.stage, tokens = globalThis.canvas?.tokens?.placeables, isGm = Boolean(game.user?.isGM) } = {}) {
+    if (isGm) return 0;
+    const layer = silhouetteLayer(stage);
+    if (!layer?.children?.length) return 0;
+    const hidden = silhouettesToHide(layer.children, tokens);
+    for (const sprite of hidden) sprite.visible = false;
+    return hidden.length;
+}
+
+let silhouetteFrame = null;
+function silhouettesSoon() {
+    if (silhouetteFrame !== null || game.user?.isGM || !game.modules?.get?.("isometric-perspective")?.active) return;
+    const next = globalThis.requestAnimationFrame ?? (fn => setTimeout(fn, 16));
+    silhouetteFrame = next(() => {
+        silhouetteFrame = null;
+        try { hideSilhouettes(); } catch { /* never break the canvas over this */ }
+    });
 }
 
 function hide(token) {
