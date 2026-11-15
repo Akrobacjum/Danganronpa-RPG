@@ -1854,7 +1854,7 @@ const inTheHour = style => (style && typeof style === "object" ? { ...style, col
  * and an unhide shows it on Foundry's next refresh. Two shapes of `visible` are met: an accessor on the class's chain
  * (super's setter carries the value) and a plain field (an own property the constructor made, moved into a slot here
  * so the accessor below is not shadowed). Which v14's BaseTokenRuler has, and whether its label and planned movement
- * follow `visible`, is LIVE-E116-01 and LIVE-E116-02: the harness has no ruler, R7421 reads both shapes on classes of its own.
+ * follow `visible`, is LIVE-E116-01 and LIVE-E116-02: the harness has no ruler, R7523 reads both shapes on classes of its own.
  */
 let rulerShown = () => true;
 

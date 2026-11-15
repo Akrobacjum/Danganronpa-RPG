@@ -2,10 +2,13 @@
 
 Branch `claude/owner-116` from `e9f4a791` (1.2.115). One section an item: the reading, the red test, the fix, the numbers.
 
-R numbers: this line's block is R7420-R7439 (the coordinator, 15.11.2026: the E112 line holds R7407 and R7408, which a
-`--next` on this tree alone does not see). Item 3's test, R7409 in e389c2ca, is R7420 since the commit after it; R7409
-keeps its registry row, marked "(removed in E39)" by `tools/registry.mjs --write` (a number is never reused; the stage
-name is the tool's own reading). If the E112 line needs R7409, that row is the one to settle at the assembly.
+R numbers: this line's block is R7520-R7539 (the coordinator, 15.11.2026, correcting an earlier R7420-R7439, which sat
+in owner-115's old block). The numbers first taken by `--next` on this tree alone collided with other lines (R7405 with
+four other lines, R7406 with three, R7407-R7408 with E112) and were renumbered in one forward commit after 1cc78724:
+R7405 -> R7520 (the planner's fields), R7406 -> R7521 (`holdSize`), R7409 -> R7420 -> R7522 (the Spectators' room),
+R7421 -> R7523 (the ruler). Their old rows are taken out of this branch's registry rather than kept "(removed ...)", since
+those numbers are other lines' tests; the registry is regenerated at the assembly. Below, each test is named by its
+current number.
 
 ## Item 1 - the planner's nodes: always the edit view, wider, every field the node's width
 
@@ -93,11 +96,11 @@ text boxes fill the node and the selects do not, each as wide as its words - the
 are the owner's "narrower"; the floating field is a second defect found on the way, the owner's or not.
 Fix: float-text.mjs `holdSize` - the placeholder at the field's layout size (untransformed, the screen box to the fraction,
 as before: a first version with the rounded `offsetWidth` moved reveal-confirm's window by half a pixel under glass, which
-the full float sweep read). Tests: R7406 (pure, tier 0), float-sweep I7 (Chromium).
+the full float sweep read). Tests: R7521 (pure, tier 0), float-sweep I7 (Chromium).
 
 **The selects under Stained Glass.** Every select of an open node stood in the theme's content-wide `.drpg-select`
 (39-207 px of 220), and a slot's visibility and author in a content-wide column under Legacy (121, 173). Fix: two rules in
-components.css's planner block. Tests: R7405 (tier 0, the rules), audit/case-map-sweep.mjs `field` (Chromium, with a
+components.css's planner block. Tests: R7520 (tier 0, the rules), audit/case-map-sweep.mjs `field` (Chromium, with a
 planted control): 46 narrow fields before, 0 after, 48 pages (en and pl, nine captures, both themes, both sizes).
 
 Also: float-sweep I4 was red on every capture with a node open (the field stood under the graph's clipped bottom, the
@@ -106,7 +109,7 @@ would, and reads green in both themes.
 
 Mutants (a copy of the tree, `DRPG_REPO`): `holdSize` never scaled, its padding and border dropped, the rounded offset
 size untransformed; the wrapper's `width: 100%` dropped; the column's stretch turned to flex-start - 5 of 5 killed by
-R7405/R7406.
+R7520/R7521.
 
 Not measured: Foundry's own stylesheet (neither sweep loads it); the top layer and a transform on v14's real window (LIVE).
 
@@ -152,7 +155,7 @@ At 25e2d34e a Spectator's account listened where its token stood, its microphone
 
 ### Tests and numbers
 
-- R7420 (tier 1) red at 25e2d34e ("spectator.mjs has no SPECTATOR_LISTEN_FLAG or talksWithSpectators"; the same file's
+- R7522 (tier 1) red at 25e2d34e ("spectator.mjs has no SPECTATOR_LISTEN_FLAG or talksWithSpectators"; the same file's
   R3860 read the Spectator with no flag in its token's room), green after: a Spectator with no flag, with the old flag
   true and with it false in the Spectators' room; listening, in its token's room; a student in its room with any flag;
   in an Eclipse not moved; the tile's reading.
@@ -195,7 +198,7 @@ pokonywanego przez token".
 
 ### Tests and numbers
 
-- R7421 (tier 0) red at c44db5a3 ("visibility.mjs has no rulerShownTo, or fog-doorways.mjs no setRulerShown or
+- R7523 (tier 0) red at c44db5a3 ("visibility.mjs has no rulerShownTo, or fog-doorways.mjs no setRulerShown or
   reRuler"), green after: the rule's matrix (player, owner, GM, Eclipse, Spectator; hidden and not), two ruler classes
   (accessor and field) as built, written, hidden while standing, unhidden before and after a write, the flip heard through
   `passForTokenUpdate`, and the module's predicate the registered one. R1115 and R1203 green.

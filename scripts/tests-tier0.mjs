@@ -24846,7 +24846,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({ same: [a === b, a === c], centred: placed.d0.y > g.head + g.pad }), JSON.stringify({ same: [true, true], centred: true }),
             "{the places called twice, and with the edges reversed; d0 (resting on rows 7 and 8) off the column's top}");
     }],
-    ["R7405 - every field of an open planner node is the node's width, the selects too (owner-116, 15.11.2026; the owner: \"Pole wpisywania w planerze dalej jest węższe niż powinno\"; components.css): in the node's fields the theme's select wrapper (`.drpg-select`, Stained Glass) and a slot's status column (`.drpg-key-plan-field`) fill the field, by rules at more classes than the theme's and the column's", async () => {
+    ["R7520 - every field of an open planner node is the node's width, the selects too (owner-116, 15.11.2026; the owner: \"Pole wpisywania w planerze dalej jest węższe niż powinno\"; components.css): in the node's fields the theme's select wrapper (`.drpg-select`, Stained Glass) and a slot's status column (`.drpg-key-plan-field`) fill the field, by rules at more classes than the theme's and the column's", async () => {
         /*
          * owner-116, 15.11.2026. Measured in Chromium at e9f4a791 (1.2.115; audit/case-map-sweep.mjs `field`, probe 08's nine
          * Map captures, both themes, 1366x768 and 1920x1080): every text box 220 px of the fields' 220, every select under
@@ -24869,7 +24869,7 @@ const REGRESSIONS = [
         }), JSON.stringify({ wrap: [true, true, false], column: [true, false], theme: true }),
             "{the wrapper in a node's field: a block, 100% wide, no !important; a slot's column in a node's field: stretched, no !important; the theme's wrapper still inline-flex (what the first overrides)}");
     }],
-    ["R7406 - a floating field's placeholder takes the field's own layout size, under the map's zoom too (owner-116, 15.11.2026; float-text.mjs `holdSize`): untransformed, the screen box to the fraction; under a transform (the box off the offset size by a pixel or more), the computed width and height, with the padding and border where the box is the content's", async () => {
+    ["R7521 - a floating field's placeholder takes the field's own layout size, under the map's zoom too (owner-116, 15.11.2026; float-text.mjs `holdSize`): untransformed, the screen box to the fraction; under a transform (the box off the offset size by a pixel or more), the computed width and height, with the padding and border where the box is the content's", async () => {
         /*
          * owner-116, 15.11.2026. The case map's camera scales its canvas by a CSS transform; the placeholder was given the
          * field's screen box, so in the scaled canvas it was scaled once more and the floating field, placed on it, was 55 px
@@ -24890,7 +24890,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(reads), JSON.stringify([{ width: 351.5, height: 49.25 }, { width: 220, height: 49 }, { width: 220, height: 49 }, { width: 220, height: 49 }]),
             "[untransformed, the screen box kept to the fraction; zoom 0.5; zoom 2; zoom 0.5 with a content box, its padding and border added]");
     }],
-    ["R7421 - a hidden token's ruler is hidden too (owner-116, 15.11.2026; the owner: \"przycisk hide w foundry bazowym (prawy na token - hide) niech ukrywa tez linie dystansu pokonywanego przez token\"; visibility.mjs `rulerShownTo`, fog-doorways.mjs `hourRulerFor`, `setRulerShown`, `reRuler`): the ruler is shown to a GM always, and to anyone else only where the token is - not for a token Foundry hides, its owner's too, nor where `tokenShownTo` hides it; the ruler class asks the rule on every write of `visible`, with `visible` an accessor or a plain field, and a hide while a ruler stands takes it off at the next ask, an unhide waits for the next write", async () => {
+    ["R7523 - a hidden token's ruler is hidden too (owner-116, 15.11.2026; the owner: \"przycisk hide w foundry bazowym (prawy na token - hide) niech ukrywa tez linie dystansu pokonywanego przez token\"; visibility.mjs `rulerShownTo`, fog-doorways.mjs `hourRulerFor`, `setRulerShown`, `reRuler`): the ruler is shown to a GM always, and to anyone else only where the token is - not for a token Foundry hides, its owner's too, nor where `tokenShownTo` hides it; the ruler class asks the rule on every write of `visible`, with `visible` an accessor or a plain field, and a hide while a ruler stands takes it off at the next ask, an unhide waits for the next write", async () => {
         /*
          * owner-116, 15.11.2026. Pure, on fixtures: a token document's actor and a viewer as `viewerHere` builds one; two
          * ruler classes of this test's own - one keeping `visible` behind an accessor whose constructor writes it, one as
