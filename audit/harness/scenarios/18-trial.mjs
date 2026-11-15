@@ -29,12 +29,15 @@
  * verdict the window sends for "Nobody is executed", which sentences and executes nobody; scanned after each step.
  * Five mutants, each KILLED here (docs/dev/e40/STATUS.md). In that second vote a player joins late (p4, declared below):
  * handed a fourth ballot at load, asks again, casts, and is told once that the vote is in. Two mutants, KILLED here.
+ * Before it, the GM's browser reloads mid-vote (`reload`, as F5; not a late second GM) and counts p1's ballot from the
+ * GMs' store; its scans read dice-sync.mjs's world copy, which names every actor alike (world-secrets.mjs
+ * `uniformActorRows`, R7405).
  *
  * THE FINAL TRIAL (E40, 15.11.2026, the same line): then a student nobody plays made the Mastermind, the Final Trial's
  * flag up, the trial started again, and a wrong Final verdict on Botan: one public card, the flag down, nobody
  * executed at the close; the scans look for the Mastermind's id and name too. Four mutants, each KILLED here.
  *
- * Not here (63-class-trial's and 72-canary's): the ballot windows drawn, a GM's reload in the vote, the verdict's
+ * Not here (63-class-trial's and 72-canary's): the ballot windows drawn, the verdict's
  * window, the Level Ups of a correct verdict; the markers of the GMs' other secrets.
  */
 export const layers = ["ci"];
@@ -45,7 +48,7 @@ const P4 = "USERP4000000000A";
 
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, repoUrl, IDS, connect }) {
+export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, repoUrl, IDS, connect, reload }) {
     const imp = file => `await import("${repoUrl}/scripts/${file}")`;
     const p3User = await p3.eval(`return game.user.id;`);
     const chieName = await gm.eval(`return game.actors.get("${IDS.chie}")?.name ?? null;`);
@@ -66,14 +69,19 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
         const { seasonEpoch, getClock } = ${imp("settings.mjs")}, I = ${imp("incident-store.mjs")};
         const victim = await Actor.create({ name: "S18 Victim", type: "character" });
         const second = await Actor.create({ name: "S18 Second Victim", type: "character" });
-        globalThis.__s18 = { victim: victim.id, second: second.id, clock: foundry.utils.deepClone(getClock()) };
+        /* The Final Trial's Mastermind (below), made now with the other fixtures: dice-sync.mjs's world copy, written at the
+           primary's load, then holds a row for it like every actor's (world-secrets.mjs \`uniformActorRows\`). */
+        const mm = await Actor.create({ name: "S18 Mastermind", type: "character" });
+        const fx = { victim: victim.id, second: second.id, mastermind: mm.id, clock: foundry.utils.deepClone(getClock()) };
         await C.killCharacter(victim, { secret: false, keepBullets: true });
         await C.killCharacter(second, { secret: false, keepBullets: true });
         await blackenedStore.patch("${IDS.chie}", { chapter: getClock().chapter, epoch: seasonEpoch(), at: Date.now(), victims: [victim.id] });
         await blackenedStore.patch("${IDS.daichi}", { chapter: getClock().chapter, epoch: seasonEpoch(), at: Date.now(), victims: [second.id] });
         globalThis.__dialogAnswers.push("ok");
         const { startClassTrial } = ${imp("trial-floor-ui.mjs")};
-        return { started: await startClassTrial(), phase: getClock().phase, known: I.trialBlackenedIds().slice().sort() };`, { timeout: 60000 });
+        return { fx, started: await startClassTrial(), phase: getClock().phase, known: I.trialBlackenedIds().slice().sort() };`, { timeout: 60000 });
+    /* What the finally takes back, kept here and not on the GM's page, which the reload below clears. */
+    const FX = { ...(opened?.fx ?? {}) };
     await settle(1000);
     check("opened: the Class Trial starts on two public deaths, with Chie and Daichi the register's Blackened",
         opened?.started === true && opened.phase === "classTrial" && J(opened.known) === J(BLACKENED), J(opened));
@@ -138,28 +146,30 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
             const { getClock } = ${imp("settings.mjs")};
             for (const id of ${J(ACCUSED)}) await C.reviveCharacter(game.actors.get(id), { quiet: true });
             const late = await Actor.create({ name: "S18 Late", type: "character", ownership: { default: 0, "${P4}": 3 } });
-            globalThis.__s18.late = late.id;
             globalThis.__dialogAnswers.push(true);
             const ended = await UI.endClassTrial();
             const between = getClock().phase;
             globalThis.__dialogAnswers.push("ok", "ok");
             const started = await UI.startClassTrial();
             const p = V.trialProgress();
-            return { ended: Boolean(ended), between, started, phase: getClock().phase, verdictApplied: Boolean(p.verdictApplied),
+            return { late: late.id, ended: Boolean(ended), between, started, phase: getClock().phase, verdictApplied: Boolean(p.verdictApplied),
                 vote: p.vote ?? null, executedAt: p.executedAt ?? null,
                 alive: ${J(ACCUSED)}.every(id => !game.drpg.isDeadForGm(game.actors.get(id))) };`, { timeout: 60000 });
+        FX.late = again?.late ?? null;
         await settle(1200);
         check("second trial: ended and started again in the same chapter - Daily Life between, the Class Trial after, the first verdict's lock and its execution's stamp cleared, Botan and Aiko alive",
             again?.between !== "classTrial" && again.started === true && again.phase === "classTrial" && again.verdictApplied === false
                 && again.executedAt === null && again.alive === true, J(again));
         await scan("second trial");
 
-        /* A LATE PLAYER, IN THE SECOND VOTE (E40, 15.11.2026, the same line; the plan's "a late player with ack"; 63 C drives
-           it without the scans). The vote opens with three ballots (p4, the owner of "S18 Late", not connected); p1 casts.
-           Then p4 connects, heard before its world has loaded, asks the primary at load and is handed a fourth ballot -
-           the record's `issued` grows to four - which the harness's default press dismisses (warned once); it asks again
-           (vote.mjs `askForBallot`, as its next load would), casts Botan and Aiko in the window, and is told once that its
-           vote is in (the ack). p2 and p3 cast; four in. */
+        /* A GM'S RELOAD AND A LATE PLAYER, IN THE SECOND VOTE (E40, 15.11.2026, the same line; the plan's "a GM reload during
+           the vote" and "a late player with ack"; 63 C and D drive both, on a second GM, without the scans). The vote opens
+           with three ballots (p4, the owner of "S18 Late", not connected); p1 casts; the GM's browser reloads (`reload`,
+           its storage kept, as F5) and the GM that comes back counts p1's ballot from the GMs' store. Then p4 connects,
+           heard before its world has loaded, asks the primary at load and is handed a fourth ballot - the record's
+           `issued` grows to four - which the harness's default press dismisses (warned once); it asks again (vote.mjs
+           `askForBallot`, as its next load would), casts Botan and Aiko in the window, and is told once that its vote is
+           in (the ack). p2 and p3 cast; four in. */
         phase("second ballots", { flow: "class-trial" });
         const sent2 = await gm.eval(`const V = ${imp("vote.mjs")}; const issued = await game.drpg.openVote();
             return { issued, round: V.trialProgress().vote?.round ?? null, picks: V.trialProgress().vote?.picks ?? null, inAtOpen: V.votesIn() };`, { timeout: 60000 });
@@ -173,6 +183,18 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
             sent2?.issued === 3 && sent2.round > (sent?.round ?? Infinity) && sent2.picks === 2 && sent2.inAtOpen === 0 && answers2.p1.ok === true,
             J({ sent2, firstRound: sent?.round ?? null, answers2 }));
         await scan("second ballots");
+
+        phase("gm reload", { flow: "class-trial" });
+        const reloaded = await reload("gm");
+        const afterReload = await gm.eval(`const V = ${imp("vote.mjs")}, { ballotStore } = ${imp("gm-stores.mjs")};
+            await ballotStore.whenHydrated?.();
+            const deadline = Date.now() + 8000;
+            while (V.votesIn() !== 1 && Date.now() < deadline) await new Promise(r => setTimeout(r, 100));
+            return { open: V.trialProgress().vote?.open ?? null, votesIn: V.votesIn(), round: V.trialProgress().vote?.round ?? null };`, { timeout: 30000 });
+        check("gm reload: the GM's browser reloaded mid-vote finds the vote open and p1's ballot in the GMs' store - one in",
+            reloaded?.back === true && afterReload?.open === true && afterReload.votesIn === 1 && afterReload.round === sent2?.round,
+            J({ reloaded, afterReload }));
+        await scan("gm reload");
 
         phase("late player", { flow: "class-trial" });
         const words = key => `game.i18n.localize(${J(key)})`;
@@ -251,17 +273,17 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
         phase("final trial", { flow: "class-trial" });
         const final = await gm.eval(`const V = ${imp("vote.mjs")}, UI = ${imp("trial-floor-ui.mjs")}, MM = ${imp("mastermind.mjs")};
             const { getClock } = ${imp("settings.mjs")}, { mastermindStore } = ${imp("gm-stores.mjs")};
-            const mm = await Actor.create({ name: "S18 Mastermind", type: "character" });
-            globalThis.__s18.mastermind = mm.id; globalThis.__s18.pick = mastermindStore.record()?.actorId ?? null;
+            const mm = game.actors.get(${J(FX.mastermind ?? "")});
+            const pickBefore = mastermindStore.record()?.actorId ?? null;
             globalThis.__dialogAnswers.push(true);
             await UI.endClassTrial();
             await MM.setMastermind(mm);
             await MM.setFinalTrial(true);
             globalThis.__dialogAnswers.push("ok", "ok");
             const started = await UI.startClassTrial();
-            return { id: mm.id, name: mm.name, started, phase: getClock().phase, final: MM.inFinalTrial(), pick: MM.mastermindActor()?.id ?? null };`, { timeout: 60000 });
+            return { id: mm.id, pickBefore, name: mm.name, started, phase: getClock().phase, final: MM.inFinalTrial(), pick: MM.mastermindActor()?.id ?? null };`, { timeout: 60000 });
         await settle(1200);
-        if (final?.id) { also.ids.push(final.id); also.names.push(final.name); }
+        if (final?.id) { also.ids.push(final.id); also.names.push(final.name); FX.pick = final.pickBefore; }
         const pSees = await p1.eval(`const MM = ${imp("mastermind.mjs")}; return { final: MM.inFinalTrial(), pick: MM.mastermindActor()?.id ?? null };`);
         check("final trial: the Final Trial starts in the same chapter, its Mastermind the GMs' pick - on the GM, and none on p1",
             final?.started === true && final.phase === "classTrial" && final.final === true && final.pick === final.id
@@ -298,11 +320,11 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
             J(fc?.executed) === J([]) && J(fc.deadNow) === J([]), J(fc));
         await scan("final close");
     } finally {
-        await gm.eval(`const C = ${imp("chapter.mjs")}, { blackenedStore } = ${imp("gm-stores.mjs")}, w = globalThis.__s18 ?? {};
+        await gm.eval(`const C = ${imp("chapter.mjs")}, { blackenedStore } = ${imp("gm-stores.mjs")}, w = ${J(FX)};
             for (const id of ${J(ACCUSED)}) { const a = game.actors.get(id);
                 if (a && game.drpg.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true }).catch(() => null); }
             for (const id of ${J([IDS.chie, IDS.daichi])}) if (blackenedStore.has(id)) await blackenedStore.drop(id);
-            if (w.mastermind) { const MM = ${imp("mastermind.mjs")}; const pick = w.pick ? game.actors.get(w.pick) : null;
+            if (Object.hasOwn(w, "pick")) { const MM = ${imp("mastermind.mjs")}; const pick = w.pick ? game.actors.get(w.pick) : null;
                 if (pick) await MM.setMastermind(pick); else await MM.clearMastermind(); }
             if (w.clock) await game.drpg.setClock({ phase: w.clock.phase, finalTrial: Boolean(w.clock.finalTrial) });
             for (const id of [w.victim, w.second, w.mastermind, w.late]) if (id) await game.actors.get(id)?.delete();

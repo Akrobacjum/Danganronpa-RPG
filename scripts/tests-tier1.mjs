@@ -7731,6 +7731,38 @@ const INVARIANTS = [
             "a clean snapshot reads as holding a secret - the killer's id in another module's flags, or as the document's own id");
     }],
 
+    ["R7405 - a setting that names every actor alike lets their ids stand as its keys only while every row is alike (scripts/world-secrets.mjs `uniformActorRows`, `findWorldSecrets`; E40, 15.11.2026, the line claude/e39-40-116): diceLookWorld's rows for every actor, the watched one among them, read clean; a row for the watched actor alone, one actor without a row, a watched row unlike the others, a stamp that is not a number, the watched id in a value and the same rows in a setting the rule does not name are found", async () => {
+        /*
+         * The coordinator's decision (a) of 15.11.2026 on a finding red on main at e9f4a791: after a GM's reload 18-trial's
+         * scans flagged dice-sync.mjs's world copy, a row for every actor alike (WORLD_SECRET_RULES's note). Both
+         * directions on a snapshot of three actors, the third watched, as findWorldSecrets reads one: what the rule lets
+         * stand, and what it must stop letting stand. Every setting the rule names needs a case here.
+         */
+        const W = await import("./world-secrets.mjs");
+        const [A, B, K] = ["R7405ACTORA00000", "R7405ACTORB00000", "R7405KILLER00000"];
+        const row = { look: null, roles: null };
+        const look = (e, t) => ({ e, t, d: {}, cleared: 0, w: 1 });
+        const all = (v = row) => ({ [A]: v, [B]: v, [K]: v });
+        const snap = settings => ({ settings, actors: [A, B, K].map(id => ({ id, flags: {} })) });
+        const hits = settings => W.findWorldSecrets(snap(settings), { ids: [K] }).filter(h => h.kind === "id");
+        const CASES = [
+            ["every actor alike", { diceLookWorld: look(all(), { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 0],
+            ["every actor alike, the watched one's stamp its own", { diceLookWorld: look(all(), { [A]: 0.5, [B]: 0.5, [K]: 1794779275171 }) }, 0],
+            ["a row for the watched actor alone", { diceLookWorld: look({ [K]: row }, { [K]: 0.5 }) }, 2],
+            ["one actor without a row", { diceLookWorld: look({ [B]: row, [K]: row }, { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 2],
+            ["the watched actor's row unlike the others", { diceLookWorld: look({ ...all(), [K]: { look: "R7405 a look", roles: null } }, { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 2],
+            ["a stamp that is not a number", { diceLookWorld: look(all(), { [A]: 0.5, [B]: 0.5, [K]: "0.5" }) }, 2],
+            ["the watched id in a value of rows alike", { diceLookWorld: { ...look(all(), { [A]: 0.5, [B]: 0.5, [K]: 0.5 }), d: { last: K } } }, 1],
+            ["the same rows in a setting the rule does not name", { R7405Other: look(all(), { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 2]
+        ];
+        const wrong = CASES.map(([what, settings, want]) => [what, hits(settings), want])
+            .filter(([, found, want]) => found.length !== want).map(([what, found, want]) => `${what}: ${found.length} found, ${want} wanted (${JSON.stringify(found)})`);
+        ok(!wrong.length, `the rows alike were read otherwise than the rule says: ${wrong.join("; ")}`);
+        const named = new Set(CASES.flatMap(([, settings]) => Object.keys(settings)));
+        const unfixtured = Object.keys(W.WORLD_SECRET_RULES.uniformActorRows ?? {}).filter(key => !named.has(key));
+        ok(Object.keys(W.WORLD_SECRET_RULES.uniformActorRows ?? {}).length > 0 && !unfixtured.length,
+            `a setting of uniformActorRows has no case here, or the rule names none: ${unfixtured.join(", ")}`);
+    }],
     ["R193 - a death is the table's only once it is published", async () => {
         /*
          * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the

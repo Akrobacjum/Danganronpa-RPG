@@ -166,7 +166,11 @@ The plan's items 2-6, in its order, with what each would take:
   on the card, a GM reload during the vote, a late player with ack, preselection and "Nobody", D4's offer applied once,
   a deceased before and after discovery, the Final Trial, a second trial (D17), a reset during a suicide incident, and
   season-wipe on a world copy; most are 63-class-trial's, 61's and 65's (63: a late player, a reload, the verdict's
-  window with "Nobody", a second trial, the Level Ups), and the rest is open.
+  window with "Nobody", a second trial, the Level Ups), and the rest is open. Since built in 18-trial, with the scans
+  after each step: two Blackened (the line claude/e39-43-113), and on the line claude/e39-40-116 a second trial with
+  "Nobody", the Final Trial, a late player with the ack and a GM's reload in the vote (its C1-C3 and C5). Still not in
+  18-trial: duplicates on the card, preselection, D4's offer applied once, a deceased before and after discovery, a
+  reset during a suicide incident (65 D and V drive it, without these scans), season-wipe on a world copy.
 - **The regex tests** (item 4): **done, 13.11.2026, for 1.2.113.** The owner's word through the coordinator ("robimy
   teraz"). `docs/dev/e40/ITEM4.md` holds the list, the slices and the rule; the four slices ran on parallel lines and were
   merged here (A c6ba81e1, C 698c7dd9, D 119384e0, B 3d0a9856), each with its own file `docs/dev/e40/ITEM4-<slice>.md`
@@ -273,8 +277,9 @@ Baseline at e9f4a791: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 pass
 | --- | --- | --- |
 | C1 (36090364) | **18-trial, a second trial with "Nobody"**: after the first trial's close, in the same chapter, Botan and Aiko put back by the GM (a fixture step), the trial ended and started again (Daily Life between; the first verdict's lock and its execution's stamp cleared), a new vote of a later round with none of the first trial's ballots counted at its open, cast and counted on Botan and Aiko, and the verdict the window sends for "Nobody is executed" (verdict.mjs `read`: `executedIds: []`), wrong, naming both Blackened: nobody sentenced, the public card says "Nobody is executed" and its cut-in names nobody, and the trial's close executes nobody. The scans after each of the five new steps. 26 checks to 51; 18-trial alone about 10 s to about 19 s inside the cluster, 23.9 s by `run-all.mjs scenarios --only 18-trial` | audit/harness/scenarios/18-trial.mjs |
 | C2 | **18-trial, the Final Trial**: after the second trial, a student nobody plays made the Mastermind (mastermind.mjs `setMastermind`), the Final Trial's flag up, the trial ended and started again: the GM's pick read on the GM and none on p1; the wrong Final verdict on Botan: the record final and done, no sentence waiting, one public card, the flag down (`finalVerdictClose`), Botan and the Mastermind alive; the close executes nobody. The scans after each step look for the Mastermind's id and name too. 51 checks to 66, about 24 s inside the cluster | audit/harness/scenarios/18-trial.mjs |
-| C3 | **18-trial, a late player with the ack**: a student "S18 Late" owned by p4 (an account declared `late: true`, as 63 declares it), made before the second trial; the second vote opens with three ballots, p1 casts, then p4 connects, heard before its world has loaded, asks the primary at load and is handed a fourth (the record's `issued` four; the harness's default press dismisses the window, warned once), asks again (`askForBallot`), casts Botan and Aiko in the window and is told once that its vote is in; p2 and p3 cast after: four in. Scans after each step. 66 checks to 76, about 27 s inside the cluster. The GM's reload in the vote is held back: see "Waits" below | audit/harness/scenarios/18-trial.mjs |
+| C3 | **18-trial, a late player with the ack**: a student "S18 Late" owned by p4 (an account declared `late: true`, as 63 declares it), made before the second trial; the second vote opens with three ballots, p1 casts, then p4 connects, heard before its world has loaded, asks the primary at load and is handed a fourth (the record's `issued` four; the harness's default press dismisses the window, warned once), asks again (`askForBallot`), casts Botan and Aiko in the window and is told once that its vote is in; p2 and p3 cast after: four in. Scans after each step. 66 checks to 76, about 27 s inside the cluster. The GM's reload in the vote was held back here, and came in C5 | audit/harness/scenarios/18-trial.mjs |
 | C4 | **The shared "allowed now" predicate** (item 3; scope the coordinator's of 15.11.2026: the ACTIONS keys, the A11 person roads and the A10 passage roads): scripts/allowed-now.mjs `allowedNow(actor, key, { road, facts }) -> { ok, why, road }`, one rule table a road a row (`action`, `person`, `transfer`, `passageShare`, `passageFind`), each in the order its road asked before, each fact read live unless handed in. Moved onto it: the tile (sheet-actions.mjs `actionButton`), the press (action-rolls.mjs `performAction`, every gate in its place, the fight read once at the top as before), frisk.mjs `personActionRefusal` (a Frisk, a steal, a Plant, a give, a tail, a loot), inventory.mjs `transferRefusal`'s last lines (the rifle), passages-gm.mjs `liveShareWorld` and `liveFindWorld`. Every caller says each `why` in the words it said before. Tests: E40-T3 extended (each cell the rule's reading too, and each state's row held to the answers of d2c6e0e5, measured there with the rule stubbed; Move's press alone); new tier 2 **E40-T4** (the rifle, a passage's show and its search on the live world in daily life, an Eclipse and the trial - the suite's other passage tests hand in a world of their own, so the live readers were read by nothing). Red on d2c6e0e5 with the new tests: both threw at the import of allowed-now.mjs. Three tier-0 text guards changed with the move: R42 reads the trial gate as `now.why === WHY.trial` and the rule's order in allowed-now.mjs, R164 is kept by the person road returning its sentences as literals, R553 by naming the passage roads in camelCase | scripts/allowed-now.mjs (new), action-rolls.mjs, sheet-actions.mjs, frisk.mjs, inventory.mjs, passages-gm.mjs, tests-tier0.mjs (R42), tests-tier2.mjs (E40-T3, E40-T4) |
+| C5 | **18-trial, the GM's reload in the vote, and the world-secrets rule's exemption**: world-secrets.mjs `WORLD_SECRET_RULES.uniformActorRows` (diceLookWorld: maps `e` and `t`, `e` alike, `t` stamps) and `findWorldSecrets` reading it (the finding above); tier 1 **R7405** on both directions (rows for every actor read clean, the watched one's own stamp too; a row for the watched actor alone, one actor without a row, a watched row unlike the others, a stamp that is not a number, the watched id in a value, the same rows in a setting the rule does not name, all found; every setting of the rule has a case). Red on dd195457: the uniform rows found, 2 hits where 0 are wanted. Then the reload case in 18-trial's second vote: after p1's ballot the GM's browser reloads (the cluster's `reload("gm")`, the seeded GM off the table and back with its storage, as F5 - used instead of a late `gm2`, the coordinator's word of 15.11.2026) and counts p1's ballot from the GMs' store; scans after it. The fixtures' ids are kept on the scenario's side (the reload clears the GM's page), and the Mastermind's actor made with them. 76 checks to 81, about 30-36 s inside the cluster | scripts/world-secrets.mjs, tests-tier1.mjs (R7405), audit/harness/scenarios/18-trial.mjs, docs/dev/R-REGISTRY.md |
 
 | Mutant | Check | Verdict |
 | --- | --- | --- |
@@ -334,6 +339,28 @@ Gates of C4: `npm run quick` green (24 check parts); tiers 0-1 whole 1742 ran, 1
 red (472 s); the 38 tier-2 tests that name a changed symbol or one of the four lock sentences, by name, 38 ran, 42
 passed, 0 failed (182 s); E40-T3, E40-T4 and A11-9 green alone. No scenario edited.
 
+C5's mutants:
+
+| Mutant | Check | Verdict |
+| --- | --- | --- |
+| gm-store.mjs, the engine's storage read answering nothing for `gmBallots` | 18-trial [gm reload] (0 in), [late player], [second ballots in] | KILLED |
+| the same, `worldOf`'s read alone | 18-trial | SURVIVED - the store's flush reads the storage too and merges it before its first write, so one road alone loses nothing; the mutant above cuts both |
+| world-secrets.mjs `uniformKeys`: no condition, every key of the maps let stand | R7405 | KILLED |
+| `uniformKeys`: the `alike` check off | R7405 | KILLED |
+| `uniformKeys`: the stamps' number check off | R7405 | KILLED |
+| `uniformKeys`: never applies | 18-trial, run in the copy's own harness: nine scans from [gm reload] on | KILLED |
+| `uniformKeys`: the check that every actor has a key off | R7405 | SURVIVED - equivalent: a missing row reads as undefined, which the `alike` and stamp checks refuse, for each map the rule names is one or the other; kept as the rule's own statement |
+| a control: a comment changed in world-secrets.mjs, the copy's own harness | 18-trial | SURVIVED, as it must: the own-harness run passes on an inert change |
+
+Gates of C5: `npm run quick` green but for the registry part, which read the tree before R7405's row was written
+(`registry.mjs --write`, then `node tools/check.mjs` whole: 24 parts green); tiers 0-1 whole 1743 ran, 1728 passed, 0
+failed, 16 skipped, 0 red (464 s); R7405, R190, R9 and R5100 by name green; 18-trial (33.7 s) and 72-canary (53.5 s,
+the other heavy reader of the world scan) by `run-all.mjs scenarios --only` green.
+
+A note on these runs: lib/canary.mjs imports scripts/world-secrets.mjs from the checkout the harness sits in, not from
+`DRPG_REPO`, so a mutant of world-secrets.mjs read through a scenario's scans has to run in the copy's own harness; the
+first run of "never applies" through `DRPG_REPO` read the unchanged rule and passed (void, not a survival).
+
 A reading of C2, the harness's: the Final verdict's Level Up window, drawn on the GM and pressed by the harness's default
 answer, threw in its callback (level-up.mjs `readFormData`: the shim has no `FormDataExtended`, and Node's own `FormData`
 cannot read a jsdom form). Foundry has `FormDataExtended`, so this is not the module's road at a table; not changed in
@@ -350,14 +377,20 @@ Gates of C2: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 passed, 0 fai
 Gates of C3: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 passed, 0 failed, 16 skipped, 0 red (466 s);
 18-trial by `run-all.mjs scenarios --only 18-trial` green (31 s). No tier-2 test changed.
 
-Waits (15.11.2026, asked of the coordinator): **the GM's reload in the vote** is built and its own checks green (the
-reloaded GM finds the vote open and p1's ballot in the GMs' store), but the scans after it fail on main: once the primary
-has loaded again, the world setting `diceLookWorld` (dice-sync.mjs's world copy of the Dice So Nice overlays) holds a row
-for every actor of the world, the Blackened among them, each `{ look: null, roles: null }`, and world-secrets.mjs
-`findWorldSecrets` flags any module world setting that holds a watched actor id, with no exemption (`canary.worldScan`).
-Read on p1 after the reload: every actor alike, Chie's and Daichi's stamps those of every seeded actor (0.5); on the
-seed world alone the copy is `{}` before and after a reload. Read here as no leak (it names every actor alike); the fix -
-the scanner's exemption, no row for an actor with no overlay, or the scenario's - is the coordinator's and the owner's.
+**Finding: red on main e9f4a791, not a leak, harness rule widened** (15.11.2026; the coordinator's decision (a) of that
+day). Once the primary GM has loaded again in a trial, the world setting `diceLookWorld` - dice-sync.mjs's world copy
+of the Dice So Nice overlays (its header, "THE WORLD'S COPY") - holds a row for every actor of the world under `e` and
+its stamp under `t`. Read on p1 after `reload("gm")`: every actor alike, `{ look: null, roles: null }`, Chie's and
+Daichi's stamps those of every seeded actor (0.5); in three more runs 10 rows in each map for the 10 actors, at once
+after the reload. On the seed world alone the copy is `{}` before and after a reload. world-secrets.mjs
+`findWorldSecrets` flagged any module world setting holding a watched actor id as a key, so 18-trial's scans after the
+reload failed on main. Read as no leak: it names every actor alike. The rule (C5 below): a declared exemption,
+`uniformActorRows.diceLookWorld`, that lets the ids stand as keys of `e` and `t` only while, on every scan, each actor
+of the snapshot has a key in both, every `e` row is the same and every `t` stamp is a number; a watched id in a value
+or anywhere else in the setting is still found. Only the harness's id scans ask it (state-check.mjs reads the rule
+without ids). A stamp's value is not held, only its shape: an actor made since the seed has a stamp of its own (its
+time), measured when 18-trial first made its Mastermind after the reload - the copy then had no row for it, the
+exemption stopped and the scans failed, as the rule says; the Mastermind's actor is made with the other fixtures now.
 
 ## Needs a local Foundry
 

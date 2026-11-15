@@ -162,6 +162,26 @@ export const WORLD_SECRET_RULES = Object.freeze({
            projectMeta.<id>.tokenId, and the token's own flag named the same id. */
         except: Object.freeze({ projectMeta: Object.freeze(["tokenId"]) })
     }),
+    /* A SETTING THAT NAMES EVERY ACTOR ALIKE (E40, 15.11.2026, the line claude/e39-40-116; the coordinator's decision (a)
+       of that day). Found red on main at e9f4a791 by 18-trial's scans after a GM's reload: `diceLookWorld` is dice-sync.mjs's
+       world copy of the Dice So Nice overlays (its header, "THE WORLD'S COPY", E16 fix r1c-G1), which the primary writes
+       at its load, a row for every actor of the world under `e` (the overlay, `{ look, roles }`) and its stamp under `t`;
+       read on a player's browser after a reload, every actor alike, `{ look: null, roles: null }` and the seeded actors'
+       stamps 0.5. Keyed by actor id, it named the Blackened as it named everybody, and the id scan flagged it. Not a leak:
+       so a watched id's KEY in `maps` is let stand - and only while the rows still name nobody apart, read on every scan:
+       each actor of the snapshot has a key in every map; every row of an `alike` map is the same; every value of a
+       `stamps` map is a number (a stamp is when a row was written, its own for each actor made since the seed, so its
+       shape is held and not its value). Once the rows name some actors only, or a watched actor's row is its own, the
+       exemption stops and the scan finds the ids again. A watched id in a value, or in any other part of the setting, is
+       always found. Only the harness's id scans ask it: state-check.mjs reads the rule without ids. Tier 1 R7405 holds
+       both directions. */
+    uniformActorRows: Object.freeze({
+        diceLookWorld: Object.freeze({
+            maps: Object.freeze(["e", "t"]), alike: Object.freeze(["e"]), stamps: Object.freeze(["t"]),
+            since: "E40 (15.11.2026), of E16 fix r1c-G1's copy",
+            why: "dice-sync.mjs's world copy of every actor's Dice So Nice overlay, a row an actor"
+        })
+    }),
     flags: Object.freeze({
         // E05 C7: the Reroll bookmark - a crisis roll's keys, Stage 6's token ids, a palm's victim -
         // left world data (S02-01); since E08+E28 C4a it is the GMs' store (gm-stores.mjs `rerollBookmarkStore`).
@@ -273,6 +293,32 @@ function valuesAt(value, path) {
     return found;
 }
 
+/* A value as JSON with every object's keys in order, so two rows alike compare alike whatever order they were written in. */
+function sortedJson(value) {
+    if (Array.isArray(value)) return `[${value.map(sortedJson).join(",")}]`;
+    if (isObject(value)) return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${sortedJson(value[k])}`).join(",")}}`;
+    return JSON.stringify(value ?? null);
+}
+
+/* The keys a `uniformActorRows` rule lets stand in `value` (WORLD_SECRET_RULES's note above it), as the dotted paths the id
+   walk reads them at - or null where the rows name some actors apart, or there is no rule. */
+function uniformKeys(value, rule, snapshot, wanted) {
+    if (!rule || !isObject(value) || !wanted.length) return null;
+    const actors = (Array.isArray(snapshot?.actors) ? snapshot.actors : []).map(a => a?.id).filter(id => typeof id === "string" && id);
+    if (!actors.length) return null;
+    for (const map of rule.maps) {
+        const rows = value[map];
+        if (!isObject(rows) || !actors.every(id => Object.hasOwn(rows, id))) return null;
+    }
+    for (const map of rule.alike ?? []) {
+        if (new Set(actors.map(id => sortedJson(value[map][id]))).size !== 1) return null;
+    }
+    for (const map of rule.stamps ?? []) {
+        if (!actors.every(id => typeof value[map][id] === "number")) return null;
+    }
+    return new Set(rule.maps.flatMap(map => actors.map(id => `${map}.${id}`)));
+}
+
 /* Nothing held: undefined, null, "", an empty array or an empty object. */
 const isEmpty = v => v === undefined || v === null || v === "" || (isObject(v) && !Object.keys(v).length);
 
@@ -313,10 +359,10 @@ function parsedRoll(roll) {
 export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULES } = {}) {
     const out = [];
     const wanted = (ids ?? []).filter(id => typeof id === "string" && id);
-    const idsIn = (doc, id, root, base) => {
+    const idsIn = (doc, id, root, base, keysLetStand = null) => {
         if (!wanted.length || !isObject(root)) return;
         walk(root, base, (k, v, p) => {
-            if (wanted.some(w => k.includes(w))) out.push({ kind: "id", doc, id, path: p, key: true, rule: "an actor id no world data may name" });
+            if (wanted.some(w => k.includes(w)) && !keysLetStand?.has(p)) out.push({ kind: "id", doc, id, path: p, key: true, rule: "an actor id no world data may name" });
             if (typeof v === "string" && wanted.some(w => v.includes(w))) out.push({ kind: "id", doc, id, path: p, rule: "an actor id no world data may name" });
         });
     };
@@ -350,7 +396,7 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
                 if (!own.only.includes(k)) out.push({ kind: "only", doc: "setting", id: key, path: k, rule: `${own.why} (${own.since})` });
             }
         }
-        if (isObject(value)) idsIn("setting", key, value, "");
+        if (isObject(value)) idsIn("setting", key, value, "", uniformKeys(value, rules.uniformActorRows?.[key], snapshot, wanted));
         else if (typeof value === "string" && wanted.some(w => value.includes(w))) out.push({ kind: "id", doc: "setting", id: key, path: "", rule: "an actor id no world data may name" });
     }
     const flagsIn = (doc, id, flags, base) => {
