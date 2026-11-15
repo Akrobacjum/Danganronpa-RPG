@@ -1727,9 +1727,10 @@ export const ACTIONS = {
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"],
-        hint: "Listen at a wall, hear Echoes, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick "
-            + "the Lock or Keep Watch. Each costs an action.",
+        // Keep Watch under Tail Someone (E112 item 4, the owner 15.11.2026): the window draws its rows in this order.
+        variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
+        hint: "Listen at a wall, hear Echoes, Tail Someone, Keep Watch, Dash through the corridors, Shut the Door, Force the "
+            + "Door or Pick the Lock. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",

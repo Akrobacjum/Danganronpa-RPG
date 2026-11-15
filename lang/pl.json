@@ -4158,7 +4158,7 @@
         },
         "tail": {
           "label": "Tail Someone",
-          "hint": "Idź za kimś z tego pokoju i dowiaduj się, dokąd przechodzi, dopóki dotrzymujesz mu kroku. Przy słabym rzucie Shadow cel dowie się, kto go śledzi."
+          "hint": "Idź za kimś z tego pokoju i dowiaduj się, dokąd przechodzi, dopóki dotrzymujesz mu kroku, także w trakcie Eclipse, aż do końca dnia. W trakcie Eclipse śledzenia nie zaczniesz. Przy słabym rzucie Shadow cel dowie się, kto go śledzi."
         },
         "shut": {
           "label": "Shut the Door",
@@ -4170,7 +4170,7 @@
         },
         "pick": {
           "label": "Pick the Lock",
-          "hint": "Rzuć Shadow, a potem Hand przy zamkniętych albo zapieczętowanych drzwiach z tego pokoju; barykady tak nie otworzysz. Otwarte drzwi wpuszczają tylko ciebie, dopóki nie wyjdziesz z pokoju za nimi."
+          "hint": "Rzuć Shadow, a potem Hand przy zamkniętych albo zapieczętowanych drzwiach z tego pokoju; barykady tak nie otworzysz. Otwarte drzwi wpuszczają tylko ciebie, dopóki nie wyjdziesz z pokoju za nimi. Gdy już przejdziesz, zostają dla ciebie otwarte także w trakcie Eclipse; jeśli nie przejdziesz przed jego początkiem, zamkną się znowu."
         },
         "keepWatch": {
           "label": "Keep Watch",
@@ -7590,7 +7590,7 @@
         },
         "listen": {
           "label": "Infiltrate",
-          "hint": "Listen przy ścianie, Echoes, Tail Someone, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Keep Watch. Każde kosztuje akcję.",
+          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door albo Pick the Lock. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "thresholds": {
             "0": {

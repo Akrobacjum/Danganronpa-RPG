@@ -272,6 +272,9 @@ export async function startEclipse() {
        them as the Eclipse begins (transitions.mjs `boardsOf`); its end keeps them and writes neither again (sequence.mjs
        `dayStartPatch`, `opened`). The day's number, the session and every rule's day boundary still move at its end. */
     const morning = await openingDayPatch(opening);
+    // The Morning Eclipse plays the start-of-day board with this write: the masks end before it (E112 item 6;
+    // mask-gm.mjs `endMasksBeforeTheBoard`). Any other Eclipse leaves them to their time of day.
+    if (morning.patch?.dayBoard != null) await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
     const opened = await setClock({ ...morning.patch, eclipse: true, eclipseStartedAt: serverNow(), refilledFor: boundary,
         lastAdvance: boundaryMemory(opening, boundary, snapshot) });
     if (opened && morning.draft) await clearMorningDraft();

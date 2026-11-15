@@ -393,7 +393,7 @@ Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i
 
 ### Infiltrate: Listen - Shadow, 1 akcja
 
-Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. Każdą opisuje osobna część tego rozdziału, niżej.
+Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door i Pick the Lock. Każdą opisuje osobna część tego rozdziału, niżej.
 
 Listen ustala, kto jest w sąsiednim pokoju, bez decyzji GM-a. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GM-owie. Gdy twój pokój nie ma sąsiadów, Listen jest wyszarzony, a obok stoi powód.
 

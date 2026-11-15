@@ -295,6 +295,24 @@ export async function endMask(killerId, why = "end") {
     return true;
 }
 
+/**
+ * EVERY MASK ENDS BEFORE THE START-OF-DAY BOARD (E112 item 6, 15.11.2026; the owner: "make sure the start-of-day screen
+ * does not show a dead person while the body is undiscovered", and the coordinator's risk from item 2b). The board draws
+ * every student's portrait (sequence.mjs `dayStartBoard`) on the clock write that begins a day - the Morning Eclipse's
+ * start, or a roll-over with none - and a mask ended only on `drpgTimeOfDayChanged`, written after that clock: the
+ * killer's place on every browser's board drew no picture, the masked one being refused, and named the killer by
+ * elimination (tier 2 "E112 - the start-of-day board ...", red at 9cc67507 on both roads). On a GM, before the clock's
+ * write, so each portrait's write reaches every browser ahead of the board's: the time of day the mask was for ends with
+ * that write either way. Answers how many.
+ */
+export async function endMasksBeforeTheBoard() {
+    if (!game.user?.isGM) return 0;
+    await maskStore.whenHydrated();
+    let n = 0;
+    for (const killerId of Object.keys(maskStore.entries() ?? {})) if (await endMask(killerId, "timeOfDay")) n++;
+    return n;
+}
+
 /** A new time of day: every mask ends. Answers how many. */
 export async function masksAtNewTimeOfDay() {
     if (!isPrimaryGm()) return 0;

@@ -17605,6 +17605,104 @@ const SCENARIOS = [
             "a token made while a veil or a mask stood did not join it, or did not get its own back at the end (veil: hidden, flagged; after: own hidden, flag; mask: the prototype's token, the carried copy; after: each one's own look)");
     }],
 
+    ["E112 - the start-of-day board shows a victim nobody has found as alive and the masked killer as they are, at the Morning Eclipse's start and at a roll-over; a found body as dead", async () => {
+        /*
+         * E112 item 6, 15.11.2026; the owner: "make sure the start-of-day screen does not show a dead person while the body is
+         * undiscovered", and the risk E112 item 2 brought: a mask masks the killer's portrait (`actor.img`), the board draws
+         * every student's portrait (sequence.mjs `dayStartBoard`), and the board plays at the Morning Eclipse's start or at a
+         * roll-over (`startBoardStamped`), while a mask ended only when the next time of day came (`drpgTimeOfDayChanged`,
+         * written after the clock) - so the killer's place on every morning board read "?". A direct murder on Hope (the
+         * killer masked), the incident closed, the victim's death kept by the GMs (`killCharacter`, secret). At Night the
+         * Morning Eclipse starts, then is taken back; at Night the clock rolls over (`advanceTimeOfDay`). At each clock write
+         * that lands with the board's stamp, read on this browser what `dayStartBoard` composes then: the killer's picture,
+         * the victim's dead mark, the alive count, and whether a mask still stands. Then the death published (a discovery's
+         * write, death.mjs `publishDeath`) and the board read again. Red at 9cc67507: the killer's picture is the mask's.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./clock.mjs"), E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs");
+        const D = await import("./death.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const faceWas = [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const real = "worlds/suite/e112-board-killer.webp";
+        const reads = [];
+        // The board as this browser composes it the moment the clock lands with the board's stamp.
+        const board = () => {
+            const b = Q.dayStartBoard(Q.dayStartClock(getClock()), studentActors());
+            const at = id => b.cast.find(c => c.id === id) ?? null;
+            return [at(killer.id)?.img ?? null, at(victim.id)?.dead ?? null, b.alive === b.cast.length, K.maskStands(killer.id)];
+        };
+        const watch = Hooks.on("updateSetting", setting => {
+            if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}` && Q.startBoardStamped(getClock())) reads.push(board());
+        });
+        // At Night first: a write of the clock's time of day ends every mask (`drpgTimeOfDayChanged`), so the mask goes up after it.
+        const masked = async () => {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+        };
+        try {
+            await killer.update({ img: real });
+            await setClock({ phase: "dailyLife", timeOfDay: "night", refilledFor: null });
+            await settle();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            await M.endMurder({ reason: "test", followUp: false });
+            await D.killCharacter(victim, { secret: true, keepBullets: true });
+            await settle();
+            must(isDeadForGm(victim) && K.maskStands(killer.id), "the victim's death was not kept, or the mask ended with the incident - this would measure something else");
+            await E.startEclipse();
+            await settle();
+            const eclipse = reads.length;
+            Q.endSequence("cut");
+            await E.endEclipse({ advance: false });
+            await settle();
+            // A mask that the Eclipse's start ended is put up again, at Night, for the roll-over's reading.
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            await setClock({ timeOfDay: "night" });
+            await settle();
+            await masked();
+            must(K.maskStands(killer.id), "the mask for the roll-over did not go up - this would measure nothing");
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await D.publishDeath(victim);
+            await settle();
+            const found = board();
+            equal(stableJson([eclipse, reads.length, reads, found[1]]), stableJson([1, 2, [[real, false, true, false], [real, false, true, false]], true]),
+                "the start-of-day board drew the masked killer's \"?\", a victim nobody had found as dead, or left them out of the alive count, or a mask stood as the board landed "
+                + "(the reads at the Eclipse's start; in all; each read: the killer's picture, the victim dead, everyone counted alive, a mask standing; the board after the death was published: the victim dead)");
+        } finally {
+            Hooks.off("updateSetting", watch);
+            Q.endSequence("cut");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await killer.update(faceWas[1] ? { img: faceWas[0], "prototypeToken.texture.src": faceWas[1] } : { img: faceWas[0] });
+            await settle();
+        }
+    }],
+
     ["E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly: a success that opens a mask shows the token after the mask, a failure gives it its own hidden back, a trap and a self-inflicted death veil nothing, a row no opening holds is swept, and the lights' rows are taken over or lifted", async () => {
         /*
          * E112 item 1, 15.11.2026; the owner: "gdy morderca rzuca, dopoki nie rzuci otwarcia, jego token powinien byc

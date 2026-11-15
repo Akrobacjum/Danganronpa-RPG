@@ -393,7 +393,7 @@ A room action the GM set is rolled on the statistic and difficulty its row names
 
 ### Infiltrate: Listen - Shadow, 1 action
 
-The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, and Keep Watch. Each has its part of this section below.
+The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, and Pick the Lock. Each has its part of this section below.
 
 Listen works out who is in a neighboring room, with no GM ruling. You pick the room before you roll, and the answer arrives as a card only you and the GMs can read. In a room with no neighboring room Listen is grayed with the reason.
 

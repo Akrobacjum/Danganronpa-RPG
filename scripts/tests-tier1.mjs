@@ -58563,7 +58563,8 @@ const INVARIANTS = [
             dash: I.dash ? [I.dash.traits, I.dash.bands?.map(b => [b.min, b.moves]), I.dash.critical?.moves] : null,
             inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
         };
-        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
             // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
             rows: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
             "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
@@ -58592,7 +58593,8 @@ const INVARIANTS = [
             stableJson({ rows: [...new Set(rows.map(r => stableJson([C.ACTIONS.listen.variants.join(), true, true, true])))].map(JSON.parse),
                 // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
                 // E69 C7 (13.11.2026) adds Echoes, second (an intended change).
-                variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], asksFirst: true }),
+                // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
+                variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"], asksFirst: true }),
             "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
     }],
     ["R6020 - Listen's eavesdrop is one more rule of the voice decision (scripts/voice.mjs `listeningRow`, `placeVoices`' `listens`; E69 C6, the owner's 10.11 (a)): an account whose character stands in the room it listens from is sent into the voice channel of the room it listens at, marked listening; one in another room, in no room or with no eavesdrop is placed as before; with no eavesdrop handed in nobody moves", async () => {
@@ -58988,6 +58990,29 @@ const INVARIANTS = [
         equal(stableJson([n, sprites.map(s => s.visible), V.hideSilhouettes({ stage: { children: [] }, tokens: [hidden], isGm: false }), gmN]),
             stableJson([1, [false, true, true, true], 0, 0]),
             "[how many hidden; each sprite's visibility: the hidden token's, the shown one's, one at another place, one matching no token; a stage with no layer; a GM's]");
+    }],
+    ["R7408 - an action that carries through an Eclipse says so in its hint, and says it as its rule is written (lang/*.json DRPG.Infiltrate.row.tail.hint, .pick.hint, .keepWatch.hint; tail-gm.mjs, lockpick-gm.mjs, action-rolls.mjs `performAction`; E112 item 5): Tail Someone's hint names the Eclipse, the day's end and that it cannot be begun in one, as a tail ends with the day and no action but Move and a Direct Murder is begun in an Eclipse; Pick the Lock's names the Eclipse and the door closing again, as an Eclipse's start ends a pass not yet used and keeps one used; Keep Watch's names the Eclipse; each in English and Polish", async () => {
+        /* E112 item 5, 15.11.2026; the owner: every action used before an Eclipse that keeps working through it says so,
+           as Keep Watch's hint does (the owner's example: Tail Someone did not). The hints and the rules they state, read
+           side by side, so neither can move alone. Source and the language files; nothing written. Red at 9cc67507: neither
+           Tail Someone's nor Pick the Lock's hint names the Eclipse. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const row = (lang, key) => String(lang?.DRPG?.Infiltrate?.row?.[key]?.hint ?? "");
+        const tailSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/tail-gm.mjs`).then(lfText), "registerTails") ?? "");
+        const pickSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/lockpick-gm.mjs`).then(lfText), "endPassesAtEclipseStart") ?? "");
+        const actSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText), "performAction") ?? "");
+        const read = {
+            tailRule: [/drpgTimeOfDayChanged[^]*endAllTails\("day"/.test(tailSrc), /actionKey !== "move" && actionKey !== "directMurder" && isEclipse\(\)/.test(actSrc)],
+            tailHint: [/through an Eclipse/.test(row(en, "tail")) && /until the day ends/.test(row(en, "tail")) && /cannot begin it during an Eclipse/.test(row(en, "tail")),
+                /w trakcie Eclipse/.test(row(pl, "tail")) && /do końca dnia/.test(row(pl, "tail")) && /W trakcie Eclipse śledzenia nie zaczniesz/.test(row(pl, "tail"))],
+            pickRule: /if \(row\?\.entered\) continue;/.test(pickSrc),
+            pickHint: [/through an Eclipse/.test(row(en, "pick")) && /closes again/.test(row(en, "pick")),
+                /w trakcie Eclipse/.test(row(pl, "pick")) && /zamkną się znowu/.test(row(pl, "pick"))],
+            watchHint: [/Eclipse/.test(row(en, "keepWatch")), /Eclipse/.test(row(pl, "keepWatch"))]
+        };
+        equal(stableJson(read), stableJson({ tailRule: [true, true], tailHint: [true, true], pickRule: true, pickHint: [true, true], watchHint: [true, true] }),
+            "{tailRule: [a tail ends with the day, nothing but Move and a Direct Murder begun in an Eclipse]; tailHint [EN, PL]; pickRule: a used pass outlasts an Eclipse's start; pickHint [EN, PL]; watchHint [EN, PL]}");
     }],
     ["R6030 - the mask is opened before the stage that sends the victim the cast, and taken back where the stage is lost (scripts/murder-rules.mjs `resolveKillerOpening`, `tellVictimTheIncidentBegan`; bridge-table.mjs `mask.reveal`; E69 C8): `maskKiller` is asked before the incident's stage is written and `endMask` where the write fails; the victim's first whisper of a masked killer is the line that names nobody; `mask.reveal` is a road owned by the sender's character, named in English and Polish, and the reveal's question has its words in both", async () => {
         /* E69 C8, 13.11.2026. Source and table read; nothing written. Red at f7e1721d. */

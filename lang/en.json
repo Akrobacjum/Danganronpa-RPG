@@ -3885,7 +3885,7 @@
         },
         "tail": {
           "label": "Tail Someone",
-          "hint": "Follow somebody in your room and learn each room they move to, as long as you keep up. They may notice you."
+          "hint": "Follow somebody in your room and learn each room they move to, as long as you keep up, through an Eclipse too, until the day ends. You cannot begin it during an Eclipse, and they may notice you."
         },
         "shut": {
           "label": "Shut the Door",
@@ -3897,7 +3897,7 @@
         },
         "pick": {
           "label": "Pick the Lock",
-          "hint": "Roll Hand to open a locked or sealed door out of your room, for you alone, until you leave the room beyond."
+          "hint": "Roll Hand to open a locked or sealed door out of your room, for you alone, until you leave the room beyond. Once you are through, it stays open for you through an Eclipse; if you have not gone through when one starts, it closes again."
         },
         "keepWatch": {
           "label": "Keep Watch",

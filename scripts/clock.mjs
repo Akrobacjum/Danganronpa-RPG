@@ -412,6 +412,8 @@ export async function advanceTimeOfDay({
     const { draft, mood } = rolledOver || nightFalls ? await morningInputs({ line: rolledOver, mood: !opened }) : { draft: "", mood: null };
     // the new day as the start board's stamp (`dayBoard`, 12.11.2026): this roll-over plays it, a correction does not
     const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day, opened, nightFalls });
+    // The masks end before a write that plays the start-of-day board (E112 item 6; mask-gm.mjs `endMasksBeforeTheBoard`).
+    if (rolledOver) await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
     const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });

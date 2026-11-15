@@ -123,3 +123,50 @@ after the mask's texture write, the next refresh rebuilds it from the new textur
 is fixed in the module (visibility.mjs `hideSilhouettes`): a frame after each of those hooks, every sprite of that layer
 matching a token not visible on this browser (same texture, same position) is hidden; Isometric is not edited. R7407 on a
 stand-in stage, mutants 2/2; a real canvas, and whether a frame shows before it is hidden, LIVE-E112-05.
+
+## Item 4 - Keep Watch under Tail Someone
+
+The owner, 15.11.2026. The Infiltrate window draws its rows in `ACTIONS.listen.variants`' order (action-listen.mjs
+`infiltrateRows`); `INFILTRATE`'s keys are the rules' table and draw nothing, so they stay. Now `listen, echoes, tail,
+keepWatch, dash, shut, force, pick`; the tile's hint (config.mjs, its Polish twin in lang/pl.json) and the player
+handbook's list of the rows EN/PL in the same order. R3755 and R3756 changed on purpose; red at 9cc67507 with the new
+order. Not changed: docs/handbook-facts.player-handbook.en.json and its brochure twin quote the old line - E57's facts files,
+written by hand and read by no check (`node tools/check.mjs text` green).
+
+## Item 5 - an action that carries through an Eclipse says so
+
+The owner, 15.11.2026: every action used before an Eclipse that keeps working during it says so in its hint, as Keep
+Watch's does; Tail Someone did not. Read off the code (a read-only survey, then each row below checked): the time of day
+does not move at an Eclipse's start (eclipse.mjs `startEclipse`; the clock advances at `endEclipse`), but the start ends
+what lasts "this time of day" - the action refill and grants (Dash's free crossings, Sprint, Burst), the seals and
+restrictions, the timed effects, the unused lock passes, the barricades, the eavesdrops. During an Eclipse only Move and a
+Direct Murder are begun (action-rolls.mjs `performAction`), and no Call (calls.mjs `callBarred`).
+
+| Action | Begun in an Eclipse? | Carries through one? | Hint before | Hint now |
+| --- | --- | --- | --- | --- |
+| Tail Someone | no: action-rolls.mjs `performAction`; frisk.mjs `personActionRefusal` | yes, until the day ends: tail-gm.mjs's header and `registerTails` (`endAllTails("day")` on `drpgTimeOfDayChanged`) | no Eclipse | "... as long as you keep up, through an Eclipse too, until the day ends. You cannot begin it during an Eclipse, ..." EN/PL |
+| Keep Watch | no, by design (action-watch.mjs `watchShutWhy`) | only through it (watch-gm.mjs) | says so | unchanged |
+| Pick the Lock | no: `performAction` | a pass used carries until its holder leaves; one not used ends at the start (lockpick-gm.mjs `endPassesAtEclipseStart`, `row?.entered`) | no Eclipse | "... Once you are through, it stays open for you through an Eclipse; if you have not gone through when one starts, it closes again." EN/PL |
+| Dash, Shut the Door, Listen's eavesdrop, Sprint, Burst, the seals, Chained, Silence, timed effects "until the time of day ends" | no | no: ended at the start | "until the time of day ends" | unchanged (the start ends that time of day in every rule) |
+| A timed effect "until the day ends" (Facilities) | no | yes, through any Eclipse but Night's (timed-effects.mjs `endAtEclipseStart`) | "until the day ends" | unchanged: a label of the effect's end, not an action's hint (a question below) |
+| Calls armed for the next roll | no (calls.mjs) | yes, nothing at an Eclipse clears them; they wait for the next roll | "next roll" | unchanged |
+| Public Announcement | no | yes: "after the Eclipse if one comes first" | says so | unchanged |
+| Every other action or Call | no | nothing lasts | - | unchanged |
+
+R7408 pins each changed hint to the rule it states (the tail's end with the day and the Eclipse's refusal; the used
+pass), EN and PL; red at 9cc67507.
+
+## Item 6 - the start-of-day board and a body nobody has found
+
+The owner, 15.11.2026: "make sure the start-of-day screen does not show a dead person while the body is undiscovered".
+By reading, the board marks the dead by the published flag only (sequence.mjs `dayStartBoard`, `isDeceased`), and an
+incident's victim dies kept by the GMs until a discovery publishes it. The risk was this stage's own (item 2b): a mask
+puts the "?" on `actor.img`, the board draws every portrait, and a mask ended only on `drpgTimeOfDayChanged`, after the
+clock's write that plays the board. Measured (tier 2 "E112 - the start-of-day board ..."): at Night, a Hope opening
+masks the killer, the incident closes, the victim's death is kept; at the Morning Eclipse's start and at a roll-over, as
+the clock lands, the board read the victim alive and counted, and the killer's place with no picture (the masked one
+refused) while the mask stood - red at 9cc67507 on both roads. Fix: mask-gm.mjs `endMasksBeforeTheBoard`, asked by
+eclipse.mjs `startEclipse` (the Morning Eclipse alone) and clock.mjs `advanceTimeOfDay` (a roll-over) before the clock's
+write. Green: the killer's own picture, the victim alive and counted at both; dead once the death is published.
+Not read on a Spectator's browser (the board is pure over the actors every browser holds). The case summary board
+draws the sentenced's portrait (sequence.mjs), after a verdict that named them; a mask standing then is not read.
