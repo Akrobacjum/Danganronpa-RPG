@@ -1074,9 +1074,23 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       read.plate = at(plate); read.name = [name.clientWidth, name.scrollWidth];
       if (!read.plate || out(read.plate)) why.push(`the name plate at ${read.plate} is outside the tile ${W}x${H}`);
       else if (read.buttons.some(r => r && meet(r, read.plate))) why.push(`the name plate at ${read.plate} is under the buttons at ${read.buttons.join(" / ")}`);
-      /* 64 px of name at 100 %; at a slider of s (`?scale=`, 14.11.2026) 64 x s - the tile is drawn s times as wide */
-      const nameScale = Math.min(1, Number(new URLSearchParams(location.search).get("scale")) || 1);
-      if (read.name[0] < Math.min(read.name[1], 64 * nameScale)) why.push(`the name shows ${read.name[0]} px of its ${read.name[1]}`);
+      /* 64 px of name at 100 %, and 64 x s at a slider of s from 80 % up (`?scale=`). Under 80 % the tile's buttons keep a
+         24 px hit floor (components.css, the compact tile's container rule) while the tile shrinks with the slider - at 25 %
+         a 49 px tile leaves the name 11 to 14 px (Chromium, 15.11.2026) - so there the name must not vanish: it shows at
+         least an ellipsis and one letter in its own font ("M" and U+2026, measured here), which is the owner's line for it
+         (14.11.2026: "the name may ellipsize but not vanish"). */
+      const slider = Number(new URLSearchParams(location.search).get("scale")) || 1;
+      let least = 64 * Math.min(1, slider);
+      if (slider < 0.8) {
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font:inherit;letter-spacing:inherit";
+        probe.textContent = "M\u2026";
+        name.append(probe);
+        least = Math.ceil(probe.getBoundingClientRect().width);
+        probe.remove();
+      }
+      read.nameLeast = least;
+      if (read.name[0] < Math.min(read.name[1], least)) why.push(`the name shows ${read.name[0]} px of its ${read.name[1]}`);
     }
     const word = tile.querySelector(".drpg-voice-tile-state");
     if (!word) why.push("the tile has no state word");

@@ -246,17 +246,19 @@ const args = process.argv.slice(2);
 const opt = k => { const i = args.indexOf(k); return i < 0 ? null : args[i + 1]; };
 const root = path.resolve(opt("--root") ?? path.join(HERE, ".."));
 const page0 = opt("--page") ?? "audit/glass-harness.html";
-/* THE PINS ARE 100 %'S (14.11.2026; the Interface scale down to 25 %). PINS, PIN_BOX, PIN_PANE, PIN_TILT and PIN_CORNER
-   are the layout's own answers at the slider's 100 %, read in Chromium and written down; they do not scale with the
-   slider, because the layout does not either - the room tile's box keeps floors read off its type, its place turns on
-   them: at 1920x1080 under the glass the box read 250x343 at 80 % (the pin 265x364, x 0.94 not 0.8), 156x221 at 50 %
-   (x 0.59 and 0.61), 78x120 at 25 % (x 0.29 and 0.33), and at 1366x768 the place moved from 'notes' to 'clock' at 50 %.
-   So with `--page ...?scale=s` and s not 1 they are not compared (each line says "pins at 100 % only") and every check that
-   reads the layout itself still runs: the corner's launchers found, none hidden or off the screen, no pane over
-   another, the notices, the windows, the voice tile's buttons inside it and its name shown (64 px times s), its state
-   word at the floor (11 px, times s over 0.8 under 80 %). */
+/* THE PINS AT EACH SLIDER (15.11.2026; the Interface scale down to 25 %). PINS, PIN_BOX, PIN_PANE, PIN_TILT and PIN_CORNER
+   below are the layout's answers at the slider's 100 %. With `--page ...?scale=s` (the page stamps the slider as
+   applyTheme does) they are swapped for PINS_AT's row for s, read the same way in Chromium on e6c41260: the layout does
+   not scale by one factor, so no formula on the 100 % pins stands in for them. Under the glass at 1920x1080 the room box
+   is 265x364, 212x294, 134x193 and 66x103 at 100, 80, 50 and 25 % (x 0.80/0.81, 0.51/0.53, 0.25/0.28); under Legacy
+   430x364, 351x364, 234x364 and 219x364 (the height a cap, the width a floor at 25 %); at 1366x768 the glass tile stands
+   beside the notices at 100 % and under the clock below it (the clock shrinks, so it fits there), so the pane and tilt
+   pins have no row; the voice buttons stand 1 to 3 px further from the wall as the tile narrows, and at 25 % the tile is
+   compact ("-"). PINS_AT holds 1920x1080 and 1366x768 only, the sizes read: a run at another size and scale is unpinned
+   there, and a run of the default sizes with `?scale=` fails on it, as one with a size missing from PINS does. Each pin
+   keeps its control at every scale: the clock made taller (the place), the box at the other place, the pane's planted
+   faults, the buttons let down (`plantVoice` `inward`). */
 const pageScale = Number(/[?&]scale=([\d.]+)/.exec(page0)?.[1] ?? 1);
-const pinsHold = pageScale === 1;
 const themes = (opt("--themes") ?? "stained,legacy").split(",").filter(Boolean);
 const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
@@ -396,6 +398,24 @@ const PIN_CORNER = Object.fromEntries(["2000x1072", "1920x1080", "1366x768", "25
     .flatMap(size => ["gm", "player"].map(role => [`stained ${role} ${size}`, COMPACT.includes(`${role} ${size}`) ? "-" : /^(2560|3840)x/.test(size) ? WIDE : MOVED[size] ?? CORNER])));
 const TILT = { "1366x768": 6, "1536x864": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
 const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
+const PINS_AT = {
+    0.8: { place: { "1920x1080": "clock", "1366x768": "clock" }, box: { "stained 1920x1080": "212x294", "stained 1366x768": "212x234", "legacy 1920x1080": "351x364", "legacy 1366x768": "351x284" },
+        corner: { "1920x1080": "21,22 25,57", "1366x768": "21,22 26,57" } },
+    0.5: { place: { "1920x1080": "clock", "1366x768": "clock" }, box: { "stained 1920x1080": "134x193", "stained 1366x768": "134x193", "legacy 1920x1080": "234x364", "legacy 1366x768": "234x259" },
+        corner: { "1920x1080": "22,22 27,57", "1366x768": "22,22 27,57" } },
+    0.25: { place: { "1920x1080": "clock", "1366x768": "clock" }, box: { "stained 1920x1080": "66x103", "stained 1366x768": "66x103", "legacy 1920x1080": "219x364", "legacy 1366x768": "219x259" },
+        corner: { "1920x1080": "-", "1366x768": "-" } }
+};
+if (pageScale !== 1) {
+    const row = PINS_AT[pageScale] ?? { place: {}, box: {}, corner: {} };
+    for (const t of [PINS, PIN_BOX, PIN_PANE, PIN_TILT, PIN_CORNER]) for (const k of Object.keys(t)) delete t[k];
+    for (const theme of ["stained", "legacy"]) for (const role of ["gm", "player"]) for (const [size, place] of Object.entries(row.place)) {
+        const key = `${theme} ${role} ${size}`;
+        PINS[key] = place;
+        if (row.box[`${theme} ${size}`]) PIN_BOX[key] = row.box[`${theme} ${size}`];
+        if (theme === "stained" && row.corner[size]) PIN_CORNER[key] = row.corner[size];
+    }
+}
 if (shots) mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -1934,7 +1954,8 @@ async function plantVoice() {
         for (const [k, v] of Object.entries(put)) c.style.setProperty(k, v, "important");
         const r = await window.drpgVoiceCheck({ cuts: false });
         for (const k of Object.keys(put)) c.style.removeProperty(k);
-        res.inward = { ok: r.ok, why: r.why, pass: !r.ok && /not at its corner/.test(r.why) };
+        /* a compact tile has no corner read (PIN_CORNER's "-"), so there the column let down is caught as it leaves the tile */
+        res.inward = { ok: r.ok, why: r.why, pass: !r.ok && (compact ? /outside the tile|not at its corner/ : /not at its corner/).test(r.why) };
     }
     {   // onPlate (H81-10): the state word stood on the name plate at the tile's foot, where 9dcf331 put it under
         // Monokuma Legacy and the compact form, while a face shows (the word is kept with one since H81-10)
@@ -2292,27 +2313,27 @@ try {
                        not a silent one - drpgRoomCheck checks the place against F, and F against nothing. */
                     const got = rc.expect === "row" ? "row" : rc.place ?? "-", pin = PINS[`${theme} ${role} ${size}`];
                     line += pin ? (pin === got ? " | pin ok" : ` | pin ${got}/${pin}`) : " | unpinned";
-                    if (!pinsHold) line += " | pins at 100 % only";
-                    if (pinsHold && pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
+                    if (pageScale !== 1) line += ` | pins at ${pageScale}`;
+                    if (pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
                     if (!pin) unpinned++;
                     /* THE BOX PIN (E78 C0): a placed tile's width and height, as PIN_BOX records them. */
                     const boxPin = PIN_BOX[`${theme} ${role} ${size}`], box = rc.box ? `${rc.box.w}x${rc.box.h}` : "-";
                     if (rc.expect === "placed" || rc.expect === "flat") {
                         line += boxPin ? (boxPin === box ? " | box pin ok" : ` | box ${box}/${boxPin}`) : " | box unpinned";
-                        if (pinsHold && boxPin && boxPin !== box) fails.push(`room: box ${box} where PIN_BOX has ${boxPin}`);
+                        if (boxPin && boxPin !== box) fails.push(`room: box ${box} where PIN_BOX has ${boxPin}`);
                         if (!boxPin) unboxed++;
                     }
                     /* THE PANE PIN (E78 fix h76-HF4): beside the notices, the room pane's bounds as PIN_PANE records them. */
                     const panePin = PIN_PANE[`${theme} ${role} ${size}`], paneGot = rc.notes?.pane ? rc.notes.pane.join("x") : "-";
                     if (panePin || rc.notes) {
                         line += panePin ? (panePin === paneGot ? " | pane pin ok" : ` | pane ${paneGot}/${panePin}`) : " | pane unpinned";
-                        if (pinsHold && panePin !== paneGot) fails.push(`room: pane ${paneGot} where PIN_PANE has ${panePin ?? "none"}`);
+                        if (panePin !== paneGot) fails.push(`room: pane ${paneGot} where PIN_PANE has ${panePin ?? "none"}`);
                     }
                     /* THE TILT PIN (E78 fix r1-G3): beside the notices, the tile's turn in degrees as PIN_TILT records it. */
                     const tiltPin = PIN_TILT[`${theme} ${role} ${size}`], tiltGot = rc.notes ? rc.notes.tilt : undefined;
                     if (tiltPin !== undefined || rc.notes) {
                         line += tiltPin !== undefined ? (tiltPin === tiltGot ? " | tilt pin ok" : ` | tilt ${tiltGot}/${tiltPin}`) : " | tilt unpinned";
-                        if (pinsHold && tiltPin !== tiltGot) fails.push(`room: tilt ${tiltGot} where PIN_TILT has ${tiltPin ?? "none"}`);
+                        if (tiltPin !== tiltGot) fails.push(`room: tilt ${tiltGot} where PIN_TILT has ${tiltPin ?? "none"}`);
                     }
                     if (control && !paneControlled && rc.notes) {
                         paneControlled = true;
@@ -2378,7 +2399,7 @@ try {
                     if (vc.expect === "wall") {
                         const cornerPin = PIN_CORNER[`${theme} ${role} ${size}`], cornerGot = pr?.corner?.length ? pr.corner.map(c => c.join(",")).join(" ") : "-";
                         line += cornerPin ? (cornerPin === cornerGot ? " | corner pin ok" : ` | corner ${cornerGot}/${cornerPin}`) : ` | corner ${cornerGot} unpinned`;
-                        if (pinsHold && cornerPin !== cornerGot) fails.push(`voice: buttons at ${cornerGot} where PIN_CORNER has ${cornerPin ?? "none"}`);
+                        if (cornerPin !== cornerGot) fails.push(`voice: buttons at ${cornerGot} where PIN_CORNER has ${cornerPin ?? "none"}`);
                     }
                     if (theme !== "legacy" && r.c && !r.stacked && vc.expect !== "wall") fails.push(`voice: a desk with glass reads ${vc.expect}`);
                     if (vc.expect === "wall") voiceRead = true;
