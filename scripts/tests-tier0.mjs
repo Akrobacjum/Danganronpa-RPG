@@ -24846,6 +24846,50 @@ const REGRESSIONS = [
         equal(JSON.stringify({ same: [a === b, a === c], centred: placed.d0.y > g.head + g.pad }), JSON.stringify({ same: [true, true], centred: true }),
             "{the places called twice, and with the edges reversed; d0 (resting on rows 7 and 8) off the column's top}");
     }],
+    ["R7405 - every field of an open planner node is the node's width, the selects too (owner-116, 15.11.2026; the owner: \"Pole wpisywania w planerze dalej jest węższe niż powinno\"; components.css): in the node's fields the theme's select wrapper (`.drpg-select`, Stained Glass) and a slot's status column (`.drpg-key-plan-field`) fill the field, by rules at more classes than the theme's and the column's", async () => {
+        /*
+         * owner-116, 15.11.2026. Measured in Chromium at e9f4a791 (1.2.115; audit/case-map-sweep.mjs `field`, probe 08's nine
+         * Map captures, both themes, 1366x768 and 1920x1080): every text box 220 px of the fields' 220, every select under
+         * glass 39-207 px, a slot's visibility and author under Legacy 121 and 173. Here, off the module's sheets (jsdom lays
+         * nothing out): the wrapper a block of the field's width, the column stretching its children, and each rule's weight
+         * over the rule it overrides - the theme's `body.drpg-theme-stained-glass .drpg-select` (0,2,1) and
+         * `.application.drpg-window-case .drpg-key-plan-field` (0,3,0). Red at e9f4a791: neither rule.
+         */
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        must(rules.length > 1000, "the module's stylesheets were not read");
+        const block = sel => rules.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{([^}]*)\\}"))?.[1] ?? null;
+        const wrap = block(".application.drpg-window-case .drpg-case-edit-field .drpg-select");
+        const column = block(".application.drpg-window-case .drpg-case-edit-field .drpg-key-plan-field");
+        const theme = block("body.drpg-theme-stained-glass .drpg-select");
+        equal(JSON.stringify({
+            wrap: wrap ? [/\bdisplay:\s*(flex|block)\b/.test(wrap), /\bwidth:\s*100%/.test(wrap), /!important/.test(wrap)] : null,
+            column: column ? [/\balign-items:\s*stretch\b/.test(column), /!important/.test(column)] : null,
+            theme: theme ? /\bdisplay:\s*inline-flex\b/.test(theme) : null
+        }), JSON.stringify({ wrap: [true, true, false], column: [true, false], theme: true }),
+            "{the wrapper in a node's field: a block, 100% wide, no !important; a slot's column in a node's field: stretched, no !important; the theme's wrapper still inline-flex (what the first overrides)}");
+    }],
+    ["R7406 - a floating field's placeholder takes the field's own layout size, under the map's zoom too (owner-116, 15.11.2026; float-text.mjs `holdSize`): untransformed, the screen box to the fraction; under a transform (the box off the offset size by a pixel or more), the computed width and height, with the padding and border where the box is the content's", async () => {
+        /*
+         * owner-116, 15.11.2026. The case map's camera scales its canvas by a CSS transform; the placeholder was given the
+         * field's screen box, so in the scaled canvas it was scaled once more and the floating field, placed on it, was 55 px
+         * wide over a field of 110 at zoom 0.5 and 880 over 440 at zoom 2 (audit/float-sweep.mjs I7, Chromium, both
+         * themes). Pure, on fixtures. Red at e9f4a791: no `holdSize` (the placeholder took the screen box).
+         */
+        const F = await import("./float-text.mjs");
+        must(typeof F.holdSize === "function", "float-text.mjs exports no holdSize");
+        const style = o => ({ width: o.width, height: o.height, boxSizing: o.sizing ?? "border-box", getPropertyValue: k => o[k] ?? "" });
+        const reads = [
+            F.holdSize({ width: 351.5, height: 49.25 }, { offsetWidth: 352, offsetHeight: 49 }, style({ width: "351.5px", height: "49.25px" })),
+            F.holdSize({ width: 110, height: 24.5 }, { offsetWidth: 220, offsetHeight: 49 }, style({ width: "220px", height: "49px" })),
+            F.holdSize({ width: 440, height: 98 }, { offsetWidth: 220, offsetHeight: 49 }, style({ width: "220px", height: "49px" })),
+            F.holdSize({ width: 110, height: 24.5 }, { offsetWidth: 220, offsetHeight: 49 }, style({ width: "200px", height: "35px", sizing: "content-box",
+                "padding-left": "4px", "padding-right": "4px", "border-left-width": "6px", "border-right-width": "6px",
+                "padding-top": "3px", "padding-bottom": "3px", "border-top-width": "4px", "border-bottom-width": "4px" }))
+        ];
+        equal(JSON.stringify(reads), JSON.stringify([{ width: 351.5, height: 49.25 }, { width: 220, height: 49 }, { width: 220, height: 49 }, { width: 220, height: 49 }]),
+            "[untransformed, the screen box kept to the fraction; zoom 0.5; zoom 2; zoom 0.5 with a content box, its padding and border added]");
+    }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
          * perf-open line, 12.11.2026. The owner, at a table on 1.2.108 (Foundry 14.365 on a hosted server): the module's

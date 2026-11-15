@@ -3590,6 +3590,14 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :
 .application.drpg-window-case .drpg-case-edit-label { font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case .drpg-case-edit-field { min-width: 0; font-size: var(--drpg-text-sm); }
 .application.drpg-window-case .drpg-case-edit-field :is(input[type="text"], textarea, select) { width: 100%; min-width: 0; box-sizing: border-box; }
+/* EVERY FIELD THE NODE'S WIDTH, THE SELECTS TOO (owner-116, 15.11.2026; the owner: "Pole wpisywania w planerze dalej jest
+   węższe niż powinno"). Under Stained Glass a select stands in the theme's `.drpg-select` (chrome.mjs `dressSelect`), an
+   inline-flex as wide as its words, so the rule above gave the select the wrapper's width: 39-207 px of the node's 220
+   (Chromium, 1.2.115, both sizes, every zoom). And a slot's visibility and author stand in `.drpg-key-plan-field`, a
+   column that keeps its children their own width (121 and 173 px under Legacy). Here both fill the field, by rules of
+   more classes than the theme's wrapper rule (0,2,1) and the slot's column rule (0,3,0). audit/case-map-sweep.mjs `field` holds every field to its node's width. */
+.application.drpg-window-case .drpg-case-edit-field .drpg-select { display: flex; width: 100%; min-width: 0; }
+.application.drpg-window-case .drpg-case-edit-field .drpg-key-plan-field { align-items: stretch; }
 .application.drpg-window-case .drpg-case-edit-field .drpg-project-portrait { max-width: 4rem; max-height: 4rem; }
 .application.drpg-window-case .drpg-case-edit-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem; padding-top: 0.25rem; }
 /* a node's list of what it rests on is as long as the case (no box of its own that scrolls: C6's 12rem cut it at 1366x768),

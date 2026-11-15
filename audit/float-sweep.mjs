@@ -51,6 +51,9 @@
  *              I3's window-closing model; Escape in the node's floating field: the node shut, the window open, the
  *              field let go;
  *   I6 cost   the helper's own counts at rest (0), floating idle (no frame loop) and typing (a measure a key at most);
+ *   I7 zoom   (owner-116, 15.11.2026) on I4's capture, the canvas scaled as the camera scales it (0.5 and 2): the floating
+ *              field's screen width the field's own (within 1 px), the placeholder's screen box the field's, and nothing else
+ *              of the open node moved; read with I4, so "not read" with it;
  *   I5 sequence (the review's F3) a sequence starts (`data-drpg-sequence` on the body) while the field floats: it lets go;
  *              clicked while the sequence plays: focused, not floating.
  * I3 also holds the focus on the field after Escape (the review's F2). Red runs: `--without` (I1: nothing floats),
@@ -326,6 +329,15 @@ async function caseMap(browser, theme) {
         window.addEventListener("keydown", e => { if (e.key === "Escape") app.remove(); });
         el.value = o.text;
         el.scrollIntoView({ block: "nearest" });
+        /* THE FIELD BROUGHT INTO THE GRAPH'S VIEW (owner-116, 15.11.2026): the graph clips its canvas and moves it by the
+           camera, which the style harness does not run, so the field stood under the graph's bottom edge (721 px on a
+           graph ending at 555, 1366x768) and the click below landed on the page's body - I4 red on every capture since
+           the open node became its editor. The canvas is moved as the camera's reveal would move it: the field's top 8 px
+           under the graph's. */
+        const canvas = graph.querySelector(":scope > .drpg-case-canvas");
+        const gr = graph.getBoundingClientRect(), fr = el.getBoundingClientRect();
+        if (canvas && (fr.top < gr.top || fr.bottom > gr.bottom || fr.left < gr.left || fr.right > gr.right))
+            canvas.style.transform = `translate(${Math.round(gr.left + 8 - fr.left)}px, ${Math.round(gr.top + 8 - fr.top)}px)`;
         await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
         globalThis.__cm = { el, app, edit };
         const r = el.getBoundingClientRect();
@@ -342,6 +354,52 @@ async function caseMap(browser, theme) {
     await page.close();
     return [`I4 case map ${theme}`, floated && r.shut && r.open && !r.floating && !r.hold,
         `floated ${floated}; Escape: the node shut ${r.shut}, the window open ${r.open}, floating ${r.floating}, placeholder ${r.hold}`];
+}
+
+/* I7, A FIELD UNDER THE MAP'S ZOOM (owner-116, 15.11.2026; the owner: "Pole wpisywania w planerze dalej jest węższe niż
+   powinno"). The case map's canvas is scaled by its camera (case-view.mjs `cameraTransform`, a CSS transform), and a field
+   that floats stands in the top layer, which no transform reaches: so the field's box on the screen is the one size that
+   holds both places. Red at e9f4a791 (1.2.115): the placeholder took the field's screen box as its own layout size, and
+   in the scaled canvas it was scaled once more - at zoom 0.5 the floating field 55 px wide over a field of 110 on the
+   screen, at zoom 2 880 px over 440 - and the follow placed the field on that placeholder. At zooms 0.5 and 2, on the
+   capture of I4: the floating field's screen width the field's own before the focus (within 1 px), the placeholder's
+   screen box the field's (within 1 px), and nothing else of the open node moved. */
+async function zoomed(browser, theme) {
+    const row = manifest.find(r => r.id === "investigation--map-node" && r.captured);
+    if (!row) return [];
+    const out = [];
+    for (const z of [0.5, 2]) {
+        const page = await open(browser, row, theme);
+        const r = await page.evaluate(async ({ z, without }) => {
+            const F = await import("/scripts/float-text.mjs");
+            if (!without) F.registerFloatText();
+            const canvas = document.querySelector(".drpg-style-shot .drpg-case-canvas");
+            const edit = canvas?.querySelector(".drpg-case-edit[data-drpg-edit]:not([hidden])");
+            const el = [...(edit?.querySelectorAll("textarea") ?? [])].find(t => t.getBoundingClientRect().height > 0);
+            if (!el) return null;
+            canvas.style.transformOrigin = "0 0";
+            canvas.style.transform = `scale(${z})`;
+            el.scrollIntoView({ block: "nearest" });
+            await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+            const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, w: b.width, h: b.height }; };
+            const own = box(el);
+            const others = [...edit.querySelectorAll("*")].filter(e => e !== el && !el.contains(e));
+            const before = others.map(box);
+            el.focus({ preventScroll: true });
+            await new Promise(res => setTimeout(res, 250));
+            await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+            const hold = document.querySelector(".drpg-float-text-hold");
+            const now = box(el), held = hold ? box(hold) : null;
+            const moved = others.filter((e, i) => { const a = before[i], b = box(e); return Math.abs(a.l - b.l) >= 0.5 || Math.abs(a.t - b.t) >= 0.5 || Math.abs(a.w - b.w) >= 0.5 || Math.abs(a.h - b.h) >= 0.5; }).length;
+            return { floating: el.matches(":popover-open"), own: Math.round(own.w), shown: Math.round(now.w),
+                hold: held ? { w: Math.round(held.w), h: Math.round(held.h), dw: Math.abs(held.w - own.w), dh: Math.abs(held.h - own.h), dl: Math.abs(held.l - own.l), dt: Math.abs(held.t - own.t) } : null, moved };
+        }, { z, without: WITHOUT });
+        await page.close();
+        if (!r) { out.push([`I7 zoom ${z} ${theme}`, false, "no open node with a field in the capture"]); continue; }
+        const pass = r.floating && Math.abs(r.shown - r.own) <= 1 && r.hold && r.hold.dw <= 1 && r.hold.dh <= 1 && r.hold.dl <= 1 && r.hold.dt <= 1 && r.moved === 0;
+        out.push([`I7 zoom ${z} ${theme}`, Boolean(pass), `floating ${r.floating}; the field ${r.own} px on the screen, floating ${r.shown}; placeholder ${r.hold ? `${r.hold.w}x${r.hold.h}, off the field's box by ${Math.max(r.hold.dw, r.hold.dh, r.hold.dl, r.hold.dt).toFixed(1)} px` : "none"}; ${r.moved} other element(s) of the node moved`]);
+    }
+    return out;
 }
 
 const browser = await chromium.launch(EXE ? { executablePath: EXE } : {});
@@ -389,7 +447,7 @@ try {
     for (const theme of THEMES) {
         const map = await caseMap(browser, theme);
         if (!map) console.log(`not read: I4 case map ${theme} - no captured case map with a node open in ${WINDOWS_DIR} (probe 08 into --windows has one)`);
-        for (const [name, pass, line] of [...await interactions(browser, theme), ...(map ? [map] : []), await cost(browser, theme)]) {
+        for (const [name, pass, line] of [...await interactions(browser, theme), ...(map ? [map, ...await zoomed(browser, theme)] : []), await cost(browser, theme)]) {
             console.log(`${pass ? "ok  " : "FAIL"} ${name}: ${line}`);
             if (!pass) fails.push(`${name}: ${line}`);
             interactionsRead++;
