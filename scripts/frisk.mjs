@@ -12,14 +12,14 @@
  * end for every ask (`askToFrisk`, `answerFrisk`, `followFrisk`, `sweepFriskAsks`, `friskRouteSettled`).
  */
 
-import { SETTINGS, getSetting, getClock, isEclipse, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
+import { allowedNow, WHY } from "./allowed-now.mjs";
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, TIMING } from "./config.mjs";
 import { gmPlaceOf, lawfulRoomOf } from "./movement.mjs";
 import { bodyPlaceOf } from "./body-tile.mjs";
 import { witnessesOf } from "./chapter.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
-import { inClassTrial } from "./trial.mjs";
 import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
@@ -163,9 +163,13 @@ export function personActionRefusal(asker, target, { body = false, user = null }
     const hidden = body ? there?.hidden : there?.tokenDoc?.hidden;
     if (!there?.room || hidden || there.scene?.id !== here.scene?.id || floorKey(there.level) !== floorKey(here.level)
         || there.room !== here.room) return "the character is not in that room";
-    if (isEclipse()) return "an Eclipse is running";
-    if (inClassTrial()) return "that waits until the Class Trial is over";
-    if (!body && incidentParticipants().includes(asker.id)) return "the character is a side of the running incident";
+    // The phase: allowed-now.mjs's "person" road (E40 item 3), in this road's order - the Eclipse, the trial, then the
+    // asker's incident, which a body's loot does not ask.
+    // Each sentence written out, as the bridge's census of reasons reads them (R164).
+    const now = allowedNow(asker, null, { road: "person", facts: { participant: () => !body && incidentParticipants().includes(asker.id) } });
+    if (now.why === WHY.eclipse) return "an Eclipse is running";
+    if (now.why === WHY.trial) return "that waits until the Class Trial is over";
+    if (now.why === WHY.incident) return "the character is a side of the running incident";
     return null;
 }
 

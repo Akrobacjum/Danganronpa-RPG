@@ -159,9 +159,8 @@ The plan's items 2-6, in its order, with what each would take:
 - **checkState() in `game.drpg`** (item 2): built (C2, C3) with three invariants. The plan's list was cut in the text
   this line read ("the invariants (...)"); more rules join with the stage that states each. The handbooks do not name it
   yet (a console diagnostic; E57's last pass of the handbooks, or the owner's word).
-- **The phase x action matrix** (item 3): built as a test (C4): the two readers held to each other. Not built: one
-  shared "allowed now" predicate replacing the tile's and the press's chains (new production code; the matrix is what
-  it would be held to), the trial floor's modes as a dimension (R1023 holds `modeAllows` to its three readers already),
+- **The phase x action matrix** (item 3): built as a test (C4): the two readers held to each other. The shared "allowed
+  now" predicate: built on the line claude/e39-40-116 (its C4 below, scripts/allowed-now.mjs). Not built: the trial floor's modes as a dimension (R1023 holds `modeAllows` to its three readers already),
   and `passage.*` and `action.frisk*` as columns (the A10/A11 amendments; their gates are the bridge's, not the tile's).
 - **18-trial** (item 1): built (C5) on the trial's five steps. Not in it from the plan's list: two Blackened, duplicates
   on the card, a GM reload during the vote, a late player with ack, preselection and "Nobody", D4's offer applied once,
@@ -275,6 +274,7 @@ Baseline at e9f4a791: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 pass
 | C1 (36090364) | **18-trial, a second trial with "Nobody"**: after the first trial's close, in the same chapter, Botan and Aiko put back by the GM (a fixture step), the trial ended and started again (Daily Life between; the first verdict's lock and its execution's stamp cleared), a new vote of a later round with none of the first trial's ballots counted at its open, cast and counted on Botan and Aiko, and the verdict the window sends for "Nobody is executed" (verdict.mjs `read`: `executedIds: []`), wrong, naming both Blackened: nobody sentenced, the public card says "Nobody is executed" and its cut-in names nobody, and the trial's close executes nobody. The scans after each of the five new steps. 26 checks to 51; 18-trial alone about 10 s to about 19 s inside the cluster, 23.9 s by `run-all.mjs scenarios --only 18-trial` | audit/harness/scenarios/18-trial.mjs |
 | C2 | **18-trial, the Final Trial**: after the second trial, a student nobody plays made the Mastermind (mastermind.mjs `setMastermind`), the Final Trial's flag up, the trial ended and started again: the GM's pick read on the GM and none on p1; the wrong Final verdict on Botan: the record final and done, no sentence waiting, one public card, the flag down (`finalVerdictClose`), Botan and the Mastermind alive; the close executes nobody. The scans after each step look for the Mastermind's id and name too. 51 checks to 66, about 24 s inside the cluster | audit/harness/scenarios/18-trial.mjs |
 | C3 | **18-trial, a late player with the ack**: a student "S18 Late" owned by p4 (an account declared `late: true`, as 63 declares it), made before the second trial; the second vote opens with three ballots, p1 casts, then p4 connects, heard before its world has loaded, asks the primary at load and is handed a fourth (the record's `issued` four; the harness's default press dismisses the window, warned once), asks again (`askForBallot`), casts Botan and Aiko in the window and is told once that its vote is in; p2 and p3 cast after: four in. Scans after each step. 66 checks to 76, about 27 s inside the cluster. The GM's reload in the vote is held back: see "Waits" below | audit/harness/scenarios/18-trial.mjs |
+| C4 | **The shared "allowed now" predicate** (item 3; scope the coordinator's of 15.11.2026: the ACTIONS keys, the A11 person roads and the A10 passage roads): scripts/allowed-now.mjs `allowedNow(actor, key, { road, facts }) -> { ok, why, road }`, one rule table a road a row (`action`, `person`, `transfer`, `passageShare`, `passageFind`), each in the order its road asked before, each fact read live unless handed in. Moved onto it: the tile (sheet-actions.mjs `actionButton`), the press (action-rolls.mjs `performAction`, every gate in its place, the fight read once at the top as before), frisk.mjs `personActionRefusal` (a Frisk, a steal, a Plant, a give, a tail, a loot), inventory.mjs `transferRefusal`'s last lines (the rifle), passages-gm.mjs `liveShareWorld` and `liveFindWorld`. Every caller says each `why` in the words it said before. Tests: E40-T3 extended (each cell the rule's reading too, and each state's row held to the answers of d2c6e0e5, measured there with the rule stubbed; Move's press alone); new tier 2 **E40-T4** (the rifle, a passage's show and its search on the live world in daily life, an Eclipse and the trial - the suite's other passage tests hand in a world of their own, so the live readers were read by nothing). Red on d2c6e0e5 with the new tests: both threw at the import of allowed-now.mjs. Three tier-0 text guards changed with the move: R42 reads the trial gate as `now.why === WHY.trial` and the rule's order in allowed-now.mjs, R164 is kept by the person road returning its sentences as literals, R553 by naming the passage roads in camelCase | scripts/allowed-now.mjs (new), action-rolls.mjs, sheet-actions.mjs, frisk.mjs, inventory.mjs, passages-gm.mjs, tests-tier0.mjs (R42), tests-tier2.mjs (E40-T3, E40-T4) |
 
 | Mutant | Check | Verdict |
 | --- | --- | --- |
@@ -289,6 +289,50 @@ Baseline at e9f4a791: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 pass
 | `finalVerdictClose`: the Final Trial's flag left up | 18-trial [final verdict] | KILLED |
 | vote.mjs, the primary's answer to a ballot asked for: a late ask not added to the record's `issued` | 18-trial [late player] (issued 3); p4's ballot was still counted, as `ballotBase` counts the union of `issued`, the participants and those who answered | KILLED |
 | vote.mjs `sendBallot`: the "your vote is in" notice dropped | 18-trial [late player] (ack 0) | KILLED |
+
+C4's mutants (each on a copy of the tree, the named tests by name on it), 18 of 18 KILLED:
+
+| Mutant | Check | Verdict |
+| --- | --- | --- |
+| allowed-now.mjs `action`: Analyze shut in the trial | E40-T3 | KILLED |
+| `action`: Move shut in an Eclipse | E40-T3 (Move's press) | KILLED |
+| `action`: the fight not asked | E40-T3 | KILLED |
+| `action`: Direct Murder open outside an Eclipse | E40-T3 | KILLED |
+| `action`: the trial asked before the fight | R42 | KILLED |
+| `action`: the trial's exemption named for another key than Analyze | R42 | KILLED |
+| `person`: the trial not asked | A11-9 | KILLED |
+| `person`: the incident not asked | A11-9 | KILLED |
+| `transfer`: the Eclipse not asked | E40-T4 | KILLED |
+| `passageShare`: the trial not asked | E40-T4 | KILLED |
+| `passageFind`: always open | E40-T4 | KILLED |
+| the tile's sentences of the trial and the Eclipse swapped | E40-T3 | KILLED |
+| the press's trial gate off | E40-T3 | KILLED |
+| the tile's lock not read from the rule | E40-T3 | KILLED |
+| frisk.mjs: the incident's return dropped | A11-9 | KILLED |
+| passages-gm.mjs `liveShareWorld`'s lock always open | E40-T4 | KILLED |
+| `liveFindWorld`'s trial always false | E40-T4 | KILLED |
+| inventory.mjs: the rifle's phase lines dropped | E40-T4 | KILLED |
+
+A first run of the same set, before R164's literals, had one SURVIVED: the person road's Eclipse sentence turned to
+"that cannot be done now". Both sentences are told to the player as the one code `cannotNow` (bridge-guards.mjs
+`REASON_PATTERNS`), so only the GM's log line differs; A11-9 reads the code, as the player is told it. Not changed.
+
+What can differ, read in the code and not run: the tile now says the press's lock in the press's order. The two
+orders differ only where an Eclipse stands with a fight or the trial, which the module does not reach (an Eclipse is
+refused in a fight and in a trial, `startRefusalOf`; a fight in an Eclipse, `openMurder`, E40-T3; a trial in an
+Eclipse, `startClassTrial`): there a console's raw write would see the tile say the press's sentence. For Direct
+Murder the press reads the Eclipse once, before the betrayal's awaited import, where it read it twice.
+
+Not moved (the coordinator's scope; each a phase gate of its own road, named here so the next reader sees the edge):
+calls.mjs:67, :104, :420 (the Calls); sheet-actions.mjs:546, :632-633 (the Calls panel and its lock note),
+moveDragSaid at :437, the betrayal tile at :1521; monocub.mjs:705 (the Monocub's abilities); handover.mjs:48;
+sheet-inventory.mjs:891 (the handover button in a trial); bridge-guards.mjs:704 (a statistic proposal's gate). A count
+for scale, `git grep` of `isEclipse()`, `inClassTrial()` and `phase === "classTrial"` in scripts/ outside the tests and
+allowed-now.mjs: 159 reads, most of them not a lock of an action.
+
+Gates of C4: `npm run quick` green (24 check parts); tiers 0-1 whole 1742 ran, 1727 passed, 0 failed, 16 skipped, 0
+red (472 s); the 38 tier-2 tests that name a changed symbol or one of the four lock sentences, by name, 38 ran, 42
+passed, 0 failed (182 s); E40-T3, E40-T4 and A11-9 green alone. No scenario edited.
 
 A reading of C2, the harness's: the Final verdict's Level Up window, drawn on the GM and pressed by the harness's default
 answer, threw in its callback (level-up.mjs `readFormData`: the shim has no `FormDataExtended`, and Node's own `FormData`

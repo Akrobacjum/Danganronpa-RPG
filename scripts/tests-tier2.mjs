@@ -49273,8 +49273,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * nothing runs past its first window), for the lock sentence it warns. The four lock sentences are
          * DRPG.Murder.actionsLocked, DRPG.Eclipse.murderOnlyInEclipse, DRPG.Trial.actionsLocked and DRPG.Eclipse.actionsLocked.
          * A new key of ACTIONS is a row of the matrix by itself.
+         *
+         * AND THE ONE RULE (E40 item 3, 15.11.2026 on the line claude/e39-40-116): since the shared predicate, both read
+         * allowed-now.mjs `allowedNow`, so each cell holds a third reading - the rule's own `why`, named as the sentence
+         * it stands for - and the three must agree. Red before allowed-now.mjs existed: the import throws. Since the three
+         * ask one rule, their agreement cannot see a change of the rule itself, so each state's row is also held to what
+         * the module answered before the move (measured at d2c6e0e5's tile and press, which agreed in every cell): daily
+         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze, Direct
+         * Murder saying it waits for an Eclipse; a fight every key of the victim's but Direct Murder, which is the fight's
+         * menu. And Move, which has no tile, by its press alone: open in daily life and an Eclipse, the trial's and the
+         * fight's sentence in theirs.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const A = await import("./allowed-now.mjs");
+        const RULE = { [A.WHY.incident]: "fight", [A.WHY.murderOnlyInEclipse]: "murderOnlyInEclipse", [A.WHY.trial]: "trial", [A.WHY.eclipse]: "eclipse" };
         const M = await import("./murder.mjs");
         const { actionButton } = await import("./sheet.mjs");
         const { performAction } = await import("./action-rolls.mjs");
@@ -49315,12 +49327,25 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     for (const [k, d] of Object.entries(kept)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
                     for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
                 }
-                row[key] = { tile: which(tile.dataset.tooltip), press: which(said.join(" | ")) };
+                const rule = A.allowedNow(victim, key);
+                row[key] = { tile: which(tile.dataset.tooltip), press: which(said.join(" | ")), rule: rule.ok ? null : (RULE[rule.why] ?? rule.why) };
+            }
+            /* Move's press alone, every window answered null as above (it opens none since E100 item 1). */
+            {
+                const said = [];
+                for (const k of ["warn", "info", "error"]) notes[k] = message => { said.push(String(message)); };
+                for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+                try { await performAction(victim, "move"); } catch (err) { said.push(`threw ${err?.message ?? err}`); }
+                finally {
+                    for (const [k, d] of Object.entries(kept)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                    for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+                }
+                row.__move = which(said.join(" | "));
             }
             await settle();
             return row;
         };
-        const matrix = {}, reachable = {};
+        const matrix = {}, reachable = {}, moveRow = {};
         try {
             matrix.daily = await read();
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
@@ -49361,10 +49386,85 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(reachable), stableJson({ startInFight: "DRPG.Eclipse.incidentFirst", openInEclipse: null, stageAfter: null }),
             "a fight and an Eclipse can stand together after all - the matrix must read that state too (an Eclipse started in a fight, a fight opened in an Eclipse, the fight's stage after)");
+        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; }
+        const expected = key => ({
+            daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
+            eclipse: key === "directMurder" ? null : "eclipse",
+            trial: key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial",
+            fight: key === "directMurder" ? null : "fight"
+        });
+        const offRule = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)
+            .filter(([key, cell]) => cell.press !== expected(key)[state]).map(([key, cell]) => `${state}/${key}: press ${cell.press}, before ${expected(key)[state]}`));
+        equal(stableJson(offRule), "[]", "an action's lock is not what the module answered before the shared rule");
+        equal(stableJson(moveRow), stableJson({ daily: null, eclipse: null, trial: "trial", fight: "fight" }),
+            "Move's press locks otherwise than before the shared rule (open in an Eclipse, the trial's and the fight's sentence in theirs)");
         const disagree = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)
-            .filter(([, cell]) => cell.tile !== cell.press).map(([key, cell]) => `${state}/${key}: tile ${cell.tile}, press ${cell.press}`));
+            .filter(([, cell]) => cell.tile !== cell.press || cell.rule !== cell.press)
+            .map(([key, cell]) => `${state}/${key}: tile ${cell.tile}, press ${cell.press}, rule ${cell.rule}`));
         ok(Object.keys(matrix).length === 4 && keys.length > 0, `the matrix was not read in every state (${Object.keys(matrix).join(", ")})`);
         equal(stableJson(disagree), "[]", `a tile and its press disagree on whether the action is locked, or why: ${stableJson(matrix)}`);
+    }],
+
+    ["the rifle, a passage's show and a passage's search ask the phase of the one rule, on the live world (E40-T4): daily life, an Eclipse and the Class Trial", async () => {
+        /*
+         * E40 item 3, 15.11.2026 on the line claude/e39-40-116; the plan's A10 and A11 columns of the matrix. Three roads
+         * the GM's browser judges read the phase through allowed-now.mjs `allowedNow` since the shared predicate:
+         * inventory.mjs `transferRefusal` for a rifle (the "transfer" road, the one mode its last lines answer),
+         * passages-gm.mjs `sharePassage` (the `passageShare` road, through `liveShareWorld`) and `resolvePassageSearch`
+         * (the `passageFind` road, through `liveFindWorld`). The suite's other tests hand the passages a world of their
+         * own, so the live readers were read by nothing. Each is asked on the live world in each state, refused before it
+         * writes anything: the rifle by a student of another, the show and the search by a character that does not exist
+         * (each road asks the phase first). The words each answers are held to the rule's `why`, as each road says it.
+         * The person roads' phase (frisk.mjs `personActionRefusal`) is A11-9's. Red before allowed-now.mjs existed: the
+         * import throws.
+         */
+        needs(world.atLeast("livingStudents", 2), "a student who rifles and the student whose stash it is");
+        const A = await import("./allowed-now.mjs");
+        const I = await import("./inventory.mjs");
+        const P = await import("./passages-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [owner, rifler] = livingStudents();
+        must(owner && rifler, "two living students - this would measure nothing");
+        const TRANSFER = { [A.WHY.eclipse]: "an Eclipse is running", [A.WHY.trial]: "that waits until the Class Trial is over" };
+        const LOCKED = "that action is locked", NONE = "no such character", TRIAL = "the Class Trial is in session";
+        const quiet = { whisper: () => null, toast: () => null, note: () => null, hunted: () => null };
+        const clock = foundry.utils.deepClone(getClock());
+        const read = async () => {
+            const rule = road => A.allowedNow(rifler, null, { road });
+            const share = await P.sharePassage({ actorId: "S40T4NOBODY00000", targetId: "S40T4NOBODY00001", passageId: "S40T4NONE" });
+            const find = await P.resolvePassageSearch({ actorId: "S40T4NOBODY00000", total: 0 }, quiet);
+            return {
+                rifle: await I.transferRefusal(owner, rifler, { mode: "rifle" }),
+                share: share?.refused ?? null, find: find?.refused ?? null,
+                rule: { transfer: rule("transfer"), share: rule("passageShare"), find: rule("passageFind") }
+            };
+        };
+        const seen = {};
+        try {
+            seen.daily = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            seen.eclipse = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: false, phase: "classTrial" });
+            seen.trial = await read();
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        const said = Object.fromEntries(Object.entries(seen).map(([state, r]) => [state, {
+            rifle: r.rifle, share: r.share, find: r.find,
+            rule: {
+                rifle: r.rule.transfer.ok ? null : TRANSFER[r.rule.transfer.why],
+                share: r.rule.share.ok ? NONE : LOCKED,
+                find: r.rule.find.ok ? NONE : TRIAL
+            }
+        }]));
+        equal(stableJson(Object.fromEntries(Object.entries(said).map(([state, r]) => [state, { rifle: r.rifle, share: r.share, find: r.find }]))),
+            stableJson({ daily: { rifle: null, share: NONE, find: NONE },
+                eclipse: { rifle: TRANSFER.eclipse, share: LOCKED, find: NONE },
+                trial: { rifle: TRANSFER.trial, share: LOCKED, find: TRIAL } }),
+            "the three roads answer the phase as they did before the shared rule");
+        const off = Object.entries(said).flatMap(([state, r]) => ["rifle", "share", "find"].filter(k => r[k] !== r.rule[k]).map(k => `${state}/${k}: ${r[k]} vs rule ${r.rule[k]}`));
+        equal(stableJson(off), "[]", `a road answers otherwise than the one rule: ${stableJson(said)}`);
     }],
 
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {

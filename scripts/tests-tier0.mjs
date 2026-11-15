@@ -2801,7 +2801,10 @@ const REGRESSIONS = [
             await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
         const body = bodyOf(src, "export async function performAction", { until: "\n}\n" });
 
-        const gate = body.indexOf('"classTrial"');
+        /* THE RULE IS allowed-now.mjs's SINCE E40 item 3 (15.11.2026): the press asks `allowedNow` once and each gate keeps
+           its place and its sentence, so the trial gate here is `now.why === WHY.trial`, and the order the rule asks in -
+           the fight before the trial, Analyze left open - is read in that file's `action` road below. */
+        const gate = body.indexOf("now.why === WHY.trial");
         const fight = body.indexOf("DRPG.Murder.actionsLocked");
         const dead = body.indexOf("DRPG.Chapter.deadCannotAct");
         const dispatch = body.indexOf("const def =");
@@ -2810,8 +2813,10 @@ const REGRESSIONS = [
         /* Above the dispatch, as the gate is (E30 review, 25.09.2026): since E30 `body` is
            the whole function, and the exemption read anywhere in it would hold after it
            moved below the dispatch while another "classTrial" kept `gate` above. */
-        ok(/actionKey !== "analyze" && getClock\(\)\.phase === "classTrial"/.test(bodyOf(body, "const def =", { back: body.length })),
-            "the trial gate no longer keeps Analyze open above the dispatch, which is the one tile it must");
+        const rule = bodyOf(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/allowed-now.mjs`).then(lfText)), "    action: (key, f) => {", { until: "\n    },\n" });
+        ok(/key !== "analyze" && f\.trial\(\)/.test(rule), "the trial's rule no longer keeps Analyze open, which is the one tile it must");
+        ok(rule.indexOf("f.fighting()) return shut") > 0 && rule.indexOf("f.fighting()) return shut") < rule.indexOf('key !== "analyze" && f.trial()'),
+            "the rule asks the trial before the fight, which outranks it");
         ok(fight > 0 && dead > 0, "the fight or the death refusal moved out of performAction");
         ok(gate > fight && gate > dead,
             "the trial gate rose above the fight or the death check, which outrank it");

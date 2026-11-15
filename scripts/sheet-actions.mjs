@@ -15,6 +15,7 @@ import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { facilitiesShutReason } from "./action-facilities.mjs";
 import { murderState, sideOf, isTheirTurn, betrayalTarget, crisisTileLabel } from "./murder.mjs";
+import { allowedNow, WHY } from "./allowed-now.mjs";
 import { incidentTurnText, actingActor } from "./events.mjs";
 import { isCrimeSilenced, purseOf, cubPanelLines, cubBlockSaid, priceOf } from "./monocub.mjs";
 import { isCallSilenced, pendingGather, alreadyArmed } from "./call-effects.mjs";
@@ -29,6 +30,12 @@ import { setTip } from "./ui-kit.mjs";
 import { overflowBlocksFreeMove, overflowBlocksCalls } from "./overflow.mjs";
 import { modeOf, sheetMode, sheetsFor } from "./sheet-mode.mjs";
 import { softWrap } from "./sheet-fit.mjs";
+
+/** The sentence each lock of allowed-now.mjs says on a tile: the press's warnings, word for word (E40-T3). */
+const LOCK_SENTENCE = Object.freeze({
+    [WHY.incident]: "DRPG.Murder.actionsLocked", [WHY.murderOnlyInEclipse]: "DRPG.Eclipse.murderOnlyInEclipse",
+    [WHY.trial]: "DRPG.Trial.actionsLocked", [WHY.eclipse]: "DRPG.Eclipse.actionsLocked"
+});
 
 /* ==========================================================================
  * THE KILLING GAME'S RULES
@@ -1263,9 +1270,11 @@ export function actionButton(actor, key, def) {
      */
     const inTrial = inClassTrial();
 
-    const locked = key === "directMurder"
-        ? (!eclipse && !inIncident && !canBetray)
-        : (inIncident || eclipse || (inTrial && key !== "analyze"));
+    /* THE RULE ITSELF IS allowed-now.mjs's (E40 item 3, 15.11.2026), the one table the press asks too, over the four
+       facts read above: this tile is locked where the press refuses, and says the press's reason. Tier 2 E40-T3 holds
+       both to it in every phase. */
+    const now = allowedNow(actor, key, { facts: { eclipse: () => eclipse, fighting: () => inIncident, betrayal: () => canBetray, trial: () => inTrial } });
+    const locked = !now.ok;
 
     /*
      * AND THE OTHER HALF: WHICH TILE IS THE MOVE (D12, Dawid 29.08).
@@ -1337,22 +1346,16 @@ export function actionButton(actor, key, def) {
     button.dataset.drpgCostKind = priced ? stripeKindFor(priced, ordinary) : ordinary;
 
     const costLabel = costLabelFor(actor, key, def);
-    // Order matters: an Eclipse stops everything, so it is said first; not
-    // being able to pay comes next; and "nothing here" is the one worth adding
-    // even when something else already applies, because it is the only reason
-    // that will still be true after the Eclipse ends.
-    // The trial reason comes after the two that outrank it and before the
-    // Eclipse's, so a trial running inside an Eclipse still says "the lights are
-    // out" - that is the one the player can do something about.
-    const lockReason = inIncident
-        ? "DRPG.Murder.actionsLocked"
-        : key === "directMurder"
-            ? "DRPG.Eclipse.murderOnlyInEclipse"
-            : inTrial && !eclipse
-                ? "DRPG.Trial.actionsLocked"
-                : "DRPG.Eclipse.actionsLocked";
+    // Order matters: a lock is said first; not being able to pay comes next; and
+    // "nothing here" is the one worth adding even when something else already
+    // applies, because it is the only reason that will still be true after the
+    // Eclipse ends. Which lock is the predicate's `why` (allowed-now.mjs), in the
+    // press's order: the Eclipse, the fight, the trial. Until E40 item 3 this tile
+    // said the fight before the Eclipse and the Eclipse over a trial; neither
+    // pair stands together in any state the module reaches (allowed-now.mjs's header).
+    const lockReason = LOCK_SENTENCE[now.why] ?? null;
     const note = locked
-        ? `<br><em>${inIncident ? game.i18n.format(lockReason, { tile: crisisTileLabel(actor) }) : game.i18n.localize(lockReason)}</em>`
+        ? `<br><em>${now.why === WHY.incident ? game.i18n.format(lockReason, { tile: crisisTileLabel(actor) }) : game.i18n.localize(lockReason)}</em>`
         : offTurn
             ? `<br><em>${game.i18n.localize("DRPG.Murder.offTurn")}</em>`
         : affordable
