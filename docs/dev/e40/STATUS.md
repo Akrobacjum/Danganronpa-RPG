@@ -274,6 +274,7 @@ Baseline at e9f4a791: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 pass
 | --- | --- | --- |
 | C1 (36090364) | **18-trial, a second trial with "Nobody"**: after the first trial's close, in the same chapter, Botan and Aiko put back by the GM (a fixture step), the trial ended and started again (Daily Life between; the first verdict's lock and its execution's stamp cleared), a new vote of a later round with none of the first trial's ballots counted at its open, cast and counted on Botan and Aiko, and the verdict the window sends for "Nobody is executed" (verdict.mjs `read`: `executedIds: []`), wrong, naming both Blackened: nobody sentenced, the public card says "Nobody is executed" and its cut-in names nobody, and the trial's close executes nobody. The scans after each of the five new steps. 26 checks to 51; 18-trial alone about 10 s to about 19 s inside the cluster, 23.9 s by `run-all.mjs scenarios --only 18-trial` | audit/harness/scenarios/18-trial.mjs |
 | C2 | **18-trial, the Final Trial**: after the second trial, a student nobody plays made the Mastermind (mastermind.mjs `setMastermind`), the Final Trial's flag up, the trial ended and started again: the GM's pick read on the GM and none on p1; the wrong Final verdict on Botan: the record final and done, no sentence waiting, one public card, the flag down (`finalVerdictClose`), Botan and the Mastermind alive; the close executes nobody. The scans after each step look for the Mastermind's id and name too. 51 checks to 66, about 24 s inside the cluster | audit/harness/scenarios/18-trial.mjs |
+| C3 | **18-trial, a late player with the ack**: a student "S18 Late" owned by p4 (an account declared `late: true`, as 63 declares it), made before the second trial; the second vote opens with three ballots, p1 casts, then p4 connects, heard before its world has loaded, asks the primary at load and is handed a fourth (the record's `issued` four; the harness's default press dismisses the window, warned once), asks again (`askForBallot`), casts Botan and Aiko in the window and is told once that its vote is in; p2 and p3 cast after: four in. Scans after each step. 66 checks to 76, about 27 s inside the cluster. The GM's reload in the vote is held back: see "Waits" below | audit/harness/scenarios/18-trial.mjs |
 
 | Mutant | Check | Verdict |
 | --- | --- | --- |
@@ -286,6 +287,8 @@ Baseline at e9f4a791: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 pass
 | `giveFinalVerdict`: the world's record carrying `mastermindId` | 18-trial world [final verdict], [final close] | KILLED |
 | `giveFinalVerdict`: `executed` read as `!dead`, whatever the verdict | 18-trial [final verdict], [final close] (the Mastermind executed), and their scans | KILLED |
 | `finalVerdictClose`: the Final Trial's flag left up | 18-trial [final verdict] | KILLED |
+| vote.mjs, the primary's answer to a ballot asked for: a late ask not added to the record's `issued` | 18-trial [late player] (issued 3); p4's ballot was still counted, as `ballotBase` counts the union of `issued`, the participants and those who answered | KILLED |
+| vote.mjs `sendBallot`: the "your vote is in" notice dropped | 18-trial [late player] (ack 0) | KILLED |
 
 A reading of C2, the harness's: the Final verdict's Level Up window, drawn on the GM and pressed by the harness's default
 answer, threw in its callback (level-up.mjs `readFormData`: the shim has no `FormDataExtended`, and Node's own `FormData`
@@ -299,6 +302,18 @@ main.
 
 Gates of C2: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 passed, 0 failed, 16 skipped, 0 red (479 s);
 18-trial by `run-all.mjs scenarios --only 18-trial` green (27.6 s). No tier-2 test changed. No case was red on main.
+
+Gates of C3: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 passed, 0 failed, 16 skipped, 0 red (466 s);
+18-trial by `run-all.mjs scenarios --only 18-trial` green (31 s). No tier-2 test changed.
+
+Waits (15.11.2026, asked of the coordinator): **the GM's reload in the vote** is built and its own checks green (the
+reloaded GM finds the vote open and p1's ballot in the GMs' store), but the scans after it fail on main: once the primary
+has loaded again, the world setting `diceLookWorld` (dice-sync.mjs's world copy of the Dice So Nice overlays) holds a row
+for every actor of the world, the Blackened among them, each `{ look: null, roles: null }`, and world-secrets.mjs
+`findWorldSecrets` flags any module world setting that holds a watched actor id, with no exemption (`canary.worldScan`).
+Read on p1 after the reload: every actor alike, Chie's and Daichi's stamps those of every seeded actor (0.5); on the
+seed world alone the copy is `{}` before and after a reload. Read here as no leak (it names every actor alike); the fix -
+the scanner's exemption, no row for an actor with no overlay, or the scenario's - is the coordinator's and the owner's.
 
 ## Needs a local Foundry
 
