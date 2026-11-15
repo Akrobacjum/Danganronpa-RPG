@@ -66,7 +66,7 @@ import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, n
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
 import { isMonokuma, isSpectator, poolUserFor } from "./monokuma.mjs";
-import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, hiddenByGm, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection, mastermindStore } from "./gm-stores.mjs";
@@ -4178,7 +4178,8 @@ function ownTokenClearances(rect) {
     lastClearances = [];
     for (const token of canvas?.tokens?.placeables ?? []) {
         if (!token.isOwner || token.actor?.type !== "character") continue;
-        if (token.document?.hidden) continue;
+        // A killer veiled for the opening (E112) still clears their own fog: they stand where they stood.
+        if (hiddenByGm(token.document)) continue;
 
         const size = canvas.grid?.size ?? 100;
         const w = token.w ?? (token.document.width * size);

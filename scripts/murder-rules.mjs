@@ -83,7 +83,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } fro
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, hiddenByGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
@@ -544,6 +544,13 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
     if (!opened) {
         refuseSecondIncident(murderState());
         return null;
+    }
+    /* THE OPENING'S VEIL GOES UP HERE (E112, mask-gm.mjs `settleVeils`): awaited before anything is said or asked, so the
+       killer's tokens are hidden before the opening's first card, and its one line comes before the invitation's. */
+    try {
+        await (await import("./mask-gm.mjs")).settleVeils();
+    } catch (err) {
+        error("Could not put up the opening's veil", err);
     }
     /* THE CLOCK A BYSTANDER KEEPS (E17 C7, 26.10.2026; audit S10-07). A bystander's HUD freezes the clock at the open
        (hud-elapsed.mjs `clockForDisplay`) from the page's own copy, which a reload loses: the HUD showed the hour the incident
@@ -3275,8 +3282,8 @@ async function maybeThirdParty(tokenDoc) {
     if (isSpectator(actor)) return;      // nor is a Spectator, who watches (E92 C1)
     if (isDeadForGm(actor)) return;
     // A token the GM has hidden is not in the scene as far as the fiction is
-    // concerned - the same rule `othersInRoom` applies.
-    if (tokenDoc.hidden) return;
+    // concerned - the same rule `othersInRoom` applies; a veiled killer (E112) is no newcomer, and `hiddenByGm` says so.
+    if (hiddenByGm(tokenDoc)) return;
 
     if (!await inIncidentRoom(tokenDoc, state)) return;
 

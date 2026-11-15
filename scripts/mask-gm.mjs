@@ -92,7 +92,9 @@ export function portraitOf(actor) {
     return { img: src.img ?? null, proto: src.prototypeToken?.texture?.src ?? null };
 }
 export function portraitBack(portrait) {
-    return { img: portrait?.img ?? null, "prototypeToken.texture.src": portrait?.proto ?? null };
+    // A prototype picture the actor never held is not written as null: the world's restore reads that as a change (tier
+    // 2's restore, 15.11.2026: `prototypeToken (none) -> {"texture":{"src":null}}` on three actors).
+    return { img: portrait?.img ?? null, ...(portrait?.proto ? { "prototypeToken.texture.src": portrait.proto } : {}) };
 }
 
 /** The patch that puts a token's kept look back, the flag taken off. Pure (R6029). */
@@ -402,7 +404,7 @@ export function unveilPatch(hidden, gone = null) {
 let lightsJudging = false;
 
 /** Veil `actorId` on the primary, `why` and `openedAt` kept on its row. A row already there is kept as it is. */
-async function veilActor(actorId, { why, openedAt = null }) {
+async function veilActor(actorId, { why, openedAt = null, tell = true }) {
     if (!game.user?.isGM) return false;
     const actor = game.actors.get(actorId ?? "");
     if (!actor || veilStore.get(actor.id)) return false;
@@ -411,10 +413,17 @@ async function veilActor(actorId, { why, openedAt = null }) {
     // The microphone first, then the face, as the mask does: nobody hears the killer from a token nobody sees.
     await settleBlock();
     for (const { token } of tokensOf(actor)) await token.update(veilPatch()).catch(err => error(`Could not veil a token of ${actor.name}`, err));
-    // Veiled, as the mask's card: its document names no speaker and no reader.
-    await whisperToOwnerOnly(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Veil.card"))}</p>` }, { veiled: true });
+    if (tell) await tellVeiled(actor);
     log(`${actor.name} is veiled until the opening is thrown (${why}).`);
     return true;
+}
+
+/**
+ * The killer's one line (the owner's answer (5)): veiled, as the mask's card - its document names no speaker and no
+ * reader. Not at the lights, which may still refuse the murder: there, when the opening takes the row over.
+ */
+async function tellVeiled(actor) {
+    await whisperToOwnerOnly(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Veil.card"))}</p>` }, { veiled: true });
 }
 
 /** Lift `actorId`'s veil (`why` for the log): every token's own `hidden` written back, the block lifted. */
@@ -459,6 +468,8 @@ async function settleVeilsNow() {
     for (const [actorId, row] of Object.entries(veilStore.entries() ?? {})) {
         if (wanted.has(actorId) && row?.why === "lights") {
             await veilStore.patch(actorId, { why: "opening", openedAt });
+            const actor = game.actors.get(actorId);
+            if (actor) await tellVeiled(actor);
             continue;
         }
         if (wanted.has(actorId) && row?.openedAt === openedAt) continue;
@@ -480,7 +491,7 @@ export async function veilAtTheLights(killerIds = []) {
     await veilStore.whenHydrated();
     lightsJudging = true;
     let n = 0;
-    for (const id of new Set(killerIds)) if (await veilActor(id, { why: "lights" })) n++;
+    for (const id of new Set(killerIds)) if (await veilActor(id, { why: "lights", tell: false })) n++;
     return n;
 }
 
@@ -519,7 +530,10 @@ export async function adoptToken(tokenDoc) {
     const mask = maskStore.get(actorId);
     if (mask && !(mask.tokens ?? []).some(row => row.tokenId === tokenDoc.id)) {
         const rows = mask.tokens ?? [];
-        const look = (from && rows.find(row => row.tokenId === from)?.look) ?? (isMaskedToken(tokenDoc) ? rows[0]?.look ?? null : lookOf(tokenDoc));
+        let look = (from && rows.find(row => row.tokenId === from)?.look) ?? (isMaskedToken(tokenDoc) ? rows[0]?.look ?? null : lookOf(tokenDoc));
+        // Made from a prototype with no picture of its own, a token takes the actor's portrait - the "?" while the mask
+        // stands (tier 2 "E112 - a token made while ...", 15.11.2026): it gets the picture the mask kept instead.
+        if (look?.src === MASK_IMG) look = { ...look, src: mask.portrait?.proto ?? mask.portrait?.img ?? rows[0]?.look?.src ?? null };
         if (look) await maskStore.patch(actorId, { tokens: [...rows, { sceneId, tokenId: tokenDoc.id, look }] });
         if (!isMaskedToken(tokenDoc)) await tokenDoc.update(maskPatch()).catch(err => maskFailed(game.actors.get(actorId), err));
         out.masked = true;

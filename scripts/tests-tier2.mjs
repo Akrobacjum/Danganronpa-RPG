@@ -17484,9 +17484,14 @@ const SCENARIOS = [
         const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(owner);
         const face = () => [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
-        const before = face();
         const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
         must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        // Pictures of the killer's own (the harness world's are Foundry's mystery man, the mask's picture until 1.2.116):
+        // the portrait, the prototype's, each token's - put back in the end.
+        const was = { face: face(), tokens: tokens().map(t => [t, t._source.texture?.src ?? null]) };
+        await killer.update({ img: "worlds/suite/e112-portrait.webp", "prototypeToken.texture.src": "worlds/suite/e112-token.webp" });
+        for (const [t] of was.tokens) await t.update({ "texture.src": "worlds/suite/e112-token.webp" });
+        const before = face();
         const read = {};
         try {
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
@@ -17514,7 +17519,9 @@ const SCENARIOS = [
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
-            if (stableJson(face()) !== stableJson(before)) await killer.update({ img: before[0], "prototypeToken.texture.src": before[1] });
+            const gone = (await import("./utils.mjs")).forcedDeletion();
+            await killer.update(was.face[1] ? { img: was.face[0], "prototypeToken.texture.src": was.face[1] } : { img: was.face[0], prototypeToken: gone });
+            for (const [t, src] of was.tokens) await t.update({ "texture.src": src ?? gone });
             await settle();
         }
         equal(stableJson(read), stableJson({ masked: [true, true], back: true, stale: [true, true], staleBack: true }),
@@ -17553,7 +17560,13 @@ const SCENARIOS = [
         const flags = t => t?._source?.flags?.[MODULE_ID] ?? {};
         const look = t => [t?._source?.name ?? null, t?._source?.texture?.src ?? null];
         const read = {};
+        // Pictures of the killer's own, as the portrait test gives them: the harness world's are the old mask's picture.
+        const was = { img: killer._source.img ?? null, proto: killer._source.prototypeToken?.texture?.src ?? null, src: first._source.texture?.src ?? null };
+        await killer.update({ img: "worlds/suite/e112-portrait.webp", "prototypeToken.texture.src": "worlds/suite/e112-token.webp" });
+        await first.update({ "texture.src": "worlds/suite/e112-first.webp" });
         const firstLook = look(first);
+        // What a token made from the prototype looks like with no mask: its name and picture (`getTokenDocument`).
+        const protoBefore = (d => [d.name ?? null, d.texture?.src ?? null])((await killer.getTokenDocument({ x: first.x, y: first.y })).toObject());
         try {
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await K.settleVeils();
@@ -17566,7 +17579,6 @@ const SCENARIOS = [
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
-            const protoLook = [killer._source.prototypeToken?.name ?? null, null];
             const fresh = await fromPrototype();
             const data = first.toObject();
             delete data._id;
@@ -17576,13 +17588,17 @@ const SCENARIOS = [
             await M.endMurder({ reason: "test", followUp: false });
             await K.endMask(killer.id, "suite");
             await settle();
-            read.maskBack = [look(fresh)[1] !== K.MASK_IMG && look(fresh)[0] === protoLook[0] && Boolean(flags(fresh).masked) === false,
+            // The picture alone: the harness's prototype makes a token with no name, which `lookOf` keeps as "" (as before E112).
+            read.maskBack = [look(fresh)[1] === protoBefore[1] && Boolean(flags(fresh).masked) === false,
                 stableJson(look(copy)) === stableJson(firstLook) && Boolean(flags(copy).masked) === false];
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
             const ids = made.filter(id => scene.tokens.some(t => t.id === id));
             if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+            const gone = (await import("./utils.mjs")).forcedDeletion();
+            await killer.update(was.proto ? { img: was.img, "prototypeToken.texture.src": was.proto } : { img: was.img, prototypeToken: gone });
+            await first.update({ "texture.src": was.src ?? gone });
             await settle();
         }
         equal(stableJson(read), stableJson({ veil: [true, true], veilBack: [true, null], mask: [true, true], maskBack: [true, true] }),

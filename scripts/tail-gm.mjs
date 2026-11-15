@@ -29,7 +29,7 @@
 
 import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
+import { isPrimaryGm, hiddenByGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
 import { tailStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
@@ -100,7 +100,7 @@ async function standingIn(scene, room, skip) {
     const names = [];
     for (const token of scene?.tokens ?? []) {
         const actor = token.actor;
-        if (!actor || actor.type !== "character" || token.hidden || skip.has(actor.id)) continue;
+        if (!actor || actor.type !== "character" || hiddenByGm(token) || skip.has(actor.id)) continue;
         if (actor.getFlag(MODULE_ID, FLAGS.monocub) || actor.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(actor)) continue;
         if (roomOfToken(token) !== room || names.includes(actor.name)) continue;
         names.push(actor.name);
