@@ -44999,7 +44999,63 @@ const INVARIANTS = [
             stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-evidence)" }), // Hope's gold until E48 K1: the base sheet's antique is Evidence's
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
-    ["R1394 - the Event panel is as tall as what it says up to one box (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30; E49 A6, the owner's 10.11 amend [14](1)): its width and its cap are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, its height auto under that cap, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
+    ["R7401 - the Event panel never scrolls (scripts/events.mjs `fitEvents`, `wireEventsPanel`; the stylesheets' `#drpg-events`; owner-115 item 3): under Monokuma Legacy, the glass and the glass's stack no rule gives the panel a cap or lets it or a card scroll; a panel taller than the room under it folds its cards to their titles from the last up, the first kept open, a folded card a button that says it is closed; the card a reader opened stays open and the others fold; with no room the first card stays open, the others fold and the titles that do not fit are left out and counted; a click on a folded card opens it", async () => {
+        /* owner-115 item 3, 14.11.2026; the owner at a table on 1.2.114: "Na karcie eventu pojawil sie scroll w trakcie
+           morderstwa. Na karcie eventu nigdy nie powinno byc scrolla." The panel had a cap (`--drpg-events-h`, a `max-height`)
+           and scrolled past it (E23 C3b, E49 A6); audit/events-murder-fit.mjs measured every murder-time panel scrolling, 60 of
+           60, at e0ee06ef. Read here: the sheets' cascade on a body of its own, and `fitEvents` on stand-in heights (jsdom lays
+           nothing out: a card 200 px open and 30 folded, the panel their sum). Nothing written. */
+        const C = await styleCascade();
+        const value = (el, names) => C.winner(el, [names].flat())?.value?.replace(/\s+/g, " ") ?? null;
+        const layout = (theme, stacked) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm${stacked ? " drpg-stacked" : ""}`;
+            html.append(body);
+            const card = `<div class="drpg-event" data-kind="incident"><div class="drpg-event-title">T</div><div class="drpg-event-sub">S</div></div>`;
+            const panel = `<div id="drpg-events" class="drpg-events">${card}${card.replace('data-kind="incident"', 'data-kind="motive" data-drpg-folded')}</div>`;
+            body.innerHTML = stacked ? `<div id="drpg-column">${panel}</div>` : `<div id="ui-top">${panel}</div>`;
+            const box = body.querySelector("#drpg-events"), [one, folded] = body.querySelectorAll(".drpg-event");
+            const scrolls = el => /auto|scroll/.test(value(el, ["overflow-y", "overflow"]) ?? "");
+            return { cap: value(box, "max-height") ?? "none", panel: scrolls(box), card: scrolls(one), foldedSub: value(folded.querySelector(".drpg-event-sub"), "display"),
+                foldedClicks: value(folded, "pointer-events") };
+        };
+        const LAYOUTS = [["drpg-theme-monokuma-legacy", false], ["drpg-theme-stained-glass", false], ["drpg-theme-stained-glass", true]];
+        equal(stableJson(LAYOUTS.map(([t, s]) => layout(t, s))), stableJson(LAYOUTS.map(() => ({ cap: "none", panel: false, card: false, foldedSub: "none", foldedClicks: "auto" }))),
+            "[Legacy's desk, the glass's desk, the glass's stack]: {the panel's max-height; does the panel scroll; does a card; a folded card's sub shown; a folded card takes clicks}");
+        const E = await import("./events.mjs");
+        ok(typeof E.fitEvents === "function" && typeof E.wireEventsPanel === "function", "events.mjs has no fitEvents or wireEventsPanel");
+        if (typeof E.fitEvents !== "function" || typeof E.wireEventsPanel !== "function") return;
+        const build = () => {
+            const panel = document.createElement("div");
+            panel.id = "r7401-events";
+            for (const k of ["k1", "k2", "k3", "k4", "k5"]) panel.append(E.cardElement({ kind: k, title: `R7401 ${k}`, sub: "sub" }));
+            return panel;
+        };
+        const height = el => (el.classList.contains("drpg-event") ? (el.hasAttribute("data-drpg-folded") ? 30 : 200)
+            : [...el.children].reduce((n, c) => n + height(c), 0));
+        const state = panel => [...panel.children].map(c => [c.dataset.kind, c.hasAttribute("data-drpg-folded"), c.getAttribute("role"), c.getAttribute("aria-expanded"), c.tabIndex]);
+        const a = build(), b = build(), c = build(), d = build();
+        const read = {
+            fits: E.fitEvents(a, { room: 1000, height, open: null }), fitsState: state(a).map(r => r[1]),
+            folds: E.fitEvents(b, { room: 500, height, open: null }), foldsState: state(b),
+            opened: E.fitEvents(c, { room: 500, height, open: "k4" }),
+            none: E.fitEvents(d, { room: 20, height, open: null }), noneLeft: [d.getAttribute("data-drpg-more"), [...d.children].filter(x => x.hasAttribute("data-drpg-hidden")).map(x => x.dataset.kind)]
+        };
+        equal(stableJson(read), stableJson({
+            fits: [], fitsState: [false, false, false, false, false],
+            folds: ["k3", "k4", "k5"],
+            foldsState: [["k1", false, null, null, -1], ["k2", false, null, null, -1], ["k3", true, "button", "false", 0], ["k4", true, "button", "false", 0], ["k5", true, "button", "false", 0]],
+            opened: ["k2", "k3", "k5"], none: ["k2", "k3", "k4", "k5"], noneLeft: ["4", ["k2", "k3", "k4", "k5"]]
+        }), "{fits: folded with room for all; folds: with room for two and three titles, and each card's [kind, folded, role, aria-expanded, tabIndex]; opened: k4 asked open; none: no room - the first kept open, the rest folded; noneLeft: the count on the panel and the titles left out}");
+        const e = build();
+        E.fitEvents(e, { room: 500, height, open: null });
+        E.wireEventsPanel(e);
+        const target = e.querySelector('[data-kind="k5"]');
+        target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        ok(!target.hasAttribute("data-drpg-folded"), "a click on a folded card opens it");
+        E.fitEvents(build(), { room: 1000, height, open: null });
+    }],
+    ["R1394 - the Event panel is as tall as what it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30; E49 A6, the owner's 10.11 amend [14](1); owner-115 item 3): its width is a token, a length, stated for Monokuma Legacy, for the glass and for the glass's stack, its height auto with no cap and nothing scrolling (since owner-115 item 3: past the room under it its cards fold, R7401), the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
         /*
          * E23 C3b, 07.11.2026. The owner's 04.10: "the events panel has a fixed size whatever the event and phase, always a
          * similar layout, everything fits". Measured in Chromium before this commit (the glass harness's `drpgEventCheck`,
@@ -45020,6 +45076,9 @@ const INVARIANTS = [
          * pod ostatnią linią"): the height token is the cap (`max-height`) and the height `auto`, so a short card leaves no
          * band under its last line; `drpgEventCheck` holds the band to 8 px in Chromium. Red on 17bf6763: the height the
          * token, no cap.
+         * owner-115 item 3 (14.11.2026; the owner: "Na karcie eventu nigdy nie powinno byc scrolla"): the cap and its token
+         * are gone and nothing scrolls; past the room under it the cards fold (R7401). Changed on purpose: it read the cap
+         * `var(--drpg-events-h)` and `overflow-y: auto`.
          */
         const C = await styleCascade();
         const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value?.replace(/\s+/g, " ") ?? null;
@@ -45056,7 +45115,7 @@ const INVARIANTS = [
             return read;
         };
         const want = (stacked, theme) => ({
-            tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "auto", cap: "var(--drpg-events-h)", scrolls: "auto",
+            tokens: ["length", null], width: stacked ? "auto" : "var(--drpg-events-w)", height: "auto", cap: "none", scrolls: "visible",
             panelFlex: "0 0 auto", cardFlex: "1 0 auto", metaFrame: [],
             ...(theme === "drpg-theme-monokuma-legacy" ? { metaLeading: "1.25 or more" } : {}),
             ...(theme === "drpg-theme-stained-glass" ? { ticker: stacked ? "none" : ["the card's top", "the glyph's height"] } : {})
@@ -45084,20 +45143,20 @@ const INVARIANTS = [
         }), "{source: incidentCard's meta [whose turn, the state] as two parts, one string joined by ' · '; two: cardElement's lines for a two-part meta "
             + "(each [class, text]), and whether a part became markup; one: a one-part meta's text and lines}");
     }],
-    ["R1430 - the Event panel says whether it scrolls whenever its box or its cards change, not only when its cards do (E23 fix G3; the end review's correctness m2): `data-drpg-scrolls` is read again on a render that finds the same cards (a theme switch), and on every change of the panel's or a card's size (one ResizeObserver a panel, on the panel and each card: a desk turned into a stack, the scale slider, late fonts)", async () => {
+    ["R1430 - the Event panel is fitted whenever its box or its cards change, not only when its cards do (E23 fix G3; the end review's correctness m2; owner-115 item 3): a render that finds the same cards (a theme switch) fits it again, and so does every change of the panel's or a card's size (one ResizeObserver a panel, on the panel and each card: a desk turned into a stack, the scale slider, late fonts)", async () => {
         /*
-         * E23 fix G3, 08.11.2026; the end review's correctness m2. Since C3b the panel is one box a layout and theme (the
-         * stylesheets' `--drpg-events-h`), it takes the wheel only while it holds more than that box, and `renderEvents`
-         * read that once a redraw - which is once a change of what the cards say. A theme switch (applyTheme, renderHud,
-         * renderEvents) returned on the unchanged signature first, and a desk turned into a stack or the scale slider
-         * moves or resizes the panel with no render at all, so a panel that fit its old box and overflows the new one kept
-         * no `data-drpg-scrolls`: `pointer-events: none`, its lower cards cut and out of reach until the cards changed.
-         * Read here on this GM with nothing written: the clock read as a Class Trial (`game.settings.get` of the clock,
-         * so the panel holds the trial's card), a ResizeObserver of the test's own (it never fires headless; the test
-         * fires it), the panel drawn anew, its heights stood in for (`scrollHeight`, `clientHeight`: jsdom lays nothing
-         * out), then each road: the observer fired with the panel over its box and under it, and a render of the same
-         * cards with the panel over its box. All put back in `finally` and the panel drawn again from the world. Red on
-         * ce3a821f: nothing observed, and the attribute as the first draw left it on both roads.
+         * E23 fix G3, 08.11.2026; the end review's correctness m2. A theme switch (applyTheme, renderHud, renderEvents)
+         * returned on the unchanged signature first, and a desk turned into a stack or the scale slider moves or resizes
+         * the panel with no render at all, so what the panel held was read against a box it no longer had. Until
+         * owner-115 item 3 the reading was `data-drpg-scrolls` (the panel scrolled past a cap); since, the panel never
+         * scrolls and is fitted (`fitEvents`: past the room under it, its cards fold), and this holds the same two roads
+         * to the fit. Read here on this GM with nothing written: the clock read as a Class Trial (`game.settings.get` of
+         * the clock, so the panel holds the trial's card), a ResizeObserver of the test's own (it never fires headless;
+         * the test fires it, and waits the frame the fit is put off to), the panel drawn anew, its height stood in for
+         * (`getBoundingClientRect`: jsdom lays nothing out), then each road: the observer fired with the panel taller
+         * than the screen and shorter, and a render of the same cards with the panel taller. All put back in `finally`
+         * and the panel drawn again from the world. Red on ce3a821f: nothing observed. Changed on purpose by owner-115
+         * item 3: it read `data-drpg-scrolls`.
          */
         const E = await import("./events.mjs");
         must(game.user.isGM, "the trial's card is drawn here for a GM - this would read nothing");
@@ -45105,6 +45164,8 @@ const INVARIANTS = [
         const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
         const read = {};
         let panel = null;
+        const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+        const folded = () => [...panel.children].filter(c => c.hasAttribute("data-drpg-folded")).length;
         try {
             window.ResizeObserver = globalThis.ResizeObserver = class {
                 constructor(callback) { Object.assign(this, { callback, targets: [], live: true }); observers.push(this); }
@@ -45126,29 +45187,32 @@ const INVARIANTS = [
             const live = observers.filter(o => o.live);
             read.watched = live.flatMap(o => o.targets.map(el => (el === panel ? "panel" : el.parentElement === panel ? "card" : "other")));
             read.cards = panel.children.length;
-            const box = (scroll, client) => {
-                Object.defineProperty(panel, "scrollHeight", { value: scroll, configurable: true });
-                Object.defineProperty(panel, "clientHeight", { value: client, configurable: true });
-            };
+            // A second card, the test's own, after the first: the first card is always kept open (fitEvents), so with the
+            // trial's alone nothing could fold.
+            panel.append(E.cardElement({ kind: "r1430", title: "R1430" }));
+            const tall = height => Object.defineProperty(panel, "getBoundingClientRect", { configurable: true,
+                value: () => ({ top: 0, left: 0, right: 100, bottom: height, width: 100, height }) });
             const fire = () => observers.filter(o => o.live && o.targets.includes(panel)).forEach(o => o.callback([], o));
-            box(400, 180);
+            tall(100000);
             fire();
-            read.resizedOver = panel.hasAttribute("data-drpg-scrolls");
-            box(150, 180);
+            await frame();
+            read.resizedOver = folded();
+            tall(1);
             fire();
-            read.resizedUnder = panel.hasAttribute("data-drpg-scrolls");
-            box(400, 180);
+            await frame();
+            read.resizedUnder = folded();
+            tall(100000);
             E.renderEvents();
-            read.sameCards = [document.getElementById("drpg-events") === panel, panel.hasAttribute("data-drpg-scrolls")];
+            read.sameCards = [document.getElementById("drpg-events") === panel, folded()];
         } finally {
             [window.ResizeObserver, globalThis.ResizeObserver] = realObservers;
             if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
-            if (panel) { delete panel.scrollHeight; delete panel.clientHeight; panel.dataset.signature = "R1430"; }
+            if (panel) { delete panel.getBoundingClientRect; panel.querySelector('[data-kind="r1430"]')?.remove(); panel.dataset.signature = "R1430"; }
             E.renderEvents();
         }
-        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: true, resizedUnder: false, sameCards: [true, true] }),
-            "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the attribute after the observer "
-            + "fires with the panel 400 px in a box of 180, then 150 in 180; sameCards: a render of the same cards keeps the panel and reads the attribute again (400 in 180)}");
+        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: 1, resizedUnder: 0, sameCards: [true, 1] }),
+            "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the cards folded (the test's second card) after the observer "
+            + "fires with the panel taller than the screen, then 1 px tall; sameCards: a render of the same cards keeps the panel and fits it again (taller than the screen)}");
     }],
     ["R3462 - the Event panel is one live region, rewritten in place, and a field is never named by its content (E48 K4): a change of the panel's cards keeps the panel standing - the same element, its role, aria-live and the sweep's mark - with new cards inside it; a select is not named by its options' words, nor a textarea by its text, so the tooltip each carries becomes its name", async () => {
         /*
