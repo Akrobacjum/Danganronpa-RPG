@@ -9230,9 +9230,9 @@
    "pilot": null,
    "facts": [
     {
-     "fact": "This key is one option of the effect select in the GM's editor of room actions (kindOptions), and the same words name the effect in the editor's one-line summary of an action's effects, followed by its amount and, in brackets, whom it falls on (effectsLine).",
-     "file": "scripts/action-facilities.mjs",
-     "fn": "effectsLine",
+     "fact": "This key is one option of the effect select in the GM's editor of room actions (kindOptions). Until 14.11.2026 the same words also named the effect in a one-line summary (action-facilities.mjs effectsLine), which nothing called; E56 part 2 removed it.",
+     "file": "scripts/facility-editor.mjs",
+     "fn": "kindOptions",
      "note": null
     },
     {
@@ -9288,9 +9288,9 @@
    "pilot": null,
    "facts": [
     {
-     "fact": "This key is one option of the effect select in the GM's editor of room actions (kindOptions), and the same words name the effect in the editor's one-line summary of an action's effects, followed by its amount and, in brackets, whom it falls on (effectsLine).",
-     "file": "scripts/action-facilities.mjs",
-     "fn": "effectsLine",
+     "fact": "This key is one option of the effect select in the GM's editor of room actions (kindOptions). Until 14.11.2026 the same words also named the effect in a one-line summary (action-facilities.mjs effectsLine), which nothing called; E56 part 2 removed it.",
+     "file": "scripts/facility-editor.mjs",
+     "fn": "kindOptions",
      "note": null
     },
     {

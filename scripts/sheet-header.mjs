@@ -65,7 +65,7 @@ export function frameTraits(element) {
  * Daggerheart 2.6.5's header (header.hbs:107) draws `.character-traits > .trait[data-attribute="<its key>"]`, and in each
  * `.trait-name` a `.tier-mark` before the name's span: a disc half outside the plate's left end that shows
  * `system.traits.<key>.tierMarked` as the class `marked` (a gold dot) - set only by Daggerheart's own level-up automation
- * (character.mjs `prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
+ * (character.mjs `DhCharacter#prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
  * trait's `rollAttribute`). The owner: enlarge the marks and put the glyph inside them. So the glyph goes in the mark, the
  * mark is marked `drpg-stat-mark` and its plate `drpg-stat-named` (danganronpa.css and stained-glass.css size and paint them
  * by those, the plate padded clear of the larger mark), and `marked` is left as Daggerheart drew it, so the state still
@@ -84,6 +84,104 @@ export function markTraitGlyphs(element) {
         }
         markStatName(mark ?? plate.querySelector(":scope > span"), key);
     }
+}
+
+/*
+ * THE SIX STATISTICS IN ONE ROW (14.11.2026; the owner on 1.2.114's sheet, "Podoba mi sie pomysl by wysrodkowac, ale
+ * koniecznie w 1 rzedzie"). The row is a grid of six equal columns, each statistic centred in its own at the width its
+ * widest name needs (danganronpa.css, "THE SIX STATISTICS IN ONE ROW"). Where six at that width do not fit, the row gives
+ * way in the owner's order and stops at the first step that fits: the gap between statistics (from 1rem to the mark's
+ * overhang and a pixel), then the plate's padding (the mark's room, cut to where the mark ends), then the names'
+ * letter-spacing (to 0), then the mark moves above the name. The names' size is not a step: in both themes they stand at
+ * their floor already - 11 px times the Interface scale under Legacy (`--drpg-text-xs`), VT323 at the glass's own floor
+ * (`--drpg-sg-floor`, 21 px) - so it would give nothing. Where even the mark above does not fit, the six take their
+ * short names (`short`: LEG BOD HAN EYE SHA HEA, the full name the plate's tooltip and aria-label); only where even
+ * those do not fit is the row three over three (`wrap`), and nothing overlaps or runs out of the header. Each
+ * step is measured, not predicted: `fitTraitRow` sets it on the row (`data-drpg-trait-fit`), reads the statistics at
+ * their natural width (`measure`) and keeps the first that fits; again whenever the row's width changes and once the
+ * fonts have loaded. With no layout (the harness) the row stays as drawn. R5760 reads the cascade, R7330 the order.
+ */
+export const TRAIT_FIT_STEPS = Object.freeze([[], ["gap"], ["gap", "pad"], ["gap", "pad", "track"], ["above", "track"],
+    ["above", "track", "short"]].map(tokens => Object.freeze(tokens)));
+
+/**
+ * A statistic's short name, Daggerheart's own key (`DAGGERHEART.CONFIG.Traits.<key>.short`, which lang/en.json and
+ * lang/pl.json set: LEG BOD HAN EYE SHA HEA). The last step before `wrap` draws it in place of the full name, which stays
+ * the plate's tooltip and aria-label (the owner's one row, through the coordinator, 14.11.2026). R7333.
+ */
+export function shortTraitName(key) {
+    return game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.short`);
+}
+
+/**
+ * The first of `TRAIT_FIT_STEPS` at which six statistics fit their row, as its tokens joined by a space, or "wrap". `measure(step)` answers the widest
+ * statistic at that step (`need`), the column gap (`gap`), how far a mark stands out of its plate's left end beside the
+ * name (`overhang`, 0 above it) and the row's width. A mark beside the name keeps a pixel clear of the plate before it.
+ * Pure; exported for R7330.
+ */
+export function traitFitStep(measure) {
+    for (const tokens of TRAIT_FIT_STEPS) {
+        const step = tokens.join(" ");
+        const { need, gap, overhang, width } = measure(step);
+        const space = Math.max(gap, overhang > 0 ? overhang + 1 : 0);
+        if (need > 0 && 6 * need + 5 * space <= width + 0.5) return step;
+    }
+    return "wrap";
+}
+
+function measureTraitStep(row, step) {
+    row.dataset.drpgTraitFit = `${step} measure`.trim();
+    const traits = [...row.querySelectorAll(":scope > .trait")];
+    const need = Math.max(0, ...traits.map(trait => trait.getBoundingClientRect().width));
+    const style = getComputedStyle(row);
+    const gap = Number.parseFloat(style.columnGap) || 0;
+    const width = row.clientWidth - (Number.parseFloat(style.paddingLeft) || 0) - (Number.parseFloat(style.paddingRight) || 0);
+    const mark = row.querySelector(".trait-name > .tier-mark.drpg-stat-mark");
+    const overhang = step.includes("above") || !mark ? 0
+        : Math.max(0, mark.parentElement.getBoundingClientRect().left - mark.getBoundingClientRect().left);
+    return { need, gap, overhang, width };
+}
+
+/** Fit the header's statistics to one row (see TRAIT_FIT_STEPS), and again when the row's width changes. */
+export function fitTraitRow(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const row = root?.querySelector?.(".character-header-sheet .character-traits");
+    if (!row || !row.querySelector(":scope > .trait")) return;
+    for (const trait of row.querySelectorAll(":scope > .trait[data-attribute]")) {
+        const plate = trait.querySelector(":scope > .trait-name");
+        if (plate) plate.dataset.drpgShort = shortTraitName(trait.dataset.attribute);
+    }
+    let width = null;
+    const fit = () => {
+        if (!row.isConnected || !row.clientWidth) return;
+        width = row.clientWidth;
+        const step = traitFitStep(s => measureTraitStep(row, s));
+        const need = step === "wrap" ? null : measureTraitStep(row, step).need;
+        row.dataset.drpgTraitFit = step;
+        if (need) row.style.setProperty("--drpg-trait-need", `${Math.ceil(need)}px`);
+        else row.style.removeProperty("--drpg-trait-need");
+        // At the short names the full one stays the plate's tooltip and its aria-label; off them, what this put there goes.
+        const short = step.split(" ").includes("short");
+        for (const plate of row.querySelectorAll(":scope > .trait > .trait-name[data-drpg-short]")) {
+            const full = plate.querySelector(":scope > span")?.textContent?.trim() ?? "";
+            if (short && full) {
+                plate.dataset.tooltip = full;
+                plate.setAttribute("aria-label", full);
+                plate.dataset.drpgShortTip = "";
+            } else if ("drpgShortTip" in plate.dataset) {
+                delete plate.dataset.tooltip;
+                plate.removeAttribute("aria-label");
+                delete plate.dataset.drpgShortTip;
+            }
+        }
+    };
+    fit();
+    try { app?._drpgTraitFit?.disconnect(); } catch { /* already gone */ }
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(() => { if (row.clientWidth !== width) fit(); });
+    observer.observe(row);
+    if (app) app._drpgTraitFit = observer;
+    document.fonts?.ready?.then(() => { width = null; fit(); }).catch(() => {});
 }
 
 /* ==========================================================================

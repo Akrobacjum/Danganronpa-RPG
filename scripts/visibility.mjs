@@ -799,7 +799,8 @@ function show(token) {
  * CONFIRMED ON 14.365 (sandbox, 03.09; audit Q9): the trail is `token.ruler`,
  * an own property holding the token's ruler object, and it has a `visible`
  * flag. The three other names this used to try - `dragRuler`, `_ruler`,
- * `movementRuler` - do not exist on the token at all, so they are gone. Still
+ * `movementRuler` - do not exist on the token at all, so they are gone from this
+ * file since that reading (before 1.2.70). Still
  * guarded, because the property is not public API: a build that renames it
  * fails safe (nothing to hide, nothing happens) rather than throwing.
  *

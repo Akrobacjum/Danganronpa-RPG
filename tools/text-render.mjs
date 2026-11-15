@@ -605,7 +605,12 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // by the coordinator from the audit of 1.2.113: `text` quotes the finding A113-C4-5, not an owner's word - the
     // owner has not read the new sentence yet.
     ["DRPG.Config.HOPE_CALLS.relief.effect", Object.freeze({ by: "1.2.113", date: "13.11.2026", page: "audit-113 FINDINGS",
-        card: "A113-C4-5", text: "Relief's effect text says nothing about Breath being refused" })]
+        card: "A113-C4-5", text: "Relief's effect text says nothing about Breath being refused" })],
+    // E109, 14.11.2026: the owner handed the disagreements of the batches B14-B18 to the coordinator ("Czy niezgody mozesz
+    // rozwiazac sam?"), who took the writer's edit of these two B01a texts (DISAGREEMENTS.json D13, D14, D16, D17): the
+    // sentence the intro already says goes, and "every player's browser can read" becomes "any player can find out".
+    ...["DRPG.Assign.footnote", "DRPG.Season.hint.assignments"].map(key => [key, Object.freeze({ by: "E109", date: "14.11.2026",
+        page: "DRPG-Q113 #27", card: "D-NIEZG", text: "Czy niezgody mozesz rozwiazac sam?" })])
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

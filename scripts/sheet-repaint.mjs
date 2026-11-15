@@ -36,7 +36,7 @@ import { actionButton, callLockNote, callButton, monokumaPool, monocubMoveNote, 
  * `updateActor`. From E4 to E45 that order was answered with state: a "skip the
  * next render" mark laid on the sheet in `preUpdateActor` (the only hook early
  * enough), eaten by an own `render`, and the repaint done in `updateActor`. A
- * no-op update - `orderNoop` was exactly `["preUpdateActor"]` - fired no render
+ * no-op update - its hooks were exactly `["preUpdateActor"]` (the measurement's `orderNoop`, in no file) - fired no render
  * to eat the mark, so the mark waited for the next legitimate render; a value
  * comparison before the write kept it out of that one.
  *

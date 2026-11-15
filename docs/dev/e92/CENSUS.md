@@ -52,7 +52,7 @@ ones.
 | monokuma.mjs:125, 131 `ownStudent`, `ownedStudents` | the account's student | leave it out (C1): a Spectator account has no student view |
 | monokuma.mjs:150, 164 | `viewerOf` / several | leave it out (C1) |
 | monokuma.mjs:220 `classCandidates` | Pre-season's NPC candidates | leave it out (C1) |
-| monokuma.mjs `ownSpectator` (new in C1) | the account's own Spectator | character here |
+| monokuma.mjs `ownSpectator` (new in C1; removed in E56 part 2, 14.11.2026: nothing called it) | the account's own Spectator | - (gone) |
 | movement.mjs:1094 | a GM told a token was dropped | character here |
 | movement.mjs:2495 | rotation locked on a character's token | character here |
 | palm.mjs:287 | Palm's targets, after `othersInRoom` | roster-like: `othersInRoom` leaves it out (C1, `countsAsPresent`) |

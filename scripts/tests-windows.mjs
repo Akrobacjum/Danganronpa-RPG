@@ -21,7 +21,7 @@
  * scenario and C3's screenshots, LIVE-E59-01).
  */
 import { blankComments, blankLiterals, callArgs, lineAt } from "./tests-lint.mjs";
-import { blocksOf, declarationsOf, stripCssComments, meaningReads, MEANING } from "./tests-css.mjs";
+import { blocksOf, declarationsOf, stripCssComments, meaningReads, MEANING, atReadableFloor } from "./tests-css.mjs";
 
 /* ---- reading the source ------------------------------------------------------------------------------------------ */
 
@@ -344,7 +344,7 @@ export function floorRule(sheets, outside = FLOOR_OUTSIDE) {
     const found = [], kept = [], read = [], used = new Set();
     let unread = 0;
     for (const [file, raw] of sheets ?? []) {
-        const text = lfOf(raw);
+        const text = atReadableFloor(lfOf(raw));
         for (const block of blocksOf(stripCssComments(text))) {
             if (!block.prelude || block.prelude.startsWith("@")) continue;
             const where = [...block.context, block.prelude].join(" ");
@@ -367,16 +367,16 @@ export function floorRule(sheets, outside = FLOOR_OUTSIDE) {
 
 /* ---- R6755: gold only for Hope ----------------------------------------------------------------------------------- */
 
-/**
- * The sheets by tests-css.mjs `meaningReads` with MEANING's Hope row alone (R3410 holds all four meanings; this reads
- * Hope's and names every rule that reads gold), and the scripts: no literal outside the suite writes a gold token
- * (`--drpg-gold...`, `--drpg-sg-hope`) into markup or a style, unless the line names Hope (MEANING.hope's words).
- */
 /** Script lists that name a gold token without painting with it, each with its reason. */
 export const GOLD_READERS = Object.freeze([
     Object.freeze({ file: "diagnostics.mjs", name: "LOAD_BEARING_TOKENS", why: "the health check asks that the token is declared; it paints nothing" })
 ]);
 
+/**
+ * The sheets by tests-css.mjs `meaningReads` with MEANING's Hope row alone (R3410 holds all four meanings; this reads
+ * Hope's and names every rule that reads gold), and the scripts: no literal outside the suite writes a gold token
+ * (`--drpg-gold...`, `--drpg-sg-hope`) into markup or a style, unless the line names Hope (MEANING.hope's words).
+ */
 export function goldRule(sheets, sources, readers = GOLD_READERS) {
     const hope = { hope: MEANING.hope };
     const r = meaningReads(sheets, hope);

@@ -515,8 +515,8 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         /*
          * A ROUND OPENS (E70 C7; E70-40, E70-41, E70-43): on no floor or on a debate, never inside an exchange or another
          * round; its turn held to the mode's range (`turnRange`: Testimony 30-120 s, Panic Round 10-15 s), here and so on
-         * every road - the start window, the API, a GM's packet; the order as the caller froze it (trial-modes.mjs
-         * `roundOrder`: the trial's participants), once each; the first speaker with an owner connected.
+         * every road - the start window, the API, a GM's packet; the order as the caller froze it (trial-floor.mjs
+         * `startRoundInStep`: the trial's participants), once each; the first speaker with an owner connected.
          */
         if (!isRoundMode(event.mode)) return { refused: "DRPG.Floor.bar.noMode" };
         if (floor && floor.mode !== MODES.debate) return { refused: "DRPG.Floor.round.busy" };

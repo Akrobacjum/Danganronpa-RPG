@@ -39,7 +39,7 @@ import { log, error, plural, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, server
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
-import { drpgWindow, box } from "./ui-kit.mjs";
+import { drpgWindow, box, tipAttr } from "./ui-kit.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks and its window counts (E42 C3).
 import { registerSeasonState, seasonStateEntries, seasonStateFor, everyPart } from "./season-reset.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back (E42 C1b).
@@ -53,10 +53,12 @@ import { runSteps } from "./steps.mjs";
  * the cast, the map and the room setup along with the season - an hour of work
  * to undo a chapter.
  *
- * The line it draws is between the CAST and the CHAPTER. Actors, scenes, room
- * regions and who watches whom are the table's; the clock, the projects, the
- * traces, the evidence, the deaths and every trace of an incident belong to the
- * season that just ended. That split is why this is safe to offer at all - the
+ * The line it draws is between the CAST and the CHAPTER. Actors, scenes and room
+ * regions are the table's; the clock, the projects, the traces, the evidence, the
+ * deaths and every trace of an incident belong to the season that just ended.
+ * Who watches whom (the Monokuma assignments) goes with the `assignments` group,
+ * ticked by default, as `Season.resetKeeps` says since E71's B15 (H20; the owner,
+ * 14.11.2026: "Kod zostaje"). That split is why this is safe to offer at all - the
  * expensive half is never touched.
  * ========================================================================== */
 
@@ -177,7 +179,7 @@ function castChoiceIn(root) {
 function castFieldset() {
     const points = castPoints();
     const choice = (value, key, { disabled = false, after = "" } = {}) => `<label class="drpg-inline-check">
-        <input type="radio" name="castTo" value="${value}"${value === "stay" ? " checked" : ""}${disabled ? " disabled" : ""} />
+        <input type="radio" name="castTo" value="${value}"${tipAttr("DRPG.Tips.Sweep.Setup.resetCastChoiceTooltip", null, { title: true })}${value === "stay" ? " checked" : ""}${disabled ? " disabled" : ""} />
         ${esc(game.i18n.localize(key))}${after}</label>`;
     const options = points.length
         ? points.map(point => `<option value="${esc(point.value)}">${esc(point.label)}</option>`).join("")
@@ -188,7 +190,7 @@ function castFieldset() {
         ${choice("stay", "DRPG.Season.resetCastStay")}
         ${choice("bedroom", "DRPG.Season.resetCastBedroom")}
         ${choice("point", "DRPG.Season.resetCastPoint", { disabled: !points.length,
-            after: ` <select name="castPoint"${points.length ? "" : " disabled"}>${options}</select>` })}
+            after: ` <select name="castPoint"${tipAttr("DRPG.Tips.Sweep.Setup.resetCastRoomTooltip", null, { title: true })}${points.length ? "" : " disabled"}>${options}</select>` })}
     </fieldset>`;
 }
 
@@ -253,7 +255,7 @@ export async function resetSeason() {
         return `<fieldset class="drpg-reset-section">
             <legend>${esc(sectionLabel(section))}</legend>
             ${inSection.map(group => `<label class="drpg-inline-check">
-                <input type="checkbox" name="wipe.${group.key}"
+                <input type="checkbox" name="wipe.${group.key}"${tipAttr("DRPG.Tips.Sweep.Setup.resetGroupTooltip")}
                     ${ticks(group.key) ? "checked" : ""} />
                 ${esc(groupLabel(group.key))}</label>`).join("")}
         </fieldset>`;
@@ -305,7 +307,7 @@ export async function resetSeason() {
             ${castFieldset()}
 
             <label>${esc(game.i18n.format("DRPG.Season.resetType", { word }))}
-                <input type="text" name="confirm" autocomplete="off" /></label>
+                <input type="text" name="confirm" autocomplete="off"${tipAttr("DRPG.Tips.Sweep.Setup.resetConfirmTooltip", { word })} /></label>
         </form>`,
         // The list above the ticks follows them: a box unticked strikes its row out.
         render: (event, dialog) => {

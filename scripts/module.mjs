@@ -13,10 +13,11 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { registerSettings, registerWindows, sliderScale, layoutHeight, settingsRegistered } from "./settings.mjs";
+import { registerSettings, registerWindows, sliderScale, layoutHeight, settingsRegistered, SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
 import { openGmStores, registerCaseHealth } from "./gm-stores.mjs";
+import { registerCaseCopy } from "./case-copy.mjs";
 import { registerSfx } from "./sfx.mjs";
 import { registerHandbooks } from "./handbooks.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
@@ -105,7 +106,6 @@ import { registerDiceSync } from "./dice-sync.mjs";
 import { registerDiceLook } from "./dice-look.mjs";
 import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
-import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
@@ -420,6 +420,8 @@ Hooks.once("ready", () => {
     // case's health check is hung on the moment the other GMs' copies have
     // arrived, before the stores open, so it cannot miss it (the primary only).
     safely("the case health check", registerCaseHealth);
+    // The case's copy on the server (E111): read once the stores are hydrated, written after they change.
+    safely("the case's server copy", registerCaseCopy);
     safely("the GM stores", openGmStores);
     // Every browser, once: the Reroll's old bookmark out of its client storage (E08+E28 C4a).
     import("./action-rolls.mjs")

@@ -129,7 +129,8 @@ export function actingStudents({ dead = isDeadForGm, held = null } = {}) {
  */
 export function ownStudent() {
     const assigned = game.user.character;
-    // A Spectator's account has no student view either (E92 C1): its own view is a watcher's (`ownSpectator`).
+    // A Spectator's account has no student view either (E92 C1): its own view is a watcher's (E92 C1 wrote
+    // `ownSpectator` to name it; nothing called it, and it went in E56 part 2, 14.11.2026).
     if (assigned && !isMonokuma(assigned) && !isSpectator(assigned)) return assigned;
     if (assigned) return null;
     const owned = game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a) && !isSpectator(a));
@@ -139,19 +140,6 @@ export function ownStudent() {
 /** The students this account owns: characters, no Monokuma and no Spectator (a GM owns every one of them). */
 export function ownedStudents() {
     return game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a) && !isSpectator(a));
-}
-
-/**
- * The Spectator this account plays, or null (E92 C1): its assigned character when that is one, else the one Spectator
- * it owns while it owns no student. A GM, who owns every actor, plays none.
- */
-export function ownSpectator(user = game.user, actors = game.actors) {
-    if (!user || user.isGM) return null;
-    const assigned = user.character ?? null;
-    if (assigned) return isSpectator(assigned) ? assigned : null;
-    const mine = [...(actors ?? [])].filter(a => a?.type === "character" && a.testUserPermission?.(user, "OWNER"));
-    const watching = mine.filter(isSpectator);
-    return watching.length === 1 && watching.length === mine.filter(a => !isMonokuma(a)).length ? watching[0] : null;
 }
 
 /**
@@ -245,14 +233,21 @@ export async function setSpectator(actor, value = true) {
     if (!value && (await import("./spectator-dead.mjs")).isDeadWatcher(actor)) return null;
     // The class's map leaves a Spectator made a student again (E92 C4): its own rows stay, the fold's are unticked first.
     if (!value && isSpectator(actor)) await (await import("./fog.mjs")).forgetSpectatorMap(actor);
-    const { spectatorUserIds } = await import("./spectator.mjs");
+    const { spectatorUserIds, SPECTATOR_TALK_FLAG } = await import("./spectator.mjs");
     const before = spectatorUserIds();
     if (value) await actor.setFlag(MODULE_ID, FLAGS.spectator, true);
     else await actor.unsetFlag(MODULE_ID, FLAGS.spectator);
     log(`${actor.name} is ${value ? "now" : "no longer"} a Spectator.`);
     // Every project in a Spectator's sight, and out of it again (E92 DRPG-D1; projects.mjs `seeAsSpectators`).
     const now = spectatorUserIds();
-    await (await import("./projects.mjs")).seeAsSpectators([...before].filter(id => !now.has(id)));
+    const left = [...before].filter(id => !now.has(id));
+    await (await import("./projects.mjs")).seeAsSpectators(left);
+    // An account no longer a Spectator's leaves its talk switch (E59 on the 1.2.115 line, CHAINS.md B-S6; R7168): kept,
+    // a player marked a Spectator again started in the Spectators' room with the microphone open, without a press.
+    for (const id of left) {
+        const user = game.users.get(id);
+        if (user?.getFlag(MODULE_ID, SPECTATOR_TALK_FLAG)) await user.unsetFlag(MODULE_ID, SPECTATOR_TALK_FLAG);
+    }
     ui.notifications.info(game.i18n.format(value ? "DRPG.Spectator.marked" : "DRPG.Spectator.unmarked", { name: actor.name }));
     actor.sheet?.render(false);
     return actor;

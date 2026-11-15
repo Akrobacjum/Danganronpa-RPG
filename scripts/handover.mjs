@@ -27,6 +27,7 @@ import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, 
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
+import { nameAsSeen } from "./mask-gm.mjs";
 
 
 /* ==========================================================================
@@ -64,7 +65,7 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
     }
 
     const options = here
-        .map((a, i) => `<option value="${a.id}"${i ? "" : " selected"}>${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+        .map((a, i) => `<option value="${a.id}"${i ? "" : " selected"}>${foundry.utils.escapeHTML(nameAsSeen(a))}</option>`).join("");
     const size = listBox ? ` size="${Math.min(Math.max(here.length, 2), 6)}"` : "";
 
     const picked = await drpgWindow({

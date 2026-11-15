@@ -2,7 +2,7 @@
   "id": "danganronpa-rpg",
   "title": "Danganronpa RPG",
   "description": "Turns the Daggerheart system (Foundryborne) into the Danganronpa RPG System: renamed traits, Despair instead of Fear, forced private rolls, a time-of-day action economy, per-room search tokens, Remnants on the map and Truth Bullets in the inventory. In English and Polish (Polski).",
-  "version": "1.2.114",
+  "version": "1.2.115",
   "compatibility": {
     "minimum": "14.364",
     "verified": "14.365"
@@ -40,7 +40,7 @@
         "id": "avclient-livekit",
         "type": "module",
         "manifest": "https://github.com/bekriebel/fvtt-module-avclient-livekit/releases/latest/download/module.json",
-        "reason": "Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you."
+        "reason": "Voice follows the rooms: a player hears the people in the room their character is in, and moving to another room changes who hears them."
       }
     ]
   },

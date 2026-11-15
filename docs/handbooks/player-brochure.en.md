@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*One page. Module 1.2.114 on Daggerheart.*
+*One page. Module 1.2.115 on Daggerheart.*
 
 **You are** an Ultimate: the one thing your character does best, written under their name on the sheet. Your six statistics are Leg, Body, Hand, Eye, Shadow, and Head.
 
@@ -72,7 +72,7 @@ The largest button in the bottom-right corner opens **GM Chat**: one thread betw
 
 | Button | Opens |
 |---|---|
-| The gear | **DRPG Settings**: language, theme, sounds, and voice. |
+| The gear | **Danganronpa RPG settings**: language, theme, sounds, and voice. |
 | The book | This brochure and the Player Handbook. |
 | The stack of cards on a notice | The **Notice history**: the notices you were shown. |
 

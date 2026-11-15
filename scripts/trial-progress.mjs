@@ -41,7 +41,7 @@ import { runSteps } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 import {
-    announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow
+    announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow, esc
 } from "./utils.mjs";
 
 /** A vote nobody has opened in this trial: the blank of `trialProgress().vote`. */
@@ -418,7 +418,6 @@ export function entryPatch(now, { seconds = TRIAL.speakSeconds } = {}) {
 export function findingsHtml(findings = []) {
     const list = (Array.isArray(findings) ? findings : []).filter(f => f && typeof f.text === "string" && f.text);
     if (!list.length) return "";
-    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
     const line = f => `<li data-drpg-finding="${esc(f.id ?? "")}">${esc(f.text)}${f.mode ? ` <small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}${
         f.confirmed ? ` <strong>${esc(game.i18n.localize("DRPG.Zones.findings.confirmedMark"))}</strong>` : ""}</li>`;
     return `<div class="drpg-findings"><p><strong>${esc(game.i18n.localize("DRPG.Zones.findings.title"))}</strong></p><ul>${list.map(line).join("")}</ul></div>`;
@@ -569,6 +568,22 @@ export async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
         error("Could not record how far the trial has got", err);
     }
     return next;
+}
+
+/**
+ * THE TRIAL'S END CLOSES ITS VOTE (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-T6; R7172). clock.mjs
+ * `reconcilePhase` asks this on every road out of the trial, before the sentence: a vote still open is written closed,
+ * uncounted - End the trial closed none, and a player reloading in Daily Life was handed a ballot (vote.mjs `ballotFor`)
+ * and could cast it. Only the record of the clock's chapter: another chapter's (the chapter's end moves the clock first)
+ * is read by no ballot, and a write from here would stamp the clock's chapter on it. The primary's own step reads the
+ * record in the step; another GM's write is asked of the primary as an object patch (`setTrialProgress`). GM only.
+ */
+export async function shutVoteAtExit() {
+    if (!game.user?.isGM || trialProgressChapter() !== getClock().chapter) return null;
+    const vote = trialProgress().vote;
+    if (!vote?.open) return null;
+    if (isPrimaryGm()) return setTrialProgress(record => (record.vote?.open ? { vote: { ...record.vote, open: false } } : null));
+    return setTrialProgress({ vote: { ...vote, open: false } });
 }
 
 /** A trial is starting: nothing has happened in it yet. */

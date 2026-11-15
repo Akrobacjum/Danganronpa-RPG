@@ -27,12 +27,11 @@ import { isMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error, listOf } from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**
@@ -546,9 +545,11 @@ function buildContent(actors, gms, roster, candidates, removable, layout = despa
     const body = kitTabs([
         { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection,
           tooltip: tipText("DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip") },
-        { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection },
+        { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection,
+          tooltip: tipText("DRPG.Tips.Sweep.Gm.tabMonokumasTooltip") },
         ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Despair.tabStudents"), html: assignSection }] : []),
-        { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: unfold + overflowSection({ suggestion: overflowSuggestionNow() }) }
+        { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: unfold + overflowSection({ suggestion: overflowSuggestionNow() }),
+          tooltip: tipText("DRPG.Tips.Sweep.Gm.tabOverflowTooltip") }
     ], { active: layout.open });
 
     // Built as an element, not a string: DialogV2 runs a string `content`

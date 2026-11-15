@@ -465,9 +465,9 @@ function animateWindowIn(app, _element, _context, options) {
  *
  * WHY THE MARK AND NOT THE ANIMATION. The transition itself still has to be
  * CSS, and it still has to be hung on `.minimizing` rather than started here.
- * `close()` awaits `_preClose` first - for however long a subclass takes - and
+ * `close()` awaits `ApplicationV2#_preClose` first - for however long a subclass takes - and
  * only then adds `.minimizing` and starts waiting for a `transitionend`. An
- * animation started here would already have finished during a slow `_preClose`,
+ * animation started here would already have finished during a slow `ApplicationV2#_preClose`,
  * Foundry would wait out its full one-second fallback, and the window would sit
  * there invisible. Marked here, transitioned there, the two are in the same
  * frame.

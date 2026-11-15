@@ -36,6 +36,8 @@ import { myBulletForRemnant } from "./visibility.mjs";
    adds no cycle. */
 import { projectIdOf } from "./projects-map.mjs";
 import { debug, error, esc, cssColour, forgetCssColours } from "./utils.mjs";
+import { keepLive } from "./live.mjs";
+import { remnantStore } from "./gm-stores.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { drpgConfirm, tipAttr } from "./ui-kit.mjs";
 // The ledger's key, for the repaint after a change to it (E90). utils.mjs imports settings.mjs already: no new cycle.
@@ -87,6 +89,39 @@ const TYPE_TOKEN = {
 const FALLBACK = 0x8a8296;   // --drpg-dim, for a type nobody has named yet
 /* A project's frame, for a token that has no type because a project does not have one. */
 const PROJECT_FALLBACK = 0xd8c98a;   // PROJECT_TOKEN.workingTint, if the tint cannot be read
+
+/*
+ * A CHARACTER IS DRAWN OVER EVERY TRACE (owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci
+ * jest w tym samym miejscu co remnant, postac zawsze niech bedzie na wierzchu"). A Remnant is created with `sort: -10` and a
+ * project token with -5 (remnants.mjs, config.mjs `PROJECT_TOKEN`), "below characters" - and at the owner's table one lay
+ * over a character. Foundry's primary group orders what it draws by elevation, then sortLayer, then sort, then zIndex
+ * (fvtt-types 14.370, primary-canvas-object.d.mts: the types, not v14's source, which is not on this machine), and
+ * Isometric Perspective 14.0.6, which this module requires, rewrites every token's `sort` - its mesh's and its document's,
+ * on this browser - by depth on the screen, on every token's render flags, ties broken by id (scripts/autosorting.js
+ * applyDepthSort and sortByDepth, read in its release zip on 14.11.2026; installed at `init` on every scene). So a
+ * trace's sort said nothing, and two tokens on one spot fell by their ids.
+ * The trace's mesh goes one sort layer under the tokens' instead: under every character, Monokuma and Monocub at its
+ * elevation whatever their sorts, and still above the tiles and drawings (500, 600). Isometric Perspective sorts the
+ * tokens' layer alone, so it leaves the traces out of its pass. Not elevation: the rooms are read off it (movement.mjs).
+ * Set on this browser, on the refresh `paint` already runs for every token, and the group asked to sort again only when
+ * the layer moved. What a table draws is LIVE-OWN115-02 (audit/AUDIT-1.2.42.md 9.2).
+ */
+/** The sort layer a Remnant's or a project token's mesh is drawn on: the one under Foundry's tokens. */
+export function traceLayer() {
+    return (foundry.canvas?.groups?.PrimaryCanvasGroup?.SORT_LAYERS?.TOKENS ?? 700) - 1;
+}
+
+/** Put `token`'s mesh on `traceLayer`; answers whether it moved (and then `primary` sorts again). R7400. */
+export function keepUnderCharacters(token, primary = canvas?.primary) {
+    const mesh = token?.mesh;
+    if (!mesh) return false;
+    const layer = traceLayer();
+    if (mesh.sortLayer === layer) return false;
+    mesh.sortLayer = layer;
+    if (primary) primary.sortDirty = true;
+    count("remnantRing.layer");
+    return true;
+}
 
 export function registerRemnantRings() {
     // The refresh's flags go to `paint` (E88 C2): a refresh may keep a drawing that still stands; a call without flags
@@ -145,7 +180,7 @@ export function registerRemnantRings() {
        frame key stands, drawn where it changed, hidden where its row is gone); after `sightRefresh`, only a Remnant or
        a project token that is visible and has no visible ring drawn - not `ringKept`, which a light left live beside a
        renderer never satisfies and which would draw those again on every frame of a slide (fog-reveal.mjs). A trace
-       whose row this browser does not hold is passed over until the ledger changes (`noFrameFor`), so a slide does not
+       whose row this browser does not hold is passed over until the ledger changes (`token.drpgRingNoFrame`), so a slide does not
        read its row on each frame. Tier 2 E90-T3; scenario 86's counters. */
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) { ledgerGen++; ringPassNextFrame("ledger"); }
@@ -201,13 +236,23 @@ function showRemnantCard(app, element) {
 
     const body = element.querySelector(".window-content") ?? element;
 
-    const html = game.user.isGM
-        ? gmRemnantCard(token ?? actor, esc)
-        : playerRemnantCard(token ?? actor, esc);
+    const draw = () => (game.user.isGM ? gmRemnantCard(token ?? actor, esc) : playerRemnantCard(token ?? actor, esc));
+    const html = draw();
     if (!html) return;
 
     body.innerHTML = html;
     if (game.user.isGM) wireCardEditing(body, token ?? actor);
+    /* IN STEP WHILE IT IS OPEN (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R2; R7177), as a project's card is
+       (projects-map.mjs `showProjectCard`): a player's card reads their own Truth Bullet, which an Analyze updates; a
+       GM's the ledger (`remnantStore`) and the trace's token flags. It was written once, so an Analyze left the "?" and
+       the old words on an open card. A GM typing in it is not redrawn under the hand (live.mjs's focus rule). */
+    liveRemnantCards.get(app)?.();
+    liveRemnantCards.set(app, keepLive(app, {
+        region: ".drpg-remnant-card",
+        build: () => draw() ?? "",
+        watch: { items: true, tokens: true, stores: [remnantStore] },
+        after: next => { if (game.user.isGM) wireCardEditing(next, token ?? actor); }
+    }));
     // The window is sized for a stat block and this is a card.
     //
     // A FRAME LATER, NOT HERE (21.09). Set inside the render hook, the size was
@@ -217,6 +262,9 @@ function showRemnantCard(app, element) {
     requestAnimationFrame(() => app.setPosition?.({ height: "auto", width: 480 }));
 }
 
+/** The live region each open Remnant card holds, by its sheet: a later render stops the one before. */
+const liveRemnantCards = new WeakMap();
+
 /**
  * The card's pixel emblem - the same glyph the token itself wears on the map
  * (remnant-icons.mjs), so opening a trace confirms what the map already said
@@ -225,7 +273,7 @@ function showRemnantCard(app, element) {
  * question mark, exactly like the token does.
  */
 const GLYPH_ACTIONS = ["search", "project", "sabotage", "dynamic", "resolution",
-    "incident", "discard", "manual", "loot"];
+    "incident", "discard", "manual", "loot", "infiltrate", "facility"];
 
 function glyph(action) {
     const act = GLYPH_ACTIONS.includes(action) ? action : "unknown";
@@ -614,6 +662,8 @@ function paint(token, flags) {
             }
             return;
         }
+
+        keepUnderCharacters(token);
 
         // A Remnant the viewer cannot see must not be outlined into existence -
         // the ring would give away a hidden trace to the whole table. The same

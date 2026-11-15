@@ -18,6 +18,7 @@ import { drpgWindow, tipAttr } from "./ui-kit.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
+import { cardFlag, cardWriter } from "./secret.mjs";
 import { roomRegions } from "./rooms.mjs";
 import { registerSeasonState } from "./season-reset.mjs";
 
@@ -147,6 +148,16 @@ export function keyPlan() {
             };
         })
     };
+}
+
+/**
+ * THE ROWS A PLAN HAS USED (E109, DISAGREEMENTS.json D22, decided by the coordinator on the owner's delegation, 14.11.2026):
+ * a slot with a trace on it or any of its four words written. The Key limit's line said `min(slots, limit)`, and a plan
+ * always holds five slots, so a limit of five or less read "5 of 5 used" on a plan nobody had touched (R7126).
+ */
+export function keyRowsUsed(entries = []) {
+    const written = value => typeof value === "string" && value.trim() !== "";
+    return entries.filter(e => e && (e.tokenId || ["name", "text", "analysis", "note"].some(f => written(e[f])))).length;
 }
 
 /**
@@ -596,7 +607,8 @@ export function missingKeyRows() {
  *          after a reset that wipes the Remnants and keeps the Truth Bullets a copy is still
  *          read by its chapter alone (read in the code, not closed here).
  *   held   copies the GMs hold whose answer key this browser lacks: the count would come out
- *          short, so the charge holds (E04, `bulletsWithoutAnswer`'s rule on the GMs' items).
+ *          short, so the charge holds (E04: an answer key with no real type is no answer key, the rule
+ *          gm-stores.mjs `bulletsWithoutAnswer` counted by until E56 part 2 removed that unread count).
  *
  * THE ITEMS AS THE GMS HOLD THEM: one wait for every student's queued writes to be judged
  * (sheet-audit.mjs `judgedFor`), then each student's items read in one synchronous pass
@@ -707,7 +719,10 @@ export async function chargeForUnfoundKeys() {
        no answer key anywhere, does not hold it. */
     const fee = await keyFeeOf(now);
     if (fee.held) {
-        await whisperToGms({ tone: "warning", body: `<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p>` });
+        // With the way to ask again on the card (E109, DISAGREEMENTS.json D27, D28): `wireChargeHeld` wires it on a GM's browser.
+        await whisperToGms({ tone: "warning", body: `<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p><div class="drpg-call-actions">`
+            + `<button type="button" data-drpg-key-charge data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgainHint"))}">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgain"))}</button></div>` },
+            { flags: { [MODULE_ID]: { keyChargeHeld: true } } });
         return null;
     }
     const short = fee.short;
@@ -765,8 +780,29 @@ export async function askToChargeForUnfoundKeys() {
 }
 
 /**
+ * THE HELD FEE'S BUTTON (E109, DISAGREEMENTS.json D27, D28, decided by the coordinator on the owner's delegation,
+ * 14.11.2026). The held card said the charge "can be made again after that", and no control asked it: it is asked as the
+ * clock enters the Class Trial, once. On a GM's browser, a GM's held card (`keyChargeHeld`) gets its "Charge the Key fee"
+ * wired to `askToChargeForUnfoundKeys` - the existing keys.charge road on the primary, which holds again, with a new card,
+ * while an answer key is still missing, and does nothing once the trial's fee is stamped (said here). The button goes
+ * when pressed; a reload draws it again, and a second press asks again, which the stamp answers. Hooked by gm-bridge.mjs.
+ */
+export function wireChargeHeld(message, element) {
+    if (!game.user?.isGM || !cardFlag(message, "keyChargeHeld") || !cardWriter(message)?.isGM) return;
+    element.addEventListener("click", async event => {
+        const button = event.target?.closest?.("[data-drpg-key-charge]");
+        if (!button) return;
+        event.preventDefault();
+        button.closest(".drpg-call-actions")?.remove();
+        await askToChargeForUnfoundKeys();
+        const { trialProgress } = await import("./vote.mjs");
+        if (trialProgress()?.keysCharged) ui.notifications.info(game.i18n.localize("DRPG.Case.chargeDone"));
+    });
+}
+
+/**
  * Apply the Key Remnant planner's rows the GM changed, exactly as `openKeyPlanner()`
- * used to on its own Save - now called from the Investigation Dashboard's
+ * (investigation.mjs, gone by 1.2.70) used to on its own Save - now called from the Investigation Dashboard's
  * single Save instead of a dialog of its own. See the "Key Remnants" tab in
  * `openInvestigationDashboard`.
  *
@@ -1116,7 +1152,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
         title: game.i18n.localize("DRPG.Investigation.createHereTitle"),
         classes: ["drpg-panel"],
         body: `<form>
-            <p class="notes">${plural("DRPG.Investigation.createHereIntro", { n: plan.entries.length })}</p>
+            <p class="notes">${plural("DRPG.Investigation.createHereIntro", { n: open.length })}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}

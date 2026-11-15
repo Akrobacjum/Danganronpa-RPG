@@ -21,11 +21,11 @@ import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
+import { namesHiddenFrom, MASK_NAME } from "./mask-gm.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /**
  * The asks this primary GM holds, by ask id (`askToFrisk` writes them): who asks whom, where (`sceneId`, `level`,
@@ -830,7 +830,12 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
         // `s` 0: the target's player is away, so the searcher hears at once (the GMs' line says so; the review's er-cor-6).
         emitTo(activeGmIds(), { action: FRISK_ASK, askId, notice: row.silent, who: searcher.name, name: target.name, s: away ? 0 : seconds });
     } else if (row.answerUserIds.length) {
-        emitTo(row.answerUserIds, { action: FRISK_ASK, askId, who: searcher.name, name: target.name, ms: TIMING.friskAnswerMs, force, byGms: row.byGms });
+        /* A masked searcher is "?" on the ask a player outside the mask is shown (owner-115 item 1b; mask-gm.mjs
+           `namesHiddenFrom`): the packet is no card's words, so `wordsFor`'s cut does not reach it. One packet a name. */
+        const whoFor = id => (namesHiddenFrom(id).includes(searcher.name) ? MASK_NAME : searcher.name);
+        const byWho = new Map();
+        for (const id of row.answerUserIds) byWho.set(whoFor(id), [...(byWho.get(whoFor(id)) ?? []), id]);
+        for (const [who, ids] of byWho) emitTo(ids, { action: FRISK_ASK, askId, who, name: target.name, ms: TIMING.friskAnswerMs, force, byGms: row.byGms });
     }
     log(`${searcher.name} asks ${target.name} to turn out their pockets (${row.silent ? `nobody asked: ${row.silent}` : away ? "nobody connected answers"
         : row.byGms ? "the GMs answer" : `${row.answerUserIds.length} player(s) asked`}).`);
@@ -1127,7 +1132,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
             body: text,
             rejectClose: false,
             footer: {
-                primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse") },
+                primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse"), tooltip: tipText("DRPG.Tips.Sweep.Actions.refuseFriskTooltip") },
                 secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow"), tooltip: tipText("DRPG.Tips.Actions.letThemLookTooltip") }]
             },
             render: (event, dialog) => {
@@ -1165,7 +1170,7 @@ async function askToForce(def, forceMs) {
             rejectClose: false,
             footer: {
                 primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), tooltip: tipText("DRPG.Tips.Actions.leaveItTooltip") },
-                secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force") }]
+                secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force"), tooltip: tipText("DRPG.Tips.Sweep.Actions.forceFriskTooltip") }]
             },
             render: (event, dialog) => {
                 timer = setTimeout(() => { if (dialog.rendered) dialog.close(); }, forceMs);

@@ -661,7 +661,7 @@ export function rolesForPoolItem(name) {
 
 /*
  * `PROJECT_ITEMS` STOOD HERE and is gone (Dawid, question Q12 of the 1.2.13
- * audit).
+ * audit); no tree git holds here, from 1.2.70 on, has it in code.
  *
  * Three items the guide names as project results rather than search finds -
  * Sleeping draught, Lethal poison, Gift. Nothing ever read them: no screen

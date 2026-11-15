@@ -451,9 +451,10 @@ export function registerFog() {
     Hooks.once("ready", () => step("regionNames", () => primeRegionNames()));
     Hooks.on("createScene", scene => step("regionNames", () => primeRegionNames([scene])));
 
-    // Leaving a scene does not tear this layer down - `RenderedCanvasGroup`
-    // sets `tearDownChildren = false` - so the texture would otherwise sit on
-    // the GPU for a scene nobody is looking at until the next repaint.
+    // Leaving a scene does not tear this layer down -
+    // `foundry.canvas.groups.RenderedCanvasGroup` sets
+    // `tearDownChildren = false` - so the texture would otherwise sit on the GPU
+    // for a scene nobody is looking at until the next repaint.
     Hooks.on("canvasTearDown", () => {
         try {
             // A dissolve still running would put the raster back on the scene being left (E17 C9).
@@ -1921,7 +1922,7 @@ function isMine(token, gm = game.user.isGM) {
  *
  * So the model is inverted, and subtraction is done the way Foundry does its
  * own - `PIXI.BLEND_MODES.ERASE` into a render texture, exactly as
- * `CanvasVisibility` builds its vision mask:
+ * `foundry.canvas.groups.CanvasVisibility` builds its vision mask:
  *
  *   1. the whole padded scene rect goes under full fog, margin included;
  *   2. rooms this player has VISITED erase half of it, leaving the veil;
@@ -3430,7 +3431,7 @@ export async function floorSwitcher({ arrived = false } = {}) {
         } else if (arrived) {
             floorSentTo = null;
         }
-        renderFloorSwitcher(scene, offer, here);
+        renderFloorSwitcher(scene, offer, here, { everyFloor: Boolean(viewer?.everyFloor) });
     } catch (err) {
         error("Could not draw the floor switcher", err);
     }
@@ -3452,7 +3453,7 @@ function scheduleFloorSwitcher() {
  * nothing is offered. How it looks under either theme, and that the curtain cuts no pane for it
  * (glass.mjs `BLOCKS` does not name it), are the live check's, not measured here.
  */
-function renderFloorSwitcher(scene, offer, here) {
+function renderFloorSwitcher(scene, offer, here, { everyFloor = false } = {}) {
     const old = document.getElementById(FLOORS_ID);
     if (!scene || !offer.length) {
         old?.remove();
@@ -3464,7 +3465,9 @@ function renderFloorSwitcher(scene, offer, here) {
     // Its language, the page's (E66 fix r1 F1, STATUS Open 19); a floor's own name is the GM's, as written.
     markLanguage(nav);
     nav.setAttribute("aria-label", game.i18n.localize("DRPG.Fog.floors"));
-    nav.dataset.tooltip = game.i18n.localize("DRPG.Fog.floorsHint");
+    // A GM's or the Mastermind's own words (E109, DISAGREEMENTS.json D40): every floor is offered to them, and the
+    // player's sentence ("the floor your character is on") was not theirs (R7129).
+    nav.dataset.tooltip = game.i18n.localize(everyFloor ? "DRPG.Fog.floorsHintGm" : "DRPG.Fog.floorsHint");
     nav.replaceChildren(...offer.map(id => {
         const index = floors.findIndex(floor => floor.id === id);
         const button = document.createElement("button");

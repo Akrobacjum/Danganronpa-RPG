@@ -451,10 +451,23 @@ export async function endEclipse({ advance = true } = {}) {
          * `advanceTimeOfDay` already announces the time of day the Eclipse was
          * leading into, and a second card would say the same thing twice.
          */
+        /* AND WHILE AN INCIDENT RUNS, ITS OWN PUBLIC CARD (E59 on the 1.2.115 line, CHAINS.md B-H3; R7180; Q-115-1). An
+           Eclipse may open at Stage 6 (`startRefusalOf`), on a public card and sound; the time of day's card is veiled to
+           the incident's audience then (clock.mjs `announceTimeOfDay`), so the bystanders heard the lights go out and
+           never come back. The end is told to everyone it was told to, naming no time of day, and the veiled card keeps
+           no sound of its own, so the incident's audience hears it once. */
+        const { murderState } = await import("./murder.mjs");
+        const inIncident = Boolean(murderState());
         await advanceTimeOfDay({
             also: { eclipse: false },
-            sfx: { key: "eclipseEnd", gm: true }
+            ...(inIncident ? {} : { sfx: { key: "eclipseEnd", gm: true } })
         });
+        if (inIncident) {
+            await announce({
+                flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
+                content: `<p>${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
+            });
+        }
     } else {
         /* WITHIN FIVE MINUTES, TAKEN BACK (E17 C7, 26.10.2026; audit S10-42). "End without advancing" gave nothing
            back, and the next press refilled the same boundary again. Now what this Eclipse's opening changed - the

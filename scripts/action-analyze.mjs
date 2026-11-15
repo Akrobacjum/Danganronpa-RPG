@@ -29,6 +29,7 @@ import { rollTrait, rollInHand, noteRollContext, gmRulingActions } from "./actio
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { requestFieldHtml, readRequestField, chooseVariant } from "./action-menus.mjs";
+import { tipAttr } from "./ui-kit.mjs";
 
 /*
  * ONE CLASS TRIAL FILTER FOR ANALYZE (E16 part 2 C3, 26.10.2026; audit S02-70, the owner's D16: "Płatne opcje Analyze w
@@ -201,13 +202,24 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
         room: roomOfActor(actor)
     });
 
+    /* THE ATTEMPT BEFORE ITS ANSWER (E109, DRPG-Q113 #40, Q-NC-7; the owner, 14.11.2026: "Zmienic kolejnosc"), as
+       `locateStash`'s and `locatePassage`'s: until 1.2.115 this card was posted once `analyze.resolve` had answered, so it
+       came under the result card the GM's client posts on the request. Posted before the request now, awaited, so its
+       message exists before the request leaves - the order follows from the awaits, not from the bridge's timing (R7122).
+       A refusal is said after it, as theirs are. The roll the GM scores is the one in hand as it is posted (E08+E28 C14). */
+    const rollId = rollInHand(actor)?.messageId ?? null;
+    await whisperToOwner(actor, `${rollHead(def, roll)}<p><small>${
+        game.i18n.format("DRPG.Analyze.sent", {
+            name: foundry.utils.escapeHTML(subject.name)
+        })}</small></p>`, rollCardFlags(def, roll));
+
     const res = await requestAnalyzeResolve({
         actorId: actor.id,
         itemId: subject.id,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         // The roll the GMs' fact of the bullet goes on (fix r1-G2).
-        rollId: rollInHand(actor)?.messageId ?? null
+        rollId
     });
 
     /*
@@ -224,14 +236,10 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
     const refusedFor = res.ok ? (res.value?.refused ? reasonOf(res.value.refused) : null) : (res.refused ? res.reason : null);
     if (charge && KEY_REFUSALS.has(refusedFor)) await refundPrice(actor, charge);
 
-    // Silent on the outcome on purpose: this client does not know the number it
-    // was measured against, and must not be told. "The GM is working it out" only
-    // when the GM's client has done so (E31 review); a refusal has been said.
+    // The card above is silent on the outcome on purpose: this client does not know the number it was measured
+    // against, and must not be told. Until 1.2.115 its "sent" line waited for the GM's client to have scored it (E31
+    // review); posted first, it says only that the result comes on a card of its own, and a refusal is said after it.
     // A GM's own refused Analyze settles as done with `{ refused }` as its value, said already (E14 fix e1-G4, the class of E14R-05).
-    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok && !res.value?.refused ? `<p><small>${
-        game.i18n.format("DRPG.Analyze.sent", {
-            name: foundry.utils.escapeHTML(subject.name)
-        })}</small></p>` : ""}`, rollCardFlags(def, roll));
 
     return { roll, subject: subject.name };
 }
@@ -252,6 +260,7 @@ async function askForHint(actor, def, roll, request = "", charge = null) {
         title,
         request,
         roll,
+        criticalHint: true,
         room: roomOfActor(actor),
         body,
         // The hint IS the answer, so it goes back down the thread the question
@@ -484,7 +493,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
         ].filter(option => !analyzeRowShut(option.value)),
         extra: `${bullets.length
             ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
-                <select name="bullet">${bullets
+                <select name="bullet"${tipAttr("DRPG.Tips.Sweep.Actions.analyzeBulletTooltip")}>${bullets
                     .map(b => `<option value="${b.id}">${
                         foundry.utils.escapeHTML(b.name)}</option>`).join("")}</select></label>`
             : ""}${requestFieldHtml({

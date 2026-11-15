@@ -444,12 +444,61 @@ export function readersLines(root) {
     return root;
 }
 
+/*
+ * A NAME BEHIND A "?" (owner-115 item 1b, 14.11.2026; mask-gm.mjs `namesHiddenFrom`). While a killer's mask stands, their
+ * name is "?" in every private card's words a reader outside the mask is given - the one cut every card passes for each
+ * reader, so a Frisk's, a Steal's, a Palm's and an onlooker's line need no rule of their own. Handed in at ready by the
+ * masks (`setNameMask`: this file is reached from the file that holds them, so it cannot import it); none until then.
+ */
+let nameMask = () => [];
+/* And whether any mask stands now (`stands`): a card is veiled while one does, as it is while an incident runs
+   (`incidentVeils`) - the mask outlives the incident, and a card spoken by the masked character outside it carried their
+   actor id and name as its speaker on every browser (scenario 21, "outside the fight", red on dd85160a with item 1b's
+   other edits: a Steal's and a Frisk's cards). */
+let maskStands = () => false;
+
+/**
+ * Hand the cut the names a reader may not read (`userId => string[]`) and, with `stands`, whether a mask stands
+ * (`() => boolean`); answers the names function it replaces (R7403 puts it back).
+ */
+export function setNameMask(fn, { stands } = {}) {
+    const was = nameMask;
+    nameMask = typeof fn === "function" ? fn : () => [];
+    if (typeof stands === "function") maskStands = stands;
+    return was;
+}
+
+/** `html` with every whole occurrence of `names` - in its text and its attributes - written "?". */
+export function maskNames(html, names) {
+    const list = [...new Set((names ?? []).filter(n => typeof n === "string" && n.trim()))].sort((a, b) => b.length - a.length);
+    if (!list.length) return html;
+    const quote = n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${list.map(quote).join("|")})(?![\\p{L}\\p{N}])`, "gu");
+    if (!list.some(n => html.includes(n))) return html;
+    const wrap = document.createElement("template");
+    wrap.innerHTML = html;
+    const walk = node => {
+        if (node.nodeType === 3) { if (re.test(node.data)) node.data = node.data.replace(re, "?"); re.lastIndex = 0; return; }
+        for (const attr of node.attributes ?? []) if (re.test(attr.value)) { node.setAttribute(attr.name, attr.value.replace(re, "?")); re.lastIndex = 0; }
+        re.lastIndex = 0;
+        for (const child of node.childNodes ?? []) walk(child);
+    };
+    for (const child of wrap.content.childNodes) walk(child);
+    return wrap.innerHTML;
+}
+
 /**
  * A card's words as `userId` may hold them: a GM's as written, a player's without the
  * GMs' prose (`playerWords`), and either with only the lines of `youOrThem` meant for
- * them. Byte for byte when the words carry none of it.
+ * them; and with a masked character's name "?" where `userId` is outside the mask (above).
+ * Byte for byte when the words carry none of it.
  */
 export function wordsFor(userId, html) {
+    const hidden = nameMask(userId);
+    return hidden?.length ? maskNames(cutWords(userId, html), hidden) : cutWords(userId, html);
+}
+
+function cutWords(userId, html) {
     const text = String(html ?? "");
     const lines = text.includes(YOU) || text.includes(NOT_YOU);
     const gm = Boolean(game.users.get(userId ?? "")?.isGM);
@@ -1052,9 +1101,18 @@ async function forget(ids = []) {
  * Pure but for the setting and the users it reads.
  */
 function incidentVeils({ speaker = null, whisper = [] } = {}) {
-    if (!incidentRuns()) return false;
+    if (!incidentRuns() && !standingMask()) return false;
     if (speaker?.actor || speaker?.token) return true;
     return (whisper ?? []).some(id => !game.users?.get(id)?.isGM);
+}
+
+/** A killer stands behind a "?" now, as the tokens every browser holds say (mask-gm.mjs, handed in by `setNameMask`). */
+function standingMask() {
+    try {
+        return Boolean(maskStands());
+    } catch {
+        return false;
+    }
 }
 
 /** An incident is running, as every browser's world half says (incident-store.mjs `PUBLIC_INCIDENT`). */
@@ -1126,7 +1184,9 @@ async function post(data, { clean = false, outcome = null } = {}) {
         said.told = true;
         return null;
     }
-    if (!game.user.isGM && incidentRuns()) return askGm({ ...rest, whisper: recipients, veiled: Boolean(asked), summary: rawSummary }, said);
+    /* While a mask stands too (owner-115 item 1b): a card the masked killer's own browser posted carried their player's id
+       as its author on every browser, veiled or not (scenario 21, "outside the fight": a Steal's card) - the GM posts it. */
+    if (!game.user.isGM && (incidentRuns() || standingMask())) return askGm({ ...rest, whisper: recipients, veiled: Boolean(asked), summary: rawSummary }, said);
     const message = await ChatMessage.create({
         ...rest,
         ...(veiled ? { speaker: { alias: game.i18n.localize("DRPG.Secret.speaker") } } : {}),

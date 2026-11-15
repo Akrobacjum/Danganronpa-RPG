@@ -40,8 +40,8 @@
  * line, and the footnote a sentence, saying it gives the passage at the next season's reset and nothing now.
  */
 
-import { error, listOf } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips } from "./ui-kit.mjs";
+import { error, listOf, esc } from "./utils.mjs";
+import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
@@ -50,9 +50,7 @@ import {
 } from "./passages-gm.mjs";
 import { viewPassage, oneWayOf } from "./passages.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
-const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);
 const tf = (key, data) => game.i18n.format(key, data);
 const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown", found: "DRPG.Passage.tab.howFound",
@@ -188,7 +186,16 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
  */
 function button(act, key, { held = null } = {}) {
     const why = held ? ` disabled data-tooltip="${esc(t(held))}" aria-description="${esc(t(held))}"` : "";
-    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}>${esc(t(key))}</button>`;
+    // What the button does, as its tooltip (the tooltip sweep, 1.2.115); a held button keeps its reason instead.
+    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}${held ? "" : tipAttr(
+        act === "show" ? "DRPG.Tips.Sweep.More.passageShowTooltip"
+            : act === "repick" ? "DRPG.Tips.Sweep.More.passageRepickTooltip"
+                : act === "close" ? "DRPG.Tips.Sweep.More.passageCloseTooltip"
+                    : act === "open" ? "DRPG.Tips.Sweep.More.passageOpenTooltip"
+                        : act === "public" ? "DRPG.Tips.Sweep.More.passageMakePublicTooltip"
+                            : act === "secret" ? "DRPG.Tips.Sweep.More.passageMakeSecretTooltip"
+                                : act === "delete" ? "DRPG.Tips.Sweep.More.passageDeleteTooltip"
+                                    : "DRPG.Tips.Sweep.More.passageCloseBreachTooltip")}>${esc(t(key))}</button>`;
 }
 
 /**

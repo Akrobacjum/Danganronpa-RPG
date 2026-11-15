@@ -45,7 +45,7 @@ const FIRST_KEPT = 300;
 /** `${messageId}|${userId}|${key}` of the warnings already given: a loop of rewrites is told once. */
 const warned = new Set();
 
-/** The labels of Daggerheart's two chat-menu rerolls (chatLog.mjs `_getEntryContextOptions`, read in 2.6.5 and 2.10.5). */
+/** The labels of Daggerheart's two chat-menu rerolls (chatLog.mjs's `ChatLog#_getEntryContextOptions`, read in 2.6.5, 2.10.5). */
 const DAGGERHEART_REROLLS = Object.freeze(["DAGGERHEART.UI.ChatLog.rerollActionRoll", "DAGGERHEART.UI.ChatLog.rerollDamage"]);
 
 function keep(message) {

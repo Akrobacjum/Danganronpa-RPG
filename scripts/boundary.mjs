@@ -45,12 +45,12 @@
  * part RR (two GMs, one round), tier 2 E37-T3 and E37-T9, tier 1 R1204.
  *
  * AN INCIDENT'S START TELLS NOTHING (E37 fix FG1b, 02.11.2026; STATUS E37 Open 52). FG1 ended an open round "stop" at
- * the incident's start (`endBarredRound`, on every write of `murderState`), and every player of the round was told at
- * that moment that the GM was waiting a little longer: a timing signal to the bystanders, beside the clock the incident
- * hides from them. The incident's start writes nothing to the round now - no write of `readyRound`, so no window closes
- * and nobody is told - and the round stands until the GM's own press: its "go" is asked of `roundAllowed` again on the
- * primary, nothing moves, and that GM is told in one line (`DRPG.Ready.barred`), at a moment the GM chose. Tier 2
- * E37-T9; a bystander's own page is LIVE-E37-06.
+ * the incident's start (`endBarredRound`, on every write of `murderState`; removed by this fix), and every player of
+ * the round was told at that moment that the GM was waiting a little longer: a timing signal to the bystanders, beside
+ * the clock the incident hides from them. The incident's start writes nothing to the round now - no write of
+ * `readyRound`, so no window closes and nobody is told - and the round stands until the GM's own press: its "go" is
+ * asked of `roundAllowed` again on the primary, nothing moves, and that GM is told in one line (`DRPG.Ready.barred`),
+ * at a moment the GM chose. Tier 2 E37-T9; a bystander's own page is LIVE-E37-06.
  *
  * A BARRED "GO" ENDS THE ROUND AS ANY "GO" (E37 fix FG1c, 02.11.2026; STATUS E37 Open 55 and 56). FG1b wrote that "go"
  * "stop", at the GM's press and at the window's own go-on at the last Done alike, and every player of the round was
@@ -71,7 +71,7 @@ import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clo
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -151,22 +151,22 @@ export async function nextTimeOfDay() {
  */
 async function askEclipse(incoming) {
     const name = game.i18n.format("DRPG.Eclipse.named", { time: timeOfDayLabel(incoming) });
-    return Boolean(await noFirst(name, `<p>${eclipseQuestion(getClock(), name).text}</p>`, game.i18n.localize("DRPG.Hud.eclipseAskYes")));
+    return Boolean(await noFirst(name, `<p>${eclipseQuestion(getClock(), name).text}</p>`, game.i18n.localize("DRPG.Hud.eclipseAskYes"), tipText("DRPG.Tips.Sweep.Trial.startEclipseTooltip")));
 }
 
 /**
  * A yes-or-no question whose no is the default (E21 C3a): `askEclipse` and `confirmGo` on the kit's frame. drpgConfirm
  * makes a primary yes the default, and these two asked with the no as the default (E17 C7, E37-14), which stays: the
  * yes on the right, Cancel on the left and focused, so with no field in the window Enter and Space press Cancel, and a
- * closed window answers null. Answers true for the yes, false for Cancel.
+ * closed window answers null. Answers true for the yes, false for Cancel. `tip` is the yes's tooltip, its caller's words.
  */
-function noFirst(title, body, yes) {
+function noFirst(title, body, yes, tip = "") {
     return drpgWindow({
         classes: ["drpg-panel"],
         title,
         body,
         footer: {
-            primary: { action: "yes", label: yes, callback: () => true },
+            primary: { action: "yes", label: yes, tooltip: tip, callback: () => true },
             close: { role: "cancel", action: "no", callback: () => false },
             default: "no"
         },
@@ -216,8 +216,8 @@ function placementTable(rows) {
             </tr></thead><tbody>${body}</tbody></table>`,
         // A question withdrawn: Cancel (E21 rule 3), the answer it was "cancel" before.
         footer: {
-            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance") },
-            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") }],
+            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), tooltip: tipText("DRPG.Tips.Sweep.Trial.eclipseEndAdvanceTooltip") },
+            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly"), tooltip: tipText("DRPG.Tips.Sweep.Trial.eclipseEndOnlyTooltip") }],
             close: { role: "cancel", action: "cancel" }
         },
         rejectClose: false
@@ -440,7 +440,7 @@ function roundBody(reading) {
 
 /** The GM's confirmation before going on past `n` players who are not done: "Wait" the default (E37-14). */
 async function confirmGo(n, title) {
-    return Boolean(await noFirst(title, `<p>${plural("DRPG.Ready.confirmGo", { n })}</p>`, game.i18n.localize("DRPG.Ready.goAnyway")));
+    return Boolean(await noFirst(title, `<p>${plural("DRPG.Ready.confirmGo", { n })}</p>`, game.i18n.localize("DRPG.Ready.goAnyway"), tipText("DRPG.Tips.Sweep.Trial.goOnAnywayTooltip")));
 }
 
 /**

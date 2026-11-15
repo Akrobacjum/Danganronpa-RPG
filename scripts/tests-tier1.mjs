@@ -10,6 +10,7 @@ import {
     LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES, HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC,
     ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS, PHASES, PRICE_CHAINS, RESOLUTION_STRESS_COST, FLAGS
 } from "./config.mjs";
+import { atReadableFloor } from "./tests-css.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS } from "./settings.mjs";
@@ -7844,7 +7845,7 @@ const INVARIANTS = [
         const verdictCode = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
         const table = bodyOf(verdictCode, "const FINAL_VERDICT_STEPS = ", { until: ";" });
         const sentence = fnSource(verdictCode, "finalVerdictSentence").indexOf("finalSentenced: [mastermind.id]"),
-            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null,");
+            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(aliveAsTableKnows(executed && mastermind ? [mastermind.id] : []), null,");
         ok(sentence > 0 && batch > 0 && table.indexOf('"finalLevelUps"') > table.indexOf('"finalSentence"') && table.indexOf('"finalSentence"') > 0,
             "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
@@ -9042,7 +9043,8 @@ const INVARIANTS = [
             // The closing word's action "close": the owner's 13.11.2026 ("Nie, ma zapisywac") made it the kit's Close, which
             // keeps an open node's text (bc3445c9; investigation.mjs, the footer). From the planner's review until then it
             // was a Cancel answering "discard" (8d049f99).
-            bar: ["autopsy", "bodyFound", "close", "newTrace", "realize", "save"],
+            // E111 (the owner, 14.11.2026): Clear the plan, one chapter's plan behind its own question (investigation.mjs `openClearPlan`).
+            bar: ["autopsy", "bodyFound", "clearPlan", "close", "newTrace", "realize", "save"],
             endChapter: [true, true],
             trialLog: true,
             undo: [[], ["undo"], true]
@@ -9199,7 +9201,7 @@ const INVARIANTS = [
          * E99 C5, 12.11.2026. A planted state, and the sources read. It takes the place of R3676 (the window, drawn) and
          * R3677 (the window's button and a player's open), removed with the window (the owner's 13:15). Red at fd3c07d:
          * the footer's `caseSchema`, TRIAL_ACTIONS' and case-trial.mjs `openTrialSchema` stood, and the drawing without
-         * `inConsole` was the window's list of tick boxes.
+         * its then option `inConsole` (since removed with the window, f02ec551) was the window's list of tick boxes.
          */
         const T = await import("./case-trial.mjs");
         const UI = await import("./trial-floor-ui.mjs");
@@ -18476,7 +18478,7 @@ const INVARIANTS = [
          * closed one, a one-way wall, one that does not restrict movement, one upstairs only - and rooms for the scene to
          * be a place; the passages are rows of the suite's own in the copy's shape (`known`). Every act is a recorder
          * the test hands in (`warn`, `sendBack`, `socket`, `whisper`), so nothing is written, sent or logged. Foundry's
-         * own reading of a one-way wall (`orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
+         * own reading of a one-way wall (`foundry.utils.orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
          * drives the audit through the harness on four clients.
          * E79 fix r1-G1, 15.10.2026 (review r1: SEC S1, S6, goal F1, F2, F3, F6, cor F3), each red at e6e3349: a route
          * through a point exactly on a wall's line, in one move's waypoints or in two moves, judged clear; the spot the
@@ -19914,7 +19916,7 @@ const INVARIANTS = [
         /*
          * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
          * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
-         * look.mjs at 54493dbf (`lookFieldset`, sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
+         * look.mjs at 54493dbf (`lookFieldset`, since removed; sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
          * line, glassPulse, hudTicker, glassBlur, reducedMotion, highContrast (with the system's line where it asks), the
          * note "Everything in this window is this browser's own"; the volumes' fieldset: the two sliders, their line,
          * messengerSound, and for a GM sfxVary (the game's tab now, R3531); the Voice section (R586). Two stand-in users,
@@ -20966,7 +20968,7 @@ const INVARIANTS = [
          * panel's sections as `buildSections` draws them (`panelUnder`, nothing written), game.drpg's four calls compared
          * with the openers by identity, and Season setup's tiles (12.11.2026: the panel's tiles, each with the icon it
          * wore in Between sessions at ecba3f21). Red at ecba3f21: the four tiles in Between sessions, no row; at 5e0f8d76:
-         * the row `SEASON_WINDOWS`, no tiles.
+         * the row `SEASON_WINDOWS` (gone since E49 A1e round 2, af0aea09), no tiles.
          */
         const tiles = await panelUnder({}, root => [...root.querySelectorAll(".drpg-gmp-section")].map(s => [s.dataset.drpgKey, [...s.querySelectorAll("[data-drpg-run]")].map(t => t.dataset.drpgRun)]));
         must(tiles.length >= 4, `the panel drew ${tiles.length} section(s) - this would measure nothing`);
@@ -21262,7 +21264,8 @@ const INVARIANTS = [
         }), stableJson({
             step: [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize("DRPG.Season.step.cast") }), "seasonChecklist"],
             go: ["seasonChecklist", game.i18n.localize("DRPG.Panel.goSeasonChecklistButton")],
-            words: ["Season checklist", "Lista kontrolna sezonu"],
+            // a verb with its object since E109 (DISAGREEMENTS.json D20, decided by the coordinator on the owner's delegation, 14.11.2026)
+            words: ["Open the Season checklist", "Otwórz listę kontrolną sezonu"],
             opened: true
         }), "{step: the Next line [text, action]; go: its button [action, label]; words: the button's label [en, pl]; opened: the press opened the Season checklist}");
     }],
@@ -27895,6 +27898,7 @@ const INVARIANTS = [
         const files = ["anonymity.mjs", "messenger-app.mjs", "popup.mjs", "room-tile.mjs", "voice-panel.mjs", "voice-tile.mjs"];
         const src = Object.fromEntries(await Promise.all(files.map(async f => [f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")))])));
         must(files.every(f => src[f].length > 500), "a script read as nothing - this would measure nothing");
+        // voice-tile.mjs's second: the voice list's Mute everybody for you (the tooltip sweep, 1.2.115), in the file's text form.
         const uses = f => [...src[f].matchAll(/\bsetTip\(\s*\w+,\s*"DRPG\.Tips\.[^"]+"(?:,\s*null)?(,\s*\{\s*text:\s*true\s*\})?\)/g)].map(m => (m[1] ? "text" : "html"));
         equal(stableJson({
             drawn: [a.dataset.tooltip === words && !("tooltipText" in a.dataset), b.dataset.tooltipText === words && !("tooltip" in b.dataset), c.hasAttribute("data-tooltip") || c.hasAttribute("data-tooltip-text")],
@@ -27902,8 +27906,48 @@ const INVARIANTS = [
             sites: Object.fromEntries(files.map(f => [f, uses(f)]))
         }), stableJson({
             drawn: [true, true, false], byHand: [],
-            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text"] }
+            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text", "text"] }
         }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
+    }],
+    ["R7301 - Room setup draws every cell it builds: each key of the row `roomCells` builds but the room's own name is a column of one of the window's tabs (`roomSetupContent`'s `tableFor([...])`), so no control is built for a table that never shows it (the tooltip sweep's finding, 1.2.115: a `concealed` cell, the room's old hiding-place box, was built for every room and placed in no tab; a stash's concealment is the Stashes tab's, per stash, since ITEM-02)", async () => {
+        /* Red at 071a3c19: "concealed" was built and drawn nowhere. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(src.length > 500, "room-setup.mjs read as nothing - this would measure nothing");
+        const cells = fnSource(src, "roomCells"), content = fnSource(src, "roomSetupContent");
+        // The row's own object, the last `return {` at the function's first indent; a names map above holds keys at the same depth.
+        const returned = [...cells.matchAll(/^ {8}return \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
+        const built = [...returned.matchAll(/^ {12}([a-z]+):/gm)].map(m => m[1]).filter(k => k !== "name");
+        const tabled = new Set([...content.matchAll(/tableFor\(\[([^\]]*)\]\)/g)].flatMap(m => [...m[1].matchAll(/"([a-z]+)"/g)].map(x => x[1])));
+        must(built.length >= 10 && tabled.size >= 10, `read ${built.length} built cell(s) and ${tabled.size} tabled column(s) - this would measure nothing`);
+        equal(built.filter(k => !tabled.has(k)).join(", "), "", "{the cells roomCells builds that no tab's table draws}");
+    }],
+    ["R7300 - every control the module draws has a tooltip, a hint, or a row that says why it needs none, and \"none needed\" is no longer a reason (the tooltip sweep, 1.2.115; Q-E57-8, the owner's \"Robic teraz\" of 14.11.2026): tools/tooltip-census.json, the baseline `node tools/check.mjs tooltips` holds every site with no tooltip and no hint line to, keeps only rows of six reasons - \"label is enough: ...\" (the label and its options say it all), \"hint: ...\" and \"help in code: ...\" (help the census cannot see near the control, each with a held { fn, pattern } found in that function of its file), \"not met: ...\" (no reader meets it as a control), \"conditional: ...\" (a tooltip drawn under a named condition), or a stage's commit that gives one; E102's \"none needed\" rows, an agent's judgement the owner never saw, are each a tooltip now or one of those", async () => {
+        /* Red at 9e7e3d78 (1.2.114): 224 rows read "none needed: ...", and no row "hint: ..." existed. The gate (tools/tooltip-census.mjs `compare`)
+           matches every drawn site to a row; this holds what a row may say, and that the help a hint row points at is still in its function. */
+        needs(env.tools(), "tools/tooltip-census.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let base = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/tooltip-census.json`, { cache: "no-cache" });
+            if (res.ok) base = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        must(Array.isArray(base?.rows) && base.rows.length > 10, "tools/tooltip-census.json holds no rows - this would measure nothing");
+        const REASON = /^(label is enough|hint|help in code|not met|conditional): .{20,}$|^E\d{2,3} C\d+[a-z]?: .+$/s;
+        const reasonOf = r => String(r.why ?? "").match(/^(label is enough|hint|help in code|not met|conditional|none needed|E\d{2,3} C\d+[a-z]?)(?=:)/)?.[1] ?? "(none)";
+        const src = new Map();
+        for (const f of new Set(base.rows.filter(r => r.held?.fn).map(r => r.file))) src.set(f, await fetch(`/modules/${MODULE_ID}/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const bad = [];
+        for (const r of base.rows) {
+            const id = `${r.file} ${r.unit ?? "(top level)"} ${r.kind} ${r.key ?? "(no key)"}`;
+            if (!REASON.test(String(r.why ?? ""))) { bad.push(`${id}: "${reasonOf(r)}" is not a reason a row may give`); continue; }
+            if (!/^(hint|help in code): /.test(r.why)) continue;
+            if (!r.held?.fn || !r.held?.pattern) { bad.push(`${id}: its help is named, with no held { fn, pattern }`); continue; }
+            const body = topLevelFunction(src.get(r.file) ?? "", r.held.fn);
+            if (body === null) bad.push(`${id}: ${r.file} declares no top-level ${r.held.fn}()`);
+            else if (!new RegExp(r.held.pattern).test(body)) bad.push(`${id}: ${r.held.fn}() no longer holds ${r.held.pattern}`);
+        }
+        const by = {};
+        for (const r of base.rows) by[reasonOf(r)] = (by[reasonOf(r)] ?? 0) + (r.count ?? 1);
+        equal(bad.length ? `${bad.length} row(s): ${bad.slice(0, 12).join("; ")}${bad.length > 12 ? "; ..." : ""}` : "", "", `{the rows whose reason is not one of the six, or whose help is gone from its function; sites by reason now: ${stableJson(by)}}`);
     }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
@@ -29467,7 +29511,7 @@ const INVARIANTS = [
         const discovery = fnSource(stripComments(chapterText(sources)), "runDiscovery");
         equal(stableJson([
             bar("drpg-theme-monokuma-legacy"), bar("drpg-theme-monokuma-legacy drpg-pixel-font"), bar("drpg-theme-stained-glass"),
-            token("--drpg-text-xs"),
+            atReadableFloor(token("--drpg-text-xs")),
             /popupKind:\s*"objection",\s*popupTitle:\s*game\.i18n\.localize\("DRPG\.Chapter\.bodyTitle"\)[\s\S]{0,400}DRPG\.Chapter\.bodyBanner/.test(discovery),
             [game.i18n.has("DRPG.Chapter.bodyTitle"), game.i18n.localize("DRPG.Chapter.bodyTitle")]
         ]), stableJson([
@@ -29575,7 +29619,7 @@ const INVARIANTS = [
             const face = node => theme === "drpg-theme-stained-glass"
                 ? [value(node, "--brush-on"), value(node, "--brush-ink")]
                 : [value(node, ["background", "background-color"]), value(node, "color")];
-            return { line: value(text, "line-height"), time: value(time, "font-size"), mask: value(log, ["mask", "mask-image"]),
+            return { line: value(text, "line-height"), time: atReadableFloor(value(time, "font-size")), mask: value(log, ["mask", "mask-image"]),
                 save: face(save), template: face(template) };
         };
         const styles = manifest.styles ?? [];
@@ -42305,23 +42349,35 @@ const INVARIANTS = [
            Foundry tools' window frame's three Stained Glass prints since E55 (14.11.2026): its rim's `border` reads
            `var(--drpg-glass-accent)` without the fallback `@property` never let apply (components.css; the audit's S12-71),
            the same rule and the same value, another text - curtain and desk 2:1900e75b -> 2:6fa9ceed, stacked 2:8b75b7bd ->
-           2:2fe7a47f, re-measured headless; Legacy's, every other print, `left` and the @media rules as they were. */
+           2:2fe7a47f, re-measured headless; Legacy's, every other print, `left` and the @media rules as they were.
+           The voice tile's curtain print under Stained Glass since the Interface scale's 25 % (14.11.2026, 704a1472): the
+           compact wall tile is an inline-size container (components.css, `container: drpg-voice-tile / inline-size`), a
+           declaration it wins at the curtain's compact place; the rules inside the `@container` block are not top-level and
+           this cascade does not read them - 2:ce15ad40 -> 2:4b38d8b9, re-measured headless; every other print, `left` and the
+           @media rules as they were.
+           The room tile's six prints since its sizes follow the slider under 80 % (15.11.2026, R7335): the tile's padding
+           and gap, the project band's offsets, the toggle's place and size, the description's margins, the tokens' gaps and,
+           under the glass, the name's padding and brush, the notes place's gap and the pips read `calc(N px *
+           var(--drpg-floor-scale, 1))` - the same rules and, from 80 % up, the same values, another text: Legacy 1:bb393327
+           -> 1:319c66ac (curtain), 1:74d54c24 -> 1:5cbcd5a1 (desk), 1:a85b1630 -> 1:0a77909f (stacked); Stained Glass
+           1:1e31f8f3 -> 1:e19ef630, 1:23e449cb -> 1:10081416, 1:897a26e1 -> 1:980bf6c6, re-measured headless; every other
+           print, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
-            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
+            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:319c66ac", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:6fa9ceed", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
-            "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
-            "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
+            "curtain|stained-glass|room-tile": "1:e19ef630", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|voice-tile": "2:4b38d8b9", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:5cbcd5a1",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
             "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:6fa9ceed", "desk|stained-glass|gm-launcher": "1:19e941be",
-            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
+            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:10081416", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
-            "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
+            "stacked|monokuma-legacy|room-tile": "1:0a77909f", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:2fe7a47f",
-            "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
+            "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:980bf6c6",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
@@ -43047,8 +43103,9 @@ const INVARIANTS = [
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 // E64-inv (the owner's pick of the Investigation review, 12.11.2026): no evidence log, no destructive row (R3967).
                 // Close, which keeps an open node's text, since the owner's 13.11.2026 (a discarding Cancel before it)
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", close: "close" },
-                ["save", "newTrace", "autopsy", "bodyFound", "realize", "close"]],
+                // E111: Clear the plan, a secondary of its own (investigation.mjs `openClearPlan` asks with a destructive Clear).
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", clearPlan: "secondary", close: "close" },
+                ["save", "newTrace", "autopsy", "bodyFound", "realize", "clearPlan", "close"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */
@@ -44954,7 +45011,63 @@ const INVARIANTS = [
             stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-evidence)" }), // Hope's gold until E48 K1: the base sheet's antique is Evidence's
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
-    ["R1394 - the Event panel is as tall as what it says up to one box (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30; E49 A6, the owner's 10.11 amend [14](1)): its width and its cap are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, its height auto under that cap, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
+    ["R7401 - the Event panel never scrolls (scripts/events.mjs `fitEvents`, `wireEventsPanel`; the stylesheets' `#drpg-events`; owner-115 item 3): under Monokuma Legacy, the glass and the glass's stack no rule gives the panel a cap or lets it or a card scroll; a panel taller than the room under it folds its cards to their titles from the last up, the first kept open, a folded card a button that says it is closed; the card a reader opened stays open and the others fold; with no room the first card stays open, the others fold and the titles that do not fit are left out and counted; a click on a folded card opens it", async () => {
+        /* owner-115 item 3, 14.11.2026; the owner at a table on 1.2.114: "Na karcie eventu pojawil sie scroll w trakcie
+           morderstwa. Na karcie eventu nigdy nie powinno byc scrolla." The panel had a cap (`--drpg-events-h`, a `max-height`)
+           and scrolled past it (E23 C3b, E49 A6); audit/events-murder-fit.mjs measured every murder-time panel scrolling, 60 of
+           60, at e0ee06ef. Read here: the sheets' cascade on a body of its own, and `fitEvents` on stand-in heights (jsdom lays
+           nothing out: a card 200 px open and 30 folded, the panel their sum). Nothing written. */
+        const C = await styleCascade();
+        const value = (el, names) => C.winner(el, [names].flat())?.value?.replace(/\s+/g, " ") ?? null;
+        const layout = (theme, stacked) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm${stacked ? " drpg-stacked" : ""}`;
+            html.append(body);
+            const card = `<div class="drpg-event" data-kind="incident"><div class="drpg-event-title">T</div><div class="drpg-event-sub">S</div></div>`;
+            const panel = `<div id="drpg-events" class="drpg-events">${card}${card.replace('data-kind="incident"', 'data-kind="motive" data-drpg-folded')}</div>`;
+            body.innerHTML = stacked ? `<div id="drpg-column">${panel}</div>` : `<div id="ui-top">${panel}</div>`;
+            const box = body.querySelector("#drpg-events"), [one, folded] = body.querySelectorAll(".drpg-event");
+            const scrolls = el => /auto|scroll/.test(value(el, ["overflow-y", "overflow"]) ?? "");
+            return { cap: value(box, "max-height") ?? "none", panel: scrolls(box), card: scrolls(one), foldedSub: value(folded.querySelector(".drpg-event-sub"), "display"),
+                foldedClicks: value(folded, "pointer-events") };
+        };
+        const LAYOUTS = [["drpg-theme-monokuma-legacy", false], ["drpg-theme-stained-glass", false], ["drpg-theme-stained-glass", true]];
+        equal(stableJson(LAYOUTS.map(([t, s]) => layout(t, s))), stableJson(LAYOUTS.map(() => ({ cap: "none", panel: false, card: false, foldedSub: "none", foldedClicks: "auto" }))),
+            "[Legacy's desk, the glass's desk, the glass's stack]: {the panel's max-height; does the panel scroll; does a card; a folded card's sub shown; a folded card takes clicks}");
+        const E = await import("./events.mjs");
+        ok(typeof E.fitEvents === "function" && typeof E.wireEventsPanel === "function", "events.mjs has no fitEvents or wireEventsPanel");
+        if (typeof E.fitEvents !== "function" || typeof E.wireEventsPanel !== "function") return;
+        const build = () => {
+            const panel = document.createElement("div");
+            panel.id = "r7401-events";
+            for (const k of ["k1", "k2", "k3", "k4", "k5"]) panel.append(E.cardElement({ kind: k, title: `R7401 ${k}`, sub: "sub" }));
+            return panel;
+        };
+        const height = el => (el.classList.contains("drpg-event") ? (el.hasAttribute("data-drpg-folded") ? 30 : 200)
+            : [...el.children].reduce((n, c) => n + height(c), 0));
+        const state = panel => [...panel.children].map(c => [c.dataset.kind, c.hasAttribute("data-drpg-folded"), c.getAttribute("role"), c.getAttribute("aria-expanded"), c.tabIndex]);
+        const a = build(), b = build(), c = build(), d = build();
+        const read = {
+            fits: E.fitEvents(a, { room: 1000, height, open: null }), fitsState: state(a).map(r => r[1]),
+            folds: E.fitEvents(b, { room: 500, height, open: null }), foldsState: state(b),
+            opened: E.fitEvents(c, { room: 500, height, open: "k4" }),
+            none: E.fitEvents(d, { room: 20, height, open: null }), noneLeft: [d.getAttribute("data-drpg-more"), [...d.children].filter(x => x.hasAttribute("data-drpg-hidden")).map(x => x.dataset.kind)]
+        };
+        equal(stableJson(read), stableJson({
+            fits: [], fitsState: [false, false, false, false, false],
+            folds: ["k3", "k4", "k5"],
+            foldsState: [["k1", false, null, null, -1], ["k2", false, null, null, -1], ["k3", true, "button", "false", 0], ["k4", true, "button", "false", 0], ["k5", true, "button", "false", 0]],
+            opened: ["k2", "k3", "k5"], none: ["k2", "k3", "k4", "k5"], noneLeft: ["4", ["k2", "k3", "k4", "k5"]]
+        }), "{fits: folded with room for all; folds: with room for two and three titles, and each card's [kind, folded, role, aria-expanded, tabIndex]; opened: k4 asked open; none: no room - the first kept open, the rest folded; noneLeft: the count on the panel and the titles left out}");
+        const e = build();
+        E.fitEvents(e, { room: 500, height, open: null });
+        E.wireEventsPanel(e);
+        const target = e.querySelector('[data-kind="k5"]');
+        target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        ok(!target.hasAttribute("data-drpg-folded"), "a click on a folded card opens it");
+        E.fitEvents(build(), { room: 1000, height, open: null });
+    }],
+    ["R1394 - the Event panel is as tall as what it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30; E49 A6, the owner's 10.11 amend [14](1); owner-115 item 3): its width is a token, a length, stated for Monokuma Legacy, for the glass and for the glass's stack, its height auto with no cap and nothing scrolling (since owner-115 item 3: past the room under it its cards fold, R7401), the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
         /*
          * E23 C3b, 07.11.2026. The owner's 04.10: "the events panel has a fixed size whatever the event and phase, always a
          * similar layout, everything fits". Measured in Chromium before this commit (the glass harness's `drpgEventCheck`,
@@ -44975,6 +45088,9 @@ const INVARIANTS = [
          * pod ostatnią linią"): the height token is the cap (`max-height`) and the height `auto`, so a short card leaves no
          * band under its last line; `drpgEventCheck` holds the band to 8 px in Chromium. Red on 17bf6763: the height the
          * token, no cap.
+         * owner-115 item 3 (14.11.2026; the owner: "Na karcie eventu nigdy nie powinno byc scrolla"): the cap and its token
+         * are gone and nothing scrolls; past the room under it the cards fold (R7401). Changed on purpose: it read the cap
+         * `var(--drpg-events-h)` and `overflow-y: auto`.
          */
         const C = await styleCascade();
         const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value?.replace(/\s+/g, " ") ?? null;
@@ -45011,7 +45127,7 @@ const INVARIANTS = [
             return read;
         };
         const want = (stacked, theme) => ({
-            tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "auto", cap: "var(--drpg-events-h)", scrolls: "auto",
+            tokens: ["length", null], width: stacked ? "auto" : "var(--drpg-events-w)", height: "auto", cap: "none", scrolls: "visible",
             panelFlex: "0 0 auto", cardFlex: "1 0 auto", metaFrame: [],
             ...(theme === "drpg-theme-monokuma-legacy" ? { metaLeading: "1.25 or more" } : {}),
             ...(theme === "drpg-theme-stained-glass" ? { ticker: stacked ? "none" : ["the card's top", "the glyph's height"] } : {})
@@ -45039,20 +45155,20 @@ const INVARIANTS = [
         }), "{source: incidentCard's meta [whose turn, the state] as two parts, one string joined by ' · '; two: cardElement's lines for a two-part meta "
             + "(each [class, text]), and whether a part became markup; one: a one-part meta's text and lines}");
     }],
-    ["R1430 - the Event panel says whether it scrolls whenever its box or its cards change, not only when its cards do (E23 fix G3; the end review's correctness m2): `data-drpg-scrolls` is read again on a render that finds the same cards (a theme switch), and on every change of the panel's or a card's size (one ResizeObserver a panel, on the panel and each card: a desk turned into a stack, the scale slider, late fonts)", async () => {
+    ["R1430 - the Event panel is fitted whenever its box or its cards change, not only when its cards do (E23 fix G3; the end review's correctness m2; owner-115 item 3): a render that finds the same cards (a theme switch) fits it again, and so does every change of the panel's or a card's size (one ResizeObserver a panel, on the panel and each card: a desk turned into a stack, the scale slider, late fonts)", async () => {
         /*
-         * E23 fix G3, 08.11.2026; the end review's correctness m2. Since C3b the panel is one box a layout and theme (the
-         * stylesheets' `--drpg-events-h`), it takes the wheel only while it holds more than that box, and `renderEvents`
-         * read that once a redraw - which is once a change of what the cards say. A theme switch (applyTheme, renderHud,
-         * renderEvents) returned on the unchanged signature first, and a desk turned into a stack or the scale slider
-         * moves or resizes the panel with no render at all, so a panel that fit its old box and overflows the new one kept
-         * no `data-drpg-scrolls`: `pointer-events: none`, its lower cards cut and out of reach until the cards changed.
-         * Read here on this GM with nothing written: the clock read as a Class Trial (`game.settings.get` of the clock,
-         * so the panel holds the trial's card), a ResizeObserver of the test's own (it never fires headless; the test
-         * fires it), the panel drawn anew, its heights stood in for (`scrollHeight`, `clientHeight`: jsdom lays nothing
-         * out), then each road: the observer fired with the panel over its box and under it, and a render of the same
-         * cards with the panel over its box. All put back in `finally` and the panel drawn again from the world. Red on
-         * ce3a821f: nothing observed, and the attribute as the first draw left it on both roads.
+         * E23 fix G3, 08.11.2026; the end review's correctness m2. A theme switch (applyTheme, renderHud, renderEvents)
+         * returned on the unchanged signature first, and a desk turned into a stack or the scale slider moves or resizes
+         * the panel with no render at all, so what the panel held was read against a box it no longer had. Until
+         * owner-115 item 3 the reading was `data-drpg-scrolls` (the panel scrolled past a cap); since, the panel never
+         * scrolls and is fitted (`fitEvents`: past the room under it, its cards fold), and this holds the same two roads
+         * to the fit. Read here on this GM with nothing written: the clock read as a Class Trial (`game.settings.get` of
+         * the clock, so the panel holds the trial's card), a ResizeObserver of the test's own (it never fires headless;
+         * the test fires it, and waits the frame the fit is put off to), the panel drawn anew, its height stood in for
+         * (`getBoundingClientRect`: jsdom lays nothing out), then each road: the observer fired with the panel taller
+         * than the screen and shorter, and a render of the same cards with the panel taller. All put back in `finally`
+         * and the panel drawn again from the world. Red on ce3a821f: nothing observed. Changed on purpose by owner-115
+         * item 3: it read `data-drpg-scrolls`.
          */
         const E = await import("./events.mjs");
         must(game.user.isGM, "the trial's card is drawn here for a GM - this would read nothing");
@@ -45060,6 +45176,8 @@ const INVARIANTS = [
         const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
         const read = {};
         let panel = null;
+        const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+        const folded = () => [...panel.children].filter(c => c.hasAttribute("data-drpg-folded")).length;
         try {
             window.ResizeObserver = globalThis.ResizeObserver = class {
                 constructor(callback) { Object.assign(this, { callback, targets: [], live: true }); observers.push(this); }
@@ -45081,29 +45199,36 @@ const INVARIANTS = [
             const live = observers.filter(o => o.live);
             read.watched = live.flatMap(o => o.targets.map(el => (el === panel ? "panel" : el.parentElement === panel ? "card" : "other")));
             read.cards = panel.children.length;
-            const box = (scroll, client) => {
-                Object.defineProperty(panel, "scrollHeight", { value: scroll, configurable: true });
-                Object.defineProperty(panel, "clientHeight", { value: client, configurable: true });
-            };
+            // A second card, the test's own, after the first: the first card is always kept open (fitEvents), so with the
+            // trial's alone nothing could fold.
+            panel.append(E.cardElement({ kind: "r1430", title: "R1430" }));
+            const tall = height => Object.defineProperty(panel, "getBoundingClientRect", { configurable: true,
+                value: () => ({ top: 0, left: 0, right: 100, bottom: height, width: 100, height }) });
             const fire = () => observers.filter(o => o.live && o.targets.includes(panel)).forEach(o => o.callback([], o));
-            box(400, 180);
+            tall(100000);
             fire();
-            read.resizedOver = panel.hasAttribute("data-drpg-scrolls");
-            box(150, 180);
+            await frame();
+            read.resizedOver = folded();
+            tall(1);
             fire();
-            read.resizedUnder = panel.hasAttribute("data-drpg-scrolls");
-            box(400, 180);
+            await frame();
+            read.resizedUnder = folded();
+            tall(100000);
             E.renderEvents();
-            read.sameCards = [document.getElementById("drpg-events") === panel, panel.hasAttribute("data-drpg-scrolls")];
+            read.sameCards = [document.getElementById("drpg-events") === panel, folded()];
         } finally {
             [window.ResizeObserver, globalThis.ResizeObserver] = realObservers;
             if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
-            if (panel) { delete panel.scrollHeight; delete panel.clientHeight; panel.dataset.signature = "R1430"; }
+            if (panel) { delete panel.getBoundingClientRect; panel.querySelector('[data-kind="r1430"]')?.remove(); panel.dataset.signature = "R1430"; }
             E.renderEvents();
         }
-        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: true, resizedUnder: false, sameCards: [true, true] }),
-            "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the attribute after the observer "
-            + "fires with the panel 400 px in a box of 180, then 150 in 180; sameCards: a render of the same cards keeps the panel and reads the attribute again (400 in 180)}");
+        /* Every card but the one kept open folds while the stand-in height never shrinks: with the test's card appended
+           that is `read.cards`. It read 1 here, true only while the trial's card was the panel's one card: in 01-runtests'
+           part A1 an incident is open and its card stands beside the trial's (cards 2), and two folded (CI on 326caf11,
+           shard 1; reproduced in a scratch scenario at A1's fixture, 15.11.2026). Changed on purpose. */
+        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: read.cards, resizedUnder: 0, sameCards: [true, read.cards] }),
+            "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the cards folded (the test's second card) after the observer "
+            + "fires with the panel taller than the screen, then 1 px tall; sameCards: a render of the same cards keeps the panel and fits it again (taller than the screen)}");
     }],
     ["R3462 - the Event panel is one live region, rewritten in place, and a field is never named by its content (E48 K4): a change of the panel's cards keeps the panel standing - the same element, its role, aria-live and the sweep's mark - with new cards inside it; a select is not named by its options' words, nor a textarea by its text, so the tooltip each carries becomes its name", async () => {
         /*
@@ -47097,7 +47222,7 @@ const INVARIANTS = [
         // `studentActors(` with or without the GMs' `held` (E24 fix G1: the vote's candidates read the flags as the GMs hold them, R1494).
         const reads = (file, fn) => { const body = cut(file, fn); return body.length > 40 && /\bstudentActors\((?:\)|\{ held: flagsHeldNow \}\))/.test(body) && !/\bgame\.actors\b(?!\.get\()/.test(body); };
         // The Calls' picker since E24 fix G1 (the owner, 09.11: "wylacz takie npc"; the general review's m7).
-        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "verdictHeld"),
+        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "aliveAsTableKnows") && /\baliveAsTableKnows\(/.test(cut("verdict.mjs", "verdictHeld")),
             finalList: reads("verdict.mjs", "openFinalVerdictDialog"), calls: reads("call-pickers.mjs", "pickPlayer") };
         const flags = f => (scope, key) => (scope === MODULE_ID ? f[key] : undefined);
         const player = { id: "R1453player", isGM: false }, gm = { id: "R1453gm", isGM: true };
@@ -47235,7 +47360,7 @@ const INVARIANTS = [
         const builders = Object.fromEntries(["addUseButton", "addEquipButton", "addDiscardButton", "addStashButton", "addHandoverButton"].map(fn => [fn, first(fn)]));
         // The gate, none of the three buttons before it, all three after it.
         builders.buildBulletRow = /^(?:(?!addHandoverButton\(|addPresentButton\(|drpg-tb-analyze)[\s\S])*?if \(!rowGate\(app\)\) return;[\s\S]*addHandoverButton\([\s\S]*addPresentButton\([\s\S]*drpg-tb-analyze/.test(bullet);
-        /* A pip's tooltip is read for the GM: this GM with `isGM` off reads as a viewer to sheet.mjs `viewerOf`, whose pips
+        /* A pip's tooltip is read for the GM: this GM with `isGM` off reads as a viewer to sheet-mode.mjs `sheetMode`, whose pips
            carry none whatever the header's state. A Monocub's grid is its two tiles; a Monokuma's, its Despair Calls. */
         const want = {};
         for (const role of ["gm", "owner"]) {
@@ -47879,7 +48004,7 @@ const INVARIANTS = [
     }],
     ["R1497 - the reserve's field is the mode's (sheet-mode.mjs `sheetMode(...).reserveField`, sheet-sidebar.mjs `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*
-         * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`
+         * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` (gone in this fix) asked `user?.isGM` and `testUserPermission?.(`
          * beside the mode, so the field was drawn on the dead's sheet (a GM's always, the owner's with the lock off), on
          * a Monokuma's and on a sheet whose app is not editable. Stand-ins as R1445's (`reserveActor`: Health 1 of 4
          * marked, Sanity 2 of 7), the flags answered by an own `getFlag`, the lock answered in memory (`game.settings.get`
@@ -48472,7 +48597,7 @@ const INVARIANTS = [
          * owner's and a GM's Breakdown, everybody's Wounded, drawn.
          *
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
-         * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
+         * module/canvas/placeables/token.mjs `Token#_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
          * effect) drew the icon on every client's canvas: it told another player what the Sanity bar no longer does. A
          * view change on this browser (the status still sits on the actor every client holds): the icon of a
          * `drpgBreakdown` effect is not drawn for a user `reserveView` does not show the student's Sanity to. Read on a
@@ -50260,7 +50385,7 @@ const INVARIANTS = [
             };
             read[theme] = Object.fromEntries(Object.entries(parts).map(([name, el]) => {
                 const size = sizeOf(el);
-                return [name, FLOOR.test(size) ? true : size];
+                return [name, FLOOR.test(atReadableFloor(size)) ? true : size];
             }));
         }
         const yes = { description: true, chip: true, groupLine: true, groupCount: true, lineAbove: true, musicNote: true };
@@ -55408,12 +55533,64 @@ const INVARIANTS = [
          */
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         const floor = name => {
-            const m = css.match(new RegExp(`${name}:\\s*max\\(min\\((\\d+)px,\\s*([\\d.]+)rem\\),\\s*calc\\(([\\d.]+)rem \\* var\\(--drpg-legacy-scale, 1\\)\\)\\)`));
+            // the floor's 11 px is `calc(11px * var(--drpg-floor-scale, 1))` since the slider reaches 25 % (R7332): 1 at 0.8
+            const m = css.match(new RegExp(`${name}:\\s*max\\(min\\((?:calc\\()?(\\d+)px(?: \\* var\\(--drpg-floor-scale, 1\\)\\))?,\\s*([\\d.]+)rem\\),\\s*calc\\(([\\d.]+)rem \\* var\\(--drpg-legacy-scale, 1\\)\\)\\)`));
             return m ? Math.round(Math.max(Math.min(Number(m[1]), Number(m[2]) * 16), Number(m[3]) * 16 * 0.8) * 10) / 10 : null;
         };
         equal(stableJson(["--drpg-text-xs", "--font-size-11", "--font-size-12", "--font-size-13", "--font-size-14"].map(floor)),
             stableJson([11, 11, 11, 11, 11.2]),
             "[--drpg-text-xs, --font-size-11 .. 14] at a 16 px root and the slider at 0.8, in px - a small rung under Legacy must not fall under 11 px");
+    }],
+    ["R7334 - at an Interface scale of 25 % the compact glass voice tile keeps its buttons inside it and the sheet's left column does not scroll sideways (14.11.2026): components.css makes the compact wall tile an inline-size container, and under 110 px of it stands its controls in a column of 24 px buttons with the face's padding and the state word's band left at 30 px; danganronpa.css floors the rail at 12rem times `--drpg-floor-scale` and zooms the Equipped rows by it", async () => {
+        /*
+         * Measured in Chromium before (4a2beafb): the glass harness at ?scale=0.25, 1366x768 - the microphone at x -7 of a
+         * 65 px tile and the name 0 of 72 px; audit/sheet-column.mjs --scale 0.25 - 144 of 144 readings not right, at 0.5
+         * 32. After (704a1472): the buttons at x 43-74 of the 77 px box, the name 30 px; 0 of 144 at 0.25, 0.5, 0.8, 1 and
+         * 1.4. Here, that the rules which did it are the ones served.
+         */
+        const read = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(lfText).then(stripComments);
+        const [kit, main] = await Promise.all([read("components.css"), read("danganronpa.css")]);
+        const tile = 'body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]';
+        const esc = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const inner = kit.match(/@container drpg-voice-tile \(width < 110px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+        const body = sel => inner.match(new RegExp(`${esc(sel)}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+        const rail = main.match(/(?:^|\})\s*\.application\.sheet\.actor \.character-sidebar-sheet\s*\{([^}]*)\}/)?.[1] ?? "";
+        const rows = main.match(/\.application\.sheet\.actor \.character-sidebar-sheet \.equipment-section \.items-sidebar-list\s*\{([^}]*)\}/)?.[1] ?? "";
+        equal(stableJson({
+            container: new RegExp(`${esc(tile)}\\s*\\{\\s*container:\\s*drpg-voice-tile / inline-size;`).test(kit),
+            column: /flex-direction:\s*column/.test(body(`${tile} .drpg-voice-tile-controls`)),
+            button: (body(`${tile} .drpg-voice-tile-controls > *`).match(/(?:min-)?(?:width|height):\s*24px/g) ?? []).length,
+            face: /padding:\s*3px 30px 2px 3px/.test(inner),
+            band: /right:\s*30px/.test(inner),
+            rail: /min-width:\s*calc\(12rem \* var\(--drpg-floor-scale, 1\)\)\s*!important/.test(rail),
+            zoom: /zoom:\s*var\(--drpg-floor-scale, 1\)/.test(rows)
+        }), stableJson({ container: true, column: true, button: 4, face: true, band: true, rail: true, zoom: true }),
+        "the compact voice tile's container rule and the sheet rail's floor and zoom, as served");
+    }],
+    ["R7335 - the room tile's fixed sizes follow the Interface scale under 80 % and hold from 80 % up (15.11.2026; the coordinator's item 4, the owner's 25 %): components.css writes the tile's padding and gap, the project band's offsets, the toggle's place and its size with a 24 px hit floor, the description's margins clear of that toggle, the search tokens' gaps, and under the glass the name's padding and brush, the notes place's column gap and the pips, each times `--drpg-floor-scale`, which is 1 from 80 % up", async () => {
+        /*
+         * Measured in Chromium on the glass harness (`?scale=`, the tile moved beside the notices by a taller clock, as
+         * glass-sweep's pin control moves it), before on 4a2beafb's components.css: at 50 % on 1366x768 the open
+         * description 0.8 lines tall in a 151x93 box (65x9 px); at 25 % on 1920x1080, in 82x45, no description drawn and
+         * the name under the pips and the 32 px toggle. After: 4.2 and 3.8 lines, every part inside the box; at 80 % and
+         * 100 % 3.1 and 2.3 lines, as before. Here, that the rules which did it are the ones served.
+         */
+        const kit = await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText).then(stripComments);
+        const F = "var\\(--drpg-floor-scale, 1\\)", TOG = `max\\(24px, calc\\(28px \\* ${F}\\)\\)`;
+        const has = (re, text = kit) => new RegExp(re).test(text);
+        equal(stableJson({
+            tile: has(`gap: calc\\(2px \\* ${F}\\);\\s*padding: calc\\(8px \\* ${F}\\) calc\\(12px \\* ${F}\\) calc\\(10px \\* ${F}\\);`),
+            band: has(`padding-bottom: calc\\(12px \\* ${F} \\+ var\\(--drpg-room-band\\)\\);`),
+            line: has(`left: calc\\(12px \\* ${F}\\);\\s*right: calc\\(12px \\* ${F}\\);\\s*bottom: calc\\(10px \\* ${F}\\);`),
+            toggle: has(`\\.drpg-room-tile-more \\{\\s*position: absolute;\\s*top: calc\\(6px \\* ${F}\\);\\s*right: calc\\(6px \\* ${F}\\);\\s*z-index: 1;\\s*width: ${TOG};\\s*height: ${TOG};`),
+            prose: has(`margin: calc\\(${TOG} \\+ 2px \\* ${F}\\) 0 calc\\(4px \\* ${F}\\);`),
+            notes: has(`column-gap: calc\\(8px \\* ${F}\\);`) && has(`margin: calc\\(6px \\* ${F}\\) calc\\(${TOG} \\+ 2px \\* ${F}\\) calc\\(4px \\* ${F}\\);`),
+            name: has(`padding: calc\\(1px \\* ${F}\\) calc\\(10px \\* ${F}\\) calc\\(2px \\* ${F}\\);`) && has(`inset: calc\\(1px \\* ${F}\\) calc\\(-5px \\* ${F}\\);`),
+            tokens: has(`gap: calc\\(3px \\* ${F}\\);\\s*align-items: center;\\s*margin-top: calc\\(1px \\* ${F}\\);`) && has(`gap: calc\\(4px \\* ${F}\\);\\s*margin-top: calc\\(3px \\* ${F}\\);`)
+                && has(`margin-left: calc\\(3px \\* ${F}\\);`),
+            pip: has(`#drpg-room-tile \\.drpg-hud-pip \\{\\s*width: calc\\(9px \\* ${F}\\);\\s*height: calc\\(9px \\* ${F}\\);`)
+        }), stableJson({ tile: true, band: true, line: true, toggle: true, prose: true, notes: true, name: true, tokens: true, pip: true }),
+        "the room tile's fixed sizes times the floor factor, as served");
     }],
     ["R3501 - Monokuma Legacy's sheet tab and its red grounds are readable (styles/danganronpa.css, tools/contrast-pairs.json; E48 K6, S12-25, S03-20, Q13): the active tab is Bone on Ink with the attention edge, the other Bone-on-Eye grounds the Eye's dark step, the theme's red lifted, and tools/contrast-pairs.json writes no Legacy pair `known` below AA", async () => {
         /*
@@ -56796,7 +56973,7 @@ const INVARIANTS = [
     ["R6053 - a rebuild that recuts sets what the cut seats riding the turn, and the turn's end ends it (scripts/glass.mjs `followTurn`, `rebuildAll`; E62 C6): the riders are the room tile beside the notices (under the clock the clock's column lays it) and its picture with it, the voice tile and its portrait, the notice tile and its plate, each on its own pane's tone; `rebuildAll` calls `followTurn` after the seats (`seatRoomArt`, `seatVoiceArt`, `seatNoteFrame`) and only for a turn that recuts; the riders' animations join the turn's (`posed`/`anims`, which the turn's end and its cancel end) on its move's length, linear over the sampled curve; and the counter is documented", async () => {
         /*
          * fix-113p, 13.11.2026. Red at ceb9e9c8: no `FOLLOWERS`, no `followTurn`. Read off the source: the riders' frames are
-         * R6052's, and the glass harness's per-frame reading in Chromium (`drpgFollowCheck`) is the browser's half.
+         * R6052's, and the glass harness's per-frame reading in Chromium (glass-sweep.mjs `--follow`) is the browser's half.
          */
         const G = await import("./glass.mjs");
         const sources = await moduleSources();
@@ -58210,10 +58387,11 @@ const INVARIANTS = [
          * window's roster of the dead went with it, E72 C6), classified in CENSUS.md. Merged with E93, E69 and E74 (1.2.111,
          * 13.11.2026): action-tail.mjs 1 (Tail Someone's targets, after `othersInRoom`) and facilities-gm.mjs 1 (a room
          * action's "for those present", after `occupantsOf`), classified in CENSUS.md. Merged with r112 (1.2.112,
-         * 13.11.2026): gm-team-dialog.mjs 2 (E101's `despairFlowMarkup`), classified in CENSUS.md.
+         * 13.11.2026): gm-team-dialog.mjs 2 (E101's `despairFlowMarkup`), classified in CENSUS.md. E56 part 2 (14.11.2026):
+         * monokuma.mjs 9 -> 8, E92 C1's `ownSpectator` removed (nothing called it); its CENSUS.md row says so.
          */
         const CENSUS = { "action-tail.mjs": 1, "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1, "facilities-gm.mjs": 1,
-            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
+            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
             "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 2, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
@@ -58595,6 +58773,88 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true, false, false, false, false]),
             "[Hope, critical, Despair, a failure, a trap, self-inflicted] - whether the opening hides the killer");
     }],
+    ["R7400 - a Remnant and a project token are drawn under every character whatever their sort (scripts/remnant-ring.mjs `traceLayer`, `keepUnderCharacters`, `paint`; owner-115 item 2): a trace's mesh goes to the sort layer just under Foundry's tokens, above its tiles and drawings, once - the primary group told to sort again only when the layer moved; a token with no mesh is left; `paint` puts a Remnant or a project token there before it asks whether the token is seen, and never a character", async () => {
+        /* owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci jest w tym samym miejscu co remnant,
+           postac zawsze niech bedzie na wierzchu". Foundry's primary group orders by elevation, then sortLayer, then sort
+           (fvtt-types 14.370, primary-canvas-object.d.mts), and Isometric Perspective 14.0.6 rewrites every token's sort by
+           depth (autosorting.js applyDepthSort), ties by id - so `sort: -10` held nothing. Stand-ins; nothing written. */
+        const R = await import("./remnant-ring.mjs");
+        ok(typeof R.keepUnderCharacters === "function" && typeof R.traceLayer === "function", "remnant-ring.mjs has no keepUnderCharacters or traceLayer");
+        if (typeof R.keepUnderCharacters !== "function" || typeof R.traceLayer !== "function") return;
+        const LAYERS = foundry.canvas?.groups?.PrimaryCanvasGroup?.SORT_LAYERS ?? {};
+        const TOKENS = LAYERS.TOKENS ?? 700, DRAWINGS = LAYERS.DRAWINGS ?? 600;
+        const primary = { sortDirty: false };
+        const mesh = { sortLayer: TOKENS };
+        const first = R.keepUnderCharacters({ mesh }, primary);
+        const dirtyFirst = primary.sortDirty;
+        primary.sortDirty = false;
+        const second = R.keepUnderCharacters({ mesh }, primary);
+        const read = { layer: R.traceLayer(), mesh: mesh.sortLayer, first, dirtyFirst, second, dirtySecond: primary.sortDirty,
+            noMesh: R.keepUnderCharacters({}, primary), between: R.traceLayer() > DRAWINGS && R.traceLayer() < TOKENS };
+        equal(stableJson(read), stableJson({ layer: TOKENS - 1, mesh: TOKENS - 1, first: true, dirtyFirst: true, second: false, dirtySecond: false,
+            noMesh: false, between: true }), "{the layer; the mesh's; moved; sort asked; again: not moved, not asked; no mesh; between the drawings and the tokens}");
+        const body = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/remnant-ring.mjs`).then(lfText), "paint") ?? "");
+        const at = { kind: body.indexOf("if (!isRemnant && !project)"), under: body.indexOf("keepUnderCharacters("), seen: body.indexOf("if (!token.visible)") };
+        ok(at.kind >= 0 && at.seen >= 0 && at.under > at.kind && at.under < at.seen,
+            `paint puts a trace under the characters after the character's way out and before the visibility check (${stableJson(at)})`);
+    }],
+    ["R7402 - a masked token's ring shows the \"?\" too, and gets its own picture back (scripts/mask-gm.mjs `maskPatch`, `lookOf`, `restorePatch`; owner-115 item 1b): the patch writes the mystery man as the dynamic ring's subject texture (v14's `ring.subject.texture`, fvtt-types 14.370 client/documents/token.d.mts RingSubjectSchema); the look kept holds the subject's own texture, and the patch back writes it", async () => {
+        /* owner-115 item 1b, 14.11.2026; the coordinator's road (a): a v14 token with the dynamic ring on may draw its subject
+           texture, which the mask did not touch, so the killer's art could stay on the ring. Pure readings. */
+        const K = await import("./mask-gm.mjs");
+        const token = { _source: { name: "Aiko Mori", texture: { src: "tokens/aiko.webp" }, ring: { enabled: true, subject: { texture: "tokens/aiko-subject.webp", scale: 1 } } } };
+        const look = K.lookOf(token);
+        const read = { patch: K.maskPatch()["ring.subject.texture"] ?? "none", kept: look.subject ?? "none",
+            back: K.restorePatch(look, "GONE")["ring.subject.texture"] ?? "none",
+            none: (patch => (Object.hasOwn(patch, "ring.subject.texture") ? patch["ring.subject.texture"] : "none"))(K.restorePatch(K.lookOf({ _source: { name: "B", texture: { src: "b.webp" } } }), "GONE")) };
+        equal(stableJson(read), stableJson({ patch: "icons/svg/mystery-man.svg", kept: "tokens/aiko-subject.webp", back: "tokens/aiko-subject.webp", none: null }),
+            "{the patch's subject texture; the look's; the patch back's; a token with no subject gets null back}");
+    }],
+    ["R7403 - while a mask stands, every private card's words name the masked character \"?\" to a reader outside it (scripts/secret.mjs `wordsFor`, `setNameMask`, `maskNames`; scripts/mask-gm.mjs `namesHiddenFrom`, `registerMasks`; owner-115 item 1b): a reader whose names are hidden reads \"?\" in the text and in attributes, a longer name that starts the same is left alone, and another reader reads the name; the names hidden from a player are the masked tokens' characters they do not own, none from a GM; the masks register the cut at ready", async () => {
+        /* owner-115 item 1b, 14.11.2026; the owner's principle via the coordinator: while the mask stands, the killer's identity is
+           secret from everyone not in on it - a Frisk, a Steal, a Palm and any card or onlooker line. One cut for every card:
+           `wordsFor`, which every private card's words pass through for each reader. Stand-ins; nothing written. */
+        const S = await import("./secret.mjs");
+        const K = await import("./mask-gm.mjs");
+        ok(typeof S.setNameMask === "function" && typeof K.namesHiddenFrom === "function", "secret.mjs has no setNameMask, or mask-gm.mjs no namesHiddenFrom");
+        if (typeof S.setNameMask !== "function" || typeof K.namesHiddenFrom !== "function") return;
+        const html = '<h3>Frisk - Chie Mori</h3><p data-tooltip="Chie Mori">Chie Mori frisks Aiko. Chie Moriarty stays.</p>';
+        const before = S.setNameMask(id => (id === "R7403P1000000000" ? ["Chie Mori"] : []));
+        let cut;
+        try { cut = [S.wordsFor("R7403P1000000000", html), S.wordsFor("R7403P3000000000", html)]; } finally { S.setNameMask(before); }
+        const users = new Map([["P1", { id: "P1", isGM: false }], ["P3", { id: "P3", isGM: false }], ["GM", { id: "GM", isGM: true }]]);
+        const chie = { name: "Chie Mori", testUserPermission: (u, level) => u.id === "P3" && level === "OWNER" };
+        const scenes = [{ tokens: [{ flags: { [MODULE_ID]: { masked: true } }, actor: chie }, { flags: {}, actor: { name: "Aiko", testUserPermission: () => false } }] }];
+        const hidden = ["P1", "P3", "GM"].map(id => K.namesHiddenFrom(id, { scenes, users }));
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText), "registerMasks") ?? "");
+        equal(stableJson({ cut, hidden, wired: /setNameMask\(\s*namesHiddenFrom\s*,\s*\{\s*stands:\s*anyMaskStands\s*\}\s*\)/.test(src) }), stableJson({
+            cut: ['<h3>Frisk - ?</h3><p data-tooltip="?">? frisks Aiko. Chie Moriarty stays.</p>', html],
+            hidden: [["Chie Mori"], [], []], wired: true
+        }), "{cut: the words for a reader the name is hidden from, and for one it is not; hidden: from p1, from Chie's own player, from a GM; wired: registerMasks hands the cut its names}");
+    }],
+    ["R7404 - a list of the people in a room names a masked character \"?\" to a player who does not own them (scripts/mask-gm.mjs `nameAsSeen`; palm.mjs, action-tail.mjs, action-tamper.mjs, handover.mjs, call-pickers.mjs, monocub.mjs; frisk.mjs's ask; owner-115 item 1b): a masked character reads \"?\" to another player, its name to its own player and to a GM, and an unmasked one its name to all; the six pickers of a room's people draw `nameAsSeen`, none `a.name`; a Frisk's ask names a masked searcher by `namesHiddenFrom`", async () => {
+        /* owner-115 item 1b, 14.11.2026; the owner's principle via the coordinator: while the mask stands the killer's identity
+           is secret from everyone not in on it. Stand-ins and source; nothing written. Written with the change: the six
+           pickers' red is their `a.name`, which this reads as gone. */
+        const K = await import("./mask-gm.mjs");
+        const p1 = { id: "P1", isGM: false }, p3 = { id: "P3", isGM: false }, gm = { id: "GM", isGM: true };
+        const chie = { name: "Chie Mori", testUserPermission: (u, level) => u.id === "P3" && level === "OWNER" };
+        const seen = [p1, p3, gm].map(user => K.nameAsSeen(chie, { user, masked: true })).concat(K.nameAsSeen(chie, { user: p1, masked: false }));
+        const files = { "palm.mjs": "choosePalm", "action-tail.mjs": null, "action-tamper.mjs": null, "handover.mjs": null, "call-pickers.mjs": null, "monocub.mjs": null };
+        const drawn = {};
+        for (const file of Object.keys(files)) {
+            const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+            drawn[file] = src.includes("nameAsSeen(");
+        }
+        const frisk = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/frisk.mjs`).then(lfText));
+        const askAt = frisk.indexOf("action: FRISK_ASK, askId, who,");
+        const ask = askAt >= 0 ? lineAround(frisk, askAt) : "";
+        equal(stableJson({ seen, drawn, ask: [/who: searcher\.name, name: target\.name, ms:/.test(frisk), /namesHiddenFrom\(id\)/.test(frisk), ask.length > 0] }), stableJson({
+            seen: ["?", "Chie Mori", "Chie Mori", "Chie Mori"],
+            drawn: Object.fromEntries(Object.keys(files).map(f => [f, true])),
+            ask: [false, true, true]
+        }), "{seen: masked Chie to p1, to her own player, to a GM, unmasked to p1; drawn: each picker file draws nameAsSeen; ask: the player's ask still names searcher.name, it reads namesHiddenFrom, its line found}");
+    }],
     ["R6028 - a masked token is a \"?\" with Foundry's mystery man and one flag that names nobody, and its look comes back exactly (scripts/mask-gm.mjs `lookOf`, `maskPatch`, `restorePatch`, `isMaskedToken`; E69 C8): the patch writes the name \"?\", the mystery man, no ring, no name or bars drawn and `masked`; the look kept is the token's own name, picture, ring and display modes; the patch back writes those and takes the flag off; the flag alone marks a token masked", async () => {
         /* E69 C8, 13.11.2026. Pure readings. Red at f7e1721d. */
         let K = null;
@@ -58609,9 +58869,10 @@ const INVARIANTS = [
             namesNobody: !JSON.stringify(K.maskPatch()).includes("Aiko")
         };
         equal(stableJson(read), stableJson({
-            patch: { name: "?", "texture.src": "icons/svg/mystery-man.svg", "ring.enabled": false, displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
-            look: { name: "Aiko Mori", src: "tokens/aiko.webp", ring: true, displayName: 30, displayBars: 20 },
-            back: { name: "Aiko Mori", "texture.src": "tokens/aiko.webp", "ring.enabled": true, displayName: 30, displayBars: 20, [`flags.${MODULE_ID}.masked`]: "GONE" },
+            // owner-115 item 1b (R7402): the ring's subject texture is masked too and put back; changed on purpose.
+            patch: { name: "?", "texture.src": "icons/svg/mystery-man.svg", "ring.enabled": false, "ring.subject.texture": "icons/svg/mystery-man.svg", displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
+            look: { name: "Aiko Mori", src: "tokens/aiko.webp", ring: true, displayName: 30, displayBars: 20, subject: null },
+            back: { name: "Aiko Mori", "texture.src": "tokens/aiko.webp", "ring.subject.texture": null, "ring.enabled": true, displayName: 30, displayBars: 20, [`flags.${MODULE_ID}.masked`]: "GONE" },
             flag: [true, false, false], namesNobody: true
         }), "{patch; look kept; patch back; flag: [flagged, not, a token merely named ?]; the patch names nobody}");
     }],
@@ -60162,7 +60423,7 @@ const INVARIANTS = [
     ["R4552 - the Death fade Sound row: in the incident group, played by default with the death's own file, its own file when one is set (E62 C3b, the storyboard's 9)", async () => {
         /*
          * E62 C3b, 13.11.2026. config.mjs `SFX_EVENTS.deathFade` and sfx-play.mjs `soundsFor`, read with the Sound map
-         * handed in through the setting's own reader on this browser (`withSetting`). Red at 9a74628: no row.
+         * handed in through the setting's own reader on this browser (`game.settings.get` stood in for the Sound map's key alone). Red at 9a74628: no row.
          */
         const { SFX_EVENTS } = await import("./config.mjs");
         const P = await import("./sfx-play.mjs");
@@ -60588,8 +60849,11 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
-    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of equal columns", async () => {
+    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of six equal columns, in one row (the owner, 14.11.2026: \"koniecznie w 1 rzedzie\"), three only on the row the fit gave up on (`data-drpg-trait-fit=\"wrap\"`, sheet-header.mjs `fitTraitRow`)", async () => {
         /*
+         * Red at 21973f06 (1.2.115's assembly) for the one row: the grid was `repeat(auto-fill, ...)`, six columns only where
+         * six fit at the widest name's full width and three elsewhere - 3 over 3 on the default 850 px sheet in both themes
+         * (Chromium, 14.11.2026), which the owner's photo of 1.2.114 showed.
          * Red at ceb9e9c8 (1.2.112). Daggerheart's name is `flex: 1` (a 0 basis) with `word-break: break-word`
          * (header.less:44-53 at 2.12.8, unchanged since 2.6.5), so beside the name row's buttons it shrinks to one glyph's
          * width: the captioned Level Up and Give / take (sheet-header.mjs `headerButton`, 1.2.105) stand `flex: 0 0 auto` and,
@@ -60624,12 +60888,15 @@ const INVARIANTS = [
             trait.dataset.attribute = "presence";
             const plate = trait.appendChild(Object.assign(document.createElement("div"), { className: "trait-name drpg-stat-named" }));
             const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const columns = v(traits, "grid-template-columns");
+            traits.dataset.drpgTraitFit = "wrap";
+            const wrapped = v(traits, "grid-template-columns");
             return [v(row, "flex-wrap"), v(name, ["flex", "flex-basis"]), v(name, "word-break"), v(name, "overflow-wrap"),
-                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"])];
+                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"]), columns, wrapped];
         };
-        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center"];
+        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center", "repeat(6, minmax(0, 1fr))", "repeat(3, minmax(0, 1fr))"];
         equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
-            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column]");
+            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column; the row's columns; the columns of a row the fit gave up on]");
     }],
     ["R5761 - a disabled field in Foundry's and other modules' windows reads as disabled in both themes and an enabled one is left as it was (the owner, 13.11.2026, on Dice So Nice's colour fields, which it disables itself unless the colorset is custom - module/ui/DiceConfig.js `toggleCustomColors`, 6.4.5): read through the module's cascade on Dice So Nice's markup (partial-appearance.hbs: a text field and its `input[type=color]` twin) in its ApplicationV2 frame, a disabled text field, colour field and select take the not-allowed cursor and a lowered opacity, the colour field greyed (`grayscale`), Legacy's disabled text its dim ink; the enabled ones take none of it", async () => {
         /*
@@ -61169,6 +61436,39 @@ const INVARIANTS = [
             yields: [["keyReveal", "present"], ["newRule", "motive", "publicAnnouncement"]]
         }), "{each floor opening's sounds; scrumTurn: [a Scrum turn of mine, the same again, the next of mine, another's]; yields: [truthBullet, despairCall]}");
     }],
+    ["R7175 - the floor's mute knows a player by every student they own (E59 C-115, CHAINS.md B-T1): the floor's speaker is a student the trial seated (vote.mjs `trialParticipants`: the first in `game.actors`), and the mute compared the speakers with one student of the account (voice.mjs `trialVoiceActorOf`: the lowest id; the voice row's character in `micHold` and `moduleHoldsMic`) - a player with two students could be held on their own turn; voice.mjs `floorHold` and the settle ask `holdsTheFloor`, which answers true for any student whose player owns a speaker", async () => {
+        const V = await import("./voice.mjs");
+        must(typeof V.holdsTheFloor === "function", "voice.mjs has no holdsTheFloor");
+        const player = { id: "R7175p", isGM: false }, other = { id: "R7175o", isGM: false };
+        const char = (id, owner) => ({ id, type: "character", testUserPermission: (u, level) => level === "OWNER" && u.id === owner.id });
+        const a = char("R7175a", player), b = char("R7175b", player), c = char("R7175c", other);
+        const actors = [a, b, c], users = [player, other];
+        const read = {
+            ownSecond: V.holdsTheFloor(a, ["R7175b"], { actors, users }),
+            own: V.holdsTheFloor(b, ["R7175b"], { actors, users }),
+            another: V.holdsTheFloor(a, ["R7175c"], { actors, users }),
+            none: V.holdsTheFloor(a, [], { actors, users })
+        };
+        equal(stableJson(read), stableJson({ ownSecond: true, own: true, another: false, none: false }),
+            "{a student of the speaker's player, the speaker, another player's student, no speaker: whether each holds the floor}");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText));
+        ok(/\bholdsTheFloor\(/.test(fnSource(src, "floorHold")) && /\bholdsTheFloor\(/.test(fnSource(src, "settleTrialVoices")), "floorHold or the settle still compares the speakers with one student alone");
+    }],
+    ["R7166 - a Panic Round's first speaker hears the *your turn* sound alone (E59 C-115, CHAINS.md B-T8; GM 15, \"The speaker ... hears the your turn sound alone\"): sfx.mjs `floorSounds` plays \"Panic Round starts\" on every other browser as the round opens, and on the browser of the speaker whose turn opens it only \"Your turn\" - the two played in one pass there; a Closing's start and its first turn are two writes, and stay two sounds", async () => {
+        const S = await import("./sfx.mjs");
+        const none = { known: true, floorOpen: false, floorMode: null, turnStep: null, closingAt: null };
+        const panic = { active: true, mode: "panic", holderId: "O", round: { mode: "panic", order: ["O", "P"], index: 0, step: 1, openedAt: 5 } };
+        const first = S.floorSounds(none, panic, { mine: id => id === "O" });
+        const next = S.floorSounds({ ...first.was, known: true }, { ...panic, holderId: "P", round: { ...panic.round, index: 1, step: 2 } }, { mine: id => id === "P" });
+        const read = {
+            speaker: first.play,
+            other: S.floorSounds(none, panic, { mine: () => false }).play,
+            nextSpeaker: next.play,
+            testimony: S.floorSounds(none, { ...panic, mode: "testimony", round: { ...panic.round, mode: "testimony" } }, { mine: id => id === "O" }).play
+        };
+        equal(stableJson(read), stableJson({ speaker: ["yourTurn"], other: ["panicStart"], nextSpeaker: ["yourTurn"], testimony: ["yourTurn"] }),
+            "{the sounds as a Panic Round opens: its first speaker's, another's; the next speaker's; a Testimony's first speaker's}");
+    }],
     ["R7107 - the sounds and the music the survey found missing (E110 part 3, 14.11.2026): three new effects in the catalogue with their words in English and Polish - \"present\" (the Present's card, the whole table), \"stashFound\" (a Find Stash's find, the searcher and the GMs) and \"bedroomEntered\" (the bedroom's owner alone) - each on its card's flag, a Find Stash's miss playing \"searchNothing\"; and the vote's own music (music-states.mjs `voteMusicPlays`) from the vote's opening to the verdict, only with a playlist mapped", async () => {
         /* Pure but for the catalogue and three sources read. Red at 98f60442: no such keys, no voteMusicPlays. */
         const { SFX_EVENTS } = await import("./config.mjs");
@@ -61246,6 +61546,359 @@ const INVARIANTS = [
         const watch = fnSource(map, "showProjectCard").match(/watch:\s*\{[^}]*\}/)?.[0] ?? "";
         equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
             "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
+    }],
+    ["R7120 - the owner's text answers on DRPG-Q113 (E109, 14.11.2026): Overflow.hopeBlocked says only that the darkening blocks Hope (#6, Q-A1), TraitRuling.propose reads as the bridge's Send (#16, Q-A11), the incident's stage after the fight is \"Tamper\" on the tracker and on the cards (#11, Q-A6), Prepare the Weapon's note names no tool the code never checks (#49, H13), and Season.resetKeeps keeps no promise the assignments group breaks (#53, H20)", async () => {
+        /*
+         * Red at 9e7e3d78 on the first four (hopeBlocked named Hope Calls and "You keep your Hope"; propose read
+         * "Propose"; the stage label "Resolution" and the cards "the clean-up"; the note "unless the killer already has the
+         * tool"). The fifth was green there already: E71's B15 had dropped "who watches whom" from resetKeeps; it is held
+         * here so the text cannot drift back while season-wipe.mjs `RESET_STEPS` clears the assignments.
+         */
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const { INDIRECT_MURDER } = await import("./config.mjs");
+        const { RESET_STEPS } = await import("./season-wipe.mjs");
+        /* The cards that name the stage (afterInterrupted's English does not; its Polish did, "przed sprzątaniem"): each
+           names it "the Tamper stage" / "etap Tamper" now. "clean them up", "posprzątać" and "żadne sprzątanie" are the activity, and stay. */
+        const named = ["openedSelfNote", "selfWentThrough", "resolutionNoteSelf", "resolutionNote", "ranOutTwoKillersNote"];
+        const cards = { en: named, pl: [...named, "afterInterrupted"] };
+        const read = lang => {
+            const f = flats[lang];
+            const note = lang === "en" ? INDIRECT_MURDER.subProjects[0].note : f["DRPG.Config.INDIRECT_MURDER.subProjects.0.note"];
+            return [
+                f["DRPG.Overflow.hopeBlocked"],
+                f["DRPG.TraitRuling.propose"] === f["DRPG.Bridge.send"],
+                f["DRPG.Murder.stage.resolution"], f["DRPG.Remnant.action.resolution"],
+                cards[lang].map(k => `DRPG.Murder.${k}`).filter(k => typeof f[k] !== "string" || (lang === "en" && /the clean-up/i.test(f[k]))
+                    || !(lang === "en" ? /the Tamper stage/i : /etap\w* Tamper/).test(f[k])),
+                typeof note === "string" && !(lang === "en" ? /\btool\b/i : /narzędzi/i).test(note),
+                RESET_STEPS.includes("assignments") && typeof f["DRPG.Season.resetKeeps"] === "string"
+                    && !(lang === "en" ? /watches/i : /pilnuje/i).test(f["DRPG.Season.resetKeeps"])
+            ];
+        };
+        equal(stableJson([read("en"), read("pl")]), stableJson([
+            ["The darkening blocks Hope this time of day.", true, "Tamper", "Tamper", [], true, true],
+            ["Zaciemnienie blokuje Hope o tej porze dnia.", true, "Tamper", "Tamper", [], true, true]
+        ]), "[hopeBlocked, propose = Bridge.send, the stage label, the Remnant's stage label, the cards not naming the Tamper stage, Prepare the Weapon's note without the tool, resetKeeps without who watches whom] in English, then Polish");
+    }],
+    ["R7121 - the critical's hint line is on Observe's and Analyze's critical cards only (E109, DRPG-Q113 #43, Q-NC-10; the owner, 14.11.2026: \"Ograniczyc\"): call-gm.mjs `callCardHtml` draws DRPG.Bridge.criticalHint only when its caller says the card owes one (`criticalHint`), action-observe.mjs and action-analyze.mjs say so, and the Reroll's re-asked ruling says so for an Observe or an Analyze alone", async () => {
+        /* Red at 9e7e3d78: a critical roll drew the line on every card (a Dynamic action's, a Search's), whatever the caller. */
+        const B = await import("./gm-bridge.mjs");
+        const hint = game.i18n.localize("DRPG.Bridge.criticalHint");
+        const roll = { trait: "instinct", total: 22, isCritical: true };
+        const drawn = opts => {
+            const card = document.createElement("template");
+            card.innerHTML = B.callCardHtml({ name: "R7121 Student" }, { title: "R7121", ...opts });
+            return card.content.textContent.includes(hint);
+        };
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const callOf = (text, fn) => (fnSource(text, fn).match(/callGm\(actor, \{[\s\S]*?\n {4}\}\);/)?.[0] ?? "");
+        const observe = callOf(await src("action-observe.mjs"), "ruleObserve"), analyze = callOf(await src("action-analyze.mjs"), "askForHint");
+        const reroll = fnSource(await src("reroll.mjs"), "settleGmRuling");
+        equal(stableJson([drawn({ roll }), drawn({ roll, criticalHint: true }), drawn({ roll: { ...roll, isCritical: false }, criticalHint: true }),
+            /criticalHint:\s*true/.test(observe), /criticalHint:\s*true/.test(analyze),
+            /criticalHint:\s*\[\s*"observe",\s*"analyze"\s*\]\.includes\(bookmark\.actionKey\)/.test(reroll)]),
+        stableJson([false, true, false, true, true, true]),
+            "[a critical card that owes no hint draws the line, one that owes it, a card that owes it on a roll no critical, Observe's call says it owes, Analyze's, the Reroll's re-asked ruling by the action]");
+    }],
+    ["R7122 - Analyze's roll card comes before its result card, as Find Stash's does (E109, DRPG-Q113 #40, Q-NC-7; the owner, 14.11.2026: \"Zmienic kolejnosc\"): action-analyze.mjs `analyseBullet` reads the roll in hand, then posts the roll card (`whisperToOwner`, awaited, so its message exists on the server before the request leaves), then asks `requestAnalyzeResolve`, whose result card the GM's client posts only on that request", async () => {
+        /*
+         * Red at 9e7e3d78: the roll card was posted after `requestAnalyzeResolve` had answered, so it landed under the
+         * result card. Not the bridge's timing: the order follows from the awaits, read here off the source. A refusal is
+         * still said after the card (the bridge's toast), as Find Stash's and Find Passage's are.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-analyze.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "analyseBullet");
+        const at = needle => body.indexOf(needle);
+        const [hand, card, ask] = [at("rollInHand(actor)"), at("await whisperToOwner("), at("await requestAnalyzeResolve(")];
+        const stash = fnSource(src, "locateStash");
+        equal(stableJson([hand >= 0 && card >= 0 && ask >= 0, hand < card, card < ask, /rollId(?:,|\s*\})/.test(body.slice(ask)),
+            stash.indexOf("await whisperToOwner(") < stash.indexOf("await requestStashSearch(")]),
+        stableJson([true, true, true, true, true]),
+            "[analyseBullet reads the roll in hand, posts its card and asks, the roll read before the card, the card before the ask, the ask sends the roll read first, Find Stash's card before its ask]");
+    }],
+    ["R7123 - Move the Body's number to beat has the clean-up's floor, `CLEANUP.minDc`, as every other clean-up roll's (E109, DRPG-Q113 #48, H11; the owner, 14.11.2026: change): cleanup.mjs `resolveStageSix` takes the tool's relief off the threshold through `atLeastFloor`, not `Math.max(0, ...)`", async () => {
+        /*
+         * Red at 9e7e3d78: the relief stopped at 0. No tier reaches the floor today (16 less a tier of at most 3), so the
+         * change moves no roll a table can make; it is the one rule written once. Read off the source, as no fixture can
+         * reach the floor; `atLeastFloor` itself is asked with a relief that would.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "resolveStageSix");
+        const C = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        equal(stableJson([/const threshold = atLeastFloor\(\(def\.threshold \?\? 0\) - relief\)/.test(body), /Math\.max\(0,\s*\(def\.threshold/.test(body),
+            C.atLeastFloor(16 - 12), CLEANUP.minDc]),
+        stableJson([true, false, 8, 8]),
+            "[resolveStageSix floors the threshold with atLeastFloor, it still floors at 0, atLeastFloor(16 - 12), CLEANUP.minDc]");
+    }],
+    ["R7124 - the GM's session log keeps the newest 60 rows and counts the ones it dropped, and diagnose()'s text says so (E109, DRPG-Q113 #60, Q-E43-6, E43-F7; the owner, 14.11.2026: \"Zmieniamy\"): utils.mjs `keepNewest` drops the oldest row of a full log, `record` keeps through it, and diagnostics.mjs `failureText` names the count dropped", async () => {
+        /*
+         * Red at 9e7e3d78: a full log refused every new row, so a burst of refusals left the newest out (E43's matrix read
+         * 17 of its 73 as unlogged). Asked on a log of its own, never this browser's: tier 1 writes nothing, and a GM's
+         * real log at a table is theirs.
+         */
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const log = [];
+        let dropped = 0;
+        for (let i = 1; i <= 75; i++) dropped += U.keepNewest(log, { level: "warn", message: `row ${i}`, stack: null, at: i, count: 1 }, 60);
+        const text = D.failureText([{ level: "warn", message: "row 75", stack: null, at: 0, count: 1 }], 15);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson([log.length, log[0]?.message, log.at(-1)?.message, dropped, /keepNewest\(sessionLog,/.test(fnSource(src, "record")),
+            typeof U.sessionFailuresDropped === "function", /15 older rows? (?:were|was) dropped/.test(text), D.failureText([], 0)]),
+        stableJson([60, "row 16", "row 75", 15, true, true, true, "Nothing has failed since this page loaded."]),
+            "[rows kept, the oldest kept, the newest kept, rows dropped, record keeps through keepNewest, the dropped count is read, the report names it, an empty log's report]");
+    }],
+    ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
+        /*
+         * Red at 9e7e3d78: there was no replay (E99's STATUS: "there is no board to replay"). Asked with the table's switch
+         * off and no sound (`on: false, sound: false`), so tier 1 draws nothing on a GM's screen and plays nothing; the
+         * road is the one a live replay takes up to the drawing.
+         */
+        const S = await import("./sequence.mjs");
+        ok(typeof S.replayCaseSummary === "function", "sequence.mjs exports no replayCaseSummary - there is no replay to measure");
+        const flag = { at: 7125, chapter: 1, correct: true, nodes: [{ role: "evidence", name: "R7125 knife", text: "" }], links: [] };
+        const card = isGM => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID && key === "caseBoard" ? flag : undefined) });
+        const quiet = { on: false, sound: false };
+        const played = [S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(false), quiet)];
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const ui = await src("trial-floor-ui.mjs"), cs = await src("case-summary.mjs");
+        const offered = /\.\.\.\(progress\.summaryShown && !finalNow\s*\?\s*\[\{ action: "caseSummaryReplay"/.test(ui);
+        const wired = /caseSummaryReplay: async \(\) => \(await import\("\.\/case-summary\.mjs"\)\)\.replayCaseSummary\(\)/.test(ui);
+        const body = fnSource(cs, "replayCaseSummary");
+        const writes = /setTrialProgress|ChatMessage\.create|\.update\(|setSetting/.test(body);
+        equal(stableJson([game.user.isGM ? played : ["off", "off", null], offered, wired, /summaryShown/.test(body), writes]),
+            stableJson([["off", "off", null], true, true, true, false]),
+            "[the replays of a GM's card twice and of a player's card, the console offers it once the summary is out, the button runs case-summary.mjs's replay, which finds this trial's card, and writes nothing]");
+    }],
+    ["R7330 - the six statistics' row gives way in the owner's order and stops at the first step that fits (sheet-header.mjs `traitFitStep`; the owner, 14.11.2026, \"koniecznie w 1 rzedzie\"): the gap, then the plate's padding, then the names' letter-spacing, then the mark above the name; three columns only where none of them fits. Fed the widths Chromium measured on Daggerheart 2.12.8's stylesheet with the module's sheets (14.11.2026): Legacy at 850 px moves the mark above, Legacy at 667 px fits nothing, the glass at 850 px stops at the letter-spacing and at 667 px at the mark above, and every sheet wider than six full-width names keeps its row as drawn", async () => {
+        /*
+         * Red at 21973f06: no `traitFitStep` - the row wrapped to 3 over 3 wherever six full-width names did not fit.
+         * Pure: a step is judged from the widths a measure answers for it (the widest statistic, the column gap, the mark's
+         * overhang beside the name, the row's width), the numbers below those Chromium read for each step. Nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        /* [need with the mark beside, need with its padding cut, need at letter-spacing 0, need with the mark above] for
+           "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
+           (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
+        const sheet = (beside, cut, untracked, above) => row => step => {
+            const need = step.includes("short") ? 52 : step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
+            const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
+            return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
+        const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
+        /* Legacy at 667 takes the short names since they came in (R7333): at them a statistic is its value's box, 52 px. */
+        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["above track short", "above track", "", "above track", "gap pad track", ""],
+            ["", "gap", "gap pad", "gap pad track", "above track", "above track short"]]),
+            "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
+    }],
+    ["R7126 - the Key limit's line counts the rows the GM has filled or placed (E109, DISAGREEMENTS.json D22, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `keyRowsUsed` counts a slot with a trace or any of its four words, and both lines that say \"{used} of {limit}\" (investigation.mjs's planner and the Map's summary) take it, not min(slots, limit)", async () => {
+        /* Red at c87c2e8c: no keyRowsUsed, and both lines wrote Math.min(plan.entries.length, limit) - the plan always holds
+           five slots, so a limit of five or less read "5 of 5 used" with nothing written. */
+        const K = await import("./key-remnants.mjs");
+        ok(typeof K.keyRowsUsed === "function", "key-remnants.mjs exports no keyRowsUsed - nothing counts the rows used");
+        const used = K.keyRowsUsed([{ name: "Knife" }, {}, { tokenId: "T1" }, { note: "  " }, { text: "", analysis: "read" }, { name: "", text: "" }]);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const sites = [...src.matchAll(/DRPG\.Investigation\.keyLimitLine", \{\s*used: ([^,]+),/g)].map(m => m[1].trim());
+        equal(stableJson([used, sites]), stableJson([3, ["keyRowsUsed(plan.entries)", "keyRowsUsed(plan.entries)"]]),
+            "[the rows a plan of six counts used (a name, a trace, an analysis), what each keyLimitLine site passes as {used}]");
+    }],
+    ["R7127 - the Investigation's Save says how many Remnants it changed, not how many writes (E109, DISAGREEMENTS.json D23, decided by the coordinator on the owner's delegation, 14.11.2026): investigation.mjs `applyDashboardSave` counts the Remnants a patch reached once each (a set of the rows' keys), so one Remnant whose words and band both changed reads \"Updated 1 Remnant.\"", async () => {
+        /* Red at c87c2e8c: `tracesChanged++` after the words' write and again after the flags' write. Read off the source:
+           the Save writes the world (tier 2's tests drive it). */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "applyDashboardSave");
+        equal(stableJson([/tracesChanged\+\+/.test(body), (body.match(/changed\.add\(row\.key\)/g) ?? []).length, /const tracesChanged = changed\.size/.test(body)]),
+            stableJson([false, 2, true]), "[a write counted once more, the Remnant added to the set after each write, the count read off the set]");
+    }],
+    ["R7128 - the Key Remnant window's intro counts the planned clues it offers (E109, DISAGREEMENTS.json D24, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `openKeyRemnantHere` hands createHereIntro the open slots' count (`open.length`), the rows its Which planned clue list holds, and the text says those are the ones not on the map", async () => {
+        /* Red at c87c2e8c: {n} was plan.entries.length, every slot, while the list offers only the open ones. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/key-remnants.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "openKeyRemnantHere");
+        const flats = {};
+        for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
+        const forms = lang => Object.entries(flats[lang]).filter(([k]) => k.startsWith("DRPG.Investigation.createHereIntro.")).map(([, v]) => v);
+        equal(stableJson([/plural\("DRPG\.Investigation\.createHereIntro", \{ n: open\.length \}\)/.test(body),
+            forms("en").every(v => /not on the map yet/.test(v) && !/\bif it is\b/.test(v)), forms("pl").every(v => /nie ma jeszcze na mapie/.test(v) && !/jeśli/.test(v))]),
+        stableJson([true, true, true]), "[the intro counts the open slots, every English form says the clues are not on the map yet without an if, every Polish form]");
+    }],
+    ["R7129 - the floor switcher's tooltip is a GM's own where a GM or the Mastermind reads it (E109, DISAGREEMENTS.json D40, decided by the coordinator on the owner's delegation, 14.11.2026): fog.mjs `renderFloorSwitcher` writes DRPG.Fog.floorsHintGm for a viewer offered every floor and DRPG.Fog.floorsHint for a player, and both keys have words in both languages", async () => {
+        /* Red at c87c2e8c: one tooltip for everybody, the player's ("the floor your character is on"), shown to a GM too. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "renderFloorSwitcher"), caller = fnSource(src, "floorSwitcher");
+        const flats = {};
+        for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
+        const words = key => ["en", "pl"].every(lang => typeof flats[lang][key] === "string" && flats[lang][key].trim() !== "");
+        equal(stableJson([/everyFloor \? "DRPG\.Fog\.floorsHintGm" : "DRPG\.Fog\.floorsHint"/.test(body), /renderFloorSwitcher\(scene, offer, here, \{ everyFloor: Boolean\(viewer\?\.everyFloor\) \}\)/.test(caller),
+            words("DRPG.Fog.floorsHintGm"), words("DRPG.Fog.floorsHint")]),
+        stableJson([true, true, true, true]), "[the tooltip by who is offered every floor, the caller hands the viewer's, the GM's key has words in both languages, the player's]");
+    }],
+    ["R7130 - a held Key fee can be charged again from its own card (E109, DISAGREEMENTS.json D27, D28, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `chargeForUnfoundKeys` whispers the held card with a \"Charge the Key fee\" button and its flag; a GM's browser wires it (`wireChargeHeld`) to `askToChargeForUnfoundKeys`, the existing keys.charge road on the primary, which holds again while an answer key is still missing; and the card's words name that button", async () => {
+        /* Red at c87c2e8c: the card said the charge \"can be made again after that\" and no control asked it again. */
+        const K = await import("./key-remnants.mjs");
+        ok(typeof K.wireChargeHeld === "function", "key-remnants.mjs exports no wireChargeHeld - the held card has no button to wire");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/key-remnants.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const charge = fnSource(src, "chargeForUnfoundKeys"), wire = fnSource(src, "wireChargeHeld");
+        const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const flats = {};
+        for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
+        const names = lang => Object.entries(flats[lang]).filter(([k]) => k.startsWith("DRPG.Case.chargeHeld.")).every(([, v]) => v.includes(flats[lang]["DRPG.Case.chargeAgain"]));
+        equal(stableJson([/data-drpg-key-charge/.test(charge), /keyChargeHeld: true/.test(charge), /askToChargeForUnfoundKeys\(\)/.test(wire), /cardFlag\(message, "keyChargeHeld"\)/.test(wire),
+            /wireChargeHeld/.test(bridge), typeof flats.en["DRPG.Case.chargeAgain"] === "string" && names("en"), typeof flats.pl["DRPG.Case.chargeAgain"] === "string" && names("pl")]),
+        stableJson([true, true, true, true, true, true, true]),
+            "[the held card carries the button, its flag, the button asks the primary's charge, it is wired by the card's flag, a GM's browser wires it, every English form names the button, every Polish form]");
+    }],
+    ["R7331 - the Interface scale reaches down to 25 % (the owner, 14.11.2026: \"Chcialbym powiekszyc tez zakres zmniejszenia ui (aktualnie minimum to 0.8, celujmy w 0.25\"): settings.mjs states the range once (`UI_SCALE`: 0.25 to 1.4 by 0.05), the setting is registered with it, and `clampSlider` holds a stored value to it - 0.25 and 1.4 kept, below and above them clamped, a value that is no number read as 1; the setting's hint names 25% and 140% in both languages, and the window's line under the slider (`DRPG.SettingsWindow.scaleSmall`, the hint itself stays one line, R4061) says below 80% the text is smaller than the module's readable size", async () => {
+        /*
+         * Red at adc15d2d: registered 0.8 to 1.4, `sliderScale` clamped at 0.8, no `UI_SCALE` and no `clampSlider`, the hints
+         * said 80% to 140%. Read: the registration, a pure clamp, both language files; nothing written.
+         */
+        const S = await import("./settings.mjs");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.uiScale}`);
+        const clamp = typeof S.clampSlider === "function" ? S.clampSlider : null;
+        const lang = async code => (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json())).DRPG;
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const says = d => [/25\s?%/.test(d.Settings.uiScale.hint) && /140\s?%/.test(d.Settings.uiScale.hint), /80\s?%/.test(d.SettingsWindow.scaleSmall ?? "")];
+        equal(stableJson([reg?.range ?? null, S.UI_SCALE ?? null, clamp ? [0.1, 0.25, 0.5, 0.8, 1, 1.4, 2, Number.NaN, "x"].map(clamp) : null, says(en), says(pl)]),
+            stableJson([{ min: 0.25, max: 1.4, step: 0.05 }, { min: 0.25, max: 1.4, step: 0.05, readable: 0.8 }, [0.25, 0.25, 0.5, 0.8, 1, 1.4, 1.4, 1, 1], [true, true], [true, true]]),
+            "[the registered range; UI_SCALE; the clamp of 0.1, 0.25, 0.5, 0.8, 1, 1.4, 2, NaN and a word; the English hint names 25% and 140%, the window's small-scale line 80%; the Polish the same]");
+    }],
+
+    ["R7332 - under 80 % the readability floor follows the Interface scale down in proportion, and from 80 % up it holds (the owner's 25 %, 14.11.2026; R60 keeps the 11 px from 80 % up): settings.mjs `floorScaleOf` is the slider over 0.8 under it and 1 from it, `applyTheme` stamps it as `--drpg-floor-scale` on the document and the body, and every 11 px floor the module's served sheets write reads it - no bare `max(11px` or `min(11px` is left; under the glass the floor (`--drpg-sg-floor`) already rides on the type scale, which carries the slider", async () => {
+        /*
+         * Red at adc15d2d: no `floorScaleOf`, no `--drpg-floor-scale`, 24 floors written `max(11px, ...)` (13 in
+         * danganronpa.css, 11 in components.css) and one `min(11px, 0.6875rem)`: at 25 % the words would have stood at
+         * 11 px in boxes drawn at a quarter. Read: a pure function, the settings source and the served sheets' text.
+         */
+        const S = await import("./settings.mjs");
+        const of = typeof S.floorScaleOf === "function" ? S.floorScaleOf : null;
+        const settingsSrc = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        const stamped = /setProperty\("--drpg-floor-scale"/.test(settingsSrc) && /floorScaleOf\(sliderScale\(\)\)/.test(settingsSrc);
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        let bare = 0, scaled = 0;
+        for (const href of manifest.styles ?? []) {
+            const css = (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            bare += (css.match(/(?:max|min)\(\s*11px/g) ?? []).length;
+            scaled += (css.match(/calc\(11px \* var\(--drpg-floor-scale, 1\)\)/g) ?? []).length;
+        }
+        const glass = /--drpg-sg-floor:\s*calc\(21px \* var\(--drpg-sg-scale, 1\)\)/.test(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        must(scaled + bare > 20, `${scaled + bare} floors read - the sheets were not read`);
+        equal(stableJson([of ? [0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4].map(of) : null, stamped, bare, scaled >= 25, glass]),
+            stableJson([[0.3125, 0.5, 0.625, 0.9875, 1, 1, 1], true, 0, true, true]),
+            "[floorScaleOf at 0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4; applyTheme stamps it; bare 11 px floors left; the floors that read it (25); the glass's floor rides on its scale]");
+    }],
+    ["R7333 - where even the mark above does not fit, the six take their short names before the row gives up on one line (the owner's \"koniecznie w 1 rzedzie\", 14.11.2026, through the coordinator: the short names already in lang - LEG BOD HAN EYE SHA HEA - with the mark above, the full name as the plate's tooltip and its aria-label): sheet-header.mjs `TRAIT_FIT_STEPS` ends on `above track short`, `traitFitStep` takes it where it fits and gives `wrap` only where even it does not, and `shortTraitName` reads a statistic's short name off Daggerheart's key `DAGGERHEART.CONFIG.Traits.<key>.short`", async () => {
+        /*
+         * Red at 6c6b1461: no `short` step - Legacy at 667 px stood three over three (its row 362 px, six with the mark above
+         * 454). Fed: a statistic at its short name is as wide as its value's box (52 px at 100 %, 72.8 at 140 %), the widest
+         * thing in it then; rows of 362 (667 px at 100 %), 252 (667 px at 140 %) and 519 (934 px at 140 %). Pure, and one
+         * localize; nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        const measure = (row, box) => step => {
+            const need = step.includes("short") ? box : step.includes("above") ? (box > 60 ? 101 : 74) : 86.2;
+            return { need, gap: step.includes("above") ? 2 : step.includes("gap") ? 9 : 16, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const short = typeof H.shortTraitName === "function" ? ["agility", "presence", "knowledge"].map(H.shortTraitName) : null;
+        equal(stableJson([pick(measure(362, 52)), pick(measure(252, 72.8)), pick(measure(519, 72.8)), short]),
+            stableJson(["above track short", "wrap", "above track short",
+                ["agility", "presence", "knowledge"].map(k => game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${k}.short`))]),
+            "[Legacy 667 px at 100 %, 667 px at 140 %, 934 px at 140 %; the short names of Leg, Shadow and Head]");
+    }],
+    /* E111 (14.11.2026; the owner: "Bez hasel prosze - niech to bedzie dostepne dla kont gmow po prostu"): the case's
+       copy on the server. Pure over case-copy.mjs's functions and source reads; nothing is written to the world. */
+    ["R7345 - the server copy is written only while no player can reach the files: case-copy.mjs `filesRefusal` answers \"switchOff\" with the module's switch enforcePlayerFiles off, \"roles\" when FILES_BROWSE or FILES_UPLOAD in force names the Player or the Trusted Player role, \"account\" when a player's account holds either by name, and nothing for a held table (an Assistant or a GM granted one by name is no refusal); and `filesPrivate` reads the switch of enforced.mjs's row playerFiles", async () => {
+        /* Red at 18df17c4: no case-copy.mjs (the import fails). */
+        const C = await import("./case-copy.mjs");
+        const roles = { PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 };
+        const held = { FILES_BROWSE: [3, 4], FILES_UPLOAD: [3, 4] };
+        const ask = more => C.filesRefusal({ switchOn: true, inForce: held, users: [], roles, ...more });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson({
+            held: ask({}), off: ask({ switchOn: false }), playerBrowse: ask({ inForce: { ...held, FILES_BROWSE: [1, 3, 4] } }),
+            trustedUpload: ask({ inForce: { ...held, FILES_UPLOAD: [2, 3, 4] } }),
+            account: ask({ users: [{ isGM: false, permissions: { FILES_BROWSE: true } }] }),
+            gmGrant: ask({ users: [{ isGM: true, permissions: { FILES_UPLOAD: true } }] }),
+            readsRow: /ENFORCED\.find\(r => r\.id === "playerFiles"\)/.test(fnSource(src, "filesPrivate")) && /permissionsInForce\(\)/.test(fnSource(src, "filesPrivate"))
+        }), stableJson({ held: null, off: "switchOff", playerBrowse: "roles", trustedUpload: "roles", account: "account", gmGrant: null, readsRow: true }),
+        "{each table's refusal; filesPrivate reads the playerFiles row and the permissions in force}");
+    }],
+    ["R7346 - an empty browser never writes before it has read: case-copy.mjs `copyRefusal` answers \"notGm\", \"notPrimary\", the files' refusal before anything else a GM is asked, \"quiet\" while the suite holds the stores or stands in another world (and `readServerCopies` reads nothing then), and \"notHydrated\" for a GM whose stores have not heard the other GMs; and `writeServerCopy` lists and merges every copy in the folder (`readServerCopies`) before it builds the case it uploads, asks the hydration again after that read, and uploads over the newest copy's name or a new one", async () => {
+        /* Red at 18df17c4: no case-copy.mjs. */
+        const C = await import("./case-copy.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const w = fnSource(src, "writeServerCopy");
+        const at = pattern => w.search(pattern);
+        const base = { isGM: true, primary: true, hydrated: true, files: null };
+        equal(stableJson({
+            ok: C.copyRefusal(base), notGm: C.copyRefusal({ ...base, isGM: false }), notPrimary: C.copyRefusal({ ...base, primary: false }),
+            unhydrated: C.copyRefusal({ ...base, hydrated: false }), filesFirst: C.copyRefusal({ ...base, hydrated: false, files: "roles" }),
+            quiet: C.copyRefusal({ ...base, quiet: true }), readQuiet: /if \(gmStoresQuiet\(\)\) return \{ refused: "quiet" \}/.test(fnSource(src, "readServerCopies")),
+            readBeforeBuild: at(/await readServerCopies\(\)/) > 0 && at(/await readServerCopies\(\)/) < at(/await caseFileNow\(\)/),
+            hydratedAfterRead: at(/await readServerCopies\(\)/) < at(/if \(!SEAL_DEPS\.hydrated\(\)\)/),
+            uploadLast: at(/await caseFileNow\(\)/) < at(/FP\.upload\("data", copyFolder\(\)/), newestName: /seen\.newest \? seen\.newest\.slice/.test(w)
+        }), stableJson({ ok: null, notGm: "notGm", notPrimary: "notPrimary", unhydrated: "notHydrated", filesFirst: "roles", quiet: "quiet", readQuiet: true,
+            readBeforeBuild: true, hydratedAfterRead: true, uploadLast: true, newestName: true }),
+        "{the refusals in order; the write reads the folder, asks the hydration again, builds, then uploads over the newest name}");
+    }],
+    ["R7347 - a copy's name is 128 random bits and stays with the GMs: `newCopyName` answers case- and 32 hex digits, two calls differ, `copyFolder` is the world's drpg-case folder in the data source; and case-copy.mjs writes no setting, flag, chat message or console line - nothing a player's browser could read the name from", async () => {
+        /* Red at 18df17c4: no case-copy.mjs. */
+        const C = await import("./case-copy.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const a = C.newCopyName(), b = C.newCopyName();
+        equal(stableJson({ a: /^case-[0-9a-f]{32}\.json$/.test(a), differ: a !== b, folder: C.copyFolder("R7347WORLD"),
+            pattern: C.COPY_NAME.test("worlds/w/drpg-case/" + a) && !C.COPY_NAME.test("worlds/w/drpg-case/case-123.json"),
+            writes: (src.match(/setSetting\(|\.setFlag\(|ChatMessage|whisperToGms|console\.\w+\(|debug\(/g) ?? []).length,
+            dataOnly: (src.match(/FP\.(browse|upload|createDirectory)\("data",/g) ?? []).length }),
+        stableJson({ a: true, differ: true, folder: "worlds/R7347WORLD/drpg-case", pattern: true, writes: 0, dataOnly: 3 }),
+        "{the name's shape, two names differ, the folder, the pattern, no road a player reads, every file call in the data source}");
+    }],
+    ["R7348 - the server copy is read with Restore's own merge and written from the backup's own file: `readServerCopies` calls gm-stores.mjs `restoreCase` quiet with no health check of its own for every copy it fetched; `writeServerCopy` uploads `caseFileNow`, which `backupCase` saves too; `restoreCase` with `quiet` neither toasts nor marks a store restored, and a quiet read that took nothing sends no player anything and runs no Faint pass; and the health check and the case window name the copy (`caseCopy` row, `copyLineText`, the button \"writeCopy\")", async () => {
+        /* Red at 18df17c4: no case-copy.mjs, no caseFileNow, no quiet. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const copy = await src("case-copy.mjs"), stores = await src("gm-stores.mjs");
+        const restore = fnSource(stores, "restoreCase");
+        equal(stableJson({
+            readMerge: /restoreCase\(file,\s*\{\s*quiet:\s*true,\s*recheck:\s*false\s*\}\)/.test(fnSource(copy, "readServerCopies")),
+            writeFile: /await caseFileNow\(\)/.test(fnSource(copy, "writeServerCopy")), backupFile: /await caseFileNow\(\)/.test(fnSource(stores, "backupCase")),
+            quietToast: /if \(!quiet\) ui\.notifications\.info\(/.test(restore), quietMark: /if \(!quiet\) handle\.markRestored\(\)/.test(restore),
+            quietNothing: /if \(quiet && !changed && !filled\) continue;/.test(restore) && /if \(!quiet \|\| tookAny\)/.test(restore),
+            healthRow: /add\("caseCopy"/.test(fnSource(stores, "gmStoreHealth")),
+            window: /action: "writeCopy"/.test(fnSource(stores, "openCaseWindow")) && /writeServerCopy\(\{ explicit: true \}\)/.test(fnSource(stores, "openCaseWindow"))
+        }), stableJson({ readMerge: true, writeFile: true, backupFile: true, quietToast: true, quietMark: true, quietNothing: true, healthRow: true, window: true }),
+        "{the read merges through restoreCase quiet; the write uploads caseFileNow, which Back up saves; quiet keeps the toast and the mark off; the health row and the window's button}");
+    }],
+    ["R7349 - Clear the plan takes one chapter's planning and nothing else (the owner, 14.11.2026: \"Brakuje mi tez w planerze zagadki opcji zresetowania zawartosci/wyczyszczenia recznie\"): case-schema.mjs `planToClear`, pure over the two stores' entries, names the chapter's planned Key Remnant slots (counting those placed on the map, by tokenId), its schema nodes and its meta row; never its reveal row, its closed case's keys, another chapter's rows or a row of no chapter", async () => {
+        /* Red at 08eb5c3f: no planToClear. */
+        const K = await import("./case-schema.mjs");
+        must(typeof K.planToClear === "function", "case-schema.mjs has no planToClear");
+        const plan = { "2:0": { name: "a" }, "2:1": { name: "b", tokenId: "TOK" }, "2:12": { name: "c" }, "2:reveal": { paid: 1 }, "2:case": { keys: 3 },
+            "3:0": { name: "other chapter" }, "20:0": { name: "chapter twenty" }, "R7349slot": { room: "no chapter" } };
+        const schema = { "2:node1": { kind: "deduction" }, "2:meta": { sort: "kind" }, "3:node1": { kind: "counter" }, "22:node1": { kind: "solution" } };
+        equal(stableJson(K.planToClear(2, plan, schema)), stableJson({ chapter: 2, slots: ["2:0", "2:1", "2:12"], placed: 1, nodes: ["2:node1"], meta: ["2:meta"] }),
+            "{the chapter's slots, the placed count, its nodes, its meta; nothing of reveal, case, chapters 3, 20, 22 or a row of no chapter}");
+    }],
+    ["R7350 - Clear the plan removes by the stores' own tombstones, a GM's only, behind a question: `clearChapterPlan` refuses a player's browser and drops the rows with `dropMany` on keyPlanStore and caseSchemaStore (so other GMs and the server copy carry the removal); the Investigation dashboard's footer carries \"clearPlan\" (R3967 reads it drawn), which `runDashboardButton` runs through `openClearPlan`, a GM's window that picks the chapter (the clock's by default) and asks with a destructive Clear naming the counts and the placed ones", async () => {
+        /* Red at 08eb5c3f: no clearChapterPlan, no openClearPlan. Source reads. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const schema = await src("case-schema.mjs"), inv = await src("investigation.mjs");
+        const clear = fnSource(schema, "clearChapterPlan"), open = fnSource(inv, "openClearPlan");
+        equal(stableJson({
+            gm: /if \(!game\.user\?\.isGM/.test(clear) && /if \(!game\.user\?\.isGM\) return null/.test(open),
+            drops: /keyPlanStore\.dropMany\(what\.slots\)/.test(clear) && /caseSchemaStore\.dropMany\(\[\.\.\.what\.nodes, \.\.\.what\.meta\]\)/.test(clear),
+            noTicks: !/caseTickStore/.test(clear),
+            button: /action: "clearPlan"/.test(fnSource(inv, "openInvestigationDashboard")), runs: /action === "clearPlan"\) return \{ said: await openClearPlan\(\) \}/.test(fnSource(inv, "runDashboardButton")),
+            defaultChapter: /n === now \? " selected" : ""/.test(open), destructive: /role: "destructive"/.test(open),
+            counts: /DRPG\.Investigation\.clearPlan\.slots/.test(open) && /DRPG\.Investigation\.clearPlan\.nodes/.test(open) && /DRPG\.Investigation\.clearPlan\.placed/.test(open)
+        }), stableJson({ gm: true, drops: true, noTicks: true, button: true, runs: true, defaultChapter: true, destructive: true, counts: true }),
+        "{a GM's only, dropped by tombstones on both stores, the ticks untouched, the button, its road, the clock's chapter picked, a destructive yes, the counts named}");
     }],
 ];
 

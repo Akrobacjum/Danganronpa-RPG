@@ -19,9 +19,6 @@
 import { INFILTRATE, MODULE_ID, FLAGS } from "./config.mjs";
 import { log } from "./utils.mjs";
 
-/** The action keys this file replays. */
-export const INFILTRATE_REROLLS = Object.freeze(["dash", "tail", "shut", "force", "pick", "keepWatch", "facility"]);
-
 const line = (key, data = {}) => game.i18n.format(`DRPG.Reroll.infiltrate.${key}`, data);
 
 /** Replay `bookmark.actionKey` with the new result `after` (`{ total, isCritical, withHope }`); pushes its line on `done`. */

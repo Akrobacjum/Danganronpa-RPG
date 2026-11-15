@@ -22,13 +22,12 @@ import { studentActors, studentCensus } from "./monokuma.mjs";
 import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures, sessionFailuresDropped } from "./utils.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
@@ -400,7 +399,7 @@ export function warnAboutPageTinting() {
  *
  * For the case where a colour is plainly wrong and the token behind it is plainly
  * right: the declaration exists, resolves, and still loses. Only another rule can
- * do that, and the browser will not tell you which - `getMatchedCSSRules` was
+ * do that, and the browser will not tell you which - `window.getMatchedCSSRules` was
  * removed years ago. So walk every stylesheet, test every selector against the
  * element, and report the ones that declare the property, with the file and the
  * cascade layer they came from. The last one that applies is the winner.
@@ -1178,6 +1177,14 @@ export async function fileSizes() {
 }
 
 /**
+ * The actions that leave a Neutral Remnant by design (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R4; R7179): the
+ * door actions (doors-gm.mjs `leaveDoorTrace`), a facility's room action (config.mjs `FACILITIES.trace`) and a body's
+ * looting (handover.mjs). `diagnoseTruthBullets` passes over them in its count of Neutral Remnants a GM should give a
+ * real category.
+ */
+const NEUTRAL_BY_DESIGN = new Set(["infiltrate", "facility", "loot"]);
+
+/**
  * Are the Truth Bullets whole?
  *
  * Two things can go quietly wrong. The rows are injected into Daggerheart's own
@@ -1243,8 +1250,11 @@ export function diagnoseTruthBullets({ toChat = true } = {}) {
     for (const scene of game.scenes) {
         // Every trace's ref (E60 C1b): its trace token, with its row or none (D38 = 1; E60 fix FG1).
         for (const ref of remnantsOn(scene)) {
-            const type = remnantStore.get(ref.key)?.type ?? ref.document?.getFlag(MODULE_ID, "remnantType");
+            const row = remnantStore.get(ref.key);
+            const type = row?.type ?? ref.document?.getFlag(MODULE_ID, "remnantType");
             if (type !== "neutral") continue;
+            // Left neutral by the module on purpose, not a GM's guess (E59 on the 1.2.115 line, CHAINS.md B-R4; R7179).
+            if (NEUTRAL_BY_DESIGN.has(row?.action ?? ref.document?.getFlag(MODULE_ID, "action"))) continue;
             neutral.push(scene.name);
         }
     }
@@ -2089,12 +2099,13 @@ function contractText(contract) {
         + " (unknown is a warning, never a pass)", ...contract.failed.map(line), ...contract.unknown.map(line)].join("\n");
 }
 
-/* This session's failures as the debug log copies them (gm-panel.mjs `openFailureLog`), whole stacks. */
-function failureText() {
-    const rows = sessionFailures();
-    if (!rows.length) return "Nothing has failed since this page loaded.";
-    return rows.map(r => [`[${new Date(r.at).toISOString()}] (${r.level}${r.count > 1 ? ` x${r.count}` : ""}) ${r.message}`,
-        ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])].join("\n")).join("\n");
+/* This session's failures as the debug log copies them (gm-panel.mjs `openFailureLog`), whole stacks, and since E109
+   (R7124) how many older rows the log dropped to keep the newest. Arguments for the test alone; the report reads this browser's. */
+export function failureText(rows = sessionFailures(), dropped = sessionFailuresDropped()) {
+    if (!rows.length && !dropped) return "Nothing has failed since this page loaded.";
+    const head = dropped ? [`${dropped} older row${dropped === 1 ? " was" : "s were"} dropped to keep the newest ${rows.length}.`] : [];
+    return [...head, ...rows.map(r => [`[${new Date(r.at).toISOString()}] (${r.level}${r.count > 1 ? ` x${r.count}` : ""}) ${r.message}`,
+        ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])].join("\n"))].join("\n");
 }
 
 /* The silences part: the live one and every stale one, by id. */
@@ -2210,7 +2221,7 @@ export async function openReport(text, { wait = config => drpgWindow(config),
             </div>`,
             footer: {
                 secondary: [
-                    { action: "copy", label: localize("DRPG.Diagnose.copy") },
+                    { action: "copy", label: localize("DRPG.Diagnose.copy"), tooltip: tipText("DRPG.Tips.Sweep.Gm.copyReportTooltip") },
                     ...left.map(s => {
                         const named = { warning: s.label };
                         return { action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain"),

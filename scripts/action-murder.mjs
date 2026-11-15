@@ -25,7 +25,7 @@ import { whisperToOwner, cardHead, esc, proseOf } from "./utils.mjs";
 import { abort, canAfford } from "./action-pipeline.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, promptForNote, traitFieldHtml, readProposal } from "./action-menus.mjs";
-import { drpgConfirm } from "./ui-kit.mjs";
+import { drpgConfirm, tipText } from "./ui-kit.mjs";
 
 /**
  * The incident's own actions, behind the Direct Murder tile - which a fight draws as
@@ -48,13 +48,13 @@ import { drpgConfirm } from "./ui-kit.mjs";
  * the thing you want to use, which is where a player already looks for it.
  *
  * ONE MENU, ONE ROLL (E32+E07 C15, 03.10.2026; audit S02-32, S04-27, S02-31). The
- * menu was followed by a confirmation (`confirmCrisisAction`) that repeated the
- * row's sentence and its threshold, started the miss with "Nothing happens." under
- * no label, and made Cancel its filled default: three windows to one roll. What it
- * said that the row did not now unfolds under the picked row (`crisisDetails`), and
- * the menu's own button - the default - says "Roll it", or "Do it" for a row that
- * throws no dice. Then the GM's pick where the action lists several statistics,
- * then the roll window.
+ * menu was followed by a confirmation (`confirmCrisisAction`, removed by this
+ * change) that repeated the row's sentence and its threshold, started the miss
+ * with "Nothing happens." under no label, and made Cancel its filled default:
+ * three windows to one roll. What it said that the row did not now unfolds under
+ * the picked row (`crisisDetails`), and the menu's own button - the default -
+ * says "Roll it", or "Do it" for a row that throws no dice. Then the GM's pick
+ * where the action lists several statistics, then the roll window.
  */
 export async function openCrisisMenu(actor) {
     const { availableCrisisActions, isTheirTurn, takeCrisisAction, crisisVariant } =
@@ -260,7 +260,9 @@ export async function performBetrayal(actor, partner, def, options = {}) {
         ask: `<form>${dark ? `<p>${game.i18n.localize("DRPG.Murder.betrayalConfirmEclipse")}</p>` : ""}
             <div class="drpg-action-trait">${traitFieldHtml(actor, listed, { propose: true, how: !dark })}</div></form>`,
         footer: {
-            primary: { action: "yes", label: game.i18n.localize("DRPG.Dialog.yes"), callback: (e, b, d) => readProposal(d.element, listed) },
+            primary: { action: "yes", label: game.i18n.localize("DRPG.Dialog.yes"),
+                tooltip: tipText(dark ? "DRPG.Tips.Sweep.Actions.betrayalEclipseTooltip" : "DRPG.Tips.Sweep.Actions.betrayalNowTooltip"),
+                callback: (e, b, d) => readProposal(d.element, listed) },
             close: "cancel"
         },
         rejectClose: false

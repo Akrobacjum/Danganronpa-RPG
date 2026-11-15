@@ -237,6 +237,7 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null,
         gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total, n: OBSERVE_FAIL_STRESS })}</small></p>${
             observeModeLine(declaration)}`,
         roll,
+        criticalHint: true,
         request,
         room,
         // This is the branch where a GM decides there IS something at the point
@@ -248,7 +249,7 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null,
                 action: "keyRemnantHere",
                 label: game.i18n.localize("DRPG.Bridge.keyRemnantHere"),
                 // Lowercase key: `dataset` lowercases everything, so `sceneId`
-                // would come back as `sceneid` and read undefined.
+                // would come back as `dataset.sceneid` and read undefined.
                 data: { by: actor.id, room: room ?? "", want: request ?? "",
                         scene: sceneId ?? "" }
             },

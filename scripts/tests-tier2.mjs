@@ -735,8 +735,8 @@ function sheetAsFound(actor, paths) {
 /*
  * DAGGERHEART'S PREPARATION, WHERE THE HARNESS HAS NONE (E29 fix r2-H25, 06.10.2026). At a table a student's prepared
  * data is not its sheet: Daggerheart sets Hope's maximum to the world's setting less the scars, adds the class's hit
- * points to Health's maximum and a Level Up's picks to a statistic (data/actor/character.mjs `prepareBaseData`,
- * `prepareDerivedData`; 2.10.5 :678-700, :740-741, :752). The harness prepares nothing - a document's `system` is its
+ * points to Health's maximum and a Level Up's picks to a statistic (data/actor/character.mjs `DhCharacter#prepareBaseData`,
+ * `DhCharacter#prepareDerivedData`; 2.10.5 :678-700, :740-741, :752). The harness prepares nothing - a document's `system` is its
  * source - so there `prepare` is applied to a copy of the sheet at every read of `actor.system` on this client, until
  * the function this answers is called. A table prepares its own: there nothing is done, it answers null and the test
  * reads Daggerheart's.
@@ -1161,9 +1161,10 @@ async function drawnMurderWindow(open) {
  * opener's own promise, which settles once the whole Save has run - the Save closes the window
  * (E24 C6; until then it reopened, and this waited for that copy and closed it); `close()` closes
  * whatever copy stands. Each settles `answer`.
+ *
+ * The dashboard drawn, on the Table unless `view` says (the Map is the default since E97 C9; most of these read the
+ * Table's rows).
  */
-/** The dashboard drawn, on the Table unless `view` says (the Map is the default since E97 C9; most of these read the
- *  Table's rows). */
 async function drawnCaseWindow({ view = "table" } = {}) {
     const investigation = await import("./investigation.mjs");
     const open = () => [...foundry.applications.instances.values()]
@@ -1944,7 +1945,6 @@ async function despairOf(who) {
     return { D, o, mono, state: () => [D.getDespair(mono.id), o.overflowCount()] };
 }
 
-/** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
 /**
  * THE ROOMS OF A SCENE IN A LINE OF DOORS (E69 C6, C7): the harness's scene draws no doors, so each room's doors are Room
  * Setup's word (`ROOM_FLAGS.neighbours`), written on every piece: each room next to the one before and the one after it in
@@ -1973,6 +1973,7 @@ async function roomsInLine(scene) {
     };
 }
 
+/** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
 async function playerInRoom() {
     const { locateActor } = await import("./movement.mjs");
     const found = game.users.filter(u => !u.isGM && u.active).flatMap(player => game.actors
@@ -2206,24 +2207,6 @@ async function heldCopy(holder, copy) {
 }
 
 /**
- * A USE AN ITEM AND ITS REROLL, ON THE GM (E08+E28 C6b, 03.10.2026; audit S04-18). At the
- * killer's turn (`swingFixture`) the killer, with two Health marks, holds a Tier 1 healing pack
- * of two; their player's roll is bookmarked (`playerRollBookmark`), the pack used as their
- * browser uses it - one Health off, one off the pack - and the action judged as the listener
- * judges it, a hit with Hope naming the pack and what it started from. Then the Reroll is made
- * on this GM (`rerollAgain`) onto the faces `next`, its replay on the GMs' row (reroll.mjs
- * `settleCrisis`). Answers, after it: whether it stood, the killer's Health marks, the pack's
- * quantity and whether it is broken, whether the replay's receipt names the pack, and the reserve
- * the row says the use healed. `tier` 3 (fix r1-G6): a pack of no kind that heals 2 Health marks
- * and gives 2 Hope, the killer at their most Hope after it and 2 below it before (`before.hope`).
- * `aside` (fix r2-H20): an update written to the pack after the first use and before the Reroll
- * where the GMs' mark does not see it (sheet-audit.mjs `AUDIT_ASIDE`, a failed put-back's state).
- * `consoleWrite` (fix r2-H23): an update of the pack the player's console writes at the same moment,
- * judged as theirs (`asPlayerItemWrite`), its put-back refused by a hook of this GM's while the Reroll
- * is made, as scenario 30 refuses one, and the hook taken off before the read, which then holds the
- * count the GMs' mark holds (`marked`). `qty`: the count the row's `before` names, the player's word.
- */
-/**
  * TIER 3'S ROW OF BEFORE 15.10.2026, LENT TO A TEST (E14 part 1 C5, 24.10.2026). A usable's row may add Hope to what it
  * restores (config.mjs `USABLE_EFFECTS`: `bonus`), and the rewind, the credit and the judge of a use still read it
  * (murder-rules.mjs `hopeTheUseGave`, sheet-audit.mjs `itemCovers`); since the owner's ruling of 15.10 no row adds any -
@@ -2242,6 +2225,24 @@ async function withHopeRow(run) {
     }
 }
 
+/**
+ * A USE AN ITEM AND ITS REROLL, ON THE GM (E08+E28 C6b, 03.10.2026; audit S04-18). At the
+ * killer's turn (`swingFixture`) the killer, with two Health marks, holds a Tier 1 healing pack
+ * of two; their player's roll is bookmarked (`playerRollBookmark`), the pack used as their
+ * browser uses it - one Health off, one off the pack - and the action judged as the listener
+ * judges it, a hit with Hope naming the pack and what it started from. Then the Reroll is made
+ * on this GM (`rerollAgain`) onto the faces `next`, its replay on the GMs' row (reroll.mjs
+ * `settleCrisis`). Answers, after it: whether it stood, the killer's Health marks, the pack's
+ * quantity and whether it is broken, whether the replay's receipt names the pack, and the reserve
+ * the row says the use healed. `tier` 3 (fix r1-G6): a pack of no kind that heals 2 Health marks
+ * and gives 2 Hope, the killer at their most Hope after it and 2 below it before (`before.hope`).
+ * `aside` (fix r2-H20): an update written to the pack after the first use and before the Reroll
+ * where the GMs' mark does not see it (sheet-audit.mjs `AUDIT_ASIDE`, a failed put-back's state).
+ * `consoleWrite` (fix r2-H23): an update of the pack the player's console writes at the same moment,
+ * judged as theirs (`asPlayerItemWrite`), its put-back refused by a hook of this GM's while the Reroll
+ * is made, as scenario 30 refuses one, and the hook taken off before the read, which then holds the
+ * count the GMs' mark holds (`marked`). `qty`: the count the row's `before` names, the player's word.
+ */
 async function useItemRerolled(next, { tier = 1, aside = null, consoleWrite = null, qty = 2 } = {}) {
     const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
     const audit = aside || consoleWrite ? await import("./sheet-audit.mjs") : null;
@@ -2591,14 +2592,6 @@ async function whileDead(actor, run) {
 }
 
 /**
- * A body with its tile in another room than its token, for the length of `run` (E95 C1): two students alone together in
- * a room of the scene on screen (`aloneTogether`), the second dead on a published death (`whileDead`), and a tile of its
- * body made by the suite in another room, the data body-tile.mjs `bodyTileSpec` gives (what E95 C2's `leaveBody` will
- * lay), on the token's floor. `run` gets the two, a player who owns neither, the tile, the two rooms, `standTaker(room)`
- * (the taker's token stood in a room, waited for) and `drawn()` (the loot window's Take for the taker: [greyed, its
- * words]). The tile is deleted after, whatever `run` did with it, and the tokens put back.
- */
-/**
  * A body's tile in another room, the taker stood beside it, and a Take of named items off the body (E68 C10; the three
  * tier-2 tests of Take from the Body). `loot(names, hand, { one, cover })` puts the items on the body and takes them
  * through handover.mjs `lootBody` - `itemIds`, or `itemId` with `one`, let go of after (`drop`) - with the Hand roll `hand`
@@ -2702,6 +2695,14 @@ async function lootWindowFor(body, taker, opts = {}) {
     return { app, el, take, rows, close };
 }
 
+/**
+ * A body with its tile in another room than its token, for the length of `run` (E95 C1): two students alone together in
+ * a room of the scene on screen (`aloneTogether`), the second dead on a published death (`whileDead`), and a tile of its
+ * body made by the suite in another room, the data body-tile.mjs `bodyTileSpec` gives (what E95 C2's `leaveBody` will
+ * lay), on the token's floor. `run` gets the two, a player who owns neither, the tile, the two rooms, `standTaker(room)`
+ * (the taker's token stood in a room, waited for) and `drawn()` (the loot window's Take for the taker: [greyed, its
+ * words]). The tile is deleted after, whatever `run` did with it, and the tokens put back.
+ */
 async function withBodyTile(run) {
     const { isPrimaryGm } = await import("./utils.mjs");
     must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
@@ -4581,6 +4582,13 @@ const SCENARIOS = [
         await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
+        /* The opening on Hope masked the killer (E69 C8), and a mask outlives its incident; since owner-115 item 1b every
+           card is veiled while a mask stands (secret.mjs `standingMask`), so the card no longer holds the killer's name in
+           one piece, and a mask left standing stays standing for the tests after this one. This test reads where a hit
+           lands and what its card says, not the mask: the mask is ended before the fight. Changed on purpose. */
+        const { maskStands, endMask } = await import("./mask-gm.mjs");
+        if (maskStands(killer.id)) await endMask(killer.id, "suite");
+        await settle();
         must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
             `the fixture's fight is not at the victim's turn: ${stableJson(M.murderState())}`);
         const r = victim.system.resources;
@@ -4624,6 +4632,13 @@ const SCENARIOS = [
         const note = game.i18n.format("DRPG.Murder.theyLose", { name: foundry.utils.escapeHTML(killer.name), what: plural("DRPG.Reserve.sanity", { n: 1 }) });
         await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        /* The opening on Hope masked the killer (E69 C8), and a mask outlives its incident; since owner-115 item 1b every
+           card is veiled while a mask stands (secret.mjs `standingMask`), so the card no longer holds the killer's name in
+           one piece, and a mask left standing stays standing for the tests after this one. This test reads where a hit
+           lands and what its card says, not the mask: the mask is ended before the fight. Changed on purpose. */
+        const { maskStands, endMask } = await import("./mask-gm.mjs");
+        if (maskStands(killer.id)) await endMask(killer.id, "suite");
         await settle();
         must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
             `the fixture's fight is not at the victim's turn: ${stableJson(M.murderState())}`);
@@ -9040,7 +9055,7 @@ const SCENARIOS = [
         /*
          * E08+E28 fix r2-H8, 05.10.2026 (H8-5). The GM looked for a pick card only where the roll's
          * window said a GM had picked (`TRAIT_BY_GM`), which is the packet's to say: a crisis roll sent
-         * without it was held to no pick at all (roll-draw.mjs `pickDue`; since E29 fix r1-G10 the
+         * without it was held to no pick at all (then roll-draw.mjs `pickDue`; since E29 fix r1-G10 the
          * table's `gm` row, on `listedFor`). Two crisis draws of a
          * player's character, a Strike - whose definition lists several statistics - at turns of theirs
          * in a fight (C12b's pick test's setting), neither packet saying a GM picked: after a card
@@ -24090,6 +24105,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             });
             fight = game.messages.contents.filter(m => !had.has(m.id));
             await M.endMurder({ reason: "test", followUp: false });
+            /* The opening on Hope masked the killer (E69 C8), and a mask outlives its incident; since owner-115 item 1b every
+               card is veiled while a mask stands (secret.mjs `standingMask`). The card after the fight is read with the
+               mask ended, as this test reads an incident's veil and nothing else. Changed on purpose. */
+            const { maskStands, endMask } = await import("./mask-gm.mjs");
+            if (maskStands(killer.id)) await endMask(killer.id, "suite");
             await settle();
             after = await wordsSent(async () => {
                 await useItem(bystander, items.later);
@@ -35689,7 +35709,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     ["handing over evidence hands over only what the giver had analysed", async () => {
         /*
-         * The copy is born with the giver's state - `handoverBullet` passes
+         * The copy is born with the giver's state - handover.mjs `mintCopy` passes
          * `analyzed` through - so an analysed bullet arrives analysed and its
          * reading arrives with it, which is what sharing findings means. The
          * half worth a test is the other one: hand over something you have NOT
@@ -50263,7 +50283,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
      * GM it could be run during play. Their own `finally` blocks put most of it back,
      * but "most" was the defect: nothing checked, and the trial queue was set to {}
      * even when a real trial was sitting. Here they run under the snapshot, and tier
-     * 0/1 is now asserted not to change the world at all (see `worldFingerprint`).
+     * 0/1 is now asserted not to change the world at all (see tests-kit.mjs `worldDump`).
      */
     ["a chapter's Key Remnant plan is filed, not dropped, when the chapter ends", async () => {
         /*
@@ -58993,7 +59013,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E29 fix r2-H25, 06.10.2026; found by fix r2-H24. level-up.mjs `applyAdvancement` writes into the sheet, which
          * Daggerheart prepares again: it adds the class's hit points to Health's maximum and a Level Up's picks to a
-         * statistic (data/actor/character.mjs `prepareBaseData`, 2.10.5). It rose from the prepared values - Health's
+         * statistic (data/actor/character.mjs `DhCharacter#prepareBaseData`, 2.10.5). It rose from the prepared values - Health's
          * maximum as `meansMaxHeld` answers it, a statistic as `numberHeld` did - so the sheet took the class's hit points
          * and the pick a second time. The GM's copy of the student prepared with a class of 5 hit points and a pick of +1
          * to a statistic (`preparedAs`; the harness prepares nothing), the GM applies +1 Health and +1 to that statistic.
@@ -59424,7 +59444,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a player's write of the scars that set Hope's maximum is put back, and a GM's give of Hope reads the maximum the GMs hold", async () => {
         /*
          * E29 fix r2-H25, 06.10.2026; found by fix r2-H24. Daggerheart's scars set a student's Hope maximum - the world's
-         * setting less the scars (data/actor/character.mjs `prepareDerivedData`, 2.10.5 :752, 2.6.5 :817) - and the audit
+         * setting less the scars (data/actor/character.mjs `DhCharacter#prepareDerivedData`, 2.10.5 :752, 2.6.5 :817) - and the audit
          * judged no write of them: listed and left standing. No road of the module writes them, and the one of
          * Daggerheart's that does, the Death Move's Avoid Death, is no road in this game (states.mjs switches off the
          * automation that offers it; the stylesheet hides the sheet's button): so they are judged as the fields only
@@ -66256,6 +66276,229 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(JSON.stringify(reading), JSON.stringify([[[ROOM, ROOM], [GONE, game.i18n.format("DRPG.Project.roomElsewhere", { room: GONE })]], [ROOM, GONE, MOVED]]),
             "the manager saved viewing another scene: the value and label chosen in the Gym's row and in the row of a room on no scene, and each project's room after the save "
             + "(the Gym's kept, the one on no scene kept, the one moved while the window was open left where it was moved)");
+    }],
+
+    ["the Projects manager keeps what its rows were changed to when the GM leaves it through Create project, Share or a row's Edit (the tooltip sweep's finding, 1.2.115; the coordinator's word of 14.11.2026): each of the three closes the window to open another and reopens it after, and until 1.2.115 none of them read the rows, so a room picked in a row was lost; since, each writes the rows as Save does (`applyProjectManager`, only what a row changed) before it goes", async () => {
+        /* Red at 389d3895: every route read the room the project had before ([GYM, GYM, GYM]): Create and Share answered their
+           action's word with no callback, and the row's Edit closed the window before anything read it. The windows are
+           DialogV2.wait answered here, as the E12 C5 test above answers the manager: the manager's first drawing picks the
+           Hall in the project's row and leaves by the route; every other window answers null, and the manager's second
+           drawing Cancel. */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const home = canvas?.scene ?? null;
+        const GYM = "SUITE R7301 Gym", HALL = "SUITE R7301 Hall";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const reading = {};
+        await G.withGmStoreWorld(`suite-r7301-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null, id = null;
+            try {
+                scene = await Scene.create({ name: "SUITE R7301 the school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [GYM, HALL].map((name, i) => ({ name, shapes: [{ type: "rectangle", x: i * 1000, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] })));
+                id = (await P.createProject({ name: "SUITE R7301 a project", target: 6, room: GYM }))?.id ?? null;
+                must(id, "could not create a project - this would measure nothing");
+                await scene.view();
+                await settle();
+                for (const route of ["new", "share", "edit"]) {
+                    await S.setProjectMeta(id, { room: GYM });
+                    await settle();
+                    must(P.roomOf(id) === GYM, `the project is not in the Gym before the ${route} route - this would measure nothing`);
+                    let drawings = 0;
+                    D.wait = async cfg => {
+                        const element = document.createElement("div"), form = document.createElement("form");
+                        if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                        else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                        element.append(form);
+                        const select = form.querySelector(`[name="room.${CSS.escape(id)}"]`);
+                        if (!select) return null;                          // the create, share or project window: closed
+                        if (++drawings > 1) return "cancel";               // the manager again, after the route
+                        must([...select.options].some(o => o.value === HALL), "the row offers no Hall - the route would change nothing");
+                        select.value = HALL;
+                        if (route === "edit") {
+                            cfg.render?.(new Event("render"), { element, close: async () => {} });
+                            const edit = element.querySelector(`[data-drpg-edit="${CSS.escape(id)}"]`);
+                            must(edit, "the row drew no Edit button - this would measure nothing");
+                            edit.click();
+                            return null;                                   // the manager closed by the row's Edit
+                        }
+                        const button = (cfg.buttons ?? []).find(b => b.action === route);
+                        must(button, `the manager has no ${route} button - this would measure nothing`);
+                        return button.callback ? button.callback(new Event("click"), button, { element }) : button.action;
+                    };
+                    await UI.openProjectManager();
+                    await until(() => drawings > 1, 6000);
+                    await settle();
+                    reading[route] = [drawings > 1, P.roomOf(id)];
+                }
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await home?.view();
+                if (id) await P.deleteProject(id);
+                if (scene) await scene.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify({ new: [true, HALL], share: [true, HALL], edit: [true, HALL] }),
+            "{per route: the manager reopened after it, and the project's room afterwards (the Hall its row was changed to)}");
+    }],
+
+    ["a room table renamed in the Item tables window keeps the rooms that draw from it (the tooltip sweep's finding, 1.2.115; the coordinator's word of 14.11.2026): a room stores the name of the table it draws from (its regions' `drpgItemTable`, Room setup's Draws from) and a Search finds the table by that name (tables-pools.mjs `tableForRoom`, `roomTableNames`), so until 1.2.115 a Rename left every room on the old name, drawing from nothing; since, Rename points each room of every scene that named the old table at the new name, and a room that named another table stays", async () => {
+        /* Red at c1407a7a: after the rename the room still named "SUITE room table Pantry", which no table had any more.
+           On a scene of the test's own, so no room of the world is written; the prompt is answered from the harness's
+           queue, or, on a real Foundry, filled in and pressed. */
+        const T = await import("./tables.mjs");
+        const R = await import("./rooms.mjs");
+        const TAG = "SUITE room table", OLD = `${TAG} Pantry`, NEW = `${TAG} Larder`, OTHER = `${TAG} Shed`, FLAG = "drpgItemTable";
+        const appWith = test => [...foundry.applications.instances.values()].find(a => a.element?.isConnected && test(a.element));
+        const tablesApp = () => appWith(el => el.classList.contains("drpg-window-tables"));
+        const closeAll = async test => { for (let n = 0; n < 4; n += 1) { const app = appWith(test); if (!app) break; try { await app.close(); } catch { /* gone */ } await settle(); } };
+        const made = [];
+        let scene = null, reading = null, opening = null;
+        try {
+            for (const name of [OLD, OTHER]) made.push(await RollTable.create({ name, formula: "1d1", flags: { [MODULE_ID]: { roomPool: true } } }));
+            scene = await Scene.create({ name: `${TAG} a school`, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [["Kitchen", OLD, 0], ["Kitchen", OLD, 400], ["Garden", OTHER, 1000]].map(([name, table, x]) => ({
+                name, shapes: [{ type: "rectangle", x, y: 0, width: 300, height: 300 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [FLAG]: table } }, behaviors: [] })));
+            await settle();
+            const flags = () => Array.from(scene.regions).map(r => `${r.name}:${r.getFlag(MODULE_ID, FLAG)}`).sort();
+            must(flags().join() === [`Garden:${OTHER}`, `Kitchen:${OLD}`, `Kitchen:${OLD}`].join(), "the rooms do not name their tables - this would measure nothing");
+            opening = T.openItemTables();
+            await until(() => tablesApp());
+            await settle();
+            const el = tablesApp()?.element;
+            const pick = el?.querySelector(`[data-drpg-pool-pane="rooms"] [data-drpg-table="${CSS.escape(made[0].id)}"]`);
+            must(pick, "the Room pools tab lists no button for the test's table - this would measure nothing");
+            pick.click();
+            await settle();
+            const queue = Array.isArray(globalThis.__dialogAnswers) ? globalThis.__dialogAnswers : null;
+            const answer = () => NEW;
+            queue?.push(answer);
+            el.querySelector('[data-drpg-pool-pane="rooms"] [data-drpg-rename-table]')?.click();
+            if (!queue) {
+                await until(() => appWith(e => e.querySelector('input[name="tableName"]')), 6000);
+                const prompt = appWith(e => e.querySelector('input[name="tableName"]'))?.element;
+                const field = prompt?.querySelector('input[name="tableName"]');
+                if (field) field.value = NEW;
+                prompt?.querySelector('footer button[data-action="ok"]')?.click();
+            }
+            await until(() => game.tables.getName(NEW), 6000);
+            await settle();
+            if (queue?.includes(answer)) queue.splice(queue.indexOf(answer), 1);
+            reading = [game.tables.getName(NEW)?.id === made[0].id, flags()];
+        } finally {
+            await closeAll(e => e.querySelector('input[name="tableName"]'));
+            await closeAll(e => e.classList.contains("drpg-window-tables"));
+            try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+            for (const table of made) if (game.tables.get(table.id)) await table.delete();
+            if (scene) await scene.delete();
+            await settle();
+        }
+        equal(JSON.stringify(reading), JSON.stringify([true, [`Garden:${OTHER}`, `Kitchen:${NEW}`, `Kitchen:${NEW}`]]),
+            "{the table renamed, and each region's table afterwards: the Kitchen's two pieces on the new name, the Garden on its own table}");
+    }],
+
+    ["a secret project revealed before it is completed still stamps its room action's completion, so the action's lifetime counts from then (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 3): a reveal moves the action from the GMs' half to projectMeta and leaves the GMs' row's field null, and the project's step read its row as `{ ...metaFor, ...secretsOf }`, so the null hid the action from the completion row (`COMPLETION_EFFECTS` facility, `has: meta => Boolean(meta.facility)`) and nothing stamped `completedAt` - an action of three times of day then stood for good; since, a null of the GMs' half is no value (projects-secrecy.mjs `bothHalves`)", async () => {
+        /* Red at 1c820482: completedAt null after the completion, and the action standing three times of day later. Read on
+           this GM's browser; the scenario 99-actions holds the player's browser on the roads a table takes. */
+        const P = await import("./projects.mjs");
+        const F = await import("./facilities.mjs");
+        const { actor, where } = await playerInRoom();
+        must(actor && where?.room, "no connected player's character stands in a named room - this would measure nothing");
+        const read = {};
+        let id = null;
+        try {
+            id = (await P.createProject({ name: "SUITE reveal then complete", target: 2, room: where.room, secret: true }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE reveal soup", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "timesOfDay", n: 1 } });
+            await P.revealProject(id);
+            await settle();
+            await P.addProgress(id, 2);
+            await settle();
+            const stamp = F.projectFacilityOf(id).completedAt;
+            const clock = getClock(), later = { ...clock, day: (clock.day ?? 1) + 1 };
+            read.stamp = Boolean(stamp) && stamp.at === F.facilityOrdinal().at;
+            read.now = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+            read.nextDay = (await F.projectActionsAt(where, game.user, later)).some(r => r.project.id === id);
+        } finally {
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ stamp: true, now: true, nextDay: false }),
+            "{the completion stamped now; the action stands now; and not a day later (its lifetime is one time of day)}");
+    }],
+
+    ["a completed project with no room gives its room action wherever a student who knows it stands, and one with a room only in that room (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 4 and its default, Q-T115-3): \"abstract work anywhere\" has no room to stand in, so `standsAtProject` is false and until 1.2.115 such a project's action showed nowhere; since, a project with no room stands wherever its readers are (`canSee` still decides who), and the GM's run judges a use by the same rows (facilities-gm.mjs `offerAt`)", async () => {
+        /* Red at d949b11d: the roomless project's action was in no row. Read on this GM's browser, for a connected player's
+           character standing in a named room. */
+        const P = await import("./projects.mjs");
+        const F = await import("./facilities.mjs");
+        const { where } = await playerInRoom();
+        const elsewhere = Array.from(where.scene.regions ?? []).map(r => r.name?.trim()).find(n => n && n !== where.room) ?? null;
+        must(elsewhere, `the scene ${where.scene.name} has no second named room - the control would read nothing`);
+        const read = {};
+        const ids = [];
+        try {
+            for (const [name, room] of [["SUITE roomless work", null], ["SUITE work in another room", elsewhere]]) {
+                const id = (await P.createProject({ name, target: 2, room }))?.id ?? null;
+                must(id, "no project was made - this would measure nothing");
+                ids.push(id);
+                await F.setProjectFacility(id, { label: `${name} action`, effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+                await P.addProgress(id, 2);
+            }
+            await settle();
+            const here = await F.projectActionsAt(where, game.user);
+            read.roomless = here.some(r => r.project.id === ids[0]);
+            read.otherRoom = here.some(r => r.project.id === ids[1]);
+        } finally {
+            for (const id of ids) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ otherRoom: false, roomless: true }),
+            "{where the student stands: the roomless project's action, and not the action of a project in another room}");
+    }],
+
+    ["a countdown made in Daggerheart's own window keeps its direction when the module first writes to it, so it is complete exactly when Daggerheart's tray shows it run out (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 5): Daggerheart's countdown starts full and ticks down to 0, and with no projectMeta the module reads it so (`countsUp` false); the module's first write to it - a room or an action from the project manager - left a row without `countsUp`, which `countsUp` reads as \"ours, from before the stamp\", and the direction flipped: the fresh countdown read complete and gave its action at once, and the one Daggerheart showed run out read not complete and gave none; since, a first write to a countdown with no row stamps `countsUp: false` (projects-secrecy.mjs `setProjectMeta`)", async () => {
+        /* Red at d77329e4: { roomGiven: true, actionGiven: true, runOut: false } - complete as soon as it had a room, and
+           not once it ran out. The countdown is written to Daggerheart's setting as its own window writes one. */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const F = await import("./facilities.mjs");
+        const { where } = await playerInRoom();
+        const id = foundry.utils.randomID(16);
+        const complete = () => P.allProjects().find(p => p.id === id)?.complete ?? null;
+        const writeCountdown = async current => {
+            const data = foundry.utils.deepClone(game.settings.get(S.DH, S.COUNTDOWNS) ?? {});
+            data.countdowns = { ...(data.countdowns ?? {}) };
+            data.countdowns[id] = { ...(data.countdowns[id] ?? { name: "SUITE a countdown of Daggerheart's", img: "icons/magic/time/hourglass-yellow-green.webp", ownership: { default: S.OBSERVER } }),
+                progress: { start: 4, current } };
+            await game.settings.set(S.DH, S.COUNTDOWNS, data);
+            await settle();
+        };
+        const read = {};
+        try {
+            await writeCountdown(4);
+            read.fresh = complete();
+            await S.setProjectMeta(id, { room: where.room });
+            await settle();
+            read.roomGiven = complete();
+            await F.setProjectFacility(id, { label: "SUITE Daggerheart's soup", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await settle();
+            read.actionGiven = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+            await writeCountdown(0);
+            read.runOut = complete();
+            read.actionAtRunOut = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+        } finally {
+            await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ actionAtRunOut: true, actionGiven: false, fresh: false, roomGiven: false, runOut: true }),
+            "{Daggerheart's countdown: not complete fresh, nor once given a room, no action while it runs, complete and its action given once it ran out}");
     }],
 
     ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
@@ -92576,7 +92819,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["E60-T18 - a player's roll not drawn on a GM's screen (E60 C5e; E60-18): a duality roll the player's own browser wrote (no GM at its throw, Daggerheart's own) is animated by this GM's Dice So Nice only while this GM's Monokuma stands in the roller's room, and its card is read either way", async () => {
         /*
          * E60 C5e, 03.11.2026. A roll the player's browser throws itself is the player's message, which Dice So Nice animates
-         * wherever its content is visible (the harness's model of 6.3.1's `shouldInterceptMessage`, `__dsnAnimated`), and a
+         * wherever its content is visible (the harness's model of 6.3.1's `main.js#shouldInterceptMessage`, `__dsnAnimated`), and a
          * GM reads every whisper, so until C5e every GM's screen threw it. Now private-rolls.mjs `keepDiceToReaders` turns
          * Dice So Nice's decision off on a GM's browser that is not among `gmsInRoomOf` the roll's subject. A player's
          * duality card about their character (`playerRollCard`, the player as author), with the world's Monokuma moved into
@@ -93018,7 +93261,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * the world. Enter is pressed as a browser presses it in a field - the form submitted by its first submit button
          * in the tree (HTML's implicit submission; jsdom submits nothing on a synthetic key, as "Enter in the verdict
          * window executes nobody" says), and where that button is disabled the browser submits nothing, which is read,
-         * not pressed. Escape is the harness's DialogV2 `_onKeyDown`, modelled from the module's note on 14.365 (shim.mjs).
+         * not pressed. Escape is the harness's `DialogV2#_onKeyDown`, modelled from the module's note on 14.365 (shim.mjs).
          * Red before C3a: no ui-kit.mjs. The mutant c3a-m1 (the primary on the left) reads red here.
          */
         needs(env.dialogs(), "the kit window is drawn, read and pressed");
@@ -101099,7 +101342,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*
          * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`
-         * (DocumentSheetV2's `_processSubmitData`). The form is read as R3552 reads it - Foundry's FormDataExtended where it
+         * (`DocumentSheetV2#_processSubmitData`). The form is read as R3552 reads it - Foundry's FormDataExtended where it
          * is, else each named field by its type - and the character is the suite's own, made and deleted here. Red at
          * 54493dbf: no dh-settings.mjs to dress the window.
          */

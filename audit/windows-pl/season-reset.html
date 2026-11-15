@@ -1,0 +1,109 @@
+<dialog id="app-KGUw3PzN" class="application dialog drpg-panel drpg-window-season-reset drpg-ui" open="" style="z-index: 169; left: 312px; top: 384px;" data-drpg-scaled="1@768" lang="pl" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">
+            <div class="drpg-box" data-drpg-box="warning" role="note"><p>Tego nie da się cofnąć, ani tym modułem, ani niczym innym.</p></div>
+            
+            
+            <p><strong>To znika:</strong></p>
+            <div class="drpg-reset-goes-list"><ul class="drpg-reset-goes"><li data-group="remnants">Remnanty na mapach i to, czym każdy z nich naprawdę był <span class="notes">(1 Remnant na mapach)</span></li><li data-group="bullets">Truth Bullety w ekwipunku obsady <span class="notes">(0 Truth Bulletów razem z kluczami odpowiedzi)</span></li><li data-group="incident">Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności</li><li data-group="trialFloor">Głos w Class Trial</li><li data-group="trialProgress">Postęp Class Trial i jego głosowanie</li><li data-group="keyPlan">Plan Key Remnantów</li><li data-group="searchTokens">Search Tokeny wydane w każdym pokoju</li><li data-group="discovered">Które pokoje zostały odkryte</li><li data-group="bodyFound">Znalezione ciało, które czeka na decyzję GM-a, i zapis, czyje ciała znaleziono</li><li data-group="deaths">Śmierci, Monocuby i ciała na mapach, a zmarli wracają i każdy uczeń ma znów pełne Health i Sanity <span class="notes">(0 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem)</span></li><li data-group="items">Co nosi obsada, a klucz do każdej sypialni wraca do jej właściciela <span class="notes">(1 przedmiot, który obsada nosi albo schowała)</span></li><li data-group="advancement">Level Upy i doświadczenia, które dodały, a statystyki i maksima wracają do arkusza startowego <span class="notes">(0 Level Upów razem z podniesionymi statystykami i maksimami)</span></li><li data-group="actions">Budżet akcji odnowiony, a to, co akcje sezonu zostawiły w mocy, wyczyszczone: odpoczynki, barykady, Bounty, Confusion, efekty pokoi, maski, śledzenia, warty, podsłuchy, wytrychy, przejścia i zapisy rzutów</li><li data-group="preNotes">Notatki przed sesją dla GM-ów <span class="notes">(0 notatek przed sesją napisanych przez GM-ów)</span></li><li data-group="stashesFound">Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta</li><li data-group="projects">Naprawy, projekty i ich Countdowny <span class="notes">(0 projektów; 0 tokenów projektów na mapach)</span></li><li data-group="mastermind">Mastermind</li><li data-group="passages">Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na początku sezonu, zna je znowu) <span class="notes">(0 uczniów, którzy znają tajne przejście; 0 tajnych przejść zbudowanych w projektach; 0 wyłomów, a ich ściany znów całe)</span></li><li data-group="seals">Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut</li><li data-group="motive">Motive</li><li data-group="rules">Stałe zasady Monokumy</li><li data-group="doors">Zamknięte drzwi, z powrotem do stanu z otwarcia sezonu</li><li data-group="eclipseMoves">Wykorzystane przejścia Eclipse</li><li data-group="assembly">Zwołane zgromadzenie, które jeszcze się nie odbyło</li><li data-group="cards">Własne karty tego modułu i komunikator <span class="notes">(24 karty napisane przez ten moduł i każdy wątek komunikatora)</span></li><li data-group="chatRest">Reszta dziennika czatu, której ten moduł nie napisał</li><li data-group="despair">Pule Despair i każdy Hope z powrotem do wartości startowej <span class="notes">(każda pula Despair do zera (1 niepusta) i każdy Hope z powrotem do 2)</span></li><li data-group="assignments">Podział uczniów między Monokumy w Despair Flow, więc każdy uczeń wraca do pierwszej puli <span class="notes">(0 uczniów przypisanych ręcznie)</span></li><li data-group="overflow">Overflow i jego zaciemnienie</li><li data-group="clock">Zegar, z powrotem na rozdział 1, dzień 1, rano</li><li data-describes="noticeHistory">Historia powiadomień w przeglądarce każdego gracza: zaczyna się od nowa, gdy reset czyści zegar, incydent albo czat</li></ul></div>
+            <p><strong>To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, zespół Monokum i nazwa kampanii.</strong></p>
+
+            <!-- R-1. Every step of the wipe, ticked. An unticked box is an
+                 exception: that group is left exactly as it is, and the choice is
+                 remembered for the next reset. The line under the list says what
+                 was remembered, because a GM must never have to work out why a
+                 box is already clear. -->
+            <p><strong>Co znika, a co zostaje</strong></p>
+            <p class="notes">Odznacz wszystko, czego ten reset ma nie ruszać. Następny reset otworzy się z tymi samymi grupami odznaczonymi; zaznacz którąś ponownie, a reset przestanie ją pomijać.</p>
+            
+            <div class="drpg-reset-groups"><fieldset class="drpg-reset-section">
+            <legend>Sprawa</legend>
+            <label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.remnants" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Remnanty na mapach i to, czym każdy z nich naprawdę był</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.bullets" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Truth Bullety w ekwipunku obsady</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.incident" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.trialFloor" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Głos w Class Trial</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.trialProgress" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Postęp Class Trial i jego głosowanie</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.keyPlan" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Plan Key Remnantów</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.searchTokens" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Search Tokeny wydane w każdym pokoju</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.discovered" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Które pokoje zostały odkryte</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.bodyFound" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Znalezione ciało, które czeka na decyzję GM-a, i zapis, czyje ciała znaleziono</label>
+        </fieldset><fieldset class="drpg-reset-section">
+            <legend>Obsada</legend>
+            <label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.deaths" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Śmierci, Monocuby i ciała na mapach, a zmarli wracają i każdy uczeń ma znów pełne Health i Sanity</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.items" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Co nosi obsada, a klucz do każdej sypialni wraca do jej właściciela</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.advancement" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Level Upy i doświadczenia, które dodały, a statystyki i maksima wracają do arkusza startowego</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.actions" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Budżet akcji odnowiony, a to, co akcje sezonu zostawiły w mocy, wyczyszczone: odpoczynki, barykady, Bounty, Confusion, efekty pokoi, maski, śledzenia, warty, podsłuchy, wytrychy, przejścia i zapisy rzutów</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.preNotes" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Notatki przed sesją dla GM-ów</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.stashesFound" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta</label>
+        </fieldset><fieldset class="drpg-reset-section">
+            <legend>Plansza</legend>
+            <label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.projects" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Naprawy, projekty i ich Countdowny</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.mastermind" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Mastermind</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.passages" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na początku sezonu, zna je znowu)</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.seals" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.motive" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Motive</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.rules" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Stałe zasady Monokumy</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.doors" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Zamknięte drzwi, z powrotem do stanu z otwarcia sezonu</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.eclipseMoves" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Wykorzystane przejścia Eclipse</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.assembly" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Zwołane zgromadzenie, które jeszcze się nie odbyło</label>
+        </fieldset><fieldset class="drpg-reset-section">
+            <legend>Dziennik</legend>
+            <label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.cards" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Własne karty tego modułu i komunikator</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.chatRest" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Reszta dziennika czatu, której ten moduł nie napisał</label>
+        </fieldset><fieldset class="drpg-reset-section">
+            <legend>Świat</legend>
+            <label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.despair" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Pule Despair i każdy Hope z powrotem do wartości startowej</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.assignments" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Podział uczniów między Monokumy w Despair Flow, więc każdy uczeń wraca do pierwszej puli</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.overflow" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Overflow i jego zaciemnienie</label><label class="drpg-inline-check">
+                <input type="checkbox" name="wipe.clock" data-tooltip="Zaznaczone: reset to wyczyści. Odznaczone: zostaje dokładnie tak, jak jest" checked="" data-drpg-named="own">
+                Zegar, z powrotem na rozdział 1, dzień 1, rano</label>
+        </fieldset></div>
+            <fieldset class="drpg-reset-section drpg-reset-cast">
+        <legend>Dokąd trafiają tokeny obsady</legend>
+        <p class="notes">Uczeń bez sypialni albo bez tokenu na mapie pokoju, do którego ma trafić, zostaje na miejscu, a raport go wymienia. Ciało zostaje tam, gdzie upadło. Każdy reset otwiera się z zaznaczoną pierwszą opcją.</p>
+        <label class="drpg-inline-check">
+        <input type="radio" name="castTo" value="stay" title="Dokąd reset przeniesie tokeny obsady, gdy się skończy. Ciało zostaje tam, gdzie upadło" checked="" data-drpg-named="own">
+        Zostają tam, gdzie stoją</label>
+        <label class="drpg-inline-check">
+        <input type="radio" name="castTo" value="bedroom" title="Dokąd reset przeniesie tokeny obsady, gdy się skończy. Ciało zostaje tam, gdzie upadło" data-drpg-named="own">
+        Każdy uczeń do własnej sypialni, przypisanej w Ustawieniach pokoi</label>
+        <label class="drpg-inline-check">
+        <input type="radio" name="castTo" value="point" title="Dokąd reset przeniesie tokeny obsady, gdy się skończy. Ciało zostaje tam, gdzie upadło" data-drpg-named="own">
+        Wszyscy do jednego pokoju: <span class="drpg-select"><select name="castPoint" title="Pokój, do którego trafią tokeny wszystkich uczniów, gdy reset się skończy" data-drpg-chrome="select" aria-label="Pokój, do którego trafią tokeny wszystkich uczniów, gdy reset się skończy" data-drpg-named="swept"><option value="SCENEACADEMY0000.REGDORMA00000000">Academy - Floor 1: Dorm A</option><option value="SCENEACADEMY0000.REGCAFE000000000">Academy - Floor 1: Cafeteria</option><option value="SCENEACADEMY0000.REGDORMB00000000">Academy - Floor 1: Dorm B</option><option value="SCENEACADEMY0000.REGGYM0000000000">Academy - Floor 1: Gym</option><option value="SCENEACADEMY0000.REGHALL000000000">Academy - Floor 1: Hall</option><option value="SCENEACADEMY0000.REGSTORAGE000000">Academy - Floor 1: Storage</option></select></span></label>
+    </fieldset>
+
+            <label>Wpisz RESET, by potwierdzić
+                <input type="text" name="confirm" autocomplete="off" data-tooltip="Zresetuj sezon zadziała tylko wtedy, gdy wpiszesz dokładnie RESET, z tą samą wielkością liter" data-drpg-named="own"></label>
+        </div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"></div><div class="drpg-kit-left"><button type="submit" data-action="cancel" class="default drpg-role-cancel" data-drpg-role="cancel" autofocus="" data-drpg-named="own">Anuluj</button><button type="submit" data-action="reset" data-drpg-role="destructive" class="drpg-role-destructive drpg-destructive" data-drpg-named="own">Zresetuj sezon</button></div></footer></form></dialog>

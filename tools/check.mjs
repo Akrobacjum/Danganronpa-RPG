@@ -99,8 +99,10 @@
  *             only rows audit/gate/ci-record.mjs wrote from a run it spawned,
  *             read by that file's own rules after its planted rows refuse.
  *   live      every live check the code, the harness, the tools, the language
- *             files and the handbooks cite as LIVE-E<stage>-<n> is an item of
- *             audit/AUDIT-1.2.42.md section 9.2, written once.
+ *             files and the handbooks cite as LIVE-<id>-<n> (E<stage>, H<stage>,
+ *             and since E109 any id of letters and digits: R4420, 113R, PV) is an
+ *             item of audit/AUDIT-1.2.42.md section 9.2, written once; a planted
+ *             control of each form runs first.
  *   text      the text lint (E65): the guide (docs/text-style.md), the words
  *             (docs/glossary.json) and the lengths (docs/text-budgets.json)
  *             held against the module's texts. It reads lang/en.json and
@@ -1235,14 +1237,38 @@ async function gatecode() {
    asked here. audit/AUDIT-1.2.42.md does not
    ship (.gitattributes), so this is the repository's check and not the suite's. The table smoke's stages (H81,
    20.10.2026) write theirs as LIVE-H<stage>-<n>, read here as the E ids are. */
+/* THE IDS READ (E109, 14.11.2026; the 1.2.113 notes' leftover): until 1.2.115 only LIVE-E<stage>-<n> and LIVE-H<stage>-<n>,
+   so the items 516-518 (LIVE-PV-01..03), 523-524 (LIVE-113R-01, -02) and 533 (LIVE-R4420-01) of AUDIT 9.2 were read by
+   nothing, and a citation of a wrong one of their form passed. Any LIVE-<id>-<n> now, the id letters and digits; LIVE-REOPEN-01
+   alone stays out, a reading older than the numbered list (above). `LIVE_CONTROL` is planted on every run: each id in it
+   must be read, and its unwritten citations caught, or the part is red. */
+const LIVE_ID = /\bLIVE-(?!REOPEN-)[A-Z0-9]+-\d+\b/g;
+const LIVE_ITEM = /^(\d+)\. \*\*(LIVE-(?!REOPEN-)[A-Z0-9]+-\d+) - /gm;
+const L = id => `LIVE-${id}`; // spelt apart, so the planted ids are not this file's own citations
+const LIVE_CONTROL = Object.freeze({
+    audit: [L("E77-11"), L("R4420-01"), L("113R-02"), L("PV-03")].map((id, i) => `${i + 1}. **${id} - a** x\n`).join(""),
+    line: [L("E77-11"), L("R4420-01"), L("113R-02"), L("PV-03"), L("R4420-99"), L("113R-99"), L("E77-999"), L("REOPEN-01")].join(" "),
+    items: [L("E77-11"), L("R4420-01"), L("113R-02"), L("PV-03")],
+    unwritten: [L("R4420-99"), L("113R-99"), L("E77-999")]
+});
 function live() {
     const problems = [];
+    {
+        const planted = new Set([...LIVE_CONTROL.audit.matchAll(LIVE_ITEM)].map(m => m[2]));
+        const cited = [...LIVE_CONTROL.line.matchAll(LIVE_ID)].map(m => m[0]);
+        const unseen = LIVE_CONTROL.items.filter(id => !planted.has(id));
+        const missed = LIVE_CONTROL.unwritten.filter(id => !cited.includes(id) || planted.has(id));
+        if (unseen.length || missed.length || cited.includes(L("REOPEN-01"))) {
+            problems.push(`live: the planted control reads wrong - items not read ${unseen.join(", ") || "none"}; unwritten citations not caught ${missed.join(", ") || "none"}`
+                + `${cited.includes(L("REOPEN-01")) ? `; ${L("REOPEN-01")} read as an id` : ""}`);
+        }
+    }
     const audit = exists("audit/AUDIT-1.2.42.md") ? read("audit/AUDIT-1.2.42.md") : "";
     const from = audit.search(/^### 9\.2 /m);
     if (from < 0) return ["audit/AUDIT-1.2.42.md has no section 9.2 - nothing was read"];
     const rest = audit.slice(audit.indexOf("\n", from) + 1), next = rest.search(/^#{2,3} /m);
     const items = new Map();
-    for (const m of (next < 0 ? rest : rest.slice(0, next)).matchAll(/^(\d+)\. \*\*(LIVE-[EH]\d+-\d+) - /gm)) {
+    for (const m of (next < 0 ? rest : rest.slice(0, next)).matchAll(LIVE_ITEM)) {
         if (items.has(m[2])) problems.push(`AUDIT 9.2 writes ${m[2]} twice: items ${items.get(m[2])} and ${m[1]}`);
         items.set(m[2], m[1]);
     }
@@ -1251,7 +1277,7 @@ function live() {
     let cites = 0;
     for (const f of files) {
         read(f).split("\n").forEach((line, i) => {
-            for (const [id] of line.matchAll(/\bLIVE-[EH]\d+-\d+\b/g)) {
+            for (const [id] of line.matchAll(LIVE_ID)) {
                 cites++;
                 if (!items.has(id)) problems.push(`${f}:${i + 1}: ${id} is cited, and AUDIT 9.2 has no item of it`);
             }
@@ -1582,19 +1608,27 @@ async function text() {
             const state = textRender.pilotState(pilot, against);
             console.log(`text: pilot: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
                 + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the pilot ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
-            const movable = strings.filter(x => typeof x?.pl?.before === "string" && typeof x?.pl?.after === "string" && x.pl.after !== x.pl.before && pl.get(x.key) === x.pl.before);
+            /* E109 (14.11.2026): the control read two strings whose Polish was still the before in pl.json, and the stages
+               that land afters use those up (E109 landed reducedMotion's, leaving one). It plants its own now: a copy of
+               pl.json with two such strings put back to their befores is the base, read first, so the control holds
+               whatever the tree has landed. Strings whose before is pl.json's text come first, as before. */
+            const movable = strings.filter(x => typeof x?.pl?.before === "string" && typeof x?.pl?.after === "string" && x.pl.after !== x.pl.before && pl.has(x.key))
+                .sort((a, b) => Number(pl.get(b.key) === b.pl.before) - Number(pl.get(a.key) === a.pl.before));
             if (movable.length >= 2) {
-                const [landed, edited] = movable, moved = new Map(pl);
+                const [landed, edited] = movable, base = new Map(pl);
+                base.set(landed.key, landed.pl.before);
+                base.set(edited.key, edited.pl.before);
+                const before = textRender.pilotState(pilot, { ...against, pl: base }), moved = new Map(base);
                 moved.set(landed.key, landed.pl.after);
                 moved.set(edited.key, `${edited.pl.before} (edited)`);
                 const after = textRender.pilotState(pilot, { ...against, pl: moved }), named = textRender.pilotSchema(pilot, { ...against, pl: moved });
                 const wrong = [
-                    ...(after.landed.pl === state.landed.pl + 1 ? [] : [`landed pl ${after.landed.pl}, not ${state.landed.pl + 1}`]),
+                    ...(after.landed.pl === before.landed.pl + 1 ? [] : [`landed pl ${after.landed.pl}, not ${before.landed.pl + 1}`]),
                     ...(after.changed.includes(`${edited.key} pl`) ? [] : [`${edited.key} pl not read as changed`]),
                     ...named.filter(p => p.includes(`(${landed.key})`) || p.includes(`(${edited.key})`)).map(p => `the schema names "${p}"`)
                 ];
                 if (wrong.length) problems.push(`pilot: a copy of pl.json with ${landed.key}'s after landed and ${edited.key} edited reads wrong: ${wrong.join("; ")} - applying an approved after would read wrong or turn this part red`);
-            } else problems.push(`pilot: the reading's control has nothing to move (${movable.length} string(s) whose Polish before is pl.json's text and whose after differs)`);
+            } else problems.push(`pilot: the reading's control has nothing to move (${movable.length} string(s) with a Polish before and an after that differs)`);
             const pair = pairs.find(p => p.key && against.en.has(p.key) && pl.has(p.key));
             if (strings.length >= 3 && pair && Array.isArray(pilot.questions) && pilot.questions.length) {
                 const copy = JSON.parse(JSON.stringify(pilot));

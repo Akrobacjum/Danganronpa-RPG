@@ -1008,7 +1008,7 @@ export function kitSheetProblems(text) {
         const tokenBlock = !b.context.length && (b.prelude === "body" || b.prelude === "body.drpg-theme-stained-glass");
         if (tokenBlock) {
             for (const d of decls.filter(x => /^--drpg-kit-[\w-]*-size$/.test(x.property))) {
-                if (b.prelude === "body" && !/^max\(\s*11px\s*,/.test(d.value)) problems.push(`${d.property} under Legacy is not floored at 11 px: ${d.value}`);
+                if (b.prelude === "body" && !/^max\(\s*11px\s*,/.test(atReadableFloor(d.value))) problems.push(`${d.property} under Legacy is not floored at 11 px: ${d.value}`);
                 if (b.prelude !== "body" && !/^max\(\s*var\(--drpg-sg-floor\)\s*,/.test(d.value)) problems.push(`${d.property} under the glass is not floored at --drpg-sg-floor: ${d.value}`);
             }
             continue;
@@ -1035,3 +1035,11 @@ export function kitSheetProblems(text) {
     }
     return problems;
 }
+
+/**
+ * The readability floor's 11 px as the sheets write it since the Interface scale reaches 25 % (14.11.2026, R7332):
+ * `calc(11px * var(--drpg-floor-scale, 1))`, which is 11 px from a slider of 0.8 up - the slider's least until then, and
+ * every reader that holds the floor reads at it or at 100 %. Handed a rule's text or a value, the bare `11px` those readers
+ * were written for; under 0.8 the floor's proportion is R7332's to hold.
+ */
+export const atReadableFloor = text => String(text ?? "").replaceAll("calc(11px * var(--drpg-floor-scale, 1))", "11px");

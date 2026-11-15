@@ -682,7 +682,7 @@ export const ITEM_CATEGORIES = {
         label: "Murder Weapon",
         plural: "Murder Weapons",
         limitGroup: "gear",
-        hint: "Readied in an incident, it gives advantage on Self-Defense and Role Reversal; a weapon blow with it takes more Health the higher its tier, and without one readied that blow is at disadvantage. One used to strike breaks when the clean-up ends."
+        hint: "Readied in an incident, it gives advantage on Self-Defense and Role Reversal; a weapon blow with it takes more Health the higher its tier, and without one readied that blow is at disadvantage. One used to strike breaks when the Tamper stage ends."
     },
     cleaningTool: {
         label: "Cleaning Tool",
@@ -970,7 +970,7 @@ export const LIMIT_GROUPS = {
          * its tier off the project and sabotage thresholds. Carrying the set and
          * choosing afterwards is not the decision this is meant to be.
          *
-         * Half the rule was already here and unnamed: `toggleReady` puts
+         * Half the rule was already here and unnamed: use-items.mjs `toggleEquipped` puts
          * everything else down, so at most one thing is ever in a hand. This is
          * the other half.
          */
@@ -2017,7 +2017,7 @@ export const INDIRECT_MURDER = {
     /** The guide splits an indirect murder into at least two sub-projects. */
     subProjects: [
         { label: "Prepare the Weapon", scale: ["everyday", "complex"], progress: [4, 6],
-          note: "May need a room with the right equipment, unless the killer already has the tool." },
+          note: "May need a room with the right equipment." },
         { label: "Set the Trap", scale: ["trivial", "everyday"], progress: [3, 4],
           note: "Always requires a specific room." }
     ]
@@ -2253,8 +2253,8 @@ export const FACILITIES = Object.freeze({
         overflowDown: Object.freeze({ amount: 10, once: true }),
         text: Object.freeze({ text: true }),
         /* THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026: "Dodajemy teraz"; timed-effects.mjs). Each kept by
-           the GMs as a row with its end (`until`, one of `TIMED_UNTIL`; `untils` the ones the GM may pick here, the first
-           the default). `trait`: the GM picks a statistic in the editor. */
+           the GMs as a row with its end (`until`: "timeOfDay", "day" or "eclipse"; `untils` the ones the GM may pick
+           here, the first the default). `trait`: the GM picks a statistic in the editor. */
         traitBonus: Object.freeze({ amount: 3, trait: true, untils: Object.freeze(["timeOfDay", "day"]) }),
         // `label`: the GM names it in the editor (the line's text box); an Experience of that name and value X.
         experience: Object.freeze({ amount: 3, label: true, untils: Object.freeze(["timeOfDay", "day"]) }),
@@ -3734,7 +3734,7 @@ export const MURDER_OPENING = {
         hope: "The victim senses something is wrong in this room, but not why. Their roll leaves an Incident Remnant (Evident).",
         despair: "The victim works out what was set up here and can tell the others; the project behind it stays active. Their roll leaves an Incident Remnant (Evident).",
         critical: "The victim spots the trap and knows who built it. Their roll leaves an Incident Remnant (Evident).",
-        failure: "The victim notices nothing, and the trap closes. The victim cannot take Role Reversal, and nobody who walks in can take Double Role Reversal.",
+        failure: "The victim notices nothing, and the trap closes. The victim cannot take Role Reversal.",
         /**
          * Noticing leaves a trace of the attempt.
          *
@@ -4966,11 +4966,12 @@ export const SFX_CATEGORIES = {
  * How far a varied sound may bend, as a fraction of its normal rate.
  *
  * ONE KNOB, NOT THREE. "Pitch and speed" sound like two controls and are one:
- * a Web Audio buffer source has `playbackRate` and `detune`, and `detune` is
- * only that same rate written in cents. Both RESAMPLE - faster is higher AND
- * shorter, like a tape run fast. Changing pitch without changing length needs a
- * phase vocoder, which is an absurd amount of machinery for a click on a
- * button, so this module bends the rate and says so.
+ * a Web Audio buffer source has `AudioBufferSourceNode#playbackRate` and
+ * `AudioBufferSourceNode#detune`, and the second is only that same rate written
+ * in cents. Both RESAMPLE - faster is higher AND shorter, like a tape run fast.
+ * Changing pitch without changing length needs a phase vocoder, which is an
+ * absurd amount of machinery for a click on a button, so this module bends the
+ * rate and says so.
  *
  * EIGHT PER CENT, AND THREE WAS WRONG. The note that stood here argued down
  * from five to three because ±5% is "most of a semitone" and would read as out
@@ -5208,7 +5209,7 @@ export const SFX_EVENTS = {
     },
     // E110 part 3: the owner of a bedroom told it was entered - its lock picked, forced or breached, or mended.
     bedroomEntered: {
-        label: "Your bedroom was entered",
+        label: "Your bedroom's lock",
         hint: "Your bedroom's lock was picked, forced or breached, or mended. Heard by you alone.",
         category: "world"
     },
@@ -5311,7 +5312,7 @@ export const SFX_EVENTS = {
     },
     cleanupFailed: {
         label: "Cleaning up fails",
-        hint: "A Tamper, Erase a Trace, or Reshape a Trace roll misses. Heard by the player who rolled it.",
+        hint: "A Tamper, Erase a Trace, Reshape a Trace, Misleading Trail or Move the Body roll misses. Heard by the player who rolled it.",
         category: "incident"
     },
     breakdown: {
@@ -5336,7 +5337,7 @@ export const SFX_EVENTS = {
     },
     yourTurn: {
         label: "Your turn",
-        hint: "A student's turn comes up in an incident, a Testimony, a Panic Round, or a Closing Argument. Heard by their player.",
+        hint: "A student's turn comes up in an incident, a Testimony, a Panic Round, a Closing Argument, or a Scrum Debate. Heard by their player.",
         category: "incident"
     },
     truthBullet: {

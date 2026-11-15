@@ -67,7 +67,7 @@ body {
     --drpg-kit-tab-brush: var(--drpg-ink);
     --drpg-kit-tab-bar: transparent;
     --drpg-kit-tab-radius: 3px;
-    --drpg-kit-tab-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-tab-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-sm));
     --drpg-kit-tab-pad: 8px;
     --drpg-kit-tab-ls: 0.05em;
     /* the smallest a tab goes to fit one line: D29's 11 px (ui-kit.mjs `fitKitTabs` reads it) */
@@ -76,7 +76,7 @@ body {
     --drpg-kit-chip-edge: var(--drpg-line-strong);
     --drpg-kit-chip-on-bg: var(--drpg-bone);
     --drpg-kit-chip-on-ink: var(--drpg-ink);
-    --drpg-kit-chip-size: max(11px, var(--drpg-text-xs));
+    --drpg-kit-chip-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-xs));
     /* a chip with nothing under it: under Legacy the chip's ink at the kit's 0.4, under the glass its dim ink */
     --drpg-kit-chip-off-ink: var(--drpg-bone);
     /* boxes: the notes and the warning lines */
@@ -93,7 +93,7 @@ body {
        `--drpg-dim` measured 4.68:1 on the window and 4.32:1 on a warning at 13 px; this one 5.7:1 on the window
        (M15 at 1920x1080, the mockup round's reading). */
     --drpg-kit-help-ink: rgba(var(--drpg-bone-rgb), 0.62);
-    --drpg-kit-help-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-help-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-sm));
     --drpg-kit-head-bg: var(--drpg-ink);
     --drpg-kit-scroll-shade: rgba(var(--drpg-bone-rgb), 0.35);
     --drpg-kit-switch-off: rgba(var(--drpg-bone-rgb), 0.25);
@@ -144,7 +144,7 @@ body {
     --drpg-kit-call-despair: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
     /* an action briefing's facts (E21 C5b; audit S02-36, S12-16): the numbers a player decides by, at the body's
        size in the bone ink - they were the window's smallest and darkest text */
-    --drpg-kit-brief-size: max(11px, var(--drpg-text-md));
+    --drpg-kit-brief-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-md));
     --drpg-kit-brief-ink: var(--drpg-bone);
     /* the notice history (E44 C5): its lines and grounds as E81 drew them, an entry's seam by its tone or source,
        and its two type sizes */
@@ -162,8 +162,8 @@ body {
     --drpg-kit-notice-seam-evidence: var(--drpg-evidence);
     --drpg-kit-notice-seam-alarm: var(--drpg-crimson-deep);
     --drpg-kit-seam: var(--drpg-kit-notice-seam);
-    --drpg-kit-notice-sm-size: max(11px, var(--drpg-text-sm));
-    --drpg-kit-notice-xs-size: max(11px, var(--drpg-text-xs));
+    --drpg-kit-notice-sm-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-sm));
+    --drpg-kit-notice-xs-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-xs));
     /* checkList (E46-C1): a mark and its title by state - done in the evidence colour `.drpg-check-ok` draws, blocking
        in the warning's red and the only red (S13-36), warning in the warning box's ink, advisory and waiting the fine
        print */
@@ -217,7 +217,7 @@ body.drpg-theme-stained-glass {
        today at 1366x768, is the kit's, and the one-line fit's lever here */
     --drpg-kit-tab-ls: 0.08em;
     /* the glass's own floor, above D29's 11 px: VT323's capital is 0.56 em (stained-glass.css, --drpg-sg-floor) */
-    --drpg-kit-tab-floor: max(11px, var(--drpg-sg-floor));
+    --drpg-kit-tab-floor: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-sg-floor));
     --drpg-kit-warn-edge: var(--drpg-sg-gm);
     --drpg-kit-warn-bg: color-mix(in srgb, var(--drpg-sg-gm) 12%, transparent);
     --drpg-kit-info-edge: color-mix(in srgb, var(--drpg-sg-bone) 45%, transparent);
@@ -1788,8 +1788,8 @@ body.drpg-theme-monokuma-legacy .drpg-foundry-window:not([hidden]) {
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    gap: 2px;
-    padding: 8px 12px 10px;
+    gap: calc(2px * var(--drpg-floor-scale, 1));
+    padding: calc(8px * var(--drpg-floor-scale, 1)) calc(12px * var(--drpg-floor-scale, 1)) calc(10px * var(--drpg-floor-scale, 1));
     overflow: hidden;
     pointer-events: auto;
     text-align: center;
@@ -1893,14 +1893,14 @@ body.drpg-theme-monokuma-legacy .drpg-foundry-window:not([hidden]) {
    harness's drpgRoomCheck reads the name and the tokens with the line and without it. */
 body:not(.drpg-stacked) .drpg-room-tile[data-state^="room"] {
     --drpg-room-band: calc(var(--drpg-text-xs) * 1.2);
-    padding-bottom: calc(12px + var(--drpg-room-band));
+    padding-bottom: calc(12px * var(--drpg-floor-scale, 1) + var(--drpg-room-band));
 }
 
 body:not(.drpg-stacked) .drpg-room-tile > .drpg-hud-room-project {
     position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: 10px;
+    left: calc(12px * var(--drpg-floor-scale, 1));
+    right: calc(12px * var(--drpg-floor-scale, 1));
+    bottom: calc(10px * var(--drpg-floor-scale, 1));
     height: var(--drpg-room-band);
     line-height: var(--drpg-room-band);
     white-space: nowrap;
@@ -1913,11 +1913,11 @@ body:not(.drpg-stacked) .drpg-room-tile > .drpg-hud-room-project {
    button, so a click on the corner opens the words and not the picture. */
 .drpg-room-tile-more {
     position: absolute;
-    top: 6px;
-    right: 6px;
+    top: calc(6px * var(--drpg-floor-scale, 1));
+    right: calc(6px * var(--drpg-floor-scale, 1));
     z-index: 1;
-    width: 28px;
-    height: 28px;
+    width: max(24px, calc(28px * var(--drpg-floor-scale, 1)));
+    height: max(24px, calc(28px * var(--drpg-floor-scale, 1)));
     margin: 0;
     padding: 0;
     display: grid;
@@ -1959,7 +1959,7 @@ body:not(.drpg-theme-stained-glass) #drpg-room-tile .drpg-room-tile-more:hover {
     order: -1;
     flex: 1 1 auto;
     min-height: 0;
-    margin: 30px 0 4px;
+    margin: calc(max(24px, calc(28px * var(--drpg-floor-scale, 1))) + 2px * var(--drpg-floor-scale, 1)) 0 calc(4px * var(--drpg-floor-scale, 1));
     overflow-y: auto;
     white-space: pre-line;
     overflow-wrap: anywhere;
@@ -1979,15 +1979,15 @@ body:not(.drpg-theme-stained-glass) #drpg-room-tile .drpg-room-tile-more:hover {
 
 .drpg-room-tile .drpg-hud-room-tokens {
     display: flex;
-    gap: 3px;
+    gap: calc(3px * var(--drpg-floor-scale, 1));
     align-items: center;
-    margin-top: 1px;
+    margin-top: calc(1px * var(--drpg-floor-scale, 1));
 }
 
 /* The dots' words, "2/3 searches", on their line (E17 C8; audit S10-29: the dots unlabelled read as a count of
    projects). The project line's size and weight, so the two read as one family of small print under the name. */
 .drpg-room-tile .drpg-hud-room-tokens-label {
-    margin-left: 3px;
+    margin-left: calc(3px * var(--drpg-floor-scale, 1));
     font-size: var(--drpg-text-xs);
     line-height: 1;
     opacity: 0.8;
@@ -2241,13 +2241,13 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
     grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
     align-items: center;
-    column-gap: 8px;
+    column-gap: calc(8px * var(--drpg-floor-scale, 1));
 }
 
 body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-prose {
     grid-area: 1 / 1 / 2 / -1;
     align-self: stretch;
-    margin: 6px 30px 4px;
+    margin: calc(6px * var(--drpg-floor-scale, 1)) calc(max(24px, calc(28px * var(--drpg-floor-scale, 1))) + 2px * var(--drpg-floor-scale, 1)) calc(4px * var(--drpg-floor-scale, 1));
 }
 
 body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-name { grid-area: 2 / 2; }
@@ -2262,7 +2262,7 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-ro
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
     position: relative;
     isolation: isolate;
-    padding: 1px 10px 2px;
+    padding: calc(1px * var(--drpg-floor-scale, 1)) calc(10px * var(--drpg-floor-scale, 1)) calc(2px * var(--drpg-floor-scale, 1));
     font-family: var(--drpg-font-chrome);
     letter-spacing: 0.1em;
     color: var(--drpg-sg-ink);
@@ -2275,7 +2275,7 @@ body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name::before {
     content: "";
     position: absolute;
-    inset: 1px -5px;
+    inset: calc(1px * var(--drpg-floor-scale, 1)) calc(-5px * var(--drpg-floor-scale, 1));
     z-index: -1;
     background: var(--brush);
     opacity: var(--brush-on, 0);
@@ -2431,6 +2431,48 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
     letter-spacing: 0.06em;
 }
 
+/* A COMPACT TILE NARROWER THAN ITS BUTTONS' ROW (14.11.2026; the Interface scale down to 25 %, settings.mjs `UI_SCALE`).
+   At 25 % the glass harness's compact tile is 65 x 94 px (Chromium, 4a2beafb, 1366x768) while its two 30 px buttons stood
+   in a 66 px row 6 px from its right - the microphone at x -7, outside the tile - and the face kept its 82 px right padding,
+   so the name showed 0 px of its 72. Under 110 px of tile (at 80 % the narrowest compact tile is 145) the buttons stand in a
+   column at the right, 24 px each (the hit floor of a window's header controls under 80 %), and the face's padding, the
+   state word's band and the plate leave them that column alone: the name keeps what is left and ellipsizes. The tile's
+   width is glass.mjs's own (`--drpg-voice-w`) on the wall, so its inline size is a container's without collapsing it. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] {
+    container: drpg-voice-tile / inline-size;
+}
+@container drpg-voice-tile (width < 110px) {
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-controls {
+        top: 3px;
+        right: 3px;
+        flex-direction: column;
+        gap: 3px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-controls > * {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        min-height: 24px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-face,
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-face {
+        padding: 3px 30px 2px 3px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-state,
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-state {
+        right: 30px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
+        padding-inline: 2px;
+    }
+    /* and the name's type follows the slider under 80 %, as the module's floors do (`--drpg-floor-scale`, 1 from 80 % up):
+       under the glass `--drpg-text-sm` is 13 px at every slider (`--drpg-legacy-scale` pinned at 1), and at 25 % on a
+       1366x768 desk the 11 px the buttons leave held less than "M" and its ellipsis, 14 px (Chromium, 27a4aaf7) */
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-name {
+        font-size: calc(var(--drpg-text-sm) * var(--drpg-floor-scale, 1));
+    }
+}
+
 /* A short name keeps the word's band on a stacked screen (H81 fix r1; danganronpa.css's rule of the same name): this
    theme's words are narrower - 59 px of text at most, "Disconnected", at the row's 11 px (Chromium, the glass
    harness's row, 20.10.2026) - so the portrait's 44 px, the word and its 6 px paddings: 115, and 9 to spare. The
@@ -2505,13 +2547,13 @@ body.drpg-theme-stained-glass #drpg-foundry-tools {
    said "2 of 3 left"; now the row looks like something that would have a tooltip. */
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-tokens {
     justify-content: center;
-    gap: 4px;
-    margin-top: 3px;
+    gap: calc(4px * var(--drpg-floor-scale, 1));
+    margin-top: calc(3px * var(--drpg-floor-scale, 1));
 }
 
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-pip {
-    width: 9px;
-    height: 9px;
+    width: calc(9px * var(--drpg-floor-scale, 1));
+    height: calc(9px * var(--drpg-floor-scale, 1));
     border-radius: 0;
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent);
     background: transparent;
@@ -2822,7 +2864,7 @@ body .application.drpg-ui.drpg-window-tables .drpg-tables-list .drpg-table-pick 
 .drpg-window-tables .drpg-table-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--drpg-kit-gap); margin-bottom: 6px; }
 body .application.drpg-ui.drpg-window-tables .drpg-table-heading h4 { margin: 0 auto 0 0; text-transform: none; }
 .drpg-window-tables .drpg-table-actions { display: inline-flex; flex: none; flex-wrap: nowrap; gap: var(--drpg-kit-gap); margin-inline-start: auto; }
-.drpg-window-tables .drpg-mini-button { font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1))); }
+.drpg-window-tables .drpg-mini-button { font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.78rem * var(--drpg-legacy-scale, 1))); }
 /* a room pool's category picker (E49 A4): its word and the select on one line, the select as wide as its longest
    option and never past the column; a group the picker does not show is out of the layout (ui-hold.mjs `showRoomGroup`
    holds the box's height) */
@@ -2859,16 +2901,30 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-item-cell > input[type=
     cursor: help;
 }
 .drpg-window-tables :is(.drpg-room-group > h5 .notes, .drpg-table-item-also) {
-    font-size: max(11px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.72rem * var(--drpg-legacy-scale, 1)));
 }
 .drpg-window-tables .drpg-table-item-roles > .drpg-check {
     padding: 0 6px;
     border: 1px solid var(--drpg-kit-line);
     border-radius: 2px;
-    font-size: max(11px, var(--drpg-text-xs));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-xs));
     /* a long category ("Narzędzie do sprzątania" under Legacy's pixel face) wraps inside its box, not into Actions */
     white-space: normal;
     overflow-wrap: break-word;
+    /* and its box stays on the first line (E109, 14.11.2026): centred, a two-line label stood it between the lines,
+       13.80 px below the first one in Polish under the glass (audit/radio-sweep.mjs --pl-windows, the Room tables tab) */
+    align-items: flex-start;
+}
+/* The glass's box is 22 px and centred on its line as a flex item (stained-glass.css, "ON ITS LABEL'S LINE"): here it
+   stands at the label's top and is moved down by half of what the first line is taller than the box, the line's height
+   its label's (`font-size` and `line-height` inherited, so `1lh` is the label's line: the line-height is a number, and
+   with the control's own 13.33 px font it read 17.33 px, under the box). Legacy's box is core's and is not moved. The window's
+   three classes outweigh the glass's box rule, which sets `margin: 0` (its `:is()` counts as three classes). */
+body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-tables .drpg-table-item-roles > .drpg-check > input[type="checkbox"] {
+    align-self: flex-start;
+    font-size: inherit;
+    line-height: inherit;
+    margin-top: max(0px, calc((1lh - 22px) / 2));
 }
 .drpg-window-tables .drpg-table-item-roles > .drpg-check:has(> input:checked) {
     border-color: var(--drpg-kit-btn-on-edge);
@@ -2901,7 +2957,7 @@ body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-window-items:not(
     --checkbox-checked-color: var(--drpg-kit-check-accent);
 }
 body.drpg-theme-monokuma-legacy .application.drpg-ui:is(.drpg-window-give, .drpg-window-items) .drpg-role-label {
-    font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.690625rem * var(--drpg-legacy-scale, 1)));
 }
 /* the item manager's holdings: a group per category, its plural heading over its list (E46-C3a) */
 .application.drpg-ui .drpg-holdings {
@@ -3033,7 +3089,7 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
 body .application.dialog.drpg-ui.drpg-window-gmteam .dialog-content .drpg-form-field > p.drpg-help { text-align: start; margin: 4px 0 0; }
 
 /* ---- Season setup and Pre-season checks (E46-C5b, 09.11.2026; card M4: one checklist of the kit, red only for a blocking row) ----
-   The rows are ui-kit.mjs `checkList`'s (season-setup.mjs `setupRows`, `markedChecks`); these rules place what a row holds.
+   The rows are ui-kit.mjs `checkList`'s (season-setup.mjs `setupRows`; `markedChecks` until E56 part 2); these rules place what a row holds.
    Season setup: a row's hint, the line of what it waits on and its extra (the room guide, Check rooms) each a block of the
    row's detail, the line in the row's state - the blocking red beside a cross, the warning's ink beside "!", the fine print
    otherwise; the row's button beside its text on one line (`.drpg-setup-do` before). The scrollbar's gutter kept on the body
@@ -3059,7 +3115,6 @@ body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-k
    as the end of Edit campaign's block; its own height (`.drpg-kit-pinned`), so the body above scrolls and the row stays. */
 body .application.drpg-window-season .drpg-kit-pinned { padding: 10px 0 2px; border-top: 1px solid var(--drpg-line-strong); }
 body .application.drpg-window-season .drpg-season-tiles .drpg-gmp-grid { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
-body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
 body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-title { overflow-wrap: anywhere; }
 body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > summary { cursor: pointer; }
 body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > div { color: var(--drpg-kit-help-ink); padding-left: 1em; }
@@ -3070,7 +3125,7 @@ body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report)
    the fix lines a line height of their own (the marks' face is the kit's since E47-KFa: danganronpa.css's exception to
    the pixel face, beside the icon fonts', reaches every checklist). Pre-season's fine print (the cast's header, "no scene has rooms") from the
    start, where the dialog's paragraph rule centred it. */
-body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-foundry-report) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-title { line-height: 1.4; }
 body .application.dialog:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
 
 /* ---- the Class Trial console and the vote (E47 C1, 09.11.2026; M6, the owner's q-console; S12-51, S18-89) ----

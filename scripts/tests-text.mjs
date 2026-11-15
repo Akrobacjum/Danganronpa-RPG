@@ -659,8 +659,8 @@ const GLOSSARY_FIELDS = Object.freeze({
     side: Object.freeze({ required: ["variants", "scope"], optional: ["case", "otherCase", "except"] })
 });
 const GLOSSARY_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-/* A decision (D33a, DB15, DA27, DC35, DX4, TR25), an amend (A7), or where no decision is named the issue or the plan entry that names the thing (S18-31, "E65 plan"). */
-const SOURCE_ID = /^(?:D\d+[a-z]?|DB\d+|DA\d+|DC\d+|DX\d+|TR\d+|A\d+|S\d\d-\d\d|E\d\d plan)$/;
+/* A decision (D33a, DB15, DA27, DC35, DX4, TR25), an amend (A7), or where no decision is named the issue or the plan entry that names the thing (S18-31, "E65 plan"; a three-digit stage since E109, "E109 plan"). */
+const SOURCE_ID = /^(?:D\d+[a-z]?|DB\d+|DA\d+|DC\d+|DX\d+|TR\d+|A\d+|S\d\d-\d\d|E\d{2,3} plan)$/;
 const SCOPES = Object.freeze(["ui", "handbooks"]), RETIRED_SCOPES = Object.freeze(["text", "label", "keys"]);
 
 const isText = x => typeof x === "string" && x.trim() !== "";
@@ -1524,13 +1524,6 @@ export function colonsIn(text) {
 }
 
 /**
- * T24 (rebuilt 30.10 from "T24 powyżej 2"; report from E65, FAIL from E71 above
- * 2): a UI string with more than two colons (`colonsIn`) - the "łańcuchy
- * dwukropków" of the plan's risk, of which X7 is the shape inside one sentence.
- * One finding a string, its count in `colons`; `byCount` how many strings hold
- * three, four and more.
- */
-/**
  * T24's allowed readouts (E57 C12, 14.11.2026): a string that is a list of named values, one "Label: {value}." each, not prose
  * strung on colons (X7's chain), each key with the reason and both languages alike. Read by `colonChains`; a fixture
  * passes its own through `colonAllow`.
@@ -1540,6 +1533,13 @@ export const COLON_CHAIN_ALLOW = Object.freeze({
     "DRPG.Mastermind.verdictSummary": "the Final Trial's summary: three named values, the Mastermind, the accused and the outcome, a readout on the GM's card (verdict.mjs)"
 });
 
+/**
+ * T24 (rebuilt 30.10 from "T24 powyżej 2"; report from E65, FAIL from E71 above
+ * 2): a UI string with more than two colons (`colonsIn`) - the "łańcuchy
+ * dwukropków" of the plan's risk, of which X7 is the shape inside one sentence.
+ * One finding a string, its count in `colons`; `byCount` how many strings hold
+ * three, four and more.
+ */
 export function colonChains(bag = {}) {
     const found = [], byCount = {};
     const allow = bag.colonAllow ?? COLON_CHAIN_ALLOW;
@@ -2795,16 +2795,6 @@ const PL_YOU_VERB = /(?<![\p{L}])(\p{L}{2,}(?:esz|isz|ysz|asz|łeś|łaś))(?![\
 const PL_NOT_VERB = new Set("klawisz afisz gulasz łukasz tomasz".split(" "));
 
 /**
- * T16 (the plan's, S18-45; report from E65, FAIL from E71 with no allowlist - decision 33 of 31.10): a key the audience
- * map sends to more than one person at once - the room, the incident's audience, the whole table (`audience`, key to its
- * sends, each with `readers`, as tools/text-audience.mjs writes them) - that says "you": in English "you", "your",
- * "you're" and their kin; in Polish a second person singular (PL_YOU_WORD, PL_YOU_VERB). DB19: such a card names the
- * reader by the role, in the third person. A key with one reader (an owner, the GMs, this browser, one named user, the
- * notice history's own) passes; a key whose list is not read (`list`) is counted apart (`maybe`), never judged; a key
- * whose readers depend on a value at run time is judged by every branch (the map lists both). `read`: the keys with a
- * send read. One finding a key and language, `you-en` or `you-pl`.
- */
-/**
  * T16's allowed keys (E57 C12, 14.11.2026): a text whose send the audience map files under many readers, where the call site
  * narrows them to the one person "you" means. Each key with the site and why; read by `secondPersonToMany`, and a fixture
  * passes its own through `youAllow`.
@@ -2818,6 +2808,16 @@ export const SECOND_PERSON_ALLOW = Object.freeze({
     "DRPG.Monocub.tiersIntro": "monocub.mjs: the brief of the Monocub's own ability window (callWindow), read by the Monocub's player, no card"
 });
 
+/**
+ * T16 (the plan's, S18-45; report from E65, FAIL from E71 with no allowlist - decision 33 of 31.10): a key the audience
+ * map sends to more than one person at once - the room, the incident's audience, the whole table (`audience`, key to its
+ * sends, each with `readers`, as tools/text-audience.mjs writes them) - that says "you": in English "you", "your",
+ * "you're" and their kin; in Polish a second person singular (PL_YOU_WORD, PL_YOU_VERB). DB19: such a card names the
+ * reader by the role, in the third person. A key with one reader (an owner, the GMs, this browser, one named user, the
+ * notice history's own) passes; a key whose list is not read (`list`) is counted apart (`maybe`), never judged; a key
+ * whose readers depend on a value at run time is judged by every branch (the map lists both). `read`: the keys with a
+ * send read. One finding a key and language, `you-en` or `you-pl`.
+ */
 export function secondPersonToMany(bag = {}) {
     const counts = { keys: 0, many: 0, maybe: 0, single: 0, allowed: 0, en: 0, pl: 0 };
     const allow = bag.youAllow ?? SECOND_PERSON_ALLOW;

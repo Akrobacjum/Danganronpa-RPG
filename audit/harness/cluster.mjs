@@ -540,6 +540,45 @@ function onClientMessage(who, entry, msg) {
             entry.proc.send({ t: "ack", id: msg.id, ok: !error, result: msg.value, error });
             break;
         }
+        case "files": {
+            /* THE SERVER'S FILES (E111, 14.11.2026): the smallest stand-in of Foundry's file routes the
+               case's server copy needs (scripts/case-copy.mjs). `browse` lists a folder of the "data"
+               source and asks FILES_BROWSE; `mkdir` and `upload` ask FILES_UPLOAD, and an upload into a
+               folder that does not exist is refused; `read` serves a file by its path to anybody, as
+               Foundry's static file route does to a request that is not logged in (read in no v14 source:
+               LIVE-E111-02). A permission is the user's own grant, else `core.permissions` as stored, else
+               the harness's defaults (TRUSTED and up, client-entry.mjs CONST.USER_PERMISSIONS); a
+               Gamemaster holds every one. What it does not model is in audit/harness/README.md. */
+            let error = null, result = null;
+            const op = msg.op ?? {};
+            const target = String(op.target ?? op.path ?? "").replace(/^\/+|\/+$/g, "");
+            const need = { browse: "FILES_BROWSE", mkdir: "FILES_UPLOAD", upload: "FILES_UPLOAD" }[op.action] ?? null;
+            if (op.source !== undefined && op.source !== "data") error = `harness: no file source "${op.source}"`;
+            else if (need && !filePermitted(entry.userId, need)) error = `You do not have permission to ${op.action === "browse" ? "browse" : "upload"} files`;
+            else if (op.action === "browse") {
+                if (!dirExists(target)) error = `Directory ${target} does not exist`;
+                else result = { target, files: [...serverFiles.keys()].filter(f => f.slice(0, f.lastIndexOf("/")) === target),
+                    dirs: [...serverDirs].filter(d => d.slice(0, d.lastIndexOf("/")) === target) };
+            } else if (op.action === "mkdir") {
+                if (dirExists(target)) error = `The directory ${target} already exists`;
+                else if (!dirExists(target.slice(0, target.lastIndexOf("/")))) error = `Directory ${target.slice(0, target.lastIndexOf("/"))} does not exist`;
+                else { serverDirs.add(target); result = target; }
+            } else if (op.action === "upload") {
+                if (!dirExists(target)) error = `Directory ${target} does not exist`;
+                else {
+                    const filePath = `${target}/${String(op.name ?? "").replace(/[\\/]/g, "")}`;
+                    serverFiles.set(filePath, { text: String(op.text ?? ""), by: entry.userId, at: Date.now() });
+                    result = { status: "success", path: filePath };
+                }
+            } else if (op.action === "read") {
+                const file = serverFiles.get(target);
+                result = file ? { ok: true, text: file.text } : { ok: false };
+            } else error = `harness: no file action "${op.action}"`;
+            fileLog.push({ who, action: op.action, path: target, ok: !error, error, at: Date.now() });
+            if (error && need) permissionDenials.push({ who, op: `files ${op.action} ${target}`, error });
+            entry.proc.send({ t: "ack", id: msg.id, ok: !error, result, error });
+            break;
+        }
         case "socket": {
             // Foundry honours `{ recipients: [userId, ...] }` on the emit: the packet reaches
             // those clients and nobody else. The relay used to broadcast everything, which hid
@@ -586,6 +625,21 @@ function onClientMessage(who, entry, msg) {
 
 const logSink = [];
 const permissionDenials = [];
+/* The server's files (E111): path -> { text, by, at }, the folders that exist, and every file request,
+   for the scenarios (`serverFiles`, `fileLog`). Kept for the whole run, as a server's disk is. */
+const serverFiles = new Map();
+const serverDirs = new Set(["worlds", `worlds/${process.env.DRPG_WORLD || "drpg-audit-world"}`]);
+const fileLog = [];
+const FILE_DEFAULT_ROLES = { FILES_BROWSE: [2, 3, 4], FILES_UPLOAD: [2, 3, 4] };
+/* Every world's own folder exists on a server, whichever world id a client opened (61's other worlds). */
+const dirExists = target => serverDirs.has(target) || /^worlds\/[^/]+$/.test(target);
+function filePermitted(userId, name) {
+    const rec = userRec(userId);
+    if (roleOf(userId) >= 4) return true;
+    if (rec?.permissions?.[name] === true) return true;
+    const stored = world.settings["core.permissions"]?.[name];
+    return (Array.isArray(stored) ? stored : FILE_DEFAULT_ROLES[name] ?? []).includes(roleOf(userId));
+}
 const socketTraffic = [];
 /* WHO WROTE WHAT, AND WHO LEFT (E30, 24.09.2026). With two GM clients the question
    a check asks is not only "did it change" but "who wrote it, and how many times":
@@ -1081,7 +1135,7 @@ async function main() {
        kept by hand, lacked phase, dump, canary and environment, and an account named `phase`
        got a client whose handle the function then replaced. */
     const api = {
-        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, connect, finishLoading, storageOf, reload, makePrimary, primaryOn, bootInfo, IDS,
+        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, serverFiles, fileLog, legacyKeys, opLog, settingLog, disconnect, connect, finishLoading, storageOf, reload, makePrimary, primaryOn, bootInfo, IDS,
         environment: ENVIRONMENT,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.

@@ -221,7 +221,7 @@ body.drpg-theme-stained-glass {
          430 x 340   1280x800: 15 edge gaps
          620 x 260   worse than 430 x 260, not better - width buys a little
                      height back on a card and costs more of the rail's run to
-                     the pane's own lean (`notePaneLean`, 0.22 of the width)
+                     the pane's own lean (glass.mjs `fitNoteTile`'s `lean`, 0.22 of the width)
          430 x 480   1440x900: 16 edge gaps, and the tool rail is drawn on bare
                      map because its bound has gone negative
 
@@ -700,14 +700,13 @@ body.drpg-theme-stained-glass .drpg-glass-band > :not(canvas) {
 
 /* ---- the Event panel: under the Despair rail, as wide as it, no button in it -------------- */
 body.drpg-theme-stained-glass #drpg-events {
-    /* the glass's box (E23 C3b): the drawn width below (C-J), and the cap - the height of the tallest single card, an
-       incident's with the longest texts of lang - so one card always fits whole; under the cap the panel is as tall as
-       its cards (E49 A6: see the base sheet's `#drpg-events`) */
+    /* the glass's box (E23 C3b): the drawn width below (C-J); no cap since owner-115 item 3 (it was 316 px, the tallest
+       single card's): the panel is as tall as its cards up to the room under it, and folds them past that (the base
+       sheet's `#drpg-events`, events.mjs `fitEvents`) */
     --drpg-events-w: calc(355px * var(--drpg-sg-scale));
-    --drpg-events-h: calc(316px * var(--drpg-sg-scale));
     max-width: 100%;
     height: auto;
-    max-height: var(--drpg-events-h);
+    max-height: none;
     margin: 8px auto 0;
     padding: 0;
     font-family: var(--drpg-font-chrome);
@@ -833,7 +832,8 @@ body.drpg-theme-stained-glass #pause.paused figcaption::after {
 /* ---- Foundry's own windows: the title in the title face ------------------------------------
    THE 0.84 GROUND THAT STOOD HERE IS GONE, AND IT HAD NOT PAINTED ANYTHING SINCE 07.09.
    It was this file's first answer for a window - the audit page's own number for a pane that
-   is not `glassfull`. Dawid's call that day made liquid glass the ground of EVERY window, and
+   is not `glassfull` (a class of the design page, docs/design/identity-audit-v13.html). Dawid's
+   call that day made liquid glass the ground of EVERY window, and
    that rule (`.application[class] .window-content`, 0.58, `!important`) has the same
    specificity and comes later, so this one lost every contest it entered. Two statements about
    the same surface, one of them silent: the audit of 08.09 found it by measuring the pixels
@@ -4063,10 +4063,11 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
 body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
     --drpg-stat-mark-size: 28px;
 }
-/* The width the widest statistic needs under the glass, its 28 px mark inside its plate: "Shadow" 115 px in Chromium
-   (danganronpa.css, "THE HEADER AT ANY WIDTH"; the glass's slider factor is 1). */
+/* The room over a statistic whose mark stands above its name: the glass's 28 px mark and 2 px (danganronpa.css, "THE SIX
+   STATISTICS IN ONE ROW"; Legacy's 22 px mark takes 24). The width each statistic needs is measured now (sheet-header.mjs
+   `fitTraitRow`), not stated here. */
 body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
-    --drpg-trait-need: 7.5rem;
+    --drpg-trait-mark-room: 30px;
 }
 body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark > i.drpg-stat-glyph {
     width: 24px;

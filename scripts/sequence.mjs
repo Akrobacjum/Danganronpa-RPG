@@ -883,6 +883,25 @@ export function playCaseSummary(message) {
     return playSequence("caseSummary", `summary:${board.at}`, ctx => drawCaseSummary(ctx, board), { sound: () => playSound("caseSummary") });
 }
 
+/* Each replay its own key, so a second one plays as the first did (`playSequence` plays a key once). */
+let replays = 0;
+
+/**
+ * THE GM'S REPLAY, ON THEIR OWN BROWSER (E109, DRPG-Q113 #56; Q-E99-9's default, "a GM may replay the board on their
+ * own browser only", which E99 left unbuilt as there was no board until 1.2.113; the owner's note, 14.11.2026:
+ * "Budowac"). The board of a GM's case summary card, played here and nowhere else: nothing is sent, nothing is written
+ * to the world, and the trial's record (`summaryShown`) is untouched, so the summary still went out once. Played
+ * whatever the table's switch says (the GM asked for it), still under reduced motion, as the live board is; `sound`
+ * false keeps it quiet (tier 1 asks so, R7125). Answers what `playSequence` answered, or null for a card with no board.
+ */
+export function replayCaseSummary(message, { on = true, sound = true } = {}) {
+    if (!game.user?.isGM) return null;
+    const board = caseSummaryBoard(message);
+    if (!board) return null;
+    return playSequence("caseSummary", `replay:${board.at}:${++replays}`, ctx => drawCaseSummary(ctx, board),
+        { on, sound: sound ? () => playSound("caseSummary") : null });
+}
+
 /* ========================================================================== *
  *  E94: THE START-OF-DAY BOARD
  * ========================================================================== */

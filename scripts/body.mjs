@@ -14,7 +14,7 @@ import { sameSeason, deathRecordFor, seasonEpoch, setBodyDiscovery, isDeadForGm,
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log, error, isPrimaryGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
-import { drpgWindow, emptyOption } from "./ui-kit.mjs";
+import { drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { pendingBodyStore, deathStore, bodyHeardStore } from "./gm-stores.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { sceneOfRoom, placeScenes, roomNames } from "./rooms.mjs";
@@ -795,7 +795,11 @@ async function checkBodyFound(tokenDoc) {
        murder is closed, so during the clean-up it was empty: a killer and a partner in crime
        standing by the body were two "witnesses", and the body was discovered in the middle of
        their own Stage 6. The running incident's killers count as involved too. */
-    const involved = new Set([...blackenedIds(), ...killerIds(murderState())]);
+    /* AND THE THIRD (E59 on the 1.2.115 line, CHAINS.md B-M4; R7182; GM 13.4: "the third of its incident (they were
+       there)"): who was in this body's death, the running incident's or as its death row keeps them (`inThatDeath`). */
+    const { blackenedStore } = await import("./gm-stores.mjs");
+    const involved = new Set([...blackenedIds(), ...killerIds(murderState()),
+        ...inThatDeath(bodyHere.id, { state: murderState(), register: blackenedStore.entries() })]);
 
     // And the dead are not witnesses, a Monocub neither since E72 C3 (E11 C1; `witnessesOf`). Nor is a student
     // who reached the room by a crossing the rules refuse, until they stand somewhere lawful (E12
@@ -918,11 +922,16 @@ async function promptPendingBodies() {
     for (const row of rows) {
         if (!pendingBodyStore.has(row.key) || !isPrimaryGm()) continue;
         const body = game.actors.get(row.victimId);
+        /* WHERE THE BODY LIES NOW (E59 on the 1.2.115 line, CHAINS.md B-M2; R7174): the row keeps the room the witnesses saw
+           it in, and a Move the Body in Stage 6 does not touch the row - the card and the gather named the old room. The
+           row's room only where no place is read. */
+        const lies = body ? bodyPlaceOf(body, { held: flagsHeldNow }) : null;
+        const room = lies?.room ?? row.room;
         const names = listOf(row.witnessIds.map(id => game.actors.get(id)?.name).filter(Boolean));
         const answer = await drpgWindow({
             title: game.i18n.localize("DRPG.Chapter.pendingTitle"),
             classes: ["drpg-panel"],
-            body: `<p>${game.i18n.format("DRPG.Chapter.pendingBody", { names: esc(names), name: esc(body?.name ?? "?"), room: esc(row.room) })}</p>
+            body: `<p>${game.i18n.format("DRPG.Chapter.pendingBody", { names: esc(names), name: esc(body?.name ?? "?"), room: esc(room) })}</p>
                 <p class="notes">${game.i18n.localize("DRPG.Chapter.pendingNote")}</p>`,
             footer: {
                 destructive: [{ action: "announce", label: game.i18n.localize("DRPG.Chapter.pendingAnnounce") }],
@@ -932,8 +941,8 @@ async function promptPendingBodies() {
             rejectClose: false
         });
         if (answer !== "announce" || !pendingBodyStore.has(row.key)) continue;
-        const scene = game.scenes.get(row.sceneId ?? "") ?? null;
-        const done = await discoverBody({ room: row.room, victim: body ?? null, scene, by: "witnesses" });
+        const scene = (lies?.room ? lies.scene : null) ?? game.scenes.get(row.sceneId ?? "") ?? null;
+        const done = await discoverBody({ room, victim: body ?? null, scene, by: "witnesses" });
         if (done) announced++;
     }
     return announced;
@@ -975,9 +984,11 @@ export function bodiesLyingIn({ cast = studentActors(), except = null, scene = n
  * Who was in `bodyId`'s death, GM side (1.2.113): the running incident's killers and its third when that body is its
  * victim, and every Blackened whose register row names it. They were there; walking back to it is no finding.
  */
-function inThatDeath(bodyId, { state, register }) {
+function inThatDeath(bodyId, { state, register, row = deathStore.get(bodyId) }) {
     const ids = new Set();
-    if (state?.victimId === bodyId) for (const id of [state.killerId, state.thirdId]) if (id) ids.add(id);
+    if (state?.victimId === bodyId) for (const id of [state.killerId, state.thirdId, ...(Array.isArray(state.departed) ? state.departed : [])]) if (id && id !== bodyId) ids.add(id);
+    // And after the close, who was there as the death's row keeps them (E59 on the 1.2.115 line, CHAINS.md B-M4; R7182).
+    for (const id of Array.isArray(row?.there) ? row.there : []) ids.add(id);
     for (const [killerId, row] of Object.entries(register ?? {})) {
         if (Array.isArray(row?.victims) && row.victims.includes(bodyId)) ids.add(killerId);
     }
@@ -1176,9 +1187,9 @@ export async function openBodyDiscoveryDialog() {
         classes: ["drpg-panel", "drpg-window-body"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
-                <select name="room">${emptyOption("DRPG.Chapter.chooseOne", { selected: !roomOptions.includes(" selected") })}${roomOptions}</select></label>
+                <select name="room"${tipAttr("DRPG.Tips.Sweep.Trial.bodyRoomTooltip")}>${emptyOption("DRPG.Chapter.chooseOne", { selected: !roomOptions.includes(" selected") })}${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
-                <select name="victim">
+                <select name="victim"${tipAttr("DRPG.Tips.Sweep.Trial.bodyVictimTooltip")}>
                     <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
                     ${victims}
                 </select></label>

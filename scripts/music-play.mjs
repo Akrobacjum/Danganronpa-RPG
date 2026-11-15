@@ -240,9 +240,13 @@ export function registerMusic() {
             recheckMusicKeys(userId);
             return;
         }
+        /* THE VOTE'S RECORD TOO (E59 on the 1.2.115 line, CHAINS.md B-S1; R7161): the vote's state reads the trial's
+           record (music-states.mjs `voteMusicPlays`), and a vote opened with no floor standing, or the verdict, writes
+           neither the floor nor the clock. */
         if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
             && key !== `${MODULE_ID}.${SETTINGS.clock}`
-            && key !== `${MODULE_ID}.${SETTINGS.bodyFound}`) return;
+            && key !== `${MODULE_ID}.${SETTINGS.bodyFound}`
+            && key !== `${MODULE_ID}.${SETTINGS.trialProgress}`) return;
         // Asked AFTER the setting has landed, so this is the state we are
         // moving TO rather than the one we are leaving.
         schedule({ now: stateDef(currentState())?.immediate === true });
@@ -630,7 +634,7 @@ async function playRandomTrack(playlist) {
 /**
  * Pause a playlist where it stands, so it can be resumed rather than restarted.
  *
- * Foundry has `playAll` and `stopAll` and no `pauseAll`; pausing is a property
+ * Foundry has `Playlist#playAll` and `Playlist#stopAll` and no pause-all; pausing is a property
  * of a SOUND, and the sidebar does it as
  * `sound.update({playing: false, pausedTime: sound.sound.currentTime})`. That
  * stored `pausedTime` is what `playAll` looks for when it decides which track to
@@ -820,7 +824,7 @@ function anythingPlaying() {
  * at the table and a trial track for a beat in an argument; neither is resumed
  * from wherever it happened to stop the last time it was used.
  *
- * Was `clearCuePlaylist`, back when the cue was the only thing that needed it.
+ * Was `clearCuePlaylist` (music.mjs, renamed by 1.2.70), back when the cue was the only thing that needed it.
  */
 function rewindTo(playlist, keepId) {
     return asOurs(async () => {
@@ -992,10 +996,10 @@ function onManualStart(sound) {
  * The GM's own playback finishing.
  *
  * Watches the PLAYLIST, not the sound. A single track ending is not the end of
- * the interruption: `Playlist#_onSoundEnd` calls `playNext` for a Sequential or
+ * the interruption: `Playlist#_onSoundEnd` calls `Playlist#playNext` for a Sequential or
  * Shuffle playlist, so the GM's next track starts immediately - and resuming on
  * the sound's end meant the ambient playlist faded back IN UNDER the GM's second
- * track, both playing at once. `_getNextSound` also wraps at the end of the
+ * track, both playing at once. `Playlist#_getNextSound` also wraps at the end of the
  * list, so a GM playlist runs until it is stopped; that is what "the GM has
  * taken over the music" means, and stopping it is what hands control back.
  */

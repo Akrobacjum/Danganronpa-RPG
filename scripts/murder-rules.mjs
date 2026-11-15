@@ -70,7 +70,8 @@ import {
 import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { isDeadForGm, SETTINGS } from "./settings.mjs";
 import { isMoveChange } from "./rooms.mjs";
-import { castStore } from "./gm-stores.mjs";
+import { castStore, deathStore } from "./gm-stores.mjs";
+import { maskInsiders, MASK_NAME } from "./mask-gm.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { getClock, setClock, frozenClockOf } from "./clock.mjs";
 import { resourceValue, resourceMax, reserveOf, reserveChange, reserveNote } from "./character.mjs";
@@ -85,14 +86,13 @@ import {
     ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
-import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
     registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, retireOpeningNotices
 } from "./incident-store.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /*
  * VEILED, ALL OF THEM (LIVE-001, the closing half).
@@ -901,8 +901,8 @@ async function askCriticalTarget(def) {
         body: `<p>${game.i18n.localize("DRPG.Murder.criticalChoiceIntro")}</p>`,
         // Two answers and no closing word: Health the default, as before.
         footer: {
-            primary: { action: "hp", label: game.i18n.localize("DRPG.Murder.criticalChoiceHp") },
-            secondary: [{ action: "stress", label: game.i18n.localize("DRPG.Murder.criticalChoiceStress") }]
+            primary: { action: "hp", label: game.i18n.localize("DRPG.Murder.criticalChoiceHp"), tooltip: tipText("DRPG.Tips.Sweep.Trial.critHealthTooltip") },
+            secondary: [{ action: "stress", label: game.i18n.localize("DRPG.Murder.criticalChoiceStress"), tooltip: tipText("DRPG.Tips.Sweep.Trial.critSanityTooltip") }]
         },
         rejectClose: false
     });
@@ -1383,7 +1383,7 @@ function carriesWeapon(held) {
 /**
  * The weapon this attack swings, and the tier it counts as.
  *
- * Two things the old `bestWeaponTier` could not express, both from the guide's
+ * Two things the old `bestWeaponTier` (gone by 1.2.70) could not express, both from the guide's
  * own Attack-with-a-weapon row:
  *
  *   "Przedmiot tieru 0 jest negocjowalny jako tier 1 lub 2 w ramach
@@ -2582,7 +2582,7 @@ async function takeReserves(actor, { hitPoints = 0, stress = 0 }, done) {
  * sent only their own line (secret.mjs `youOrThem`, `wordsFor`).
  */
 function landedNote(actor, changes) {
-    const them = reserveNote({ name: foundry.utils.escapeHTML(actor.name), you: false }, changes);
+    const them = reserveNote({ name: maskedName(actor), you: false }, changes);
     if (!them) return "";
     return youOrThem(ownerIdsOf(actor), { you: reserveNote({ you: true }, changes), them });
 }
@@ -3326,6 +3326,21 @@ export async function thirdPartyEnters(actor) {
 }
 
 /**
+ * WHO WAS THERE, KEPT ON THE DEATH'S ROW (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-M4; R7182; Q-115-9, the
+ * coordinator's word: GM 13.4's "that body's own killers or the third of its incident (they were there)"). The close of
+ * the incident (`closeIncident`) hands the third and whoever walked out of it; the row's `there` is read by
+ * body.mjs `inThatDeath`, for the discovery's witnesses and for the walk-in sound. Only a row the GMs hold (`ifLive`: a
+ * death they keep); a published death is found already. GM side; answers the patch or null.
+ */
+async function keepThoseThere(victimId, ids) {
+    const there = [...new Set((ids ?? []).filter(id => typeof id === "string" && id && id !== victimId))];
+    if (!game.user?.isGM || !victimId || !there.length || !deathStore.has(victimId)) return null;
+    const row = deathStore.get(victimId) ?? {};
+    const kept = Array.isArray(row.there) ? row.there : [];
+    return deathStore.patch(victimId, { there: [...new Set([...kept, ...there])] }, { ifLive: true });
+}
+
+/**
  * A fourth person walks in, and there is no murder to be had.
  *
  * Automatic, and not put to the GM. The condition is countable - four people in
@@ -3503,6 +3518,17 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
            left its chapter ..."). An incident opened before that fix names no chapter: the
            clock's, as before. A dynamic import, because investigation.mjs reaches this file
            through its static imports. */
+        /* AND WHO WAS THERE (E59 on the 1.2.115 line, CHAINS.md B-M4; R7182): the third, and whoever walked out of the
+           incident, kept on the victim's death row before the wipe takes the state - the walk-in sound and the
+           discovery's witnesses read it (body.mjs `inThatDeath`). */
+        if (state?.victimId && leftABody(state)) {
+            try {
+                await keepThoseThere(state.victimId, [state.thirdId, ...(Array.isArray(state.departed) ? state.departed : [])]
+                    .filter(id => id && id !== state.killerId));
+            } catch (err) {
+                error("Could not keep who was in the incident on the victim's death row", err);
+            }
+        }
         if (Number.isFinite(state?.keyRemnants) && leftABody(state)) {
             try {
                 const { recordCaseKeys } = await import("./investigation.mjs");
@@ -4283,7 +4309,7 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
         : "";
 
     const content = `
-        <h3>${foundry.utils.escapeHTML(def.label)} - ${foundry.utils.escapeHTML(actor.name)}</h3>
+        <h3>${foundry.utils.escapeHTML(def.label)} - ${maskedName(actor, state)}</h3>
         ${score}
         ${outcome ? `<p>${foundry.utils.escapeHTML(outcome)}</p>` : ""}
         ${nothing}
@@ -4292,6 +4318,21 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     const recipients = new Set([...gmIds(), ...(state ? incidentAudienceIds(state, { stage, also: [actor] }) : [])]);
 
     return announce({ content, whisper: Array.from(recipients) });
+}
+
+/**
+ * A CHARACTER'S NAME ON AN INCIDENT CARD, BEHIND ITS MASK (owner-115 item 1, 14.11.2026). The owner at a table on 1.2.114:
+ * in a direct murder whose opening hid the killer behind a "?", the victim still read who it was. The fight's cards named
+ * the killer in their heading ("Strike - Chie Mori", `announceCrisis`) and in a loss's line ("Chie Mori loses 1 Sanity.",
+ * `landedNote`), and the victim's browser held both words and drew both as a notice and in its history (scenario 21,
+ * red at e0ee06ef). The name is the card's for its insiders now - the GMs, and the players of the killers
+ * (mask-gm.mjs `maskInsiders`) - and the mask's "?" for every other reader, each sent only their own line
+ * (secret.mjs `youOrThem`, `wordsFor`). With no mask standing it is the name, escaped, as before (the owner's D6).
+ */
+function maskedName(actor, state = murderState()) {
+    const name = foundry.utils.escapeHTML(actor?.name ?? "?");
+    const insiders = actor ? maskInsiders(actor.id, killerIds(state)) : null;
+    return insiders ? youOrThem(insiders, { you: name, them: MASK_NAME }) : name;
 }
 
 /**
@@ -4312,7 +4353,7 @@ async function announceOpening(state, label, { rollerId, success, band, total, t
     try {
         const roller = game.actors.get(rollerId ?? "");
         const content = `
-            <h3>${foundry.utils.escapeHTML(label ?? "")}${roller ? ` - ${foundry.utils.escapeHTML(roller.name)}` : ""}</h3>
+            <h3>${foundry.utils.escapeHTML(label ?? "")}${roller ? ` - ${maskedName(roller, state)}` : ""}</h3>
             <p>${total} ${success ? "≥" : "<"} ${threshold} · ${game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
         const recipients = new Set([...gmIds(), ...incidentAudienceIds(state, { stage: "openingRoll" })]);
         await announce({ content, whisper: Array.from(recipients) });

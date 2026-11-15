@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.114, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.115, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides". How the module does what it does, for the curious, is in section 17.
 
@@ -95,7 +95,7 @@ Click a statistic on your sheet when the GM asks you for a roll outside an actio
 
 ### If you are a Spectator
 
-The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. Your microphone is off. **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and the same button, now **Go back to your room**, brings you back; if the GM turned the voice tile off, the button is not there. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat.
+The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. Your microphone is off. **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and the same button, now **Go back to your room**, brings you back; during an Eclipse it waits for the lights, as every player's voice does. If the GM turned the voice tile off, the button is not there. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat; the messenger still brings you the GM's messages, and you cannot answer them.
 
 When your character dies, you watch the same way, with a Spectator of your own: it has your character's name and pictures and stands where your body lies. Drag it anywhere, at no cost; other players do not see it. You still see only what a dead student sees. If you become a Monocub, its token becomes your Monocub.
 
@@ -107,7 +107,7 @@ At your death the glass on your screen fades to gray, with the Death fade sound;
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move, and each room's Search Tokens. When Night ends, the day turns over.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day restocks each room's Search Tokens, and its Eclipse refills your two actions and your Free Move (the GM refills them when a time of day goes by without one). When Night ends, the day turns over.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season, a shorter one the GM may choose instead, runs a single chapter.
 
@@ -172,6 +172,7 @@ You are turned back by:
 | a room that is **not connected** to yours | the refusal names only the neighboring rooms you have already been in |
 | a **floor** the stairs do not lead to from your room | on a map with stairs, only they take you up or down |
 | a **locked door** | the GM locked the room |
+| a **barricaded door** | somebody shut the door from inside (Shut the Door); a secret passage or a breach still goes through |
 | a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
 | being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
 | **somebody else's bedroom** | when you hold no key to it |
@@ -179,7 +180,7 @@ You are turned back by:
 | being in a **murder** while it runs | nobody walks out of an incident until a crisis action lets them: Survive, Escape Together, a Finishing Blow, or Averted Eyes if you only walked in on it |
 | a **Class Trial** in session | nobody leaves the courtroom |
 
-A move that one of these turns back puts your token back where it last stood, and you are told which rule turned you back. The GM can also give your last crossing back (**Refund last crossing**): your token goes back where it stood, and what the crossing cost is yours again.
+A move that one of these turns back puts your token back where it last stood, and you are told which rule turned you back. The GM can also give your last crossing back (**Refund the last crossing**): your token goes back where it stood, and what the crossing cost is yours again.
 
 Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
 
@@ -226,12 +227,12 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 |---|---|
 | struck through | muted, by you |
 | struck through, with a small lock | muted by the GM (**The GM blocked your microphone.**) |
-| gray and struck through | the game holds it during an Eclipse, with the reason under it; a click then changes nothing and tells you why |
+| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
 | with a small dot | you are not connected to voice, or voice runs in its own window |
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
 
-A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the channel of the dead the microphone stays yours to mute and unmute, with a line under it saying where you are.
+A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are.
 
 **The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list.
 
@@ -335,7 +336,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 | Desperate | 8 |
 
 - A project lives in a room, and only somebody standing there can work on it.
-- **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room, or the wording first. **Wide project windows**, in the Look section of **DRPG Settings** (the gear in the bottom-right corner), opens **Propose a project** wider on your screen; it is on by default.
+- **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room, or the wording first. **Wide project windows**, in the Look section of **Danganronpa RPG settings** (the gear in the bottom-right corner), opens **Propose a project** wider on your screen; it is on by default.
 - **Description.** A proposal needs one, at most 1000 characters: what the project is, in your words. Choosing a project of a set kind (below) writes the kind's name in the field, and you may change it. The GM reads it on the card and may change it before approving; after that only the GMs change it. Everyone who knows the project reads it on its token's card.
 - A project demands one statistic, given when it is made, and every roll on it takes that one: yours, and a saboteur's.
 - A **Tool held ready** helps the roll (section 7, Holding ready).
@@ -388,7 +389,7 @@ The **Facilities** tile's window holds the two rests, with no roll, and, after t
 
 The window prices both rests against what you have and names the rooms that allow each.
 
-A room action the GM set is rolled on the statistic and difficulty its row names and costs an action; once anyone has used it this time of day, a failed roll too, it is grayed for everyone until the next. A completed project's action needs no roll, costs an action unless the GM set it to cost none, leaves a Subtle Remnant marked Faint, as a room's own action does, and is yours once each time of day; its row says which project gives it and how long it lasts. The Despair Overflow can shut room actions for a time of day (Lockdown, Power cut), make them dearer (Toll) or harder (Jitters), or take the Short Rest away (Insomnia).
+A room action the GM set is rolled on the statistic and difficulty its row names and costs an action; once anyone has used it this time of day, a failed roll too, it is grayed for everyone until the next. A completed project's action needs no roll, costs an action unless the GM set it to cost none, leaves a Subtle Remnant marked Faint, as a room's own action does, and is yours once each time of day; a project with no room gives its action in whatever room you stand in. Its row says which project gives it and how long it lasts. The Despair Overflow can shut room actions for a time of day (Lockdown, Power cut), make them dearer (Toll) or harder (Jitters), or take the Short Rest away (Insomnia).
 
 ### Infiltrate: Listen - Shadow, 1 action
 
@@ -423,11 +424,11 @@ The tail ends with a card when you are neither in the room they left nor in the 
 
 ### Shut the Door - Body, 1 action
 
-Barricade the room you stand in, from inside; your Body roll is the barricade's strength. It works in a room with at most two doors that open, and in your own bedroom but not in another's. While you stay inside, nobody walks in through a door, but a secret passage, a breach, or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends, and when an Eclipse begins. The room shows that it is barricaded, never by whom; the people standing in the room with you see you do it, and it leaves a Subtle Remnant marked Faint. Somebody who tries the door from outside is heard by everyone inside, without a name, and can force it (below).
+Barricade the room you stand in, from inside; your Body roll is the barricade's strength. It works in a room with at most two doors that open, and in your own bedroom but not in another's; not during an Eclipse, not where a body lies that nobody has found, and not where somebody else's barricade stands. Where your screen knows the reason - an Eclipse, another's bedroom, too many doors - the row is grayed with it and costs nothing; the other two are the GM's to see, and the action is spent. While you stay inside, nobody walks in through a door, but a secret passage, a breach, or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends, and when an Eclipse begins. The room shows that it is barricaded, never by whom; the people standing in the room with you see you do it, and it leaves a Subtle Remnant marked Faint. Somebody who tries the door from outside is heard by everyone inside, without a name, and can force it (below).
 
 ### Force the Door - Body, 1 action
 
-At a door from your room to the next: one Body roll against everything that holds it at once, and the door gives only when the roll beats all of it. A barricade needs more than its strength (a tie holds); a lock (a GM's or a bedroom's) and a seal need 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it (Repair the Lock, under Projects); a forced seal is gone for the rest of its time of day. The people in your own room always see who it was, whatever the roll. A forced door, and a miss with Despair, is loud: the rooms next to either room hear *A banging from: room* without a name, and the people in the room beyond see who it was. Each attempt on a door that something holds leaves a Remnant, Evident when it was loud and Subtle otherwise. A bedroom's owner who did not see it is told their door was forced when they next walk into that bedroom, or at once if they are in it. Not during a Class Trial, and not while you are Chained.
+At a door from your room to the next: one Body roll against everything that holds it at once, and the door gives only when the roll beats all of it. A barricade needs more than its strength (a tie holds); a lock (a GM's or a bedroom's) and a seal need 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it (Repair the Lock, under Projects); a forced seal is gone for the rest of its time of day. The people in your own room always see who it was, whatever the roll. A forced door, and a miss with Despair, is loud: the rooms next to either room hear *A loud banging comes from room.* without a name (a room they have not found is *Unexplored room n* to them), and the people in the room beyond see who it was. Each attempt on a door that something holds leaves a Remnant, Evident when it was loud and Subtle otherwise. A bedroom's owner who did not see it is told their door was forced when they next walk into that bedroom, or at once if they are in it. Not during a Class Trial, and not while you are Chained.
 
 ### Pick the Lock - Shadow, then Hand, 1 action
 
@@ -544,7 +545,7 @@ Sprint and Burst bank instead and last until the time of day ends; a Class Trial
 
 ## 6. Despair - the other side
 
-Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** bar at the top.
+Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** at the top.
 
 ### Despair Calls - what Monokuma can do to you
 
@@ -869,7 +870,7 @@ Everyone is in one room, and nobody leaves it. You start the trial with your act
 
 When the GM has set up a trial hall, opening the trial takes your screen to it, and ending it takes you back to the school: the living who took part go to a room the GM picks. The GM chooses who takes part, and your character's token is placed in the hall for the trial and removed afterwards.
 
-Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**: the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends. It does so for a death nobody has found too, so a microphone gone silent tells the table that somebody has died. Your voice tile says why. A Monocub speaks only in open discussion, while no mode runs, and listens in every mode, from the vote on, and through a trial about its own death; the tile says which. Since 1.2.114 a mode that gives the floor to somebody turns a Monocub's microphone off too, as everyone else's. A student the verdict sentences speaks until the trial ends. The module silences only the dead: who speaks in each mode is kept by the table.
+Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**: the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends. It does so for a death nobody has found too, so a microphone gone silent tells the table that somebody has died. Your voice tile says why. A Monocub speaks only in open discussion, while no mode runs, and listens in every mode, from the vote on, and through a trial about its own death; the tile says which. Since 1.2.114 a mode that gives the floor to somebody turns a Monocub's microphone off too, as everyone else's. A student the verdict sentences speaks until the trial ends. In open discussion, while no mode runs, the module silences only the dead and the Spectators, and who speaks is kept by the table.
 
 The trial opens as an **open discussion**: everybody talks, nobody objects, and a Truth Bullet can be **Presented** from your inventory for free. It goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card: tick **Show it with my Analyze result** to show what your Analyze read; unticked, the card shows it as never analyzed, with no reading and no type it turned out to be. Everyone else taking part gets a copy on their sheet, as it was shown, for free and once, and you are told when it has gone on the table. In a Class Trial a Truth Bullet has no Share: Present is how evidence changes hands. A dead student neither presents evidence nor objects.
 
@@ -1039,7 +1040,7 @@ During an Eclipse the phase line names it, *Night Eclipse* for instance. During 
 
 **A window's title bar**: a double-click folds the window to its title bar and a second one opens it again, as everywhere in Foundry. A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold. A window that waits for your answer (a roll, Observe, an action you declare, the vote, a Level Up, or the trial's questions) stays over your character sheet, also when you click the sheet or it redraws; other windows come to the front as Foundry brings them there. A text box you type in grows over its window to fit your text, up to 60% of the screen's height, and goes back when you leave it or press Escape.
 
-**The Event panel** (under the Despair rows) shows what is happening now: the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, and a stopped scene. A murder's own cards show only to the people in it. The panel keeps one size whatever it holds, and a card longer than it scrolls inside it.
+**The Event panel** (under the Despair rows) shows what is happening now: the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, and a stopped scene. A murder's own cards show only to the people in it. The panel never scrolls: it grows with its cards down to the next block under it or the bottom of the screen, and past that the cards below the first fold to their titles, from the last up. A folded card opens on a click or Enter, and titles that still do not fit are counted under the panel as "+N".
 
 **The status strip** (right, above the Projects tray) shows your actions left, your Move, and your Hope. The Move row is always two feet. Outside an Eclipse the first is the Free Move of this time of day, solid while you still have it, and the second, the Eclipse's, is dimmed. During an Eclipse the two are its crossings: the first is solid while you have one left and the second while you have two, and in a placement where you may pick any room both are solid. A third crossing from a room action still shows as two solid feet; point at the row for the number. A Monocub's crossings cost nothing, so its first foot is always solid, and during an Eclipse both are; its actions then read *Placement only.* A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 
@@ -1065,12 +1066,14 @@ During an Eclipse the phase line names it, *Night Eclipse* for instance. During 
 
 The history's window shows **All**, **For you**, and **Not carried out** as buttons and the other filters (**Announcements**, **From players**, **Evidence**, and **Messenger**) under **More filters**, each with how many notices it holds, and a search field finds a notice by its title and text. **Clear** in its window empties it: do that before you share your screen. Another account logged in on this browser can read your history, so on a shared computer clear it before you hand the computer over.
 
-**The settings window:** the gear in the bottom-right corner opens **DRPG Settings**, your own settings: nobody else sees or hears the difference. The GM's is the same window, and **Open DRPG Settings** in Foundry's Configure Settings opens it too. Pick a section on the left; a line under each setting says what it changes, and **Save changes** writes them, except the volumes and the voice, which apply as you move them.
-- **Look**: **Language** is English or Polski for the module's windows, cards, and sheet, separate from Foundry's own language; it takes effect after a reload, and the game's names stay English in both. **Theme** is **Stained Glass** or **Monokuma Legacy**. Under Stained Glass the glass turns to a new color with each new phase or time of day; with **Reduced motion** it takes its new state at once. Here too are **Interface scale** (80% to 140%), **State name behind the clock** (Stained Glass only), and **Wide project windows**, which opens the project windows wider.
+**The settings window:** the gear in the bottom-right corner opens **Danganronpa RPG settings**, your own settings: nobody else sees or hears the difference. The GM's is the same window, and **Open Danganronpa RPG settings** in Foundry's Configure Settings opens it too. Pick a section on the left; a line under each setting says what it changes, and **Save changes** writes them, except the volumes and the voice, which apply as you move them.
+- **Look**: **Language** is English or Polski for the module's windows, cards, and sheet, separate from Foundry's own language; it takes effect after a reload, and the game's names stay English in both. **Theme** is **Stained Glass** or **Monokuma Legacy**. Under Stained Glass the glass turns to a new color with each new phase or time of day; with **Reduced motion** it takes its new state at once. Here too are **Interface scale** (25% to 140%; below 80% the text is smaller than the module's readable size), **Time of day behind the clock** (Stained Glass only), and **Wide project windows**, which opens the project windows wider.
 - **Effects and accessibility**: **Pixel font** (Monokuma Legacy only), **Glass pulse** and **Glass blurs the map** (Stained Glass only), and **Reduced motion** and **High contrast** under both themes; each of the last two also follows your operating system when it asks for them.
 - **Sound and voice**: **Messenger sounds**, the **Sound** and **Music** volumes, and, while you are in voice, your **Microphone**, your **Sound output**, the **Microphone mode** (**Always on** or **Push to talk**), and the push-to-talk key (**Change the key**). If no microphone is listed, allow the browser to use it and open the window again.
 
-**If the screen stutters**, change these in the settings window one at a time: turn **Glass blurs the map** off first, then **Glass pulse** and **State name behind the clock**, then turn **Reduced motion** on, and last try the theme Monokuma Legacy. Each changes only your own screen. If the GM asks how fast your screen runs, the steps are in section 17.
+Some moments make no sound on purpose, so that nothing tells the table more than their card does: the change of the time of day, a Search that finds something (a critical plays its own), Work on a Project until its bar fills, and Dash and the door actions for the one who does them.
+
+**If the screen stutters**, change these in the settings window one at a time: turn **Glass blurs the map** off first, then **Glass pulse** and **Time of day behind the clock**, then turn **Reduced motion** on, and last try the theme Monokuma Legacy. Each changes only your own screen. If the GM asks how fast your screen runs, the steps are in section 17.
 
 > [!NOTE]
 > **Rolls are private:** every roll you make is seen by you and the GMs alone. A GM's screen shows your dice falling only while that GM's Monokuma stands in your room; every GM gets the result either way. Nobody sees anyone else's dice, with three exceptions. A roll in an incident is shown to the people in it, with its dice, what it came to, and which action it was, from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone (the killers of a Direct Murder, a trap's victim), and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in its room. The one roll everybody reads is a public roll the GM throws, such as a vote's tie or Monokuma's lottery.
@@ -1169,7 +1172,7 @@ The opening roll's window opens at most `TIMING.openingAttempts` times (3) when 
 
 **Actions in the trial.** The trial refills everyone's actions without ending the time of day, so banked Sprints and Bursts stay. Wounded takes its action in Daily Life and the Investigation only (since 1.2.110), so the trial's actions are the full budget for a Wounded student too; the Panic darkening still takes one.
 
-**The microphones.** When the trial opens, the primary GM's browser lists every dead student, a death nobody has found among them and no Monocub, and takes each listed player's Broadcast Audio permission in Foundry; it gives each one back when the trial ends. A Monocub's lines on the voice tile (open discussion, a mode, from the vote on, its own case) are information only: the module never holds a Monocub's microphone.
+**The microphones.** When the trial opens, the primary GM's browser lists every dead student, a death nobody has found among them and no Monocub, and takes each listed player's Broadcast Audio permission in Foundry; it gives each one back when the trial ends. A Monocub's lines on the voice tile (open discussion, a mode, from the vote on, its own case) tell what the table expects of it; since 1.2.114 a mode that gives the floor to somebody takes the Broadcast Audio permission of every player who has not got it, a Monocub's included, and gives it back when the floor moves on.
 
 **The vote.** A vote goes to the GMs' browsers alone. While no GM is connected, the player's browser keeps it and sends it when a GM connects ("No GM has your vote yet. It goes out as soon as a GM connects."). A player who connects while the vote is open is handed a ballot as their browser loads.
 

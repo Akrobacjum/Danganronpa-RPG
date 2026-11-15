@@ -298,6 +298,9 @@ export function floorSounds(was, floor, { mine = () => false } = {}) {
     const roundTurn = (mode === "testimony" || mode === "panic") && floor?.holderId
         ? `${floor.round?.openedAt ?? "-"}|${floor.round?.step ?? "-"}` : (closingTurn ?? scrumTurn);
     const mineNow = Boolean(roundTurn) && mine(floor.holderId);
+    // The speaker whose turn opens a Panic Round hears "your turn" alone (E59 on the 1.2.115 line, CHAINS.md B-T8; R7166;
+    // GM 15): both came in one pass there, the round's start on every other browser.
+    if (known && mineNow && was?.turnStep !== roundTurn && play.includes("panicStart")) play.splice(play.indexOf("panicStart"), 1);
     if (known && mineNow && was?.turnStep !== roundTurn) play.push("yourTurn");
     return { play, was: { floorOpen: open, floorMode: mode, turnStep: roundTurn, closingAt: closingAt ?? was?.closingAt ?? null } };
 }

@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.114";
+    --drpg-css-version: "1.2.115";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -358,7 +358,7 @@
        `--drpg-tile-text` still multiplies BELOW the floor on a cramped action
        grid. That multiply happens at the use site, not here, and it is deliberate
        and only there. */
-    --drpg-text-xs: max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller (11 px since E48 K6, S12-41) */
+    --drpg-text-xs: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller (11 px since E48 K6, S12-41) */
     --drpg-text-sm: calc(0.8125rem * var(--drpg-legacy-scale, 1));   /* 13px at 100 % */
     --drpg-text-md: calc(0.9375rem * var(--drpg-legacy-scale, 1));   /* 15px at 100 % */
     --drpg-text-base: calc(1rem * var(--drpg-legacy-scale, 1));      /* 16px at 100 % */
@@ -3102,7 +3102,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    specificity, and no selector can rescue it. Three such rules sat in this file
    for months computing to `0px none`.
 
-   The outcome colour is applied inline instead, by `paintRollCard` in
+   The outcome colour is applied inline instead, by `markOutcome` in
    private-rolls.mjs - an inline style is the one thing above an author
    `!important`. The palette stays here: that function reads these tokens back
    off `:root` rather than repeating the hex.
@@ -3353,6 +3353,9 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-remnant-glyph[data-drpg-act="discard"] { -webkit-mask-image: var(--drpg-pix-trash); mask-image: var(--drpg-pix-trash); }
 .drpg-remnant-glyph[data-drpg-act="manual"] { -webkit-mask-image: var(--drpg-pix-monokuma-eye); mask-image: var(--drpg-pix-monokuma-eye); }
 .drpg-remnant-glyph[data-drpg-act="loot"] { -webkit-mask-image: var(--drpg-pix-palm-action); mask-image: var(--drpg-pix-palm-action); }
+/* The door actions and the facilities, their tiles' glyphs (E59 on the 1.2.115 line, CHAINS.md B-R3). */
+.drpg-remnant-glyph[data-drpg-act="infiltrate"] { -webkit-mask-image: var(--drpg-pix-listen); mask-image: var(--drpg-pix-listen); }
+.drpg-remnant-glyph[data-drpg-act="facility"] { -webkit-mask-image: var(--drpg-pix-rest); mask-image: var(--drpg-pix-rest); }
 
 .drpg-remnant-title {
     display: grid;
@@ -3820,7 +3823,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
     border-radius: 3px;
     color: var(--drpg-bone);
-    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8rem * var(--drpg-legacy-scale, 1)));
     white-space: nowrap;
     cursor: pointer;
 }
@@ -3897,7 +3900,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     /* W-2, Dawid 19.09: every bare size in this sheet takes the Interface scale,
        and the ones 80 % would push under 10px keep a floor. The rest follow this
        pattern with no comment of their own. */
-    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8rem * var(--drpg-legacy-scale, 1)));
     white-space: nowrap;
 }
 
@@ -3973,7 +3976,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 
 .drpg-gm-panel .drpg-gmp-section h4 {
     margin: 0 0 4px;
-    font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.78rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.65;
@@ -4041,7 +4044,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-gmp-button span {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: max(11px, calc(0.84rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.84rem * var(--drpg-legacy-scale, 1)));
     /* Long labels wrap between words and break only as a last resort, instead
        of spilling out of the tile. */
     overflow-wrap: anywhere;
@@ -4374,7 +4377,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    control, the checkbox and selects are. */
 .drpg-mini-button {
     padding: 2px 8px;
-    font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.78rem * var(--drpg-legacy-scale, 1)));
     border-radius: 3px;
     cursor: pointer;
     background: rgba(var(--drpg-bone-rgb), 0.18);
@@ -4447,7 +4450,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 }
 
 .drpg-evidence-who {
-    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8rem * var(--drpg-legacy-scale, 1)));
     opacity: 0.75;
 }
 
@@ -4538,7 +4541,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 
 .drpg-evidence-hint {
     margin: 0;
-    font-size: max(11px, calc(0.85rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.85rem * var(--drpg-legacy-scale, 1)));
     opacity: 0.8;
 }
 
@@ -5118,8 +5121,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     margin: 0.5rem 0;
 }
 
-/* THE BRIEFING BESIDE THE LIST (E21 fix G2, 07.11.2026; E21-04): a menu drawn with `columns` (action-menus.mjs
-   `COLUMNS`, Observe's) stands its briefing on the left and its question on the right, in a window of a stated width, and
+/* THE BRIEFING BESIDE THE LIST (E21 fix G2, 07.11.2026; E21-04): a menu drawn with `columns` (action-menus.mjs's
+   `columns` option, every action menu's but Level Up's since E68 C12; ui-columns.mjs `WIDE` gives the class) stands
+   its briefing on the left and its question on the right, in a window of a stated width, and
    shows a row's line of explanation while that row is picked (an unavailable row keeps its reason). The two columns
    stack when the window is narrower than both (a phone). Layout only, both themes; measured in Chromium by the fit
    sweep (`--fit --only action-observe`: still at 1366x768 and up). */
@@ -8000,10 +8004,9 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
    18-24 px past its column into the next one, the next one's mark on it, and the six ran 100 px past the header at 667.
    Now the name row wraps and the name is sized by its words, breaking inside one only when that word is wider than the
    row: the buttons go to a second line before the name gives way. A named plate holds its mark's room inside its width.
-   The statistics stand on a grid of equal columns, each statistic centred in its own at the width its widest name needs
-   (`--drpg-trait-need`: "Shadow" with its mark, 106 px under Legacy and 115 under the glass, measured in Chromium), six
-   columns where six fit and three where they do not (the `min()` turns negative once the row is wider than six), and the
-   row as wide as six need, which Daggerheart's 38.5rem was not. Daggerheart's selectors with `body` before them: one
+   The statistics' row is the next block's since 14.11.2026: here it was a grid of six columns where six fitted at the
+   widest name's full width, stated (`--drpg-trait-need`, 106 px under Legacy and 115 under the glass), and three
+   elsewhere. Daggerheart's selectors with `body` before them: one
    element over its (0,8,1). R5760 reads the cascade; the drawing is the commit's measurement (Chromium, Daggerheart
    2.12.8's stylesheet built from its source, no Foundry stylesheet). */
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .name-row {
@@ -8016,19 +8019,77 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     word-break: normal;
     overflow-wrap: anywhere;
 }
+/* THE SIX STATISTICS IN ONE ROW (14.11.2026; the owner on 1.2.114 under the glass, an 850 px sheet whose six stood
+   3 over 3: "Podoba mi sie pomysl by wysrodkowac, ale koniecznie w 1 rzedzie"). The grid above made six columns only where
+   six fitted at "Shadow"'s full width, three elsewhere: 3 over 3 at 667 and 850 px in both themes, and at 140 % up to
+   1120 px (Chromium, Daggerheart 2.12.8's stylesheet, 21973f06). Now six equal columns always, each statistic centred in
+   its own at the width the widest needs (`--drpg-trait-need`, which sheet-header.mjs `fitTraitRow` measures and writes),
+   and the row centred in the header, at most 48rem times the slider wide (Daggerheart's 38.5rem, unscaled, outranked the
+   slider's rule below and held the row at 616 px at 140 %, so a 1568 px Legacy sheet moved its marks above). Where six do not fit, the row gives way in the owner's order, one token of
+   `data-drpg-trait-fit` a step, and stops at the first that fits: `gap` (1rem to the mark's 8 px overhang and a pixel),
+   `pad` (the mark's room in the plate cut to 2 px past where the mark ends, 2 px saved), `track` (the names' letter-spacing to 0: the
+   glass's VT323 "SHADOW" 63 to 50.4 px; Legacy's pixel face has none), `above` (the mark over the name, the plate's
+   padding 2 px, the gap 2 px). Not the names' size: both themes draw them at their floor already (Legacy 11 px times the
+   scale, the glass VT323 at its 21 px `--drpg-sg-floor`). Measured in Chromium, 14.11.2026, "Shadow" with its plate: Legacy
+   86 px beside its mark, 84 with the padding cut, about 72 with the mark above; the glass 89, 87, 75 untracked, 59 above.
+   Where even `above` does not fit - Legacy on a row under about 454 px, its 667 px sheet's row is 362 - the six take
+   their short names (`short`, the coordinator's step for the owner's one row: LEG BOD HAN EYE SHA HEA drawn from
+   `data-drpg-short`, the full name kept as the plate's tooltip and aria-label), each then as wide as its value's box
+   (52 px times the slider). Only where even those do not fit - a row under about 322 px at 100 % (a Legacy sheet under
+   about 630 px), 447 px at 140 % (a Legacy sheet narrowed by hand under about 860 px) - is the row three over three
+   (`wrap`): nothing overlaps or runs out of the header. `measure` lays each statistic at its
+   natural width for the fitter's reading. R5760 reads this cascade, R7330 the order; the drawing is the commit's
+   measurement. */
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
-    --drpg-trait-gap: 0.5rem;
-    --drpg-trait-need: calc(6.75rem * var(--drpg-slider-scale, 1));
+    --drpg-trait-gap: 1rem;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(max(calc((100% - 5 * var(--drpg-trait-gap)) / 6),
-        min(calc((100% - 2 * var(--drpg-trait-gap)) / 3), calc((6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap) - 100%) * 999))), 1fr));
-    gap: 0.5rem var(--drpg-trait-gap);
-    max-width: calc(6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    column-gap: var(--drpg-trait-gap);
+    row-gap: 0.5rem;
+    margin-inline: auto;
+    max-width: calc(48rem * var(--drpg-slider-scale, 1));
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait {
     justify-self: center;
-    width: min(100%, var(--drpg-trait-need));
+    width: min(100%, var(--drpg-trait-need, 100%));
     min-width: 0;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="measure"] .trait {
+    width: max-content;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="gap"] {
+    --drpg-trait-gap: 9px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="pad"] .trait .trait-name.drpg-stat-named {
+    padding-inline-start: calc(var(--drpg-stat-mark-size) - 6px);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="track"] .trait :is(.trait-name, .trait-name span) {
+    letter-spacing: 0;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] {
+    --drpg-trait-gap: 2px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] .trait {
+    padding-top: var(--drpg-trait-mark-room, 24px);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] .trait .trait-name.drpg-stat-named {
+    padding-inline: 2px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] .trait .trait-name .tier-mark.drpg-stat-mark {
+    left: 50%;
+    right: auto;
+    top: auto;
+    bottom: calc(100% + 2px);
+    transform: translateX(-50%);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="short"] .trait .trait-name > span {
+    display: none;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="short"] .trait .trait-name::after {
+    content: attr(data-drpg-short);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit="wrap"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .application.sheet.actor .glassy,
@@ -9200,7 +9261,7 @@ body.drpg-pixel-font #interface .application:is(.sheet, .filepicker, .file-picke
 /* …AND THE WINDOW IS NOT IN #interface AT ALL.
    --------------------------------------------------------------------------
    Both rules above are scoped to `#interface`, and every ApplicationV2 window
-   is appended to `document.body` - `_insertElement` in foundry.mjs puts it
+   is appended to `document.body` - Foundry's `ApplicationV2#_insertElement` in foundry.mjs puts it
    there, not in the interface tree. So neither guard has ever matched a Token
    Config or a Scene Config. They match the parts of those windows that CORE
    renders inside the interface, and nothing else.
@@ -10093,7 +10154,7 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
    `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
    that Monokuma Legacy used while Stained Glass showed the same facts as cards
    in the Event panel. Both the rows and the four builders behind them went in
-   1.2.47 (see `appendHudExtras`'s tombstone in hud.mjs) - one set of facts had
+   1.2.47 (see the tombstone above `renderHud` in hud.mjs, "THE FOUR STANDING THREATS") - one set of facts had
    two implementations and the Legacy one was the poorer of them, missing the
    opening roll and the Despair overflow outright.
 
@@ -10125,33 +10186,41 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
    the band under a short card's last line (the glass harness's `drpgEventCheck` at 1366x768 before this: the owner's
    incident 64.9 px under the glass, 39.4 under Legacy; a safeword's 113 and 68.5), so the panel follows its cards and
    only what is taller than the cap scrolls. The owner's newer word replaces the 04.10 one for the height; the width
-   stays one token. The panel holds no control, so no control moves with it (the rule of 10.11). */
+   stays one token. The panel holds no control, so no control moves with it (the rule of 10.11).
+   NEVER A SCROLL (owner-115 item 3, 14.11.2026; the owner at a table on 1.2.114: "Na karcie eventu nigdy nie powinno
+   byc scrolla"). The cap and the scroll past it are gone: every murder-time panel scrolled at e0ee06ef, 60 of 60
+   (audit/events-murder-fit.mjs). The panel is as tall as its cards up to the room under it, and past that room its
+   cards fold to their titles (events.mjs `fitEvents`, `eventsRoom`); a folded card is the panel's one control, a click
+   or Enter opens it (`wireEventsPanel`; Q-OWN115-5, against the rule of 10.11 above). R7401, R1394. */
 #drpg-events {
     --drpg-events-w: 412px;
-    --drpg-events-h: calc(192px * var(--drpg-legacy-scale, 1));
     order: 15;
     width: var(--drpg-events-w);
     max-width: 100%;
     height: auto;
-    max-height: var(--drpg-events-h);
+    max-height: none;
     box-sizing: border-box;
-    /* never shrunk by the column it stands in: a flex item that scrolls has no minimum height of its own, and in the
-       stack's column (narrow.css) the panel came out 0 px tall (the glass harness at 1024x768 and 393x852) */
+    /* never shrunk by the column it stands in: in the stack's column (narrow.css) a panel that could scroll came out
+       0 px tall (the glass harness at 1024x768 and 393x852, while it scrolled) */
     flex: 0 0 auto;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
     margin: 8px auto 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    /* The panel says things; it has no button in it, so it takes no clicks and
-       the map underneath stays draggable through it - except while it holds more
-       than its box (`data-drpg-scrolls`, events.mjs `renderEvents`), when the wheel
-       has to reach it to read the rest. */
+    /* The panel says things, so it takes no clicks and the map underneath stays draggable through it - but for a
+       folded card, which opens on a click (owner-115 item 3, below). */
     pointer-events: none;
 }
-#drpg-events[data-drpg-scrolls] { pointer-events: auto; }
+/* A FOLDED CARD (owner-115 item 3): its title alone, a button that opens it (events.mjs `fitEvents`, `wireEventsPanel`). */
+#drpg-events .drpg-event[data-drpg-folded] { pointer-events: auto; cursor: pointer; }
+/* the glyph too: under Stained Glass it is a 34 px block over the title, and a folded card with it read 80 px (Chromium,
+   the glass harness at 1280x720) - five such titles took the room an open card needed */
+#drpg-events .drpg-event[data-drpg-folded] > :not(.drpg-event-title) { display: none; }
+#drpg-events .drpg-event[data-drpg-folded]:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+/* Titles that still do not fit are left out, the last first, and counted under the panel ("+2"; Q-OWN115-6). */
+#drpg-events .drpg-event[data-drpg-hidden] { display: none; }
+#drpg-events[data-drpg-more]::after { content: "+" attr(data-drpg-more); display: block; text-align: center; font-size: 0.85em; opacity: 0.8; padding: 2px 0 4px; }
 
 .drpg-event {
     --acc: var(--drpg-gold-antique);
@@ -11019,10 +11088,23 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    (14.11.2026). */
 
 /* The rail keeps its size while there is room and gives way when there is not.
-   12rem still fits the portrait, both resource chips and the safeword. */
+   12rem still fits the portrait, both resource chips and the safeword. Under 80 % of the Interface scale the floor
+   follows the slider down (14.11.2026, `--drpg-floor-scale`, settings.mjs `UI_SCALE`): a bare 12rem held the column at
+   181 px on a 25 % sheet whose rail is 69 (audit/sheet-column.mjs --scale 0.25, Chromium, 4a2beafb), and the sheet
+   scrolled sideways. From 80 % up it is 12rem, as before. */
 .application.sheet.actor .character-sidebar-sheet {
-    min-width: 12rem !important;
+    min-width: calc(12rem * var(--drpg-floor-scale, 1)) !important;
     width: auto !important;
+}
+
+/* THE EQUIPPED ROWS UNDER 80 % (14.11.2026, the Interface scale down to 25 %). Daggerheart draws each as its compact item
+   row, a grid of `40px 1fr min-content` with an 8 px gap (inventory-item.less), in a layer above the module's sheets, so
+   only `!important` could restate it and the sheets' budget holds those. Under 80 % the list is zoomed by the floor's
+   factor instead (`--drpg-floor-scale`, 1 from 80 % up): the picture's track, the gap and the row's type shrink together.
+   audit/sheet-column.mjs --scale: a Legacy row 129 px in a 127 px column at 50 %, 80 to 98 px in 58 at 25 % (Chromium,
+   704a1472). The row's type is then the floor's twice over - unreadable, as all type under 80 % is by design. */
+.application.sheet.actor .character-sidebar-sheet .equipment-section .items-sidebar-list {
+    zoom: var(--drpg-floor-scale, 1);
 }
 
 /* One definition for the action grid, and it reflows.
@@ -12377,8 +12459,9 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
     pointer-events: none;
 }
 
-/* The item's name. Sized down from Daggerheart's 30px, then fitted to the box
-   by `fitItemName` in sheet.mjs - the ceiling lives here, the measurement there. */
+/* The item's name. Sized down from Daggerheart's 30px to 1.25rem (times the Legacy scale) and cut with an
+   ellipsis when it is longer than the box. The fitter that stepped it down, `fitItemName` in sheet.mjs, is gone:
+   no script of this repository names it, back to its first commit (1.2.70, 08.10.2026); the reading below is its. */
 /* THE BOX MUST NOT SHRINK WITH THE FONT.
    --------------------------------------------------------------------------
    An `<input>` has an intrinsic width of `size` characters - 20 by default - so
@@ -12526,7 +12609,7 @@ body.drpg-high-contrast .drpg-trace-context {
     margin: 0 0 2px;
     padding-bottom: 2px;
     border-bottom: 1px solid var(--drpg-line);
-    font-size: max(11px, calc(0.82rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.82rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -12537,7 +12620,7 @@ body.drpg-high-contrast .drpg-trace-context {
 
 .drpg-room-group > h5 .notes {
     font-variant-numeric: tabular-nums;
-    font-size: max(11px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.75rem * var(--drpg-legacy-scale, 1)));
 }
 
 .drpg-tables-new {
@@ -13833,7 +13916,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
    is 8.94 px - the "about 9 px" the audit read. The time takes the module's 11 px floor, as the item windows'
    steps did (their rule below, E47). */
 .drpg-messenger-time {
-    font-size: max(11px, var(--drpg-text-xs));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-xs));
 }
 
 /* The GM's buttons on a ruling card: the module's red route, sized to a
@@ -14679,7 +14762,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
    front of the rules for things that actually live in `#interface` - the
    Projects tray does. It must NOT go on the front of a rule for a dialog:
    ApplicationV2 appends its windows to `document.body`
-   (`_insertElement` → `document.body.append(element)`, foundry.mjs), so
+   (Foundry's `ApplicationV2#_insertElement` → `document.body.append(element)`, foundry.mjs), so
    `.application.dialog …` matches nothing at all. Two rounds of
    "the purple is still there" were exactly that: rules that could never fire.
    Dialog rules therefore lean on class weight plus `!important`, which is what
@@ -14925,6 +15008,17 @@ body.drpg-theme-monokuma-legacy #pause.paused {
     text-transform: uppercase;
 }
 
+/* A WINDOW'S HEADER CONTROLS KEEP A 24 PX TARGET UNDER 80 % (14.11.2026; the Interface scale down to 25 %, settings.mjs
+   `UI_SCALE`). The title bar's controls take the type's size (`--drpg-text-xs` above), which under 80 % follows the slider
+   down: at 25 % the style harness's GM panel's close button measured 19 x 5 px under Legacy (Chromium, 5f0fbac4), a
+   window nobody could close. The floor is a control's, not a word's: 24 px each way, the glass's own floor for the same
+   buttons (stained-glass.css, "THINGS THAT ARE CLICKED"), switched on only under 80 % - the clamp is 0 while
+   `--drpg-floor-scale` is 1 - so from 80 % up nothing changes. Both themes, every window. */
+body .application[class] .window-header :is(button, .header-control) {
+    min-width: clamp(0px, calc((1 - var(--drpg-floor-scale, 1)) * 10000px), 24px);
+    min-height: clamp(0px, calc((1 - var(--drpg-floor-scale, 1)) * 10000px), 24px);
+}
+
 /* ==========================================================================
    DAGGERHEART'S STATUS ICONS ARE NOT PART OF THIS INTERFACE
    --------------------------------------------------------------------------
@@ -15117,8 +15211,8 @@ body.drpg-theme-monokuma-legacy #pause.paused {
    reading). It is the glass's brush (`::before`, absolute, 5 px past each side), not the glyph: the glyph is 14.3 px
    in a 32.3 px button with 8 px of padding a side, so nothing is cut. */
 :is(.drpg-window-tables, .application.dialog:is(.drpg-window-take, .drpg-window-autopsy, .drpg-give-key, .drpg-window-items)) {
-    --drpg-text-xs: max(11px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));
-    --drpg-text-sm: max(11px, calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+    --drpg-text-xs: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --drpg-text-sm: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
 }
 
 /* The four that set their size another way, read the same way after the two steps above: Create an item's and a new
@@ -15132,7 +15226,7 @@ body.drpg-theme-monokuma-legacy #pause.paused {
 }
 
 body.drpg-theme-monokuma-legacy .application.dialog:is(.drpg-window-take, .drpg-window-autopsy, .drpg-give-key, .drpg-window-items, .drpg-window-tables) .drpg-role-label {
-    font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1))) !important;
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.690625rem * var(--drpg-legacy-scale, 1))) !important;
 }
 
 .drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-new-head {
@@ -17289,10 +17383,10 @@ body.drpg-theme-monokuma-legacy {
     --font-size-8: max(min(8px, 0.5rem), calc(0.5rem * var(--drpg-legacy-scale, 1)));
     --font-size-9: max(min(9px, 0.5625rem), calc(0.5625rem * var(--drpg-legacy-scale, 1)));
     --font-size-10: max(min(10px, 0.625rem), calc(0.625rem * var(--drpg-legacy-scale, 1)));
-    --font-size-11: max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
-    --font-size-12: max(min(11px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
-    --font-size-13: max(min(11px, 0.8125rem), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
-    --font-size-14: max(min(11px, 0.875rem), calc(0.875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-11: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-12: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    --font-size-13: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.8125rem), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+    --font-size-14: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.875rem), calc(0.875rem * var(--drpg-legacy-scale, 1)));
     --font-size-15: calc(0.9375rem * var(--drpg-legacy-scale, 1));
     --font-size-16: calc(1rem * var(--drpg-legacy-scale, 1));
     --font-size-18: calc(1.125rem * var(--drpg-legacy-scale, 1));

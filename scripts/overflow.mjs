@@ -26,14 +26,13 @@
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY, ECLIPSE_MOVES } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, dataTable, formGrid, toggle, box } from "./ui-kit.mjs";
+import { stepper, stepperId, dataTable, formGrid, toggle, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
@@ -971,7 +970,12 @@ export function overflowWhat(key, rule = null) {
     return game.i18n.has(`${id}.other`) ? plural(id, data) : game.i18n.format(id, data);
 }
 
-/** The card the whole table gets. Public by design - this is weather, not a secret. */
+/**
+ * The card the whole table gets. Public by design - this is weather, not a secret - but for while an incident runs: the
+ * clock moves in private then (clock.mjs `announceTimeOfDay`), and a darkening drawn at that boundary, posted to every
+ * screen with its sound, told the table the GM had just moved it. It goes where the time of day's card goes, veiled, to
+ * the GMs and the incident's audience (E59 on the 1.2.115 line, CHAINS.md B-H2; R7180; the owner's Q-115-1 default).
+ */
 async function announceOverflow(drawn, left, paid) {
     const rule = overflowRules().effects[drawn];
     const name = game.i18n.localize(`DRPG.Overflow.name.${drawn}`);
@@ -982,13 +986,19 @@ async function announceOverflow(drawn, left, paid) {
         ? "DRPG.Overflow.cardBodyTrial" : "DRPG.Overflow.cardBody";
     // Both are plural families on {n}, the points spent (E66 C3, the census).
 
-    await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "despairOverflow", gm: true } } },
-        content: `<h3>${game.i18n.localize("DRPG.Overflow.cardTitle")}</h3>
+    const flags = { [MODULE_ID]: { sfx: { key: "despairOverflow", gm: true } } };
+    const content = `<h3>${game.i18n.localize("DRPG.Overflow.cardTitle")}</h3>
             <p>${plural(body, { n: paid })}</p>
             <p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${what}</p>
-            <p class="notes">${game.i18n.format("DRPG.Overflow.cardLeft", { n: left })}</p>`
-    });
+            <p class="notes">${game.i18n.format("DRPG.Overflow.cardLeft", { n: left })}</p>`;
+    const { murderState, incidentAudienceIds } = await import("./murder.mjs");
+    const state = murderState();
+    if (state) {
+        const { whisperToGms, gmIds } = await import("./utils.mjs");
+        await whisperToGms(content, { whisper: Array.from(new Set([...gmIds(), ...incidentAudienceIds(state)])), veiled: true, flags });
+        return;
+    }
+    await announce({ flags, content });
 }
 
 /* ==========================================================================

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.114, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.115, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z miejsca gracza: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co nacisnąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje". Jak moduł działa od środka, opisuje rozdział 17.
 
@@ -95,7 +95,7 @@ Kliknij statystykę na arkuszu, gdy GM poprosi cię o rzut poza akcją. To rzut 
 
 ### Jeśli jesteś Widzem
 
-GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów, a gra nigdzie cię nie wlicza. Inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony. **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala ci rozmawiać z innymi Widzami, a ten sam przycisk, teraz **Wróć do swojego pokoju**, cię cofa; jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Ruszasz się, przeciągając token, bez kosztu. Widzisz każdy pokój, który klasa odkryła, tokeny wszystkich i każdy projekt, także tajny, z jego opisem, w każdym pokoju. Na koniec dnia plansza końca dnia pokazuje ci tylko swój nagłówek i nastrój szkoły. Nie masz czatu.
+GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów, a gra nigdzie cię nie wlicza. Inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony. **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala ci rozmawiać z innymi Widzami, a ten sam przycisk, teraz **Wróć do swojego pokoju**, cię cofa; podczas Eclipse czeka na powrót światła, jak głos każdego gracza. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Ruszasz się, przeciągając token, bez kosztu. Widzisz każdy pokój, który klasa odkryła, tokeny wszystkich i każdy projekt, także tajny, z jego opisem, w każdym pokoju. Na koniec dnia plansza końca dnia pokazuje ci tylko swój nagłówek i nastrój szkoły. Nie masz czatu; komunikator nadal przynosi ci wiadomości od GM-a, ale nie możesz na nie odpowiedzieć.
 
 Gdy twoja postać zginie, oglądasz tak samo, z własnym Widzem: ma imię i obrazy twojej postaci i stoi tam, gdzie leży twoje ciało. Możesz go przeciągnąć dokądkolwiek, bez kosztu, a inni gracze go nie widzą. Nadal widzisz tylko to, co widzi zmarły uczeń. Jeśli zostaniesz Monocubem, jego token stanie się twoim Monocubem.
 
@@ -107,7 +107,7 @@ W chwili twojej śmierci szkło na twoim ekranie szarzeje, z dźwiękiem Gaśni�
 
 ### Dzień, sesja, rozdział
 
-Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia odnawia twoje dwie akcje, Free Move i Search Tokeny każdego pokoju. Gdy kończy się Noc, zaczyna się nowy dzień.
+Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia uzupełnia Search Tokeny każdego pokoju, a jej Eclipse odnawia twoje dwie akcje i Free Move (gdy pora mija bez Eclipse, odnawia je GM). Gdy kończy się Noc, zaczyna się nowy dzień.
 
 Kanoniczny rozdział to pięć sesji: trzy Daily Life, jedna sesja **Investigation** i jedna sesja **Class Trial**, a morderstwo przychodzi zwykle w trzeciej sesji Daily Life. GM może rozciągnąć rozdział, gdy morderstwa jeszcze nie było. Sezon to sześć rozdziałów; sezon modułowy to krótszy sezon, który GM może wybrać zamiast niego, i ma jeden rozdział.
 
@@ -172,6 +172,7 @@ Zawraca cię:
 | pokój, który **nie łączy się** z twoim | odmowa wymienia tylko te sąsiednie pokoje, w których już byłeś |
 | **piętro**, na które schody z twojego pokoju nie prowadzą | na mapie ze schodami tylko one zabiorą cię w górę lub w dół |
 | **zamknięte drzwi** | GM zamknął pokój |
+| **zabarykadowane drzwi** | ktoś zamknął drzwi od środka (Shut the Door); sekretne przejście albo wyłom nadal prowadzą dalej |
 | **zapieczętowany pokój** | Despair Call Behind Closed Doors, na jedną porę dnia |
 | **Chained** od Despair Calla | nie wyjdziesz z pokoju do końca pory dnia |
 | **cudza sypialnia** | gdy nie masz do niej klucza |
@@ -226,12 +227,12 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 |---|---|
 | przekreślony | wyciszony, przez ciebie |
 | przekreślony, z małą kłódką | wyciszony przez GM-a: **GM zablokował twój mikrofon.** |
-| szary i przekreślony | trzyma go gra podczas Eclipse, a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
+| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
 | z małą kropką | nie jesteś połączony z głosem albo głos działa w osobnym oknie |
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
 
-Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W kanale zmarłych mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
+Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
 
 Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę.
 
@@ -335,7 +336,7 @@ Projekty to powolna gra: wiele akcji przez wiele pór dnia. To też jedyna rzecz
 | Desperacki | 8 |
 
 - Projekt ma swój pokój i pracować nad nim może tylko ten, kto w tym pokoju stoi.
-- Propozycja projektu (**Zaproponuj projekt**) nie kosztuje akcji i wysyła kartę do GM-a. Projekt powstaje dopiero wtedy, gdy GM zatwierdzi propozycję, a przed zatwierdzeniem może zmienić skalę, pokój albo brzmienie. **Szerokie okna projektów**, w sekcji Wygląd okna **Ustawienia DRPG** (zębatka w prawym dolnym rogu), otwiera okno Zaproponuj projekt szerzej na twoim ekranie; to ustawienie jest domyślnie włączone.
+- Propozycja projektu (**Zaproponuj projekt**) nie kosztuje akcji i wysyła kartę do GM-a. Projekt powstaje dopiero wtedy, gdy GM zatwierdzi propozycję, a przed zatwierdzeniem może zmienić skalę, pokój albo brzmienie. **Szerokie okna projektów**, w sekcji Wygląd okna **Ustawienia Danganronpa RPG** (zębatka w prawym dolnym rogu), otwiera okno Zaproponuj projekt szerzej na twoim ekranie; to ustawienie jest domyślnie włączone.
 - **Opis.** Propozycja musi go mieć: do 1000 znaków, w których twoimi słowami mówisz, czym jest projekt. Gdy wybierzesz projekt ustalonego rodzaju, w polu staje nazwa tego rodzaju i możesz ją zmienić. GM czyta opis na karcie i może go zmienić przed zatwierdzeniem; potem zmieniają go już tylko GM-owie. Każdy, kto zna projekt, czyta jego opis na karcie jego tokenu.
 - Projekt wymaga jednej statystyki, nadanej przy tworzeniu, i każdy rzut na nim bierze właśnie ją: twój i sabotażysty.
 - Narzędzie trzymane w ręku pomaga w rzucie (rozdział 7, W ręku).
@@ -388,7 +389,7 @@ Okno kafelka **Facilities** ma najpierw dwa odpoczynki, bez rzutu, a po nich to,
 
 Okno wycenia oba odpoczynki wobec tego, co masz, i wymienia pokoje, które pozwalają na każdy z nich.
 
-Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i kosztuje akcję; gdy ktokolwiek użyje jej o tej porze dnia, także nieudanym rzutem, jest wyszarzona dla wszystkich aż do następnej. Akcja ukończonego projektu nie wymaga rzutu i kosztuje akcję, chyba że GM ustawił, że nic nie kosztuje; zostawia Subtle Remnant oznaczony jako Faint, tak jak akcja samego pokoju, i masz ją raz na każdą porę dnia. Jej wiersz mówi, który projekt ją daje i jak długo działa. Despair Overflow może na porę dnia wyłączyć akcje w pokojach (Lockdown, Power cut), podrożyć je (Toll), utrudnić (Jitters) albo zabrać Short Rest (Insomnia).
+Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i kosztuje akcję; gdy ktokolwiek użyje jej o tej porze dnia, także nieudanym rzutem, jest wyszarzona dla wszystkich aż do następnej. Akcja ukończonego projektu nie wymaga rzutu i kosztuje akcję, chyba że GM ustawił, że nic nie kosztuje; zostawia Subtle Remnant oznaczony jako Faint, tak jak akcja samego pokoju, i masz ją raz na każdą porę dnia; projekt bez pokoju daje swoją akcję w każdym pokoju, w którym stoisz. Jej wiersz mówi, który projekt ją daje i jak długo działa. Despair Overflow może na porę dnia wyłączyć akcje w pokojach (Lockdown, Power cut), podrożyć je (Toll), utrudnić (Jitters) albo zabrać Short Rest (Insomnia).
 
 ### Infiltrate: Listen - Shadow, 1 akcja
 
@@ -423,11 +424,11 @@ Dopóki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i 
 
 ### Shut the Door - Body, 1 akcja
 
-Barykadujesz od środka pokój, w którym stoisz, a siłą barykady jest twój rzut na Body. Działa to w pokoju, który ma najwyżej dwoje drzwi dających się otworzyć, i we własnej sypialni, ale nie w cudzej. Dopóki zostajesz w środku, nikt nie wejdzie drzwiami, choć tajne przejście, wyłom albo tunel wciąż przepuszcza. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, ale nigdy przez kogo; osoby stojące z tobą w pokoju widzą, jak to robisz. Shut the Door zostawia Subtle Remnant oznaczony jako Faint. Kogoś, kto próbuje wejść drzwiami z zewnątrz, słyszą wszyscy w środku, bez imienia, a taka osoba może drzwi wyważyć (niżej).
+Barykadujesz od środka pokój, w którym stoisz, a siłą barykady jest twój rzut na Body. Działa to w pokoju, który ma najwyżej dwoje drzwi dających się otworzyć, i we własnej sypialni, ale nie w cudzej; nie w czasie Eclipse, nie tam, gdzie leży ciało, którego nikt nie znalazł, i nie tam, gdzie stoi cudza barykada. Gdy twój ekran zna powód - Eclipse, cudza sypialnia, za dużo drzwi - wiersz jest wyszarzony z tym powodem i nic nie kosztuje; dwa pozostałe widzi tylko GM, a akcja przepada. Dopóki zostajesz w środku, nikt nie wejdzie drzwiami, choć tajne przejście, wyłom albo tunel wciąż przepuszcza. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, ale nigdy przez kogo; osoby stojące z tobą w pokoju widzą, jak to robisz. Shut the Door zostawia Subtle Remnant oznaczony jako Faint. Kogoś, kto próbuje wejść drzwiami z zewnątrz, słyszą wszyscy w środku, bez imienia, a taka osoba może drzwi wyważyć (niżej).
 
 ### Force the Door - Body, 1 akcja
 
-Przy drzwiach z twojego pokoju do sąsiedniego rzucasz raz na Body przeciw wszystkiemu, co je trzyma, naraz, a drzwi ustępują tylko wtedy, gdy rzut pokona to wszystko. Barykada wymaga więcej niż jej siła (remis ją utrzymuje); zamek (GM-a albo sypialni) i pieczęć wymagają 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, dopóki ktoś go nie naprawi (Repair the Lock, w części o Projects), a wyważona pieczęć znika do końca swojej pory dnia. Osoby w twoim pokoju zawsze widzą, kto to był, jakikolwiek byłby rzut. Wyważone drzwi, a także pudło z Despair, są głośne: pokoje obok jednego i drugiego pokoju słyszą *Łomot z: {room}.* bez imienia, a osoby w pokoju za drzwiami widzą, kto to był. Każda próba przy drzwiach, które coś trzyma, zostawia Remnant: Evident, gdy było głośno, a w przeciwnym razie Subtle. Właściciel sypialni, który tego nie widział, dostaje wiadomość, że drzwi wyważono, gdy następnym razem wejdzie do tej sypialni, albo od razu, jeśli w niej jest. Force the Door nie wolno użyć w trakcie Class Trial ani wtedy, gdy jesteś Chained.
+Przy drzwiach z twojego pokoju do sąsiedniego rzucasz raz na Body przeciw wszystkiemu, co je trzyma, naraz, a drzwi ustępują tylko wtedy, gdy rzut pokona to wszystko. Barykada wymaga więcej niż jej siła (remis ją utrzymuje); zamek (GM-a albo sypialni) i pieczęć wymagają 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, dopóki ktoś go nie naprawi (Repair the Lock, w części o Projects), a wyważona pieczęć znika do końca swojej pory dnia. Osoby w twoim pokoju zawsze widzą, kto to był, jakikolwiek byłby rzut. Wyważone drzwi, a także pudło z Despair, są głośne: pokoje obok jednego i drugiego pokoju słyszą *Słychać łomot przy drzwiach pokoju {room}.* bez imienia (pokój, którego nie znaleźli, to dla nich *Nieodkryty pokój n*), a osoby w pokoju za drzwiami widzą, kto to był. Każda próba przy drzwiach, które coś trzyma, zostawia Remnant: Evident, gdy było głośno, a w przeciwnym razie Subtle. Właściciel sypialni, który tego nie widział, dostaje wiadomość, że drzwi wyważono, gdy następnym razem wejdzie do tej sypialni, albo od razu, jeśli w niej jest. Force the Door nie wolno użyć w trakcie Class Trial ani wtedy, gdy jesteś Chained.
 
 ### Pick the Lock - Shadow, potem Hand, 1 akcja
 
@@ -544,7 +545,7 @@ Sprint i Burst zamiast czekać na rzut idą do zapasu i trwają do końca pory d
 
 ## 6. Despair - druga strona
 
-Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, na pasku **Pule Despair** u góry.
+Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, w panelu **Pule Despair** u góry.
 
 ### Despair Calls - co Monokuma może ci zrobić
 
@@ -869,7 +870,7 @@ Wszyscy są w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz z odnow
 
 Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły: żyjących, którzy brali udział, do pokoju, który wybierze GM. GM wybiera, kto bierze udział. Na czas rozprawy token twojej postaci staje w sali, a potem zostaje z niej usunięty.
 
-Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**: moduł wyłącza mikrofon gracza zmarłego ucznia, gdy rozprawa się otwiera, i oddaje go, gdy się kończy - także przy śmierci, której nikt nie znalazł, więc mikrofon, który milknie, mówi stołowi, że ktoś zginął. Twój kafelek głosu mówi dlaczego. Monocub mówi tylko w otwartej dyskusji, gdy nie trwa żaden tryb, a słucha w każdym trybie, od głosowania i przez całą rozprawę w sprawie własnej śmierci; kafelek mówi, kiedy może mówić, a kiedy tylko słucha. Od 1.2.114 tryb, który daje komuś głos, wyłącza też mikrofon Monocuba, tak jak wszystkim innym. Uczeń skazany werdyktem mówi do końca rozprawy. Moduł wycisza tylko zmarłych, a tego, kto mówi w danym trybie, pilnuje stół.
+Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**: moduł wyłącza mikrofon gracza zmarłego ucznia, gdy rozprawa się otwiera, i oddaje go, gdy się kończy - także przy śmierci, której nikt nie znalazł, więc mikrofon, który milknie, mówi stołowi, że ktoś zginął. Twój kafelek głosu mówi dlaczego. Monocub mówi tylko w otwartej dyskusji, gdy nie trwa żaden tryb, a słucha w każdym trybie, od głosowania i przez całą rozprawę w sprawie własnej śmierci; kafelek mówi, kiedy może mówić, a kiedy tylko słucha. Od 1.2.114 tryb, który daje komuś głos, wyłącza też mikrofon Monocuba, tak jak wszystkim innym. Uczeń skazany werdyktem mówi do końca rozprawy. W otwartej dyskusji, gdy nie trwa żaden tryb, moduł wycisza tylko zmarłych i Widzów, a tego, kto mówi, pilnuje stół.
 
 Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy i nikt nie wnosi objection, a Truth Bullet można za darmo **Przedstawić** z ekwipunku. Trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Zaznacz **Pokaż z wynikiem mojego Analyze**, żeby pokazać, co odczytało twoje Analyze; bez zaznaczenia karta pokazuje dowód jako nigdy nieanalizowany, bez odczytu i bez rodzaju, który wyszedł z analizy. Każdy inny uczestnik dostaje na arkusz kopię, tak jak ją pokazano, za darmo i raz. Dowiadujesz się, kiedy dowód trafił na stół. W Class Trial Truth Bullet nie ma Podziel się kopią: dowody przechodzą z rąk do rąk przez Przedstaw. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
 
@@ -1039,7 +1040,7 @@ Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Pod
 
 **Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry. Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, otwiera je ponownie. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, nie zwija się. Okno, które czeka na twoją odpowiedź (rzut, Observe, deklaracja akcji, głosowanie, Level Up albo pytania Class Trial), zostaje nad arkuszem postaci, także gdy klikniesz arkusz albo gdy on się przerysuje; pozostałe okna wychodzą na wierzch tak, jak wyciąga je Foundry. Pole tekstowe, w którym piszesz, rośnie nad swoim oknem, by zmieścić tekst, najwyżej do 60% wysokości ekranu, i wraca na miejsce, gdy z niego wyjdziesz albo naciśniesz Escape.
 
-**Panel zdarzeń** (pod wierszami Despair) pokazuje to, co dzieje się teraz: Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trial, mówcę i pozostały czas, otwarte głosowanie i zatrzymaną scenę. Karty samego morderstwa widzą tylko jego uczestnicy. Panel ma jeden rozmiar, cokolwiek pokazuje, a karta dłuższa od niego przewija się w środku.
+**Panel zdarzeń** (pod wierszami Despair) pokazuje to, co dzieje się teraz: Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trial, mówcę i pozostały czas, otwarte głosowanie i zatrzymaną scenę. Karty samego morderstwa widzą tylko jego uczestnicy. Panel nigdy się nie przewija: rośnie razem z kartami aż do najbliższego bloku pod nim albo do dołu ekranu, a gdy brakuje miejsca, karty pod pierwszą zwijają się do tytułów, od ostatniej w górę. Zwiniętą kartę otwiera kliknięcie albo Enter, a tytuły, które dalej się nie mieszczą, są policzone pod panelem jako „+N”.
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów) pokazuje pozostałe akcje, twój Move i twój Hope. Wiersz Move to zawsze dwie stopy. Poza Eclipse pierwsza stopa to Free Move tej pory dnia, pełna, dopóki go masz, a druga, stopa Eclipse, jest przygaszona. Podczas Eclipse dwie stopy to jego przejścia: pierwsza jest pełna, dopóki zostało ci jedno przejście, a druga, dopóki zostały dwa. Przy ustawianiu, w którym możesz wybrać dowolny pokój, obie stopy są pełne, a trzecie przejście z akcji pokoju też widać jako dwie pełne stopy; wskaż wiersz kursorem, by zobaczyć liczbę. Przejścia Monocuba nic nie kosztują, więc jego pierwsza stopa jest zawsze pełna; podczas Eclipse pełne są obie, a jego akcje mówią *Tylko ustawianie.* Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
@@ -1065,12 +1066,14 @@ Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Pod
 
 Okno historii pokazuje jako przyciski **Wszystkie**, **Dla ciebie** i **Niewykonane**, a pozostałe filtry (**Ogłoszenia**, **Od graczy**, **Dowody** i **Komunikator**) są pod **Więcej filtrów**. Każdy filtr pokazuje, ile powiadomień trzyma, a pole wyszukiwania znajduje powiadomienie po tytule i treści. **Wyczyść** w tym oknie opróżnia historię: zrób to, zanim udostępnisz ekran. Inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc na wspólnym komputerze wyczyść ją, zanim oddasz komputer.
 
-**Okno ustawień:** zębatka w prawym dolnym rogu otwiera **Ustawienia DRPG**, twoje własne ustawienia; inni przy stole niczego nie zauważą. GM ma to samo okno, a otwiera je też przycisk **Otwórz ustawienia DRPG** w Configure Settings Foundry. Wybierz sekcję po lewej; linia pod każdym ustawieniem mówi, co ono zmienia, a **Zapisz zmiany** zapisuje ustawienia. Głośność i głos działają od razu, gdy je przesuwasz, a nie dopiero po **Zapisz zmiany**.
-- **Wygląd**: **Język** to English albo Polski dla okien, kart i arkusza modułu, osobno od języka Foundry; działa po przeładowaniu, a nazwy gry zostają po angielsku w obu językach. **Motyw** to **Stained Glass** albo **Monokuma Legacy**; pod Stained Glass szkło zmienia kolor z każdą nową fazą albo porą dnia, a z włączonym ustawieniem **Ograniczone animacje** od razu przyjmuje nowy stan. **Skala interfejsu** ma zakres od 80% do 140%, **Nazwa stanu za zegarem** jest tylko pod Stained Glass, a **Szerokie okna projektów** otwiera okna projektów szerzej.
+**Okno ustawień:** zębatka w prawym dolnym rogu otwiera **Ustawienia Danganronpa RPG**, twoje własne ustawienia; inni przy stole niczego nie zauważą. GM ma to samo okno, a otwiera je też przycisk **Otwórz ustawienia Danganronpa RPG** w Configure Settings Foundry. Wybierz sekcję po lewej; linia pod każdym ustawieniem mówi, co ono zmienia, a **Zapisz zmiany** zapisuje ustawienia. Głośność i głos działają od razu, gdy je przesuwasz, a nie dopiero po **Zapisz zmiany**.
+- **Wygląd**: **Język** to English albo Polski dla okien, kart i arkusza modułu, osobno od języka Foundry; działa po przeładowaniu, a nazwy gry zostają po angielsku w obu językach. **Motyw** to **Stained Glass** albo **Monokuma Legacy**; pod Stained Glass szkło zmienia kolor z każdą nową fazą albo porą dnia, a z włączonym ustawieniem **Ograniczone animacje** od razu przyjmuje nowy stan. **Skala interfejsu** ma zakres od 25% do 140% (poniżej 80% tekst jest mniejszy niż czytelny rozmiar modułu), **Pora dnia za zegarem** jest tylko pod Stained Glass, a **Szerokie okna projektów** otwiera okna projektów szerzej.
 - **Efekty i dostępność**: **Czcionka pikselowa**, **Puls szkła**, **Szkło rozmywa mapę**, **Ograniczone animacje** i **Wysoki kontrast**. Czcionka pikselowa jest tylko pod Monokuma Legacy, puls szkła i rozmycie mapy tylko pod Stained Glass, a ograniczone animacje i wysoki kontrast są pod oboma motywami i każde z nich włącza się też samo, gdy prosi o to system operacyjny.
 - **Dźwięk i głos**: **Dźwięki komunikatora**, głośność **Dźwięk** i **Muzyka** oraz ustawienia głosu. Gdy jesteś w głosie, są tu twój **Mikrofon**, twoje **Wyjście dźwięku**, **Tryb mikrofonu** (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia (**Zmień klawisz**). Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
 
-**Gdy ekran się przycina**, zmieniaj te ustawienia w oknie ustawień po jednym: najpierw wyłącz **Szkło rozmywa mapę**, potem **Puls szkła** i **Nazwa stanu za zegarem**, potem włącz **Ograniczone animacje**, a na końcu spróbuj motywu **Monokuma Legacy**. Każde z nich zmienia tylko twój ekran. Jeśli GM zapyta, jak szybko działa twój ekran, kroki są w rozdziale 17.
+Niektóre chwile celowo nie grają dźwięku, żeby nic nie mówiło stołowi więcej niż ich karta: zmiana pory dnia, Search, który coś znajduje (krytyk gra własny), Work on a Project, dopóki pasek się nie zapełni, oraz Dash i akcje przy drzwiach dla tego, kto je robi.
+
+**Gdy ekran się przycina**, zmieniaj te ustawienia w oknie ustawień po jednym: najpierw wyłącz **Szkło rozmywa mapę**, potem **Puls szkła** i **Pora dnia za zegarem**, potem włącz **Ograniczone animacje**, a na końcu spróbuj motywu **Monokuma Legacy**. Każde z nich zmienia tylko twój ekran. Jeśli GM zapyta, jak szybko działa twój ekran, kroki są w rozdziale 17.
 
 > [!NOTE]
 > **Rzuty są prywatne:** każdy twój rzut widzą tylko GM-owie i ty. Ekran GM-a pokazuje, jak padają twoje kości, tylko gdy w twoim pokoju stoi Monokuma tego GM-a; wynik i tak dociera do każdego GM-a. Nikt nie widzi cudzych kości, z trzema wyjątkami. Rzut w incydencie widzą jego uczestnicy, z kośćmi, wynikiem i tym, jaka to akcja, od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi żadnych kości ani kart incydentu, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca (zabójcy w Direct Murder, ofiara pułapki), a rzut sprzątania widzi tylko ten, kto go wykonuje. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to rzut publiczny, który wykonuje GM, na przykład remis w głosowaniu albo loteria Monokumy.
@@ -1169,7 +1172,7 @@ Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.op
 
 **Akcje w rozprawie.** Rozprawa odnawia każdemu akcje, nie kończąc pory dnia, a Sprint i Burst w zapasie zostają w nim przez całą rozprawę. Od 1.2.110 Wounded zabiera akcję tylko w Daily Life i w Investigation, więc akcje rozprawy są pełnym budżetem także dla ucznia w stanie Wounded; zaciemnienie Panic nadal zabiera jedną akcję.
 
-**Mikrofony.** Gdy rozprawa się otwiera, przeglądarka głównego GM-a wypisuje każdego zmarłego ucznia, także takiego, którego śmierci nikt nie znalazł, i nigdy Monocuba; graczowi każdego z nich zabiera uprawnienie Broadcast Audio w Foundry i oddaje je, gdy rozprawa się kończy. Linijki Monocuba na kafelku głosu (otwarta dyskusja, tryb, od głosowania, jego własna sprawa) są tylko informacją: moduł nigdy nie trzyma mikrofonu Monocuba.
+**Mikrofony.** Gdy rozprawa się otwiera, przeglądarka głównego GM-a wypisuje każdego zmarłego ucznia, także takiego, którego śmierci nikt nie znalazł, i nigdy Monocuba; graczowi każdego z nich zabiera uprawnienie Broadcast Audio w Foundry i oddaje je, gdy rozprawa się kończy. Linijki Monocuba na kafelku głosu (otwarta dyskusja, tryb, od głosowania, jego własna sprawa) mówią, czego stół od niego oczekuje; od 1.2.114 tryb, który daje komuś głos, zabiera uprawnienie Broadcast Audio każdemu graczowi, który głosu nie ma, także Monocubowi, i oddaje je, gdy głos przechodzi dalej.
 
 **Głosowanie.** Głos trafia tylko do przeglądarek GM-ów. Dopóki nie jest połączony żaden GM, twoja przeglądarka trzyma twój głos i wysyła go, gdy GM się połączy, a do tego czasu czytasz "Żaden GM nie ma jeszcze twojego głosu. Trafi do GM-a, gdy tylko się połączy.". Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka.
 

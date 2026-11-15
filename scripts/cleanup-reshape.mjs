@@ -12,8 +12,8 @@ import { cardWarn } from "./chat-card.mjs";
 import { cleanupAttemptStore } from "./gm-stores.mjs";
 import { remnantById, sceneOfRemnant, tieState, remnantData, removeRemnant } from "./remnants.mjs";
 import { heldCopiesOf } from "./truth-bullets.mjs";
-import { whisperToOwner as whisperToOwnerPlain, plural, whisperToGms, log, cardHead } from "./utils.mjs";
-import { drpgWindow, tipAttr } from "./ui-kit.mjs";
+import { whisperToOwner as whisperToOwnerPlain, plural, whisperToGms, log, cardHead, esc } from "./utils.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.
@@ -212,7 +212,7 @@ export async function askTransform(actor) {
                     })
                 }],
                 secondary: [{
-                    action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"),
+                    action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"), tooltip: tipText("DRPG.Tips.Sweep.Trial.reshapeEraseTooltip"),
                     callback: () => null
                 }]
             },
@@ -236,7 +236,6 @@ export async function askTransform(actor) {
 
 /** The two fields of a reshape, holding what was typed when the window opens again. */
 function reshapeFields(limits, typed = {}) {
-    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
     return `<label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
                 <input type="text" name="name" maxlength="${limits.name ?? 60}" value="${esc(typed.name)}" autofocus
                     placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}"${tipAttr("DRPG.Tips.Trial.callItNameTooltip")} /></label>

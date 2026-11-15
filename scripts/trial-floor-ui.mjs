@@ -23,13 +23,11 @@ import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 /* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
    `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
@@ -182,8 +180,9 @@ export async function startClassTrial() {
     const picked = result.cast;
     if (hall && picked?.sceneId === hall.id && Object.keys(picked.changes ?? {}).length) await saveTrialCast(hall, picked.changes);
 
-    // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp go together
-    // - see `resetElapsed` - so the HUD redraws once. Two writes would redraw
+    // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp
+    // (`timeOfDayStartedAt`) go together in the one `setClock` below, so
+    // the HUD redraws once. Two writes would redraw
     // it twice a few milliseconds apart, and the second redraw would land in
     // the middle of the turn-over animation the first one started.
     // A fresh trial has not voted and has not delivered a verdict, G-32
@@ -237,7 +236,7 @@ export async function confirmNewTrial(chapter) {
         classes: ["drpg-panel", "drpg-narrow"],
         body: `<p>${game.i18n.localize("DRPG.Floor.newTrialConfirm")}</p>`,
         footer: {
-            destructive: [{ action: "ok", label: game.i18n.localize("DRPG.Floor.newTrialTitle") }],
+            destructive: [{ action: "ok", label: game.i18n.localize("DRPG.Floor.newTrialTitle"), tooltip: tipText("DRPG.Tips.Sweep.Trial.newTrialTooltip") }],
             close: "cancel",
             default: "cancel"
         },
@@ -272,8 +271,8 @@ export async function incidentClosedFirst() {
         classes: ["drpg-panel", "drpg-narrow"],
         body: `<p>${game.i18n.localize("DRPG.Floor.incidentOpen")}</p>`,
         footer: {
-            secondary: [{ action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep") }],
-            destructive: [{ action: "endMurder", label: game.i18n.localize("DRPG.Murder.endMurder") }],
+            secondary: [{ action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep"), tooltip: tipText("DRPG.Tips.Sweep.Trial.incidentKeepTooltip") }],
+            destructive: [{ action: "endMurder", label: game.i18n.localize("DRPG.Murder.endMurder"), tooltip: tipText("DRPG.Tips.Sweep.Trial.incidentEndTooltip") }],
             close: "cancel",
             default: "cancel"
         },
@@ -998,7 +997,7 @@ async function pickClosingDialog() {
         title: game.i18n.localize("DRPG.Floor.mode.closing"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-closing-pick"],
         body: `<form><label>${game.i18n.localize("DRPG.Floor.closing.pickLabel")}
-            <select name="actor">${actors.map(option).join("")}</select></label></form>`,
+            <select name="actor"${tipAttr("DRPG.Tips.Sweep.Trial.closingPickTooltip")}>${actors.map(option).join("")}</select></label></form>`,
         footer: {
             primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"), tooltip: tipText("DRPG.Tips.Trial.pickASpeakerTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=actor]")?.value ?? null },
@@ -1042,7 +1041,7 @@ export async function confirmReveal(row, { left = 0 } = {}) {
     const name = row.name || game.i18n.localize("DRPG.Reveal.defaultName");
     const words = row.text
         ? `<blockquote class="drpg-reveal-text">${esc(row.text)}</blockquote>`
-        : `<label>${esc(game.i18n.localize("DRPG.Reveal.textLabel"))}<textarea name="text" rows="3"></textarea></label>`;
+        : `<label>${esc(game.i18n.localize("DRPG.Reveal.textLabel"))}<textarea name="text" rows="3"${tipAttr("DRPG.Tips.Sweep.Trial.revealTextTooltip")}></textarea></label>`;
     // M13's card (E21 C4; docs/design/windows.md): Cancel and Reveal on the left, Reveal the destructive role, no primary.
     const answer = await drpgConfirm({
         title: game.i18n.localize("DRPG.Reveal.title"),
@@ -1453,6 +1452,10 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // Greyed and named as sent once this trial's summary is out (the record's `summaryShown`), on every GM's console
                 { action: "caseSummary", label: game.i18n.localize(progress.summaryShown ? "DRPG.CaseSummary.shown" : "DRPG.CaseSummary.show"),
                   disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault("caseSummary") },
+                // Once it is out, this GM may play the board again on their own browser (E109, DRPG-Q113 #56; Q-E99-9).
+                ...(progress.summaryShown && !finalNow
+                    ? [{ action: "caseSummaryReplay", label: game.i18n.localize("DRPG.CaseSummary.replay") }]
+                    : []),
                 /* END OF CHAPTER, THE LAST STEP (the owner, 12.11.2026: "Tak samo end the chapter"): only while it is
                    the trial's next step - after the verdict and, in an ordinary trial, the case summary. Never the default
                    since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so the lead names it and Enter
@@ -1550,6 +1553,7 @@ const TRIAL_ACTIONS = {
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     caseSummary: async () => (await import("./case-summary.mjs")).showCaseSummary(),
+    caseSummaryReplay: async () => (await import("./case-summary.mjs")).replayCaseSummary(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
        button opened `openVerdictDialog` whatever the trial was, and in a Final Trial that is the
        ordinary verdict: executions, Level Ups, Despair and a rule, none of which the guide gives the

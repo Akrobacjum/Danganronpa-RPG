@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Jedna strona. Moduł 1.2.114 na Daggerheart.*
+*Jedna strona. Moduł 1.2.115 na Daggerheart.*
 
 **Jesteś** Ultimate: to ta jedna rzecz, którą twoja postać robi najlepiej, wpisana na arkuszu pod jej imieniem. Twoje sześć statystyk to Leg, Body, Hand, Eye, Shadow i Head.
 
@@ -72,7 +72,7 @@ Największy przycisk w prawym dolnym rogu otwiera **Czat z GM-em**, jeden wątek
 
 | Przycisk | Otwiera |
 |---|---|
-| Zębatka | **Ustawienia DRPG**: język, motyw, dźwięki i głos |
+| Zębatka | **Ustawienia Danganronpa RPG**: język, motyw, dźwięki i głos |
 | Książka | tę ulotkę i Podręcznik gracza |
 | Stos kart na powiadomieniu | **Historia powiadomień**: powiadomienia, które ci pokazano |
 

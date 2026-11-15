@@ -181,10 +181,12 @@ belongs to.
 | 18 | scenarios/18-trial.mjs | ci | exists | E40 | the trial with real ballots, a player leak scan after every step (plan v2 calls it 15-trial; 15 is 15-held; E40 C5): a fifth student killed in public, Chie (p3's) the register's Blackened; the trial started (opened), the ballots sent and p1, p2 and p3 - Chie's player too - each casting Botan through the bridge, answered and counted (ballots), the count accusing Botan (count), the wrong verdict sentencing Botan, not dead yet by DC36 (verdict), the trial's end executing him once (close); after every step p1's and p2's world data read against world-secrets.mjs and for Chie's id, and their new cards for Chie, her name and her player (`canary.worldScan`, `canary.chatScan`). The ballot windows, a late player, a reload, the verdict's window and a second trial are 63's |
 | 19 | scenarios/19-standing-cast.mjs | ci | exists | E32+E07 fix r2-G2 | what a player outside the running incident is sent of its cast: one packet, repeated by every GM, no newer than the opening |
 | 20 | scenarios/20-crit-hope.mjs | ci | exists | <=1.2.50 | a critical pays +2 Hope, a Hope roll +1; a Reroll into a critical pays the second Hope only with the players' Hope and Fear automation on (1.2.67) |
+| 21 | scenarios/21-masked-killer.mjs | ci | exists | 1.2.115 (owner-115) | a killer behind a "?" (E69 C8) as the victim's and the bystander's browsers hold the fight: no card's words, chat document, drawn message, notice, history, Event card, relayed dice or cast names the killer, shows her pictures or carries her id or her player's; the killer's browser still reads her name; once revealed the victim is told who again (D6) |
 | 30 | scenarios/30-security.mjs | ci | exists | <=1.2.50 | forged packets and writes change nothing on the GM |
 | 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket: no write, no GM exception, a refusal with a reason |
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
 | 33 | scenarios/33-bridge-paths.mjs | ci | exists | E31 | every legal road through the GM bridge, and what a player is told when a request is not carried out; a Sabotage of one's own trap leaves a tied trace, of another's an untied one (A14, E09 C5); with no GM connected each road an item takes between two characters settles before it is sent, and a Palm's Steal and Plant before their window and price (E35 C5) |
+| 34 | scenarios/34-case-seal.mjs | ci | exists | E111 | the case's copy on the server (E111): a GM's press writes one file under the world's folder with a 128-bit name, a player can neither list the folder nor upload, nothing a player's browser holds names the file or the planner, a change reaches it after the debounce (A); with the switch off or a player's account given FILES_BROWSE nothing is written, the GM told once and the health check names it (B); the second computer alone with an empty browser holds the planner at load (C); an empty browser reads before it writes, and one held unhydrated writes nothing (D); two GMs' writes of one row give the later one, two racing files are both read and the newer written on (E). Named for the passphrase copy it first tested (e1afdd84, taken out by 18df17c4); a 3x number because the 6x decade is full. A real server's file routes are LIVE-E111-01 and -02, the second PC LIVE-E111-03 |
 | 40 | scenarios/40-flow.mjs | ci | exists | <=1.2.50 | a Daily Life time of day on four clients |
 | 41 | scenarios/41-trial-scene.mjs | ci | exists | E13 | the Class Trial and the scenes as they are today: an activation followed by every browser, one still loading only warning, a token's `hidden` heard everywhere (S), a hall the GM keeps and `setClock` into the trial (a), a move in the hall (b), the voice rooms (h), `closeTrial` (c), Edit campaign in and out (d), a player loading while the hall is activated (f), no second discovery after the trial (g), End the trial's room and the living gathered there (i), the chapter end in the trial (j), the season reset in the trial (e), Start's lines and the console's door (k) - each check today's reading, naming the E13 commit that changes it |
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
@@ -489,6 +491,19 @@ roll at a table.
 
 ## What the harness cannot do
 
+- **The server's files are the smallest stand-in the case's copy needs** (E111, 14.11.2026; cluster.mjs case
+  "files", lib/shim.mjs `FilePickerImpl`, client-entry.mjs `bus.files` and `fetch`). What it models: one "data" source;
+  `browse` of a folder under `worlds/` asks FILES_BROWSE and answers its files and folders, and a folder that does not
+  exist throws "Directory ... does not exist"; `createDirectory` and `upload` ask FILES_UPLOAD, an upload into a folder
+  that does not exist is refused and one of a name already there overwrites it; every world's own folder
+  (`worlds/<id>`) exists; a permission is the user's own grant, else `core.permissions` as stored, else TRUSTED and up,
+  and a Gamemaster holds every one; a file is served by its path through `fetch` to any client, as Foundry's static
+  route serves the data folder to a request that is not logged in. Refused requests go to `permissionDenials`, and
+  every request to `fileLog`; `serverFiles` is what was uploaded, for the scenarios. What it does not model: any
+  source but "data" (The Forge's assets, S3), the server's own answers and their wording, file size limits, a folder
+  browse with `extensions` or wildcards, Foundry's browse of module and system folders (the shim's older browse of the
+  checkout still serves those), the upload's toast, a delete (Foundry's FilePicker has none), and the file surviving a
+  server restart (it lives for the cluster's run). LIVE-E111-01 and LIVE-E111-02 are the real server's.
 - **The render after a write is a model** (E45 C3a, `renderApps` in `client-entry.mjs`). After an update hook, each
   open app in the document's `apps` is asked `render(false, { renderContext: "update<Doc>", renderData })` with the
   changes as the hook got them, on every client, the writer's included; an embedded create, update or delete asks its

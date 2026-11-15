@@ -59,6 +59,7 @@ import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader, callRowsHtml, pickedRow } from "./call-pickers.mjs";
+import { nameAsSeen } from "./mask-gm.mjs";
 
 /* ==========================================================================
  * STATUS
@@ -497,7 +498,7 @@ export async function openInvitation(actor) {
             <ol class="drpg-cub-rule-steps"><li>${L("DRPG.Monocub.ruleStep1")}</li><li>${L("DRPG.Monocub.ruleStep2")}</li><li>${L("DRPG.Monocub.ruleStep3")}</li></ol>
         </div>`,
         footer: {
-            primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.inviteAccept"), callback: () => "accept" },
+            primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.inviteAccept"), tooltip: tipText("DRPG.Tips.Sweep.Gm.acceptRuleTooltip"), callback: () => "accept" },
             secondary: [{ action: "decline", label: game.i18n.localize("DRPG.Monocub.inviteDecline"), tooltip: tipText("DRPG.Tips.Gm.notNowInviteTooltip"), callback: () => "decline" }]
         },
         rejectClose: false
@@ -656,7 +657,7 @@ export async function liftCubWitness() {
  * THE ABILITIES (E33 C10, 07.10.2026; audit S09-48, decision D39)
  * --------------------------------------------------------------------------
  * One ability lived in three files (this one, gm-bridge.mjs's one action for it,
- * sheet.mjs `meddleButton`), so a second one would have been a fourth copy of
+ * sheet.mjs `meddleButton`, gone with C10), so a second one would have been a fourth copy of
  * every question: who may use it, when it is shut, whom it is aimed at, what is
  * thrown, how it is scored. Each ability is a ROW of `MONOCUB.abilities`
  * (config.mjs), and the rows are data: a row names its behaviour by key, and
@@ -1352,7 +1353,7 @@ export async function cubAbilityDialog(actor, key) {
         }),
         brief: `<p class="notes">${game.i18n.localize("DRPG.Monocub.tiersIntro")}</p>
             ${cubTiersHtml(row)}`,
-        body: `<form>${callRowsHtml(targets.map(a => ({ value: a.id, label: a.name, icon: row.target === "project" ? "fa-list-check" : "fa-user" })),
+        body: `<form>${callRowsHtml(targets.map(a => ({ value: a.id, label: row.target === "project" ? a.name : nameAsSeen(a), icon: row.target === "project" ? "fa-list-check" : "fa-user" })),
             { name: "target", prompt: game.i18n.localize("DRPG.Monocub.target") })}</form>`,
         // One button per choice of the row, the first the primary and the default, the others secondaries (the kit's
         // slots, E21 C5a); their labels are `DRPG.Monocub.<choice>` (R1's LITERAL_KEYS names the two the table has).
@@ -1818,7 +1819,8 @@ async function postBountyNow(userId, target) {
     const owedKey = await D.oweDespair(userId, cost);
     if (!owedKey) return null;
     // The owed row's key and the price, so a lapse gives back what this Bounty took (A113-C6-3, `lapseBounties`).
-    const bounty = { by: userId, reward, cost, owedKey, at: serverNow(), targetName: target.name };
+    // And its season (E59 on the 1.2.115 line, CHAINS.md B-H1; R7176): a lapse gives back only within it.
+    const bounty = { by: userId, reward, cost, owedKey, at: serverNow(), targetName: target.name, season: seasonEpoch() };
     await bountyStore.patch(target.id, bounty);
     tellEveryCub();
     await tellBounty("bountyPosted", { name: target.name, reward },
@@ -1859,7 +1861,11 @@ export async function lapseBounties() {
     const D = await import("./despair.mjs");
     for (const [id, bounty] of open) {
         const cost = Math.max(0, Math.trunc(Number(bounty?.cost) || 0));
-        const back = bounty?.owedKey ? await D.returnOwed(bounty.by, bounty.owedKey, cost).catch(err => {
+        /* OF THIS SEASON ONLY (E59 on the 1.2.115 line, CHAINS.md B-H1; R7176): a season reset that zeroes the pools and
+           keeps the Bounties ("despair" ticked, "actions" not) left last season's to lapse into this one, and
+           `returnOwed` paid each one's cost into the new pool. A Bounty posted before 1.2.115 holds no season: as now. */
+        const thisSeason = (bounty?.season ?? seasonEpoch()) === seasonEpoch();
+        const back = bounty?.owedKey && thisSeason ? await D.returnOwed(bounty.by, bounty.owedKey, cost).catch(err => {
             error("Could not give a lapsed Bounty's Despair back", err);
             return null;
         }) : null;

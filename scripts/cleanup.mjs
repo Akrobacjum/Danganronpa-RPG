@@ -84,9 +84,8 @@ import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural, listOf } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact } from "./cleanup-reshape.mjs";
 export { askTransform, plainText, reshapeCardParts, applyReshapeRuling, declineReshapeRuling, ruleReshape, askTransformChange, attemptOf } from "./cleanup-reshape.mjs";
 
@@ -1790,7 +1789,9 @@ export async function resolveStageSix({
     await noteCleaningTool(actor, held);
 
     const relief = def.toolBonusPerTier ? cleaningTier(held) * def.toolBonusPerTier : 0;
-    const threshold = Math.max(0, (def.threshold ?? 0) - relief);
+    // The clean-up's floor, as every other clean-up roll's (E109, DRPG-Q113 #48, H11; the owner, 14.11.2026): until
+    // 1.2.115 it stopped at 0. No tier reaches 8 from Move the Body's 16 today; the rule is written once (R7123).
+    const threshold = atLeastFloor((def.threshold ?? 0) - relief);
     const success = isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
 
@@ -1841,9 +1842,11 @@ export async function resolveStageSix({
     // one above with `<strong>Label</strong> -`, and the GM's copy below with a
     // third. All three are the same sentence - what was done, what it rolled,
     // what came of it - so all three are the header now.
+    // A miss sounds as an Erase's or a Reshape's does (E59 on the 1.2.115 line, CHAINS.md B-M5; R7165).
     await whisperToOwner(actor, `${cardHead({
         action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
-    })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`);
+    })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`,
+    success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });
     /* The GMs' copy gave the band alone - "despair" - and the threshold apart, so the GM compared
        the numbers by hand (E09 C14, 08.10.2026; audit S05-33): it reads as the player's does,
        "≥ 18", with the band beside it, named as the roll names it. */

@@ -24,7 +24,7 @@
 
 import { MODULE_ID, SFX_EVENTS, SFX_SLIDERS, SFX_VOLUME_KEYS, SFX_VARIATION } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { warn, error, clamp, ownerOf } from "./utils.mjs";
+import { warn, error, clamp, ownerIdsOf } from "./utils.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 import { count } from "./perf-counters.mjs";
 
@@ -229,7 +229,7 @@ function gainFor(key) {
  * Sounds this file owns, decoded once. Path -> Sound.
  *
  * WHY WE OWN THEM AT ALL, since `AudioHelper.play` is otherwise perfectly good:
- * a rate can only be bent on an `AudioBufferSourceNode`, and Foundry decides
+ * a rate can only be bent on `AudioBufferSourceNode#playbackRate`, and Foundry decides
  * per file whether to decode into a buffer or stream from an `<audio>` element
  * - where the rate lives on the element and PRESERVES PITCH, which is a speed
  * change with no pitch change and sounds like a glitch rather than variation.
@@ -507,30 +507,24 @@ export function playSfx(key, { force = false } = {}) {
  *
  * Addressed, never broadcast. `AudioHelper.play(..., true)` and a socket to
  * everyone are the two ways to make the whole table hear a private find; the
- * recipient list here is one player, and the handler checks it again on arrival.
+ * recipients here are the actor's players, each by address, and the handler checks
+ * it again on arrival.
  *
- * @param {Actor} actor  Whose player should hear it.
+ * @param {Actor} actor  Whose players should hear it.
  * @param {string} key
  */
 export function playSfxFor(actor, key) {
-    const owner = ownerOf(actor);
+    // EVERY PLAYER WHO OWNS IT, as its card is whispered (E59 on the 1.2.115 line, CHAINS.md B-S4; R7167): utils.mjs
+    // `whisperToOwner` tells every owner, and this sent the sound to the first one alone, while "your turn" and a
+    // Monocub's sound reach every owner. Each is sent by address, the offline passed over (`playSfxForUsers`).
+    const owners = ownerIdsOf(actor);
 
-    // Ours to play: the GM running a character of their own, or a player who
-    // somehow reached this code path on their own browser.
-    if (!owner || owner.id === game.user.id) {
+    // Ours to play: the GM running a character of their own (no player owns it).
+    if (!owners.length) {
         playSfx(key);
         return;
     }
-
-    if (!owner.active) return;
-
-    try {
-        game.socket.emit(`module.${MODULE_ID}`,
-            { action: SFX_ACTION, key, userId: owner.id },
-            { recipients: [owner.id] });
-    } catch (err) {
-        warn("Could not send a sound to the player it was for", err);
-    }
+    playSfxForUsers(owners, key);
 }
 
 /**
@@ -767,7 +761,9 @@ export async function testSfx(key) {
         };
     }
 
-    const src = soundFor(key);
+    // What the event plays, its fallback's file included (E59 on the 1.2.115 line, CHAINS.md B-S12; R7169): an empty
+    // "Death fade" plays the death's file live, and its Test said it had none.
+    const src = soundsFor(key).join(SOUND_SEPARATOR) || null;
     if (!src) return { played: false, key, why: game.i18n.localize("DRPG.Sound.why.noFile") };
 
     const volume = event.ignoresVolume ? 1 : sfxVolume("sound");

@@ -202,7 +202,7 @@ export class SearchTokens {
     /**
      * How many search tokens remain in a room on the scene named. Every method here takes the
      * scene of the room it counts, with no default (E12 C6, 11.10.2026; plan-E12 3.3): until
-     * 1.2.74 it was the scene on screen (`canvas.scene`, and `currentSceneId` for a spend), so
+     * 1.2.74 it was the scene on screen (`canvas.scene`, and for a spend `SearchTokens.currentSceneId`, gone since), so
      * a Search counted, sealed and spent the room of that name on whatever scene the browser
      * running it was showing.
      */

@@ -774,7 +774,8 @@ export   const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;
 
          3 THE RAIL WAS BOUNDED TO THE NOTICE TILE'S BOX, NOT ITS PANE. That pane is leaned, so
            its top stands 46 to 60 px above its box; with the tools open at 2560x1440 the tiles
-           ran to 1121 and the pane began at 1120. Answered by `notePaneLean` in `moduleLayout`.
+           ran to 1121 and the pane began at 1120. Answered by the pane's lean in glass.mjs `moduleLayout` (`fitNoteTile`'s
+           `lean`; `notePaneLean` was the reading's own name for it, never code).
 
          Dropping the mid seam also drops the LOWER QUAD, and that quad covers wall: doing
          without it left two gaps at the screen edge. A strip with no mid seam now reaches

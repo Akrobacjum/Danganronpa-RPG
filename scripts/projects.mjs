@@ -51,7 +51,7 @@ import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, toldSight
+    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, toldSight, bothHalves
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
@@ -982,7 +982,7 @@ export function workersNow(countdownId) {
 export const COMPLETION_EFFECTS = [
     {
         /*
-         * A FINISHED REPAIR THAWS WHAT IT REPAIRED, AND GOES (was `checkRepairCompletion`, called on
+         * A FINISHED REPAIR THAWS WHAT IT REPAIRED, AND GOES (was `checkRepairCompletion`, removed in 1.2.85, called on
          * every landing). The repair is a means, not a goal: once the thing it was fixing works again
          * there is nothing left to work on, and a completed 6/6 bar left in the tray beside the project
          * it unblocked reads as an open job. The thaw and the removal are in the same step, so no
@@ -1520,7 +1520,7 @@ async function changeStep(countdownId, change, by) {
     if (!project) return { result: null, after: [] };
     const after = [];
     // Both halves, before anything below can delete them: a repair's row goes with it in this step.
-    const meta = { ...metaFor(countdownId), ...secretsOf(countdownId) };
+    const meta = bothHalves(countdownId);
     const up = countsUp(countdownId);
     // The name the step reports (S17-31): a secret project's countdown carries `HIDDEN_NAME`, its name is the GMs' store's.
     const named = (isSecret(countdownId) ? secretsOf(countdownId).secretName : null) ?? project.name;
@@ -1819,10 +1819,12 @@ export function registerProjectChanges() {
     Hooks.on("createChatMessage", forget);
     Hooks.on("deleteChatMessage", forget);
     // A player's sight of the secret projects changed (S17-31, E101 R2): a share or a revoke writes no countdown any more,
-    // so Daggerheart's setting change no longer runs the tray's and the tokens' pass; the copy's change does.
+    // so Daggerheart's setting change no longer runs the tray's and the tokens' pass; the copy's change does. All of what
+    // a project's change redraws (E59 on the 1.2.115 line, CHAINS.md B-R1; R7162): the tray and the tokens, and the
+    // sheets' Projects tile and the HUD, whose render repaints the room tile's "a project here" - both read `canSee`,
+    // which reads this copy, and a player let into a project in their room saw no line until they moved.
     Hooks.on("drpgProjectSightChanged", () => {
-        import("./projects-tray.mjs").then(m => m.refreshProjects?.()).catch(err => error("Could not redraw the Projects tray", err));
-        import("./visibility.mjs").then(m => m.applyAll?.()).catch(err => error("Could not ask again who sees the project tokens", err));
+        import("./sync.mjs").then(m => m.applyKind(m.SYNC.projects)).catch(err => error("Could not redraw what the projects' sight reads", err));
     });
     // The sight's wire (E101 R2): the listener on every client, and a player's ask at its load and at a primary's.
     Hooks.once("ready", () => {
@@ -2171,7 +2173,7 @@ export function sabotageOfRequest(saboteur, requestId) {
  * @param {(id: string) => object} [options.meta]
  * @returns {string|null}
  */
-export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = id => ({ ...metaFor(id), ...secretsOf(id) }) } = {}) {
+export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = bothHalves } = {}) {
     if (!repairId) return "there is no repair to take back";
     if (!targetId) return "no frozen project was named";
     if (meta(targetId)?.frozenBy !== repairId) return "that repair is not what froze the project";
@@ -2309,7 +2311,7 @@ async function announceTrapReady(countdownId, name, { watched = false, armed = f
     if (!isIndirectMurder(countdownId)) return null;
 
     // The room from projectMeta, the killer, the trigger and the condition from the GMs' store (E05).
-    const meta = { ...metaFor(countdownId), ...secretsOf(countdownId) };
+    const meta = bothHalves(countdownId);
     /*
      * `meta.by` IS AN ACTOR ID, and this line used to compare it to a NAME -
      * `a.name === meta.by` - against a field that nothing in the module ever
@@ -2494,7 +2496,7 @@ export function projectEditChange(patch = {}) {
 export async function patchProjectMeta(countdownId, data) {
     if (!game.user?.isGM) return null;
     await applyProjectChange(countdownId, { meta: data ?? {} }, { by: { kind: "gm" } });
-    return { ...metaFor(countdownId), ...secretsOf(countdownId) };
+    return bothHalves(countdownId);
 }
 
 /**

@@ -13,7 +13,7 @@ import { isTruthBullet, dropSecret } from "./truth-bullets.mjs";
 import { publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log, error, whisperToGms, gmIds, warn, plural, isPrimaryGm } from "./utils.mjs";
-import { drpgConfirm, drpgWindow, emptyOption } from "./ui-kit.mjs";
+import { drpgConfirm, drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { everyPart, registerSeasonState } from "./season-reset.mjs";
 import { deferredOfferStore, deathStore, lootTraceStore } from "./gm-stores.mjs";
 import { leaveBody, removeBodyTiles } from "./body-tile.mjs";
@@ -29,37 +29,23 @@ export function livingStudentsForGm() {
     return studentActors().filter(a => !isDeadForGm(a));
 }
 
-/**
- * Kill a character.
- *
- * What perishes is the Truth Bullets - carried and stashed alike - and the
- * answer-key entries go with them, so the ledger does not fill up with rows
- * nothing can ever reach again: here, or for a death the GMs keep, at its
- * publication (`publishDeath`). Everything else they owned stays on the sheet
- * to be found on the body; decision D1 used to take that too, and no longer
- * does (see the long note inside).
- *
- * Quiet on purpose. A murder is a secret until somebody finds the body - the
- * announcement belongs to `discoverBody`, not here. The card goes to the GMs
- * and, inside a running incident, to its participants' owners (WHO IS TOLD, below).
- * This comment said "only the GMs are told" after the card was widened (28.08) and
- * until the E05 comment sweep (C16, 27.09.2026). Since E05 C10 the running
- * incident's victim is not even the table's fact yet: no flag, no status, no
- * bullets deleted until the discovery or a GM's hand (TWO PHASES, below).
- *
- * The token stays where it is. A body is usually the thing the cast will be
- * standing around looking at; what changes is that the rules stop counting them
- * as a person in the room - on the GMs' side and for those who know from the
- * kill, for everybody else from the publication (`isDeadForGm`, `isDeceased`,
- * movement.mjs `countsAsPresent`).
- *
- * @param {Actor} actor
- * @param {object} [options]
- * @param {boolean} [options.keepBullets]  Leave the Truth Bullets alone. For a
- *   death that is not a killing-game murder - a retcon, a test - where taking
- *   somebody's conclusions away would just be destructive. The belongings stay
- *   either way.
+/*
+ * THE CHAPTER'S NEWEST VERDICT AS A DEATH HAPPENS (E70 fix p1-G3; the review's E70P1-R14 = E70P1-R11 goal; DC29, DC41,
+ * D17). A Monocub whose own trial runs listens ("You listen: this trial is about your death", monocub.mjs `ownCaseOpen`),
+ * and that read the chapter's `lastVerdictAt` alone: a second murder after the chapter's first verdict read as closed.
+ * The death keeps the stamp of the newest verdict before it (the trial record's `lastVerdictAt`, public on the verdict's
+ * card), so its case is open while no verdict came after it. Not the death's time: a death the GMs keep would tell every
+ * console when it happened once published (the `deathId` note below).
  */
+function verdictBefore(chapter) {
+    try {
+        const record = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        return record.chapter === chapter ? (record.lastVerdictAt ?? null) : null;
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Mark somebody dead and say nothing (F16, 20.09).
  *
@@ -78,23 +64,6 @@ export function livingStudentsForGm() {
  * Returns the record it wrote, or null if the flag would not take - which is what
  * `killCharacter` reads to decide whether the rest of the procedure should run.
  */
-/*
- * THE CHAPTER'S NEWEST VERDICT AS A DEATH HAPPENS (E70 fix p1-G3; the review's E70P1-R14 = E70P1-R11 goal; DC29, DC41,
- * D17). A Monocub whose own trial runs listens ("You listen: this trial is about your death", monocub.mjs `ownCaseOpen`),
- * and that read the chapter's `lastVerdictAt` alone: a second murder after the chapter's first verdict read as closed.
- * The death keeps the stamp of the newest verdict before it (the trial record's `lastVerdictAt`, public on the verdict's
- * card), so its case is open while no verdict came after it. Not the death's time: a death the GMs keep would tell every
- * console when it happened once published (the `deathId` note below).
- */
-function verdictBefore(chapter) {
-    try {
-        const record = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
-        return record.chapter === chapter ? (record.lastVerdictAt ?? null) : null;
-    } catch {
-        return null;
-    }
-}
-
 export async function markDeceased(actor, { record: when = null, phase = null, cause = null, chapter = null, silent = true } = {}) {
     if (!game.user.isGM || !actor) return null;
 
@@ -155,6 +124,37 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
     return record;
 }
 
+/**
+ * Kill a character.
+ *
+ * What perishes is the Truth Bullets - carried and stashed alike - and the
+ * answer-key entries go with them, so the ledger does not fill up with rows
+ * nothing can ever reach again: here, or for a death the GMs keep, at its
+ * publication (`publishDeath`). Everything else they owned stays on the sheet
+ * to be found on the body; decision D1 used to take that too, and no longer
+ * does (see the long note inside).
+ *
+ * Quiet on purpose. A murder is a secret until somebody finds the body - the
+ * announcement belongs to `discoverBody`, not here. The card goes to the GMs
+ * and, inside a running incident, to its participants' owners (WHO IS TOLD, below).
+ * This comment said "only the GMs are told" after the card was widened (28.08) and
+ * until the E05 comment sweep (C16, 27.09.2026). Since E05 C10 the running
+ * incident's victim is not even the table's fact yet: no flag, no status, no
+ * bullets deleted until the discovery or a GM's hand (TWO PHASES, below).
+ *
+ * The token stays where it is. A body is usually the thing the cast will be
+ * standing around looking at; what changes is that the rules stop counting them
+ * as a person in the room - on the GMs' side and for those who know from the
+ * kill, for everybody else from the publication (`isDeadForGm`, `isDeceased`,
+ * movement.mjs `countsAsPresent`).
+ *
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {boolean} [options.keepBullets]  Leave the Truth Bullets alone. For a
+ *   death that is not a killing-game murder - a retcon, a test - where taking
+ *   somebody's conclusions away would just be destructive. The belongings stay
+ *   either way.
+ */
 export async function killCharacter(actor, { keepBullets = false, secret = null, phase = null, cause = null, chapter = null, silent = false } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (isDeadForGm(actor)) {
@@ -746,7 +746,7 @@ export async function openDeathDialog({ actor = null } = {}) {
     const picker = actor
         ? `<p><strong>${foundry.utils.escapeHTML(actor.name)}</strong></p>`
         : `<label>${game.i18n.localize("DRPG.Chapter.whoDied")}
-                <select name="actor">${emptyOption("DRPG.Chapter.chooseOne", { selected: !chosen })}${listed
+                <select name="actor"${tipAttr("DRPG.Tips.Sweep.Trial.whoDiedTooltip")}>${emptyOption("DRPG.Chapter.chooseOne", { selected: !chosen })}${listed
                     .map(a => `<option value="${a.id}"${a.id === chosen ? " selected" : ""}>${
                         foundry.utils.escapeHTML(a.name)}</option>`).join("")}</select></label>`;
 

@@ -14,9 +14,10 @@
  * family it reads the shared layer alone.
  */
 
-import { ACTIONS, INFILTRATE } from "./config.mjs";
+import { ACTIONS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { spendAction, actionsLeft } from "./actions.mjs";
-import { roomOfActor, locateActor, neighbouringRooms } from "./movement.mjs";
+import { roomOfActor, locateActor, neighbouringRooms, isLocked } from "./movement.mjs";
+import { roomFlag } from "./rooms.mjs";
 import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
@@ -24,6 +25,8 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
 import { isEclipse } from "./settings.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
+import { isMaskedActor, MASK_NAME } from "./mask-gm.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -61,7 +64,8 @@ export function infiltrateRows(actor) {
         const why = !BUILT.has(key) ? game.i18n.localize("DRPG.Infiltrate.notBuilt")
             : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours")
                 : key === "keepWatch" ? watchShutWhy()
-                    : key === "echoes" ? echoesShutWhy() : null;
+                    : key === "echoes" ? echoesShutWhy()
+                        : key === "shut" ? shutShutWhy(actor) : null;
         return {
             value: key, icon: ROW_ICONS[key] ?? "fa-circle",
             label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
@@ -86,6 +90,35 @@ const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch", "echoes"]);
  */
 export function echoesShutWhy({ eclipse = isEclipse() } = {}) {
     return eclipse ? game.i18n.localize("DRPG.Infiltrate.echoes.notInEclipse") : null;
+}
+
+/**
+ * Why Shut the Door's row is shut now, or null (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R5; R7173). The action
+ * is paid and rolled before the GM judges it (doors-gm.mjs `shutRefusal`), and a refusal gives nothing back: a refund
+ * after the roll would hand out its Hope for free (action-pipeline.mjs `spentAfterRoll`). So what this browser knows of
+ * the GM's reasons shuts the row before it costs anything: an Eclipse, somebody else's bedroom, more open doors than
+ * `INFILTRATE.shut.maxExits`. A body nobody has found and another's barricade are the GMs' to know, and stay their refusal.
+ */
+export function shutShutWhy(actor, { eclipse = isEclipse() } = {}) {
+    if (eclipse) return game.i18n.localize("DRPG.Infiltrate.shut.whyEclipse");
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
+    if (!room) return null;
+    const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
+    if (owner && owner !== actor?.id) return game.i18n.localize("DRPG.Infiltrate.shut.whyBedroom");
+    const max = INFILTRATE.shut.maxExits;
+    if (neighbouringRooms(place.scene, room).filter(other => !isLocked(place.scene, other)).length > max) return plural("DRPG.Infiltrate.shut.whyDoors", { n: max });
+    return null;
+}
+
+/**
+ * WHO LISTEN NAMES BEHIND A DOOR (owner-115 item 1, 14.11.2026; the owner: "Tozsamosc mordercy przy odpowiednim rzucie
+ * powinna byc tajna tez dla osob postronnych, tak samo jak dla ofiary"). A character behind a "?" (mask-gm.mjs, E69 C8) is
+ * "?" to the listener, read off the tokens this browser holds (`isMaskedActor`, its one flag); anyone else by name, as
+ * before. Its Reroll's lines on the GM (reroll.mjs `listenLines`) name the same way, for the same listener.
+ */
+export function listenName(other) {
+    return isMaskedActor(other) ? MASK_NAME : other?.name ?? "";
 }
 
 /**
@@ -145,11 +178,11 @@ export async function performListen(actor, def, options) {
         ask: `<form>
             <p>${game.i18n.format("DRPG.Listen.prompt", { room: foundry.utils.escapeHTML(here ?? "-") })}</p>
             <label>${game.i18n.localize("DRPG.Listen.which")}
-                <select name="room">${options_}</select></label>
+                <select name="room"${tipAttr("DRPG.Tips.Sweep.Actions.listenRoomTooltip")}>${options_}</select></label>
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), tooltip: tipText("DRPG.Tips.Sweep.Actions.listenRollTooltip"),
                 callback: (e, b, d) => neighbours[Number(d.element.querySelector("[name=room]").value)] ?? null
             },
             close: "cancel"
@@ -192,7 +225,7 @@ export async function performListen(actor, def, options) {
     if (roll.isCritical) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
-            const who = occupantsOf(room, actor, scene).map(a => a.name);
+            const who = occupantsOf(room, actor, scene).map(listenName);
             return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
@@ -201,7 +234,7 @@ export async function performListen(actor, def, options) {
         outcome = { success: true, isCritical: true, rooms: neighbours };
     } else if (hit && hit.min >= namedFrom) {
         // Named.
-        const who = occupantsOf(target, actor, scene).map(a => a.name);
+        const who = occupantsOf(target, actor, scene).map(listenName);
         lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
             room: foundry.utils.escapeHTML(shownAs),
             who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")

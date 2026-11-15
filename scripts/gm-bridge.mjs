@@ -19,7 +19,7 @@
  *   bridge-table.mjs         BRIDGE_ACTIONS, the primary's listener
  *                            `onSocket`, which hands every packet to
  *                            `judge`, and `ask` (C5b);
- *   bridge-asks.mjs          every `requestX` and the asks that call `ask`
+ *   bridge-asks.mjs          every `request*` and the asks that call `ask`
  *                            (C5b).
  * This file keeps its name and every name it exported - those that moved are
  * re-exported under the imports - so every importer still imports
@@ -132,6 +132,13 @@ export function registerGmBridge() {
             import("./gm-stores.mjs")
                 .then(({ ruledCardStore }) => (ruledCardStore.has(message.id) ? ruledCardStore.drop(message.id) : null))
                 .catch(err => debug("Could not drop a deleted card's ruling row", err));
+        });
+        // A held Key fee's card: its "Charge the Key fee" asks the primary's charge again (E109, key-remnants.mjs `wireChargeHeld`).
+        Hooks.on("renderChatMessageHTML", (message, element) => {
+            if (!cardFlag(message, "keyChargeHeld")) return;
+            import("./key-remnants.mjs")
+                .then(m => m.wireChargeHeld(message, element))
+                .catch(err => debug("Could not wire a held Key fee's card", err));
         });
         Hooks.on("renderChatMessageHTML", (message, element) => {
             // From the words' meta (E06 C7a): the card is drawn again when they land.

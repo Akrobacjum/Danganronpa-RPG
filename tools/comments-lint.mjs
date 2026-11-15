@@ -10,8 +10,8 @@
  * parts `names`, `moves` and `text` do: a comment is only a comment to a tokenizer - a `//` inside a string, a regex
  * or a template is not one, and a hand-made scan reads those as comments.
  *
- * WHAT IT COUNTS, per module file of scripts/ (the suite's own files, scripts/tests*.mjs, are not read: their
- * comments describe tests, and E56's census rows are their own commit):
+ * WHAT IT COUNTS, per file of scripts/ (the suite's own files, scripts/tests*.mjs, as well since E56 part 2; until
+ * then they were left out, their census rows to be E56's own commit):
  *   citations    a backticked name in a comment - `name` or `name()`, four characters or more - that nothing in the
  *                repository holds as code: no identifier, property, string or template word of scripts/, tools/,
  *                audit/ or macros/, no key segment of lang/en.json or lang/pl.json, no word of styles/, of audit's
@@ -20,7 +20,8 @@
  *                written into the budget's `known` with the reason, and is not counted again.
  *   doubledJsdoc two `/** ... *\/` blocks with nothing but white space between them: the first one usually documents a
  *                function that moved away (E34, E41) and stayed behind over its neighbour. A file's leading header
- *                followed by its first declaration's block is the house style and is not counted.
+ *                followed by its first declaration's block is the house style and is not counted, nor is a block
+ *                after a `@typedef` or `@callback` block, which documents a type and no declaration (E56 part 2).
  *
  * THE BUDGET (tools/comment-budget.json): per file, `citations` and `doubledJsdoc`, as tools/css-budget.json holds the
  * sheets - red above a row (a comment added one), red BELOW a row until the row is lowered in the same commit
@@ -110,6 +111,9 @@ export function fileFindings(espree, text, held, known = new Set()) {
     for (let i = 0; i + 1 < docs.length; i++) {
         const [a, b] = [docs[i], docs[i + 1]];
         if (text.slice(a.range[1], b.range[0]).trim() !== "") continue;
+        // A `@typedef` or `@callback` block documents a type of its own, not the declaration under it, so the block
+        // after it is not stacked on it (E56 part 2, 14.11.2026: enforced.mjs's EnforcedRow, then `@type` on ENFORCED).
+        if (/@(typedef|callback)\b/.test(a.value)) continue;
         // The file's header: the first comment of the file, standing before every token of code.
         const header = comments[0] === a && (!firstToken || firstToken.range[0] > b.range[1]) && text.slice(0, a.range[0]).trim() === "";
         if (header) continue;
@@ -150,6 +154,9 @@ export function selfCheck(espree) {
             "/** Left behind by a move. */",
             "/** The block of the function below. */",
             "export const other = 1; // `knownForeign` is somebody else's, read and kept",
+            "/** @typedef {object} Row - a type of its own, documenting no declaration */",
+            "/** @type {Row[]} */",
+            "export const rows = [];",
             ""
         ].join("\n")],
         ["scripts/b.mjs", "export const b = `${\"x\"}`; /* `realName()` is a.mjs's */\n"]
@@ -186,7 +193,9 @@ export async function commentsLint(repo = DEFAULT_REPO, { write = false } = {}) 
     catch { return { problems: ["espree is not installed - run `npm ci` in audit/harness first"], summary: "comments: nothing read", counts: {}, findings: {} }; }
     const problems = selfCheck(espree).map(p => `self-check: ${p}`);
     const read = rel => lf(fs.readFileSync(path.join(repo, rel), "utf8"));
-    const modules = walk(repo, "scripts", n => n.endsWith(".mjs") && !/^tests(-[\w-]+)?\.mjs$/.test(n));
+    // Since E56 part 2 (14.11.2026) the suite's own files are read too: their comments name the module's functions as
+    // often as the module does, and 49 citations and 8 doubled blocks stood in them on that line before its sweep.
+    const modules = walk(repo, "scripts", n => n.endsWith(".mjs"));
     const sources = [...walk(repo, "scripts", n => n.endsWith(".mjs")), ...walk(repo, "tools", n => n.endsWith(".mjs")),
         ...walk(repo, "audit", n => /\.(mjs|js)$/.test(n)), ...walk(repo, "macros", n => n.endsWith(".js"))].map(f => [f, read(f)]);
     const texts = [...walk(repo, "styles", n => n.endsWith(".css")), ...walk(repo, "audit", n => n.endsWith(".html")),
@@ -225,6 +234,10 @@ export async function commentsLint(repo = DEFAULT_REPO, { write = false } = {}) 
         // A file at zero needs no row: fill the zero rows in before the ratchet reads them.
         const full = { files: { ...Object.fromEntries(Object.keys(counts).map(f => [f, { citations: 0, doubledJsdoc: 0 }])), ...(budget.files ?? {}) } };
         problems.push(...budgetProblems(counts, full));
+        // Since E56 part 2 (14.11.2026) a doubled block is an error, as the plan asks, not a count a row may hold:
+        // the budget reached 0 in every file, and R7150 holds the budget there in the suite.
+        for (const [file, row] of Object.entries(budget.files ?? {})) if (Number(row?.doubledJsdoc) > 0) problems.push(`${file}: the budget allows ${row.doubledJsdoc} doubled JSDoc - a docblock after a docblock is an error, not a count`);
+        for (const [file, f] of Object.entries(findings)) for (const d of f.doubledJsdoc) problems.push(`${file}:${d.line}: a docblock directly after a docblock - move it over its declaration, or join the two`);
         for (const name of Object.keys(budget.known ?? {})) if (!budget.known[name]) problems.push(`${BUDGET_FILE}: \`known\` names ${name} with no reason`);
     }
     const sum = field => Object.values(counts).reduce((n, c) => n + c[field], 0);

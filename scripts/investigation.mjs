@@ -35,11 +35,10 @@ import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import { plural, wirePortraitPickers, log, workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable, tipAttr, tipText } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
@@ -48,7 +47,7 @@ import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 
 import { roomRegions } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
-import { PLANNED_GLYPH, randomPointIn, SCALE_LABELS, keyRowShows, keyPlan, caseKeyCount, placedKeyRemnants, keyPlanStatus, same, placeKeyRow, saveKeyPlan, writable } from "./key-remnants.mjs";
+import { PLANNED_GLYPH, randomPointIn, SCALE_LABELS, keyRowShows, keyPlan, caseKeyCount, placedKeyRemnants, keyPlanStatus, same, placeKeyRow, saveKeyPlan, writable, keyRowsUsed } from "./key-remnants.mjs";
 export { keyRevealRecord, recordKeyRevealed, keyPlan, setKeyPlan, archiveKeyPlan, liftKeyPlan, clearKeyPlan, keepOnlyKeyPlanChapter, clearSeasonKeyPlan, recordCaseKeys, caseKeyCount, keysToPlace, keyPlanStatus, missingKeyRows, keyFeeOf, chargeForUnfoundKeys, askToChargeForUnfoundKeys, randomPointIn, openKeyRemnantHere, placeInSlot, placeKeyRow } from "./key-remnants.mjs";
 
 /**
@@ -161,7 +160,7 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
-                <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+                <select name="tied"${tipAttr("DRPG.Tips.Sweep.Case.tieTooltip")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
                     `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
             <label class="drpg-checkbox"><input type="checkbox" name="reinforced"${tipAttr("DRPG.Tips.Case.reinforcedTooltip")}${reinforced ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>`, `
@@ -732,7 +731,7 @@ function caseTraceFilters(traces, shown, reading) {
             esc(label)}</option>`;
     return `<div class="drpg-trace-filters">
         <label>${game.i18n.localize("DRPG.Investigation.filterOrder")}
-            <select name="traceOrder" data-drpg-filter="order">
+            <select name="traceOrder" data-drpg-filter="order"${tipAttr("DRPG.Tips.Sweep.Case.orderTooltip")}>
                 ${option("room", game.i18n.localize("DRPG.Investigation.orderRoom"), reading.order)}
                 ${option("newest", game.i18n.localize("DRPG.Investigation.orderNewest"), reading.order)}
             </select></label>
@@ -767,7 +766,8 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
     return `
         ${caseTraceFilters(traces, shown, reading)}
         <p class="notes drpg-clue-rule">${
-            game.i18n.localize("DRPG.Investigation.neverOnePerson")}</p>
+            /* The Key Remnants' rule as config holds it (E59 on the 1.2.115 line, CHAINS.md B-M7; R7171). */
+            game.i18n.format("DRPG.Investigation.neverOnePerson", { min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1] })}</p>
         ${shown.length ? caseTraceTable(shown, finders)
             : `<p class="notes">${game.i18n.localize(traces.length
                 ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}`;
@@ -931,7 +931,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
         ${/* a warning, in the kit's box (E47-C4; E21's carried sites, homed in E47 here): the trial is getting thin */ ""}
         ${thin ? box("warning", `<p>${tooThinLine(status.foundAny)}</p>`) : ""}
         ${limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
-            used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
+            used: keyRowsUsed(plan.entries), limit, min: KEY_REMNANTS.minimum
         })}</p>
         <label><input type="checkbox" name="keyOverride" /> ${
             game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : ""}
@@ -1065,11 +1065,11 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
        name under it, the same list the Map's summary shows. */
     return `<div class="drpg-case-live drpg-case-view" data-drpg-view="table"><form>
         ${kitTabs([
-            { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"),
+            { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"), tooltip: tipText("DRPG.Tips.Sweep.Case.remnantsTabTooltip"),
               html: caseTracesPanel({ traces, shown, finders, reading }) },
-            { key: "key", label: game.i18n.localize("DRPG.Investigation.tabKeyRemnants"),
+            { key: "key", label: game.i18n.localize("DRPG.Investigation.tabKeyRemnants"), tooltip: tipText("DRPG.Tips.Sweep.Case.keyTabTooltip"),
               html: caseKeyPanel({ plan, status, placed, limit }) },
-            { key: "final", label: game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"), html: caseFinalPanel({
+            { key: "final", label: game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"), tooltip: tipText("DRPG.Tips.Sweep.Case.finalTabTooltip"), html: caseFinalPanel({
             /* The Final Key Remnant is always an input - it is being placed, not
                read back - so it takes the plain lists: every room, none chosen,
                and Evident as the default. Every room of every place scene, each
@@ -1078,7 +1078,7 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
                and placed on the school's room of the name. */
             roomOptions: placeRoomOptions(), visOptions: visOptionsFor(null),
             finalRemnants, finalTruthPlacedThisChapter }) },
-            { key: "who", label: game.i18n.localize("DRPG.Investigation.whoHasWhat"),
+            { key: "who", label: game.i18n.localize("DRPG.Investigation.whoHasWhat"), tooltip: tipText("DRPG.Tips.Sweep.Case.whoTabTooltip"),
               html: `<div data-drpg-part="who">${caseStudentTable(students)}</div>` }
         ])}
     </form></div>`;
@@ -1310,7 +1310,8 @@ function schemaEditor(graph, node) {
     const name = field => `${base}:${field}`;
     const others = graph.nodes.filter(n => n.id !== node.id);
     const nameOf = n => n.label || (n.planned ? game.i18n.format("DRPG.CaseMap.slotNumber", { n: (n.slot ?? 0) + 1 }) : L("DRPG.CaseMap.noName"));
-    const box = (field, n, on) => `<label class="drpg-case-check"><input type="checkbox" name="${esc(name(`${field}:${n.id}`))}"${on ? " checked" : ""} /> `
+    const box = (field, n, on) => `<label class="drpg-case-check"><input type="checkbox" name="${esc(name(`${field}:${n.id}`))}"${field === "ref"
+        ? tipAttr("DRPG.Tips.Sweep.Case.refutesBoxTooltip") : tipAttr("DRPG.Tips.Sweep.Case.restsOnBoxTooltip")}${on ? " checked" : ""} /> `
         + `${esc(nameOf(n))}</label>`;
     const modes = [`<option value=""${node.mode ? "" : " selected"}>${esc(L("DRPG.CaseMap.noMode"))}</option>`,
         ...caseModes().map(m => `<option value="${esc(m)}"${m === node.mode ? " selected" : ""}>${esc(L(`DRPG.Floor.mode.${m}`))}</option>`)];
@@ -1342,11 +1343,11 @@ function schemaEditor(graph, node) {
             `<p class="drpg-case-info-note">${esc(said)}</p>`,
             count,
             editRow(L("DRPG.CaseMap.autopsyAt"), `<select name="${esc(name("atBody"))}"${tipAttr("DRPG.Tips.Case.autopsyAtTooltip")}>${bodies}</select>`),
-            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Sweep.Case.autopsyNameTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyNamePlaceholder"))}" />`),
-            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
+            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3"${tipAttr("DRPG.Tips.Sweep.Case.autopsyWordsTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyTextPlaceholder"))}">${esc(node.text)}</textarea>`),
-            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2">${esc(node.note ?? "")}</textarea>`)
+            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.autopsyNoteTooltip")}>${esc(node.note ?? "")}</textarea>`)
         ].join("");
     }
     if (node.kind === "bullet") {
@@ -1361,29 +1362,31 @@ function schemaEditor(graph, node) {
             .map(([v, k]) => `<option value="${v}"${v === (node.shown ?? "auto") ? " selected" : ""}>${esc(L(k))}</option>`).join("");
         const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (node.vis ?? "evident") ? " selected" : ""}>${
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
-        const check = (field, key, on) => editRow(L(key), `<input type="checkbox" name="${esc(name(field))}" aria-label="${esc(L(key))}"${on ? " checked" : ""} />`);
+        const check = (field, key, on) => editRow(L(key), `<input type="checkbox" name="${esc(name(field))}" aria-label="${esc(L(key))}"${field === "faint"
+            ? tipAttr("DRPG.Tips.Sweep.Case.bulletFaintTooltip") : field === "tied" ? tipAttr("DRPG.Tips.Sweep.Case.bulletTiedTooltip")
+            : tipAttr("DRPG.Tips.Sweep.Case.bulletTellTooltip")}${on ? " checked" : ""} />`);
         const recipients = `<option value=""${node.recipient ? "" : " selected"}>${esc(L("DRPG.CaseMap.noRecipient"))}</option>`
             + studentActors().map(a => `<option value="${esc(a.id)}"${a.id === node.recipient ? " selected" : ""}>${esc(a.name)}</option>`).join("")
             // every living student, a copy each (1.2.113; config.mjs `RECIPIENT_EVERYONE`)
             + `<option value="${RECIPIENT_EVERYONE}"${node.recipient === RECIPIENT_EVERYONE ? " selected" : ""}>${esc(L("DRPG.Items.everyone"))}</option>`;
         return [
             ...(node.sent ? [`<p class="drpg-case-info-note">${esc(L("DRPG.CaseMap.bulletGiven"))}</p>`] : []),
-            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Sweep.Case.bulletNameTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.namePlaceholder"))}" />`),
             editRow(L("DRPG.TruthBullet.realType"), `<select name="${esc(name("realType"))}"${tipAttr("DRPG.Tips.Gm.whatItReallyIsTooltip")}>${types}</select>`),
             editRow(L("DRPG.TruthBullet.shown"), `<select name="${esc(name("shown"))}"${tipAttr("DRPG.Tips.Gm.whatThePlayerIsTooltip")}>${shown}</select>`),
             editRow(L("DRPG.TruthBullet.visibility"), `<select name="${esc(name("vis"))}"${tipAttr("DRPG.Tips.Gm.howHardTheOriginalTooltip")}>${vis}</select>`),
             check("faint", "DRPG.TruthBullet.faintField", node.faint === true),
             check("tied", "DRPG.TruthBullet.tiedField", node.tied === true),
-            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="2" placeholder="${
+            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.bulletWordsTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(node.text)}</textarea>`),
-            editRow(L("DRPG.TruthBullet.analyzedText"), `<textarea name="${esc(name("analysis"))}" rows="2" placeholder="${
+            editRow(L("DRPG.TruthBullet.analyzedText"), `<textarea name="${esc(name("analysis"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.bulletAnalysisTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
-            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
+            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.bulletNoteTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.gmNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
             editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(node.img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(node.img ?? "")}" data-drpg-drawn="${esc(node.img ?? "")}" />`),
-            editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}">${recipients}</select>`),
+            editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}"${tipAttr("DRPG.Tips.Sweep.Case.bulletRecipientTooltip")}>${recipients}</select>`),
             check("tell", "DRPG.Items.tellPlayer", node.tell !== false),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}"${tipAttr("DRPG.Tips.Case.giveFromPlanTooltip")}>${
                 esc(L("DRPG.TruthBullet.give"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
@@ -1407,7 +1410,7 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.Investigation.notePlaceholder"))}">${esc(node.text)}</textarea>`),
             editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2"${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")} placeholder="${
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
-            editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
+            editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2"${tipAttr("DRPG.Tips.Sweep.Case.finalNoteTooltip")} placeholder="${
                 esc(L("DRPG.Investigation.finalNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
             editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
@@ -1435,7 +1438,7 @@ function schemaEditor(graph, node) {
             editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}"${tipAttr("DRPG.Tips.Case.kindWhatItReallyTooltip")}>${types}</select>`),
             editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(node.author || null, studentActors())}</select>`),
             editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${vis}</select>`),
-            editRow(L("DRPG.Investigation.newTraceTied"), `<select name="${esc(name("tie"))}">${ties}</select>`),
+            editRow(L("DRPG.Investigation.newTraceTied"), `<select name="${esc(name("tie"))}"${tipAttr("DRPG.Tips.Sweep.Case.tieTooltip")}>${ties}</select>`),
             editRow(L("DRPG.Investigation.newTraceReinforced"), `<input type="checkbox" name="${esc(name("reinforced"))}"${tipAttr("DRPG.Tips.Case.reinforcedTooltip")} aria-label="${
                 esc(L("DRPG.Investigation.newTraceReinforced"))}"${node.reinforced ? " checked" : ""} />`),
             editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}"${tipAttr("DRPG.Tips.Case.nameTooltip")} maxlength="60" placeholder="${
@@ -1475,7 +1478,7 @@ function zoneRows(node, name) {
     const L = key => game.i18n.localize(key);
     const z = TRIAL.modes.zones;
     const row = (modes, label, field) => `<div data-drpg-zone-for="${modes.join(" ")}"${modes.includes(node.mode) ? "" : " hidden"}>${editRow(label, field)}</div>`;
-    const text = (field, max) => `<input type="text" name="${esc(name(field))}" value="${esc(node[field] ?? "")}" maxlength="${max}" />`;
+    const text = (field, max) => `<input type="text" name="${esc(name(field))}" value="${esc(node[field] ?? "")}" maxlength="${max}"${tipAttr("DRPG.Tips.Sweep.Case.zonePlanTooltip")} />`;
     const sets = Object.entries(diveSetStore.entries() ?? {}).filter(([, s]) => Array.isArray(s?.questions))
         .map(([id, s]) => `<option value="${esc(id)}"${id === node.diveSet ? " selected" : ""}>${esc(s.name ?? id)} (${s.questions.length})</option>`).join("");
     const gone = node.diveSet && !diveSetStore.get(node.diveSet) ? `<option value="${esc(node.diveSet)}" selected>${esc(L("DRPG.CaseMap.diveSetGone"))}</option>` : "";
@@ -1485,7 +1488,7 @@ function zoneRows(node, name) {
         row(["straw", "scrum"], L("DRPG.Zones.picker.b"), text("zoneB", z.answerLength)),
         row(["scrum"], L("DRPG.Zones.picker.thesis"), text("zoneThesis", z.scrum.thesisLength)),
         row(["dive"], L("DRPG.Zones.picker.set"), `<select name="${esc(name("diveSet"))}"${tipAttr("DRPG.Tips.Trial.setTooltip")}><option value="">${esc(L("DRPG.CaseMap.noDiveSet"))}</option>${gone}${sets}</select>`
-            + ` <button type="button" data-drpg-dive-sets>${esc(L("DRPG.Zones.picker.editSets"))}</button>`)
+            + ` <button type="button" data-drpg-dive-sets${tipAttr("DRPG.Tips.Sweep.Case.diveSetsTooltip")}>${esc(L("DRPG.Zones.picker.editSets"))}</button>`)
     ];
 }
 
@@ -1582,7 +1585,7 @@ function mapSummaryEditor({ plan, status, limit, finalRemnants, finalTruthPlaced
     const visOptions = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
         esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
     const override = limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
-        used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
+        used: keyRowsUsed(plan.entries), limit, min: KEY_REMNANTS.minimum
     })}</p><label><input type="checkbox" name="keyOverride" /> ${game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : "";
     return `${override}<h5>${esc(game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"))}</h5>`
         + caseFinalPanel({ roomOptions: placeRoomOptions(), visOptions, finalRemnants, finalTruthPlacedThisChapter });
@@ -1994,7 +1997,55 @@ export async function runDashboardButton(action) {
         const { openRealization } = await import("./case-realize.mjs");
         return { said: await openRealization() };
     }
+    if (action === "clearPlan") return { said: await openClearPlan() };
     return false;
+}
+
+/**
+ * CLEAR THE PLAN (E111, 14.11.2026; the owner: "Brakuje mi tez w planerze zagadki opcji zresetowania
+ * zawartosci/wyczyszczenia recznie"). The chapter first - a list of the chapters this browser holds a plan for and the
+ * clock's, the clock's picked - then a question that counts what goes (case-schema.mjs `planToClear`: the planned Key
+ * Remnants, the schema's nodes, its layout row) and says that a placed Key Remnant's Remnant stays on the map; Clear is
+ * destructive, never the default. Then case-schema.mjs `clearChapterPlan`. Any GM, an Assistant too, as the planner's
+ * writes allow; the button is in no player's window. Answers the dashboard's line, or null.
+ */
+export async function openClearPlan() {
+    if (!game.user?.isGM) return null;
+    const L = key => game.i18n.localize(key);
+    const now = Number(getClock().chapter);
+    const options = plannedChapters().map(n => `<option value="${n}"${n === now ? " selected" : ""}>${esc(game.i18n.format("DRPG.Investigation.clearPlan.chapter", { n }))}</option>`).join("");
+    const chapter = await drpgWindow({
+        title: L("DRPG.Investigation.clearPlan.title"),
+        classes: ["drpg-panel", "drpg-window-clear-plan"],
+        body: `<p>${esc(L("DRPG.Investigation.clearPlan.intro"))}</p>
+            <label>${esc(L("DRPG.Investigation.clearPlan.which"))} <select name="chapter"${tipAttr("DRPG.Tips.CasePlan.clearPlanChapterTooltip")}>${options}</select></label>`,
+        footer: {
+            primary: { action: "next", label: L("DRPG.Investigation.clearPlan.next"), tooltip: tipText("DRPG.Tips.CasePlan.clearPlanNextTooltip"),
+                callback: (e, b, d) => Number(d.element.querySelector("[name=chapter]")?.value) },
+            close: { role: "cancel", action: "cancel" }
+        },
+        rejectClose: false
+    });
+    if (!Number.isInteger(chapter) || chapter < 1) return null;
+    const what = planToClear(chapter, keyPlanStore.entries(), caseSchemaStore.entries());
+    if (!what.slots.length && !what.nodes.length && !what.meta.length) {
+        return game.i18n.format("DRPG.Investigation.clearPlan.nothing", { n: chapter });
+    }
+    const lines = [plural("DRPG.Investigation.clearPlan.slots", { n: what.slots.length }), plural("DRPG.Investigation.clearPlan.nodes", { n: what.nodes.length }),
+        ...(what.meta.length ? [L("DRPG.Investigation.clearPlan.meta")] : [])];
+    const yes = await drpgConfirm({
+        classes: ["drpg-panel", "drpg-window-clear-plan"],
+        title: game.i18n.format("DRPG.Investigation.clearPlan.confirmTitle", { n: chapter }),
+        yes: { label: L("DRPG.Investigation.clearPlan.clear"), role: "destructive" },
+        body: `<p>${esc(L("DRPG.Investigation.clearPlan.goes"))}</p><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+            ${what.placed ? `<p>${esc(plural("DRPG.Investigation.clearPlan.placed", { n: what.placed }))}</p>` : ""}
+            <p class="notes">${esc(L("DRPG.Investigation.clearPlan.stays"))}</p>`,
+        rejectClose: false
+    });
+    if (!yes) return null;
+    const done = await clearChapterPlan(chapter);
+    if (!done) return null;
+    return game.i18n.format("DRPG.Investigation.clearPlan.done", { n: chapter });
 }
 
 // The clue first, because it is the half that can fail: a room that no
@@ -2029,7 +2080,7 @@ async function placePlannedFinal(chapter, id, row) {
         const answer = await drpgWindow({
             title: L("DRPG.CaseMap.finalAskRoomTitle"),
             classes: ["drpg-panel", "drpg-window-final-room"],
-            body: `<form><label>${esc(L("DRPG.Investigation.room"))}<select name="room"><option value="">${esc(L("DRPG.Mastermind.finalPickRoom"))}</option>${
+            body: `<form><label>${esc(L("DRPG.Investigation.room"))}<select name="room"${tipAttr("DRPG.Tips.Sweep.Case.finalRoomAskTooltip")}><option value="">${esc(L("DRPG.Mastermind.finalPickRoom"))}</option>${
                 placeRoomOptions()}</select></label></form>`,
             footer: { primary: { action: "place", label: L("DRPG.Investigation.finalAskPlace"), callback: (e, b, d) => {
                 const select = d.element.querySelector('[name="room"]');
@@ -2234,7 +2285,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                 icon: "fa-solid fa-skull", class: "drpg-state-change" },
             // E97 C10 (Q-C): the realization's preview, in both views; it writes nothing until its own Run. Its undo is
             // in that window since E64-inv (case-realize.mjs `realizationFooter`), shown once a run has placed anything.
-            { action: "realize", label: game.i18n.localize("DRPG.CaseRealize.preview"), tooltip: tipText("DRPG.Tips.Case.realizationPreviewTooltip") }
+            { action: "realize", label: game.i18n.localize("DRPG.CaseRealize.preview"), tooltip: tipText("DRPG.Tips.Case.realizationPreviewTooltip") },
+            // E111 (the owner, 14.11.2026): one chapter's plan cleared by hand, behind its own question (`openClearPlan`).
+            { action: "clearPlan", label: game.i18n.localize("DRPG.Investigation.clearPlan.button"), tooltip: tipText("DRPG.Tips.CasePlan.clearPlanTooltip") }
             ],
             /* NO DESTRUCTIVE ROW, AND NO EVIDENCE LOG (E64-inv, 12.11.2026; the owner's pick of the Investigation review:
                "Na reszte sie zgadzam"). Clear the Faint Remnants and Collect the Truth Bullets were here and in End the
@@ -2388,7 +2441,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
  * @returns {Promise<{tracesChanged: number, refused: number}>}
  */
 export async function applyDashboardSave(result, { traces, plan, quiet = false }) {
-    let tracesChanged = 0;
+    // The Remnants a write reached, once each (E109, DISAGREEMENTS.json D23): until 1.2.115 every write counted, so one
+    // Remnant whose words and band both changed read "Updated 2 Remnants" (R7127).
+    const changed = new Set();
     const refused = [];
     for (const row of result.traces) {
         const trace = traces.find(t => rowKey(t.scene.id, t.token.id) === row.key);
@@ -2408,7 +2463,7 @@ export async function applyDashboardSave(result, { traces, plan, quiet = false }
             // copying it later raises no separate whisper - it goes in the
             // digest with the rest (E7).
             await markRemnantEdited(token);
-            tracesChanged++;
+            changed.add(row.key);
         }
 
         /* THE FOUR VERDICTS AND THE BAND, WRITTEN ONE AT A TIME (S1-m7's second half; the band since E60 C4a). They used to ride
@@ -2426,9 +2481,10 @@ export async function applyDashboardSave(result, { traces, plan, quiet = false }
         if ("reinf" in take) flagPatch.reinforced = take.reinf;
         if (Object.keys(flagPatch).length) {
             await setRemnantFlags(token, flagPatch);
-            tracesChanged++;
+            changed.add(row.key);
         }
     }
+    const tracesChanged = changed.size;
 
     const { refused: unplanned } = await saveKeyPlan(plan, result.keyRows);
     refused.push(...unplanned);
