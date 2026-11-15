@@ -1961,9 +1961,19 @@ async function plantVoice() {
         // Monokuma Legacy and the compact form, while a face shows (the word is kept with one since H81-10)
         const word = tile.querySelector(".drpg-voice-tile-state"), put = { top: "calc(100% - 30px)", bottom: "auto" };
         for (const [k, v] of Object.entries(put)) word?.style.setProperty(k, v, "important");
-        const r = await window.drpgVoiceCheck({ cuts: false });
+        let r = await window.drpgVoiceCheck({ cuts: false });
+        /* at a slider of 25 % the compact tile is 71 px tall and its plate a few px, which 30 px over the foot misses
+           (15.11.2026): there the word is stood at the plate's own top, and as the plate is the tile's foot the 18 px word
+           then reads either over the plate or out of the tile's foot - both the check failing this one fault */
+        const plate = tile.querySelector(".drpg-voice-tile-plate");
+        let low = false;
+        if (r.ok && word && plate) {
+            low = true;
+            word.style.setProperty("top", (plate.getBoundingClientRect().top - tile.getBoundingClientRect().top) + "px", "important");
+            r = await window.drpgVoiceCheck({ cuts: false });
+        }
         for (const k of Object.keys(put)) word?.style.removeProperty(k);
-        res.onPlate = { ok: r.ok, why: r.why, pass: !r.ok && /over the name plate/.test(r.why) };
+        res.onPlate = { ok: r.ok, why: r.why, pass: !r.ok && (low ? /over the name plate|state word at [\d,]+ is outside the tile/ : /over the name plate/).test(r.why) };
     }
     if (tile.dataset.fit !== "compact") {   // low (H84-03): the state word 6 px under the tile's own top, where d99adf4b stood it
         const word = tile.querySelector(".drpg-voice-tile-state");
@@ -2354,8 +2364,8 @@ try {
                         /* Under Monokuma Legacy below 100 % both places draw the same box - its height the cap, its width the
                            slider's (351x364 at 80 % at 1920x1080, Chromium, 27a4aaf7) - so the other place shows nothing here,
                            and the box's fault is planted where it stands instead: the slider's two factors stamped 0.3 over
-                           the page's and the curtain recut, which glass.mjs places 391x364, 273x364 and 250-odd wide at 80,
-                           50 and 25 % (at 25 % a 0.1 step stays on the width's floor, 219), then the page's own put back.
+                           the page's and the curtain recut, which glass.mjs places 469x364, 351x364 and 253x364 at 80, 50
+                           and 25 % (at 25 % a 0.1 step stays on the width's floor, 219), then the page's own put back.
                            Widening the tile itself moves nothing: the box is glass.mjs's placement, not the tile's rect. */
                         if (boxPin && other === boxPin && pageScale !== 1) {
                             how = "the slider stamped 0.3 over, and";
