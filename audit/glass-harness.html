@@ -7,8 +7,8 @@
      gap, as in v13), the status strip and the tray share `#ui-right-column-1` beside the
      sidebar, and the tray carries Daggerheart's own countdown markup. One module dialog and
      one popup stand in for the windows. Not part of the package (audit/ is export-ignored).
-     `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
-     computes it); `?theme=legacy` the other theme - its body class and, since E77 fix r1-M1, the
+     `?scale=1.4` sets the Interface scale slider (otherwise 100 %), and the page stamps what
+     applyTheme computes from it and the screen; `?theme=legacy` the other theme - its body class and, since E77 fix r1-M1, the
      theme setting too, so no curtain is mounted, as at a table (before it the curtain stayed
      mounted at 0x0 and its observers placed the Legacy tile, which a table's never do: the sweep's
      Legacy lines read the same with either, 13.10.2026, but only this one measures
@@ -525,7 +525,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       {
         const cards = shown(), gap = px(getComputedStyle(host).rowGap);
         const slivers = cards.length < 2 ? [] : cards.filter(c => c.offsetHeight < c.scrollHeight - line(c.querySelector(".drpg-popup-body") ?? c) - 0.5);
-        const used = cards.reduce((sum, c) => sum + c.offsetHeight, gap * Math.max(0, cards.length - 1));
+        /* the cards' drawn heights, not `offsetHeight`, which rounds each to a whole pixel: at a slider of 0.8 under Legacy
+           four cards that fit their 457 px tile summed to 459 (14.11.2026) */
+        const used = cards.reduce((sum, c) => sum + c.getBoundingClientRect().height, gap * Math.max(0, cards.length - 1));
         out.stack = { shown: cards.length, parked: host.querySelectorAll(".drpg-popup-parked:not(.leaving)").length,
           slivers: slivers.map(c => `${c.offsetHeight}/${c.scrollHeight}`), used: Math.round(used), room: host.clientHeight };
         if (!cards.length) out.why.push("no card shown of eight");
@@ -1072,7 +1074,23 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       read.plate = at(plate); read.name = [name.clientWidth, name.scrollWidth];
       if (!read.plate || out(read.plate)) why.push(`the name plate at ${read.plate} is outside the tile ${W}x${H}`);
       else if (read.buttons.some(r => r && meet(r, read.plate))) why.push(`the name plate at ${read.plate} is under the buttons at ${read.buttons.join(" / ")}`);
-      if (read.name[0] < Math.min(read.name[1], 64)) why.push(`the name shows ${read.name[0]} px of its ${read.name[1]}`);
+      /* 64 px of name at 100 %, and 64 x s at a slider of s from 80 % up (`?scale=`). Under 80 % the tile's buttons keep a
+         24 px hit floor (components.css, the compact tile's container rule) while the tile shrinks with the slider - at 25 %
+         a 49 px tile leaves the name 11 to 14 px (Chromium, 15.11.2026) - so there the name must not vanish: it shows at
+         least an ellipsis and one letter in its own font ("M" and U+2026, measured here), which is the owner's line for it
+         (14.11.2026: "the name may ellipsize but not vanish"). */
+      const slider = Number(new URLSearchParams(location.search).get("scale")) || 1;
+      let least = 64 * Math.min(1, slider);
+      if (slider < 0.8) {
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font:inherit;letter-spacing:inherit";
+        probe.textContent = "M\u2026";
+        name.append(probe);
+        least = Math.ceil(probe.getBoundingClientRect().width);
+        probe.remove();
+      }
+      read.nameLeast = least;
+      if (read.name[0] < Math.min(read.name[1], least)) why.push(`the name shows ${read.name[0]} px of its ${read.name[1]}`);
     }
     const word = tile.querySelector(".drpg-voice-tile-state");
     if (!word) why.push("the tile has no state word");
@@ -1098,7 +1116,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (!r || (out(r) && !(corner && pane && cut))) { /* told above */ }
       else if (read.buttons.some(b => b && meet(b, r))) why.push(`the state word at ${r} is under the buttons at ${read.buttons.join(" / ")}`);
       else if (read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
-      if (!(size >= 11)) why.push(`the state word is set at ${size} px`);
+      /* the module's 11 px floor, which under 80 % follows the slider down (`--drpg-floor-scale`, settings.mjs `UI_SCALE`) */
+      const floorK = Math.min(1, (Number(new URLSearchParams(location.search).get("scale")) || 1) / 0.8);
+      if (!(size >= 11 * floorK - 0.01)) why.push(`the state word is set at ${size} px`);
       if (read.word.opacity.some(o => o !== 1) || ink[3] !== 1) why.push(`the state word is drawn at opacity ${read.word.opacity.join("/")} in an ink of alpha ${ink[3]}`);
       if (!(worst >= 4.5)) why.push(`the state word reads ${read.word.ratio}:1 on its backing`);
       if (tile.offsetWidth !== W || tile.offsetHeight !== H) why.push(`the tile is ${tile.offsetWidth}x${tile.offsetHeight} with the word and ${W}x${H} without`);
@@ -2634,18 +2654,19 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     /* A resize that is an on-screen keyboard over the page restamps nothing, as the module's own listeners cut nothing
        then (E21 C1d: settings.mjs `keyboardUp`, glass.mjs `schedule`). */
     if (st.keyboardUp()) return;
-    const auto = st.autoScale(), type = Math.round(Math.max(0.85, auto) * 100) / 100;
+    /* `?scale=` IS THE SLIDER (15.11.2026), read through the settings shim's `uiScale` as applyTheme reads it: geometry the
+       slider on the screen's factor (`effectiveScale`), type the slider on that factor clamped at 0.85 (`typeScale`), and
+       the slider's own, Legacy's (the glass pins it at 1) and the floor's tokens. Until then `?scale=s` stamped s itself
+       for both of the first two, so `?scale=1` drew 1.00 where the module draws 0.75 at 1920x1080 and 0.70 at 1366x768
+       (`autoScale`), and glass-sweep's pins, read without `?scale`, failed at `?scale=1` (room box 312x285 against 265x364,
+       Chromium, e7a0971b). Now `?scale=1` and no `?scale` stamp the same. */
+    const slider = st.sliderScale();
     for (const el of [document.body, document.documentElement]) {
-      el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
-      el.style.setProperty("--drpg-type-scale", q.get("scale") || String(type));
-      /* `?scale=` stands for the slider too (14.11.2026, the slider down to 25 %): the slider's own factor, Legacy's (the
-         glass pins it at 1) and the readability floor's, as applyTheme stamps them from the slider. */
-      if (q.get("scale")) {
-        const slider = st.clampSlider(q.get("scale"));
-        el.style.setProperty("--drpg-slider-scale", String(slider));
-        el.style.setProperty("--drpg-legacy-scale", q.get("theme") === "legacy" ? String(slider) : "1");
-        el.style.setProperty("--drpg-floor-scale", String(st.floorScaleOf(slider)));
-      }
+      el.style.setProperty("--drpg-ui-scale", String(st.effectiveScale()));
+      el.style.setProperty("--drpg-type-scale", String(st.typeScale()));
+      el.style.setProperty("--drpg-slider-scale", String(slider));
+      el.style.setProperty("--drpg-legacy-scale", q.get("theme") === "legacy" ? String(slider) : "1");
+      el.style.setProperty("--drpg-floor-scale", String(st.floorScaleOf(slider)));
     }
     document.body.classList.toggle("drpg-stacked", st.narrowScreen());
     document.body.classList.toggle("drpg-short", st.shortScreen());

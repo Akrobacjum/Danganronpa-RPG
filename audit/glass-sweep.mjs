@@ -246,6 +246,19 @@ const args = process.argv.slice(2);
 const opt = k => { const i = args.indexOf(k); return i < 0 ? null : args[i + 1]; };
 const root = path.resolve(opt("--root") ?? path.join(HERE, ".."));
 const page0 = opt("--page") ?? "audit/glass-harness.html";
+/* THE PINS AT EACH SLIDER (15.11.2026; the Interface scale down to 25 %). PINS, PIN_BOX, PIN_PANE, PIN_TILT and PIN_CORNER
+   below are the layout's answers at the slider's 100 %. With `--page ...?scale=s` (the page stamps the slider as
+   applyTheme does) they are swapped for PINS_AT's row for s, read the same way in Chromium on e6c41260: the layout does
+   not scale by one factor, so no formula on the 100 % pins stands in for them. Under the glass at 1920x1080 the room box
+   is 265x364, 212x294, 134x193 and 66x103 at 100, 80, 50 and 25 % (x 0.80/0.81, 0.51/0.53, 0.25/0.28); under Legacy
+   430x364, 351x364, 234x364 and 219x364 (the height a cap, the width a floor at 25 %); at 1366x768 the glass tile stands
+   beside the notices at 100 % and under the clock below it (the clock shrinks, so it fits there), so the pane and tilt
+   pins have no row; the voice buttons stand 1 to 3 px further from the wall as the tile narrows, and at 25 % the tile is
+   compact ("-"). PINS_AT holds 1920x1080 and 1366x768 only, the sizes read: a run at another size and scale is unpinned
+   there, and a run of the default sizes with `?scale=` fails on it, as one with a size missing from PINS does. Each pin
+   keeps its control at every scale: the clock made taller (the place), the box at the other place, the pane's planted
+   faults, the buttons let down (`plantVoice` `inward`). */
+const pageScale = Number(/[?&]scale=([\d.]+)/.exec(page0)?.[1] ?? 1);
 const themes = (opt("--themes") ?? "stained,legacy").split(",").filter(Boolean);
 const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
@@ -385,6 +398,24 @@ const PIN_CORNER = Object.fromEntries(["2000x1072", "1920x1080", "1366x768", "25
     .flatMap(size => ["gm", "player"].map(role => [`stained ${role} ${size}`, COMPACT.includes(`${role} ${size}`) ? "-" : /^(2560|3840)x/.test(size) ? WIDE : MOVED[size] ?? CORNER])));
 const TILT = { "1366x768": 6, "1536x864": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
 const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
+const PINS_AT = {
+    0.8: { place: { "1920x1080": "clock", "1366x768": "clock" }, box: { "stained 1920x1080": "212x294", "stained 1366x768": "212x234", "legacy 1920x1080": "351x364", "legacy 1366x768": "351x284" },
+        corner: { "1920x1080": "21,22 25,57", "1366x768": "21,22 26,57" } },
+    0.5: { place: { "1920x1080": "clock", "1366x768": "clock" }, box: { "stained 1920x1080": "134x193", "stained 1366x768": "134x193", "legacy 1920x1080": "234x364", "legacy 1366x768": "234x259" },
+        corner: { "1920x1080": "22,22 27,57", "1366x768": "22,22 27,57" } },
+    0.25: { place: { "1920x1080": "clock", "1366x768": "clock" }, box: { "stained 1920x1080": "66x103", "stained 1366x768": "66x103", "legacy 1920x1080": "219x364", "legacy 1366x768": "219x259" },
+        corner: { "1920x1080": "-", "1366x768": "-" } }
+};
+if (pageScale !== 1) {
+    const row = PINS_AT[pageScale] ?? { place: {}, box: {}, corner: {} };
+    for (const t of [PINS, PIN_BOX, PIN_PANE, PIN_TILT, PIN_CORNER]) for (const k of Object.keys(t)) delete t[k];
+    for (const theme of ["stained", "legacy"]) for (const role of ["gm", "player"]) for (const [size, place] of Object.entries(row.place)) {
+        const key = `${theme} ${role} ${size}`;
+        PINS[key] = place;
+        if (row.box[`${theme} ${size}`]) PIN_BOX[key] = row.box[`${theme} ${size}`];
+        if (theme === "stained" && row.corner[size]) PIN_CORNER[key] = row.corner[size];
+    }
+}
 if (shots) mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -1915,19 +1946,34 @@ async function plantVoice() {
         res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
     }
     {   // inward (E78 fix r2-H3): the buttons side by side where 60741cf stood them, 69 px under the pane's top
-        const c = tile.querySelector(".drpg-voice-tile-controls"), put = { top: "62px", right: "26px", "flex-direction": "row", gap: "6px" };
-        if (tile.dataset.fit !== "compact") for (const [k, v] of Object.entries(put)) c.style.setProperty(k, v, "important");
+        /* On a compact tile - every tile at a slider of 25 %, where the buttons stand in a column at the right (components.css)
+           and the row above was planted on none, so the control read a pass (14.11.2026) - the column is let down to 40 px
+           under the pane's top instead: the same fault, the microphone off its corner, in the compact form's own shape. */
+        const compact = tile.dataset.fit === "compact";
+        const c = tile.querySelector(".drpg-voice-tile-controls"), put = compact ? { top: "40px" } : { top: "62px", right: "26px", "flex-direction": "row", gap: "6px" };
+        for (const [k, v] of Object.entries(put)) c.style.setProperty(k, v, "important");
         const r = await window.drpgVoiceCheck({ cuts: false });
         for (const k of Object.keys(put)) c.style.removeProperty(k);
-        res.inward = { ok: r.ok, why: r.why, pass: !r.ok && /not at its corner/.test(r.why) };
+        /* a compact tile has no corner read (PIN_CORNER's "-"), so there the column let down is caught as it leaves the tile */
+        res.inward = { ok: r.ok, why: r.why, pass: !r.ok && (compact ? /outside the tile|not at its corner/ : /not at its corner/).test(r.why) };
     }
     {   // onPlate (H81-10): the state word stood on the name plate at the tile's foot, where 9dcf331 put it under
         // Monokuma Legacy and the compact form, while a face shows (the word is kept with one since H81-10)
         const word = tile.querySelector(".drpg-voice-tile-state"), put = { top: "calc(100% - 30px)", bottom: "auto" };
         for (const [k, v] of Object.entries(put)) word?.style.setProperty(k, v, "important");
-        const r = await window.drpgVoiceCheck({ cuts: false });
+        let r = await window.drpgVoiceCheck({ cuts: false });
+        /* at a slider of 25 % the compact tile is 71 px tall and its plate a few px, which 30 px over the foot misses
+           (15.11.2026): there the word is stood at the plate's own top, and as the plate is the tile's foot the 18 px word
+           then reads either over the plate or out of the tile's foot - both the check failing this one fault */
+        const plate = tile.querySelector(".drpg-voice-tile-plate");
+        let low = false;
+        if (r.ok && word && plate) {
+            low = true;
+            word.style.setProperty("top", (plate.getBoundingClientRect().top - tile.getBoundingClientRect().top) + "px", "important");
+            r = await window.drpgVoiceCheck({ cuts: false });
+        }
         for (const k of Object.keys(put)) word?.style.removeProperty(k);
-        res.onPlate = { ok: r.ok, why: r.why, pass: !r.ok && /over the name plate/.test(r.why) };
+        res.onPlate = { ok: r.ok, why: r.why, pass: !r.ok && (low ? /over the name plate|state word at [\d,]+ is outside the tile/ : /over the name plate/).test(r.why) };
     }
     if (tile.dataset.fit !== "compact") {   // low (H84-03): the state word 6 px under the tile's own top, where d99adf4b stood it
         const word = tile.querySelector(".drpg-voice-tile-state");
@@ -1965,7 +2011,15 @@ async function plantVoiceNone() {
     const style = document.createElement("style");
     style.textContent = "body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: 76px !important; }";
     document.head.append(style);
-    const c = await window.drpgVoiceCheck({ cuts: false });
+    let c = await window.drpgVoiceCheck({ cuts: false });
+    /* At a slider under 100 % (`?scale=`) the word is set smaller and 69 px holds it - at 25 % under Legacy the tile
+       stays 163 px and the widest word needs far less (14.11.2026) - so the stand is narrowed further by what the band
+       held over the word, plus 8 px: the same fault, a band narrower than its widest word, at the scale's own size.
+       At 100 % the first stand already fails and nothing more is planted. */
+    if (c.ok && c.still?.[1] > 0) {
+        style.textContent = `body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: ${76 + c.still[0] - c.still[1] + 8}px !important; }`;
+        c = await window.drpgVoiceCheck({ cuts: false });
+    }
     style.remove();
     res.cramped = { ok: c.ok, why: c.why, pass: !c.ok && /standing still the state word's band holds/.test(c.why) };
     return res;
@@ -2012,6 +2066,11 @@ async function plantFill() {
         wall: ["body #drpg-popups .drpg-popup { margin-left: -60px !important; }", /line boxes of the card's words outside/],
         edgeless: ["body #drpg-popups .drpg-popup { border-left-width: 0 !important; }", /with two short cards the left edges read/]
     };
+    /* Where the tile holds one short card only - a slider of 25 %, whose 90 px tile two cards of fixed-size title bars
+       and corner room do not fit, so the second parks (14.11.2026) - two cards with no edge cannot be drawn, and the
+       check's other half is planted instead: the one card shown keeping an edge of its own. */
+    const clean = await window.drpgNoticeCheck();
+    if (clean?.fill?.edges?.length === 1) FAULTS.edgeless[0] = "body #drpg-popups .drpg-popup { border-left: 3px solid red !important; }";
     for (const [k, [rule, re]] of Object.entries(FAULTS)) {
         const style = document.createElement("style");
         style.textContent = rule;
@@ -2264,6 +2323,7 @@ try {
                        not a silent one - drpgRoomCheck checks the place against F, and F against nothing. */
                     const got = rc.expect === "row" ? "row" : rc.place ?? "-", pin = PINS[`${theme} ${role} ${size}`];
                     line += pin ? (pin === got ? " | pin ok" : ` | pin ${got}/${pin}`) : " | unpinned";
+                    if (pageScale !== 1) line += ` | pins at ${pageScale}`;
                     if (pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
                     if (!pin) unpinned++;
                     /* THE BOX PIN (E78 C0): a placed tile's width and height, as PIN_BOX records them. */
@@ -2300,8 +2360,27 @@ try {
                             + ` - and there: room ${v.check.ok ? "ok" : "NOT ok"} ${v.check.box ? v.check.box.w + "x" + v.check.box.h : "-"}${v.check.flat ? ` gap ${v.check.flat.gap}/16 top ${v.check.flat.top} right ${v.check.flat.right ?? "-"}` : ""} ${String(v.check.why).slice(0, 110)}`);
                         if (v.got === pin) fails.push("pin control reads as a pass");
                         /* and the box (E78 C0): at the other place the tile's box must not read as this size's pin */
-                        const other = v.check.box ? `${v.check.box.w}x${v.check.box.h}` : "-";
-                        console.log(`  box control ${theme.padEnd(8)} ${other !== boxPin ? "sees it" : "MISSES IT"}: there the box reads ${other} where PIN_BOX has ${boxPin ?? "none"}`);
+                        let other = v.check.box ? `${v.check.box.w}x${v.check.box.h}` : "-", how = "there";
+                        /* Under Monokuma Legacy below 100 % both places draw the same box - its height the cap, its width the
+                           slider's (351x364 at 80 % at 1920x1080, Chromium, 27a4aaf7) - so the other place shows nothing here,
+                           and the box's fault is planted where it stands instead: the slider's two factors stamped 0.3 over
+                           the page's and the curtain recut, which glass.mjs places 469x364, 351x364 and 253x364 at 80, 50
+                           and 25 % (at 25 % a 0.1 step stays on the width's floor, 219), then the page's own put back.
+                           Widening the tile itself moves nothing: the box is glass.mjs's placement, not the tile's rect. */
+                        if (boxPin && other === boxPin && pageScale !== 1) {
+                            how = "the slider stamped 0.3 over, and";
+                            other = await page.evaluate(async s => {
+                                const wait = ms => new Promise(r => setTimeout(r, ms)), els = [document.body, document.documentElement];
+                                const was = els.map(el => ["--drpg-slider-scale", "--drpg-legacy-scale"].map(k => el.style.getPropertyValue(k)));
+                                for (const el of els) for (const k of ["--drpg-slider-scale", "--drpg-legacy-scale"]) el.style.setProperty(k, String(s + 0.3));
+                                window.__glass.refreshGlass(); await wait(1500);
+                                const c = await window.drpgRoomCheck({ cuts: false });
+                                els.forEach((el, i) => ["--drpg-slider-scale", "--drpg-legacy-scale"].forEach((k, j) => el.style.setProperty(k, was[i][j])));
+                                window.__glass.refreshGlass(); await wait(1500);
+                                return c.box ? `${c.box.w}x${c.box.h}` : "-";
+                            }, pageScale);
+                        }
+                        console.log(`  box control ${theme.padEnd(8)} ${other !== boxPin ? "sees it" : "MISSES IT"}: ${how} the box reads ${other} where PIN_BOX has ${boxPin ?? "none"}`);
                         if (!boxPin || other === boxPin) fails.push("box pin control reads as a pass");
                         if (!v.check.ok) fails.push("room, at the pin control's other place: " + v.check.why);
                     }

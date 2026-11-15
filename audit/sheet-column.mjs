@@ -68,6 +68,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const opt = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
 const shots = opt("--shots"), asJson = args.includes("--json");
+/* `--scale <s>` (14.11.2026, the Interface scale down to 25 %): the slider at s - its factors stamped on the document and
+   the body as settings.mjs `applyTheme` stamps them (the slider's own, Legacy's, the readability floor's; the glass's type
+   and geometry take the slider alone here, no screen term), and the sheet opened at its size times s, as window-scale.mjs
+   `scaledBox` opens it. Without it, 100 % as before. */
+const SCALE = Number(opt("--scale") ?? 1);
 if (shots) fs.mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -90,6 +95,8 @@ const page = ({ theme, layered, layout, lists, width, height }) => {
     const sheet = (href, layer) => (layered ? `<style>@import url("${href}") layer(${layer});</style>` : `<link rel="stylesheet" href="${href}">`);
     return `<!doctype html><html><head><meta charset="utf-8">
 <style>${layered ? "@layer drpg-module, drpg-system;" : ""}
+:root, body { --drpg-ui-scale: ${SCALE}; --drpg-type-scale: ${SCALE}; --drpg-slider-scale: ${SCALE}; --drpg-legacy-scale: ${theme === "glass" ? 1 : SCALE};
+  --drpg-floor-scale: ${Math.min(1, SCALE / 0.8)}; }
 *, *::before, *::after { box-sizing: border-box; }
 :root { --font-size-10: 10px; --font-size-11: 11px; --font-size-12: 12px; --font-size-13: 13px; --font-size-14: 14px; --font-size-16: 16px;
   --font-size-18: 18px; --font-size-20: 20px; --font-size-24: 24px; --font-size-28: 28px; --font-size-32: 32px;
@@ -206,8 +213,8 @@ function measure() {
 const SIZES = [[1366, 768], [1920, 1080]];
 const cases = [];
 for (const [vw, vh] of SIZES) for (const theme of ["glass", "legacy"]) {
-    const widths = theme === "glass" ? [Math.min(1120, vw - 48)] : [Math.min(850, vw - 48), 600];
-    const height = Math.min(theme === "glass" ? 1160 : 800, vh - 48);
+    const widths = theme === "glass" ? [Math.min(Math.round(1120 * SCALE), vw - 48)] : [Math.min(Math.round(850 * SCALE), vw - 48), Math.round(600 * Math.min(1, SCALE))];
+    const height = Math.min(Math.round((theme === "glass" ? 1160 : 800) * SCALE), vh - 48);
     for (const width of widths) for (const lists of ["empty", "one", "full"]) for (const layout of ["bar", "pips"]) for (const code of ["en", "pl"]) for (const layered of [true, false]) {
         cases.push({ vw, vh, theme, width, height, lists, layout, code, layered });
     }
@@ -258,7 +265,8 @@ for (const c of cases) {
     await ctx.close();
     const why = [];
     if (m.scrollWidth > m.clientWidth) why.push(`scrolls: ${m.scrollWidth} in ${m.clientWidth}, [${m.culprits.join(", ")}]`);
-    if (m.clientWidth < 200) why.push(`measured nothing: the column ${m.clientWidth} px wide`);
+    // 200 px of a 275 px rail at 100 %; the rail follows the slider, and under 100 % so does this
+    if (m.clientWidth < 200 * Math.min(1, SCALE)) why.push(`measured nothing: the column ${m.clientWidth} px wide`);
     if (c.lists === "empty" && !m.emptyDrawn) why.push("measured nothing: the Experience's empty line not drawn");
     if (c.lists !== "empty" && m.rows !== 2) why.push(`measured nothing: ${m.rows} experience rows, not 2`);
     const stray = m.equipped.filter(li => !li.mine && li.display !== "none");

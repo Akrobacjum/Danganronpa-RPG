@@ -42349,14 +42349,19 @@ const INVARIANTS = [
            Foundry tools' window frame's three Stained Glass prints since E55 (14.11.2026): its rim's `border` reads
            `var(--drpg-glass-accent)` without the fallback `@property` never let apply (components.css; the audit's S12-71),
            the same rule and the same value, another text - curtain and desk 2:1900e75b -> 2:6fa9ceed, stacked 2:8b75b7bd ->
-           2:2fe7a47f, re-measured headless; Legacy's, every other print, `left` and the @media rules as they were. */
+           2:2fe7a47f, re-measured headless; Legacy's, every other print, `left` and the @media rules as they were.
+           The voice tile's curtain print under Stained Glass since the Interface scale's 25 % (14.11.2026, 704a1472): the
+           compact wall tile is an inline-size container (components.css, `container: drpg-voice-tile / inline-size`), a
+           declaration it wins at the curtain's compact place; the rules inside the `@container` block are not top-level and
+           this cascade does not read them - 2:ce15ad40 -> 2:4b38d8b9, re-measured headless; every other print, `left` and the
+           @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:6fa9ceed", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "curtain|stained-glass|voice-tile": "2:4b38d8b9", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
             "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:6fa9ceed", "desk|stained-glass|gm-launcher": "1:19e941be",
@@ -55524,6 +55529,32 @@ const INVARIANTS = [
         equal(stableJson(["--drpg-text-xs", "--font-size-11", "--font-size-12", "--font-size-13", "--font-size-14"].map(floor)),
             stableJson([11, 11, 11, 11, 11.2]),
             "[--drpg-text-xs, --font-size-11 .. 14] at a 16 px root and the slider at 0.8, in px - a small rung under Legacy must not fall under 11 px");
+    }],
+    ["R7334 - at an Interface scale of 25 % the compact glass voice tile keeps its buttons inside it and the sheet's left column does not scroll sideways (14.11.2026): components.css makes the compact wall tile an inline-size container, and under 110 px of it stands its controls in a column of 24 px buttons with the face's padding and the state word's band left at 30 px; danganronpa.css floors the rail at 12rem times `--drpg-floor-scale` and zooms the Equipped rows by it", async () => {
+        /*
+         * Measured in Chromium before (4a2beafb): the glass harness at ?scale=0.25, 1366x768 - the microphone at x -7 of a
+         * 65 px tile and the name 0 of 72 px; audit/sheet-column.mjs --scale 0.25 - 144 of 144 readings not right, at 0.5
+         * 32. After (704a1472): the buttons at x 43-74 of the 77 px box, the name 30 px; 0 of 144 at 0.25, 0.5, 0.8, 1 and
+         * 1.4. Here, that the rules which did it are the ones served.
+         */
+        const read = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(lfText).then(stripComments);
+        const [kit, main] = await Promise.all([read("components.css"), read("danganronpa.css")]);
+        const tile = 'body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]';
+        const esc = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const inner = kit.match(/@container drpg-voice-tile \(width < 110px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+        const body = sel => inner.match(new RegExp(`${esc(sel)}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+        const rail = main.match(/(?:^|\})\s*\.application\.sheet\.actor \.character-sidebar-sheet\s*\{([^}]*)\}/)?.[1] ?? "";
+        const rows = main.match(/\.application\.sheet\.actor \.character-sidebar-sheet \.equipment-section \.items-sidebar-list\s*\{([^}]*)\}/)?.[1] ?? "";
+        equal(stableJson({
+            container: new RegExp(`${esc(tile)}\\s*\\{\\s*container:\\s*drpg-voice-tile / inline-size;`).test(kit),
+            column: /flex-direction:\s*column/.test(body(`${tile} .drpg-voice-tile-controls`)),
+            button: (body(`${tile} .drpg-voice-tile-controls > *`).match(/(?:min-)?(?:width|height):\s*24px/g) ?? []).length,
+            face: /padding:\s*3px 30px 2px 3px/.test(inner),
+            band: /right:\s*30px/.test(inner),
+            rail: /min-width:\s*calc\(12rem \* var\(--drpg-floor-scale, 1\)\)\s*!important/.test(rail),
+            zoom: /zoom:\s*var\(--drpg-floor-scale, 1\)/.test(rows)
+        }), stableJson({ container: true, column: true, button: 4, face: true, band: true, rail: true, zoom: true }),
+        "the compact voice tile's container rule and the sheet rail's floor and zoom, as served");
     }],
     ["R3501 - Monokuma Legacy's sheet tab and its red grounds are readable (styles/danganronpa.css, tools/contrast-pairs.json; E48 K6, S12-25, S03-20, Q13): the active tab is Bone on Ink with the attention edge, the other Bone-on-Eye grounds the Eye's dark step, the theme's red lifted, and tools/contrast-pairs.json writes no Legacy pair `known` below AA", async () => {
         /*
