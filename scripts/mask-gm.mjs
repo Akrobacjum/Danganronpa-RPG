@@ -59,19 +59,24 @@ export function opensMask({ success = false, band = null, indirect = false, self
 export function lookOf(token) {
     const src = token?._source ?? token ?? {};
     return { name: src.name ?? "", src: src.texture?.src ?? null, ring: src.ring?.enabled === undefined ? null : Boolean(src.ring.enabled),
-        displayName: src.displayName ?? null, displayBars: src.displayBars ?? null };
+        displayName: src.displayName ?? null, displayBars: src.displayBars ?? null, subject: src.ring?.subject?.texture ?? null };
 }
 
-/** The patch that masks a token. Pure (R6029). */
+/**
+ * The patch that masks a token. Pure (R6029). THE RING'S SUBJECT TOO (owner-115 item 1b, 14.11.2026; the coordinator's road
+ * (a)): a v14 token's dynamic ring draws its own subject texture (`ring.subject.texture`, fvtt-types 14.370
+ * client/documents/token.d.mts RingSubjectSchema, null for the token's own picture), which the patch left, so a ring put
+ * back on by anyone kept the killer's art. It wears the mystery man as well, and gets its own back (R7402).
+ */
 export function maskPatch() {
-    return { name: MASK_NAME, "texture.src": MASK_IMG, "ring.enabled": false, displayName: DISPLAY_NONE, displayBars: DISPLAY_NONE,
-        [`flags.${MODULE_ID}.${MASK_FLAG}`]: true };
+    return { name: MASK_NAME, "texture.src": MASK_IMG, "ring.enabled": false, "ring.subject.texture": MASK_IMG, displayName: DISPLAY_NONE,
+        displayBars: DISPLAY_NONE, [`flags.${MODULE_ID}.${MASK_FLAG}`]: true };
 }
 
 /** The patch that puts a token's kept look back, the flag taken off. Pure (R6029). */
 export function restorePatch(look, gone = null) {
     // A field the token's source did not hold (a document written without it) is taken off again, not set to the mask's.
-    const patch = { name: look.name, "texture.src": look.src };
+    const patch = { name: look.name, "texture.src": look.src, "ring.subject.texture": look.subject ?? null };
     if (look.ring !== null) patch["ring.enabled"] = look.ring;
     else if (gone !== null) patch.ring = gone;
     for (const field of ["displayName", "displayBars"]) {
@@ -91,6 +96,46 @@ export function isMaskedToken(token) {
 export function isMaskedActor(actor) {
     if (!actor) return false;
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (token.actorId === actor.id && isMaskedToken(token)) return true;
+    return false;
+}
+
+/**
+ * THE NAMES A READER MAY NOT READ (owner-115 item 1b, 14.11.2026; the owner's principle via the coordinator: while the mask
+ * stands, the killer's identity is secret from everyone not in on it - a Frisk, a Steal, a Palm, any card or onlooker
+ * line). The characters behind a "?" - read off the tokens every browser holds, by their one flag, so a player's browser
+ * that posts a card knows it as a GM's does - that `userId` does not own; none for a GM. secret.mjs `wordsFor` cuts them out
+ * of every private card's words for that reader (`setNameMask`, handed this at ready by `registerMasks`). An accomplice is
+ * not told apart here: they read "?" on a card outside the fight, and the name on the fight's own (murder-rules.mjs
+ * `maskedName`). R7403.
+ */
+export function namesHiddenFrom(userId, { scenes = game.scenes, users = game.users } = {}) {
+    const user = users?.get?.(userId ?? "");
+    if (!user || user.isGM) return [];
+    const names = new Set();
+    for (const scene of scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (!isMaskedToken(token)) continue;
+        const actor = token.actor ?? game.actors?.get?.(token.actorId ?? "");
+        if (!actor?.name || actor.testUserPermission?.(user, "OWNER")) continue;
+        names.add(actor.name);
+    }
+    return [...names];
+}
+
+/**
+ * The name a list this browser draws gives `actor` (owner-115 item 1b): "?" for a character behind a mask that `user` does
+ * not own, on a player's browser; its name otherwise. The pickers of the people in a room - Palm, Tail, Tamper's frame, a
+ * handover, a Call's target, a Monocub's - named a masked killer to whoever stood beside them. The option's value is still
+ * the actor's id (the road needs it): Foundry's limit, as the token's `actorId` (the header). R7404.
+ */
+export function nameAsSeen(actor, { user = game.user, masked = null } = {}) {
+    if (!actor) return "";
+    if (!user?.isGM && (masked ?? isMaskedActor(actor)) && !actor.testUserPermission?.(user, "OWNER")) return MASK_NAME;
+    return actor.name ?? "";
+}
+
+/** Whether any token on any scene is masked now (secret.mjs veils every card while one is: `setNameMask`'s `stands`). */
+export function anyMaskStands() {
+    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (isMaskedToken(token)) return true;
     return false;
 }
 
@@ -286,6 +331,8 @@ export function registerMasks() {
         if (isPrimaryGm()) masksAtNewTimeOfDay().catch(err => error("The masks could not end with the time of day", err));
     });
     import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
+    // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.
+    import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands })).catch(err => error("Could not hand the cards the masked names", err));
     Hooks.on("refreshToken", token => {
         drawMaskName(token);
         if (!game.user?.isGM) noticeOwnMask();

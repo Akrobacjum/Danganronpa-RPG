@@ -241,3 +241,69 @@ not counted.
 - Q-OWN115-6. Where even the first card and the folded titles do not fit, the last titles are left out and counted as
   "+N" under the panel. There is no way to reach them until there is room. **Default: accepted. They are the
   lowest-priority cards; another choice would be a smaller font for the titles.**
+
+## Item 1b - a masked killer is "?" to everyone not in on it, outside the fight too; and the ring
+
+The coordinator's answer to Q-OWN115-3 (14.11.2026): "while the mask stands, the killer's identity is secret from everyone
+not in on it ... Frisk, Steal, Palm, and any other card or onlooker line that names an actor"; and road (a): the dynamic
+ring's subject texture.
+
+### What leaked (measured, scenario 21's new phase "outside the fight")
+
+The GM ends the incident and puts the mask back up (the mask outlives the incident). Botan then stands in Dorm A with
+Chie and Aiko. p2 opens Palm; Chie steals from Botan (seen), then asks to frisk him.
+
+- Palm's window on p2 listed "Chie Mori" among the people in the room. Six player-side pickers draw names this way:
+  palm.mjs `choosePalm`, action-tail.mjs, action-tamper.mjs's frame, handover.mjs, call-pickers.mjs's room picker, and
+  monocub.mjs's target rows.
+- The Frisk's ask sent to the target's player named the searcher (frisk.mjs, `who: searcher.name`).
+- Outside an incident, a card is not veiled: a Steal's and a Frisk's chat documents carried Chie's actor id and "Chie
+  Mori" as their speaker on every browser.
+- One of those cards was posted from p3's own browser, so its document named p3 as author on every browser, veiled or
+  not.
+- Any card's words naming the killer outside the fight (a Steal seen, onlooker lines) had no cut for the mask.
+- The token's dynamic ring subject (`ring.subject.texture`, in v14's TokenDocument schema per fvtt-types 14.370
+  client/documents/token.d.mts RingSubjectSchema) was not part of `maskPatch`.
+
+### The fix
+
+- mask-gm.mjs `maskPatch`, `lookOf` and `restorePatch` mask and restore `ring.subject.texture` (R7402; R6028 updated on
+  purpose).
+- mask-gm.mjs `namesHiddenFrom(userId)`: the masked tokens' characters that user does not own (none for a GM). It reads
+  the token flag, so a player's browser that posts a card knows it too.
+- secret.mjs `wordsFor` writes "?" for those names, in text and attributes, for that reader. It is the one cut every
+  private card's words pass for each reader. A longer name that only starts the same is left alone. The masks hand it in
+  at ready (`setNameMask`). secret.mjs cannot import mask-gm.mjs: gm-stores reaches secret through notice-history (R161).
+  R7403.
+- secret.mjs veils every card, and routes a player's card through the GM, while any mask stands (`standingMask`), as it
+  already did while an incident runs.
+- mask-gm.mjs `nameAsSeen` names a masked character "?" in the six pickers. The option's value is still the actor id,
+  which is Foundry's limit, as with the token's `actorId`. R7404.
+- frisk.mjs: the ask's `who` is "?" for a recipient outside the mask.
+- Accomplices outside the fight read "?" too (`namesHiddenFrom` does not know them). Inside the fight's cards they read
+  the name (`maskedName`).
+
+### Numbers
+
+| Run | Result |
+| --- | --- |
+| R7402, R7403 (tier 1) before | FAIL (no subject in the patch; no setNameMask) |
+| R7402, R7403, R7404 after | ok; R6028 ok with its new field; R161 ok (no static cycle) |
+| scenario 21 with the pickers, the ask and the cut, before the veil and the routing | 13/14: p1 and p2 held a Steal's and a Frisk's documents with Chie's actor id and name as speaker, and one authored by p3 |
+| scenario 21, the veil added | 13/14: a veiled card authored by p3 left |
+| scenario 21, the routing added | **14/14** |
+| R7404 | written with the change: its red is the pickers' `a.name`, which it reads as gone, not measured on a tree without it |
+| quick, tier 1, scenarios 13, 30, 40, 72, 83, tier 2 by name | in the item's report |
+
+### Needs a local Foundry
+
+LIVE-OWN115-01 covers it: at a table, with the mask standing after the fight, a Steal, a Frisk and the pickers on
+another player's screen, and a token with the dynamic ring on.
+
+### Questions, with the default taken
+
+- Q-OWN115-7. An accomplice reads "?" for their partner on cards outside the fight. **Default: accepted. Only the
+  killer's own players see through `namesHiddenFrom`.**
+- Q-OWN115-8. While a mask stands, every player's private card is posted through the GM, as it is during an incident.
+  A card waits for a GM to be connected. **Default: accepted. It is the incident's rule, kept for as long as a mask
+  stands.**

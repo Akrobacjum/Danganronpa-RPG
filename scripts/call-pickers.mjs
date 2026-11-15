@@ -36,6 +36,7 @@ import { esc, wholeNumber, proseOf } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 import { choiceRowHtml } from "./ui-columns.mjs";
+import { nameAsSeen } from "./mask-gm.mjs";
 
 
 
@@ -427,7 +428,7 @@ async function pickPlayer(actor, ask) {
     }
 
     const id = await choose(ask, "DRPG.Calls.whichPlayer",
-        pool.map(a => ({ value: a.id, label: a.name })));
+        pool.map(a => ({ value: a.id, label: nameAsSeen(a) })));
     if (!id) return null;
     return { target: pool.find(a => a.id === id) };
 }
