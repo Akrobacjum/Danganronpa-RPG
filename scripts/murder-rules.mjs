@@ -4470,8 +4470,10 @@ let openingPickOpen = false;
  * whose roll the GM throws.
  *
  * Resolve is no exception here: the opening is a supporting roll (`remember: false`), which
- * every Call is shielded from (call-effects.mjs `shieldCalls`) but its Loaded Die (`SHIELD_PASSES`, E112), so an
- * armed Resolve buys no picker on it - read off the code, 02.10.2026 - and the GM picks whatever is armed.
+ * every Call was shielded from (call-effects.mjs `shieldCalls`), so an armed Resolve bought no picker on it - read off
+ * the code, 02.10.2026. Since E112 the opening takes the killer's Calls (`TAKES_CALLS`; the owner, "Inne tez"), and a
+ * Resolve armed when the GM has not picked yet buys its picker: no GM window, the first listed statistic sent unlocked,
+ * and the GM's draw takes the statistic the window threw (roll-draw.mjs `TRAIT_SOURCES`' `resolve` row).
  * Null when there is to be no roll: a GM closed the window - the tracker's "Ask for the
  * opening roll again" opens it once more - or the opening is no longer wanted by the time
  * they picked.
@@ -4487,7 +4489,7 @@ async function openingTraitFor(side, actor, state, { tell, proposal = null }) {
     const proposing = await openingProposalFor(side, proposal);
     try {
         if (tell) await tellOpeningRoller(side, state, { proposed: Boolean(proposing.proposed) });
-        ruled = await traitFor(actor, spec, { resolveArmed: () => false, ...proposing });
+        ruled = await traitFor(actor, spec, proposing);
     } finally {
         openingPickOpen = false;
     }
@@ -4624,7 +4626,9 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
     const def = MURDER_OPENING[side];
     const actor = game.actors.get(actorId);
     if (!def || !actor) return null;
-    const { listedTraits } = await import("./trait-ruling.mjs");
+    const { listedTraits, resolveArmed } = await import("./trait-ruling.mjs");
+    // A Resolve armed on the roller buys its picker (E112): the window's statistic is theirs, not locked as the GM's.
+    const byGm = !resolveArmed(actor);
     if (!listedTraits({ kind: "opening", key: side }).includes(trait)) {
         warn(`An opening roll was asked without a statistic its side lists (${trait ?? "none"}); nothing was rolled.`);
         return null;
@@ -4663,7 +4667,7 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
             if (!openingStillWanted(side, actorId)) break;
             roll = await rollTrait(actor, trait, {
                 remember: false,
-                byGm: true,
+                byGm,
                 situational,
                 // A watch's hindrance die (E74, DA44), named in the window, its cause not (`rollOpening`).
                 hindrance: hindrance > 0 ? 1 : 0,
