@@ -1,0 +1,186 @@
+<!-- Daggerheart 2.12.8 templates/sheets/actors/character/header.hbs with its partial tab-navigation.hbs, rendered by Handlebars 4.7.8 (MIT, LICENSE-daggerheart beside this file). The context: a level-1 student with no class, subclass, community or ancestry, Hope 2 of 6, no scars, no party, the six traits at 0, the sheet's five tabs with Features open. audit/sheet-band.mjs. -->
+<header class="character-header-sheet">
+    <line-div></line-div>
+    <div class="name-row">
+        <h1
+            class="actor-name input"
+            contenteditable="plaintext-only"
+            data-property="name"
+            placeholder="Actor Name"
+            autocomplete="off"
+            spellcheck="false"
+        >Aiko</h1>
+        <div class='level-div'>
+            <h3 class='label'>
+                    Level
+                    <input type="text" data-dtype="Number" class="level-value" value=1  />
+            </h3>
+        </div>
+    </div>
+    <div class="character-details">
+        <div>
+                    <span class="missing-header-feature" data-action="openPack" data-key="classes">Class</span>
+            <span class="dot">•</span>
+                    <span class="missing-header-feature" data-action="openPack" data-key="subclasses">Subclass</span>
+            <span class="dot">•</span>
+                    <span class="missing-header-feature" data-action="openPack" data-key="communities">Community</span>
+            <span class="dot">•</span>
+                    <span class="missing-header-feature" data-action="openPack" data-key="ancestries">Ancestry</span>
+        </div>
+
+    </div>
+
+    <div class="character-row">
+        <div class="resource-section">
+            <div class="hope-section">
+                <h4>Hope</h4>
+                    <span class='hope-value' data-action='toggleHope' data-value="1">
+                            <i class='fa-solid fa-diamond'></i>
+                    </span>
+                    <span class='hope-value' data-action='toggleHope' data-value="2">
+                            <i class='fa-solid fa-diamond'></i>
+                    </span>
+                    <span class='hope-value' data-action='toggleHope' data-value="3">
+                            <i class='fa-regular fa-circle'></i>
+                    </span>
+                    <span class='hope-value' data-action='toggleHope' data-value="4">
+                            <i class='fa-regular fa-circle'></i>
+                    </span>
+                    <span class='hope-value' data-action='toggleHope' data-value="5">
+                            <i class='fa-regular fa-circle'></i>
+                    </span>
+                    <span class='hope-value' data-action='toggleHope' data-value="6">
+                            <i class='fa-regular fa-circle'></i>
+                    </span>
+                
+            </div>
+        </div>
+        <div class="downtime-section">
+                <button type="button" data-action="useDowntime" data-type="shortRest" data-tooltip="DAGGERHEART.APPLICATIONS.Downtime.shortRest.title">
+                    <i class="fa-solid fa-fw fa-utensils"></i>
+                </button>
+                <button type="button" data-action="useDowntime" data-type="longRest" data-tooltip="DAGGERHEART.APPLICATIONS.Downtime.longRest.title">
+                    <i class="fa-solid fa-fw fa-bed"></i>
+                </button>
+        </div>
+    </div>
+
+    <div class="character-traits">
+            <div class="trait " data-tooltip="<b>Agility:</b><br>" data-action="rollAttribute" data-attribute="agility" data-value="0">
+                <div class="trait-name">
+                    <div class="tier-mark "></div>
+                    <span>Agility</span>
+                </div>
+                <div class="trait-value-area">
+                    <svg width="52" height="46" viewBox="0 0 52 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 0,0 H 52 L 51.0714,18.254 48.781,24.0952 47.5745,39.9596 26,46 4.42553,39.9596 3.219,24.0952 0.928571,18.254 Z" fill="var(--color-border)"/>
+                        <path d="M 3.312,5.357 8.58596,0 H 43.414 l 5.274,5.357 -1.8797,28.846 c -0.2431,2.605 -2.1461,4.7522 -4.7031,5.3064 l -14.8343,3.2151 c -0.8375,0.1816 -1.7043,0.1816 -2.5418,0 L 9.89482,39.5094 C 7.33785,38.9552 5.43478,36.808 5.19169,34.203 Z" fill="var(--background)"/>
+                    </svg>
+                    <div class="trait-value">
+                            <span>0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="trait " data-tooltip="<b>Strength:</b><br>" data-action="rollAttribute" data-attribute="strength" data-value="0">
+                <div class="trait-name">
+                    <div class="tier-mark "></div>
+                    <span>Strength</span>
+                </div>
+                <div class="trait-value-area">
+                    <svg width="52" height="46" viewBox="0 0 52 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 0,0 H 52 L 51.0714,18.254 48.781,24.0952 47.5745,39.9596 26,46 4.42553,39.9596 3.219,24.0952 0.928571,18.254 Z" fill="var(--color-border)"/>
+                        <path d="M 3.312,5.357 8.58596,0 H 43.414 l 5.274,5.357 -1.8797,28.846 c -0.2431,2.605 -2.1461,4.7522 -4.7031,5.3064 l -14.8343,3.2151 c -0.8375,0.1816 -1.7043,0.1816 -2.5418,0 L 9.89482,39.5094 C 7.33785,38.9552 5.43478,36.808 5.19169,34.203 Z" fill="var(--background)"/>
+                    </svg>
+                    <div class="trait-value">
+                            <span>0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="trait " data-tooltip="<b>Finesse:</b><br>" data-action="rollAttribute" data-attribute="finesse" data-value="0">
+                <div class="trait-name">
+                    <div class="tier-mark "></div>
+                    <span>Finesse</span>
+                </div>
+                <div class="trait-value-area">
+                    <svg width="52" height="46" viewBox="0 0 52 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 0,0 H 52 L 51.0714,18.254 48.781,24.0952 47.5745,39.9596 26,46 4.42553,39.9596 3.219,24.0952 0.928571,18.254 Z" fill="var(--color-border)"/>
+                        <path d="M 3.312,5.357 8.58596,0 H 43.414 l 5.274,5.357 -1.8797,28.846 c -0.2431,2.605 -2.1461,4.7522 -4.7031,5.3064 l -14.8343,3.2151 c -0.8375,0.1816 -1.7043,0.1816 -2.5418,0 L 9.89482,39.5094 C 7.33785,38.9552 5.43478,36.808 5.19169,34.203 Z" fill="var(--background)"/>
+                    </svg>
+                    <div class="trait-value">
+                            <span>0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="trait " data-tooltip="<b>Instinct:</b><br>" data-action="rollAttribute" data-attribute="instinct" data-value="0">
+                <div class="trait-name">
+                    <div class="tier-mark "></div>
+                    <span>Instinct</span>
+                </div>
+                <div class="trait-value-area">
+                    <svg width="52" height="46" viewBox="0 0 52 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 0,0 H 52 L 51.0714,18.254 48.781,24.0952 47.5745,39.9596 26,46 4.42553,39.9596 3.219,24.0952 0.928571,18.254 Z" fill="var(--color-border)"/>
+                        <path d="M 3.312,5.357 8.58596,0 H 43.414 l 5.274,5.357 -1.8797,28.846 c -0.2431,2.605 -2.1461,4.7522 -4.7031,5.3064 l -14.8343,3.2151 c -0.8375,0.1816 -1.7043,0.1816 -2.5418,0 L 9.89482,39.5094 C 7.33785,38.9552 5.43478,36.808 5.19169,34.203 Z" fill="var(--background)"/>
+                    </svg>
+                    <div class="trait-value">
+                            <span>0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="trait " data-tooltip="<b>Presence:</b><br>" data-action="rollAttribute" data-attribute="presence" data-value="0">
+                <div class="trait-name">
+                    <div class="tier-mark "></div>
+                    <span>Presence</span>
+                </div>
+                <div class="trait-value-area">
+                    <svg width="52" height="46" viewBox="0 0 52 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 0,0 H 52 L 51.0714,18.254 48.781,24.0952 47.5745,39.9596 26,46 4.42553,39.9596 3.219,24.0952 0.928571,18.254 Z" fill="var(--color-border)"/>
+                        <path d="M 3.312,5.357 8.58596,0 H 43.414 l 5.274,5.357 -1.8797,28.846 c -0.2431,2.605 -2.1461,4.7522 -4.7031,5.3064 l -14.8343,3.2151 c -0.8375,0.1816 -1.7043,0.1816 -2.5418,0 L 9.89482,39.5094 C 7.33785,38.9552 5.43478,36.808 5.19169,34.203 Z" fill="var(--background)"/>
+                    </svg>
+                    <div class="trait-value">
+                            <span>0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="trait " data-tooltip="<b>Knowledge:</b><br>" data-action="rollAttribute" data-attribute="knowledge" data-value="0">
+                <div class="trait-name">
+                    <div class="tier-mark "></div>
+                    <span>Knowledge</span>
+                </div>
+                <div class="trait-value-area">
+                    <svg width="52" height="46" viewBox="0 0 52 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 0,0 H 52 L 51.0714,18.254 48.781,24.0952 47.5745,39.9596 26,46 4.42553,39.9596 3.219,24.0952 0.928571,18.254 Z" fill="var(--color-border)"/>
+                        <path d="M 3.312,5.357 8.58596,0 H 43.414 l 5.274,5.357 -1.8797,28.846 c -0.2431,2.605 -2.1461,4.7522 -4.7031,5.3064 l -14.8343,3.2151 c -0.8375,0.1816 -1.7043,0.1816 -2.5418,0 L 9.89482,39.5094 C 7.33785,38.9552 5.43478,36.808 5.19169,34.203 Z" fill="var(--background)"/>
+                    </svg>
+                    <div class="trait-value">
+                            <span>0</span>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+<section class='tab-navigation'>
+    <div class='navigation-container'>
+        <div class="navigation-inner-container">
+            <line-div></line-div>
+            <nav class='feature-tab sheet-tabs tabs' data-group='primary'>
+                    <a class='features active ' data-action='tab' data-group='primary' data-tab='features'>
+                        <span>Features</span>
+                    </a>
+                    <a class='loadout  ' data-action='tab' data-group='primary' data-tab='loadout'>
+                        <span>Loadout</span>
+                    </a>
+                    <a class='inventory  ' data-action='tab' data-group='primary' data-tab='inventory'>
+                        <span>Inventory</span>
+                    </a>
+                    <a class='biography  ' data-action='tab' data-group='primary' data-tab='biography'>
+                        <span>Biography</span>
+                    </a>
+                    <a class='effects  ' data-action='tab' data-group='primary' data-tab='effects'>
+                        <span>Effects</span>
+                    </a>
+            </nav>
+            <line-div></line-div>
+        </div>
+                    <button type="button" data-action="openSettings" data-tooltip-text="Open Settings"><i class="fa-solid fa-wrench"></i></button>
+    </div>
+</section></header>

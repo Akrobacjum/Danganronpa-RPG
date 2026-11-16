@@ -181,5 +181,7 @@ export default [
     { files: ["audit/case-map-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     // the sheet column's check (fix-113e): its page.evaluate bodies run in its own page of Daggerheart's sidebar
     { files: ["audit/sheet-column.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
+    // the sheet band's check (16.11.2026): its page.evaluate bodies run in its own page of Daggerheart's sidebar and header
+    { files: ["audit/sheet-band.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     { files: ["audit/live/page-hooks.js"], languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: { ...BROWSER, ...FOUNDRY } }, rules: RULES }
 ];

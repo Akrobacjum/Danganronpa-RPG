@@ -54740,6 +54740,37 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ "drpg-theme-stained-glass": [true, false, false], "drpg-theme-monokuma-legacy": [true, false, false] }),
             "{each theme: [the system's unarmed row hidden with !important, the readied row, the empty line]}");
     }],
+    ["R7780 - the glass the sheet's header band is painted with reaches the band's edges (the owner at a table, 16.11.2026: \"dziura w kurtyne (krawedz ramki hope). Przeciagnijmy kurtyne do krawedzi sanity\"): under Stained Glass every canvas glass.mjs puts into `.character-header-sheet.drpg-glass-band` wins `padding-left` and `padding-right` 0 against Daggerheart's `.character-header-sheet > *:not(line-div, .tab-navigation)` 15 px, inside which a canvas draws its bitmap", async () => {
+        /*
+         * 16.11.2026. Measured in Chromium on Daggerheart 2.12.8's own sidebar.hbs and header.hbs and the rules of its
+         * stylesheet that reach them, with the module's stylesheets and the band dressed as glass.mjs `dressWindow` dresses
+         * it (audit/sheet-band.mjs): at aa697521 the system's rule for the header's rows (0,8,0; the same in 2.12.9) reached
+         * the band's canvases too, so the glass stood 15 px in from both edges of the band - the strip of the map the owner
+         * saw between Sanity and the Hope frame - in every glass case, desk and stacked, one column or two. The layout is
+         * that script's; this holds the cause in the suite. The system's rule is planted last, so a module rule wins only by
+         * outweighing it, as it must where neither sheet is in a layer; with the module's sheets in a layer after the
+         * system's, as the owner's screenshot reads v14 (that script's header), any module rule would. Red at aa697521: the
+         * canvases won the system's 15px.
+         */
+        const C = await styleCascade();
+        C.rules.push({ file: "daggerheart.css", selector: ".application.sheet.daggerheart.actor.dh-style.character .character-header-sheet > *:not(line-div, .tab-navigation)",
+            decls: [{ property: "padding-left", value: "15px", important: false }, { property: "padding-right", value: "15px", important: false }] });
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        body.innerHTML = `<form class="application sheet daggerheart actor dh-style character"><section class="window-content">`
+            + `<header class="character-header-sheet drpg-glass-band"><canvas class="sg"></canvas><canvas class="pulse"></canvas>`
+            + `<canvas class="seamline"></canvas><canvas class="flash"></canvas><line-div></line-div><div class="name-row"><h1>Aiko</h1></div>`
+            + `</header></section></form>`;
+        // the planted rule reaches the band's rows: without that, the canvases' reading below would measure nothing
+        must(C.winner(body.querySelector(".name-row"), ["padding-left", "padding"])?.value === "15px", "the system's rule did not reach the header's name row - this would measure nothing");
+        const read = {};
+        for (const canvas of body.querySelectorAll(".drpg-glass-band > canvas")) {
+            read[canvas.className] = ["padding-left", "padding-right"].map(side => C.winner(canvas, [side, "padding"])?.value ?? null);
+        }
+        equal(stableJson(read), stableJson({ sg: ["0", "0"], pulse: ["0", "0"], seamline: ["0", "0"], flash: ["0", "0"] }),
+            "{each of the band's canvases: [the padding-left it wins, the padding-right]}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when
