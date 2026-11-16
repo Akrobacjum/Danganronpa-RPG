@@ -391,7 +391,16 @@ The full tier 2 in shards at dc159200 (16.11.2026): `suite-merge.mjs` RED - 1555
 window") in shard 4, the window's two rows in the other order. Not this line's: the test sorts the rows it reads by item
 id with `localeCompare` and the order it expects with `Object.keys(...).sort()` (code units); the ids are random, and the
 two sorts disagree on about 17.8% of random pairs (200 000 pairs of 16-character ids, measured here). Alone: 1 failure in
-4 runs on dc159200, 0 in 4 on e9f4a791 (by chance at that rate, about 32%). Reported to the coordinator; not changed.
+4 runs on dc159200, 0 in 4 on e9f4a791 (by chance at that rate, about 32%). Reported to the coordinator.
+
+C8 (the coordinator's Q6 of 16.11.2026: fixed on this line, as the stage that wrote it has shipped): **the cause of the
+1.2.115 CI run's red A113-C5-7-T1 on 326caf11**, the one CI failure of that release left unexplained until then. One
+comparator on both sides, code units, as ids are not words; and the test's two things put back by the GM with fixed ids
+("BqA113T1Crowbar0", "aZA113T1Plaster0", `keepId`), which the two orders sort apart, so a mismatch is red every run. Red
+first: those ids with the old `localeCompare` read, 2 runs of 2 red, the rows plaster first as in CI; green after. Alone
+on the fix: 20 runs of 20 green. Gates of C8: `npm run quick` whole green (lint, 24 check parts, gate 37/37); tiers 0-1
+whole 1743 ran, 1728 passed, 0 failed, 16 skipped, 0 red (479 s). No further shard run (the coordinator's word: the
+assembly's CI is the next whole-suite run).
 
 A HARNESS TRAP, for whoever runs mutants next: lib/canary.mjs imports scripts/world-secrets.mjs from the checkout the harness sits in, not from
 `DRPG_REPO`, so a mutant of world-secrets.mjs read through a scenario's scans has to run in the copy's own harness; the

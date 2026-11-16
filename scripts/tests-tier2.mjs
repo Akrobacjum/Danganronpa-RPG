@@ -96872,10 +96872,25 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             back = await handFreeFor(taker, "tool");
             await whileDead(body, async () => {
-                const made = [await INV.grantItem(body, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true }),
+                const granted = [await INV.grantItem(body, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true }),
                     await INV.grantItem(body, { name: NAMES[1], category: "usable", tier: 1, override: true, quiet: true })];
                 await sheetAuditIdle();
-                must(made.every(Boolean), "the body's two things were not made - this would measure nothing");
+                must(granted.every(Boolean), "the body's two things were not made - this would measure nothing");
+                /* FIXED IDS (E40, 16.11.2026 on the line claude/e39-40-116; the coordinator's Q6). The ids were random and the
+                   rows read below were sorted by `localeCompare` while the order expected was `Object.keys(...).sort()` (code
+                   units): the two disagree on about 17.8% of random pairs (measured), the cause of this test's red in the
+                   1.2.115 CI run on 326caf11 and of one in four runs alone. Each thing grantItem made is put back by the GM
+                   with an id of its own - "Bq..." and "aZ...", which the two orders sort apart - so a mismatch is red every
+                   run; both sides now sort by code units, as ids are not words. */
+                const FIXED = ["BqA113T1Crowbar0", "aZA113T1Plaster0"];
+                const made = [];
+                for (const [i, item] of granted.entries()) {
+                    const data = { ...item.toObject(), _id: FIXED[i] };
+                    await item.delete();
+                    made.push(...await body.createEmbeddedDocuments("Item", [data], { keepId: true }));
+                }
+                await sheetAuditIdle();
+                must(made.map(i => i?.id).join() === FIXED.join(), `the body's two things did not keep their fixed ids (${made.map(i => i?.id).join()}) - this would measure nothing`);
                 const ids = made.map(i => i.id).sort();
                 win = await lootWindowFor(body, taker);
                 if (win) {
@@ -96884,7 +96899,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     read.window = {
                         classes: ["drpg-action-window", "drpg-loot-window"].map(c => el.classList.contains(c)),
                         brief: [Boolean(left?.querySelector(".drpg-briefing-block")), (left?.textContent ?? "").includes(body.name)],
-                        rows: ours.map(box => [box.type, box.closest("label.drpg-choice")?.querySelector("strong")?.textContent ?? null, box.value]).sort((a, b) => String(a[2]).localeCompare(String(b[2]))),
+                        rows: ours.map(box => [box.type, box.closest("label.drpg-choice")?.querySelector("strong")?.textContent ?? null, box.value]).sort((a, b) => (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : 0)),
                         inRight: ours.every(box => right?.contains(box)),
                         take: Boolean(el.querySelector('footer .drpg-loot-take, .form-footer .drpg-loot-take'))
                     };
