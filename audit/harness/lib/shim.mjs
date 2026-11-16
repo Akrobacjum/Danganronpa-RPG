@@ -585,7 +585,82 @@ export function buildDocumentClasses(ctx) {
         get texture() { return this._source.texture ?? {}; }
         get disposition() { return this._source.disposition ?? 0; }
         // E89 C0: v14's `TokenDocument#movement`, on the model (client-entry.mjs `applyRemote` writes it; LIVE-E89-03).
+        // Since D4 it is the move this client heard in `options._movement[id]` (`TOKEN MOVEMENT`, below).
         get movement() { return this._drpgMovement ?? null; }
+
+        /*
+         * TOKEN MOVEMENT, AS FOUNDRY 14.370 MOVED A TOKEN (D4; the coordinator's brief of 16.11.2026;
+         * docs/dev/e39/CALIBRATION.md section 3, LIVE-E39-01, read by E58 L1 on the owner's sandbox). An update that
+         * names a movement field (`MOVEMENT_FIELDS`) is a move, and one route is one update. Read on 14.370:
+         * - `preMoveToken` and `preUpdateToken` fire once on the mover, the request in `options.movement[id]` and every
+         *   movement field filled in in the changes;
+         * - `updateToken` and `moveToken` fire once on every client, the move in `options._movement[id]`: every grid
+         *   step of the route in `passed.waypoints`, each `{ x, y, action, checkpoint, intermediate, level }` - a grid
+         *   step `intermediate`, an asked waypoint not, the end a checkpoint - `pending.waypoints` empty for a route the
+         *   API asked, `method` "api", `state` "completed"; `options.movement` no longer there;
+         * - `updateToken`'s changes carry `_regions`, the regions the token stands in at the end, and its options
+         *   `_priorRegions`;
+         * - v14's own displacement (`move({ x, y, action: "displace" })`) reaches `updateToken` with `teleport` true, a
+         *   walk with `teleport` false; the module's own placing write keeps the options it gives (LIVE-H81-03).
+         * Before D4 the shim set nothing of this: `movement` was whatever a test handed in `options.movement[id]`.
+         *
+         * NOT READ ON 14.370, AND MODELLED HERE AS THE COORDINATOR WAS TOLD (16.11.2026): where a diagonal step falls
+         * (the count is read, 20 for L1's route; each segment here is cut into max(|dx|, |dy|) / grid steps along the
+         * straight line, rounded to the grid); the order of `preMoveToken` against `preUpdateToken` (here first, as a
+         * document's `_preUpdate` runs before its `pre` hook, LIVE-E30-03) and of `moveToken` against `updateToken`
+         * (here after); a false from `preMoveToken` (here it cancels, as a `pre` hook's does); `_priorRegions`' shape
+         * (here `{ [id]: [ids] }`; no module code reads it or `_regions`); a displacement's steps (here its waypoint
+         * alone); a plain `update({ x, y })` (here a route of one waypoint, method "api", as `move()`'s); the record's
+         * other fourteen keys (left out, not filled with guesses); and a drag by mouse (`method: "dragging"`, where
+         * `pending` may hold the rest of a route) - not read, so not modelled: a test that needs a drag in flight
+         * stands it on the document's `movement` itself.
+         */
+        async _runPreUpdate(update, options, { noHook = false } = {}) {
+            if (!TOKEN_MOVEMENT_FIELDS.some(field => field in update)) return super._runPreUpdate(update, options, { noHook });
+            const id = this.id, hooks = ctx.hooks();
+            const origin = tokenSpot(this._source, this);
+            for (const field of TOKEN_MOVEMENT_FIELDS) if (!(field in update)) update[field] = origin[field];
+            const asked = options.movement?.[id] ?? null;
+            options.movement = { ...(options.movement ?? {}), [id]: { ...(asked ?? {}), waypoints: asked?.waypoints ?? [pickSpot(update)], method: asked?.method ?? "api" } };
+            if (await this._preUpdate?.(update, options, ctx.gameRef().user) === false) return false;
+            if (!noHook && hooks.call("preMoveToken", this, tokenMove(this, origin, update, options), options) === false) return false;
+            if (!noHook && hooks.call("preUpdateToken", this, update, options, ctx.userId()) === false) return false;
+            // What the pre steps left is the move: its end is the update's, whatever a hook changed.
+            const record = tokenMove(this, origin, update, options);
+            // The regions before: the token's own `_regions` where it holds them (every seeded token, cluster.mjs), else read here.
+            const held = this._source._regions;
+            const prior = Array.isArray(held) ? [...held].sort() : this.regionIdsAt(origin), after = this.regionIdsAt(tokenSpot(update, this));
+            delete options.movement[id];
+            if (!Object.keys(options.movement).length) delete options.movement;
+            options._movement = { ...(options._movement ?? {}), [id]: record };
+            options._priorRegions = { ...(options._priorRegions ?? {}), [id]: prior };
+            if (options.teleport === undefined || options.teleport === null) options.teleport = record.passed.waypoints.every(w => w.action === "displace");
+            for (const field of TOKEN_MOVEMENT_FIELDS) if (sameValue(update[field], origin[field])) delete update[field];
+            if (prior.join() !== after.join()) update._regions = after;
+            // Sent even when it changes nothing: v14 sent an update naming a movement field where the token stood (LIVE-E30-03).
+            return true;
+        }
+
+        /* v14's `TokenDocument#move(waypoints, options)`: one update to the route's end, the route as the request (D4). Its
+           answer on 14.370 was not read; true once the update is asked. */
+        async move(waypoints, options = {}) {
+            const route = (Array.isArray(waypoints) ? waypoints : [waypoints]).filter(Boolean).map(w => ({ ...w }));
+            if (!route.length) return false;
+            const end = pickSpot(route.at(-1));
+            if (!Object.keys(end).length) return false;
+            const movement = { ...(options.movement ?? {}), [this.id]: { waypoints: route, method: options.method ?? "api" } };
+            const { method, ...rest } = options;
+            await this.update(end, { ...rest, movement });
+            return true;
+        }
+
+        /* The ids of the regions of this token's scene it stands in at `spot` - its centre inside, on its floor. */
+        regionIdsAt(spot) {
+            const size = this.parent?.grid?.size ?? 100;
+            const centre = { x: Number(spot.x) + (Number(spot.width ?? 1) * size) / 2, y: Number(spot.y) + (Number(spot.height ?? 1) * size) / 2 };
+            return (this.parent?.regions?.contents ?? [])
+                .filter(region => region.pointInside(centre) && region.includedInLevel(spot.level ?? null)).map(region => region.id).sort();
+        }
         /* The floor the token stands on: a level's id on its scene (E12 C0), null where the token names none - every
            token of the seed, so no scenario before 66 moves. See `LevelList` below. */
         get level() { return this._source.level ?? null; }
@@ -629,6 +704,46 @@ export function buildDocumentClasses(ctx) {
             return out;
         }
         getFlag(scope, key) { return U.getProperty(this._source.flags, `${scope}.${key}`); }
+    }
+
+    /* D4's helpers (`TOKEN MOVEMENT`, above). v14's `BaseToken.MOVEMENT_FIELDS`, read on 14.370 as client-entry.mjs states it. */
+    const TOKEN_MOVEMENT_FIELDS = Object.freeze(["x", "y", "elevation", "width", "height", "depth", "shape", "level"]);
+    /* A token's movement fields as `source` holds them, each it lacks as the document answers it (`doc`), else null. */
+    function tokenSpot(source, doc) {
+        const out = {};
+        for (const field of TOKEN_MOVEMENT_FIELDS) out[field] = U.deepClone(source?.[field] ?? doc?._source?.[field] ?? doc?.[field] ?? null);
+        return out;
+    }
+    /* The movement fields a waypoint or an update names, and nothing else (an action, a checkpoint). */
+    function pickSpot(from) {
+        const out = {};
+        for (const field of TOKEN_MOVEMENT_FIELDS) if (from?.[field] !== undefined) out[field] = U.deepClone(from[field]);
+        return out;
+    }
+    const sameValue = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    /* The move, as `options._movement[id]` carries it: the route from `origin` through the request's waypoints to the
+       update's end, every grid step a waypoint (`TOKEN MOVEMENT`). */
+    function tokenMove(doc, origin, update, options) {
+        const id = doc.id, size = doc.parent?.grid?.size ?? 100;
+        const asked = options.movement?.[id]?.waypoints ?? [];
+        const end = tokenSpot(update, doc);
+        const stops = [...asked.slice(0, -1).map(w => ({ ...origin, ...pickSpot(w), action: w.action })), { ...end, action: asked.at(-1)?.action }];
+        const snap = v => Math.round(v / size) * size;
+        const passed = [];
+        let at = origin;
+        for (const stop of stops) {
+            const action = stop.action ?? options.movementAction ?? "walk";
+            const level = stop.level ?? at.level ?? null;
+            const n = action === "displace" ? 0 : Math.round(Math.max(Math.abs(stop.x - at.x), Math.abs(stop.y - at.y)) / size);
+            for (let k = 1; k < n; k++) {
+                passed.push({ x: snap(at.x + ((stop.x - at.x) * k) / n), y: snap(at.y + ((stop.y - at.y) * k) / n), action, checkpoint: false, intermediate: true, level: at.level ?? null });
+            }
+            passed.push({ x: stop.x, y: stop.y, action, checkpoint: false, intermediate: false, level });
+            at = stop;
+        }
+        if (passed.length) passed.at(-1).checkpoint = true;
+        return { id, origin: { ...origin }, destination: { ...end }, passed: { waypoints: passed }, pending: { waypoints: [] },
+            method: options.movement?.[id]?.method ?? "api", state: "completed", user: ctx.userId() };
     }
 
     class SceneImpl extends BaseDocument {

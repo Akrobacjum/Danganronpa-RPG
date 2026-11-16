@@ -302,10 +302,20 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
                 const seen = globalThis.__s86path = [];
                 globalThis.__s86pathHook = Hooks.on("updateToken", doc => { if (doc.id === t.id) seen.push(doc.movement?.pending?.waypoints?.length ?? 0); });
                 const xs = [x0 - ${step} * 0.3, x0 - ${step} * 0.6, x0 - ${step}];
-                for (let k = 0; k < 3; k++) {
-                    const waypoints = xs.slice(k + 1).map(x => ({ x, y }));
-                    await t.update({ x: xs[k] }, { ...${MOVE}, movement: { [t.id]: { pending: { waypoints } } } });
-                }
+                /* A drag in flight stands on the document (D4, 16.11.2026): it was handed in each update's own \`movement\`
+                   option, which the shim delivered as the token's \`movement\`; on Foundry 14.370 that option is the
+                   mover's request alone, a route the API asks is one update with nothing pending, and a mouse drag was not
+                   read (docs/dev/e39/CALIBRATION.md section 3) - so the three updates of E89 C0's model keep their
+                   pending waypoints on Aiko's document here, as 66 and 74 stand a held move. */
+                try {
+                    for (let k = 0; k < 3; k++) {
+                        const waypoints = xs.slice(k + 1).map(x => ({ x, y }));
+                        Object.defineProperty(t, "movement", { value: { pending: { waypoints } }, configurable: true });
+                        await t.update({ x: xs[k] }, ${MOVE});
+                        // Each update heard before the next one's waypoints stand, so a hook reads its own.
+                        for (const from = Date.now(); seen.length <= k && Date.now() - from < 3000;) await new Promise(r => setTimeout(r, 10));
+                    }
+                } finally { delete t.movement; }
                 return true;`);
         });
         const pathSeen = await p1.eval(`Hooks.off("updateToken", globalThis.__s86pathHook); const seen = globalThis.__s86path;

@@ -2022,14 +2022,21 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         return true;`, { timeout: 60000 });
     await settle(1200);
     const goHall = await gm.eval(GO_VIEW);
-    // (a) and (b): the correctness review's probe, phase for phase.
+    /* (a) and (b): the correctness review's probe, phase for phase. THE HELD MOVE STANDS ON THE DOCUMENT (D4, 16.11.2026):
+       until D4 it was handed in the update's own `movement` option, which the shim delivered as the token's `movement`;
+       on Foundry 14.370 that option is the mover's request, seen in its `preUpdateToken` alone, and the move every client
+       hears is `options._movement[id]`, with nothing pending for a route the API asks (docs/dev/e39/CALIBRATION.md
+       section 3). A move held for its waypoints is a drag in flight, not read on 14.370, so it stands on the GM's token
+       document as part N stands it, until the route's last update. */
     await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000");
-        await t.update({ x: 1500, y: 300 }, { ...${GO_MOVE}, movement: { [t.id]: { pending: { waypoints: [{ x: 1600, y: 300 }] } } } }); return true;`);
+        Object.defineProperty(t, "movement", { value: { pending: { waypoints: [{ x: 1600, y: 300 }] } }, configurable: true });
+        await t.update({ x: 1500, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(150);
     await gm.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 400 }, ${GO_MOVE}); return true;`);
     await settle(600);
     const goMidA = await gm.eval(GO_VIEW);
-    await gm.eval(`${SCENES} await academy.tokens.get("TOKMONOKUMA00000").update({ x: 1600, y: 300 }, ${GO_MOVE}); return true;`);
+    await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000"); delete t.movement;
+        await t.update({ x: 1600, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(3000);
     const goAfterA = await gm.eval(GO_VIEW);
     check("GO1: the Monokuma's move into the Cafeteria held for its waypoint while Aiko steps inside Dorm A - the GM's outline is never Dorm A, "
@@ -2037,14 +2044,16 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     goStart === true && goHall === "Hall" && goMidA !== "Dorm A" && goAfterA === "Cafeteria", J({ goHall, goMidA, goAfterA }));
 
     await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000");
-        await t.update({ x: 2300, y: 300 }, { ...${GO_MOVE}, movement: { [t.id]: { pending: { waypoints: [{ x: 2400, y: 300 }] } } } }); return true;`);
+        Object.defineProperty(t, "movement", { value: { pending: { waypoints: [{ x: 2400, y: 300 }] } }, configurable: true });
+        await t.update({ x: 2300, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(150);
     const goTrace = await gm.eval(`${SCENES} const { placeRemnant } = await import("${repoUrl}/scripts/remnants.mjs");
         const t = await placeRemnant({ type: "prep", visibility: "evident", x: 1500, y: 1500, scene: academy, note: "66 GO trace" });
         globalThis.__s66go.trace = t?.id ?? null; return t?.id ?? null;`, { timeout: 60000 });
     await settle(600);
     const goMidB = await gm.eval(GO_VIEW);
-    await gm.eval(`${SCENES} await academy.tokens.get("TOKMONOKUMA00000").update({ x: 2400, y: 300 }, ${GO_MOVE}); return true;`);
+    await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000"); delete t.movement;
+        await t.update({ x: 2400, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(3000);
     const goAfterB = await gm.eval(GO_VIEW);
     check("GO2: the Monokuma's move back into the Hall held for its waypoint while a trace is placed in the Gym - the GM's outline is never the "

@@ -157,6 +157,78 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         pre === true && JSON.stringify(preOnGm) === JSON.stringify({ e30keep: 1 }), JSON.stringify(preOnGm));
     await write(p1, IDS.aiko, `{ "flags.world": _del }`);
 
+    /* D4, MOVEMENT AS FOUNDRY 14.370 MOVED A TOKEN (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 3, LIVE-E39-01, read by E58 L1 on the owner's sandbox). p1 moved Aiko from Dorm A through v14's own
+       `TokenDocument#move([{x: 1500, y: 400}, {x: 2300, y: 500}])` into the Hall; read on the mover, the GM and p2. Here a
+       scratch token of a scratch actor p1 owns stands at Dorm A's 300,300 and takes the same route, so no student's
+       action is spent: one update; `preMoveToken` and `preUpdateToken` once on the mover, the request in `options.movement`
+       and every movement field in the changes; `updateToken` and `moveToken` once on the GM and p2, the move in
+       `options._movement[id]` - every grid step of the route in `passed.waypoints` (20: grid steps intermediate, the asked
+       waypoint not, the end a checkpoint), nothing pending, method "api", completed - no `options.movement`, `_regions` in
+       the changes (the Hall) and `_priorRegions` in the options, and `TokenDocument#movement` the same move. Then v14's
+       own displacement back, `move({x: 300, y: 300, action: "displace"})`: `teleport` true in `updateToken` (LIVE-H81-03).
+       The token and the actor deleted. Where a diagonal step falls, the hooks' order and `_priorRegions`' shape are not
+       read (lib/shim.mjs `TOKEN MOVEMENT`). */
+    const J = JSON.stringify;
+    const D4_FIELDS = ["x", "y", "elevation", "width", "height", "depth", "shape", "level"];
+    const d4Made = await gm.eval(`const actor = await Actor.create({ name: "00 D4 mover", type: "adversary", ownership: { default: 0, "${IDS.p1}": 3 } });
+        const scene = game.scenes.get("${IDS.scene}");
+        const [t] = await scene.createEmbeddedDocuments("Token", [{ name: "00 D4 mover", actorId: actor.id, actorLink: true, x: 300, y: 300 }]);
+        globalThis.__d4 = { actor: actor.id, token: t?.id ?? null };
+        return globalThis.__d4;`);
+    await settle(400);
+    const d4Watch = c => c.eval(`globalThis.__d4seen = [];
+        for (const name of ["preMoveToken", "preUpdateToken", "updateToken", "moveToken"]) {
+            const id = Hooks.on(name, (doc, a, b) => {
+                if (doc?.id !== "${d4Made.token}") return;
+                const options = b;
+                const changes = name === "preUpdateToken" || name === "updateToken" ? a : null;
+                globalThis.__d4seen.push({ name, changes: changes ? Object.keys(changes).sort() : null, regions: changes?._regions ?? null,
+                    request: Boolean(options?.movement?.["${d4Made.token}"]), moved: foundry.utils.deepClone(options?._movement?.["${d4Made.token}"] ?? null),
+                    prior: options?._priorRegions === undefined ? "none" : "some", teleport: options?.teleport ?? null });
+            });
+            (globalThis.__d4ids ??= []).push([name, id]);
+        }
+        return true;`);
+    for (const c of [gm, p1, p2]) await d4Watch(c);
+    const d4Move = await p1.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}");
+        if (typeof t?.move !== "function") return "no move";
+        await t.move([{ x: 1500, y: 400 }, { x: 2300, y: 500 }]); return true;`);
+    await settle(600);
+    const d4Read = c => c.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}");
+        const seen = globalThis.__d4seen; globalThis.__d4seen = [];
+        return { seen, at: [t?.x, t?.y], movement: foundry.utils.deepClone(t?.movement ?? null) };`);
+    const d4 = { p1: await d4Read(p1), gm: await d4Read(gm), p2: await d4Read(p2) };
+    const steps = m => m?.passed?.waypoints ?? [];
+    const routeOk = m => steps(m).length === 20 && steps(m).filter(w => w.intermediate === true).length === 18
+        && steps(m).filter(w => w.intermediate === false).map(w => [w.x, w.y]).join(";") === "1500,400;2300,500"
+        && steps(m).filter(w => w.checkpoint === true).length === 1 && steps(m).at(-1)?.checkpoint === true
+        && steps(m).every(w => w.action === "walk" && w.x % 100 === 0 && w.y % 100 === 0)
+        && (m?.pending?.waypoints ?? null)?.length === 0 && m?.method === "api" && m?.state === "completed";
+    const names = side => side.seen.map(s => s.name);
+    const mover = d4.p1.seen.find(s => s.name === "preUpdateToken");
+    const heard = side => side.seen.find(s => s.name === "updateToken");
+    check("D4: a token's move is one update as on v14 14.370 - preMoveToken and preUpdateToken once on the mover, the request in options.movement and every movement field in the changes; updateToken and moveToken once on the GM and p2, every grid step of the route in options._movement[id].passed.waypoints, no options.movement, _regions in the changes and _priorRegions in the options, and TokenDocument#movement the same move",
+        d4Move === true && J(d4.p1.at) === J([2300, 500])
+        && J(names(d4.p1).filter(n => n.startsWith("pre"))) === J(["preMoveToken", "preUpdateToken"])
+        && mover?.request === true && D4_FIELDS.every(f => mover.changes.includes(f))
+        && [d4.gm, d4.p2].every(side => J(names(side)) === J(["updateToken", "moveToken"]) && routeOk(heard(side)?.moved)
+            && heard(side).request === false && J(heard(side).regions) === J(["REGHALL000000000"]) && heard(side).prior === "some"
+            && routeOk(side.movement)),
+        J(d4));
+    await gm.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}");
+        await t.move({ x: 300, y: 300, action: "displace" }); return true;`);
+    await settle(600);
+    const d4Back = { gm: await d4Read(gm), p2: await d4Read(p2) };
+    check("D4: v14's own displacement, move({x, y, action: \"displace\"}), reaches updateToken with teleport true on every client, as on 14.370 (LIVE-H81-03)",
+        [d4Back.gm, d4Back.p2].every(side => J(side.at) === J([300, 300]) && heard(side)?.teleport === true
+            && steps(heard(side)?.moved).at(-1)?.action === "displace"),
+        J(d4Back));
+    for (const c of [gm, p1, p2]) await c.eval(`for (const [name, id] of globalThis.__d4ids ?? []) Hooks.off(name, id); delete globalThis.__d4ids; return true;`);
+    await gm.eval(`await game.scenes.get("${IDS.scene}").deleteEmbeddedDocuments("Token", ["${d4Made.token}"]);
+        await game.actors.get("${d4Made.actor}")?.delete(); return true;`);
+    await settle(300);
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;

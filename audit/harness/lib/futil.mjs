@@ -8,6 +8,35 @@ import { isOperator, kindOf, replacementOf, LEGACY, WIRE, legacyReading } from "
 /** An object to walk into: not null, not an array, not an operator in either form (lib/operators.mjs). */
 const walkable = v => v !== null && typeof v === "object" && !Array.isArray(v) && !isOperator(v);
 
+/*
+ * THE REGIONS A TOKEN STANDS IN, AS ITS SOURCE HOLDS THEM (D4; the coordinator's brief of 16.11.2026). Foundry 14.370 keeps
+ * `_regions` on a token, its server's list of the regions the token is in, and hands a change of it in `updateToken`'s
+ * changes (docs/dev/e39/CALIBRATION.md section 3). The shim's mover computes it on a move (lib/shim.mjs `TOKEN MOVEMENT`), and
+ * the cluster writes it on every seeded token at its start, so a token moved and put back reads what it read before the
+ * move (the suite's restore compares it). The same test as the shim's: the token's centre inside a rectangle or polygon of
+ * the region, on its floor (a region naming no floor is on every one). What v14 writes at a token's creation, and after a
+ * region is reshaped under a token, was not read; a token made later carries none until it moves.
+ */
+export function tokenRegionIds(scene, token, spot = token) {
+    const size = scene?.grid?.size ?? 100;
+    const x = Number(spot?.x ?? 0) + (Number(spot?.width ?? token?.width ?? 1) * size) / 2;
+    const y = Number(spot?.y ?? 0) + (Number(spot?.height ?? token?.height ?? 1) * size) / 2;
+    const level = spot?.level ?? token?.level ?? null;
+    const inside = shape => {
+        if (shape?.type === "rectangle") return x >= shape.x && x <= shape.x + shape.width && y >= shape.y && y <= shape.y + shape.height;
+        if (shape?.type !== "polygon" || !Array.isArray(shape.points)) return false;
+        let hit = false;
+        for (let i = 0, j = shape.points.length - 2; i < shape.points.length; i += 2) {
+            const [xi, yi, xj, yj] = [shape.points[i], shape.points[i + 1], shape.points[j], shape.points[j + 1]];
+            if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) hit = !hit;
+            j = i;
+        }
+        return hit;
+    };
+    return (scene?.regions ?? []).filter(region => (region.shapes ?? []).some(inside)
+        && (!(region.levels ?? []).length || level === null || (region.levels ?? []).includes(level))).map(region => region._id).sort();
+}
+
 export function randomID(length = 16) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let out = "";

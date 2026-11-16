@@ -631,8 +631,13 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     const draggedC = await gm.eval(`const botan = game.actors.get("${IDS.botan}");
         await game.drpg.setActions(botan, 3); await new Promise(r => setTimeout(r, 600)); return game.drpg.actionsLeft(botan);`, { timeout: 30000 });
     await p1.eval(PENDING);
+    /* THE PENDING STEP MOVES (D4, 16.11.2026): it went to 600,400, where C3's put-back had just stood Botan, so it named
+       the spot he stood on. Foundry 14.370 hands such an update to `updateToken` with no movement field in its changes
+       (`{_id}` alone: docs/dev/e39/CALIBRATION.md, LIVE-E30-03), and the module reads no move in it, so on v14 this step
+       would note no pending room and C4 would measure nothing; the shim delivered the fields until D4. It steps to
+       600,500, still inside Dorm A. */
     const intoC = await p2.eval(`${PENDING.replace(" return true;", "")} ${TILE} const t = academy.tokens.get("TOKBOTAN00000000"); take();
-        try { await t.update({ x: 600, y: 400 }); } finally { delete t.movement; }
+        try { await t.update({ x: 600, y: 500 }); } finally { delete t.movement; }
         await t.update({ x: 900, y: 300 }); await new Promise(r => setTimeout(r, 1000));
         return { tile: read()?.name ?? null, painted: take() };`, { timeout: 30000 });
     await p1.eval(`${ACADEMY} delete academy.tokens.get("TOKBOTAN00000000").movement; return true;`);

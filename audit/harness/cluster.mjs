@@ -755,6 +755,8 @@ async function disconnect(who) {
 
 /* The four clients every run forks, by who: the accounts `connect` brings back after they left (E38 C1). */
 const SEEDED = { gm: IDS.gm, p1: IDS.p1, p2: IDS.p2, p3: IDS.p3 };
+// D4: every seeded token holds the regions it stands in (`_regions`), as a token on Foundry 14.370 does (futil.mjs `tokenRegionIds`).
+for (const scene of world.collections.Scene ?? []) for (const token of scene.tokens ?? []) token._regions = U.tokenRegionIds(scene, token);
 
 /**
  * A BROWSER'S RELOAD, FOR ANY CLIENT (E38 C1, 13.11.2026; plan E38 3.1). Until E38 a scenario could not reload a

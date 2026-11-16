@@ -1930,11 +1930,13 @@ function applyRemote(msg) {
                 if (!raws.length || !doc) continue;
                 const { _id, ...changes } = u;
                 const childWas = hasOpenApps(doc) ? JSON.stringify(doc._source) : null;
-                /* E89 C0 (30.10.2026; LIVE-E89-03): a token's `movement`, on the model - what the update's own `movement`
-                   option names for it (`{ pending: { waypoints } }`), the request and v14's record of the move not told
-                   apart; null for an update that names none. One dragged path is N updates, every one but the last with
-                   waypoints still pending: how many v14 delivers is LIVE-E89-03. */
-                if (msg.embeddedName === "Token") doc._drpgMovement = options.movement?.[u._id] ?? null;
+                /* A token's `movement`, on the model: the move this update carries in `options._movement[id]`, as Foundry
+                   14.370 delivered it to every client (D4, 16.11.2026; docs/dev/e39/CALIBRATION.md section 3, LIVE-E39-01;
+                   lib/shim.mjs `TOKEN MOVEMENT` builds it on the mover); null for an update that moves nothing, which was
+                   not read. Until D4 (E89 C0, 30.10.2026) it was whatever the update's own `movement` option named - on
+                   v14 the mover's request, seen in its `preUpdateToken` alone - and a dragged path was modelled as N
+                   updates; 14.370 sent one route as one update. */
+                if (msg.embeddedName === "Token") doc._drpgMovement = options._movement?.[u._id] ?? null;
                 // An item's own `effects` merge by id, and its collection follows them, as an actor's do (fix r2-H8; cluster.mjs).
                 for (const raw of raws) U.applyDocChanges(msg.embeddedName, raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
@@ -1943,6 +1945,8 @@ function applyRemote(msg) {
                 rebuildEmbedded(doc);
                 const changed = revive(U.expandObject(U.deepClone(changes)));
                 hooks.callAll(`update${msg.embeddedName}`, doc, changed, options, userId);
+                // D4: `moveToken` once on every client for a move, after `updateToken` (the order not read on 14.370).
+                if (msg.embeddedName === "Token" && options._movement?.[u._id]) hooks.callAll("moveToken", doc, options._movement[u._id], options, userId);
                 if (childWas !== null && JSON.stringify(doc._source) !== childWas) renderApps(doc, `update${msg.embeddedName}`, changed, options);
                 handed.push({ _id, ...changed });
             }
