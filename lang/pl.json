@@ -4246,7 +4246,7 @@
         "roomIntro": "Akcje w pokoju {room}. Każda to rzut i kosztuje akcję; po użyciu jest zamknięta dla wszystkich do następnej pory dnia. Wiersz bez nazwy znika.",
         "roomNote": "Zapis od razu zmienia akcje pokoju. Widzi je tylko postać stojąca w pokoju.",
         "projectTitle": "Akcja w pokoju: {project}",
-        "projectIntro": "Co daje {project} po ukończeniu: akcję w pokoju, bez rzutu, raz na postać na porę dnia.",
+        "projectIntro": "Co daje {project} po ukończeniu: akcję w pokoju, bez rzutu, tak często, jak pozwalają jej Użycia.",
         "projectNote": "Czas działania liczony w porach dnia albo dniach biegnie od pory dnia, w której ukończono projekt, a taka akcja znika przy zmianie rozdziału lub sezonu. Akcja na stałe nie kończy się z rozdziałem.",
         "label": "Nazwa",
         "labelPlaceholder": "Zaparz herbatę",

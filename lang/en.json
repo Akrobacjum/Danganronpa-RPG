@@ -3971,7 +3971,7 @@
         "roomIntro": "Actions in {room}. Each is a roll and costs an action; once used, it is closed to everyone until the next time of day. A row with no name is dropped.",
         "roomNote": "Saving writes the room's actions at once. Only a character standing in the room sees them.",
         "projectTitle": "Room action: {project}",
-        "projectIntro": "What {project} gives once complete: a room action, no roll, once per character each time of day.",
+        "projectIntro": "What {project} gives once complete: a room action, no roll, as often as its Uses allow.",
         "projectNote": "A lifetime in times of day or days counts from the time of day the project is completed, and ends at the latest when the chapter or season changes. One for good does not end with the chapter.",
         "label": "Name",
         "labelPlaceholder": "Brew tea",
