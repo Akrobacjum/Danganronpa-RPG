@@ -40,11 +40,11 @@ Counted over the 565 rows of docs/dev/e58/TRIAGE-9.2.md (section 7's 14 and 9.2'
 
 | Result | Rows | Which |
 | --- | --- | --- |
-| measured | 38 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, 477 LIVE-E76-03, 512 LIVE-E39-01) and 22; then S7-4, S7-5, S7-7, 15, 17, 18, 19, 20, 23, 44, 51, 52, 61, 62, 63, 64, 67, 68, 534, 535, 536, 556 (556 its v14 half; the Forge half not checkable); pass 2: S7-1, S7-2, S7-3, S7-8, S7-9 |
+| measured | 43 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, 477 LIVE-E76-03, 512 LIVE-E39-01) and 22; then S7-4, S7-5, S7-7, 15, 17, 18, 19, 20, 23, 44, 51, 52, 61, 62, 63, 64, 67, 68, 534, 535, 536, 556 (556 its v14 half; the Forge half not checkable); pass 2: S7-1, S7-2, S7-3, S7-8, S7-9, 31, 37, 39, 40, 48 |
 | a defect found, open | 1 | 553 (LIVE-E112-01: the veiled killer has no vision of their own on v14) |
 | not checkable at this sandbox | 113 | the 98 the readers marked T less 553 and 556, which were read here (96), and 47 (Setup > Duplicate World) - each needs real people, a real LiveKit, The Forge, a second machine, a real GPU at a table, a phone or the owner's own install; and the 16 marked F, each a fixture world (DRPG_FIXTURES unset on purpose; 537 among them, a world played through a chapter). The T and F reasons are the readers' (TRIAGE-9.2.md), not re-read item by item here |
 | closed by its own text | 8 | S7-14, 21, 41, 213, 448, 449, 450, 451 |
-| left | 405 | everything else: K and S rows not yet driven or shot |
+| left | 400 | everything else: K and S rows not yet driven or shot |
 
 Defects found outside 9.2's rows, each red first and fixed: the tier-2 reader of `game.collections` (step 3, defect 1),
 the four registrations at init (step 3, defect 3), scenario 83's L9 race (step 3, item 4). Found and not fixed: the
@@ -170,9 +170,15 @@ baseline then holding no token flags - put back by hand, the baseline now holds 
 | 47 (E04-07) | not checkable here | a second world and Setup > Duplicate World: the setup screen, which this line does not open |
 | 49 (E04-09) | left | the reset's refusal on an Assistant and a second Gamemaster: a refused reset is safe, an accepted one wipes the sandbox's only world; left for a copy world |
 | 51 (E04-11) | see group 3 | |
-| 31 (E30-06), 35, 37-40 (E31-01, -03..-06), 48 (E04-08) | left | flows not yet driven (17-assistant's B and C on real pages; a GM-side Reroll per action; a GM leaving mid-request; a late planted item; reduced motion; a Polish player's refusal; a GM changing browsers mid-murder). Seen on the way for 48: a fresh GM browser without the seed's storage opened "The case on this browser" ("1 Remnant on the map (of 1) has no answer key on this browser") - the health check's warning, not yet its Restore |
+| 31 (LIVE-E30-06) | measured (pass 2) | scenario 17's B1, C2 and C3 replayed with a scratch Assistant account (role 3, deleted after; the world's GM stayed the primary): B1 - PlayerOne's Hope through Daggerheart's relay (`DhGMUpdate`, Aiko 2 to 1) written once, by the GM, and read 1 on both GMs; C2 - the Assistant's relay request for role 4 left it at 3, the GM's log alone "Refused a Daggerheart "DhGMUpdateDocument" from CALIB Assistant: a change to a User."; C3 - its relay request for a new User made none (5 before and after), the GM's alone "... "DhGMCreate" from CALIB Assistant: a new User." |
+| 37 (LIVE-E31-03) | measured, its first half (pass 2) | PlayerOne's statistic ask (Search, Hand) reached the GM (the card made, acknowledged) and the GM's page closed 2 s later: one notice at 183 s - `TIMING.rulingMs` (180 s) after the ask - "'The GM's pick of a statistic' was not carried out. The GM did not answer in time. You keep your action and your Hope."; the search settled, the action kept. Not read: a GM back before that clock and the ask sent again once with the same id |
+| 39 (LIVE-E31-05) | measured (pass 2) | live.mjs `handOff` on a DialogV2, three times each way: the work ran 14-19 ms after the hand-off with motion on and 16-20 ms with the module's `reducedMotion` on, the window gone each time; the same window closed plainly took 624 ms with motion on and 18 ms with it reduced. The hand-off does not wait for the closing transition |
+| 40 (LIVE-E31-06) | measured (pass 2) | PlayerOne's module language Polish (the GM's English): its `requestGiveItem` of Botan's comb answered `{refused, reason: notYours}`; PlayerOne's toast "Prośba „Przekazanie przedmiotu" nie została wykonana. Dotyczy postaci, którą nie grasz."; the GM's log in English "Refused a "handover.item" request over the socket from PlayerOne: sender does not own the character giving it away." |
+| 48 (LIVE-E04-08) | measured, in part (pass 2) | an incident open (a drawn opening), the GM's browser closed and a fresh one logged in without any of the seed's storage: no "The case on this browser" window - `gmStoreHealth()` missing 0, a row `caseCopy` "11/16/2026, 9:54:43 PM, GM, 1": E111's copy of the case on the server filled the new browser's 67 module stores by itself; the stage `incident` carried. Since E111 the road the item describes (a warning, Restore) is not reached on a browser change. Seen: the new browser's cast differed in one field from the old one's (`deniedToVictim` [] against ["roleReversal"]), consistent with the copy being older than the incident's last writes. Not driven: finishing the incident there. (This morning's warning on a fresh GM was before any copy existed.) |
+| 35 (E31-01), 38 (E31-04) | left | a GM-side Reroll of each listed action; a plant whose answer comes late |
+| 49 (E04-09) | left, waits for the copy world | a refused reset is safe, an accepted one wipes the only world |
 
-Group 2 (26 items): 7 measured (M) + 1 measured, 9 not checkable, 1 closed, 0 defects, 8 left.
+Group 2 (26 rows): 7 measured (M) + 6 measured, 9 not checkable, 1 closed, 0 defects, 3 left.
 
 ### Group 3: items 51-75 (in progress)
 
