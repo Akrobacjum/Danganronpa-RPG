@@ -3,19 +3,19 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.115"
+    "version": "1.2.116"
   },
-  "commit": "5ee88b811e8d3420cad4b5e5358e339a712bc73d",
+  "commit": "dbf5c0dc0589990fc1034f8b7e74be5aba9a3242",
   "bound": {
-    "scripts": "adf203934e4b0dab7d0285b86d3a174c1d2edcf0",
-    "styles": "7bedf34825c66c7d2d7dfca3a27e4fe7ab483b69",
-    "lang": "8ca806f5c3cdf0b2163adf80ca69f8d213b7f684",
+    "scripts": "0556c2c5687a08e7a65cef6494d6e8a419c26786",
+    "styles": "115a4fee41661b443e3bc9a216f1767c66a2beec",
+    "lang": "8d4e5531497ec6c29455008c1690727a41a68e29",
     "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
-    "icons": "3d51eca1a339436f3a118328eb25f1fad5a59a82",
-    "module.json": "cec8bd2e60c0f6014fdc0c1fa0c710869e1f83c3",
+    "icons": "64f9a85e9e41505b75f0c63707660a382b6d1504",
+    "module.json": "e2aeac720147b6d5e99d961977b8068970d4f023",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "4c31bef421cc6337a06a6cd8304dc799aae1b7d9",
-    "audit/live": "0f1efdcbd589f52a69c14c13e91963e632b83146",
+    "audit/live": "9874d52fbe9b7ceb3ed5336bfcf846c7467610e8",
     "audit/harness/lib/seed.mjs": "631648825551c068a82d83f080f6bc78877717e5",
     "audit/harness/scenarios/14-quiet.mjs": "ab210846f646d88f51951f6c65288a16bfb39144",
     "audit/harness/scenarios/60-ledger.mjs": "62ae55bdb85a1708f04045dffa44971cdb1af282",
@@ -23,8 +23,8 @@
     "audit/harness/scenarios/83-roll-integrity.mjs": "b32c1e2b16e578e7fe82189ae4e63be13a3435e6",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-15T04:05:52.348Z",
-  "finishedAt": "2026-11-15T04:05:52.455Z",
+  "startedAt": "2026-11-16T08:19:58.571Z",
+  "finishedAt": "2026-11-16T08:19:58.714Z",
   "host": {
     "node": "v22.22.0",
     "platform": "linux-x64",
@@ -125,6 +125,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:ae9ff48c6e243dd3e7a0467b560603b1b2cdebce89b88d9cdaf67a6658766192",
+  "digest": "sha256:8db5f46f0b488b3ef00a50608a663f761109530566e1cc3bd28013a0f68fc7c3",
   "hmac": null
 }
