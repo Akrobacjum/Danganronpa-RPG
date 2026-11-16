@@ -1,9 +1,13 @@
 /**
  * Build the harness's world in an empty sandbox world (E30, 24.09.2026).
  * ---------------------------------------------------------------------------
- *     DRPG_SANDBOX_WORLD=drpg-gate node audit/live/seed-world.mjs
+ *     DRPG_SANDBOX_WORLD=drpg-gate node audit/live/seed-world.mjs [--settings-only]
  *
- * NEVER RUN against a real Foundry (audit/live/README.md).
+ * First run on Foundry 14.370 on 16.11.2026 (the owner's sandbox, E58 L1); it
+ * created the documents and, as first written, not the seed's world settings
+ * (`world.settings`, the explicit `daggerheart.Automation`). It writes them now,
+ * read back after; `--settings-only` writes them alone, to a world that holds
+ * every seeded Actor and Scene by id (one seeded before this was added).
  *
  * The sandbox scenarios expect the world the headless harness boots
  * (audit/harness/lib/seed.mjs): three players with their characters, Daichi,
@@ -15,6 +19,10 @@
  * It refuses a world that already holds anything but its GM: seeding on top of
  * a real campaign is how a test world and a table's world get mixed, and there
  * is no undo. It also refuses a world whose id does not match /(gate|copy|qa)/i.
+ * "Anything but its GM" leaves out what v14 writes at a world's first login -
+ * the tour, the system's compendium folders, the first-run cards, the settings
+ * (world-empty.mjs, read on 14.370 on 16.11.2026: the first rule refused every
+ * fresh world). The inventory is read in the page and judged here.
  */
 
 import path from "node:path";
@@ -33,15 +41,24 @@ if (!/(gate|copy|qa)/i.test(worldId)) stop(`DRPG_SANDBOX_WORLD "${worldId}" does
 const { world } = await import(url.pathToFileURL(path.join(REPO, "audit", "harness", "lib", "seed.mjs")).href);
 const { chromium } = createRequire(path.join(REPO, "audit", "harness", "package.json"))("playwright");
 const { login } = await import(url.pathToFileURL(path.join(HERE, "foundry.mjs")).href);
+const { readInventory, leftovers } = await import(url.pathToFileURL(path.join(HERE, "world-empty.mjs")).href);
 
 const browser = await chromium.launch();
 try {
     const page = await login(browser, base, gmName);
-    const result = await page.evaluate(async ({ collections, worldId }) => {
+    const active = await page.evaluate(() => game.world.id);
+    if (active !== worldId) stop(`the active world is ${active}, not ${worldId}`);
+    const settingsOnly = process.argv.includes("--settings-only");
+    if (settingsOnly) {
+        const want = ["Actor", "Scene"].flatMap(n => (world.collections[n] ?? []).map(d => [n, d._id]));
+        const lacking = await page.evaluate(want => want.filter(([n, id]) => !game.collections.get(n)?.get(id)).map(([n, id]) => `${n} ${id}`), want);
+        if (lacking.length) stop(`--settings-only wants a world seeded already; it lacks ${lacking.join(", ")}`);
+    } else {
+        const held = leftovers(await page.evaluate(readInventory));
+        if (held.length) stop(`the world is not empty: ${held.join(", ")}`);
+    }
+    const result = settingsOnly ? { made: {} } : await page.evaluate(async ({ collections, worldId }) => {
         if (game.world.id !== worldId) return { refused: `the active world is ${game.world.id}, not ${worldId}` };
-        const held = Object.entries(game.collections ? Object.fromEntries(game.collections.entries()) : {})
-            .map(([name, c]) => [name, name === "User" ? c.size - 1 : c.size]).filter(([, n]) => n > 0);
-        if (held.length) return { refused: `the world is not empty: ${held.map(([n, k]) => `${k} ${n}`).join(", ")}` };
         const made = {};
         for (const [name, docs] of Object.entries(collections)) {
             const wanted = name === "User" ? docs.filter(d => d.role < 4) : docs;
@@ -53,7 +70,18 @@ try {
         return { made };
     }, { collections: world.collections, worldId });
     if (result.refused) stop(result.refused);
-    console.log(`seed-world: created ${Object.entries(result.made).map(([n, k]) => `${k} ${n}`).join(", ")} in ${worldId}`);
+    const settings = await page.evaluate(async entries => {
+        const out = { written: [], differ: [] };
+        for (const [key, value] of Object.entries(entries)) {
+            const [ns, name] = key.split(/\.(.+)/, 2);
+            await game.settings.set(ns, name, value);
+            out.written.push(key);
+            if (JSON.stringify(game.settings.get(ns, name)) !== JSON.stringify(value)) out.differ.push(key);
+        }
+        return out;
+    }, world.settings ?? {});
+    if (settings.differ.length) stop(`settings read back differently: ${settings.differ.join(", ")}`);
+    console.log(`seed-world: created ${Object.entries(result.made).map(([n, k]) => `${k} ${n}`).join(", ") || "no documents"}, wrote ${settings.written.length} setting(s) (${settings.written.join(", ")}) in ${worldId}`);
 } finally {
     await browser.close();
 }

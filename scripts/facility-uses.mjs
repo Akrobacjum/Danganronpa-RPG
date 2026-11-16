@@ -116,10 +116,14 @@ export function useRowOf(key) {
     return (facilityUseCopy.read() ?? {})[key] ?? null;
 }
 
-/** At ready: the copy's listener on every client and an owner's first ask. */
+/** At init (module.mjs): the copy's listener on every client; an owner's first ask at ready. */
 export function registerFacilityUses() {
     game.socket.on(SOCKET_EVENT, onUsesSocket);
-    if (game.user.isGM) return;
-    askForUses();
+    /* A player's first ask, at `ready`: this registers at `init` (module.mjs), where `game.user` is null on Foundry 14.370
+       (read on the owner's sandbox, 16.11.2026, E58 L1) - the ask read `game.user.isGM` here and threw on every browser,
+       so a player's browser never asked for its copy at a load and held none until the next change sent one. */
+    Hooks.once("ready", () => {
+        if (!game.user?.isGM) askForUses();
+    });
     Hooks.on("drpgPrimaryReady", primary => askForUses(primary));
 }
