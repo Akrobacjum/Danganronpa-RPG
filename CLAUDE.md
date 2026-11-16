@@ -106,10 +106,13 @@ checked against each other by the suite and by `node tools/check.mjs parity`,
 and the prose in `config.mjs` by `node tools/check.mjs prose`. A key used with
 `plural()` needs `.one`/`.other` and, in Polish, `.few`/`.many`.
 
-**Delete a key with `forcedDeletion()` or `unsetFlag`.** A `-=key` in an update
-removes nothing in this Foundry (the module's own notes; LIVE-E30-01 is the check
-that confirms it on v14), and R152 fails any update in the module spelt that way;
-the harness reports one as `legacyKeys`. `forcedDeletion()` in `utils.mjs` is
+**Delete a key with `forcedDeletion()` or `unsetFlag`.** On Foundry 14.370 a
+`-=key` in an update does delete, and `==key` replaces, but each writes v14's
+deprecation warning ("no longer supported ... Deprecated since Version 14");
+LIVE-E30-01, read on the owner's sandbox 16.11.2026 on an actor's and a token's
+flags, other fields not read (docs/dev/e39/CALIBRATION.md). The module's older
+notes said it removes nothing; that was not what 14.370 did. R152 still fails any
+update in the module spelt that way, and the harness reports one as `legacyKeys`. `forcedDeletion()` in `utils.mjs` is
 v14's `ForcedDeletion` where it exists (else Daggerheart's `_del`), and null in a
 Foundry with neither, where the caller unsets one flag at a time.
 
