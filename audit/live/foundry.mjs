@@ -56,15 +56,20 @@ async function servedDiff(base, repo) {
  * password field is never touched: an account that needs one stays on /join,
  * and that is `password-required` - after 30 s, so a slow server is not read
  * as one (a user name the form does not list throws, and is `error`).
- * UNMEASURED: the join form's selectors on v14.
+ * Measured on Foundry 14.370 (16.11.2026, the owner's sandbox, E58 L1): /join
+ * holds two forms. `form#join-game-form` has `select[name="userId"]`
+ * (id `join-username`; camel case - the first guess, `userid`, timed out),
+ * `input[name="password"]` and `button[name="join"]`; `form#join-game-setup`
+ * has `adminPassword` and "Return to Setup". Both selectors are scoped to the
+ * join form, so nothing here can reach the setup form.
  */
 export async function login(browser, base, userName) {
     const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
     await context.addInitScript({ path: path.join(HERE, "page-hooks.js") });
     const page = await context.newPage();
     await page.goto(new URL("/join", base).href, { waitUntil: "domcontentloaded" });
-    await page.selectOption('select[name="userid"]', { label: userName });
-    await page.click('button[name="join"]');
+    await page.selectOption('form#join-game-form select[name="userId"]', { label: userName });
+    await page.click('form#join-game-form button[name="join"]');
     await page.waitForURL(u => !u.pathname.startsWith("/join"), { timeout: 30_000 }).catch(() => {});
     if (new URL(page.url()).pathname.startsWith("/join")) {
         const e = new Error(`${userName} stayed on /join: the account needs a password, and the runner never types one`);
