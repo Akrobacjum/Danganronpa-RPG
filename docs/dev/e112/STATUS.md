@@ -193,3 +193,21 @@ left goes with that trial's exit; no repair (read off `stagePlan` and measured o
 false]]), green here; mutants 2/2, and the board's two 2/2.
 
 Full suite at a626ef11 (8 shards, suite-merge.mjs): 3304 passed, 0 failed, 27 skipped, green.
+
+## The veil read from a player's console (16.11.2026)
+
+Asked by the coordinator from the diff at assembly. Measured in scenario 21, phase 'road', on ed57d862 with 79734592: while
+Chie's opening waited, p1 (the victim) and p2 (a bystander) each listed one token carrying `flags.danganronpa-rpg.veiled`
+and one hidden character token, both resolving by actorId to "Chie Mori"; the veil store (`veilStore`, a client setting of
+the GMs') held 0 rows on p1 and p2 and 1 on the GM. A third on the killers' side was not in that scenario; its tokens take
+the same `veilPatch`. Known leak `foundry-veiled-token-actor` (metadata, info, a Foundry limit), beside A113-C5-2's masked
+row. Scenario 21: 18/19 passed, 1 expected red, 0 failed, on both runs - 79734592's message says "19/20 with the store
+check", which is wrong: the second run reworded the store check (adding the GM's row as its control), it did not add one.
+Scenario 72: 162/165, 3 expected red, 0 failed. `npm run quick` green.
+
+Whether the flag must reach players: only the killers' side's browsers need it - voice.mjs `ownVeiled` (the owner's own
+microphone) and visibility.mjs `tokenShownTo`'s veil branch and `show()` (the owner, and a third on the killers' side, see
+the veiled token; everyone else's branch answers "hide", which Foundry's hidden gives already). The hidden flip alone already singles out the
+killer's tokens to a console here (the only hidden character token), so dropping the flag would narrow the reading, not
+close it. A copy of the GMs' veil row sent to the killers' side alone (the way a player holds `mineDeaths`) could carry it;
+not built - the coordinator asked for the option, not a redesign.

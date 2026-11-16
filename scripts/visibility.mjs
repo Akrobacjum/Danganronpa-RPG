@@ -547,7 +547,8 @@ export function tokenShownTo(tokenDoc, viewer) {
     /* THE OPENING'S VEIL (E112, mask-gm.mjs): a killer's token waiting on the opening is Foundry's `hidden` on every
        browser, so Foundry draws it for no player. Its owner sees it - they have to be able to see themselves - and so
        does the killers' side, where the room rule would show it (the accomplice beside the killer); nobody else, whatever
-       the setting. Read off the one flag (`veiled`, which names nobody) and this browser's own copy of the cast, which
+       the setting. Read off the one flag (`veiled`: with the token's actorId a console reads it as the killer's, known leak
+       foundry-veiled-token-actor) and this browser's own copy of the cast, which
        holds the killers for the killers' side alone (incident-store.mjs `castCopyFor`). */
     if (veiledToken(tokenDoc)) {
         if (viewer.owns(tokenDoc)) return "show";
