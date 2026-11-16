@@ -133,6 +133,11 @@ handbook's list of the rows EN/PL in the same order. R3755 and R3756 changed on 
 order. Not changed: docs/handbook-facts.player-handbook.en.json and its brochure twin quote the old line - E57's facts files,
 written by hand and read by no check (`node tools/check.mjs text` green).
 
+**For E57's owner**: docs/handbook-facts.player-handbook.en.json (s4.p34.f2, "line 395") and
+docs/handbook-facts.player-brochure.en.json (s2.r4.f2) quote the Infiltrate rows in their 1.2.115 order; the handbook's
+line reads "Listen first, then Echoes, Tail Someone, Keep Watch, Dash, ..." since 1.2.116 (E112 item 4). Left for the
+facts files' next pass, at the coordinator's word of 15.11.2026.
+
 ## Item 5 - an action that carries through an Eclipse says so
 
 The owner, 15.11.2026: every action used before an Eclipse that keeps working during it says so in its hint, as Keep
@@ -170,3 +175,21 @@ eclipse.mjs `startEclipse` (the Morning Eclipse alone) and clock.mjs `advanceTim
 write. Green: the killer's own picture, the victim alive and counted at both; dead once the death is published.
 Not read on a Spectator's browser (the board is pure over the actors every browser holds). The case summary board
 draws the sentenced's portrait (sequence.mjs), after a verdict that named them; a mask standing then is not read.
+
+## The masks and the Class Trial (16.11.2026)
+
+Read while the re-shard ran, then measured. The case summary board draws no portrait (case-summary.mjs `caseSummaryHtml`
+is text from its payload): ruled out. The verdict's cut-in (sequence.mjs `verdictBoard`) draws the sentenced's portrait:
+a masked killer sentenced there shows an initial, after the card has named them and said guilty - cosmetic, left (the
+coordinator, 15.11.2026). A mask could stand into a Class Trial: entering it moves the phase, not the time of day, and the
+hall's tokens copy the school token's look without its flags (trial-scene.mjs `hallTokenData`), so the killer's hall token
+was "?" in a trial about who the killer is - since 1.2.113. The owner confirmed through the coordinator (15.11): the masks
+end before the Class Trial is entered. clock.mjs `setClock` asks `endMasksBeforeTheBoard` before a write that enters the
+trial (not one the Eclipse's rule refuses); `adoptToken` keeps the row's look for a token that copied a masked one's
+without the flag. Old worlds: the hall's exit (`stagePlan`, `into: false`) removes every hall token the stage made, and
+the next trial makes it again from the school token, whose look the mask's end put back - so a "?" a 1.2.113-1.2.115 trial
+left goes with that trial's exit; no repair (read off `stagePlan` and measured on its plan, not on a staged hall). Tier 2
+"E112 - the masks end before the Class Trial is entered ...": red at a626ef11 ([["?", the prototype's], [true, false,
+false]]), green here; mutants 2/2, and the board's two 2/2.
+
+Full suite at a626ef11 (8 shards, suite-merge.mjs): 3304 passed, 0 failed, 27 skipped, green.

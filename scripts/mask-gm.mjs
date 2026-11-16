@@ -552,6 +552,9 @@ export async function adoptToken(tokenDoc) {
         // Made from a prototype with no picture of its own, a token takes the actor's portrait - the "?" while the mask
         // stands (tier 2 "E112 - a token made while ...", 15.11.2026): it gets the picture the mask kept instead.
         if (look?.src === MASK_IMG) look = { ...look, src: mask.portrait?.proto ?? mask.portrait?.img ?? rows[0]?.look?.src ?? null };
+        // A token that copied a masked token's look without its flag (the trial hall's, trial-scene.mjs `hallTokenData`,
+        // 1.2.113-1.2.115) is not kept as "?": its name, picture and ring are the row's kept look (E112, 16.11.2026).
+        if (look && (look.name === MASK_NAME || look.src === MASK_IMG) && rows[0]?.look) look = { ...rows[0].look };
         if (look) await maskStore.patch(actorId, { tokens: [...rows, { sceneId, tokenId: tokenDoc.id, look }] });
         if (!isMaskedToken(tokenDoc)) await tokenDoc.update(maskPatch()).catch(err => maskFailed(game.actors.get(actorId), err));
         out.masked = true;

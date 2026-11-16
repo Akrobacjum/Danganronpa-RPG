@@ -17703,6 +17703,80 @@ const SCENARIOS = [
         }
     }],
 
+    ["E112 - the masks end before the Class Trial is entered, a token copied from a masked one without its flag is not kept as \"?\", and the hall's own tokens go at the trial's exit", async () => {
+        /*
+         * E112, 16.11.2026; the owner's confirmation through the coordinator of 15.11: the masks end before the Class Trial is
+         * entered. Entering the trial moves the phase and not the time of day, so a mask stood into it, and the hall's
+         * tokens copy the school token's look and not its flags (trial-scene.mjs `hallTokenData`): the killer's hall token
+         * was "?" in a trial about who the killer is. A direct murder on Hope (masked), the incident closed, a token of the
+         * killer made on the scene as the hall makes one - the masked token's look, no flags. Read: whether that token
+         * joined the mask with the row's kept look (`adoptToken`) - after the mask ends it carries the killer's own name and
+         * picture, not "?"; then a mask put up again and the clock written into the Class Trial: whether a mask stands then
+         * and what the killer's token and portrait read. And the hall's exit plan (`stagePlan`, `into: false`): a token the
+         * stage made for a student is removed, so a "?" one a 1.2.113-1.2.115 trial left goes with that trial. Red at
+         * a626ef11: the copy is kept as "?", and the mask stands into the trial.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs"), T = await import("./trial-scene.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const first = game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id))[0];
+        must(first, `${killer.name} has no token - this would measure nothing`);
+        const scene = first.parent;
+        const was = { img: killer._source.img ?? null, proto: killer._source.prototypeToken?.texture?.src ?? null, src: first._source.texture?.src ?? null,
+            phase: getClock()?.phase ?? "dailyLife" };
+        const made = [];
+        const masked = async () => {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+        };
+        const read = {};
+        try {
+            await killer.update({ img: "worlds/suite/e112-trial-portrait.webp", "prototypeToken.texture.src": "worlds/suite/e112-trial-token.webp" });
+            await first.update({ "texture.src": "worlds/suite/e112-trial-first.webp" });
+            const real = [first._source.name, first._source.texture?.src ?? null];
+            await masked();
+            // As the hall copies it: the masked token's look, its flags left behind.
+            const data = first.toObject();
+            delete data._id;
+            data.flags = {};
+            const [copy] = await scene.createEmbeddedDocuments("Token", [data]);
+            made.push(copy?.id);
+            await settle();
+            await K.endMask(killer.id, "suite");
+            await settle();
+            const back = scene.tokens.find(t => t.id === copy?.id);
+            read.copy = [back?._source?.name ?? null, back?._source?.texture?.src ?? null];
+            read.real = real;
+            await masked();
+            await setClock({ phase: "classTrial" });
+            await settle();
+            read.trial = [K.maskStands(killer.id), first._source.name === real[0] && first._source.texture?.src === real[1], killer._source.img !== K.MASK_IMG];
+            await setClock({ phase: was.phase });
+            await settle();
+            const plan = T.stagePlan({ cast: [{ actorId: killer.id, in: true }], tokens: [{ id: "HALLTOKEN0000000", actorId: killer.id, cast: true }],
+                seats: { [killer.id]: { token: "HALLTOKEN0000000" } }, into: false });
+            read.exit = plan.remove;
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (getClock()?.phase !== was.phase) await setClock({ phase: was.phase });
+            const ids = made.filter(id => scene.tokens.some(t => t.id === id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+            const gone = (await import("./utils.mjs")).forcedDeletion();
+            await killer.update(was.proto ? { img: was.img, "prototypeToken.texture.src": was.proto } : { img: was.img, prototypeToken: gone });
+            await first.update({ "texture.src": was.src ?? gone });
+            await settle();
+        }
+        equal(stableJson([read.copy, read.trial, read.exit]), stableJson([read.real, [false, true, true], ["HALLTOKEN0000000"]]),
+            "a token copied from a masked one kept the \"?\", a mask stood into the Class Trial, or the hall's exit kept a token it made "
+            + "(the copy's name and picture after the mask, against the killer's own; in the trial: a mask stands, the token as it was, the portrait not the mask's; the exit's removals)");
+    }],
+
     ["E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly: a success that opens a mask shows the token after the mask, a failure gives it its own hidden back, a trap and a self-inflicted death veil nothing, a row no opening holds is swept, and the lights' rows are taken over or lifted", async () => {
         /*
          * E112 item 1, 15.11.2026; the owner: "gdy morderca rzuca, dopoki nie rzuci otwarcia, jego token powinien byc
