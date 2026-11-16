@@ -11,7 +11,7 @@ goes on; what only the owner can give (a password, eyes on a screen) is written 
 
 1. **E40's season wipe needs a copy world.** The owner makes one with Foundry's Duplicate World (an id with "copy" in it,
    e.g. `drpg-qa-copy`) and launches it; this line then wipes it and reads the result. Default: not run until then.
-2. **CLAUDE.md and .claude/rules/code.md say a `-=key` "removes nothing in this Foundry"** and point at LIVE-E30-01 for
+2. **CLAUDE.md and the code rules file it points to (its "Things that will bite") say a `-=key` "removes nothing in this Foundry"** and point at LIVE-E30-01 for
    the check. On 14.370 it deletes (with v14's deprecation warning). This line does not edit those files; the
    coordinator's. R152 (no `-=` in the module) stands either way. Default: the files unchanged by this line.
 3. **audit/harness/versions.json** holds the table's companion versions (6.2.9, 14.0.2, 0.6.8); the sandbox runs Dice So
