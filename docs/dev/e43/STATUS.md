@@ -47,6 +47,13 @@ across the reset (61's).
 
 E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress. Next stage: none named.
 
+## The line claude/e53-116 (15.11.2026, base e9f4a791, with E53)
+
+| Commit | What | Tests |
+| --- | --- | --- |
+| (E53 C4) | **projectLabel(id, user)**, the plan's goal, on S17-31's base (E93, 1.2.111; E101 R2): projects-secrecy.mjs `nameAs(id, user)` with its pure rule `labelFor`; `shownName` is `nameAs` for this browser's user (every list reads it through `allProjects`), and projects.mjs `projectLabel` with a countdown id and a user answers it. For this browser's own user it answers what `shownName` answered before, on a GM and a player's browser alike. Read on the way: **E43-F11** (FINDINGS), the repair card's readers | R7541 (tier 1) red at e9f4a791 "projects-secrecy.mjs has no labelFor or nameAs", green after; R1106 green |
+| (E43-F11) | a sealed repair's end card names its secret target to each reader as they may read it: readers grouped by `projectLabel(targetId, user)`, one card a group (projects.mjs, the `repairs` completion effect) | 72-canary "a sealed repair's end", red at 2832f8e4 (p2 read the name), green after |
+
 ## Not built, each with its reason
 
 - **The LIVE rows**: written on 14.11.2026 (items 534-536, and LIVE-E40-01 as 537; above).
@@ -74,9 +81,7 @@ E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress
 
 - **S17-31** (a secret project's name and ownership map in Daggerheart's Countdowns; the plan's item 1): fixed on
   the E93 branch (522cd601 and its review commits), shipping in 1.2.111. Not redone here, as the coordinator said. What this line read of it is in FINDINGS.md, "Read, not reproduced here".
-- **projectLabel(id, user)** (the plan's goal: one helper the tray, the token card, windows, chat and pickers read):
-  waits for E93 (1.2.111), whose S17-31 fix decides where a viewer's name of a secret project comes from (the GMs'
-  store on a GM, the sight card on a player). Built on main's `projectLabel(project, {...})` it would be rebuilt.
+- **projectLabel(id, user)**: waited for E93 (1.2.111); built on 15.11.2026 with E53 C4 (above).
 - **LIVE-E43-02** (a bystander's Countdowns on v14 shows no secret project's name): waits for E93 too.
 - **31-fuzz's local layer on the 30099 sandbox (LIVE-E43-01)**: no sandbox here; the fuzz runs in scenario 30, ci layer.
 

@@ -73,7 +73,7 @@ const bandOf = (total, thresholds) => {
     return at;
 };
 
-export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS }) {
+export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, reload }) {
     const imp = file => `await import("${repoUrl}/scripts/${file}")`;
     /* The person at p1's page: each DialogV2 window drawn is pressed 150 ms after it is drawn, by the plan's step for its
        title, else its default button, else its first. `__s99.log` keeps what was pressed. */
@@ -364,10 +364,59 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS }) {
                 return { complete, rows: A.facilitiesRows(a).some(r => r.label === ${J(label)}), drawn: (S.drawn ?? []).some(t => t.includes(${J(label)})) };`, { timeout: 30000 });
             const onGm = await gm.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(label)});`);
             facility.push({ tag, made, seen, onGm, ok: made.stored === label && seen.complete && seen.rows && seen.drawn && onGm });
+            /* AND AFTER THE CHAT IS CLEARED (P1, the owner's report of 15.11.2026 on 1.2.115, "still not shown"): until P1 a
+               secret project's action reached an insider only on a GM's private card (facilities.mjs `toldFacility`), so a
+               chat log the GM cleared between sessions took the row out of the insider's Facilities while the GM's rows still
+               listed it - the class E101 R2 closed for the sight. Read on p1 after every message is deleted, and after a reload
+               of p1's page, which asks the GMs for its sight again. */
+            if (secret) {
+                await gm.eval(`await ChatMessage.deleteDocuments(game.messages.map(m => m.id)); return true;`, { timeout: 30000 });
+                await settle(1500);
+                const read = () => p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(label)});`);
+                const cleared = await read();
+                await reload("p1");
+                await settle(3000);
+                const reloaded = await read();
+                facility.push({ tag: `${tag}, after the chat is cleared`, cleared, reloaded, ok: cleared && reloaded });
+            }
         }
-        check("facilities: a completed project's room action - given in the editor as drawn, completed by p1's Work rolls - is a row of the Facilities window p1 opens in its room and of the GM's rows for her, for a public project and a secret one p1 is in on",
-            facility.length === 2 && facility.every(f => f.ok), J(facility));
+        check("facilities: a completed project's room action - given in the editor as drawn, completed by p1's Work rolls - is a row of the Facilities window p1 opens in its room and of the GM's rows for her, for a public project and a secret one p1 is in on; the secret one's row stays on p1 after the chat is cleared and after p1 reloads",
+            facility.length === 3 && facility.every(f => f.ok), J(facility));
         await gm.eval(`clearInterval(globalThis.__s99gm?.timer); delete globalThis.__s99gm; return true;`).catch(() => null);
+
+        /* A PROJECT ACTION'S USE LIMIT (P2, 15.11.2026; the owner: per character, "none", "timeOfDay", "day", a project with
+           none named reading "timeOfDay"). For each limit a public project in Dorm A, completed, its action costing nothing;
+           p1 uses it once from its own page (`useFacility`, as the window does), then reads its row again, and asks again:
+           under "none" the row stays open and the second use is carried out, under the two others the row is greyed with its
+           reason on p1 (its copy of the GMs' uses, facility-uses.mjs) and the second use refused by the GM. The clock is not
+           moved: "the next time of day" is R7543's, on the pure rule. */
+        phase("facility limits");
+        const limits = [];
+        for (const limit of ["none", "timeOfDay", "day"]) {
+            const label = `E39 99 limit ${limit}`;
+            const id = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
+                const id = (await P.createProject({ name: ${J(label)}, target: 1, room: "Dorm A" }))?.id ?? null;
+                await F.setProjectFacility(id, { label: ${J(label)}, costsAction: false, limit: ${J(limit)} });
+                await P.addProgress(id, 1); return id;`, { timeout: 60000 });
+            await settle(1200);
+            const read = await p1.eval(`const A = ${imp("action-facilities.mjs")}; const a = game.actors.get("${IDS.aiko}");
+                const row = () => A.facilitiesRows(a).find(r => r.label === ${J(label)}) ?? null;
+                const before = row();
+                const first = await A.useFacility(a, ${J("project:")} + ${J(id)});
+                await new Promise(r => setTimeout(r, 1500));
+                const after = row();
+                const second = await A.useFacility(a, ${J("project:")} + ${J(id)});
+                return { before: before ? before.disabled : null, first: Boolean(first?.success), after: after ? [after.disabled, after.why] : null,
+                    second: Boolean(second?.success) };`, { timeout: 60000 });
+            limits.push({ limit, ...read });
+        }
+        const want = {
+            none: { before: false, first: true, after: [false, ""], second: true },
+            timeOfDay: { before: false, first: true, after: [true, "This character used it already this time of day."], second: false },
+            day: { before: false, first: true, after: [true, "This character used it already today."], second: false }
+        };
+        check("facility limits: a project action used once by p1 - under no limit its row stays open and a second use is carried out; under once a time of day and once a day its row is greyed on p1 with its reason and the GM refuses the second",
+            limits.length === 3 && limits.every(r => J({ before: r.before, first: r.first, after: r.after, second: r.second }) === J(want[r.limit])), J(limits));
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), w = globalThis.__s99was ?? {}, { SETTINGS } = ${imp("settings.mjs")};
             for (const i of a.items.filter(i => !(w.items ?? []).includes(i.id))) await i.delete();

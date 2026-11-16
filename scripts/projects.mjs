@@ -51,7 +51,7 @@ import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, toldSight, bothHalves
+    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, nameAs, toldSight, bothHalves
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
@@ -385,7 +385,11 @@ function sightFor(userId, { also = [], held = [] } = {}) {
         const inside = insidersOf(project.id).includes(userId);
         if (!inside && !watching) continue;
         const words = secretsOf(project.id).description;
-        sight[project.id] = { in: inside, name, ...(typeof words === "string" && words ? { description: words } : {}), ...sightExtras(project.id) };
+        /* Its room action, to those in on it (P1, 15.11.2026; the owner's DRPG-D1 "Dostaja"): a GM's private card carried it
+           alone until then, and a chat log cleared took the row out of the insider's Facilities (scenario 99). Not to a
+           Spectator, whom the card never told either. */
+        const facility = inside ? { facility: secretsOf(project.id).facility ?? null } : {};
+        sight[project.id] = { in: inside, name, ...(typeof words === "string" && words ? { description: words } : {}), ...sightExtras(project.id), ...facility };
         stamps[project.id] = now;
     }
     for (const id of [...also, ...held]) if (typeof id === "string" && !(id in stamps)) stamps[id] = now;
@@ -424,6 +428,8 @@ export async function retellSights() {
 async function receiveSight(sight, stamps) {
     const before = projectSightCopy.read() ?? {};
     const mine = {}, own = {};
+    // A row's room action (P1): kept cleaned, or null where the GMs say there is none; no key where they say nothing of it.
+    const { cleanFacility } = await import("./facilities.mjs");
     for (const [id, s] of Object.entries(stamps ?? {})) {
         if (typeof id !== "string" || !rawCountdown(id)) continue;
         own[id] = Number(s) || 0;
@@ -431,7 +437,8 @@ async function receiveSight(sight, stamps) {
         if (!row || typeof row !== "object") continue;
         mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null,
             ...(typeof row.description === "string" ? { description: row.description } : {}), murder: row.murder === true,
-            room: typeof row.room === "string" && row.room ? row.room : null };
+            room: typeof row.room === "string" && row.room ? row.room : null,
+            ...(Object.hasOwn(row, "facility") ? { facility: row.facility ? cleanFacility(row.facility) : null } : {}) };
     }
     const taken = await projectSightCopy.receive(mine, own);
     if (taken) noticeSight(before, projectSightCopy.read() ?? {});
@@ -503,6 +510,8 @@ async function tellFacility(countdownId) {
     if (!posted) return 0;
     for (const id of readers) told[id] = key;
     await projectSecretStore.patch(countdownId, { facilityTold: told }, { whole: true });
+    // And their copy of the sight, which carries the action since P1 (`sightFor`): a card deleted leaves it there.
+    for (const id of readers) await sendSightTo(id);
     return readers.length;
 }
 
@@ -995,9 +1004,10 @@ export const COMPLETION_EFFECTS = [
             const target = countdowns[targetId] ?? null;
             // Its name as the GMs hold it (S17-31: a secret target's countdown carries none).
             const targetName = target ? shownName(targetId, target) || "?" : "?";
-            const content = `<p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${
-                game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(targetName) })
+            const contentFor = named => `<p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${
+                game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(named) })
             }</p>`;
+            const content = contentFor(targetName);
             // A secret project's end goes to whoever can see it, veiled (E06 C10; audit S09-01): announced,
             // it told the table the name of a project the table may not know is there. Either half sealed
             // is enough: a repair made before 1.2.65 is public while its target may be secret, and a target
@@ -1011,7 +1021,20 @@ export const COMPLETION_EFFECTS = [
                 meta: target ? { [targetId]: { frozenBy: null } } : {},
                 remove: true,
                 after: async () => {
-                    await announce(whisper ? { content, veiled: true, whisper } : { content });
+                    /* EACH READER IN THE WORDS THEY MAY READ (E43-F11, 15.11.2026). A sealed repair's readers are not the
+                       target's once a GM shares the repair with another player, or takes one off the target: the one card
+                       named the target by the GMs' name to all of them (72-canary, red at 2832f8e4 on p2). The readers are
+                       grouped by the name each may read (`projectLabel(targetId, user)`: the GMs' for a GM and one in on the
+                       target, the countdown's neutral one for anyone else), one card a group; the GMs read the first. */
+                    const groups = new Map();
+                    for (const id of whisper ?? []) {
+                        const user = game.users.get(id);
+                        const named = !target ? "?" : user ? projectLabel(targetId, user) || "?" : targetName;
+                        if (!groups.has(named)) groups.set(named, []);
+                        groups.get(named).push(id);
+                    }
+                    const posts = whisper ? [...groups].map(([named, ids]) => ({ content: contentFor(named), veiled: true, whisper: ids })) : [{ content }];
+                    for (const post of posts) await announce(post);
                     log(`Repair "${name}" complete and removed; "${targetName}" is workable again.`);
                 }
             };
@@ -2662,9 +2685,15 @@ function scaleFor(target) {
  * `name - current/start, scale · room · stat [- complete]`, the Call picker `name - current/start` and the project
  * manager `current/start`, each by hand. Plain text, for the caller to escape: "Fix the door - 2/4, Everyday ·
  * Kitchen · Hand - complete". `name: false` is the progress alone (the manager's cell); `scale`, `room`, `stat` and
- * `complete` add their parts. R1106 holds the three readers to it.
+ * `complete` add their parts. R1106 holds the three readers to it. `projectLabel(id, user)` (E53 C4) is the other form:
+ * a countdown id, and the name alone as that user may read it (projects-secrecy.mjs `nameAs`; R7541).
  */
-export function projectLabel(project, { name = true, scale = false, room = false, stat = false, complete = false } = {}) {
+export function projectLabel(project, options = {}) {
+    /* `projectLabel(id, user)` (E43's goal, E53 C4): a countdown id and a user name the project as that user may read
+       it (projects-secrecy.mjs `nameAs`), so a GM's card to somebody names it as they may know it; with no user, as
+       this browser's own may. */
+    if (typeof project === "string") return nameAs(project, options?.id ? options : game.user);
+    const { name = true, scale = false, room = false, stat = false, complete = false } = options ?? {};
     if (!project) return "";
     const progress = `${project.current ?? 0}/${project.start ?? 0}`;
     if (!name) return progress;

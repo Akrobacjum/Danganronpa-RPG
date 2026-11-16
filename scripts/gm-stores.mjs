@@ -985,17 +985,31 @@ export const foundDoneStore = defineGmStore({
 /**
  * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3), its 05.11 limits). A row per GM's action of a
  * room, keyed `g:<sceneId>:<room>:<actionId>` - one person per time of day, closed for everyone once anyone used it, a
- * failed roll too - and per completed project's action and character, `p:<projectId>:<actorId>` - once per person per
- * time of day: `{ mark, actorId, userId, at, success }`, `mark` the time of day of the use (facilities.mjs
- * `facilityMark`). Written and read by the primary GM in the use's run (facilities-gm.mjs `handleFacilityUse`); synced so
- * that a GM who becomes the primary judges the next use alike; not backed up, as the rifles are not: a row is worth one
- * time of day, and a restore that lost one gives one use back. Cut by the reset's "actions" group, with the budgets the
- * uses were paid from; a row of another mark counts nothing. No player copy - who used which action where is the GMs'
- * (the public `facilityClosed` names the GM actions closed, no one who closed them) - and no old key.
+ * failed roll too - and per completed project's action and character, `p:<projectId>:<actorId>` - by the project's use
+ * limit since P2 (none, once each time of day, once each day; facilities.mjs `usedUp`): `{ mark, actorId, userId, at,
+ * success }`, `mark` the time of day of the use (facilities.mjs `facilityMark`). Written and read by the primary GM in
+ * the use's run (bridge-runs-acts.mjs `handleFacilityUse`); synced so that a GM who becomes the primary judges the next
+ * use alike; backed up since P2 (it was not until then, as the rifles are not), so a restore keeps who used what. Cut by
+ * the reset's "actions" group, with the budgets the uses were paid from; a row of another mark counts nothing. Since P2
+ * (15.11.2026) a player holds their own characters' rows of project actions (`facilityUseCopy`, below); who used a GM's
+ * action is the GMs' alone (the public `facilityClosed` names the GM actions closed, no one who closed them). No old key.
  */
 export const facilityUseStore = defineGmStore({
     name: "facilityUses", key: SETTINGS.gmFacilityUses,
-    kind: "ledger", resetGroup: "actions", backup: false, sync: true
+    // Backed up since P2 (15.11.2026): a store a player's copy is made of is backed up and its copies told again after a
+    // restore (R182); until P2 it was not, "as the rifles are not", and a restore gave a use back.
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    afterRestore: () => import("./facility-uses.mjs").then(m => m.retellUses())
+});
+
+/**
+ * A PLAYER'S OWN USES OF PROJECT ACTIONS (P2, 15.11.2026; the coordinator's Q12): `{ "p:<projectId>:<actorId>": { mark } }`
+ * for the characters this user owns, as the primary GM sent them (facility-uses.mjs `sendUsesTo`), a stamp per row, taken
+ * by the offers' rule. Read by the Facilities window to grey a used row with its reason; the GM's run stays the judge.
+ */
+export const facilityUseCopy = defineGmCopy({
+    name: "facilityUses", key: SETTINGS.mineFacilityUses, from: "facilityUses", resetGroup: "actions", fallback: {},
+    combine: offersCombine
 });
 
 /**
@@ -1682,6 +1696,18 @@ export const caseTickStore = defineGmStore({
 export const diveSetStore = defineGmStore({
     name: "diveSets", key: SETTINGS.gmDiveSets,
     kind: "ledger", resetGroup: "keyPlan", backup: true, sync: true
+});
+
+/**
+ * THE BALANCE LOG (E53 C3, 15.11.2026; Q-E53-3, the owner: off by default, recording only). A row per drawn action roll,
+ * `r:<rollId>` - `{ kind: "roll", at, chapter, day, timeOfDay, actionKey, trait, total, hope, fear, flat, adv, critical,
+ * withHope, withFear }` (balance-log.mjs `balanceRowOf`) - written by the primary GM while the world switch `balanceLog`
+ * is on, and a GM's note, `n:<id>` - `{ kind: "note", at, chapter, text, by }`. A GM store: no player's browser holds it.
+ * In the case's backup; no reset group: a season's rolls are what sessions 0 compare, so no reset cuts them.
+ */
+export const balanceLogStore = defineGmStore({
+    name: "balanceLog", key: SETTINGS.gmBalanceLog,
+    kind: "ledger", backup: true, sync: true
 });
 
 /**

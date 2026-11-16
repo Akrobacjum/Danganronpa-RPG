@@ -67,6 +67,8 @@ import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 import { box, roleButton, tipText } from "./ui-kit.mjs";
+// The balance log (E53 C3): a drawn roll kept while the world switch is on.
+import { noteBalanceRoll } from "./balance-log.mjs";
 
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
@@ -1756,6 +1758,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         // The GM that drew it: a part that only rides reads a handover off it (`handedOver`, E80 fix r1-G3).
         drawnBy: game.user?.id ?? null
     });
+    // The balance log (E53 C3): the roll as the GMs recorded it, kept only while the world's switch is on.
+    await noteBalanceRoll(rollStore.get(rollId));
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);
     return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, loaded: dieHeld, roll: legal.json } };

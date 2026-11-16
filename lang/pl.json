@@ -322,6 +322,10 @@
         "name": "Statystyki graczy bez zatwierdzania",
         "hint": "Statystykę, którą gracz proponuje do Search albo projektu, moduł zatwierdza bez twojego kliknięcia. Resolve i tak nikogo nie pyta."
       },
+      "balanceLog": {
+        "name": "Dziennik balansu zapisuje rzuty",
+        "hint": "Gdy włączone, każdy rzut akcji, który losujesz za gracza, jest zapisywany do pytań o balans; żadna liczba się nie zmienia. Odczytasz go w konsoli przez game.drpg.balanceReport()."
+      },
       "friskForce": {
         "name": "Frisk: zmuszanie po odmowie",
         "hint": "Po wyłączeniu jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy."
@@ -2158,6 +2162,7 @@
         "facilityUntilTooltip": "Jak długo trwa efekt czasowy; efekt działający od razu pomija to pole",
         "facilityTextTooltip": "Słowa, które wysyła efekt Tekst GM-a, albo nazwa, którą dostaje efekt Experience",
         "facilityLifetimeTooltip": "Na stałe albo na tyle pór dnia lub dni, ile ustawisz obok",
+        "facilityLimitTooltip": "Jak często każda postać może użyć tej akcji: bez limitu, raz o każdej porze dnia albo raz dziennie",
         "facilityRemoveTooltip": "Od razu zabiera temu projektowi akcję w pokoju",
         "diceLookTooltip": "Pokazuje, jak wyglądają kości w tej przeglądarce i czemu gdzie indziej mogą wyglądać inaczej",
         "acceptBribeTooltip": "Przyjmuje ich Hope do sakiewki, jeśli nadal go mają, a twój Hope ma miejsce",
@@ -4209,6 +4214,13 @@
       "traceNote": "Akcja w pokoju: {action}",
       "shieldTook": "Ochrona przed Despair postaci {name} zabrała punkt tego rzutu: nie przybyło Despair.",
       "closed": "Ktoś już tego użył o tej porze dnia.",
+      "usedTimeOfDay": "Ta postać już tego użyła o tej porze dnia.",
+      "usedDay": "Ta postać już tego dziś użyła.",
+      "limitLine": {
+        "none": "bez limitu",
+        "timeOfDay": "raz na postać o każdej porze dnia",
+        "day": "raz na postać każdego dnia"
+      },
       "noActions": "Za mało akcji.",
       "shut": {
         "lockdown": "Lockdown: żadnych akcji w pokojach o tej porze dnia.",
@@ -4249,6 +4261,12 @@
         "costsAction": "Kosztuje akcję",
         "lifetime": "Czas działania",
         "lifetimeN": "Ile",
+        "limit": "Użycia",
+        "limits": {
+          "none": "Bez limitu",
+          "timeOfDay": "Raz o każdej porze dnia",
+          "day": "Raz dziennie"
+        },
         "life": {
           "forever": "Na stałe",
           "timesOfDay": "Pory dnia",
@@ -8974,6 +8992,8 @@
         "closingClaim": "Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów",
         "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz",
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
+        "facilityUses": "Użycia akcji w pokoju: która postać użyła akcji którego projektu i kiedy",
+        "balanceLog": "Dziennik balansu: każdy rzut, który GM-owie losowali, gdy był włączony, i notatki GM-ów",
         "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
       },
       "copy": {

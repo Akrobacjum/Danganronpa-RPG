@@ -322,6 +322,10 @@
         "name": "Players' statistics need no approval",
         "hint": "A player's statistic for a Search or a project goes through without your approval. A Resolve never asks for one."
       },
+      "balanceLog": {
+        "name": "The balance log records the rolls",
+        "hint": "While on, every action roll you draw for a player is kept for balance questions, with no number changed. Read it with game.drpg.balanceReport() in the console."
+      },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",
         "hint": "When off, an open Frisk only asks: a refusal or no answer ends it."
@@ -2068,6 +2072,7 @@
         "facilityUntilTooltip": "How long a timed effect lasts; an effect that acts at once ignores it",
         "facilityTextTooltip": "The words a GM's text effect sends, or the name an Experience effect gives",
         "facilityLifetimeTooltip": "For good, or for the number of times of day or days set beside it",
+        "facilityLimitTooltip": "How often each character may use this action: with no limit, once each time of day, or once each day",
         "facilityRemoveTooltip": "Takes the room action off this project at once",
         "diceLookTooltip": "Shows how the dice look on this browser and why they may look different elsewhere",
         "acceptBribeTooltip": "Takes their Hope into your purse, if they still have it and your Hope has room",
@@ -3936,6 +3941,13 @@
       "traceNote": "Room action: {action}",
       "shieldTook": "{name}'s protection from Despair took this roll's point: no Despair was gained.",
       "closed": "Someone used this already this time of day.",
+      "usedTimeOfDay": "This character used it already this time of day.",
+      "usedDay": "This character used it already today.",
+      "limitLine": {
+        "none": "no limit",
+        "timeOfDay": "once per character each time of day",
+        "day": "once per character each day"
+      },
       "noActions": "Not enough actions.",
       "shut": {
         "lockdown": "Lockdown: no room actions this time of day.",
@@ -3974,6 +3986,12 @@
         "costsAction": "Costs an action",
         "lifetime": "Lifetime",
         "lifetimeN": "How many",
+        "limit": "Uses",
+        "limits": {
+          "none": "No limit",
+          "timeOfDay": "Once each time of day",
+          "day": "Once each day"
+        },
         "life": {
           "forever": "For good",
           "timesOfDay": "Times of day",
@@ -7160,6 +7178,8 @@
         "closingClaim": "Who volunteered for the Closing Argument, and who was drawn, kept by the GMs",
         "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once",
         "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
+        "facilityUses": "Room action uses: which character used which project's room action, and when",
+        "balanceLog": "The balance log: each roll the GMs drew while it was on, and the GMs' notes",
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
       },
       "copy": {

@@ -49,6 +49,8 @@ import { glassOn as motionGlassOn } from "./motion.mjs";
 import { seamWidth } from "./fog.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+// A ring drawn again is timed where it is drawn (E53 C1; perf-timings.mjs): `perf()`'s line for the rings.
+import { sample, now } from "./perf-timings.mjs";
 /* E88 C1: the frame's light drawn once into a texture its frame shape shares, instead of a blur on every frame
    (fog-reveal.mjs "THE SEAMS' LIGHT DRAWN ONCE"). Imported from its family file, as fog.mjs re-exports only
    `seamWidth`; fog-reveal.mjs imports neither ring file back. */
@@ -646,6 +648,7 @@ function ringParts(token) {
  * left a token wearing a ring drawn for what it used to be.
  */
 function paint(token, flags) {
+    let rebuiltAt = null;
     try {
         if (!token?.document) return;
 
@@ -704,6 +707,7 @@ function paint(token, flags) {
 
         const { group, halo, baked, core } = ringParts(token);
         count("remnantRing.rebuilt");
+        rebuiltAt = now();
         group.visible = true;
         group.drpgRingKey = key;
         group.drpgRingLight = glass ? null : "";
@@ -788,6 +792,8 @@ function paint(token, flags) {
         }
     } catch (err) {
         debug("Could not paint a Remnant ring", err);
+    } finally {
+        if (rebuiltAt !== null) sample("remnantRing.rebuilt", now() - rebuiltAt);
     }
 }
 

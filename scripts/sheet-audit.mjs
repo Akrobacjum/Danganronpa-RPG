@@ -151,6 +151,7 @@ import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 import { box, roleButton, tipText } from "./ui-kit.mjs";
 import { readSpectatorsWith } from "./spectator.mjs";
+import { sample, now as timingNow } from "./perf-timings.mjs";
 
 
 /**
@@ -1279,7 +1280,18 @@ export function judgeWrite(kind, doc, changes, userId, options = {}, priors = nu
     const data = kind === "updateActor" || kind.startsWith("delete") ? null : docData(doc);
     const seen = kind === "updateActor" ? seenNow(actor, changes, options, priors)
         : ITEM_WRITES.has(kind) ? { at: Date.now(), item: data } : { at: Date.now(), effect: data };
-    return inOrder(actor.id, () => judgeNow(kind, doc, actor, changes, userId, options, seen));
+    /* The audit's cost on the primary GM, timed (E53 C1; perf-timings.mjs): how long a write waited behind the writes
+       before it on its student (from its hook, `seen.at`), and its judgement from start to verdict - wall time, its own
+       writes and the GM stores' waits inside it, which is what the next write on that student waits behind. */
+    return inOrder(actor.id, async () => {
+        sample("audit.waited", Date.now() - seen.at);
+        const startedAt = timingNow();
+        try {
+            return await judgeNow(kind, doc, actor, changes, userId, options, seen);
+        } finally {
+            sample("audit.judged", timingNow() - startedAt);
+        }
+    });
 }
 
 async function judgeNow(kind, doc, actor, changes, userId, options, seen) {

@@ -2287,6 +2287,11 @@ export const FACILITIES = Object.freeze({
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),
     scopes: Object.freeze(["self", "present", "others"]),
     lifetimes: Object.freeze(["forever", "timesOfDay", "days"]),
+    /* How often each character may use a project's action (P2, 15.11.2026; the owner, through the coordinator): no limit,
+       once each time of day, once each day (the clock's day). A project with none named reads `defaultLimit`, the rule
+       before P2 (bridge-runs-acts.mjs `handleFacilityUse`), and so does a new project's editor. */
+    limits: Object.freeze(["none", "timeOfDay", "day"]),
+    defaultLimit: "timeOfDay",
     maxLifetime: 30,
     trace: Object.freeze({ type: "neutral", visibility: "subtle", faint: true })
 });

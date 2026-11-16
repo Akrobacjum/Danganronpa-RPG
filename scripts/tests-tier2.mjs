@@ -24404,7 +24404,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const added = { drew: newIn("drew"), drawn: newIn("drawn") };
             const trip = added.drew.at(-1) ?? null;
             const text = await game.drpg.perf({ frames: 5 });
-            const gmLine = String(text).match(/^  drawn here, packet in to answer out: (\d+), median/m);
+            // "p50" since E53 C1 (the trip lines read p50 and p95, where they read the median).
+            const gmLine = String(text).match(/^  drawn here, packet in to answer out: (\d+), p50/m);
             read = [added.drew.length, added.drawn.length,
                 typeof trip?.written === "number" && trip.written >= 0 && typeof trip?.answered === "number" && trip.answered >= trip.written,
                 /^Rolls the GM drew/m.test(text), gmLine ? Number(gmLine[1]) === after.drew.length : null,
@@ -55999,6 +56000,26 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 },
                 gone: (report, id) => !S.lockpickStore.has(id),
                 back: id => S.lockpickStore.get(id)?.room === "SUITE backed-up room"
+            },
+            // A project action's use, through its store (P2, 15.11.2026: backed up since, R182): for a project that does not exist,
+            // so no Facilities row reads it.
+            facilityUses: {
+                seed: async () => {
+                    const key = `p:SUITEP2BACKUPPRJ:${holder.id}`;
+                    await S.facilityUseStore.patch(key, { mark: "SUITE.backed.up.use", actorId: holder.id, userId: null, at: 1, success: true });
+                    return key;
+                },
+                gone: (report, key) => !S.facilityUseStore.has(key),
+                back: key => S.facilityUseStore.get(key)?.mark === "SUITE.backed.up.use"
+            },
+            // A balance log's note, through its store (E53 C3): a row no report reads as a roll.
+            balanceLog: {
+                seed: async () => {
+                    await S.balanceLogStore.patch("n:SUITEE53BACKUP00", { kind: "note", at: 1, chapter: 99, text: "SUITE backed-up note", by: null });
+                    return "n:SUITEE53BACKUP00";
+                },
+                gone: (report, key) => !S.balanceLogStore.has(key),
+                back: key => S.balanceLogStore.get(key)?.text === "SUITE backed-up note"
             },
             // A declaration made in the dark, through its store (E05 C3): named for no Eclipse, so no lights judge it.
             pendingMurders: {
@@ -102183,6 +102204,43 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             copies: [null, killer.id], block: [true, true], theirs: "notYours", reveal: "done", back: [true, null, false, false, true],
             again: "refused", timeOfDay: [1, true, null] }),
             "{masked; tokens [name, picture, flag]; kept: the looks in the GMs' store; copies [victim's killerId, killer's]; block [muted, blocked]; theirs; reveal; back [looks as before, row, muted, blocked, victim's copy names the killer]; again; timeOfDay [ended, looks, row]} - the mask");
+    }],
+    ["E53-T1 - the balance log records only while its world switch is on, and on a GM (scripts/balance-log.mjs `noteBalanceRoll`, `balanceNote`, `balanceReport`; E53 C3, Q-E53-3: off by default, recording only)", async () => {
+        /*
+         * E53 C3, 15.11.2026. A drawn roll's record handed to `noteBalanceRoll` as roll-draw.mjs hands it, once with the switch
+         * off (nothing written) and once on (its row, as `balanceRowOf` makes it); a GM's note likewise; the report reads both.
+         * Put back: the switch as it was, the rows written dropped.
+         */
+        needs(env.primaryGm(), "the primary GM keeps the log");
+        const B = await import("./balance-log.mjs");
+        const { balanceLogStore } = await import("./gm-stores.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const was = game.settings.get(MODULE_ID, SETTINGS.balanceLog);
+        const record = { rollId: "E53T1ROLL0000000", actionKey: "search", trait: "eye", total: 15, hope: 8, fear: 5, modifiers: [2],
+            dice: [{ faces: 12 }, { faces: 12 }], isCritical: false, withHope: true, withFear: false, at: Date.now() };
+        const read = {};
+        const written = [];
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.balanceLog, false);
+            read.off = [await B.noteBalanceRoll(record), balanceLogStore.has(`r:${record.rollId}`), await B.balanceNote("E53-T1 off")];
+            await game.settings.set(MODULE_ID, SETTINGS.balanceLog, true);
+            read.on = await B.noteBalanceRoll(record);
+            written.push(`r:${record.rollId}`);
+            const row = balanceLogStore.get(`r:${record.rollId}`);
+            read.row = [row?.kind, row?.actionKey, row?.total, row?.flat, row?.withHope];
+            const note = await B.balanceNote("E53-T1 the Search felt cheap");
+            if (note) written.push(note);
+            read.note = balanceLogStore.get(note ?? "")?.text ?? null;
+            const text = await B.balanceReport();
+            read.report = [/the balance log \(recording\)/.test(text), /Rolls the GMs drew while the log was on: \d+; notes: \d+\./.test(text)];
+        } finally {
+            if (written.length) await balanceLogStore.dropMany(written.filter(k => balanceLogStore.has(k)));
+            await game.settings.set(MODULE_ID, SETTINGS.balanceLog, was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ off: [false, false, null], on: true, row: ["roll", "search", 15, 2, true],
+            note: "E53-T1 the Search felt cheap", report: [true, true] }),
+            "{off: [a roll kept, its row, a note kept]; on: a roll kept; row: [kind, action, total, flat, with Hope]; note: its words; report: [says it records, counts rows and notes]}");
     }],
     ["E43-T1 - the Mask's two cards are veiled with no incident running (scripts/mask-gm.mjs `maskKiller`, `endMask`; E43-F10): with no incident open, the card that hides a killer behind a \"?\" and the card that ends it at a new time of day each go out veiled - their documents name neither the killer as speaker nor the killer's player as the one reader", async () => {
         /*

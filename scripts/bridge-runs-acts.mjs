@@ -29,8 +29,9 @@ import {
 } from "./call-gm.mjs";
 import { SOCKET_EVENT, ACTION_ADVANCEMENT_OFFERS, ACTION_SHARE_BULLET, ACTION_DONE } from "./bridge-wire.mjs";
 import { facilityUseStore } from "./gm-stores.mjs";
-import { facilityMark, facilityCost, facilityShut } from "./facilities.mjs";
+import { facilityMark, facilityCost, facilityShut, usedUp } from "./facilities.mjs";
 import { offerAt, overflowNow, closeForAll, applyEffects, leaveTrace, tellUse } from "./facilities-gm.mjs";
+import { tellUsesOf } from "./facility-uses.mjs";
 
 /*
  * THE RUNS (E31, 25.09.2026). Each handler below is the `run` of one
@@ -119,7 +120,12 @@ export async function handleFacilityUse(payload, sender) {
     await facilityUseStore.whenHydrated();
     return serialWrite(`facility:${offer.key}`, async () => {
         const mark = facilityMark();
-        if (facilityUseStore.get(offer.key)?.mark === mark) return { refused: "that room action has been used already this time of day" };
+        /* A GM's action closes for everyone this time of day; a project's for its character by the project's limit (P2:
+           none, this time of day - the rule before P2 and the default - or today). */
+        const limit = offer.source === "project" ? offer.facility.limit ?? "timeOfDay" : "timeOfDay";
+        if (usedUp(facilityUseStore.get(offer.key), limit)) {
+            return { refused: limit === "day" ? "that room action has been used already today" : "that room action has been used already this time of day" };
+        }
         if (offer.source === "project") {
             const cost = facilityCost("project", offer.facility, toll);
             const { actionsLeft, spendAction } = await import("./actions.mjs");
@@ -129,6 +135,8 @@ export async function handleFacilityUse(payload, sender) {
         }
         const success = offer.source === "project" || Boolean(payload.isCritical) || Number(payload.total) >= offer.action.dc;
         await facilityUseStore.patch(offer.key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success });
+        // Its owners are sent their uses, so their Facilities window greys the row with its reason (P2, facility-uses.mjs).
+        if (offer.source === "project") tellUsesOf(actor);
         if (offer.source === "gm") await closeForAll(offer.key, mark);
         const effects = offer.source === "gm" ? offer.action.effects : offer.facility.effects;
         const lines = success ? await applyEffects(actor, effects, place, sender) : [];

@@ -34,6 +34,8 @@ import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./pas
 import { actsAsMastermind, secretDoorHeldShut } from "./passages-gm.mjs";
 import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { playSfx } from "./sfx.mjs";
+// Each move judged counted (E53 C1, the 11.10 amendment A10; perf-counters.mjs).
+import { count } from "./perf-counters.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
@@ -271,6 +273,7 @@ export function auditRows() {
  * an error row and nothing else.
  */
 export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
+    count("movement.auditMove");
     try {
         const { REVERT, SENT_BACK } = ctx;
         const actor = tokenDoc?.actor ?? null;

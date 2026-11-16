@@ -76,6 +76,12 @@
  *   sfx.played                                                          a sound effect's file handed to the audio layer
  *                                                                       (sfx-play.mjs `fire`, E50 C4: nothing mapped, the
  *                                                                       cooldown, a locked page or Sound at 0 count none)
+ *   noticeHistory.record                                                a notice handed to the history (notice-history.mjs
+ *                                                                       `recordNotice`, E53 C1; the 11.10 amendment A7)
+ *   roomTile.paint                                                      the room tile asked to paint, a paint it kept
+ *                                                                       included (room-tile.mjs `paintRoomTile`, E53 C1; A8)
+ *   movement.auditMove                                                  one move judged by the GM's audit of movement
+ *                                                                       (movement-audit.mjs `auditMove`, E53 C1; A10)
  */
 
 const counts = new Map();

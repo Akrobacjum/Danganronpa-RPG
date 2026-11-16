@@ -1134,4 +1134,32 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     for (const c of [p1, p2]) chatLeft.push(await c.eval(`return game.messages.size;`));
     check("p1 and p2: after the season's reset neither holds a chat message, so no card of the season is left to read",
         chatLeft.every(n => n === 0), JSON.stringify(chatLeft));
+
+    /* A SEALED REPAIR'S END CARD (E43-F11, 15.11.2026). A secret target's repair is sealed to the target's insiders at the
+       sabotage; a GM sharing the repair with another player afterwards makes its readers differ from the target's. The one
+       card the completion posted named the target by the GMs' name to every reader of the repair: measured on p2, given the
+       repair alone, "Repair - finished. Work on <the target's name> can resume." Now each reader is told in the words they
+       may read (projects.mjs `projectLabel(targetId, user)`): p1, in on the target, reads its name; p2 is told the repair
+       is done and reads no name of the target. Read on each browser off the card's words (secret.mjs `wordsOf`). */
+    phase("a sealed repair's end");
+    const REPAIRED = "SUITE 72 lantern plan";
+    const madeF11 = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const t = (await P.createProject({ name: ${JSON.stringify(REPAIRED)}, target: 3, secret: true, viewers: ["${IDS.p1}"] }))?.id ?? null;
+        await new Promise(r => setTimeout(r, 400));
+        const r = (await P.sabotageProject(t, 1))?.repair?.id ?? null;
+        await new Promise(r => setTimeout(r, 400));
+        await P.shareWith(r, "${IDS.p2}");
+        await new Promise(r => setTimeout(r, 400));
+        await P.addProgress(r, 1);
+        return { t, r };`, { timeout: 60000 });
+    await settle(2500);
+    const endWords = c => c.eval(`const S = await import("${repoUrl}/scripts/secret.mjs"); const out = [];
+        for (const m of game.messages.contents) { const w = String(await S.wordsOf(m, 3000)); if (/finished/.test(w)) out.push(w.replace(/<[^>]+>/g, " ")); }
+        return out;`, { timeout: 60000 });
+    const f11 = { made: madeF11, p1: await endWords(p1), p2: await endWords(p2) };
+    check("a sealed repair's end card: p1, in on the secret target, reads the target's name; p2, given the repair alone, is told it is done and reads no name of the target",
+        f11.p1.some(w => w.includes(REPAIRED)) && f11.p2.length > 0 && !f11.p2.some(w => w.includes(REPAIRED)), JSON.stringify(f11));
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        for (const id of [${JSON.stringify(madeF11.r)}, ${JSON.stringify(madeF11.t)}]) if (id) await P.deleteProject(id).catch(() => null);
+        return true;`, { timeout: 60000 }).catch(() => null);
 }

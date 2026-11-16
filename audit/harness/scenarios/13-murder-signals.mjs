@@ -638,7 +638,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             drewOrdered: t.drew.every(x => typeof x.written === "number" && x.written >= 0 && typeof x.answered === "number" && x.answered >= x.written) };`;
     const trips = { victim: await p1.eval(`${TRIPS} return kept;`), killer: await p3.eval(`${TRIPS} return kept;`),
         gm: await gm.eval(`${TRIPS} const text = await game.drpg.perf({ frames: 5 });
-            const line = String(text).match(/^  drawn here, packet in to answer out: (\\d+), median/m);
+            const line = String(text).match(/^  drawn here, packet in to answer out: (\\d+), p50/m);
             return { ...kept, block: /^Rolls the GM drew/m.test(text), counted: line ? Number(line[1]) : null,
                 rollerLine: /^  drawn for this browser, asked to dice shown: none since this browser loaded$/m.test(text) };`, { timeout: 60000 }) };
     check("dice: the victim's Leave a clue and the killer's Strike each passed the round trip's timing points - asked, answered, shown on the roller's browser; in, written, answered on the GM's - and the GM's perf() counts the rolls it drew",

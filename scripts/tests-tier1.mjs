@@ -27582,7 +27582,8 @@ const INVARIANTS = [
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         // 28 of C5 and its reviews, and 14 of E102 C12 that R6353 holds (14.11.2026; the sheet's Bribe Accept and the lair's lock after E54)
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2, "lang/en.json has not the family's 28 keys and C12's 14 under DRPG.Tips.Setup");
+        // + 1 since P2 (15.11.2026): facilityLimitTooltip.
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2 + 1, "lang/en.json has not the family's 28 keys, C12's 14 and P2's 1 under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27757,6 +27758,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Setup.facilityUntilTooltip","facility-editor.mjs","effectFields"],
             ["DRPG.Tips.Setup.facilityTextTooltip","facility-editor.mjs","effectFields"],
             ["DRPG.Tips.Setup.facilityLifetimeTooltip","facility-editor.mjs","projectFacilityBody"],
+            // P2 (15.11.2026): the project action's Uses select.
+            ["DRPG.Tips.Setup.facilityLimitTooltip","facility-editor.mjs","projectFacilityBody"],
             ["DRPG.Tips.Setup.facilityRemoveTooltip","facility-editor.mjs","editProjectFacility"],
             ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"],
             ["DRPG.Tips.Setup.acceptBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
@@ -58505,9 +58508,10 @@ const INVARIANTS = [
                 { kind: "health", n: FACILITIES.effects.health.amount, scope: "present" },
                 { kind: "searchToken", n: 2, scope: "self" }, { kind: "hope", n: 1, scope: "self" }, { kind: "sanity", n: 2, scope: "self" }] },
             noLabel: null, newId: true, dcLow: FACILITIES.dc.min, dcNaN: FACILITIES.defaultDc, many: FACILITIES.maxActions,
-            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime } },
-            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" } },
-            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" } }
+            // P2 (15.11.2026): every cleaned project action carries its use limit, the default where none is named.
+            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime }, limit: "timeOfDay" },
+            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" }, limit: "timeOfDay" },
+            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" }, limit: "timeOfDay" }
         }), "{action: a GM's action cleaned; noLabel; newId; dcLow, dcNaN; many: twelve with ten ids, cut to maxActions; facility: a project's; facilityDefaults; facilityOff} - what a GM typed must be held to FACILITIES' closed list");
     }],
     ["R3751 - a completed project's action lives for its lifetime, counted in times of day from the one it was completed in (scripts/facilities.mjs `facilityOrdinal`, `facilityLive`, `facilityTimesLeft`, `facilityMark`; E93 C1, the owner's audit entry E93 (4)): forever stands, timesOfDay n the time of day of completion and the n - 1 after it, days n for n days of them; none outlives its chapter or its season; the mark of a use is the season, chapter, session, day and time of day, not the phase", async () => {
@@ -58534,7 +58538,7 @@ const INVARIANTS = [
             none: [false, true], left: [2, 1, 0, null, n], mark: [true, true, true, true, true, true]
         }), "{ordinal; two: timesOfDay 2 before, at, after, past; day: days 1 at the last and the first past; ever; chapter: a new chapter, a new season; none: no action, no stamp; left; mark: the phase not in it, then each of season, chapter, session, day, time of day} - a project's action must live its lifetime and no longer");
     }],
-    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and not backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
+    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and, since P2 (15.11.2026), backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
         const S = await import("./gm-stores.mjs");
         const F = await import("./facilities.mjs");
         const { COMPLETION_EFFECTS } = await import("./projects.mjs");
@@ -58554,7 +58558,7 @@ const INVARIANTS = [
             keys: [F.gmActionKey("S1", "Kitchen", "a1"), F.projectActionKey("P1", "A1")]
         };
         equal(stableJson(read), stableJson({
-            store: ["ledger", "actions", true, false], setting: "world", row: [false, true, "completedAt", true],
+            store: ["ledger", "actions", true, true], setting: "world", row: [false, true, "completedAt", true],
             cost: [FACILITIES.gmCost, FACILITIES.gmCost + 1, FACILITIES.projectCost, 0, 1],
             shut: [null, "lockdown", "lockdown", null, "powercut"], keys: ["g:S1:Kitchen:a1", "p:P1:A1"]
         }), "{store: [kind, reset group, synced, backed up]; setting: the closed keys' scope; row: [no action, an action, the crossed patch, the uncrossed stamp null]; cost; shut; keys} - a room action's uses, its closing, its price and its shutting");
@@ -58614,7 +58618,8 @@ const INVARIANTS = [
         equal(stableJson({ ...read, project: read.project && { ...read.project, effects: read.project.effects.map(e => [e.kind, e.n, e.scope]) } }), stableJson({
             tab: "DRPG.Vault.tabFacilities", label: "Facilities", column: true, buttons: true, counts: true, rows: 3,
             room: [["R3754a", "Tea", "head", 14, [["sanity", 2, "present", ""]]], [null, "Radio", "eye", 12, [["text", 1, "self", "A song plays."]]], [null, "", "eye", 12, []]],
-            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 } }
+            // P2: the editor reads back its Uses select, the default for an action that names none.
+            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 }, limit: "timeOfDay" }
         }), `{tab; label; column, buttons, counts on the Facilities tab; rows; room: what the room's editor reads back; project: the project's} - Room Setup's Facilities tab and the two editors (window: ${Boolean(cfg)})`);
     }],
     ["R3755 - the Listen tile is the Infiltrate tile and its rows are one table (scripts/config.mjs `INFILTRATE`, `ACTIONS.listen`; E69 C1, DA27, DA28, DA48, DB40): the key stays `listen`, the label is Infiltrate in English and in Polish, the hint names all seven rows (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, Keep Watch) in both languages, `variants` lists `INFILTRATE`'s rows in order, Tail Someone's unseen roll is on Shadow at 15, and Dash rolls on Leg for 0, 2, 3 or 4 free crossings by band (the owner's of 13.11.2026)", async () => {
@@ -62094,6 +62099,204 @@ const INVARIANTS = [
             counts: /DRPG\.Investigation\.clearPlan\.slots/.test(open) && /DRPG\.Investigation\.clearPlan\.nodes/.test(open) && /DRPG\.Investigation\.clearPlan\.placed/.test(open)
         }), stableJson({ gm: true, drops: true, noTicks: true, button: true, runs: true, defaultChapter: true, destructive: true, counts: true }),
         "{a GM's only, dropped by tombstones on both stores, the ticks untouched, the button, its road, the clock's chapter picked, a destructive yes, the counts named}");
+    }],
+    ["R7540 - perf() prints what the table's own work cost, each line with its count (E53 C1, the plan's item 1): perf-timings.mjs keeps the last fifty of each name, takes p50 and p95 by the nearest rank and keeps no reading that is not a finite non-negative number; `costLines` gives each cost `n, p50, p95, slowest` or \"none since this browser loaded\", and says the audit is not measured off the primary GM; each cost is fed where its work runs (a ring rebuilt on both painters, the fog's repaint past the dissolve's queue, a live region's rebuild, the audit's judgement and its wait, a chat card's paint, the canvas between canvasTearDown and canvasReady with the trial hall told apart); the roll's round trip reads p50 and p95; the room tile, the notice history and the movement audit count their runs", async () => {
+        /*
+         * E53 C1, 15.11.2026. The plan's goal: perf() also measures the rings, the roll round trip (p50, p95), the cost of
+         * E29's audit on the primary GM, canvas.draw entering and leaving the trial room, the card render, the dashboard
+         * rebuild and the fog; the 11.10 amendment adds counters for the notice history, the room tile and `auditMove`.
+         * Red before C1: no perf-timings.mjs, no `costLines`, the trip line read "median" and "slowest" only.
+         * The numbers are never asserted (jsdom's clock): what is held is how a line is taken and that each cost is fed.
+         */
+        let T = null;
+        try { T = await import("./perf-timings.mjs"); } catch { T = null; }
+        must(T, "scripts/perf-timings.mjs does not load");
+        const D = await import("./diagnostics.mjs");
+        const name = "r7405.probe";
+        for (let i = 1; i <= 60; i++) T.sample(name, i);
+        T.sample(name, Number.NaN); T.sample(name, -1); T.sample(name, Infinity); T.sample(name, "x");
+        const five = "r7405.five";
+        for (const v of [5, 1, 4, 2, 3]) T.sample(five, v);
+        // A name fed only junk keeps nothing (mutant M5 of C1: with 1..60 a kept -1 left p50, p95 and the slowest as they were).
+        const junk = "r7405.junk";
+        for (const v of [-1, -0.5, Number.NaN, Infinity, "x"]) T.sample(junk, v);
+        equal(stableJson([T.KEPT, T.stats(name), T.stats(five), T.stats("r7405.never"), T.stats(junk)]),
+            stableJson([50, { n: 50, p50: 35, p95: 58, max: 60 }, { n: 5, p50: 3, p95: 5, max: 5 }, { n: 0 }, { n: 0 }]),
+            "perf-timings [kept | 1..60 after junk: the newest fifty, p50 and p95 by nearest rank | five readings | a name never fed | a name fed only junk]");
+
+        must(typeof D.costLines === "function", "diagnostics.mjs exports no costLines");
+        const fed = { "ownRing.rebuilt": { n: 3, p50: 1.234, p95: 2, max: 2 }, "audit.judged": { n: 1, p50: 7, p95: 7, max: 7 } };
+        const onPrimary = D.costLines({ read: n => fed[n] ?? { n: 0 }, primary: true });
+        const offPrimary = D.costLines({ read: n => fed[n] ?? { n: 0 }, primary: false });
+        const labelled = (lines, bit) => lines.find(l => l.includes(bit)) ?? null;
+        equal(stableJson([
+            onPrimary.length, offPrimary.length,
+            labelled(onPrimary, "a student's ring drawn again"),
+            labelled(onPrimary, "a Remnant's ring drawn again"),
+            labelled(onPrimary, "judged by the GMs' audit"),
+            labelled(onPrimary, "waiting for its judgement"),
+            labelled(offPrimary, "audit of a sheet write"),
+            ["the fog repainted", "the case dashboard rebuilt", "a chat card painted", "the canvas drawn, any scene",
+                "entering the trial hall", "leaving the trial hall"].map(bit => /none since this browser loaded$/.test(labelled(onPrimary, bit) ?? ""))
+        ]), stableJson([10, 9,
+            "  a student's ring drawn again: 3, p50    1.23 ms, p95       2 ms, slowest       2 ms",
+            "  a Remnant's ring drawn again: none since this browser loaded",
+            "  a sheet write judged by the GMs' audit: 1, p50       7 ms, p95       7 ms, slowest       7 ms",
+            "  a sheet write waiting for its judgement: none since this browser loaded",
+            "  the GMs' audit of a sheet write: not measured here - it runs on the primary GM's browser",
+            [true, true, true, true, true, true]
+        ]), "costLines [lines on the primary | off it | a fed ring | an unfed ring | the audit fed | its wait unfed | off the primary | the other six unfed]");
+
+        const src = new Map(await moduleSources());
+        const read = file => { const text = src.get(file); must(text, `${file} was not read`); return text; };
+        const diag = read("diagnostics.mjs");
+        const perf = fnSource(diag, "perfReport");
+        const canvasHooks = fnSource(diag, "registerCanvasTimings");
+        const paintOf = file => fnSource(read(file), "paint");
+        equal(stableJson({
+            perfReadsCosts: /costLines\(\)/.test(perf),
+            tripP50P95: /p50 \$\{/.test(perf) && /p95 \$\{/.test(perf) && !/median \$\{/.test(perf),
+            ownRing: /rebuiltAt = now\(\)/.test(paintOf("own-ring.mjs")) && /sample\("ownRing\.rebuilt"/.test(paintOf("own-ring.mjs")),
+            remnantRing: /rebuiltAt = now\(\)/.test(paintOf("remnant-ring.mjs")) && /sample\("remnantRing\.rebuilt"/.test(paintOf("remnant-ring.mjs")),
+            fogAfterQueue: /queueBehindDissolve\(\)\) return false;\s*startedAt = clockNow\(\);/.test(fnSource(read("fog.mjs"), "repaintFog"))
+                && /sample\("fog\.repaint"/.test(fnSource(read("fog.mjs"), "repaintFog")),
+            live: /sample\(`live\.\$\{region\}`/.test(fnSource(read("live.mjs"), "keepLive")),
+            audit: /sample\("audit\.waited", Date\.now\(\) - seen\.at\)/.test(fnSource(read("sheet-audit.mjs"), "judgeWrite"))
+                && /sample\("audit\.judged"/.test(fnSource(read("sheet-audit.mjs"), "judgeWrite")),
+            card: /sample\("chatCard\.paint"/.test(fnSource(read("private-rolls.mjs"), "paintChatCard")),
+            canvas: /Hooks\.on\("canvasTearDown"/.test(canvasHooks) && /Hooks\.on\("canvasReady"/.test(canvasHooks)
+                && /sample\("canvas\.draw\.trial"/.test(canvasHooks) && /sample\("canvas\.draw\.leaveTrial"/.test(canvasHooks),
+            registered: /safely\("the canvas's timing", registerCanvasTimings\)/.test(read("module.mjs")),
+            roomTile: /count\("roomTile\.paint"\)/.test(fnSource(read("room-tile.mjs"), "paintRoomTile")),
+            notices: /count\("noticeHistory\.record"\)/.test(read("notice-history.mjs")),
+            auditMove: /count\("movement\.auditMove"\)/.test(fnSource(read("movement-audit.mjs"), "auditMove"))
+        }), stableJson({ perfReadsCosts: true, tripP50P95: true, ownRing: true, remnantRing: true, fogAfterQueue: true, live: true,
+            audit: true, card: true, canvas: true, registered: true, roomTile: true, notices: true, auditMove: true }),
+            "each cost fed where its work runs, and perf() reads them");
+        // Only the test's own names are forgotten: a GM's runTests() at a table keeps the table's readings.
+        T.forget(name); T.forget(five); T.forget(junk);
+        equal(stableJson([T.stats(name).n, T.names().includes(five)]), stableJson([0, false]), "perf-timings forgets a name it was told to");
+    }],
+    ["R7541 - a project's name as one user may read it (E43's `projectLabel(id, user)`, E53 C4): projects-secrecy.mjs `labelFor` gives a public project's name to anyone, a secret one's GMs' name to a user who may see it and the countdown's neutral name to anyone else, and on a player's browser names no other user's secret project; `nameAs` asks it with the GMs' rule on a GM (`canSee`) and the user's own sight on a player's; `shownName` is `nameAs` for this browser's user, and projects.mjs `projectLabel` with a countdown id and a user answers `nameAs`", async () => {
+        /*
+         * E53 C4, 15.11.2026; E43's plan goal ("one helper projectLabel(id, user) is read by the tray, the token card,
+         * windows, chat and pickers"), which waited for S17-31 (docs/dev/e43/STATUS.md). Every list already reads
+         * `shownName` through `allProjects`; this holds the rule for any user, and the routing.
+         * Red before C4: no `labelFor` or `nameAs`; projectLabel of a string read `.current` of a string ("undefined").
+         */
+        const S = await import("./projects-secrecy.mjs");
+        const P = await import("./projects.mjs");
+        must(typeof S.labelFor === "function" && typeof S.nameAs === "function", "projects-secrecy.mjs has no labelFor or nameAs");
+        const L = facts => S.labelFor({ name: "???", secretName: "Poison the tea", ...facts });
+        equal(stableJson([
+            S.labelFor({ name: "Fix the door", secret: false, onGm: false, self: false }),
+            L({ secret: true, onGm: true, self: true, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: false }),
+            L({ secret: true, onGm: false, self: true, sees: true }),
+            L({ secret: true, onGm: false, self: true, sees: false }),
+            L({ secret: true, onGm: false, self: false, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: true, secretName: null })
+        ]), stableJson(["Fix the door", "Poison the tea", "Poison the tea", "???", "Poison the tea", "???", "???", "???"]),
+            "labelFor [public | GM itself | a GM asking for one who sees it | for one who does not | a player in on it | a player not | a player asked about another | no name held]");
+
+        const src = new Map(await moduleSources());
+        const sec = src.get("projects-secrecy.mjs"), proj = src.get("projects.mjs");
+        must(sec && proj, "projects-secrecy.mjs or projects.mjs was not read");
+        const nameAs = fnSource(sec, "nameAs"), shown = fnSource(sec, "shownName"), label = fnSource(proj, "projectLabel");
+        equal(stableJson({
+            shownIsNameAs: /return nameAs\(countdownId, game\.user, countdown\);/.test(shown),
+            gmRule: /onGm \? canSee\(countdownId, user\)/.test(nameAs),
+            ownSight: /self \? Boolean\(toldSight\(countdownId\)\?\.name\)/.test(nameAs),
+            gmName: /onGm \? secretsOf\(countdownId\)\.secretName/.test(nameAs),
+            labelById: /if \(typeof project === "string"\) return nameAs\(project, options\?\.id \? options : game\.user\);/.test(label)
+        }), stableJson({ shownIsNameAs: true, gmRule: true, ownSight: true, gmName: true, labelById: true }),
+            "the routing [shownName is nameAs for this user | the GMs' rule on a GM | the own sight on a player | the GMs' name on a GM | projectLabel by id]");
+        // A countdown id no project holds: the empty name, for this browser's user and for another alike.
+        const other = game.users.find(u => u.id !== game.user.id) ?? null;
+        equal(stableJson([P.projectLabel("R7541NOPROJECT00"), P.projectLabel("R7541NOPROJECT00", other)]), stableJson(["", ""]),
+            "projectLabel of an id no project holds [this user | another]");
+    }],
+    ["R7542 - the balance log counts what the dice should give exactly and reads its rows against it (E53 C3; Q-E53-3, the owner 15.11.2026: off by default, recording only): balance-log.mjs `exactCount` over the 144 throws of 2d12 gives E64's own counts (a first band at 11: 104, at 12: 94), a critical whatever the total, Hope and Fear 66 each and 12 criticals, and an advantage die's faces and sign; `balanceRowOf` keeps a drawn roll's action, statistic, dice, flat modifiers and advantage; `balanceLines` reads an action under 20 rolls as too few and one over against the exact count; the world switch is off by default, the store is backed up and in no reset group, and roll-draw.mjs keeps each drawn roll through `noteBalanceRoll` after its record", async () => {
+        /*
+         * E53 C3, 15.11.2026. Red before C3: no balance-log.mjs. Pure readings and the routing; the writes are tier 2's
+         * ("E53-T1 ...").
+         */
+        let B = null;
+        try { B = await import("./balance-log.mjs"); } catch { B = null; }
+        must(B, "scripts/balance-log.mjs does not load");
+        const at = t => B.exactCount({ threshold: t });
+        const adv = B.exactCount({ adv: { faces: 6, sign: 1 }, threshold: 14 });
+        const dis = B.exactCount({ adv: { faces: 6, sign: -1 }, threshold: 14 });
+        equal(stableJson([at(11), at(12).hit, at(25).hit, B.exactCount({}).hit, [adv.throws, adv.hit, dis.hit]]),
+            // The advantage pair counted apart, in Python, over the 864 throws (15.11.2026): 640 and 248.
+            stableJson([{ throws: 144, hit: 104, critical: 12, hope: 66, fear: 66 }, 94, 12, null, [864, 640, 248]]),
+            "exactCount [at 11 | hit at 12 | at 25: the criticals alone | no threshold | advantage and disadvantage d6 at 14]");
+
+        const row = B.balanceRowOf({ rollId: "x", actionKey: "search", trait: "eye", total: 19, hope: 7, fear: 5, modifiers: [2, 1],
+            dice: [{ faces: 12 }, { faces: 12 }, { faces: 6 }], isCritical: false, withHope: true, withFear: false, at: 5 },
+            { chapter: 2, day: 3, timeOfDay: "noon" });
+        equal(stableJson(row), stableJson({ kind: "roll", at: 5, chapter: 2, day: 3, timeOfDay: "noon", actionKey: "search", trait: "eye",
+            total: 19, hope: 7, fear: 5, flat: 3, adv: { faces: 6, sign: 1 }, critical: false, withHope: true, withFear: false }),
+            "balanceRowOf keeps a drawn roll's facts, the advantage die read off the total");
+
+        const few = Array.from({ length: 3 }, () => ({ kind: "roll", actionKey: "search", total: 20, flat: 0, adv: null, withHope: true }));
+        const many = Array.from({ length: 20 }, (_, i) => ({ kind: "roll", actionKey: "listen", total: i < 10 ? 30 : 2, flat: 0, adv: null,
+            critical: false, withHope: i % 2 === 0, withFear: i % 2 === 1 }));
+        const lines = B.balanceLines([...few, ...many, { kind: "note", text: "x" }]);
+        const t = B.thresholdOf("listen");
+        const want = B.exactCount({ threshold: t });
+        equal(stableJson([lines[0], lines.find(l => l.startsWith("  search:")),
+            lines.find(l => l.startsWith("  listen:"))?.includes(`landed 10 (50.0%) at ${t} or a critical, against ${(Math.round(want.hit / want.throws * 1000) / 10).toFixed(1)}% by the exact count`),
+            lines.find(l => l.startsWith("  listen:"))?.includes("Hope 10, Fear 10, critical 0 (exact count: 45.8%, 45.8%, 8.3%)"),
+            Number.isFinite(t)]), stableJson(["Rolls the GMs drew while the log was on: 23; notes: 1.",
+            "  search: 3 roll(s) - too few to read (fewer than 20)", true, true, true]),
+            "balanceLines [the head | an action under the floor | one over, its hits against the exact count | its Hope, Fear and critical | Listen has a first band]");
+
+        const src = new Map(await moduleSources());
+        const draw = src.get("roll-draw.mjs"), set = src.get("settings.mjs");
+        must(draw && set, "roll-draw.mjs or settings.mjs was not read");
+        const { balanceLogStore } = await import("./gm-stores.mjs");
+        equal(stableJson({
+            afterRecord: /drawnBy: game\.user\?\.id \?\? null\n {4}\}\);\n(?: {4}\/\/[^\n]*\n)? {4}await noteBalanceRoll\(rollStore\.get\(rollId\)\);/.test(draw),
+            offByDefault: /register\(MODULE_ID, SETTINGS\.balanceLog, \{[^}]*type: Boolean,\s*default: false/.test(set),
+            store: [balanceLogStore.spec.backup, balanceLogStore.spec.resetGroup ?? null, balanceLogStore.spec.sync]
+        }), stableJson({ afterRecord: true, offByDefault: true, store: [true, null, true] }),
+            "the routing [noteBalanceRoll right after the drawn roll's record | the switch off by default | the store backed up, in no reset group, synced]");
+    }],
+    ["R7543 - a project action's use limit (P2, the owner 15.11.2026: per character; no limit, once each time of day, once each day; none named reads once each time of day): config.mjs FACILITIES.limits and defaultLimit; facilities.mjs `cleanFacility` keeps a known limit and gives the default otherwise; `usedUp` never for \"none\", the same time of day for \"timeOfDay\", the same day at any time of day for \"day\", and a use of another day, chapter, session or season never; the GM's run judges a project's use by its limit and refuses \"today\" under \"day\", and the Facilities rows grey a used one by the same rule", async () => {
+        /*
+         * P2, 15.11.2026. Red before P2: no FACILITIES.limits, no `usedUp`, cleanFacility kept no limit. The use itself and
+         * the greyed row on a player's page are scenario 99's ("facility limits").
+         */
+        const { FACILITIES } = await import("./config.mjs");
+        const F = await import("./facilities.mjs");
+        must(typeof F.usedUp === "function" && Array.isArray(FACILITIES.limits), "no use limit: FACILITIES.limits or facilities.mjs usedUp is missing");
+        const clock = { seasonStartedAt: 5, chapter: 2, session: 3, day: 4, timeOfDay: "morning" };
+        const at = patch => F.facilityMark({ ...clock, ...patch });
+        const row = { mark: F.facilityMark(clock) };
+        const noon = { ...clock, timeOfDay: "noon" };
+        equal(stableJson([
+            [...FACILITIES.limits], FACILITIES.defaultLimit,
+            F.cleanFacility({ label: "x" }).limit, F.cleanFacility({ label: "x", limit: "day" }).limit, F.cleanFacility({ label: "x", limit: "weekly" }).limit,
+            ["none", "timeOfDay", "day"].map(l => F.usedUp(row, l, clock)),
+            ["none", "timeOfDay", "day"].map(l => F.usedUp(row, l, noon)),
+            [{ day: 5 }, { chapter: 3 }, { session: 4 }, { seasonStartedAt: 6 }].map(p => F.usedUp({ mark: at(p) }, "day", clock)),
+            [F.usedUp(null, "day", clock), F.usedUp({}, "timeOfDay", clock), F.usedUp(row, undefined, clock)]
+        ]), stableJson([["none", "timeOfDay", "day"], "timeOfDay", "timeOfDay", "day", "timeOfDay",
+            [false, true, true], [false, false, true], [false, false, false, false], [false, false, true]]),
+            "[the limits | the default | cleanFacility: none named, day, an unknown one | used now under each | at the next time of day | another day, chapter, session, season under day | no row, no mark, no limit named]");
+        const src = new Map(await moduleSources());
+        const run = fnSource(src.get("bridge-runs-acts.mjs") ?? "", "handleFacilityUse");
+        const rows = fnSource(src.get("action-facilities.mjs") ?? "", "facilityRows");
+        must(run && rows, "handleFacilityUse or facilityRows was not read");
+        equal(stableJson({
+            judged: /const limit = offer\.source === "project" \? offer\.facility\.limit \?\? "timeOfDay" : "timeOfDay";/.test(run) && /if \(usedUp\(facilityUseStore\.get\(offer\.key\), limit\)\)/.test(run),
+            today: /limit === "day" \? "that room action has been used already today"/.test(run),
+            told: /if \(offer\.source === "project"\) tellUsesOf\(actor\);/.test(run),
+            greyed: /usedUp\(useRowOf\(projectActionKey\(project\.id, actor\.id\)\), facility\.limit\)/.test(rows)
+        }), stableJson({ judged: true, today: true, told: true, greyed: true }),
+            "the routing [the GM judges by the project's limit | refuses 'today' under day | tells the owners their uses | the rows grey by the same rule]");
     }],
 ];
 

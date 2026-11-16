@@ -27,6 +27,7 @@ import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
+import { sample, now as timingNow, stats as timingStats } from "./perf-timings.mjs";
 
 
 /**
@@ -1640,6 +1641,73 @@ export async function whySlow({ seconds = 15 } = {}) {
     return report;
 }
 
+/** The value at the nearest rank p of sorted readings `v` (perf-timings.mjs `stats` takes its percentiles the same way). */
+function rankOf(v, p) {
+    return v.length ? v[Math.min(v.length, Math.max(1, Math.ceil(p * v.length))) - 1] : undefined;
+}
+
+/**
+ * `perf()`'s lines for the costs perf-timings.mjs keeps (E53 C1): one a cost, `label: n, p50, p95, slowest`, or what was
+ * not measured and why. `read` and `primary` are handed in by the suite; the table's are perf-timings.mjs and
+ * utils.mjs `isPrimaryGm`.
+ */
+export function costLines({ read = timingStats, primary = isPrimaryGm() } = {}) {
+    const round = n => Math.round(n * 100) / 100;
+    const line = (label, name) => {
+        const s = read(name);
+        if (!s?.n) return `  ${label}: none since this browser loaded`;
+        return `  ${label}: ${s.n}, p50 ${String(round(s.p50)).padStart(7)} ms, p95 ${String(round(s.p95)).padStart(7)} ms,`
+            + ` slowest ${String(round(s.max)).padStart(7)} ms`;
+    };
+    const out = [
+        line("a student's ring drawn again", "ownRing.rebuilt"),
+        line("a Remnant's ring drawn again", "remnantRing.rebuilt"),
+        line("the fog repainted", "fog.repaint"),
+        line("the case dashboard rebuilt in place", "live..drpg-case-live"),
+        line("a chat card painted (the module's pass, not Foundry's render)", "chatCard.paint"),
+        line("the canvas drawn, any scene", "canvas.draw"),
+        line("the canvas drawn entering the trial hall", "canvas.draw.trial"),
+        line("the canvas drawn leaving the trial hall", "canvas.draw.leaveTrial")
+    ];
+    if (primary) {
+        out.push(line("a sheet write judged by the GMs' audit", "audit.judged"));
+        out.push(line("a sheet write waiting for its judgement", "audit.waited"));
+    } else {
+        out.push("  the GMs' audit of a sheet write: not measured here - it runs on the primary GM's browser");
+    }
+    return out;
+}
+
+/**
+ * THE CANVAS DRAWN, TIMED (E53 C1; perf-timings.mjs). E53's goal names `canvas.draw` entering and leaving the trial room
+ * on the largest isometric map: a scene change the whole table pays at once. Timed from Foundry's `canvasTearDown` - the
+ * scene left taken down, the start of a switch - to its `canvasReady` on this browser, as the table changes scene; the
+ * first draw after a load has no teardown and is not timed, and nothing is drawn for the report. Filed under
+ * `canvas.draw`, and also under `canvas.draw.trial` when the scene drawn is the linked trial hall (rooms.mjs
+ * `isTrialScene`) and under `canvas.draw.leaveTrial` when the scene before it was. module.mjs registers it.
+ */
+export function registerCanvasTimings() {
+    let startedAt = null;
+    let wasTrial = false;
+    let isTrial = () => false;
+    import("./rooms.mjs").then(m => { isTrial = scene => m.isTrialScene(scene); })
+        .catch(err => debug("perf: the trial hall cannot be told apart, so canvas.draw.trial stays empty", err));
+    Hooks.on("canvasTearDown", () => { startedAt = timingNow(); });
+    Hooks.on("canvasReady", canvasDrawn);
+    function canvasDrawn(board) {
+        const scene = board?.scene ?? globalThis.canvas?.scene ?? null;
+        const trial = Boolean(scene && isTrial(scene));
+        if (startedAt !== null) {
+            const ms = timingNow() - startedAt;
+            sample("canvas.draw", ms);
+            if (trial) sample("canvas.draw.trial", ms);
+            if (wasTrial && !trial) sample("canvas.draw.leaveTrial", ms);
+        }
+        startedAt = null;
+        wasTrial = trial;
+    }
+}
+
 /**
  * The browser's beat in ms a frame, over `frames` frames after `warmup` frames that are not timed.
  *
@@ -1818,15 +1886,17 @@ export async function perfReport({ frames = 60 } = {}) {
     try {
         const { drawTimings } = await import("./roll-draw.mjs");
         const { drew, drawn } = drawTimings();
+        /* p50 and p95 by the nearest rank since E53 C1 (the plan's "p50, p95"), as perf-timings.mjs `stats` takes them:
+           the median of an even count is the lower middle reading, as it was, and p95 of fewer than twenty is the slowest. */
         const stats = (list, key) => {
             const v = list.map(trip => Number(trip[key]) || 0).sort((a, b) => a - b);
-            return { n: v.length, median: v[Math.floor(v.length / 2)], slowest: v[v.length - 1] };
+            return { n: v.length, p50: rankOf(v, 0.5), p95: rankOf(v, 0.95), slowest: v[v.length - 1] };
         };
         const tripLine = (label, list, whole, step, stepName) => {
             if (!list.length) return `  ${label}: none since this browser loaded`;
             const w = stats(list, whole), s = stats(list, step);
-            return `  ${label}: ${w.n}, median ${String(round(w.median)).padStart(7)} ms, slowest ${String(round(w.slowest)).padStart(7)} ms`
-                + ` (${stepName} at median ${round(s.median)} ms)`;
+            return `  ${label}: ${w.n}, p50 ${String(round(w.p50)).padStart(7)} ms, p95 ${String(round(w.p95)).padStart(7)} ms,`
+                + ` slowest ${String(round(w.slowest)).padStart(7)} ms (${stepName} at p50 ${round(s.p50)} ms)`;
         };
         lines.push(tripLine("drawn here, packet in to answer out", drew, "answered", "written", "the message written"));
         lines.push(tripLine("drawn for this browser, asked to dice shown", drawn, "shown", "answered", "the answer in"));
@@ -1835,6 +1905,16 @@ export async function perfReport({ frames = 60 } = {}) {
     } catch (err) {
         lines.push(`  (could not read them: ${err?.message ?? err})`);
     }
+
+    /* WHAT THE TABLE'S OWN WORK COST HERE (E53 C1, 15.11.2026; the plan's item 1). The rings drawn again, the fog
+       repainted, the case dashboard rebuilt, a chat card painted, the primary GM's audit of a sheet write and the canvas
+       drawn on a scene change, each as perf-timings.mjs kept it where the work ran: the last fifty of each since this
+       browser loaded, nothing made to happen for the report. Each line says how many readings it rests on; "none"
+       means the table has not done that thing on this browser yet, and a line says when this browser is not where the
+       work runs. The numbers headless are jsdom's (audit/perf-baseline.json `headless.verdict`). */
+    lines.push("");
+    lines.push("What the table's own work cost on this browser (the last fifty of each, since it loaded):");
+    for (const line of costLines()) lines.push(line);
 
     lines.push("");
     lines.push("A frame budget is 16.7 ms at 60 Hz. Anything the theme costs is spent");

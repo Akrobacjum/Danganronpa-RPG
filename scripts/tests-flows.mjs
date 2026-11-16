@@ -117,9 +117,10 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["mask.reveal"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
     // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
     // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
-    // socket), which the owner's sheet reads.
+    // socket), which the owner's sheet reads. P2 (15.11.2026): a project's action's uses are copied to their owner (facility-uses.mjs's
+    // socket), which the Facilities rows grey a used one by; scenario 99 "facility limits" reads it on p1.
     { id: "facility", what: "A room action of the Facilities tile: a GM's rolled and drawn on the GM, a completed project's paid by the GM, each limited there; its timed effects copied to their owner",
-        entry: { bridge: ["facility.use"], sockets: ["timed-effects.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+        entry: { bridge: ["facility.use"], sockets: ["timed-effects.mjs", "facility-uses.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
     // E10 C0 (09.10.2026): 63 drives the trial from Start to a correct verdict's Level Up - a late joiner, a GM's reload
     // in the vote, the verdict's window - as it is at 1e9871c; each of its checks names the E10 commit that changes it.
     // E10 C1 (1.2.71): every step of the vote runs on the primary GM, asked through `vote.run`.
