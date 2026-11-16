@@ -7,6 +7,49 @@ The owner, 16.11.2026, while step 1 ran: "nie czekaj na mnie albo na moje odpowi
 domyslnych ... pracuj do samego konca". From here every question takes its default, written beside it, and the line
 goes on; what only the owner can give (a password, eyes on a screen) is written as not run with its reason.
 
+## Questions for the coordinator and the owner (16.11.2026; each with the default this line takes)
+
+1. **E40's season wipe needs a copy world.** The owner makes one with Foundry's Duplicate World (an id with "copy" in it,
+   e.g. `drpg-qa-copy`) and launches it; this line then wipes it and reads the result. Default: not run until then.
+2. **CLAUDE.md and .claude/rules/code.md say a `-=key` "removes nothing in this Foundry"** and point at LIVE-E30-01 for
+   the check. On 14.370 it deletes (with v14's deprecation warning). This line does not edit those files; the
+   coordinator's. R152 (no `-=` in the module) stands either way. Default: the files unchanged by this line.
+3. **audit/harness/versions.json** holds the table's companion versions (6.2.9, 14.0.2, 0.6.8); the sandbox runs Dice So
+   Nice 6.4.5, Isometric 14.0.6, LiveKit 0.6.8, Daggerheart 2.12.9. Default: unchanged (LIVE-E30-08 asks for the table's).
+4. **The shim proposals D3-D10** (CALIBRATION.md section 4): the update diff, movement's `_movement` and routes, Levels,
+   a role change logging out, a region's owner, the writer's copy of another User, `noHook`, `userConnected` before ready.
+   Default: none built; each changes what many scenarios read.
+5. **E112-01's vision** (step 7): road (a) or (b), or another. Default: open, not built.
+6. **Markup in a name in a toast** (group 1, item 23): v14 sanitises it (no handler runs) but draws it, an `<img>` fetching
+   its address on the GM's browser. Escape the names the module puts in toasts? Default: left as it is.
+7. **Foundry's "GM privately rolled some dice" stub** on the victim's chat at the opening (group 3, item 67). Default:
+   accepted as Foundry's own private-roll design (the module writes `blind: false`).
+8. **A GM back from a dropped socket without a reload holds stale documents** (group 2, item 44). Default: no module
+   change; a note for the GM handbook is the coordinator's call.
+9. **PlayerOne's note flag comes back at a GM's load** after a GM's deletion (above). Default: left; the coordinator to say
+   whether it is a design (the GM stores writing the flag) or a fault.
+10. **The gate's browser**: Playwright 1.56.1's Chromium 141 is older than the 146 Foundry 14.370 wants, and every page
+    shows Foundry's error notice (in `__notifications` as an error, which a gate part counting errors would read).
+    Default: unchanged (tool config is the owner's).
+11. **The voice module's default**: voice.mjs says the first GM to connect gives the world `serverType: "custom"`; this
+    world kept `{}` after several GM logins (A/V off). Default: the comment unchanged until read with A/V on.
+
+## Where step 4 stands (16.11.2026, evening)
+
+Counted over the 565 rows of docs/dev/e58/TRIAGE-9.2.md (section 7's 14 and 9.2's 551 numbered items):
+
+| Result | Rows | Which |
+| --- | --- | --- |
+| measured | 33 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, 477 LIVE-E76-03, 512 LIVE-E39-01) and 22; then S7-4, S7-5, S7-7, 15, 17, 18, 19, 20, 23, 44, 51, 52, 61, 62, 63, 64, 67, 68, 534, 535, 536, 556 (556 its v14 half; the Forge half not checkable) |
+| a defect found, open | 1 | 553 (LIVE-E112-01: the veiled killer has no vision of their own on v14) |
+| not checkable at this sandbox | 113 | the 98 the readers marked T less 553 and 556, which were read here (96), and 47 (Setup > Duplicate World) - each needs real people, a real LiveKit, The Forge, a second machine, a real GPU at a table, a phone or the owner's own install; and the 16 marked F, each a fixture world (DRPG_FIXTURES unset on purpose; 537 among them, a world played through a chapter). The T and F reasons are the readers' (TRIAGE-9.2.md), not re-read item by item here |
+| closed by its own text | 8 | S7-14, 21, 41, 213, 448, 449, 450, 451 |
+| left | 410 | everything else: K and S rows not yet driven or shot |
+
+Defects found outside 9.2's rows, each red first and fixed: the tier-2 reader of `game.collections` (step 3, defect 1),
+the four registrations at init (step 3, defect 3), scenario 83's L9 race (step 3, item 4). Found and not fixed: the
+fuzz's put-back race in lib/fuzz.mjs (group 3, item 62), E112-01's vision (above).
+
 ## Step 5 - E53's measurements (16.11.2026)
 
 | What | Ran | Reading |
