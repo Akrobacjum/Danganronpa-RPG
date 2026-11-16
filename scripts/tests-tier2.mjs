@@ -23828,7 +23828,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const added = { drew: newIn("drew"), drawn: newIn("drawn") };
             const trip = added.drew.at(-1) ?? null;
             const text = await game.drpg.perf({ frames: 5 });
-            const gmLine = String(text).match(/^  drawn here, packet in to answer out: (\d+), median/m);
+            // "p50" since E53 C1 (the trip lines read p50 and p95, where they read the median).
+            const gmLine = String(text).match(/^  drawn here, packet in to answer out: (\d+), p50/m);
             read = [added.drew.length, added.drawn.length,
                 typeof trip?.written === "number" && trip.written >= 0 && typeof trip?.answered === "number" && trip.answered >= trip.written,
                 /^Rolls the GM drew/m.test(text), gmLine ? Number(gmLine[1]) === after.drew.length : null,
@@ -55114,6 +55115,26 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 },
                 gone: (report, id) => !S.lockpickStore.has(id),
                 back: id => S.lockpickStore.get(id)?.room === "SUITE backed-up room"
+            },
+            // A project action's use, through its store (P2, 15.11.2026: backed up since, R182): for a project that does not exist,
+            // so no Facilities row reads it.
+            facilityUses: {
+                seed: async () => {
+                    const key = `p:SUITEP2BACKUPPRJ:${holder.id}`;
+                    await S.facilityUseStore.patch(key, { mark: "SUITE.backed.up.use", actorId: holder.id, userId: null, at: 1, success: true });
+                    return key;
+                },
+                gone: (report, key) => !S.facilityUseStore.has(key),
+                back: key => S.facilityUseStore.get(key)?.mark === "SUITE.backed.up.use"
+            },
+            // A balance log's note, through its store (E53 C3): a row no report reads as a roll.
+            balanceLog: {
+                seed: async () => {
+                    await S.balanceLogStore.patch("n:SUITEE53BACKUP00", { kind: "note", at: 1, chapter: 99, text: "SUITE backed-up note", by: null });
+                    return "n:SUITEE53BACKUP00";
+                },
+                gone: (report, key) => !S.balanceLogStore.has(key),
+                back: key => S.balanceLogStore.get(key)?.text === "SUITE backed-up note"
             },
             // A declaration made in the dark, through its store (E05 C3): named for no Eclipse, so no lights judge it.
             pendingMurders: {
