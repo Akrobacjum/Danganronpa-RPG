@@ -86,12 +86,36 @@ Every sentence of the 13.11 draft read again against the code and known-leaks.js
 Unchanged and read true: the opening two sentences, the regions-and-walls line, the private cards' stub (secret.mjs), the
 Mastermind, the votes (gm-stores.mjs `ballotStore`) and the GMs' notes (the stores `notes`, `note`).
 
-Read on the way, not this line's to change (the README beyond the chapter is not in the consent): the Privacy paragraph
-says "the GM's plan for the key clues and, until the lights come up, a murder declared during the Eclipse are all world
-data" beside the marker `leak:S17-64`, whose entry speaks of an unfound trace's token alone; on ff3e12e5 the Key plan is
-a GM store (gm-stores.mjs `keyPlanStore`) and the declarations made in the dark are lifted out of world data
-(eclipse.mjs). Whether that sentence means the placed Key Remnants' tokens and the tokens' moves in the dark, or is stale,
-was not measured; put to the coordinator.
+**The Privacy paragraph's sentence beside `leak:S17-64`, measured** (the coordinator's ask of 16.11.2026; the owner
+answers on this text; README.md not edited). The sentence: "Where the traces lie, the GM's plan for the key clues and,
+until the lights come up, a murder declared during the Eclipse are all world data."
+
+Measured on 170ef249, whose key, Remnant and Eclipse code is ff3e12e5's (this line changed none of it), by a probe
+scenario run once on the harness and not committed: the GM writes a Key plan with three markers in its first slot and
+places that slot's Key Remnant in the Gym (key-remnants.mjs `placeInSlot`); then opens an Eclipse, Chie's player (p3)
+declares a Direct Murder in the Gym with a marker in its note (eclipse.mjs `parkDirectMurder`), and the GM moves Chie's
+token in the dark. Read on p1, a bystander: every world setting, scene, actor, chat message and user as JSON.
+
+| What | On p1 | So |
+| --- | --- | --- |
+| the Key plan | `game.drpg.keyPlan()` 0 slots written; the three markers on no document or setting | the GMs' (a GM store since 1.2.64, `keyPlanStore`; 72-canary holds it too) |
+| the placed Key Remnant | a token at its position, hidden, named "Remnant", the neutral "?" picture, flag `isRemnant` alone: nothing says it is a Key | its place is world data, as every unfound trace's (S17-64); that it is a Key, and what it means, are not |
+| the declaration in the dark | the note's marker nowhere; the old world key `pendingMurders` reads `{}`; the GMs' store holds it | the GMs' (`pendingMurderStore`, since E05 C3) |
+| its card | one new chat message, whispered to the GM alone, authored by the GM, no speaker, a stub | that some card went to the GMs then is seen; whose and what is not |
+| the killer's token in the dark | moved 350,1300 -> 1500,1500 on p1, not hidden | every move in the dark is world data (`foundry-hidden-tokens`: every token's position and each move) |
+
+`S17-64`'s entry covers an unfound trace's token alone (its position; note and subject stay with the GMs). The Key
+Remnants are such tokens; the moves in the dark are `foundry-hidden-tokens`' ground, not S17-64's. Read so, the
+sentence is half stale: the plan for the key clues and the declaration itself have not been world data since 1.2.64
+(E05 C3, C5); what is world data is where the Key Remnants lie, as every trace, and where every token goes in the dark.
+
+Proposed replacement (the markers stay where they are):
+
+> Where the Remnants lie, the Key Remnants among them, and where every token goes during an Eclipse are world data;
+> the Key Remnant plan and a murder declared in the dark stay on the GMs' browsers. <!-- leak:S17-64 -->
+
+Default: none taken here; the owner answers, and the line that has the README's consent places it.
+
 
 ## Not built, each with its reason
 
