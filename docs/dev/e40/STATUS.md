@@ -160,7 +160,8 @@ The plan's items 2-6, in its order, with what each would take:
   this line read ("the invariants (...)"); more rules join with the stage that states each. The handbooks do not name it
   yet (a console diagnostic; E57's last pass of the handbooks, or the owner's word).
 - **The phase x action matrix** (item 3): built as a test (C4): the two readers held to each other. The shared "allowed
-  now" predicate: built on the line claude/e39-40-116 (its C4 below, scripts/allowed-now.mjs). Not built: the trial floor's modes as a dimension (R1023 holds `modeAllows` to its three readers already),
+  now" predicate: built on the line claude/e39-40-116 (its C4 below, scripts/allowed-now.mjs); the rest of its gates, the
+  floor's modes as a dimension and the A10/A11 columns on the line claude/e40-117 (D1, D2). Before that, not built: the trial floor's modes as a dimension (R1023 holds `modeAllows` to its three readers already),
   and `passage.*` and `action.frisk*` as columns (the A10/A11 amendments; their gates are the bridge's, not the tile's).
 - **18-trial** (item 1): built (C5) on the trial's five steps. Not in it from the plan's list: two Blackened, duplicates
   on the card, a GM reload during the vote, a late player with ack, preselection and "Nobody", D4's offer applied once,
@@ -171,7 +172,7 @@ The plan's items 2-6, in its order, with what each would take:
   "Nobody", the Final Trial, a late player with the ack and a GM's reload in the vote (its C1-C3 and C5). Still not in
   18-trial, and not built (the coordinator's word of 15.11.2026): duplicates on the card, preselection, D4's offer
   applied once, a deceased before and after discovery, season-wipe on a world copy. A reset during a suicide incident
-  came in C6.
+  came in C6; the other four on the line claude/e40-117 (D3), season-wipe as LIVE-E40-02.
 - **The regex tests** (item 4): **done, 13.11.2026, for 1.2.113.** The owner's word through the coordinator ("robimy
   teraz"). `docs/dev/e40/ITEM4.md` holds the list, the slices and the rule; the four slices ran on parallel lines and were
   merged here (A c6ba81e1, C 698c7dd9, D 119384e0, B 3d0a9856), each with its own file `docs/dev/e40/ITEM4-<slice>.md`
@@ -447,6 +448,20 @@ The coordinator's brief of 16.11.2026, the owner's word: "Etapy (lub czesci etap
 | --- | --- | --- |
 | D1 | **The gates the shared rule's first commit left, moved onto it**: allowed-now.mjs roads `callHope` (the Eclipse), `callDespair` (the Eclipse, then the trial), `cubLock` (keyed by the lock, "eclipse" or "classTrial"), `handover` (the Eclipse) and `proposal` (the Eclipse or the trial, one sentence). Moved: calls.mjs `callBarred` (both sides), `hopeCallRefusal`, `spendDespairCallFor` (its Eclipse and trial gates, each in its place, the GM-only check before them as it was); the sheet's `callLockNote`; monocub.mjs `CUB_LOCKS`' two phase locks (the rows keep their `locks` order and the Ghost Bet's window lock); handover.mjs `askWhoIsHere`; bridge-guards.mjs `guardTraitRuling`'s phase for a project, a generic roll or a Search. Every sentence as it was. The four files that read the phase by `import()` read the rule the same way (R161 green). New tier 2 **E40-T6**: in daily life, an Eclipse and the trial, every one of those gates read live and held to the answers of ff3e12e5 (measured there with the rule's reading stubbed: only the roads' check failed) and to its road. Red at ff3e12e5: "allowedNow: no road callHope". R42 reads the Despair Call's trial gate through the road now | scripts/allowed-now.mjs, calls.mjs, sheet-actions.mjs, monocub.mjs, handover.mjs, bridge-guards.mjs, tests-tier0.mjs (R42), tests-tier2.mjs (E40-T6) |
 | D2 | **The matrix's dimensions** (tests alone; the coordinator's brief): the trial floor's modes and the A10/A11 columns. New tier 2 **E40-T7**: every mode of `MODE_RULES` (ten at ff3e12e5: debate, objection, rebuttal, testimony, panic, closing and the Zones' dive, scrum and straw) and no floor, with two students of the world as holder and target and a third beside them: `maySpeak`, `presentRefusal`, `floorRefusal` and `targetRefusal` held to `modeAllows` (all agree), and the table's answers pinned to ff3e12e5's (R1023 pins three modes); then a floor of each mode written to the world in the Class Trial: every key's tile and press lock as in the trial. The floor's rule stays `modeAllows`, not a road of allowed-now.mjs: wrapping it would import the trial floor's module graph (the vote, the Zones, the bridge's guards) into the file the sheet and the press import statically. E40-T3 extended with three columns in each of its four states, live and held to their roads: a Frisk's person gate (the victim asking of the killer, the two placed alone in one room), a passage's show and its search | scripts/tests-tier2.mjs (E40-T3, E40-T7) |
+| D3 | **18-trial, the plan's list's last rows** (tests alone; no bug found): **D4's offer applied once** - a wrong verdict leaves each surviving Blackened one waiting Reinforced Level Up (verdict.mjs `verdictOffers`, level-up.mjs `deferAdvancement`, the GMs' `deferredOfferStore`), read on the GM: none before the trial, one each for Chie and Daichi after the first verdict, two each after the "Nobody" verdict; **a deceased before and after discovery** - "S18 Hidden", nobody's student, killed in secret before the second trial: on p2's ballot alive (vote.mjs `candidatesFor` reads the table's `isDeceased`) and dead in no data of p2's, and once the GM publishes the death (death.mjs `publishDeath`) dead on p3's ballot; **duplicates on the card** - p2's ballot naming Botan twice refused through the bridge, and the count's card on p1 naming each accused on one row, with 4; **preselection** - the verdict's window drawn on the GM opens its "executed" select on the first name the count accused, "Nobody is executed" first, and Cancel gives no verdict. **Season-wipe on a world copy**: LIVE-E40-02 (AUDIT 9.2 item 562), as the harness has no played world. 91 checks to 94, about 37 s inside the cluster | audit/harness/scenarios/18-trial.mjs, README row 18, audit/AUDIT-1.2.42.md (item 562) |
+
+D3's mutants, 6 of 6 KILLED by 18-trial: a wrong verdict deferring two at once (level-up.mjs `deferAdvancement`) and
+deferring none (`verdictOffers`) - both D4 checks; the ballot marking the dead by the GMs' own reading (`candidatesFor`
+with `isDeadForGm`, through `game.drpg`: a first draft of this mutant named a function vote.mjs does not import and
+was killed by its crash, not by the check, so it was made again) - [second ballots in]; the ballot's duplicate refusal
+removed - [second ballots in]; the count tallying each name twice - [second count]; the window opening on nobody -
+[preselection].
+
+Gates of D3: `npm run quick` green; tiers 0-1 whole green; 18-trial by `run-all.mjs scenarios --only 18-trial` green
+(the numbers in the commit message, written after the run).
+
+A reading of D3, asked of the coordinator: the verdict's window holds one "executed" select, so with two accused it
+sentences one student, while `applyVerdict` takes a list (18-trial's API road sentences both). Not changed.
 
 D2's mutants, 6 of 6 KILLED: `floorRefusal` blind to the table, Panic Round taking an Objection in `MODE_RULES`, and
 `presentRefusal` open to anyone (E40-T7); the person road's incident off, the passage show's live lock off, and a
@@ -473,7 +488,7 @@ roads moved are the ones the brief names, and the rest were not read one by one 
 
 - **LIVE-E40-01** (audit/AUDIT-1.2.42.md 9.2 item 537, written on this line; 532 on its branch, renumbered in the 1.2.113 assembly): `checkState()` at a real primary GM's
   start, on a copy of a v14 world played through at least a chapter - warnings only, each true.
-- **Season-wipe on a real world copy**: `resetSeason` with every group on a copy of a played v14 world (scenes with walls
+- **Season-wipe on a real world copy** (LIVE-E40-02, audit/AUDIT-1.2.42.md 9.2 item 562, written on the line claude/e40-117): `resetSeason` with every group on a copy of a played v14 world (scenes with walls
   and Levels, real chat history in the hundreds, Daggerheart's own Countdowns), then `checkState()` and the whole-world
   diff (the local gate's) around it. The harness runs it on its seeded world only (65 D, 72 season end).
 - **18-trial's local layer**: the same five steps with the ballot windows drawn and pressed on real browsers, and the
