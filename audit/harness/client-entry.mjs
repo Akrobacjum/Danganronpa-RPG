@@ -9,7 +9,7 @@ import path from "node:path";
 import url from "node:url";
 import { JSDOM, requestInterceptor } from "jsdom";
 import * as U from "./lib/futil.mjs";
-import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
+import { DataFieldOperator, ForcedDeletion, ForcedReplacement, OPERATOR_IDENTIFIER, OPERATOR_VALUE, revive } from "./lib/operators.mjs";
 import { readVersions } from "./lib/versions.mjs";
 import { attachModuleStyles, wrapGetComputedStyle } from "./lib/css.mjs";
 import { AUTOMATION_DEFAULT, resourceTables, modifyResource, updateFear } from "./lib/daggerheart.mjs";
@@ -553,7 +553,10 @@ function coerce(def, raw) {
 
 /* --------------------------- collections --------------------------------- */
 
-const worldColls = new Map(); // documentName -> Collection
+/* documentName -> Collection. A Collection itself, as v14's `game.collections` is: iterated it yields the collections,
+   `entries()` the [name, collection] pairs (read on 14.370, 16.11.2026, E58 L1; a Map until then, whose pairs two
+   readers in the test kit destructured, and which broke on the real server). */
+const worldColls = new Collection();
 
 function coll(name) {
     if (!worldColls.has(name)) {
@@ -1091,7 +1094,7 @@ hooks.on("drpgMessengerMessage", (thread, message) => {
 globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
     world: Object.fromEntries(worldValues),
     client: Object.fromEntries(clientValues.entries()),
-    docs: Object.fromEntries([...worldColls].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
+    docs: Object.fromEntries([...worldColls.entries()].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
     paused: game.paused
 }));
 
@@ -1688,7 +1691,7 @@ globalThis.foundry = {
     // The operators as lib/operators.mjs models them (E30); `_del` and `_replace` below.
     data: {
         fields: {}, validators: { isValidId: s => /^[A-Za-z0-9]{16}$/.test(s) },
-        operators: { DataFieldOperator, ForcedDeletion, ForcedReplacement }
+        operators: { DataFieldOperator, ForcedDeletion, ForcedReplacement, OPERATOR_IDENTIFIER, OPERATOR_VALUE }
     },
     helpers: { media: { ImageHelper: {} } },
     packages: {}
@@ -2110,7 +2113,7 @@ function dumpForCanary() {
     return JSON.parse(JSON.stringify({
         who: WHO, userId: game.userId ?? game.user?.id ?? null, isGM: Boolean(game.user?.isGM), phase: PHASE,
         wire: WIRE, wireDropped,
-        world: Object.fromEntries([...worldColls].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
+        world: Object.fromEntries([...worldColls.entries()].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
         settings: { world: Object.fromEntries(worldValues), client: Object.fromEntries(clientValues.entries()) },
         storage: { local: entries(globalThis.localStorage), session: entries(globalThis.sessionStorage) },
         dom: document.documentElement.outerHTML,
@@ -2162,8 +2165,18 @@ async function boot() {
         return;
     }
     try {
-        hooks.callAll("init");
-        hooks.callAll("i18nInit");
+        /* `game.user` through `init` and `i18nInit` is null, as Foundry 14.370 has it (read on the owner's sandbox,
+           16.11.2026, E58 L1: null at init and i18nInit, the User from setup on; `game.userId` set throughout). Until then
+           the shim held the User from the snapshot on, and four registrations that read `game.user.isGM` at init threw on
+           every real browser and on no headless one. Not modelled: `game.users` is empty at those two hooks on v14 too. */
+        const you = game.user;
+        game.user = null;
+        try {
+            hooks.callAll("init");
+            hooks.callAll("i18nInit");
+        } finally {
+            game.user = you;
+        }
         hooks.callAll("setup");
         game.ready = true;
         hooks.callAll("ready");

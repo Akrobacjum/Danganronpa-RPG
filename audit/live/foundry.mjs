@@ -56,15 +56,28 @@ async function servedDiff(base, repo) {
  * password field is never touched: an account that needs one stays on /join,
  * and that is `password-required` - after 30 s, so a slow server is not read
  * as one (a user name the form does not list throws, and is `error`).
- * UNMEASURED: the join form's selectors on v14.
+ * Measured on Foundry 14.370 (16.11.2026, the owner's sandbox, E58 L1): /join
+ * holds two forms. `form#join-game-form` has `select[name="userId"]`
+ * (id `join-username`; camel case - the first guess, `userid`, timed out),
+ * `input[name="password"]` and `button[name="join"]`; `form#join-game-setup`
+ * has `adminPassword` and "Return to Setup". Both selectors are scoped to the
+ * join form, so nothing here can reach the setup form.
  */
-export async function login(browser, base, userName) {
+export async function login(browser, base, userName, { storage = null } = {}) {
     const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
     await context.addInitScript({ path: path.join(HERE, "page-hooks.js") });
+    /* What the harness's browser of this role holds before the module loads (audit/harness/lib/seed.mjs `storage`):
+       written only where the page holds no value, so a reload keeps what the module made of it. */
+    if (storage && Object.keys(storage).length) {
+        await context.addInitScript(entries => {
+            const store = globalThis.localStorage; // the page's, where this runs
+            for (const [k, v] of Object.entries(entries)) if (store.getItem(k) === null) store.setItem(k, v);
+        }, storage);
+    }
     const page = await context.newPage();
     await page.goto(new URL("/join", base).href, { waitUntil: "domcontentloaded" });
-    await page.selectOption('select[name="userid"]', { label: userName });
-    await page.click('button[name="join"]');
+    await page.selectOption('form#join-game-form select[name="userId"]', { label: userName });
+    await page.click('form#join-game-form button[name="join"]');
     await page.waitForURL(u => !u.pathname.startsWith("/join"), { timeout: 30_000 }).catch(() => {});
     if (new URL(page.url()).pathname.startsWith("/join")) {
         const e = new Error(`${userName} stayed on /join: the account needs a password, and the runner never types one`);
@@ -73,6 +86,18 @@ export async function login(browser, base, userName) {
     }
     await page.waitForFunction(() => globalThis.game?.ready === true, null, { timeout: 120_000 });
     return page;
+}
+
+/**
+ * `login` for the parts: each account gets the seed's storage of the role it plays (`users` maps gm, p1-p3 to names).
+ * Measured on 14.370 (16.11.2026): without it the GM's browser holds no answer key for the seeded trace, and every GM
+ * login opens "The case on this browser" ("1 Remnant on the map (of 1) has no answer key on this browser"), which the
+ * headless harness, seeding the key, never shows.
+ */
+export async function seededLogin(repo, users) {
+    const { storage } = await import(url.pathToFileURL(path.join(repo, "audit", "harness", "lib", "seed.mjs")).href);
+    const roleOf = new Map(Object.entries(users ?? {}).map(([role, name]) => [name, role]));
+    return (browser, base, userName) => login(browser, base, userName, { storage: storage?.[roleOf.get(userName)] ?? null });
 }
 
 /** Everything the page can say about where it runs, for an evidence header. */
@@ -111,11 +136,12 @@ export async function runGate(ctx) {
     catch (err) { return parts.map(p => notRun(p, "no-browser", `chromium.launch failed: ${String(err.message).split("\n")[0]}`)); }
     const out = [];
     try {
+        const seeded = await seededLogin(repo, users);
         const suite = await import(url.pathToFileURL(path.join(HERE, "suite.mjs")).href);
         const sandbox = await import(url.pathToFileURL(path.join(HERE, "sandbox-cluster.mjs")).href);
         const live = parts.filter(p => p.layer === "live");
-        if (live.length) out.push(...await suite.runLive({ ...ctx, browser, parts: live, login, pageEnv, evidence }));
-        for (const p of parts.filter(p => p.layer === "sandbox")) out.push(await sandbox.runPart({ ...ctx, browser, part: p, login, pageEnv, evidence }));
+        if (live.length) out.push(...await suite.runLive({ ...ctx, browser, parts: live, login: seeded, pageEnv, evidence }));
+        for (const p of parts.filter(p => p.layer === "sandbox")) out.push(await sandbox.runPart({ ...ctx, browser, part: p, login: seeded, pageEnv, evidence }));
         for (const p of parts.filter(p => p.layer === "drill")) {
             out.push(fixtureDir(p.fixture)
                 ? { ...p, status: "error", why: "drills need the sandbox restarted on a copy of the fixture (--parts drills --merge); this runner has no restart step yet", evidence: [] }
@@ -129,6 +155,5 @@ export async function runGate(ctx) {
     } finally {
         await browser.close().catch(() => {});
     }
-    void users;
     return out;
 }

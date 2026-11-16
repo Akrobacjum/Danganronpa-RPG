@@ -79,18 +79,51 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
     const same = views => JSON.stringify(views.gm) === JSON.stringify(views.p1);
     const write = (c, id, changes) => c.eval(`await game.actors.get("${id}").update(${changes}); return true;`);
 
-    /* Operators (lib/operators.mjs): a `-=` key removes nothing, stores nothing
-       under its own name, and is reported; `_del`, `_replace` and
-       foundry.data.operators delete and replace; unsetFlag removes. */
-    await write(gm, IDS.daichi, `{ "flags.world.e30probe": { keep: 1, gone: 2 } }`);
+    /* Operators (lib/operators.mjs): a `-=` key deletes and a `==` key replaces, as Foundry 14.370 did on the owner's
+       sandbox (16.11.2026, E58 L1: an actor's and a token's flag, with v14's deprecation warning; LIVE-E30-01,
+       LIVE-E76-03), neither is stored under its own name, and each is reported; `_del`, `_replace` and
+       foundry.data.operators delete and replace; unsetFlag removes. Until 16.11.2026 this held the "ignored" reading,
+       the module's notes of an earlier 14.36x; 91-old-keys-ignored still holds that one by name. */
+    await write(gm, IDS.daichi, `{ "flags.world.e30probe": { keep: 1, gone: 2, swap: { a: 1, b: 2 } } }`);
     const reportedBefore = legacyKeys.length;
-    await write(gm, IDS.daichi, `{ "flags.world.e30probe.-=gone": null }`);
+    await write(gm, IDS.daichi, `{ "flags.world.e30probe.-=gone": null, "flags.world.e30probe.==swap": { c: 3 } }`);
     const legacy = await onBoth(IDS.daichi);
     const reported = legacyKeys.slice(reportedBefore);
-    check("the host: a '-=' key removes nothing on any client, is not stored as a key, and is reported",
-        legacy.gm?.e30probe?.gone === 2 && same(legacy) && !("-=gone" in (legacy.gm?.e30probe ?? {}))
-        && reported.length === 1 && reported[0].who === "gm" && reported[0].path === "flags.world.e30probe.-=gone",
+    check("the host: a '-=' key deletes and a '==' key replaces on every client, as v14 14.370 did, neither is stored as a key, and each is reported",
+        JSON.stringify(legacy.gm?.e30probe) === JSON.stringify({ keep: 1, swap: { c: 3 } }) && same(legacy)
+        && reported.length === 2 && reported.every(r => r.who === "gm")
+        && JSON.stringify(reported.map(r => r.path).sort()) === JSON.stringify(["flags.world.e30probe.-=gone", "flags.world.e30probe.==swap"]),
         JSON.stringify({ legacy, reported }));
+    await write(gm, IDS.daichi, `{ "flags.world": _del }`);
+
+    /* Read on Foundry 14.370 (16.11.2026, E58 L1): `foundry.data.operators.ForcedDeletion.create()` makes a new
+       instance each call, and `_del` is one instance of it; `game.collections` is a Collection, which iterates its
+       values - each a world collection - while `entries()` gives [name, collection]. A plain Map iterated pairs, and
+       two readers in the module's test kit that destructured pairs broke on the real server. */
+    /* And a ForcedReplacement holds no `.replacement` and no `.value`: its value's own keys are on the instance and the
+       whole value is `instance[operators.OPERATOR_VALUE]` (a Symbol), its JSON `{"__$OPERATOR$__": ..., value}`
+       (read on 14.370 the same day). The shim kept it under `.replacement`, which a tier-2 test read and v14 does not have. */
+    const host = await gm.eval(`const O = foundry.data.operators, FD = O.ForcedDeletion;
+        const first = [...game.collections][0];
+        const r = O.ForcedReplacement.create({ a: 1, b: { c: 2 } });
+        return { fresh: FD.create() !== FD.create(), delIs: _del instanceof FD,
+            values: !Array.isArray(first) && typeof first?.documentName === "string",
+            entries: [...game.collections.entries()].every(([name, c]) => typeof name === "string" && c?.documentName === name),
+            replacement: [typeof O.OPERATOR_VALUE, O.OPERATOR_IDENTIFIER ?? null, r.replacement === undefined && r.value === undefined, r.a,
+                JSON.stringify(r[O.OPERATOR_VALUE] ?? null)] };`);
+    /* Startup (read on Foundry 14.370, 16.11.2026, E58 L1): `game.user` is null at `init` and `i18nInit` and the User from
+       `setup` on, `game.userId` set throughout. And no registration of the module fails on any browser: on the sandbox four
+       did on every one (the pick's passes, the room actions' uses, the eavesdrops, the timed effects - each read
+       `game.user.isGM` at init), which the shim never showed while it held the User from the start. */
+    const startup = {};
+    for (const [who, c] of [["gm", gm], ["p1", p1]]) startup[who] = await c.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        return (U.sessionFailures?.() ?? []).filter(f => /^Could not register/.test(f.message)).map(f => f.message.slice(0, 90));`);
+    check("startup: no registration of the module failed on the GM's browser or a player's, with game.user null at init as on v14 14.370",
+        startup.gm.length === 0 && startup.p1.length === 0, JSON.stringify(startup));
+
+    check("the host: ForcedDeletion.create() is a new instance each call and _del one of them, a ForcedReplacement holds its value under OPERATOR_VALUE with its keys on itself, and game.collections iterates its collections, entries() their names, as on v14 14.370",
+        JSON.stringify(host) === JSON.stringify({ fresh: true, delIs: true, values: true, entries: true,
+            replacement: ["symbol", "__$OPERATOR$__", true, 1, JSON.stringify({ a: 1, b: { c: 2 } })] }), JSON.stringify(host));
 
     for (const [writer, id] of [[gm, IDS.daichi], [p1, IDS.aiko]]) {
         await write(writer, id, `{ "flags.world.e30probe": { keep: 1, gone: 2, bookmark: { actionKey: "search", itemId: "abc" } } }`);
