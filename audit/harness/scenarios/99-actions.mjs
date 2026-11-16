@@ -383,6 +383,40 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
         check("facilities: a completed project's room action - given in the editor as drawn, completed by p1's Work rolls - is a row of the Facilities window p1 opens in its room and of the GM's rows for her, for a public project and a secret one p1 is in on; the secret one's row stays on p1 after the chat is cleared and after p1 reloads",
             facility.length === 3 && facility.every(f => f.ok), J(facility));
         await gm.eval(`clearInterval(globalThis.__s99gm?.timer); delete globalThis.__s99gm; return true;`).catch(() => null);
+
+        /* A PROJECT ACTION'S USE LIMIT (P2, 15.11.2026; the owner: per character, "none", "timeOfDay", "day", a project with
+           none named reading "timeOfDay"). For each limit a public project in Dorm A, completed, its action costing nothing;
+           p1 uses it once from its own page (`useFacility`, as the window does), then reads its row again, and asks again:
+           under "none" the row stays open and the second use is carried out, under the two others the row is greyed with its
+           reason on p1 (its copy of the GMs' uses, facility-uses.mjs) and the second use refused by the GM. The clock is not
+           moved: "the next time of day" is R7543's, on the pure rule. */
+        phase("facility limits");
+        const limits = [];
+        for (const limit of ["none", "timeOfDay", "day"]) {
+            const label = `E39 99 limit ${limit}`;
+            const id = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
+                const id = (await P.createProject({ name: ${J(label)}, target: 1, room: "Dorm A" }))?.id ?? null;
+                await F.setProjectFacility(id, { label: ${J(label)}, costsAction: false, limit: ${J(limit)} });
+                await P.addProgress(id, 1); return id;`, { timeout: 60000 });
+            await settle(1200);
+            const read = await p1.eval(`const A = ${imp("action-facilities.mjs")}; const a = game.actors.get("${IDS.aiko}");
+                const row = () => A.facilitiesRows(a).find(r => r.label === ${J(label)}) ?? null;
+                const before = row();
+                const first = await A.useFacility(a, ${J("project:")} + ${J(id)});
+                await new Promise(r => setTimeout(r, 1500));
+                const after = row();
+                const second = await A.useFacility(a, ${J("project:")} + ${J(id)});
+                return { before: before ? before.disabled : null, first: Boolean(first?.success), after: after ? [after.disabled, after.why] : null,
+                    second: Boolean(second?.success) };`, { timeout: 60000 });
+            limits.push({ limit, ...read });
+        }
+        const want = {
+            none: { before: false, first: true, after: [false, ""], second: true },
+            timeOfDay: { before: false, first: true, after: [true, "This character used it already this time of day."], second: false },
+            day: { before: false, first: true, after: [true, "This character used it already today."], second: false }
+        };
+        check("facility limits: a project action used once by p1 - under no limit its row stays open and a second use is carried out; under once a time of day and once a day its row is greyed on p1 with its reason and the GM refuses the second",
+            limits.length === 3 && limits.every(r => J({ before: r.before, first: r.first, after: r.after, second: r.second }) === J(want[r.limit])), J(limits));
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), w = globalThis.__s99was ?? {}, { SETTINGS } = ${imp("settings.mjs")};
             for (const i of a.items.filter(i => !(w.items ?? []).includes(i.id))) await i.delete();

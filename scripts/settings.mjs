@@ -531,6 +531,8 @@ export const SETTINGS = {
      */
     gmLockpicks: "gmLockpicks",
     mineLockpicks: "mineLockpicks",
+    /** A player's own characters' project-action uses (P2; gm-stores.mjs `facilityUseCopy`), which their Facilities rows read. */
+    mineFacilityUses: "mineFacilityUses",
     /**
      * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a)): a GM store (gm-stores.mjs `eavesdropStore`), a row per
      * listener `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, and each owner's copy of their own
@@ -2350,6 +2352,13 @@ export function registerSettings() {
     // The pick's passes (E74, DA9): the GMs' store and each owner's copy; no `onChange` - read by the move veto and the
     // GMs' audit when a crossing is judged (movement.mjs `holdsPass`).
     game.settings.register(MODULE_ID, SETTINGS.gmLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A player's own characters' project-action uses (P2): the copy the Facilities window greys a used row by.
+    game.settings.register(MODULE_ID, SETTINGS.mineFacilityUses, {
         scope: "client",
         config: false,
         type: Object,

@@ -28,8 +28,9 @@ import { plural } from "./utils.mjs";
 import { actionsLeft, canPayFor, spendAction, refundAction } from "./actions.mjs";
 import { locateActor } from "./movement.mjs";
 import {
-    roomActions, projectActionsWith, closedNow, gmActionKey, facilityCost, facilityShut, PROJECT_PREFIX
+    roomActions, projectActionsWith, closedNow, gmActionKey, facilityCost, facilityShut, PROJECT_PREFIX, projectActionKey, usedUp
 } from "./facilities.mjs";
+import { useRowOf } from "./facility-uses.mjs";
 import { allProjects, standsAtProject, canSee } from "./projects.mjs";
 import { overflowFacilityStates, overflowFacilityToll } from "./overflow.mjs";
 import { restVariants } from "./rest.mjs";
@@ -73,8 +74,11 @@ export function facilityRows(actor) {
     for (const { project, facility, timesLeft } of projectActionsWith({ allProjects, standsAtProject, canSee }, place)) {
         const cost = facilityCost("project", facility, toll);
         const shut = facilityShut("project", states);
+        // Used up by this character under the project's limit (P2): the GMs' row on a GM, the user's copy on a player's.
+        const used = usedUp(useRowOf(projectActionKey(project.id, actor.id)), facility.limit);
         const why = shut ? game.i18n.localize(`DRPG.Facility.shut.${shut}`)
-            : cost > 0 && !canPayFor(actor, cost) ? game.i18n.localize("DRPG.Facility.noActions") : null;
+            : used ? game.i18n.localize(facility.limit === "day" ? "DRPG.Facility.usedDay" : "DRPG.Facility.usedTimeOfDay")
+                : cost > 0 && !canPayFor(actor, cost) ? game.i18n.localize("DRPG.Facility.noActions") : null;
         const life = timesLeft === null ? game.i18n.localize("DRPG.Facility.forGood")
             : plural("DRPG.Facility.timesLeft", { n: timesLeft });
         rows.push({

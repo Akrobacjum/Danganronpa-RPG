@@ -30,6 +30,7 @@ import { registerTails } from "./tail-gm.mjs";
 import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
+import { registerFacilityUses } from "./facility-uses.mjs";
 import { registerEavesdrops } from "./eavesdrop-gm.mjs";
 import { registerMasks } from "./mask-gm.mjs";
 import { registerArrivalNotices } from "./arrival-notices.mjs";
@@ -262,6 +263,8 @@ Hooks.once("init", () => {
     // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
     safely("the watches", registerWatches);
     safely("the pick's passes", registerLockpicks);
+    // A player's own uses of project actions, so the Facilities window greys a used row (P2).
+    safely("the room actions' uses", registerFacilityUses);
     // Listen's eavesdrop (E69 C6): the owner's copy, and on the primary GM every end of one.
     safely("the eavesdrops", registerEavesdrops);
     // The murder's privacy (E69 C8): the killer behind a "?", its end at a new time of day, the killer's question.

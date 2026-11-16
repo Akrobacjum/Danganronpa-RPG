@@ -114,7 +114,9 @@ export function cleanFacility(raw) {
     if (!label) return null;
     const kind = FACILITIES.lifetimes.includes(raw?.lifetime?.kind) ? raw.lifetime.kind : "forever";
     const lifetime = kind === "forever" ? { kind } : { kind, n: whole(raw?.lifetime?.n ?? 1, 1, FACILITIES.maxLifetime) ?? 1 };
-    return { label, effects: cleanEffects(raw?.effects), costsAction: raw?.costsAction !== false, lifetime };
+    // How often each character may use it (P2): one of FACILITIES.limits, the default where none is named.
+    const limit = FACILITIES.limits.includes(raw?.limit) ? raw.limit : FACILITIES.defaultLimit;
+    return { label, effects: cleanEffects(raw?.effects), costsAction: raw?.costsAction !== false, lifetime, limit };
 }
 
 /* ==========================================================================
@@ -127,6 +129,23 @@ export function cleanFacility(raw) {
  */
 export function facilityMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
+}
+
+/** The day a use belongs to: `facilityMark` without its time of day (P2's "day", the clock's day). Pure. */
+export function facilityDayMark(clock = getClock()) {
+    return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1].join(".");
+}
+
+/**
+ * Whether a project's action's use row (`{ mark }`, a `facilityMark`) uses it up at `clock` under `limit` (P2): never
+ * for "none"; for "day" a use on the same day, whatever its time of day; for "timeOfDay" (and any other) a use this
+ * time of day. A row written before P2 carries the same mark, so it is read alike. Pure.
+ */
+export function usedUp(row, limit, clock = getClock()) {
+    const mark = typeof row?.mark === "string" ? row.mark : null;
+    if (!mark || limit === "none") return false;
+    if (limit === "day") return mark.startsWith(`${facilityDayMark(clock)}.`);
+    return mark === facilityMark(clock);
 }
 
 /**
@@ -315,7 +334,9 @@ export function facilityLineFor(projectId, clock = getClock()) {
     if (!facility || !facilityLive(facility, completedAt, clock)) return "";
     const left = facilityTimesLeft(facility, completedAt, clock);
     const life = left === null ? game.i18n.localize("DRPG.Facility.forGood") : plural("DRPG.Facility.timesLeft", { n: left });
-    return game.i18n.format("DRPG.Facility.projectLine", { action: facility.label, life });
+    // And how often each character may use it (P2).
+    return `${game.i18n.format("DRPG.Facility.projectLine", { action: facility.label, life })} · ${
+        game.i18n.localize(`DRPG.Facility.limitLine.${facility.limit ?? FACILITIES.defaultLimit}`)}`;
 }
 
 /* ==========================================================================

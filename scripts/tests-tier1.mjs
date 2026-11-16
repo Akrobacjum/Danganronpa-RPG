@@ -27550,7 +27550,8 @@ const INVARIANTS = [
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         // 28 of C5 and its reviews, and 14 of E102 C12 that R6353 holds (14.11.2026; the sheet's Bribe Accept and the lair's lock after E54)
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2, "lang/en.json has not the family's 28 keys and C12's 14 under DRPG.Tips.Setup");
+        // + 1 since P2 (15.11.2026): facilityLimitTooltip.
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2 + 1, "lang/en.json has not the family's 28 keys, C12's 14 and P2's 1 under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27721,6 +27722,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Setup.facilityUntilTooltip","facility-editor.mjs","effectFields"],
             ["DRPG.Tips.Setup.facilityTextTooltip","facility-editor.mjs","effectFields"],
             ["DRPG.Tips.Setup.facilityLifetimeTooltip","facility-editor.mjs","projectFacilityBody"],
+            // P2 (15.11.2026): the project action's Uses select.
+            ["DRPG.Tips.Setup.facilityLimitTooltip","facility-editor.mjs","projectFacilityBody"],
             ["DRPG.Tips.Setup.facilityRemoveTooltip","facility-editor.mjs","editProjectFacility"],
             ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"],
             ["DRPG.Tips.Setup.acceptBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
@@ -58429,9 +58432,10 @@ const INVARIANTS = [
                 { kind: "health", n: FACILITIES.effects.health.amount, scope: "present" },
                 { kind: "searchToken", n: 2, scope: "self" }, { kind: "hope", n: 1, scope: "self" }, { kind: "sanity", n: 2, scope: "self" }] },
             noLabel: null, newId: true, dcLow: FACILITIES.dc.min, dcNaN: FACILITIES.defaultDc, many: FACILITIES.maxActions,
-            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime } },
-            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" } },
-            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" } }
+            // P2 (15.11.2026): every cleaned project action carries its use limit, the default where none is named.
+            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime }, limit: "timeOfDay" },
+            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" }, limit: "timeOfDay" },
+            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" }, limit: "timeOfDay" }
         }), "{action: a GM's action cleaned; noLabel; newId; dcLow, dcNaN; many: twelve with ten ids, cut to maxActions; facility: a project's; facilityDefaults; facilityOff} - what a GM typed must be held to FACILITIES' closed list");
     }],
     ["R3751 - a completed project's action lives for its lifetime, counted in times of day from the one it was completed in (scripts/facilities.mjs `facilityOrdinal`, `facilityLive`, `facilityTimesLeft`, `facilityMark`; E93 C1, the owner's audit entry E93 (4)): forever stands, timesOfDay n the time of day of completion and the n - 1 after it, days n for n days of them; none outlives its chapter or its season; the mark of a use is the season, chapter, session, day and time of day, not the phase", async () => {
@@ -58458,7 +58462,7 @@ const INVARIANTS = [
             none: [false, true], left: [2, 1, 0, null, n], mark: [true, true, true, true, true, true]
         }), "{ordinal; two: timesOfDay 2 before, at, after, past; day: days 1 at the last and the first past; ever; chapter: a new chapter, a new season; none: no action, no stamp; left; mark: the phase not in it, then each of season, chapter, session, day, time of day} - a project's action must live its lifetime and no longer");
     }],
-    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and not backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
+    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and, since P2 (15.11.2026), backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
         const S = await import("./gm-stores.mjs");
         const F = await import("./facilities.mjs");
         const { COMPLETION_EFFECTS } = await import("./projects.mjs");
@@ -58478,7 +58482,7 @@ const INVARIANTS = [
             keys: [F.gmActionKey("S1", "Kitchen", "a1"), F.projectActionKey("P1", "A1")]
         };
         equal(stableJson(read), stableJson({
-            store: ["ledger", "actions", true, false], setting: "world", row: [false, true, "completedAt", true],
+            store: ["ledger", "actions", true, true], setting: "world", row: [false, true, "completedAt", true],
             cost: [FACILITIES.gmCost, FACILITIES.gmCost + 1, FACILITIES.projectCost, 0, 1],
             shut: [null, "lockdown", "lockdown", null, "powercut"], keys: ["g:S1:Kitchen:a1", "p:P1:A1"]
         }), "{store: [kind, reset group, synced, backed up]; setting: the closed keys' scope; row: [no action, an action, the crossed patch, the uncrossed stamp null]; cost; shut; keys} - a room action's uses, its closing, its price and its shutting");
@@ -58538,7 +58542,8 @@ const INVARIANTS = [
         equal(stableJson({ ...read, project: read.project && { ...read.project, effects: read.project.effects.map(e => [e.kind, e.n, e.scope]) } }), stableJson({
             tab: "DRPG.Vault.tabFacilities", label: "Facilities", column: true, buttons: true, counts: true, rows: 3,
             room: [["R3754a", "Tea", "head", 14, [["sanity", 2, "present", ""]]], [null, "Radio", "eye", 12, [["text", 1, "self", "A song plays."]]], [null, "", "eye", 12, []]],
-            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 } }
+            // P2: the editor reads back its Uses select, the default for an action that names none.
+            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 }, limit: "timeOfDay" }
         }), `{tab; label; column, buttons, counts on the Facilities tab; rows; room: what the room's editor reads back; project: the project's} - Room Setup's Facilities tab and the two editors (window: ${Boolean(cfg)})`);
     }],
     ["R3755 - the Listen tile is the Infiltrate tile and its rows are one table (scripts/config.mjs `INFILTRATE`, `ACTIONS.listen`; E69 C1, DA27, DA28, DA48, DB40): the key stays `listen`, the label is Infiltrate in English and in Polish, the hint names all seven rows (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, Keep Watch) in both languages, `variants` lists `INFILTRATE`'s rows in order, Tail Someone's unseen roll is on Shadow at 15, and Dash rolls on Leg for 0, 2, 3 or 4 free crossings by band (the owner's of 13.11.2026)", async () => {
@@ -62063,6 +62068,40 @@ const INVARIANTS = [
             store: [balanceLogStore.spec.backup, balanceLogStore.spec.resetGroup ?? null, balanceLogStore.spec.sync]
         }), stableJson({ afterRecord: true, offByDefault: true, store: [true, null, true] }),
             "the routing [noteBalanceRoll right after the drawn roll's record | the switch off by default | the store backed up, in no reset group, synced]");
+    }],
+    ["R7543 - a project action's use limit (P2, the owner 15.11.2026: per character; no limit, once each time of day, once each day; none named reads once each time of day): config.mjs FACILITIES.limits and defaultLimit; facilities.mjs `cleanFacility` keeps a known limit and gives the default otherwise; `usedUp` never for \"none\", the same time of day for \"timeOfDay\", the same day at any time of day for \"day\", and a use of another day, chapter, session or season never; the GM's run judges a project's use by its limit and refuses \"today\" under \"day\", and the Facilities rows grey a used one by the same rule", async () => {
+        /*
+         * P2, 15.11.2026. Red before P2: no FACILITIES.limits, no `usedUp`, cleanFacility kept no limit. The use itself and
+         * the greyed row on a player's page are scenario 99's ("facility limits").
+         */
+        const { FACILITIES } = await import("./config.mjs");
+        const F = await import("./facilities.mjs");
+        must(typeof F.usedUp === "function" && Array.isArray(FACILITIES.limits), "no use limit: FACILITIES.limits or facilities.mjs usedUp is missing");
+        const clock = { seasonStartedAt: 5, chapter: 2, session: 3, day: 4, timeOfDay: "morning" };
+        const at = patch => F.facilityMark({ ...clock, ...patch });
+        const row = { mark: F.facilityMark(clock) };
+        const noon = { ...clock, timeOfDay: "noon" };
+        equal(stableJson([
+            [...FACILITIES.limits], FACILITIES.defaultLimit,
+            F.cleanFacility({ label: "x" }).limit, F.cleanFacility({ label: "x", limit: "day" }).limit, F.cleanFacility({ label: "x", limit: "weekly" }).limit,
+            ["none", "timeOfDay", "day"].map(l => F.usedUp(row, l, clock)),
+            ["none", "timeOfDay", "day"].map(l => F.usedUp(row, l, noon)),
+            [{ day: 5 }, { chapter: 3 }, { session: 4 }, { seasonStartedAt: 6 }].map(p => F.usedUp({ mark: at(p) }, "day", clock)),
+            [F.usedUp(null, "day", clock), F.usedUp({}, "timeOfDay", clock), F.usedUp(row, undefined, clock)]
+        ]), stableJson([["none", "timeOfDay", "day"], "timeOfDay", "timeOfDay", "day", "timeOfDay",
+            [false, true, true], [false, false, true], [false, false, false, false], [false, false, true]]),
+            "[the limits | the default | cleanFacility: none named, day, an unknown one | used now under each | at the next time of day | another day, chapter, session, season under day | no row, no mark, no limit named]");
+        const src = new Map(await moduleSources());
+        const run = fnSource(src.get("bridge-runs-acts.mjs") ?? "", "handleFacilityUse");
+        const rows = fnSource(src.get("action-facilities.mjs") ?? "", "facilityRows");
+        must(run && rows, "handleFacilityUse or facilityRows was not read");
+        equal(stableJson({
+            judged: /const limit = offer\.source === "project" \? offer\.facility\.limit \?\? "timeOfDay" : "timeOfDay";/.test(run) && /if \(usedUp\(facilityUseStore\.get\(offer\.key\), limit\)\)/.test(run),
+            today: /limit === "day" \? "that room action has been used already today"/.test(run),
+            told: /if \(offer\.source === "project"\) tellUsesOf\(actor\);/.test(run),
+            greyed: /usedUp\(useRowOf\(projectActionKey\(project\.id, actor\.id\)\), facility\.limit\)/.test(rows)
+        }), stableJson({ judged: true, today: true, told: true, greyed: true }),
+            "the routing [the GM judges by the project's limit | refuses 'today' under day | tells the owners their uses | the rows grey by the same rule]");
     }],
 ];
 
