@@ -67,7 +67,7 @@
           "canvas.draw, canvas.draw.trial, canvas.draw.leaveTrial: canvasTearDown to canvasReady on a scene change, any scene, the linked trial hall, and the scene after it",
           "audit.judged, audit.waited (the primary GM only): a sheet write's judgement, wall time with its own writes and the stores' waits, and its wait behind the writes before it on its student"
         ],
-        "headless": "R7405 asserts how a line is taken (the nearest rank, fifty kept, junk readings dropped), the lines' text from stand-in readings and that each cost is fed where its work runs; the milliseconds are jsdom's and go nowhere",
+        "headless": "R7540 asserts how a line is taken (the nearest rank, fifty kept, junk readings dropped), the lines' text from stand-in readings and that each cost is fed where its work runs; the milliseconds are jsdom's and go nowhere",
         "liveRun": "LIVE-E53-01: perf() and fps() on the GM's and the weakest player's browser, the largest map, both themes, after the table has changed scene into the trial hall and out, opened the case dashboard and seen a sheet write judged"
       }
     ]

@@ -35,7 +35,7 @@ own rolls. The log holds what the GMs hold.
 
 **The exact count** is every throw of the two d12 counted (144, times the advantage die's faces where one was thrown),
 not a sample: a critical is matching dice and lands whatever the total. It is `exactCount` in balance-log.mjs, held by
-R7407 to E64's own counts (a first band at 11 lands 104 throws of 144, at 12: 94). It is what the plan called "the
+R7542 to E64's own counts (a first band at 11 lands 104 throws of 144, at 12: 94). It is what the plan called "the
 simulation"; no simulation exists in this repository (read 15.11.2026), and an exact count needs none.
 
 What it cannot say: a GM's ruling (an Observe's hit, a Dynamic action's difficulty, a Facilities action's difficulty)
@@ -64,4 +64,4 @@ Each is a reading of the log, or of the table, to bring back; none changes a num
 
 Nothing of this has run at a table: the log has recorded no session (15.11.2026). The headless tests hold that it
 writes only with the switch on and on the primary GM (tier 2 "E53-T1"), and what the exact count and the report
-compute (R7407).
+compute (R7542).

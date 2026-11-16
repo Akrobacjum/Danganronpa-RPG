@@ -2686,7 +2686,7 @@ function scaleFor(target) {
  * manager `current/start`, each by hand. Plain text, for the caller to escape: "Fix the door - 2/4, Everyday ·
  * Kitchen · Hand - complete". `name: false` is the progress alone (the manager's cell); `scale`, `room`, `stat` and
  * `complete` add their parts. R1106 holds the three readers to it. `projectLabel(id, user)` (E53 C4) is the other form:
- * a countdown id, and the name alone as that user may read it (projects-secrecy.mjs `nameAs`; R7406).
+ * a countdown id, and the name alone as that user may read it (projects-secrecy.mjs `nameAs`; R7541).
  */
 export function projectLabel(project, options = {}) {
     /* `projectLabel(id, user)` (E43's goal, E53 C4): a countdown id and a user name the project as that user may read

@@ -7083,7 +7083,7 @@ const REGRESSIONS = [
             "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
             "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none",
             // E53 C3: the balance log is what sessions 0 compare across a season, so no reset cuts it (gm-stores.mjs).
-            "the store balanceLog": "the balance log's rolls are what sessions 0 compare across seasons; nothing clears it yet (docs/balance.md)"
+            "the store balanceLog": "the balance log's rolls are what sessions 0 compare across seasons; nothing clears it yet (docs/dev/balance.md)"
         };
         // A group the window offers and an entry of the registry clears (E42 C3: read through `seasonStateFor`).
         const strays = named.filter(([what, group]) => !(groups.has(group) && R.seasonStateFor(group)) && !(group === undefined && Object.hasOwn(UNCUT, what)))

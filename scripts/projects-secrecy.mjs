@@ -162,7 +162,7 @@ export function shownName(countdownId, countdown = rawCountdown(countdownId)) {
  * asks it with that somebody. The countdown's name for a public project; for a secret one the GMs' `secretName` to a
  * user who may see it (`canSee`: a GM, one in on it, a Spectator), and the countdown's neutral name (`HIDDEN_NAME`) to
  * anyone else. On a player's browser only its own user is answerable - it holds no other player's sight - so another
- * user gets the neutral name. The rule itself is `labelFor`, pure, which R7406 holds case by case.
+ * user gets the neutral name. The rule itself is `labelFor`, pure, which R7541 holds case by case.
  */
 export function nameAs(countdownId, user = game.user, countdown = rawCountdown(countdownId)) {
     const onGm = Boolean(game.user?.isGM);

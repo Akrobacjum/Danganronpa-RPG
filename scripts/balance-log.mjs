@@ -11,7 +11,7 @@
  *     (its faces and sign), and when in the chapter it was thrown. A roll not drawn on the GM (no GM connected, an item
  *     roll) is not in it - the log holds what the GMs hold.
  *   - `note`: a GM's own entry (`game.drpg.balanceNote(text)`), for what the session's protocol asks that no roll says.
- * The rules' before and after (D21b) are docs/balance.md's, beside E64's table: they are the repository's, not a world's.
+ * The rules' before and after (D21b) are docs/dev/balance.md's, beside E64's table: they are the repository's, not a world's.
  *
  * WHERE: a GM store (gm-stores.mjs `balanceLogStore`): every GM holds it, no player's browser does, it goes with the
  * case's backup and no season's reset cuts it (a season's data is what sessions 0 compare). The canary (72) scans every
@@ -20,7 +20,7 @@
  * THE EXACT COUNT (the coordinator's Q9, 15.11.2026): what a roll should give is counted over every throw of the two d12
  * - 144, times the advantage die's faces where one was thrown - not sampled. A critical is matching Hope and Fear dice,
  * and a success whatever the total; Hope is the Hope die higher, Fear the Fear die higher. `exactCount` is pure, and
- * R7407 holds it to E64's own counts (a first tier at 11: 104 of 144; at 12: 94 of 144).
+ * R7542 holds it to E64's own counts (a first tier at 11: 104 of 144; at 12: 94 of 144).
  */
 
 import { ACTIONS } from "./config.mjs";

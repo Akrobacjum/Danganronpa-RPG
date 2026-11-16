@@ -7,10 +7,10 @@ planner's branch (plan-130). E43's last item (projectLabel) is built on the same
 
 | Commit | What | Tests |
 | --- | --- | --- |
-| d1186625 C1 | perf() prints what the table's own work cost (scripts/perf-timings.mjs, diagnostics.mjs `costLines`); the roll's round trip as p50/p95; counters for the notice history, the room tile and `auditMove`; perf-baseline.json revision E53; audit/live/perf-baseline.mjs `parsePerf` reads the new lines and the old; LIVE-E53-01 (AUDIT 9.2 item 553) | R7405; scenario 86 105/105; mutants M1-M8 8/8 |
+| d1186625 C1 | perf() prints what the table's own work cost (scripts/perf-timings.mjs, diagnostics.mjs `costLines`); the roll's round trip as p50/p95; counters for the notice history, the room tile and `auditMove`; perf-baseline.json revision E53; audit/live/perf-baseline.mjs `parsePerf` reads the new lines and the old; LIVE-E53-01 (AUDIT 9.2 item 553) | R7540; scenario 86 105/105; mutants M1-M8 8/8 |
 | d78dd134 C2 | the budget: perf-baseline.json `budget`, held by `node tools/check.mjs budget` (tools/perf-budget.mjs) | 9 planted cases; mutants B1-B7 7/7 |
-| c436aacf C4 | E43's `projectLabel(id, user)` (projects-secrecy.mjs `nameAs`, `labelFor`) | R7406; mutants L1-L4 4/4; 72-canary, 93-spectator |
-| (C3) | the balance log: scripts/balance-log.mjs (the switch `balanceLog`, off by default; `noteBalanceRoll` after each drawn roll's record on the primary GM; `balanceNote`; `exactCount`, the 144 throws of 2d12 counted; `balanceReport`), gm-stores.mjs `balanceLogStore` (backed up, no reset group), the settings window's rules, docs/balance.md, a GM handbook line en/pl | R7407 (tier 1), E53-T1 (tier 2), both red at 8f1178bd ("balance-log.mjs does not load"), green after |
+| c436aacf C4 | E43's `projectLabel(id, user)` (projects-secrecy.mjs `nameAs`, `labelFor`) | R7541; mutants L1-L4 4/4; 72-canary, 93-spectator |
+| (C3) | the balance log: scripts/balance-log.mjs (the switch `balanceLog`, off by default; `noteBalanceRoll` after each drawn roll's record on the primary GM; `balanceNote`; `exactCount`, the 144 throws of 2d12 counted; `balanceReport`), gm-stores.mjs `balanceLogStore` (backed up, no reset group), the settings window's rules, docs/dev/balance.md, a GM handbook line en/pl | R7542 (tier 1), E53-T1 (tier 2), both red at 8f1178bd ("balance-log.mjs does not load"), green after |
 | E43-F11 | (8f1178bd) a sealed repair's end card names its secret target to each reader as they may read it | 72-canary |
 | (P1) | the owner's defect of 15.11 ("a project's action still does not show in Facilities"): one road found red - a secret project's room action reached an insider only on a GM's private card (facilities.mjs `toldFacility`), so a chat log cleared took the row out of the insider's Facilities while the GM's rows kept it. Now the GMs' sight copy carries it to those in on it (projects.mjs `sightFor`, `receiveSight`; projects-secrecy.mjs `toldSight`), the card is read only where the copy says nothing of it, and `tellFacility` sends the sight again | scenario 99's facilities check, red at c436aacf (12/13), green after (13/13); mutants P1-M1..M3 3/3 |
 
@@ -22,10 +22,10 @@ P1's roads, each read on p1 (in on the project) and the GM by a probe on the har
 | secret, p1 in on it, before the chat is cleared | shown | shown | |
 | the same after every message is deleted | **not shown** | shown | fixed (P1) |
 | no room, the character in a room | shown | - | |
-| no room, the character standing in no room | **not shown** | - | a design call, not built: `facilityRows` and `projectActionsWith` return nothing for a place with no room, and the GM's run refuses "not standing in any room". Whether a roomless project's action shows in a corridor is the owner's |
+| no room, the character standing in no room | **not shown** | - | **the owner's decision (15.11.2026, through the coordinator): no change** - a roomless project's action stays unavailable where a character stands in no room (`facilityRows`, `projectActionsWith` and the GM's run all need a room) |
 | a copy of the scene holding the same room names | not measured | - | the harness's scene clone answered the original's id |
 
-Which road was the owner's at the table is still not known; the setup the coordinator asked for decides it.
+Which road was the owner's at the table is still not known. The owner's setup (15.11.2026, through the coordinator): 1.2.115, a public project, completed, with a room, the character standing in that room, the action shown neither to the player nor to the GM; whether the chat was cleared is not known. The control above is that setup in the harness and shows, so the owner's road is another (P1, second pass).
 
 ## Decisions and answers
 
@@ -39,7 +39,14 @@ Which road was the owner's at the table is still not known; the setup the coordi
 | Q4 | E53's `touches` in tools/stages.json | left; the coordinator sets it at the release |
 | Q6 | "the card render" | the module's paint of a chat card (private-rolls.mjs `paintChatCard`), not Foundry's render of the message; the line says so |
 | Q7 | a counter for "Foundry tools windows" (the 11.10 amendment A9) | **not built: the ask could not be identified in the checkout** |
-| Q8-Q10 | the balance log's shape | go with the proposal; the exact count over the 144 throws of 2d12, called "exact count", with criticals and the Hope/Fear split; docs/balance.md English only, one GM handbook line en/pl |
+| Q8-Q10 | the balance log's shape | go with the proposal; the exact count over the 144 throws of 2d12, called "exact count", with criticals and the Hope/Fear split; docs/dev/balance.md English only, one GM handbook line en/pl |
+
+## Moved
+
+- **docs/balance.md is docs/dev/balance.md** (15.11.2026): at docs/ it shipped in module.zip (`node tools/check.mjs
+  package` red once C3 was committed: "docs/ is not the module's"), and the other road, an export-ignore line in
+  .gitattributes, is a change of the package's config this line does not make on a tool's word. docs/dev/ does not
+  ship. The plan's and E59's GAPS.md's "docs/balance.md" name this file.
 
 ## Read, not built
 
