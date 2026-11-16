@@ -7,6 +7,24 @@ The owner, 16.11.2026, while step 1 ran: "nie czekaj na mnie albo na moje odpowi
 domyslnych ... pracuj do samego konca". From here every question takes its default, written beside it, and the line
 goes on; what only the owner can give (a password, eyes on a screen) is written as not run with its reason.
 
+## Step 5 - E53's measurements (16.11.2026)
+
+| What | Ran | Reading |
+| --- | --- | --- |
+| The probe | `node audit/live/perf-baseline.mjs --probe --stage E53` | attempt 3 appended to audit/perf-baseline.json, status stays not-measured: `perfReport`'s body is the one recorded for E53 at 1.2.116, the server serves 1.2.116; could not run - "the world copy: DRPG_FIXTURES is not set" and "a browser drawing on a GPU at 1366x768: ... SwiftShader" (its own headless Chromium). So `--run` stays refused, rightly: no fixture world, and the probe's browser draws in software |
+| Is there a GPU browser here | `chrome://gpu` and the WebGL renderer in a page, headless and headed | headless: `chrome://gpu` hung (no reading). Headed on WSLg with flags: `chrome://gpu` reads "WebGL: Hardware accelerated*" while the page's renderer is "ANGLE (Mesa, llvmpipe ...)" - **software**; the label the prompt names is not enough here, the renderer string is the check. With Mesa's d3d12 driver (`GALLIUM_DRIVER=d3d12`): "D3D12 (AMD Radeon(TM) Graphics)", the CPU's integrated GPU; with `MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA`: "D3D12 (NVIDIA GeForce RTX 4080 SUPER)" - the GPU, through WSLg's D3D12 translation |
+| perf() and fps(), run 1 | the four accounts in four headed windows; `perf()` then `fps({ toChat: false })` on the GM and on PlayerOne, Stained Glass then Monokuma Legacy (each a fresh load, the theme in the page's storage) | Stained Glass: about 43 ms a frame (23 fps) on both, fps()'s median 50 ms, p95 50.1 ms, every frame over 33 ms; Legacy about 34 ms (29 fps), median 33.4 ms - frame times on multiples of 16.7 ms, and with the canvas's ticker stopped still 30 ms. Each effect held alone moved the frame by -2.2 to +3.4 ms, either way. These are the browser's: four windows, one in front |
+| fps(), run 2 | the GM alone in one focused window, both themes | 300 frames in 5 s, 60 fps, median 16.7 ms, p95 16.8 ms, none over 33 ms, in both themes; the blur, the pulse and the canvas each held changed the frame by at most 0.15 ms |
+| The rest of perf() | run 1 | a window reaches the screen in 86.7 ms (Stained Glass) and 69.9 ms (Legacy), median of six; one recut of the glass 6.1-7.2 ms; `roomOfActor` 0.1 ms, `othersInRoom` 0.13-0.19 ms; the fog repainted p95 33-51 ms (2-3 repaints); a chat card painted p95 0.1-0.4 ms; a student's ring p95 0.1-1.9 ms; no roll drawn and no canvas drawn since load in that window, so those lines read "none" |
+
+Machine, date, commit: AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12,
+Playwright 1.56.1's Chromium 141.0.7390.37 headed, 16.11.2026, 80dfaf06. The full output: docs/dev/e58/PERF-READINGS.md.
+
+What this is not: D27 (b)'s budget is a 1366x768 laptop with the largest isometric map; this is a high-end desktop
+through WSLg on the seed's small flat scene, so none of it becomes a budget (the prompt's rule: numbers to the
+coordinator for C2, nothing fixed by guess). The owner's own Chrome on Windows, the largest isometric map and the
+weakest player's machine (LIVE-E53-01, LIVE-E33-05, LIVE-E88-01) are still not measured.
+
 ## Step 7 - E112 at the table (16.11.2026; in progress)
 
 The world launches paused (Foundry's own start); each run here lifted the pause and put it back. On the drawn road with
