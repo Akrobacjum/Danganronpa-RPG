@@ -194,6 +194,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         ["victim", "bystander"].every(k => drawnOn(veiled[k]).length > 0 && drawnOn(veiled[k]).every(v => v === false) && veiled[k].tokens.every(t => t[7] === false))
         && drawnOn(veiled.killer).length > 0 && drawnOn(veiled.killer).every(v => v === true) && veiled.killer.tokens.every(t => t[7] === true),
         JSON.stringify(veiled), { flow: "murder-incident" });
+    /* A GM'S HIDDEN ON A VEILED TOKEN IS KEPT (E112v; the coordinator's ask of 16.11.2026, mutant M4): the veil writes no
+       `hidden`, so one on a veiled token is a GM's, and `show()` leaves it to Foundry rather than forcing the sprite on for
+       the token's owner. Read on the harness's model of Foundry's refresh, which hides a hidden token from every player.
+       ON v14 FOUNDRY DRAWS A HIDDEN TOKEN FOR ITS OWNER ANYWAY (L1, 16.11.2026: Chie's hidden token drawn on PlayerThree's
+       canvas), so at a table the owner sees it either way; the rule held here is the module's, that it never overrules a
+       GM's hide - the one road where a hidden token reaches the module's own `show()` - and is kept by a test so it cannot
+       quietly change. Put back after. */
+    await gm.eval(`for (const s of game.scenes) for (const t of s.tokens) if (t.actorId === "${ids.chie}") await t.update({ hidden: true }); return true;`);
+    await settle(400);
+    const gmHidden = await p3.eval(VIEW);
+    await gm.eval(`for (const s of game.scenes) for (const t of s.tokens) if (t.actorId === "${ids.chie}") await t.update({ hidden: false }); return true;`);
+    await settle(400);
+    check("road: a GM's hidden on a veiled token is kept on its owner's canvas - the module does not draw it there over the GM's hide",
+        drawnOn(gmHidden).length > 0 && drawnOn(gmHidden).every(v => v === false) && gmHidden.tokens.every(t => t[3] === true && t[4] === true),
+        JSON.stringify(gmHidden), { flow: "murder-incident" });
     /* WHAT A PLAYER'S CONSOLE READS OF THE VEIL (E112, 16.11.2026; the coordinator's read of the diff at assembly): every
        Token document reaches every browser (known leak foundry-hidden-tokens), so a console lists the tokens that carry the
        veil's flag, and resolves each by its actorId - the opening's killer. Until E112v it also listed them among the

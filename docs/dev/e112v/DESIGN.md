@@ -84,7 +84,7 @@ Mutants after the code (each on a copy): the patch writing `hidden` again; the S
 `movePass` not asking for the flag; `show()` overruling a GM's `hidden` on a veiled token; `hiddenByGm` keeping the flag's
 exception; `settleVeilsNow` not converting a 1.2.116 row; `liftVeil` writing `hidden` on a road (b) row.
 
-## 5. Open question for the owner (read, not fixed): the fallback onto an observed token
+## 5. The fallback onto an observed token (Q2; built on the coordinator's answer of 16.11.2026)
 
 Foundry's vision-source rule for a player (v13's `Token#_isVisionSource` as recalled from its source - not read on this line, no
 Foundry source is in the checkout; v14's measured by L1 only for the hidden case and the observed fallback): a token with sight, on a scene with token vision, is a source on a non-GM's browser when it is
@@ -101,12 +101,37 @@ Not reached on most tables: with the room fog on, every scene with rooms has tok
 `applySceneVisionMode`), and with token vision off nobody's token is a source. It bites a table with the room fog off and
 token vision on, as L1 ran. Two roads, for the owner: leave it (Foundry's rules as they are, the owner's road (b)); or
 lower the default ownership of characters below Observer, or wrap the predicate so a token this browser hides gives it no
-sight - road (a)'s wrapper in a smaller form. Not built here; sent to the coordinator as Q2.
+sight - road (a)'s wrapper in a smaller form. Sent to the coordinator as Q2.
+
+**The coordinator's answer (16.11.2026): build the third.** Road (b) without it would be worse than the tree it
+replaces: the victim's browser would light the map around the veiled killer. The rule built: a token this browser's
+module hides gives this browser no sight. visibility.mjs `installSightRule` wraps the configured token class's
+vision-source test (`_isVisionSource`, on the first prototype of the chain that owns it, at `ready`; patches.mjs row
+`token-sight`) and answers false for a token `noSightHere` names: a character by `givesNoSight`, which is
+`tokenShownTo(...) === "hide"` - the verdict `applyToToken` hides the sprite by, so the two cannot disagree - and any other
+token by the file's other rules (`hiddenByUs`: a Remnant, a project). Every other token keeps Foundry's own answer; a
+GM's browser is never asked. The killer's own token answers "show" on their browser, so it stays their vision source while
+veiled (R7701 on Foundry's rule as L1 read it, R7707 on the wrapper). Tests: R7706 (the predicate, red on 6989ed8f: no
+`givesNoSight`), R7707 (the wrapper on a stand-in class, red on 6989ed8f: no `installSightRule`).
+
+**The wider case it also covers.** With token vision on (the room fog off), the same fallback gave every player who
+controls no token with sight the sight of every character they observe - every character here - including those in
+other rooms, which the room rule hides. Those tokens answer "hide" too, so they give no sight now. That changes what such
+a table's players see, not only the veil: a player whose own token has sight and is controlled is untouched (Foundry's
+first branch), a player with no sighted token of their own now sees, with the room rule on (`roomVisibility`), from the
+characters in their own room only (with it off, `tokenShownTo` leaves the others to Foundry, as before), and in an
+Eclipse from none but their own. LIVE-E112V-01 (d) reads it.
+
+**What stays open for the owner.** The characters' default ownership (Observer for every player) is not changed on this
+line: the coordinator asks the owner. And the harness models no placeable Token, so the wrapper is read on a stand-in
+class: whether v14's class owns `_isVisionSource` where the chain is walked, and whether Foundry asks it where L1 read it,
+is LIVE-E112V-01.
 
 ## 6. What only a table settles
 
 LIVE-E112V-01 (AUDIT 9.2 item 600): the killer's vision while veiled on a real v14 canvas, with token vision on: their
 own token a vision source, nothing seen from the victim's eyes; the victim's and a bystander's canvases drawing no token,
-nameplate, ruler or turn marker of the killer's, and whether the killer's sight lights their map (section 5).
+nameplate, ruler or turn marker of the killer's, and no sight of the killer's lighting their map, nor of a character in
+another room (section 5's rule).
 LIVE-E112V-02 (item 601): Isometric's silhouettes of the veiled token on a victim's browser, now that the module hides it
 (LIVE-E112-05's scene, with the veil).

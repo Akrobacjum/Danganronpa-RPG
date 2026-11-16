@@ -59161,6 +59161,47 @@ const INVARIANTS = [
         equal(stableJson([hiddenByGm(veiled(true)), hiddenByGm(veiled(false)), hiddenByGm({ hidden: true }), hiddenByGm({ hidden: false }), hiddenByGm({ document: veiled(true) })]),
             stableJson([true, false, true, false, true]), "[veiled and hidden by a GM, veiled, hidden, shown, a placeable veiled and hidden]");
     }],
+    ["R7706 - a token this browser's module hides gives this browser no sight (E112v, the coordinator's answer to Q2 of 16.11.2026; scripts/visibility.mjs `givesNoSight`, `tokenShownTo`; docs/dev/e112v/DESIGN.md section 5): the predicate is `tokenShownTo`'s own \"hide\" - the veiled killer's token gives the victim, a bystander and a Spectator no sight and its owner, the killers' side and a GM their sight back to Foundry; a character in another room (the room rule on) gives none, one in the viewer's room and the viewer's own leave it to Foundry", async () => {
+        /* E112v, 16.11.2026. Pure readings on stand-ins: a token standing in no region reads no room, so "another room"
+           is a viewer whose rooms hold none of it and "the viewer's room" a scene with no rooms at all (`tokenShownTo`'s
+           own branch). Red on 6989ed8f: visibility.mjs has no `givesNoSight`. */
+        const V = await import("./visibility.mjs");
+        must(typeof V.givesNoSight === "function", "visibility.mjs has no `givesNoSight` - nothing answers whether a hidden token gives sight");
+        const veiled = { actorId: "K", actor: { type: "character" }, hidden: false, flags: { [MODULE_ID]: { veiled: true } } };
+        const plain = { actorId: "B", actor: { type: "character" }, hidden: false, flags: {} };
+        const viewer = (owns, side = [], extra = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false,
+            killersSide: new Set(side), owns: () => owns, ...extra });
+        const read = [V.givesNoSight(veiled, viewer(false)), V.givesNoSight(veiled, viewer(false, [], { spectator: true })), V.givesNoSight(veiled, viewer(true)),
+            V.givesNoSight(veiled, viewer(false, ["K"])), V.givesNoSight(veiled, viewer(false, [], { gm: true })),
+            V.givesNoSight(plain, viewer(false, [], { enforcing: true, rooms: new Set(["Dorm A"]) })), V.givesNoSight(plain, viewer(false, [], { enforcing: true })),
+            V.givesNoSight(plain, viewer(true, [], { enforcing: true, rooms: new Set(["Dorm A"]) })),
+            V.givesNoSight(plain, viewer(false, [], { eclipse: true }))];
+        // The predicate is the verdict the sprite is hidden by, case by case: the two can never disagree.
+        const same = [[veiled, viewer(false)], [veiled, viewer(true)], [plain, viewer(false, [], { enforcing: true, rooms: new Set(["Dorm A"]) })]]
+            .every(([doc, v]) => V.givesNoSight(doc, v) === (V.tokenShownTo(doc, v) === "hide"));
+        equal(stableJson([read, same]), stableJson([[true, true, false, false, false, true, false, false, true], true]),
+            "[[the victim or a bystander, a Spectator, the killer, the killers' side, a GM, another room, a scene with no rooms, the viewer's own, an Eclipse], the same as tokenShownTo's hide]");
+    }],
+    ["R7707 - the sight rule wraps the token class's vision-source test and keeps the killer's own sight while veiled (E112v; scripts/visibility.mjs `installSightRule`; LIVE-E112-01, LIVE-E112V-01): on a stand-in class, a token the rule hides is no vision source and any other keeps the class's own answer - the killer's own veiled token a source, as Foundry gives it; the wrap is marked, installed once, and a class with no such test is left alone", async () => {
+        /* E112v, 16.11.2026. A stand-in class whose test answers its `sees` field, and a rule handed in (`noSight`): the
+           harness models no placeable Token (patches.mjs `token-sight`). The real class on a canvas is LIVE-E112V-01.
+           Red on 6989ed8f: visibility.mjs has no `installSightRule`. */
+        const V = await import("./visibility.mjs");
+        must(typeof V.installSightRule === "function", "visibility.mjs has no `installSightRule` - the vision-source test is not wrapped");
+        class Base { _isVisionSource() { return this.sees; } }
+        class Token extends Base {}
+        const hides = new Set(["victim-sees-killer"]);
+        const noSight = token => hides.has(token.name);
+        const first = V.installSightRule(Token, noSight), again = V.installSightRule(Token, noSight);
+        const make = (name, sees) => Object.assign(new Token(), { name, sees });
+        const read = {
+            installed: [first, again, Base.prototype._isVisionSource[Symbol.for("drpgSightHere")] === true, typeof Base.prototype._isVisionSource.wrapped === "function"],
+            sources: [make("victim-sees-killer", true)._isVisionSource(), make("killer-own-veiled", true)._isVisionSource(), make("no-sight", false)._isVisionSource()],
+            none: V.installSightRule(class Bare {}, noSight)
+        };
+        equal(stableJson(read), stableJson({ installed: [true, true, true, true], sources: [false, true, false], none: false }),
+            "{installed: [first, again, marked, the class's own kept]; sources: [a token the rule hides, the killer's own veiled token, one with no sight]; none: a class with no test}");
+    }],
     ["R7406 - the mask wears the module's own question mark, on the map and on the portrait (scripts/mask-gm.mjs `MASK_IMG`, `maskPatch`, `portraitOf`, `portraitBack`, `maskKiller`, `endMask`; icons/mask-unknown.svg; E112 item 2): the mask's picture is the module's icons/mask-unknown.svg, served and drawn crisp, the token's texture and its ring's subject; the portrait kept is the actor's own picture and its prototype token's, and given back as they were; the killer's portrait is masked after the tokens and given back at the end", async () => {
         /* E112 item 2, 15.11.2026. Pure readings, one fetch and source; nothing written. Red on e9f4a791: MASK_IMG is
            Foundry's mystery man and mask-gm.mjs has no `portraitOf`. */

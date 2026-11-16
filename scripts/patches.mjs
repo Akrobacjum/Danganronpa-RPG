@@ -655,6 +655,28 @@ export const PATCHES = [
         }
     },
     {
+        id: "token-sight",
+        kind: "override",
+        target: "Token.prototype._isVisionSource (the configured token class's, where its chain first owns it)",
+        owner: "foundry",
+        file: "visibility.mjs",
+        symbol: "installSightRule",
+        why: "A token this browser's module hides - another room's, the opening's veiled killer's - gives this browser no sight (E112v; the same verdict, tokenShownTo, as the one that hides it).",
+        when: "always, at ready",
+        fallback: "not installed, and the console's debug line says so: with token vision on, a player who controls no token with sight takes sight from every character they observe, a token the module hides from them among them",
+        probe: () => {
+            const floor = foundry.canvas?.placeables?.Token?.prototype ?? null;
+            let proto = CONFIG.Token?.objectClass?.prototype ?? null;
+            // As iso-refresh-state's: the harness models no placeable Token (its objectClass is Object), so nothing to read.
+            if (!floor || !proto || !(proto === floor || Object.prototype.isPrototypeOf.call(floor, proto))) {
+                return { present: null, ours: null, unreadKey: "token-class", note: "the token class here is not Foundry's Token" };
+            }
+            while (proto && proto !== Object.prototype && !Object.hasOwn(proto, "_isVisionSource")) proto = Object.getPrototypeOf(proto);
+            const fn = proto && proto !== Object.prototype ? proto._isVisionSource : null;
+            return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgSightHere")]) };
+        }
+    },
+    {
         id: "actions-resource",
         kind: "override",
         target: "CONFIG.DH.RESOURCE.character: custom and all (the Actions resource)",
