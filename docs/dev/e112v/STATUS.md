@@ -47,5 +47,6 @@ Line claude/e112v-118 from a1d294ef. The design and the survey: DESIGN.md beside
 
 At 9e9a224c, the suite in 8 shards (`DRPG_SUITE_SHARD=i/8 node run-all.mjs suite`, one after another on 4 cores): shard 1
 green (22/22; suite 1763 passed, 0 failed, 16 skipped, 2312 s), shards 2-5 green (227/0/1, 227/0/1, 226/0/2, 225/0/3).
-The container restarted during shard 6; shards 6-8 were run again and `suite-merge.mjs` follows: its reading is written
-here when it has run.
+The container restarted during shard 6; shards 6-8 were run again on the same tree: 227/0/1 (671 s), 227/0/0 (697 s),
+224/0/3 (700 s), each 9/9. `node suite-merge.mjs` over the eight: "8 shard(s) of 8 file(s), 1573 tier-2 tests in the
+list; 3346 passed, 0 failed, 27 skipped, 0 red: green".
