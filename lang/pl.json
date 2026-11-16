@@ -7090,6 +7090,12 @@
       "title": "Dziennik debugowania",
       "intro": "Błędy i ostrzeżenia tej przeglądarki od załadowania strony. Przeładowanie strony czyści dziennik, a powtarzający się wpis zajmuje jeden wiersz z licznikiem.",
       "none": "Od załadowania strony nic nie poszło źle.",
+      "dropped": {
+        "one": "Pominięto {n} starszy wiersz, by zachować {kept} najnowszych.",
+        "few": "Pominięto {n} starsze wiersze, by zachować {kept} najnowszych.",
+        "many": "Pominięto {n} starszych wierszy, by zachować {kept} najnowszych.",
+        "other": "Pominięto {n} starszego wiersza, by zachować {kept} najnowszych."
+      },
       "clear": "Wyczyść dziennik",
       "cleared": "Debug log w tej przeglądarce jest teraz pusty.",
       "copy": "Kopiuj do schowka",

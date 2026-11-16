@@ -6554,6 +6554,10 @@
       "title": "Debug log",
       "intro": "Everything this browser has failed at since the page loaded; reloading the page empties it. Repeats show as one row with a count.",
       "none": "Nothing has gone wrong since this page loaded.",
+      "dropped": {
+        "one": "{n} older row was dropped to keep the newest {kept}.",
+        "other": "{n} older rows were dropped to keep the newest {kept}."
+      },
       "clear": "Clear the log",
       "cleared": "The debug log on this browser is now empty.",
       "copy": "Copy to clipboard",

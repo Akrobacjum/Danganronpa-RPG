@@ -61853,6 +61853,26 @@ const INVARIANTS = [
         stableJson([60, "row 16", "row 75", 15, true, true, true, "Nothing has failed since this page loaded."]),
             "[rows kept, the oldest kept, the newest kept, rows dropped, record keeps through keepNewest, the dropped count is read, the report names it, an empty log's report]");
     }],
+    ["R7640 - the GM panel's Debug log says how many older rows the session log dropped, the count diagnose() names (Q-E43-6's follow-up, the coordinator's ask of 16.11.2026; E109 built the ring, R7124): diagnostics.mjs `failuresDroppedLine` is the one English line diagnose()'s failures text and the Debug log's Copy text both carry, and gm-panel.mjs `openFailureLog` draws DRPG.Failures.dropped, a plural family in both languages, with `sessionFailuresDropped()`", async () => {
+        /*
+         * Red at a48e822e: the Debug log window and its Copy text read `sessionFailures()` alone, so a GM whose log had
+         * dropped its oldest rows read the newest 60 with no word that any went. Read on pure calls and on the source:
+         * tier 1 opens no window, and this browser's own log is not filled to measure it.
+         */
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const line = typeof D.failuresDroppedLine === "function" ? D.failuresDroppedLine : null;
+        const panel = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(panel, "openFailureLog");
+        const drawn = /sessionFailuresDropped\(\)/.test(body) && /plural\("DRPG\.Failures\.dropped"/.test(body);
+        const copied = /failuresDroppedLine\(/.test(body);
+        const sameInDiagnose = line ? D.failureText([{ level: "warn", message: "x", stack: null, at: 0, count: 1 }], 15).split("\n")[0] === line(15, 1) : false;
+        const shown = U.plural("DRPG.Failures.dropped", { n: 15, kept: 60 });
+        equal(stableJson([line?.(15, 60) ?? null, line?.(1, 60) ?? null, line?.(0, 60) ?? null, sameInDiagnose, drawn, copied,
+            shown.includes("15") && shown.includes("60") && !shown.includes("DRPG.")]),
+        stableJson(["15 older rows were dropped to keep the newest 60.", "1 older row was dropped to keep the newest 60.", "", true, true, true, true]),
+            "[the line for 15, for 1, for none; diagnose()'s first line is it; the window draws the plural key with the count; the Copy text carries the line; the key renders both numbers]");
+    }],
     ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
         /*
          * Red at 9e7e3d78: there was no replay (E99's STATUS: "there is no board to replay"). Asked with the table's switch

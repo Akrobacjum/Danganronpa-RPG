@@ -9639,11 +9639,14 @@ const SCENARIOS = [
         }
         // The player is told the closed list's code; the GM's log keeps the reason (bridge-guards.mjs `reasonOf`) - one row a
         // repeat only re-dates (utils.mjs `record`), so a row from an earlier run in this session is not taken for this one's.
-        // THE LOG KEEPS ITS FIRST 60 ROWS (utils.mjs SESSION_LOG_CAP), and a new reason past them is said on the console
-        // only. The whole suite in one page fills them before this test (1.2.80 train, fix crlf-G1: the unsharded CRLF
-        // run, 63 different GM errors and warnings before this one), and CI's shards did not. So the reason is read where
-        // utils.mjs `warn` always says it (bridge-guards.mjs `refuse`), the GM's console, during the refused draw; and in
-        // the log as well whenever the log has a row left for it.
+        // THE LOG KEPT ITS FIRST 60 ROWS until 1.2.115 (utils.mjs SESSION_LOG_CAP), and a new reason past them was said on
+        // the console only: the whole suite in one page filled them before this test (1.2.80 train, fix crlf-G1: the
+        // unsharded CRLF run, 63 different GM errors and warnings before this one), and CI's shards did not. Since E109 it
+        // keeps the NEWEST 60 (`keepNewest`, R7124), so the reason lands as the newest row even in a full log. The reason
+        // is still read first where utils.mjs `warn` always says it (bridge-guards.mjs `refuse`), the GM's console, during
+        // the refused draw, and then in the log. The escape `rows.length >= 60` is kept (Q-E43-6's follow-up, 16.11.2026):
+        // a full log no longer keeps the reason out, but 60 other wordings between the refusal and this read would still
+        // drop it, and nothing here bounds what other tests' hooks log meanwhile, so removing it is not shown safe.
         const told = second?.sent?.find(r => r.action === "bridge.refused")?.reason ?? null;
         const { sessionFailures } = await import("./utils.mjs");
         const reason = "the GMs' marks of the characters are not open";
