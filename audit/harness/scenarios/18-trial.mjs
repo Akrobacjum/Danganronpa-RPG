@@ -37,6 +37,9 @@
  * flag up, the trial started again, and a wrong Final verdict on Botan: one public card, the flag down, nobody
  * executed at the close; the scans look for the Mastermind's id and name too. Four mutants, each KILLED here.
  *
+ * A RESET DURING A SUICIDE INCIDENT (16.11.2026, the same line): last, Chie's murder of herself at Stage 6 and a season
+ * reset of the incident group alone, the players' sockets open; the scans after each. Two mutants, KILLED here.
+ *
  * Not here (63-class-trial's and 72-canary's): the ballot windows drawn, the verdict's
  * window, the Level Ups of a correct verdict; the markers of the GMs' other secrets.
  */
@@ -319,8 +322,48 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
         check("final close: the trial's end after a wrong Final verdict executes nobody",
             J(fc?.executed) === J([]) && J(fc.deadNow) === J([]), J(fc));
         await scan("final close");
+
+        /* A RESET DURING A SUICIDE INCIDENT (E40, 16.11.2026, the line claude/e39-40-116; the plan's "a reset during a suicide
+           incident"). 65 D and V drive it with the players' sockets held; neither scans a player's browser. Here, after the
+           Final Trial, the trial is ended and Chie opens a murder on herself, as 65 D opens it: her opening succeeds and the
+           incident stands at Stage 6 with nobody dead. Who took their own life is the incident's (world-secrets.mjs: the
+           world's record holds `active` and `stage` alone), so the scans after it look for Chie as before. Then a season
+           reset of the incident group alone (season-wipe.mjs `resetSeason`, its window answered as 65 answers it): the
+           incident gone, Chie alive, nothing failed, and the scans again. */
+        phase("suicide", { flow: "class-trial" });
+        const suicide = await gm.eval(`const UI = ${imp("trial-floor-ui.mjs")};
+            globalThis.__dialogAnswers.push(true);
+            await UI.endClassTrial();
+            const academy = game.scenes.get("${IDS.scene}");
+            if (canvas.scene?.id !== academy.id) canvas.scene = academy;
+            await game.drpg.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.chie}", openingTrait: "body" });
+            await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await new Promise(r => setTimeout(r, 800));
+            const st = game.drpg.murderState();
+            return { stage: st?.stage ?? null, self: st?.selfInflicted ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")) };`, { timeout: 60000 });
+        await settle(1500);
+        check("suicide: Chie's murder of herself stands at Stage 6, nobody dead",
+            suicide?.stage === "resolution" && suicide.self === true && suicide.dead === false, J(suicide));
+        await scan("suicide");
+
+        phase("reset in the suicide", { flow: "season-reset" });
+        const wiped = await gm.eval(`const R = ${imp("season-setup.mjs")};
+            const word = game.i18n.localize("DRPG.Season.resetWord");
+            globalThis.__dialogAnswers.push(config => { const c = config?.content;
+                return { word, ticked: ["incident"], cast: { to: c?.querySelector?.('[name="castTo"]:checked')?.value ?? null } }; });
+            const result = await R.resetSeason();
+            await new Promise(r => setTimeout(r, 800));
+            const chie = game.actors.get("${IDS.chie}");
+            return { failed: result?.failed ?? null, cleared: result?.cleared ?? null, incident: game.drpg.murderState()?.active ?? false,
+                chieForGm: game.drpg.isDeadForGm(chie), chieFlag: game.drpg.isDeceased(chie) };`, { timeout: 120000 });
+        await settle(1500);
+        check("reset in the suicide: the incident group reset alone - the incident gone, Chie alive for the GMs and the table, nothing failed",
+            J(wiped?.failed) === "[]" && (wiped.cleared ?? []).includes("incident") && wiped.incident === false
+                && wiped.chieForGm === false && wiped.chieFlag === false, J(wiped));
+        await scan("reset in the suicide");
     } finally {
         await gm.eval(`const C = ${imp("chapter.mjs")}, { blackenedStore } = ${imp("gm-stores.mjs")}, w = ${J(FX)};
+            if (game.drpg.murderState()?.active) await (${imp("murder.mjs")}).endMurder({ followUp: false }).catch(() => null);
             for (const id of ${J(ACCUSED)}) { const a = game.actors.get(id);
                 if (a && game.drpg.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true }).catch(() => null); }
             for (const id of ${J([IDS.chie, IDS.daichi])}) if (blackenedStore.has(id)) await blackenedStore.drop(id);

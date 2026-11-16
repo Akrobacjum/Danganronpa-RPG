@@ -169,8 +169,9 @@ The plan's items 2-6, in its order, with what each would take:
   window with "Nobody", a second trial, the Level Ups), and the rest is open. Since built in 18-trial, with the scans
   after each step: two Blackened (the line claude/e39-43-113), and on the line claude/e39-40-116 a second trial with
   "Nobody", the Final Trial, a late player with the ack and a GM's reload in the vote (its C1-C3 and C5). Still not in
-  18-trial: duplicates on the card, preselection, D4's offer applied once, a deceased before and after discovery, a
-  reset during a suicide incident (65 D and V drive it, without these scans), season-wipe on a world copy.
+  18-trial, and not built (the coordinator's word of 15.11.2026): duplicates on the card, preselection, D4's offer
+  applied once, a deceased before and after discovery, season-wipe on a world copy. A reset during a suicide incident
+  came in C6.
 - **The regex tests** (item 4): **done, 13.11.2026, for 1.2.113.** The owner's word through the coordinator ("robimy
   teraz"). `docs/dev/e40/ITEM4.md` holds the list, the slices and the rule; the four slices ran on parallel lines and were
   merged here (A c6ba81e1, C 698c7dd9, D 119384e0, B 3d0a9856), each with its own file `docs/dev/e40/ITEM4-<slice>.md`
@@ -280,6 +281,7 @@ Baseline at e9f4a791: `npm run quick` green; tiers 0-1 whole 1742 ran, 1727 pass
 | C3 | **18-trial, a late player with the ack**: a student "S18 Late" owned by p4 (an account declared `late: true`, as 63 declares it), made before the second trial; the second vote opens with three ballots, p1 casts, then p4 connects, heard before its world has loaded, asks the primary at load and is handed a fourth (the record's `issued` four; the harness's default press dismisses the window, warned once), asks again (`askForBallot`), casts Botan and Aiko in the window and is told once that its vote is in; p2 and p3 cast after: four in. Scans after each step. 66 checks to 76, about 27 s inside the cluster. The GM's reload in the vote was held back here, and came in C5 | audit/harness/scenarios/18-trial.mjs |
 | C4 | **The shared "allowed now" predicate** (item 3; scope the coordinator's of 15.11.2026: the ACTIONS keys, the A11 person roads and the A10 passage roads): scripts/allowed-now.mjs `allowedNow(actor, key, { road, facts }) -> { ok, why, road }`, one rule table a road a row (`action`, `person`, `transfer`, `passageShare`, `passageFind`), each in the order its road asked before, each fact read live unless handed in. Moved onto it: the tile (sheet-actions.mjs `actionButton`), the press (action-rolls.mjs `performAction`, every gate in its place, the fight read once at the top as before), frisk.mjs `personActionRefusal` (a Frisk, a steal, a Plant, a give, a tail, a loot), inventory.mjs `transferRefusal`'s last lines (the rifle), passages-gm.mjs `liveShareWorld` and `liveFindWorld`. Every caller says each `why` in the words it said before. Tests: E40-T3 extended (each cell the rule's reading too, and each state's row held to the answers of d2c6e0e5, measured there with the rule stubbed; Move's press alone); new tier 2 **E40-T4** (the rifle, a passage's show and its search on the live world in daily life, an Eclipse and the trial - the suite's other passage tests hand in a world of their own, so the live readers were read by nothing). Red on d2c6e0e5 with the new tests: both threw at the import of allowed-now.mjs. Three tier-0 text guards changed with the move: R42 reads the trial gate as `now.why === WHY.trial` and the rule's order in allowed-now.mjs, R164 is kept by the person road returning its sentences as literals, R553 by naming the passage roads in camelCase | scripts/allowed-now.mjs (new), action-rolls.mjs, sheet-actions.mjs, frisk.mjs, inventory.mjs, passages-gm.mjs, tests-tier0.mjs (R42), tests-tier2.mjs (E40-T3, E40-T4) |
 | C5 | **18-trial, the GM's reload in the vote, and the world-secrets rule's exemption**: world-secrets.mjs `WORLD_SECRET_RULES.uniformActorRows` (diceLookWorld: maps `e` and `t`, `e` alike, `t` stamps) and `findWorldSecrets` reading it (the finding above); tier 1 **R7560** on both directions (rows for every actor read clean, the watched one's own stamp too; a row for the watched actor alone, one actor without a row, a watched row unlike the others, a stamp that is not a number, the watched id in a value, the same rows in a setting the rule does not name, all found; every setting of the rule has a case). Red on dd195457: the uniform rows found, 2 hits where 0 are wanted. Then the reload case in 18-trial's second vote: after p1's ballot the GM's browser reloads (the cluster's `reload("gm")`, the seeded GM off the table and back with its storage, as F5 - used instead of a late `gm2`, the coordinator's word of 15.11.2026) and counts p1's ballot from the GMs' store; scans after it. The fixtures' ids are kept on the scenario's side (the reload clears the GM's page), and the Mastermind's actor made with them. 76 checks to 81, about 30-36 s inside the cluster | scripts/world-secrets.mjs, tests-tier1.mjs (R7560), audit/harness/scenarios/18-trial.mjs, docs/dev/R-REGISTRY.md |
+| C6 | **18-trial, a reset during a suicide incident** (the brief's last case; the coordinator's word of 15.11.2026): after the Final Trial's close, the trial ended and Chie's murder of herself opened as 65 D opens it - her opening succeeds and the incident stands at Stage 6, nobody dead - with the players' sockets open (65 holds them); then a season reset of the incident group alone (`resetSeason`, answered as 65 answers it): the incident gone, Chie alive for the GMs and the table, nothing failed. The scans after both steps look for Chie (who took her own life is the incident's: the world's record holds `active` and `stage` alone). 81 checks to 91, about 38 s inside the cluster | audit/harness/scenarios/18-trial.mjs |
 
 | Mutant | Check | Verdict |
 | --- | --- | --- |
@@ -361,6 +363,21 @@ Renumbered (15.11.2026, the coordinator's word): the test was R7405 when it was 
 `registry.mjs --next` gave; three other lines took R7405 too, and this line's block is R7560-R7579, so it is R7560. The
 registry's "R7405 (removed in E39)" row the tool kept was taken out by hand: the number never reached main from this
 line, and it is the other lines'.
+
+C6's mutants: incident-store.mjs, the world half of the incident's record carrying the cast's `killerId` - KILLED by
+18-trial world [suicide] (`murderState.killerId`, a field the rule's `only` refuses); the season's incident group
+clearing nothing - KILLED by 18-trial [reset in the suicide] (the incident still active).
+Gates of C6: `npm run quick` green (24 parts); tiers 0-1 whole 1743 ran, 1728 passed, 0 failed, 16 skipped, 0 red
+(488 s); 18-trial by `run-all.mjs scenarios --only 18-trial` green (39.7 s). No module code changed.
+
+The full tier 2 in shards, at df2e7312 (16.11.2026): 8 shards here, `suite-merge.mjs` RED - 1554 tier-2 tests,
+3294 passed, 1 failed, 27 skipped, 0 red. The one: E60-T14 in shard 5 (2 runs of 2), `playerReads` ["ruledCards.get"]
+where [] is wanted. On origin/main's tree shard 5 is green (225 passed) and E60-T14 is dealt elsewhere. Measured with a
+probe in a copy: an ask card a test before it made (the test "an ask its player stopped waiting for ends its card
+once"), deleted by tier 2's restore, keeps its expiry timer (call-gm.mjs `endExpired`), which fires about 308 s later
+inside E60-T14's window and reads the GMs' `ruledCards` there; E60-T14 counts every GM store read on the browser. An
+order dependence between tier-2 tests that main has too; this line's E40-T4 moved E60-T14 into its reach. Asked of the
+coordinator (three fixes named, none built): until it is decided, CI's shard 5 would be red on this branch.
 
 A HARNESS TRAP, for whoever runs mutants next: lib/canary.mjs imports scripts/world-secrets.mjs from the checkout the harness sits in, not from
 `DRPG_REPO`, so a mutant of world-secrets.mjs read through a scenario's scans has to run in the copy's own harness; the
