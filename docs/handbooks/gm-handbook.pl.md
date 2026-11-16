@@ -24,7 +24,7 @@ Potem zainstaluj system i poniższe moduły z ich własnych stron. Moduł nigdy 
 | Wymaga | Wersja |
 |---|---|
 | Foundry VTT | 14.364 lub nowsza (sprawdzone na 14.365) |
-| Daggerheart (Foundryborne) | 2.6.5 lub nowsza (sprawdzone na 2.12.8; nowsza wersja się ładuje, a każdy GM dostaje ostrzeżenie przy każdym wczytaniu, dopóki nie zaznaczy, żeby na tym komputerze nie wspominać już o tej wersji) |
+| Daggerheart (Foundryborne) | 2.6.5 lub nowsza (sprawdzone na 2.12.9; nowsza wersja się ładuje, a każdy GM dostaje ostrzeżenie przy każdym wczytaniu, dopóki nie zaznaczy, żeby na tym komputerze nie wspominać już o tej wersji) |
 
 | Moduł | Status | Po co |
 |---|---|---|

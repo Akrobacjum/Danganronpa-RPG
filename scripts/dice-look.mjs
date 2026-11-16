@@ -110,7 +110,8 @@ function onRollStart(messageId, context) {
  * carries its kind's colorset as its term's own `options.colorset`, which Dice So Nice puts above every role layer and a
  * library die (engine/DiceFactory.js:2183-2186, "priority 1"), whoever throws - a full Gamemaster too. With Dice So
  * Nice's chosen nothing is laid on those versions, as before: each role keeps the look Dice So Nice gives it. `system`
- * stands in for `game.system` (the tier-2 test hands a 2.12.8 one; the harness's system answers module.json's 2.6.5).
+ * stands in for `game.system` (the tier-2 test hands a 2.12.8 one; the harness's system answers module.json's verified
+ * version: 2.6.5 when this was written, 2.12.8 from 1.2.111 and 2.12.9 since 16.11.2026).
  */
 export function layOnThrow(context, system = game.system) {
     if (!context?.roll) return false;

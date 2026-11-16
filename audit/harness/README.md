@@ -432,7 +432,10 @@ part of a roll comes from:
   tag 2.12.8 (commit 71c318de25), `module/dice/` (2.10.5's until E76 C3b,
   12.11.2026); since then also `lib/dh-dice/data/action/move-context.mjs` (2.12's
   roll config, which the harness's `rollTrait` builds) and
-  `lib/dh-dice/helpers/functional.mjs` (what it imports), from the same tag.
+  `lib/dh-dice/helpers/functional.mjs` (what it imports), from the same tag;
+  move-context.mjs re-copied from tag 2.12.9 (commit 416942f490) on
+  16.11.2026, where `module/dice/` and `helpers/functional.mjs` are 2.12.8's
+  files unchanged (`git diff 2.12.8 2.12.9`).
   Each is the file byte for byte under a header; never edit one, re-copy them
   on an upgrade. Lint skips them as it skips dh-relay.mjs (eslint.config.mjs).
   The rest of `lib/dh-dice/` is the harness's glue at the paths those files

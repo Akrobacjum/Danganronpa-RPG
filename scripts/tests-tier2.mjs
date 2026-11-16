@@ -93894,7 +93894,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const laid = stableJson([["hope", hope.background], ["fear", fear.background]]);
         /* DAGGERHEART 2.10 AND LATER LAY NO TABLE LOOK (dice-look.mjs `tableDualityLook`: there the Hope and Fear dice
            wear Daggerheart's roles, so the module lays none). The harness boots as the Daggerheart module.json verifies
-           (lib/versions.mjs), 2.12.8 since 1.2.111 (8f1b1b38), where this test read the laying road's values and failed:
+           (lib/versions.mjs), 2.12.8 from 1.2.111 (8f1b1b38) and 2.12.9 since 16.11.2026. On 2.12.8 this test read the
+           laying road's values and failed:
            measured "drawn": false, "own": ["[]"], "history": [false, [null, null]], no marks, with the copy still kept and
            a player's write still put back. So it reads the rule the code states, by the version this browser runs: on
            2.10 and later the copy and its guard alone, and nothing laid; before 2.10 the whole laying road, as before.
@@ -94008,8 +94009,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E108, 13.11.2026. dice-look.mjs `layOnThrow` hands Dice So Nice (`diceSoNiceRollStart`'s `context.dsnRoll`) a
          * copy whose Hope, Fear, advantage and disadvantage dice carry Daggerheart's colorset (R5461, R5462). The harness's
-         * system answers module.json's verified version (lib/versions.mjs), 2.6.5, so `layOnThrow` - what the hook runs,
-         * here on the settings this test writes - is handed a system of 2.12.8, with a roll of the player's: the throw a
+         * system answers module.json's verified version (lib/versions.mjs): 2.6.5 where E108 wrote this (5ef2a88b), 2.12.8
+         * from 1.2.111 (8f1b1b38), 2.12.9 since 16.11.2026. So `layOnThrow` - what the hook runs, here on the settings
+         * this test writes - is handed a system of its own, 2.12.8, the version whose dsnConfig.mjs the four colorsets
+         * were read in (2.12.9's is the same file, `git diff 2.12.8 2.12.9`), with a roll of the player's: the throw a
          * GM's screen draws of it. The hook's own road is the 2.9 test's (the table's Hope and Despair dice, E60 C5d). Red
          * before E108: no layOnThrow exported, and on 2.12.8 nothing laid whatever the switch.
          */

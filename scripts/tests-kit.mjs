@@ -572,7 +572,8 @@ const env = Object.freeze({
     systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
     /* Daggerheart's MoveContext (E76b, 12.11.2026): the config 2.12's `actor.rollTrait` builds its roll from
        (game.system.api.data.actions.MoveContext, daggerheart.mjs:137-145, 2.12.8). Up to 2.10.x there is none, and a
-       test of what the module carries through it skips there; the harness runs 2.12.8's copy since E76 C3c. */
+       test of what the module carries through it skips there; the harness ran 2.12.8's copy from E76 C3c and runs
+       2.12.9's since 16.11.2026. */
     moveContext: () => probe("env.moveContext", typeof game.system?.api?.data?.actions?.MoveContext === "function",
         "this Daggerheart builds no MoveContext (before 2.12)"),
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
