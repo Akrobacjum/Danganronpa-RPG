@@ -1087,7 +1087,7 @@ export async function transferRefusal(from, to, { mode, asker = null } = {}) {
         if (why) return why;
         return knownDeath(user, other) ? "that cannot be done now" : null;
     }
-    const { isEclipse, isDeadForGm } = await import("./settings.mjs");
+    const { isDeadForGm } = await import("./settings.mjs");
     // A give through the same person gate (E64, D001; the owner's word of 12.11.2026): until E64 it asked only the Eclipse,
     // the Class Trial, a death and movement.mjs `sameRoom`, so a give reached a token the GMs hid or a Monocub, and a
     // Monokuma gave. The gate answers those, the room as the GMs read it, the Eclipse, the trial and the giver's incident; a
@@ -1097,9 +1097,10 @@ export async function transferRefusal(from, to, { mode, asker = null } = {}) {
         if (why) return why;
         return isDeadForGm(to) ? "that cannot be done now" : null;
     }
-    const { inClassTrial } = await import("./trial.mjs");
-    if (isEclipse()) return "an Eclipse is running";
-    if (inClassTrial()) return "that waits until the Class Trial is over";
+    // The phase: allowed-now.mjs's "transfer" road (E40 item 3) - the Eclipse, then the trial, in the words they had.
+    const { allowedNow, WHY } = await import("./allowed-now.mjs");
+    const now = allowedNow(actor, null, { road: "transfer" });
+    if (!now.ok) return now.why === WHY.eclipse ? "an Eclipse is running" : "that waits until the Class Trial is over";
     if (isDeadForGm(actor)) return "that cannot be done now";
     return null;
 }

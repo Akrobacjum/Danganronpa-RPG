@@ -38015,6 +38015,91 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["an ask whose card is gone ends nothing when its time runs out (E40-T5): a held Call's ask, a Call's yes sent on and a Dynamic ruling sent on, each card deleted, then its asker's expiry - no GM store read or written, no card made or changed, no packet sent", async () => {
+        /*
+         * E40, 16.11.2026 on the line claude/e39-40-116; the coordinator's Q5 (b) of that day. An ORDER-AND-TIMING
+         * DEPENDENCE THAT EXISTED ON MAIN: an ask card's expiry (call-gm.mjs `endAtExpiry`, about five minutes) outlived
+         * the tier-2 test that made it, whose restore deleted the card; when the timer fired it asked `underClaim`, which
+         * read the GMs' `ruledCards`, inside whatever test ran then - in this line's dealing E60-T14's window, which counts
+         * every GM store read (measured with a probe, STATUS). A card that is gone has nothing left to end, so `endExpired`
+         * and `endSentOn` return before any store is read. Driven here by the asker's own expiry (`ruling.expired`, the
+         * road `expiredOnPrimary` takes into both), as the E18 C1 tests beside this one drive it, each packet handed to the
+         * bridge's runner with the user Foundry would name; the timer takes the same two functions. Counted while each
+         * expiry is judged: every GM store's reads and writes (`gmStoreHandles`), the chat's creates and updates, and
+         * `game.socket.emit`. A Call's yes is still taken back (bridge-guards.mjs `forgetCallYes`, this browser's memory,
+         * no store): a yes for a card nobody can see any more must not stay usable.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the asks are a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { gmStoreHandles } = await import("./gm-store.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const made = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        /* The window: what one expiry does once its card is gone. */
+        const counted = async run => {
+            const touched = [], undo = [];
+            for (const handle of gmStoreHandles()) {
+                for (const key of ["get", "has", "entries", "patch", "patchMany", "drop", "dropMany", "clear"]) {
+                    const original = handle[key];
+                    if (typeof original !== "function") continue;
+                    undo.push(() => { handle[key] = original; });
+                    handle[key] = (...args) => { touched.push(`${handle.name}.${key}`); return original(...args); };
+                }
+            }
+            const emit = game.socket.emit;
+            game.socket.emit = (...args) => { touched.push("socket"); return emit.apply(game.socket, args); };
+            undo.push(() => { game.socket.emit = emit; });
+            for (const hook of ["createChatMessage", "updateChatMessage"]) {
+                const heard = () => touched.push(hook);
+                Hooks.on(hook, heard);
+                undo.push(() => Hooks.off(hook, heard));
+            }
+            try { await run(); await settle(300); } finally { for (const put of undo.reverse()) put(); }
+            return [...new Set(touched)].sort();
+        };
+        const card = async () => {
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            const message = created.shift();
+            await message.delete();
+            await settle(200);
+            must(!game.messages.get(message.id), "the card was not deleted - this would measure nothing");
+        };
+        const read = {};
+        try {
+            const held = foundry.utils.randomID(16);
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E40-T5 held", nonce: foundry.utils.randomID(16) }, player.id, held);
+            await card();
+            read.held = await counted(() => judged("ruling.expired", { rid: held }, player.id));
+
+            const yes = foundry.utils.randomID(16);
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E40-T5 yes", nonce: foundry.utils.randomID(16) }, player.id, yes);
+            must(await until(() => created.length > 0, 5000), "the second ask put no card up - this would measure nothing");
+            must(await B.answerHopeCall(yes, player.id, true), "the GM's yes was not sent on - this would measure nothing");
+            await card();
+            read.yes = await counted(() => judged("ruling.expired", { rid: yes }, player.id));
+
+            const dynamic = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E40-T5 dynamic", actorName: theirs.name, room: null }, player.id, dynamic);
+            must(await until(() => created.length > 0, 5000), "the Dynamic ask put no card up - this would measure nothing");
+            must(await B.answerDynamic(dynamic, player.id, { tier: 2, trait: "agility" }), "the Dynamic ruling was not sent on - this would measure nothing");
+            await card();
+            read.dynamic = await counted(() => judged("ruling.expired", { rid: dynamic }, player.id));
+        } finally {
+            Hooks.off("createChatMessage", made);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: [], yes: [], dynamic: [] }),
+            "an expiry of an ask whose card is gone read or wrote a GM store, made or changed a card, or sent a packet");
+    }],
+
     ["an ask its player stopped waiting for ends its card once: only its asker's expiry ends it, the card says so, and a later yes is not kept (E18 C1)", async () => {
         /*
          * E18 C1, 19.10.2026; audits S10-25 and S11-13 (E18-05). Until C1 a Hope Call's card stayed open after its
@@ -49896,8 +49981,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * nothing runs past its first window), for the lock sentence it warns. The four lock sentences are
          * DRPG.Murder.actionsLocked, DRPG.Eclipse.murderOnlyInEclipse, DRPG.Trial.actionsLocked and DRPG.Eclipse.actionsLocked.
          * A new key of ACTIONS is a row of the matrix by itself.
+         *
+         * AND THE ONE RULE (E40 item 3, 15.11.2026 on the line claude/e39-40-116): since the shared predicate, both read
+         * allowed-now.mjs `allowedNow`, so each cell holds a third reading - the rule's own `why`, named as the sentence
+         * it stands for - and the three must agree. Red before allowed-now.mjs existed: the import throws. Since the three
+         * ask one rule, their agreement cannot see a change of the rule itself, so each state's row is also held to what
+         * the module answered before the move (measured at d2c6e0e5's tile and press, which agreed in every cell): daily
+         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze, Direct
+         * Murder saying it waits for an Eclipse; a fight every key of the victim's but Direct Murder, which is the fight's
+         * menu. And Move, which has no tile, by its press alone: open in daily life and an Eclipse, the trial's and the
+         * fight's sentence in theirs.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const A = await import("./allowed-now.mjs");
+        const RULE = { [A.WHY.incident]: "fight", [A.WHY.murderOnlyInEclipse]: "murderOnlyInEclipse", [A.WHY.trial]: "trial", [A.WHY.eclipse]: "eclipse" };
         const M = await import("./murder.mjs");
         const { actionButton } = await import("./sheet.mjs");
         const { performAction } = await import("./action-rolls.mjs");
@@ -49938,12 +50035,25 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     for (const [k, d] of Object.entries(kept)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
                     for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
                 }
-                row[key] = { tile: which(tile.dataset.tooltip), press: which(said.join(" | ")) };
+                const rule = A.allowedNow(victim, key);
+                row[key] = { tile: which(tile.dataset.tooltip), press: which(said.join(" | ")), rule: rule.ok ? null : (RULE[rule.why] ?? rule.why) };
+            }
+            /* Move's press alone, every window answered null as above (it opens none since E100 item 1). */
+            {
+                const said = [];
+                for (const k of ["warn", "info", "error"]) notes[k] = message => { said.push(String(message)); };
+                for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+                try { await performAction(victim, "move"); } catch (err) { said.push(`threw ${err?.message ?? err}`); }
+                finally {
+                    for (const [k, d] of Object.entries(kept)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                    for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+                }
+                row.__move = which(said.join(" | "));
             }
             await settle();
             return row;
         };
-        const matrix = {}, reachable = {};
+        const matrix = {}, reachable = {}, moveRow = {};
         try {
             matrix.daily = await read();
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
@@ -49984,10 +50094,85 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(reachable), stableJson({ startInFight: "DRPG.Eclipse.incidentFirst", openInEclipse: null, stageAfter: null }),
             "a fight and an Eclipse can stand together after all - the matrix must read that state too (an Eclipse started in a fight, a fight opened in an Eclipse, the fight's stage after)");
+        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; }
+        const expected = key => ({
+            daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
+            eclipse: key === "directMurder" ? null : "eclipse",
+            trial: key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial",
+            fight: key === "directMurder" ? null : "fight"
+        });
+        const offRule = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)
+            .filter(([key, cell]) => cell.press !== expected(key)[state]).map(([key, cell]) => `${state}/${key}: press ${cell.press}, before ${expected(key)[state]}`));
+        equal(stableJson(offRule), "[]", "an action's lock is not what the module answered before the shared rule");
+        equal(stableJson(moveRow), stableJson({ daily: null, eclipse: null, trial: "trial", fight: "fight" }),
+            "Move's press locks otherwise than before the shared rule (open in an Eclipse, the trial's and the fight's sentence in theirs)");
         const disagree = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)
-            .filter(([, cell]) => cell.tile !== cell.press).map(([key, cell]) => `${state}/${key}: tile ${cell.tile}, press ${cell.press}`));
+            .filter(([, cell]) => cell.tile !== cell.press || cell.rule !== cell.press)
+            .map(([key, cell]) => `${state}/${key}: tile ${cell.tile}, press ${cell.press}, rule ${cell.rule}`));
         ok(Object.keys(matrix).length === 4 && keys.length > 0, `the matrix was not read in every state (${Object.keys(matrix).join(", ")})`);
         equal(stableJson(disagree), "[]", `a tile and its press disagree on whether the action is locked, or why: ${stableJson(matrix)}`);
+    }],
+
+    ["the rifle, a passage's show and a passage's search ask the phase of the one rule, on the live world (E40-T4): daily life, an Eclipse and the Class Trial", async () => {
+        /*
+         * E40 item 3, 15.11.2026 on the line claude/e39-40-116; the plan's A10 and A11 columns of the matrix. Three roads
+         * the GM's browser judges read the phase through allowed-now.mjs `allowedNow` since the shared predicate:
+         * inventory.mjs `transferRefusal` for a rifle (the "transfer" road, the one mode its last lines answer),
+         * passages-gm.mjs `sharePassage` (the `passageShare` road, through `liveShareWorld`) and `resolvePassageSearch`
+         * (the `passageFind` road, through `liveFindWorld`). The suite's other tests hand the passages a world of their
+         * own, so the live readers were read by nothing. Each is asked on the live world in each state, refused before it
+         * writes anything: the rifle by a student of another, the show and the search by a character that does not exist
+         * (each road asks the phase first). The words each answers are held to the rule's `why`, as each road says it.
+         * The person roads' phase (frisk.mjs `personActionRefusal`) is A11-9's. Red before allowed-now.mjs existed: the
+         * import throws.
+         */
+        needs(world.atLeast("livingStudents", 2), "a student who rifles and the student whose stash it is");
+        const A = await import("./allowed-now.mjs");
+        const I = await import("./inventory.mjs");
+        const P = await import("./passages-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [owner, rifler] = livingStudents();
+        must(owner && rifler, "two living students - this would measure nothing");
+        const TRANSFER = { [A.WHY.eclipse]: "an Eclipse is running", [A.WHY.trial]: "that waits until the Class Trial is over" };
+        const LOCKED = "that action is locked", NONE = "no such character", TRIAL = "the Class Trial is in session";
+        const quiet = { whisper: () => null, toast: () => null, note: () => null, hunted: () => null };
+        const clock = foundry.utils.deepClone(getClock());
+        const read = async () => {
+            const rule = road => A.allowedNow(rifler, null, { road });
+            const share = await P.sharePassage({ actorId: "S40T4NOBODY00000", targetId: "S40T4NOBODY00001", passageId: "S40T4NONE" });
+            const find = await P.resolvePassageSearch({ actorId: "S40T4NOBODY00000", total: 0 }, quiet);
+            return {
+                rifle: await I.transferRefusal(owner, rifler, { mode: "rifle" }),
+                share: share?.refused ?? null, find: find?.refused ?? null,
+                rule: { transfer: rule("transfer"), share: rule("passageShare"), find: rule("passageFind") }
+            };
+        };
+        const seen = {};
+        try {
+            seen.daily = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            seen.eclipse = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: false, phase: "classTrial" });
+            seen.trial = await read();
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        const said = Object.fromEntries(Object.entries(seen).map(([state, r]) => [state, {
+            rifle: r.rifle, share: r.share, find: r.find,
+            rule: {
+                rifle: r.rule.transfer.ok ? null : TRANSFER[r.rule.transfer.why],
+                share: r.rule.share.ok ? NONE : LOCKED,
+                find: r.rule.find.ok ? NONE : TRIAL
+            }
+        }]));
+        equal(stableJson(Object.fromEntries(Object.entries(said).map(([state, r]) => [state, { rifle: r.rifle, share: r.share, find: r.find }]))),
+            stableJson({ daily: { rifle: null, share: NONE, find: NONE },
+                eclipse: { rifle: TRANSFER.eclipse, share: LOCKED, find: NONE },
+                trial: { rifle: TRANSFER.trial, share: LOCKED, find: TRIAL } }),
+            "the three roads answer the phase as they did before the shared rule");
+        const off = Object.entries(said).flatMap(([state, r]) => ["rifle", "share", "find"].filter(k => r[k] !== r.rule[k]).map(k => `${state}/${k}: ${r[k]} vs rule ${r.rule[k]}`));
+        equal(stableJson(off), "[]", `a road answers otherwise than the one rule: ${stableJson(said)}`);
     }],
 
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {
@@ -97310,10 +97495,25 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             back = await handFreeFor(taker, "tool");
             await whileDead(body, async () => {
-                const made = [await INV.grantItem(body, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true }),
+                const granted = [await INV.grantItem(body, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true }),
                     await INV.grantItem(body, { name: NAMES[1], category: "usable", tier: 1, override: true, quiet: true })];
                 await sheetAuditIdle();
-                must(made.every(Boolean), "the body's two things were not made - this would measure nothing");
+                must(granted.every(Boolean), "the body's two things were not made - this would measure nothing");
+                /* FIXED IDS (E40, 16.11.2026 on the line claude/e39-40-116; the coordinator's Q6). The ids were random and the
+                   rows read below were sorted by `localeCompare` while the order expected was `Object.keys(...).sort()` (code
+                   units): the two disagree on about 17.8% of random pairs (measured), the cause of this test's red in the
+                   1.2.115 CI run on 326caf11 and of one in four runs alone. Each thing grantItem made is put back by the GM
+                   with an id of its own - "Bq..." and "aZ...", which the two orders sort apart - so a mismatch is red every
+                   run; both sides now sort by code units, as ids are not words. */
+                const FIXED = ["BqA113T1Crowbar0", "aZA113T1Plaster0"];
+                const made = [];
+                for (const [i, item] of granted.entries()) {
+                    const data = { ...item.toObject(), _id: FIXED[i] };
+                    await item.delete();
+                    made.push(...await body.createEmbeddedDocuments("Item", [data], { keepId: true }));
+                }
+                await sheetAuditIdle();
+                must(made.map(i => i?.id).join() === FIXED.join(), `the body's two things did not keep their fixed ids (${made.map(i => i?.id).join()}) - this would measure nothing`);
                 const ids = made.map(i => i.id).sort();
                 win = await lootWindowFor(body, taker);
                 if (win) {
@@ -97322,7 +97522,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     read.window = {
                         classes: ["drpg-action-window", "drpg-loot-window"].map(c => el.classList.contains(c)),
                         brief: [Boolean(left?.querySelector(".drpg-briefing-block")), (left?.textContent ?? "").includes(body.name)],
-                        rows: ours.map(box => [box.type, box.closest("label.drpg-choice")?.querySelector("strong")?.textContent ?? null, box.value]).sort((a, b) => String(a[2]).localeCompare(String(b[2]))),
+                        rows: ours.map(box => [box.type, box.closest("label.drpg-choice")?.querySelector("strong")?.textContent ?? null, box.value]).sort((a, b) => (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : 0)),
                         inRight: ours.every(box => right?.contains(box)),
                         take: Boolean(el.querySelector('footer .drpg-loot-take, .form-footer .drpg-loot-take'))
                     };
