@@ -450,6 +450,7 @@ The coordinator's brief of 16.11.2026, the owner's word: "Etapy (lub czesci etap
 | D2 | **The matrix's dimensions** (tests alone; the coordinator's brief): the trial floor's modes and the A10/A11 columns. New tier 2 **E40-T7**: every mode of `MODE_RULES` (ten at ff3e12e5: debate, objection, rebuttal, testimony, panic, closing and the Zones' dive, scrum and straw) and no floor, with two students of the world as holder and target and a third beside them: `maySpeak`, `presentRefusal`, `floorRefusal` and `targetRefusal` held to `modeAllows` (all agree), and the table's answers pinned to ff3e12e5's (R1023 pins three modes); then a floor of each mode written to the world in the Class Trial: every key's tile and press lock as in the trial. The floor's rule stays `modeAllows`, not a road of allowed-now.mjs: wrapping it would import the trial floor's module graph (the vote, the Zones, the bridge's guards) into the file the sheet and the press import statically. E40-T3 extended with three columns in each of its four states, live and held to their roads: a Frisk's person gate (the victim asking of the killer, the two placed alone in one room), a passage's show and its search | scripts/tests-tier2.mjs (E40-T3, E40-T7) |
 | D3 | **18-trial, the plan's list's last rows** (tests alone; no bug found): **D4's offer applied once** - a wrong verdict leaves each surviving Blackened one waiting Reinforced Level Up (verdict.mjs `verdictOffers`, level-up.mjs `deferAdvancement`, the GMs' `deferredOfferStore`), read on the GM: none before the trial, one each for Chie and Daichi after the first verdict, two each after the "Nobody" verdict; **a deceased before and after discovery** - "S18 Hidden", nobody's student, killed in secret before the second trial: on p2's ballot alive (vote.mjs `candidatesFor` reads the table's `isDeceased`) and dead in no data of p2's, and once the GM publishes the death (death.mjs `publishDeath`) dead on p3's ballot; **duplicates on the card** - p2's ballot naming Botan twice refused through the bridge, and the count's card on p1 naming each accused on one row, with 4; **preselection** - the verdict's window drawn on the GM opens its "executed" select on the first name the count accused, "Nobody is executed" first, and Cancel gives no verdict. **Season-wipe on a world copy**: LIVE-E40-02 (AUDIT 9.2 item 562), as the harness has no played world. 91 checks to 94, about 37 s inside the cluster | audit/harness/scenarios/18-trial.mjs, README row 18, audit/AUDIT-1.2.42.md (item 562) |
 | D4 | **The brochure's Infiltrate row** (the coordinator's brief, item 4, and the answers to Q1 and Q2 of 16.11.2026): docs/handbooks/player-brochure.en.md and .pl.md row 37 list the Infiltrate actions in the order the player handbook's line 396 has since 1.2.116 - Listen, Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, Pick the Lock - the list's order alone changed, no word; docs/handbook-facts.player-brochure.en.json: the row's fact (s2.r4.f2) in that order, and the two facts whose keywords no longer stood in their units ("Module 1.2.112" now 1.2.116; "DRPG Settings" now the row's "Danganronpa RPG settings"). `node tools/handbook-facts.mjs check` on the brochure's facts against its units (`split`): 280 facts, 55 units, 0 problems (2 before). The version's keyword moves with every release's bump of the brochure's third line | docs/handbooks/player-brochure.en.md, player-brochure.pl.md, docs/handbook-facts.player-brochure.en.json |
+| D5 | **Two accused, each on their own** (the owner's answer of 16.11.2026, "gm wybiera czy chce zabic 1, czy 2 i ktora"; the coordinator's brief of that day): with two or more accused students living at the table the verdict window draws one tick per living accused in place of the executed select, each ticked unless a known Blackened (verdict.mjs `accusedChoices`); a wrong verdict executes exactly the ticked ones (`executedChoice`); none ticked holds **They got it wrong** off (`holdWrongWithoutTick`, the window's `render`), and a form submitted with none anyway answers `NONE_TICKED`, tells the GM (`DRPG.Vote.pickOneAccused`) and gives no verdict (`verdictAnswer`: only an object `read` built is one), so it can be given again. One accused, or one of two dead, keeps the select. New keys `DRPG.Vote.executedEachIfWrong`, `pickOneAccused` and the ticks' tooltip `DRPG.Tips.Trial.executedEachTooltip` (EN, PL; the tooltips census asked for one, and its baseline only shrinks; R4752's family 36 -> 37, as E110 C3 grew it, docs/dev/e102 not touched); the GM handbook's Verdict section, EN and PL, one paragraph. New tier 1 **R7601**-**R7603**, tier 2 **E40-T8**; AUDIT 9.2 item 563 **LIVE-E40-03** | scripts/verdict.mjs, lang/en.json, lang/pl.json, docs/handbooks/gm-handbook.en.md, .pl.md, scripts/tests-tier1.mjs, scripts/tests-tier2.mjs, audit/AUDIT-1.2.42.md, docs/dev/R-REGISTRY.md |
 
 D3's mutants, 6 of 6 KILLED by 18-trial: a wrong verdict deferring two at once (level-up.mjs `deferAdvancement`) and
 deferring none (`verdictOffers`) - both D4 checks; the ballot marking the dead by the GMs' own reading (`candidatesFor`
@@ -471,7 +472,34 @@ them places whose line moved, the rest keywords no longer in their unit's text; 
 Gates of D4: `npm run quick` green; tiers 0-1 whole green (the numbers in the commit message).
 
 A reading of D3, asked of the coordinator: the verdict's window holds one "executed" select, so with two accused it
-sentences one student, while `applyVerdict` takes a list (18-trial's API road sentences both). Not changed.
+sentences one student, while `applyVerdict` takes a list (18-trial's API road sentences both). Not changed in D3;
+D5 builds the owner's answer.
+
+D5, the readers of the executed list, read in the code (none assumes every accused is executed; each reads the record's
+`executedIds`, which is the ticked list): `verdictHeld` sentences the ticked who are alive, gives the survivors' list less
+them (so an unticked accused is a survivor), and the killers are the Blackened not ticked; the sentence and the chapter's
+end (`readSentence`, trial-progress.mjs `executeAtExit`) kill the ticked alone; Despair (`verdictDespair`) does not read
+who is executed; the Reinforced and the rule (`verdictOffers`, `verdictRule`) go to the killers - every Blackened not
+ticked, one Reinforced each per wrong verdict - so a known Blackened ticked in a wrong verdict is executed and gets
+neither, as with the select before; the Level Ups (`verdictLevelUps`) are a right verdict's, and the Ghost Bets
+(monocub.mjs `settleBets`) pay only on a right verdict; the Event panel (events.mjs `afterVerdictCard`) and the card
+(`postVerdictCard`) name the sentenced list. The ballot reads no verdict. The Final Trial's window is not changed (one
+Mastermind). Measured: tier 2 E40-T8 drives the window and holds `applyVerdict` back, so these readers are read, not
+driven with one of two ticked; 18-trial's API road drives two executed.
+
+D5's mutants, 11 runs on the tree before the tooltip and 18-trial's edit (neither changes what they mutate), 9 of the
+final 10 KILLED - the first run of the answer's guard survived while it stood inline in `openVerdictDialog`, so it was
+moved into `verdictAnswer` and run again: the ticks offered with one accused, a known Blackened ticked, the dead offered (R7601);
+`executedChoice` executing every row (R7602, E40-T8); `read` passing none ticked, the button never held, the select
+drawn always, `read` handed no ticks (E40-T8); `verdictAnswer` taking any string but Cancel (R7603). SURVIVED: the call
+in `openVerdictDialog` going round `verdictAnswer` - the window's answer is held back from it by the harness's
+`verdictWindow`, and driving it on a mutant would carry out a verdict; read, not driven.
+
+Gates of D5: the GM handbook's facts (out of C3's gate, by name) checked before and after against `split`'s units:
+7222 facts, 1294 units, 8845 problems before; 1295 units, 8849 after (the paragraph's unit, and the places after it in
+its section moved by one) - not regenerated here, C3's line. 18-trial's preselection check, which read one select opening on
+the first accused, reads D5's two ticks now (both accused ticked, no select); README row 18 says so. `npm run quick` green; tiers 0-1 whole green; R7601-R7603,
+E40-T8, R315, R4752 and the verdict window's tier 2 tests by name green, 18-trial green (the numbers in the commit message).
 
 D2's mutants, 6 of 6 KILLED: `floorRefusal` blind to the table, Panic Round taking an Objection in `MODE_RULES`, and
 `presentRefusal` open to anyone (E40-T7); the person road's incident off, the passage show's live lock off, and a

@@ -27058,6 +27058,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Enter in the verdict window presses a verdict (the first submit button, the buttons marked default, the answer)");
     }],
 
+    ["E40-T8 - two accused, each on their own: the verdict window ticks both, holds the wrong verdict off with none ticked, and a wrong verdict executes exactly the ticked - both, the first, the other; none gives no verdict (scripts/verdict.mjs `accusedChoices`, `executedChoice`, `read`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
+        /*
+         * Drawn on this GM over a record whose count accused two living students who are not known Blackened (tier 1 R7601,
+         * R7602 hold the pure halves). Four windows, each pressed "Got it wrong" with the answer held back from
+         * `applyVerdict` (`verdictWindow`): both ticked as opened, the second unticked, the first unticked, and both unticked
+         * with the button's hold taken off as a form edited around it would - that one answers `NONE_TICKED`, no verdict. The first window
+         * also reads the ticks' values and state, the legend, that no executed select is drawn, and the button's state
+         * with none ticked and then one. Red at 8a472e37: a select named one person.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn, its ticks clicked and a verdict pressed");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        const known = new Set(trialBlackenedActors().map(a => a.id));
+        const [A, B] = cast(3).filter(a => !known.has(a.id));
+        must(A && B, "no two living students who are not known Blackened");
+        const record = { voteClosed: true, accused: [{ id: A.id, n: 2 }, { id: B.id, n: 2 }], total: 4,
+            majority: 2, noMajority: false, tied: false, accusedIds: [A.id, B.id] };
+        const ticks = element => [...element.querySelectorAll('input[name="executedEach"]')];
+        const wrongButton = element => element.querySelector('footer button[data-action="wrong"]');
+        const press = untick => element => {
+            for (const input of ticks(element)) if (untick.includes(input.value)) input.click();
+            const button = wrongButton(element);
+            const held = Boolean(button?.disabled);
+            if (button) button.disabled = false;
+            button?.click();
+            return held;
+        };
+        const first = await verdictWindow(record, element => {
+            const shape = [ticks(element).map(input => [input.value, input.checked]), Boolean(element.querySelector('select[name="executed"]')),
+                element.querySelector("fieldset legend")?.textContent?.trim() ?? null];
+            const states = [wrongButton(element)?.disabled ?? null];
+            for (const input of ticks(element)) input.click();
+            states.push(wrongButton(element)?.disabled ?? null);
+            ticks(element).find(input => input.value === B.id)?.click();
+            states.push(wrongButton(element)?.disabled ?? null);
+            wrongButton(element)?.click();
+            return [shape, states];
+        });
+        const runs = [];
+        for (const untick of [[], [B.id], [A.id], [A.id, B.id]]) runs.push(await verdictWindow(record, press(untick)));
+        const executed = answer => answer && typeof answer === "object" ? [answer.correct, answer.executedIds] : answer;
+        equal(stableJson([first.reading, executed(first.answer), ...runs.map(run => [run.reading, executed(run.answer)])]),
+            stableJson([[[[[A.id, true], [B.id, true]], false, game.i18n.localize("DRPG.Vote.executedEachIfWrong")], [false, true, false]],
+                [false, [B.id]],
+                [false, [false, [A.id, B.id]]], [false, [false, [A.id]]], [false, [false, [B.id]]], [true, "noneTicked"]]),
+            "the verdict window over two accused does not tick both, holds the wrong verdict off otherwise than with none ticked, "
+            + "or a wrong verdict does not execute exactly the ticked ones (the ticks, the select, the legend, the button's state "
+            + "as opened, with none and with one; then both, the second unticked, the first unticked, none: whether held, and the answer)");
+    }],
+
     ["a right verdict without the register executes the Blackened the GM names", async () => {
         /*
          * E10 C4, 1.2.71; audit S06-04; the stage's doneWhen "Werdyktu nie da się wykonać na przypadkowej

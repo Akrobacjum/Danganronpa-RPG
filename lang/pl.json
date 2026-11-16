@@ -2069,7 +2069,8 @@
         "whichRemnantTooltip": "Remnanty Reinforced są na liście, ale nie da się ich wytrzeć",
         "scrubAtItTooltip": "Rzut na wytarcie wybranego Remnantu",
         "carryItThereTooltip": "Rzut na przeciągnięcie ciała do wybranego pokoju",
-        "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza"
+        "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza",
+        "executedEachTooltip": "Zaznaczone: stracenie, jeśli stół się pomylił. Odznacz, by oszczędzić tę osobę."
       },
       "CasePlan": {
         "clearPlanTooltip": "Czyści zaplanowane Key Remnanty i schemat sprawy jednego rozdziału, po pytaniu, które je liczy",
@@ -2623,6 +2624,8 @@
         "other": "Blackened tego rozdziału ({n}):"
       },
       "executedIfWrong": "Kogo stracić, jeśli stół się pomylił",
+      "executedEachIfWrong": "Kogo stracić, jeśli stół się pomylił: zaznacz jedną z oskarżonych postaci albo więcej",
+      "pickOneAccused": "Zaznacz co najmniej jedną z oskarżonych postaci, żeby ogłosić błędny werdykt.",
       "verdictNoteKnown": "Jeśli stół trafił, każdy Blackened wymieniony wyżej zostanie stracony, a ocaleni dostaną Level Up; lista się wtedy nie liczy. Jeśli nie, zostanie stracona osoba, którą wybierzesz, każdy ocalały Blackened zostanie w grze z Reinforced Level Up, razem dostaną jedną nową zasadę, a Despair każdego Monokumy się napełni. Wyrok zostanie wykonany po Class Trial albo od razu, jeśli już się skończył.",
       "verdictIntroKnown": "Tylko ty wiesz, czy stół trafił. Powiedz, czy znalazł zabójcę, i kogo stracić, jeśli się pomylił.",
       "tiedVerdictNote": "Głosowanie skończyło się remisem albo bez większości. O ile stół nie rozstrzygnął tego inaczej, liczy się to jak pomyłka.",

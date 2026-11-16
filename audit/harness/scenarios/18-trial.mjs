@@ -298,9 +298,10 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
 
         phase("nobody", { flow: "class-trial" });
         /* PRESELECTION (E40, 16.11.2026, the line claude/e40-117; the plan's "a verdict with preselection"): the verdict's
-           window drawn on the GM (`__dialogWindows`) opens its "executed" select on the first name the count accused
-           (verdict.mjs `verdictCandidates`), "Nobody is executed" its first option; then Cancel. The window holds one such
-           select - one student - though the count accused two (read, and asked of the coordinator). */
+           window drawn on the GM (`__dialogWindows`); then Cancel. The count accused two living students, neither a known
+           Blackened, so since D5 (the owner's "gm wybiera czy chce zabic 1, czy 2 i ktora", 16.11.2026) the window draws a
+           tick for each, both ticked, and no "executed" select (verdict.mjs `accusedChoices`); before, one select opened on
+           the first accused. Tier 2 E40-T8 presses the ticks. */
         const pre = await gm.eval(`const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
             const title = game.i18n.localize("DRPG.Vote.verdictTitle");
             const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
@@ -310,14 +311,15 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
                 const deadline = Date.now() + 8000; let el = null;
                 while (!(el = drawn()?.element) && Date.now() < deadline) await new Promise(r => setTimeout(r, 100));
                 const selects = el ? [...el.querySelectorAll('select[name="executed"]')] : [];
-                read = el ? { selects: selects.length, value: selects[0]?.value ?? null, first: selects[0]?.options[0]?.value ?? null,
-                    firstText: selects[0]?.options[0]?.textContent ?? null, accused: (${imp("vote.mjs")}).trialProgress().accusedIds ?? [] } : null;
+                const ticks = el ? [...el.querySelectorAll('input[name="executedEach"]')].map(i => [i.value, i.checked]) : [];
+                read = el ? { selects: selects.length, ticks, accused: (${imp("vote.mjs")}).trialProgress().accusedIds ?? [] } : null;
                 el?.querySelector('footer button[data-action="cancel"]')?.click();
                 result = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 5000))]);
             } finally { globalThis.__dialogWindows = was; }
-            return { read, result, nobody: game.i18n.localize("DRPG.Vote.nobodyExecuted") };`, { timeout: 30000 });
-        check("preselection: the verdict's window opens on the first name the count accused, \"Nobody is executed\" first; Cancel gives no verdict",
-            pre?.read?.value === pre.read.accused[0] && pre.read.first === "" && pre.read.firstText === pre.nobody && pre.result === null, J(pre));
+            return { read, result };`, { timeout: 30000 });
+        check("preselection: the verdict's window offers each of the two accused on a tick of their own, both ticked, and no executed select; Cancel gives no verdict",
+            pre?.read?.selects === 0 && J(pre.read.ticks) === J((pre.read.accused ?? []).map(id => [id, true]))
+                && pre.read.accused.length === 2 && pre.result === null, J(pre));
         const nobody = await gm.eval(`const V = ${imp("vote.mjs")}, D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
             D.wait = async () => null;
             const from = game.messages.size;

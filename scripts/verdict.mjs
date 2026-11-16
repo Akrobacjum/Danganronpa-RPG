@@ -44,7 +44,7 @@ import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "
 import { runSteps, stepsReport } from "./steps.mjs";
 // The kit's frame for the verdict's windows: the Final Trial's (E22 C3b), the ordinary verdict and the Blackened's rule
 // (E21 C4).
-import { drpgWindow, box } from "./ui-kit.mjs";
+import { drpgWindow, box, tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * CONSEQUENCES
@@ -161,6 +161,16 @@ export async function openVerdictDialog() {
         ? box("warning", `${game.i18n.format("DRPG.Vote.unfoundDead", {
             names: listOf(unfound.map(a => esc(a.name))) })}`)
         : "";
+    /* TWO ACCUSED, EACH ON THEIR OWN (E40, 16.11.2026; the owner's "gm wybiera czy chce zabic 1, czy 2 i ktora"). With two or
+       more accused students living at the table the GM ticks who is executed if the table got it wrong - one, the other or
+       both - in place of the select (`accusedChoices`); one accused keeps the select. Nothing ticked holds the wrong verdict's
+       button off (the window's `render`), and a form submitted with none gives no verdict (`read`). */
+    const choices = accusedChoices(students, { accusedIds, known: knownIds, dead });
+    const executedField = choices.length
+        ? `<fieldset class="drpg-verdict-field"><legend>${game.i18n.localize("DRPG.Vote.executedEachIfWrong")}</legend>${
+            choices.map(row => `<label><input type="checkbox" name="executedEach" value="${row.id}"${tipAttr("DRPG.Tips.Trial.executedEachTooltip")}${
+                row.checked ? " checked" : ""}> ${esc(row.name)}</label>`).join("")}</fieldset>`
+        : null;
     const executedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyExecuted")}</option>${
         candidateOptions(verdictCandidates(students, { accusedIds, known: knownIds, dead }))}`;
     // Without a register the right verdict executes the Blackened named here (`read`), so this
@@ -187,9 +197,9 @@ export async function openVerdictDialog() {
             ${namedLine}
             ${deadLine}
             ${unfoundLine}
-            <label class="drpg-verdict-field">${game.i18n.localize(known.length
+            ${executedField ?? `<label class="drpg-verdict-field">${game.i18n.localize(known.length
                 ? "DRPG.Vote.executedIfWrong" : "DRPG.Vote.executed")}
-                <select name="executed">${executedOptions}</select></label>
+                <select name="executed">${executedOptions}</select></label>`}
             ${known.length ? "" : `<label class="drpg-verdict-field">${game.i18n.localize("DRPG.Vote.blackened")}
                 <select name="blackened">${blackenedOptions}</select></label>`}
             <p class="notes">${game.i18n.localize(known.length
@@ -225,17 +235,31 @@ export async function openVerdictDialog() {
                 },
                 {
                     action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
-                    callback: (e, b, d) => read(d, false, known, dead)
+                    callback: (e, b, d) => read(d, false, known, dead, choices)
                 }
             ],
             close: "cancel",
             default: "cancel"
         },
+        render: choices.length ? (event, dialog) => holdWrongWithoutTick(dialog.element) : null,
         rejectClose: false
     });
 
-    if (!result || result === "cancel") return null;
-    return applyVerdict(result);
+    const verdict = verdictAnswer(result);
+    return verdict ? applyVerdict(verdict) : null;
+}
+
+/** What `read` answers for a wrong verdict with none of two accused ticked: no verdict (`verdictAnswer`). */
+const NONE_TICKED = "noneTicked";
+
+/**
+ * The verdict a window's answer gives (E40, 16.11.2026): an object `read` built, else null - Cancel, the window closed, a
+ * wrong verdict with none of two accused ticked (`NONE_TICKED`). Not null from `read` for none ticked: the harness's
+ * DialogV2 answers a button's action when its callback answers null (shim.mjs), and what v14 answers then is not read
+ * here, so no answer but an object is a verdict. Tier 1 R7603.
+ */
+export function verdictAnswer(result) {
+    return result && typeof result === "object" ? result : null;
 }
 
 /**
@@ -257,11 +281,49 @@ export function verdictCandidates(students, { accusedIds = [], known = [], dead 
         ...students.map(a => ({ id: a.id, name: a.name, dead: isDead.has(a.id), disabled: !final && isDead.has(a.id), selected: a.id === chosen }))];
 }
 
+/**
+ * WHO OF TWO ACCUSED IS EXECUTED IF THE TABLE GOT IT WRONG (E40, 16.11.2026, the line claude/e40-117; the owner's answer
+ * of that day, "gm wybiera czy chce zabic 1, czy 2 i ktora"). The count can accuse two students (`closeRound`'s
+ * `accusedIds`), and the executed select named one person, so a wrong verdict over two executed one of them or nobody.
+ * With two or more accused students living at the table the window offers one tick per accused instead of the select,
+ * each ticked by the select's rule - a living student who is not a known Blackened - and the GM may leave one, the
+ * other or both ticked. Pure: answers `[{ id, name, checked }]` in the count's order, or `[]` when fewer than two
+ * accused students are living at the table (one accused, one of two dead, a student and Monokuma), and the window keeps
+ * its select as before. Tier 1 R7601.
+ */
+export function accusedChoices(students, { accusedIds = [], known = [], dead = [] } = {}) {
+    const isDead = new Set(dead), isKnown = new Set(known);
+    const rows = [...new Set((accusedIds ?? []).filter(Boolean))]
+        .map(id => students.find(a => a.id === id)).filter(a => a && !isDead.has(a.id));
+    return rows.length < 2 ? [] : rows.map(a => ({ id: a.id, name: a.name, checked: !isKnown.has(a.id) }));
+}
+
+/**
+ * The executed of a wrong verdict, read off the ticks (`accusedChoices`' rows, `ticked` the ids the form holds ticked):
+ * the ticked rows in the window's order, an id the window did not offer dropped. `ok` false when none is left - the
+ * window gives no verdict then (`read`). Tier 1 R7602.
+ */
+export function executedChoice(rows, ticked = []) {
+    const on = new Set(ticked);
+    const executedIds = rows.map(row => row.id).filter(id => on.has(id));
+    return { ok: executedIds.length > 0, executedIds };
+}
+
 /** The students' `<option>`s of a `verdictCandidates` list, its "Nobody" row left to the window, which words it. */
 function candidateOptions(rows) {
     const esc = foundry.utils.escapeHTML, deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
     return rows.filter(row => row.id).map(row => `<option value="${row.id}"${row.selected ? " selected" : ""}${
         row.disabled ? " disabled" : ""}>${esc(row.name)}${row.dead ? ` - ${deadShort}` : ""}</option>`).join("");
+}
+
+/** The wrong verdict's button off while none of the accused is ticked, on every change of a tick (`openVerdictDialog`). */
+function holdWrongWithoutTick(element) {
+    const button = element?.querySelector('button[data-action="wrong"]');
+    const ticks = [...(element?.querySelectorAll('input[name="executedEach"]') ?? [])];
+    if (!button || !ticks.length) return;
+    const hold = () => { button.disabled = !ticks.some(input => input.checked); };
+    for (const input of ticks) input.addEventListener("change", hold);
+    hold();
 }
 
 /**
@@ -279,11 +341,25 @@ function candidateOptions(rows) {
  * held when the window opened is refused as the executed one - the option is
  * disabled, so only a form edited around it submits one (Q-E10-1 (c)): nobody
  * is executed, and the GM is told.
+ *
+ * With two accused offered on their own (`choices`, `accusedChoices`; E40, 16.11.2026) a wrong verdict
+ * executes exactly the ticked ones (`executedChoice`), and none ticked gives no verdict (`NONE_TICKED`): the GM
+ * is told, the window closes with nothing written - the lock is `applyVerdict`'s, so the verdict can be given again.
  */
-function read(dialog, correct, known, dead = new Set()) {
+function read(dialog, correct, known, dead = new Set(), choices = []) {
     const f = dialog.element.querySelector("form");
     const blackenedIdList = known.length ? known.map(a => a.id) : [f.blackened?.value].filter(Boolean);
     if (correct) return { correct, executedIds: blackenedIdList, blackenedIds: blackenedIdList };
+    if (choices.length) {
+        const ticked = [...f.querySelectorAll('input[name="executedEach"]:checked')].map(input => input.value);
+        const chosen = executedChoice(choices, ticked);
+        if (!chosen.ok) {
+            warn("The verdict window was submitted wrong with none of the accused ticked - no verdict is given.");
+            ui.notifications.warn(game.i18n.localize("DRPG.Vote.pickOneAccused"));
+            return NONE_TICKED;
+        }
+        return { correct, executedIds: chosen.executedIds, blackenedIds: blackenedIdList };
+    }
     const executed = String(f.executed?.value ?? "");
     if (executed && dead.has(executed)) {
         const name = game.actors.get(executed)?.name ?? executed;

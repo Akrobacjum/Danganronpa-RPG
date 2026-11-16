@@ -1497,6 +1497,8 @@ The console shows who has not voted; **Send another ballot** re-sends a fresh ba
 
 The window states who the register says the Blackened were (leaving out a killer whose victims nobody has found yet, section 13.4), names whom the count accused and on how many ballots, and asks who is executed if the class was wrong, and whether they got it right. The executed list names every student, the Blackened the register names among them. It opens on the student the count accused, and on its first option, **Nobody is executed**, after a tie, with no majority, with nobody accused, when the accused is already dead, which the window says, or when the accused is one of those Blackened; the dead stay listed, marked, but only a living student can be picked. A student whose body nobody has found is not marked dead here - for the table they are alive - and the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it when the trial ends.
 
+When the count accused two or more students and at least two of them are alive, the list is replaced by a tick for each living one, ticked unless they are a Blackened the register names. If the class was wrong, the ticked ones are executed: leave both, or untick one to execute only the other. With none ticked, **They got it wrong** is greyed out; a verdict given that way anyway is not given, and the window tells you to tick one. A right verdict ignores the ticks. With one accused, or only one of them alive, the list stays.
+
 Its buttons are Cancel, **They got it right** and **They got it wrong**, in that order whatever the count said: Cancel is the default, so Enter closes the window and executes nobody.
 
 | Verdict | Who is sentenced | What follows |
