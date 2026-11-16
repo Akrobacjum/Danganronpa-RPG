@@ -279,3 +279,32 @@ machine; keyboard navigation between open nodes (the arrows walk the hidden face
 - Mutants (a copy of the tree): the drawing ignoring `allOpen`, the faces measured again, Escape held again, the switch
   asking nothing, Close kept, the node 240 px, the list unfolded, the User's choice not read, the fields not written at
   the switch - 9 of 9 killed (two after the tier-2 test was widened to read them).
+
+## The full tier 2 on 5a09104a (16.11.2026)
+
+First run: red, one test - A113-C5-7-T1 (Take from the Body, shard 3): "1554 tier-2 tests in the list; 3300 passed, 1
+failed, 27 skipped". Shard 3 run again alone: green, and the merge with it: "8 shard(s) of 8 file(s), 1554 tier-2 tests in
+the list; 3301 passed, 0 failed, 27 skipped, 0 red: green". The test passed alone twice by name as well.
+The cause, read off the test: its only difference was the order of its two rows. It sorts the measured rows with
+`localeCompare` on the item ids and builds the expected order with a plain `.sort()` of the same ids; Foundry's ids mix
+upper and lower case, and the two orders differ when the first differing character differs in case. Over 100000 random
+16-character id pairs they disagreed in 18.0%: the test fails about one run in five whatever the code does. This branch
+touches neither that test nor anonymity.mjs nor action-menus.mjs. Not fixed here (another line's test); the one-line fix
+- one comparison on both sides - is proposed to the coordinator.
+
+## The arrow keys with every node open (the coordinator, 16.11.2026: "Focus must never land on something not drawn")
+
+With "All open" pressed the faces are hidden, and the arrows walked the faces: from an open node's fields nothing moved,
+and the focus a redraw handed back went to a hidden face. Now each open node's fields take the focus (`tabindex="0"`), an
+arrow on the fields (never on a field in them, whose arrows are the text's) moves the focus to the open node the faces'
+places put next, and the focus after a redraw (a Move up or down, an add) goes to the node's fields. With "All open" off
+nothing changes.
+
+- R7527 (tier 0) red at 5a09104a (an open node took no focus, an arrow moved nothing), green after; the tier-2 planner
+  test reads where the focus is after a Move down: "face" at 5a09104a, "fields" after. Mutants: the focus not taken, the
+  walk dropped, the arrows taken from a text field, the redraw's focus on the face - 4 of 4 killed.
+- `game.drpg.a11y()` (a11y.mjs `a11yReport`) on the Map in the harness, both drawings (a scratch scenario, not committed):
+  "every control in the module's own chrome has a name"; with every node open 7 of 7 open nodes named and focusable. Its
+  disclosure lines name the faces' `aria-expanded` with no `aria-controls`, in both drawings alike - the faces' markup,
+  older than this branch; with every node open those faces are hidden and out of reach.
+- case-map-sweep on fresh captures: 76 pages, 0 failing, its controls read.

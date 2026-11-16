@@ -30376,6 +30376,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const want = game.i18n.format("DRPG.CaseMap.chosenOf", { n: 1, of: boxes.length });
             if (boxes[0]) { boxes[0].checked = true; boxes[0].dispatchEvent(new Event("change", { bubbles: true })); }
             seen.ticked = list?.querySelector("summary")?.textContent.trim() === want;
+            // the redraw after a node's Move down hands the focus to the node's fields, never to its hidden face (16.11.2026)
+            mine?.querySelector('[data-drpg-case-move="1"]')?.click();
+            const fieldsNow = () => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`);
+            await until(() => document.activeElement && document.activeElement === fieldsNow(), 3000).catch(() => {});
+            const a = document.activeElement;
+            seen.focus = a?.dataset?.drpgEdit === id ? "fields" : a?.dataset?.drpgNode ? "face" : a?.tagName ?? null;
             win.field(`case:${ch}:${id}:label`).value = "SUITE R7527 typed";
             await win.close();
             win = null;
@@ -30409,8 +30415,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(seen), stableJson({
             drawn: { allOpen: "1", hidden: 0, some: true, close: 0, folded: true, boxes: true, line: true },
-            ticked: true, saved: "SUITE R7527 typed", off: { flag: true, allOpen: null, shown: 0, saved: "SUITE R7527 switched" }, reopened: null, on: null
-        }), "{the Map as drawn: every node open, none hidden, no Close, the list folded under its line; the line after a tick; the label after the window closed; All open pressed with a field changed: the flag, the drawing, fields shown, the field written; the window opened again: its drawing; pressed again: the flag}");
+            ticked: true, focus: "fields", saved: "SUITE R7527 typed", off: { flag: true, allOpen: null, shown: 0, saved: "SUITE R7527 switched" }, reopened: null, on: null
+        }), "{the Map as drawn: every node open, none hidden, no Close, the list folded under its line; the line after a tick; where the focus is after a Move down; the label after the window closed; All open pressed with a field changed: the flag, the drawing, fields shown, the field written; the window opened again: its drawing; pressed again: the flag}");
     }],
     ["planner autosave: a node's write that fails is told and keeps the GM's text in its field, written at the next close; the footer's Close writes it too (perf-open's review for 1.2.111, section 2; the owner, 13.11.2026: \"Nie, ma zapisywac\")", async () => {
         /*

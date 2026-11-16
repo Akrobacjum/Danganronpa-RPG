@@ -292,7 +292,8 @@ function nodeEditHtml({ graph, node, p, open, allOpen = false, state = null, fin
     // The node's facts only where it has no field of its own (another chapter's Remnant); otherwise its warnings alone
     const said = nodeInfoHtml({ graph, node, finders, authors, reach, problems, rows: !cells.trim() });
     return `<fieldset class="drpg-case-edit" data-drpg-edit="${esc(node.id)}" aria-label="${esc(F("DRPG.CaseMap.editLabel", { name: nameOf(node) }))}"`
-        + ` style="left: ${p.x}px; top: ${p.y}px"${open ? "" : " hidden"}>` + head + said + cells + moves + `</fieldset>`;
+        // with every node open the fields are the node: they take the focus the hidden face cannot (owner-116, 16.11.2026)
+        + ` style="left: ${p.x}px; top: ${p.y}px"${allOpen ? ` tabindex="0"` : ""}${open ? "" : " hidden"}>` + head + said + cells + moves + `</fieldset>`;
 }
 
 /**
@@ -522,14 +523,20 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
                 onClose(open);
                 return;
             }
-            const node = event.target?.closest?.("[data-drpg-node]");
-            if (!node || !/^Arrow/.test(event.key)) return;
+            /* THE ARROWS WALK WHAT IS DRAWN (owner-116, 16.11.2026; the coordinator: "Focus must never land on something not
+               drawn"): with every node open the faces are hidden, so an arrow on an open node's fields (the fieldset itself,
+               never a field in it, whose arrows are the text's) moves the focus to the open node the faces' places put
+               next; with one node open at a time the faces walk as before. */
+            if (!/^Arrow/.test(event.key)) return;
+            const fields = allOpen() && event.target?.matches?.(".drpg-case-edit[data-drpg-edit]") ? event.target : null;
+            const node = fields ? null : event.target?.closest?.("[data-drpg-node]");
+            if (!fields && !node) return;
             const points = [...graph.querySelectorAll("[data-drpg-node]")].map(b => ({
                 id: b.dataset.drpgNode, x: parseFloat(b.style.left) || 0, y: parseFloat(b.style.top) || 0 }));
-            const next = neighbourOf(points, node.dataset.drpgNode, event.key);
+            const next = neighbourOf(points, fields ? fields.dataset.drpgEdit : node.dataset.drpgNode, event.key);
             if (!next) return;
             event.preventDefault();
-            graph.querySelector(`[data-drpg-node="${CSS.escape(next)}"]`)?.focus();
+            graph.querySelector(fields ? `.drpg-case-edit[data-drpg-edit="${CSS.escape(next)}"]` : `[data-drpg-node="${CSS.escape(next)}"]`)?.focus();
         });
     }
     if (canvas) {

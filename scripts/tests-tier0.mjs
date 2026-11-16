@@ -25052,6 +25052,51 @@ const REGRESSIONS = [
         equal(JSON.stringify({ held: esc.defaultPrevented, said }), JSON.stringify({ held: false, said: [["view", false]] }),
             "{Escape held from the window; what the Map asked: Escape, a click on empty space, a press of All open}");
     }],
+    ["R7527 - with every planner node open the arrow keys walk the open nodes, never a hidden face (owner-116, 16.11.2026; the coordinator: \"Focus must never land on something not drawn\"; case-map.mjs `nodeEditHtml`, `wireCaseMap`): each open node can take the focus, an arrow on it moves the focus to the open node the faces' order puts next, an arrow typed in a field is left to the field, and with \"All open\" off the faces walk as before", async () => {
+        /*
+         * owner-116, 16.11.2026. Detached markup attached to the page while it runs (jsdom focuses an element in the
+         * document alone). Red at 5a09104a: an open node takes no focus and an arrow on it moves nothing; the faces it
+         * would walk are hidden.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7527 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7527 a", inputs: ["S.T1"] } } });
+        const editors = new Map([["S.T1", M.editRow("R7527", `<textarea name="r7527:t"></textarea>`)], ["d-a", M.editRow("R7527", `<textarea name="r7527:a"></textarea>`)]]);
+        const read = allOpen => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen }, editors });
+            document.body.append(d);
+            try {
+                M.wireCaseMap(d, {});
+                const key = (el, k) => { const e = new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; };
+                const where = () => { const a = document.activeElement; return a?.dataset?.drpgEdit ? `fields ${a.dataset.drpgEdit}` : a?.dataset?.drpgNode ? `face ${a.dataset.drpgNode}` : a?.tagName ?? null; };
+                if (allOpen) {
+                    const first = d.querySelector('.drpg-case-edit[data-drpg-edit="S.T1"]');
+                    const tabs = [...d.querySelectorAll(".drpg-case-edit[data-drpg-edit]")].map(f => f.tabIndex);
+                    first?.focus();
+                    const at = where();
+                    const held = key(first, "ArrowRight");
+                    const moved = where();
+                    const field = d.querySelector('textarea[name="r7527:a"]');
+                    field?.focus();
+                    const typed = key(field, "ArrowLeft");
+                    return { tabs, at, held, moved, typed, after: where() };
+                }
+                const face = d.querySelector('button[data-drpg-node="S.T1"]');
+                face?.focus();
+                key(face, "ArrowRight");
+                return { moved: where(), tabs: [...d.querySelectorAll(".drpg-case-edit[data-drpg-edit]")].map(f => f.getAttribute("tabindex")) };
+            } finally {
+                d.remove();
+            }
+        };
+        equal(JSON.stringify({ open: read(true), faces: read(false) }), JSON.stringify({
+            open: { tabs: [0, 0], at: "fields S.T1", held: true, moved: "fields d-a", typed: false, after: "TEXTAREA" },
+            faces: { moved: "face d-a", tabs: [null, null] }
+        }), "{every node open: the open nodes' tab order, the focus on the first, an arrow held, where it moved, an arrow in a field held, the focus after it | All open off: where an arrow on a face moves, the fields' tabindex}");
+    }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
          * perf-open line, 12.11.2026. The owner, at a table on 1.2.108 (Foundry 14.365 on a hosted server): the module's

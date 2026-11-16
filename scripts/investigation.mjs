@@ -1889,7 +1889,9 @@ function wireMap(dialog, reading, refresh) {
         }
     });
     if (reading.focus) {
-        root?.querySelector?.(`[data-drpg-node="${CSS.escape(reading.focus)}"]`)?.focus();
+        // with every node open its face is hidden: the focus goes to its fields (owner-116, 16.11.2026)
+        const open = root?.querySelector?.(".drpg-case-canvas")?.dataset?.drpgAllOpen === "1";
+        root?.querySelector?.(open ? `.drpg-case-edit[data-drpg-edit="${CSS.escape(reading.focus)}"]` : `[data-drpg-node="${CSS.escape(reading.focus)}"]`)?.focus();
         reading.focus = null;
     }
 }
