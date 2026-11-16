@@ -60,6 +60,7 @@ E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress
 | --- | --- | --- |
 | Q-E43-6 | bookkeeping: the ring was built in E109 (daba7d5c, 1.2.115); the open-questions row and FINDINGS' E43-F7 say so | R7124 by name on ff3e12e5: 2 passed, 0 failed, 0 skipped, 0 red. Not reached by E109 (read, not run): the GM panel's Debug log (gm-panel.mjs `openFailureLog`) and its Copy text do not say rows were dropped; two test comments still describe the first 60 kept (tests-tier2.mjs, the drawn roll before the GMs' marks; tests-kit.mjs `watchLog`). Put to the coordinator, default: left for a later line |
 | README | the chapter "What a player with a console always sees" placed in the root README.md after the **Privacy.** paragraph, on the owner's consent of 16.11.2026; [README-CHAPTER.md](README-CHAPTER.md) holds the same text and its sources | below |
+| Scenes | a design note for a project in a room whose name several scenes hold, both of the owner's options (b) and (c): [SCENES.md](SCENES.md). Not built: waits for the owner's choice, relayed by the coordinator (default (c)). The lead of 01:31 does not explain the owner's P1 symptom, which stays unexplained | every reader read on ff3e12e5; nothing run |
 
 Every sentence of the 13.11 draft read again against the code and known-leaks.json on ff3e12e5. What changed, and why:
 
