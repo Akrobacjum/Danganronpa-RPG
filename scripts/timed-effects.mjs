@@ -402,7 +402,11 @@ export function registerTimedEffects() {
         if (active === true && isPrimaryGm()) endAtEclipseStart().catch(err => error("The timed effects could not be ended as the Eclipse began", err));
         if (active === false && isPrimaryGm()) endEclipseEffects().catch(err => error("The Eclipse's extra crossings could not be ended", err));
     });
-    if (game.user.isGM) return;
-    askForTimedEffects();
+    /* A player's first ask, at `ready`: this registers at `init` (module.mjs), where `game.user` is null on Foundry 14.370
+       (read on the owner's sandbox, 16.11.2026, E58 L1) - the ask read `game.user.isGM` here and threw on every browser,
+       so a player's browser never asked for its copy at a load and held none until the next change sent one. */
+    Hooks.once("ready", () => {
+        if (!game.user?.isGM) askForTimedEffects();
+    });
     Hooks.on("drpgPrimaryReady", primary => askForTimedEffects(primary));
 }

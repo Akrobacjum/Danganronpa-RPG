@@ -178,7 +178,7 @@ belongs to.
 | 15 | scenarios/15-held.mjs | ci | exists | 1.2.58 (E27) | other modules' client settings held on every client; a GM away and back (E08+E28 C18), and a sheet changed while away (E29 C7) |
 | 16 | scenarios/16-first-run.mjs | local-gate | planned | E58 | a clean install from the manifest, and the first run |
 | 17 | scenarios/17-assistant.mjs | ci | exists | E30 | an Assistant GM (role 3) is a GM, and its relay packets are judged like a player's |
-| 18 | scenarios/18-trial.mjs | ci | exists | E40 | the trial with real ballots, a player leak scan after every step (plan v2 calls it 15-trial; 15 is 15-held; E40 C5): a fifth student killed in public, Chie (p3's) the register's Blackened; the trial started (opened), the ballots sent and p1, p2 and p3 - Chie's player too - each casting Botan through the bridge, answered and counted (ballots), the count accusing Botan (count), the wrong verdict sentencing Botan, not dead yet by DC36 (verdict), the trial's end executing him once (close); after every step p1's and p2's world data read against world-secrets.mjs and for Chie's id, and their new cards for Chie, her name and her player (`canary.worldScan`, `canary.chatScan`). Since 14.11.2026 two Blackened (Daichi beside Chie, two names a ballot); since 15.11.2026 (claude/e39-40-116) a second trial in the chapter with a late player (p4, declared late: handed a fourth ballot at load, told its vote is in) and the verdict "Nobody", then the Final Trial with a wrong Final verdict, the scans looking for the Mastermind too. A GM's reload in the vote (`reload("gm")`), its scans reading dice-sync.mjs's world copy, which names every actor alike (world-secrets.mjs `uniformActorRows`, R7560). Since 16.11.2026 last a reset of the incident group during Chie's suicide at Stage 6, scanned. The ballot windows drawn and the verdict's window are 63's |
+| 18 | scenarios/18-trial.mjs | ci | exists | E40 | the trial with real ballots, a player leak scan after every step (plan v2 calls it 15-trial; 15 is 15-held; E40 C5): a fifth student killed in public, Chie (p3's) the register's Blackened; the trial started (opened), the ballots sent and p1, p2 and p3 - Chie's player too - each casting Botan through the bridge, answered and counted (ballots), the count accusing Botan (count), the wrong verdict sentencing Botan, not dead yet by DC36 (verdict), the trial's end executing him once (close); after every step p1's and p2's world data read against world-secrets.mjs and for Chie's id, and their new cards for Chie, her name and her player (`canary.worldScan`, `canary.chatScan`). Since 14.11.2026 two Blackened (Daichi beside Chie, two names a ballot); since 15.11.2026 (claude/e39-40-116) a second trial in the chapter with a late player (p4, declared late: handed a fourth ballot at load, told its vote is in) and the verdict "Nobody", then the Final Trial with a wrong Final verdict, the scans looking for the Mastermind too. A GM's reload in the vote (`reload("gm")`), its scans reading dice-sync.mjs's world copy, which names every actor alike (world-secrets.mjs `uniformActorRows`, R7560). Since 16.11.2026 last a reset of the incident group during Chie's suicide at Stage 6, scanned; and (claude/e40-117) D4's waiting Reinforced once a verdict, a death nobody has found on the ballot before and after its publication, a ballot naming one student twice refused with the count's card naming each accused once, and the verdict window's preselection (since D5 a tick for each of the two accused, both ticked). The ballot windows drawn and the verdict's window are 63's |
 | 19 | scenarios/19-standing-cast.mjs | ci | exists | E32+E07 fix r2-G2 | what a player outside the running incident is sent of its cast: one packet, repeated by every GM, no newer than the opening |
 | 20 | scenarios/20-crit-hope.mjs | ci | exists | <=1.2.50 | a critical pays +2 Hope, a Hope roll +1; a Reroll into a critical pays the second Hope only with the players' Hope and Fear automation on (1.2.67) |
 | 21 | scenarios/21-masked-killer.mjs | ci | exists | 1.2.115 (owner-115) | a killer behind a "?" (E69 C8) as the victim's and the bystander's browsers hold the fight: no card's words, chat document, drawn message, notice, history, Event card, relayed dice or cast names the killer, shows her pictures or carries her id or her player's; the killer's browser still reads her name; once revealed the victim is told who again (D6); while the opening waits (E112), a console reads the veiled tokens' actor (known leak foundry-veiled-token-actor) and no player holds the GMs' veil store |
@@ -432,7 +432,10 @@ part of a roll comes from:
   tag 2.12.8 (commit 71c318de25), `module/dice/` (2.10.5's until E76 C3b,
   12.11.2026); since then also `lib/dh-dice/data/action/move-context.mjs` (2.12's
   roll config, which the harness's `rollTrait` builds) and
-  `lib/dh-dice/helpers/functional.mjs` (what it imports), from the same tag.
+  `lib/dh-dice/helpers/functional.mjs` (what it imports), from the same tag;
+  move-context.mjs re-copied from tag 2.12.9 (commit 416942f490) on
+  16.11.2026, where `module/dice/` and `helpers/functional.mjs` are 2.12.8's
+  files unchanged (`git diff 2.12.8 2.12.9`).
   Each is the file byte for byte under a header; never edit one, re-copy them
   on an upgrade. Lint skips them as it skips dh-relay.mjs (eslint.config.mjs).
   The rest of `lib/dh-dice/` is the harness's glue at the paths those files
@@ -567,23 +570,33 @@ roll at a table.
   player's Stress edit, and the GM's copy still went from 0 to 5). The order of
   the two steps and the empty update are recalled, not read: LIVE-E30-03. The
   server does not diff: an update that changes nothing is still broadcast and
-  fires the update hooks.
-- **Operators** (E30). A key spelled `-=key` or `==key` changes nothing and is
-  reported: on the log, as `legacyKeys` in the scenario api and as
+  fires the update hooks. **v14 differs** (read on 14.370, 16.11.2026, E58 L1;
+  docs/dev/e39/CALIBRATION.md): `_preUpdate` runs before the `preUpdate` hook and
+  an update they empty or refuse is not sent, as here; but the client diffs
+  what is left against the document, so an update hook gets only the changed
+  keys (with `_stats.modifiedTime` on a world document), an update that changes
+  nothing is not sent at all (no hook, `update()` answers `undefined`), and only
+  a token update naming a movement field is sent unchanged (its hook gets
+  `{_id}`). Not modelled yet: a proposal to the coordinator.
+- **Operators** (E30). A key spelled `-=key` or `==key` deletes or replaces, and
+  is reported: on the log, as `legacyKeys` in the scenario api and as
   `legacyKeysIgnored` in the results file. `ForcedDeletion`, `ForcedReplacement`,
-  `_del` and `_replace` delete and replace. All of it is modelled from the
-  module's own measured notes and from Daggerheart's use of them, not from v14's
-  source, and the wire form they travel in is the harness's own
-  (`lib/operators.mjs`). Not confirmed on v14: LIVE-E30-01 (what `-=` does),
-  LIVE-E30-02 (the operator API), LIVE-E30-03 (what a hook's `changes` holds).
-  Since E76 C4 that is the "ignored" reading, the default; the "honoured" one
+  `_del` and `_replace` delete and replace; `ForcedDeletion.create()` is a new
+  instance each call. The wire form they travel in is the harness's own
+  (`lib/operators.mjs`). Read on Foundry 14.370 (16.11.2026, E58 L1): `-=` and
+  `==` are honoured on an actor's and a token's flags, with v14's deprecation
+  warning (LIVE-E30-01, LIVE-E76-03); `create()` makes a new instance, `_del` is
+  one, `_replace` a function (LIVE-E30-02); a hook gets the operator instance
+  after `unsetFlag`, `_del` and `_replace`, in `preUpdate` and `update` alike
+  (LIVE-E30-03). Until 16.11.2026 the "ignored" reading was the default; since
+  then the "honoured" one is, as on 14.370; the "honoured" one
   (Foundry issue 14806, closed in 14.369, read from its title) turns `-=key` into
   a ForcedDeletion and `==key` into a ForcedReplacement on the cluster before the
   write is judged, applied and sent on (`futil.mjs` `honourLegacy`), each still
   reported. `DRPG_LEGACY_KEYS=honoured` runs a whole run in it; a scenario that
   exports `legacyReading` names its own (91 and 92 run the same parts, one each);
-  every results file says which ran (`legacyReading`). LIVE-E76-03 is the table's
-  answer for 14.370.
+  every results file says which ran (`legacyReading`). LIVE-E76-03 was read on
+  14.370 on the owner's sandbox (above): honoured.
 - **Users.** Four are seeded (a GM and three players), and a scenario adds more
   with `accounts` (E30). Each is connected until a scenario calls
   `disconnect(who)`, which ends that client and tells the others through

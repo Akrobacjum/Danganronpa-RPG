@@ -417,6 +417,133 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
         };
         check("facility limits: a project action used once by p1 - under no limit its row stays open and a second use is carried out; under once a time of day and once a day its row is greyed on p1 with its reason and the GM refuses the second",
             limits.length === 3 && limits.every(r => J({ before: r.before, first: r.first, after: r.after, second: r.second }) === J(want[r.limit])), J(limits));
+
+        /* A PROJECT IN A ROOM TWO SCENES HOLD (option (c), the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md), read on
+           p1's own page. A scene of the scenario's own holds a "Dorm A" too. A completed public project in Dorm A with an action:
+           p1's Facilities rows for Aiko in Floor 1's Dorm A offer it; the GM picks the second scene for its room (the editor's
+           change, projects.mjs `projectEditChange`), and p1's rows no longer offer it there; Aiko's only shown token put in the
+           second scene's Dorm A, p1's rows offer it and p1's use is carried out by the GM. The road e53's probe could not read
+           ("the harness's scene clone answered the original's id"): this scene is made with an id of its own. */
+        phase("facilities on two scenes");
+        const twoLabel = "E39 99 facility on two scenes";
+        const two = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")}, R = ${imp("rooms.mjs")};
+            const other = await Scene.create({ name: "E39 99 a second floor with a Dorm A", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: "Dorm A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { "danganronpa-rpg": { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            globalThis.__s99two = { scene: other.id, hidden: canvas.scene.tokens.get("TOKAIKO000000000")?.hidden ?? false };
+            const id = (await P.createProject({ name: ${J(twoLabel)}, target: 1, room: "Dorm A" }))?.id ?? null;
+            await F.setProjectFacility(id, { label: ${J(twoLabel)}, costsAction: false, limit: "none" });
+            await P.addProgress(id, 1);
+            return { id, scene: other.id, choices: P.roomSceneChoices("Dorm A").scenes.length };`, { timeout: 60000 });
+        await settle(1200);
+        const rowOnP1 = () => p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(twoLabel)});`);
+        const twoRead = { choices: two.choices, before: await rowOnP1() };
+        await gm.eval(`const P = ${imp("projects.mjs")};
+            await P.applyProjectChange(${J(two.id)}, P.projectEditChange({ roomScene: ${J(two.scene)} }), { by: { kind: "gm" } }); return true;`, { timeout: 60000 });
+        await settle(1200);
+        twoRead.picked = await p1.eval(`const P = ${imp("projects.mjs")}; return P.projectScene(${J(two.id)})?.id === ${J(two.scene)};`);
+        twoRead.onFirst = await rowOnP1();
+        await gm.eval(`await canvas.scene.tokens.get("TOKAIKO000000000")?.update({ hidden: true });
+            await game.scenes.get(${J(two.scene)}).createEmbeddedDocuments("Token", [{ name: "Aiko", actorId: "${IDS.aiko}", actorLink: true, x: 300, y: 300, width: 1, height: 1, hidden: false }]);
+            return true;`, { timeout: 60000 });
+        await settle(1200);
+        twoRead.onSecond = await rowOnP1();
+        twoRead.used = await p1.eval(`const A = ${imp("action-facilities.mjs")};
+            return Boolean((await A.useFacility(game.actors.get("${IDS.aiko}"), ${J("project:")} + ${J(two.id)}))?.success);`, { timeout: 60000 });
+        check("facilities on two scenes: a project in a room two scenes hold is offered on p1 where it stood, and, once the GM picks the second scene, not there but in the second scene's room, where p1's use is carried out",
+            J(twoRead) === J({ choices: 2, before: true, picked: true, onFirst: false, onSecond: true, used: true }), J(twoRead));
+        /* AND THE PROPOSER'S SCENE (option B, 16.11.2026): a project Aiko proposed while her only shown token stands in the
+           second scene's Dorm A (createProject with `by`, as an approval makes one) is found there, offered to p1 there, and
+           not once she is back in Floor 1's Dorm A. */
+        const byLabel = "E39 99 facility proposed on the second scene";
+        const proposed = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
+            const id = (await P.createProject({ name: ${J(byLabel)}, target: 1, room: "Dorm A", by: "${IDS.aiko}" }))?.id ?? null;
+            await F.setProjectFacility(id, { label: ${J(byLabel)}, costsAction: false, limit: "none" });
+            await P.addProgress(id, 1);
+            return { id, found: P.roomSceneOf(id) === ${J(two.scene)}, byGm: P.roomSceneByGmOf(id) };`, { timeout: 60000 });
+        await settle(1200);
+        const byRow = () => p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(byLabel)});`);
+        const byRead = { found: proposed.found, byGm: proposed.byGm, onSecond: await byRow() };
+        await gm.eval(`for (const t of [...game.scenes.get(${J(two.scene)}).tokens].filter(t => t.actorId === "${IDS.aiko}")) await t.delete();
+            await canvas.scene.tokens.get("TOKAIKO000000000")?.update({ hidden: globalThis.__s99two?.hidden ?? false });
+            return true;`, { timeout: 60000 });
+        await settle(1200);
+        byRead.onFirst = await byRow();
+        check("facilities on two scenes: a project Aiko proposed while standing on the second scene is found there, offered to p1 there, and not in Floor 1's Dorm A once she is back",
+            J(byRead) === J({ found: true, byGm: false, onSecond: true, onFirst: false }), J(byRead));
+        /* A SECRET PROJECT WITH A PICK (the coordinator's ask of 16.11.2026: a privacy rule gets a run). A secret project in Dorm
+           A that p1 is in on, its scene picked by hand onto the second scene (`roomScene`, `roomSceneByGm`: the GMs' row while
+           it is secret, projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET). Read on p2, a bystander: its projectMeta row holds
+           neither field, no world setting holds `roomSceneByGm`, and p2's sight copy names no such project; on p1, the insider:
+           its sight copy carries the scene, and the project stands there on p1's own page. */
+        const secretLabel = "E39 99 secret project with a pick";
+        const secretId = await gm.eval(`const P = ${imp("projects.mjs")};
+            const id = (await P.createProject({ name: ${J(secretLabel)}, target: 3, room: "Dorm A", secret: true, viewers: ["${IDS.p1}"], trait: "body" }))?.id ?? null;
+            await P.applyProjectChange(id, P.projectEditChange({ roomScene: ${J(two.scene)}, roomSceneByGm: true }), { by: { kind: "gm" } });
+            return id;`, { timeout: 60000 });
+        await settle(2000);
+        const onGmSecret = await gm.eval(`const P = ${imp("projects.mjs")}; return [P.roomSceneOf(${J(secretId)}) === ${J(two.scene)}, P.roomSceneByGmOf(${J(secretId)})];`);
+        const bystander = await p2.eval(`const S = ${imp("projects-secrecy.mjs")};
+            const row = (game.settings.get("danganronpa-rpg", "projectMeta") ?? {})[${J(secretId)}] ?? null;
+            // Every secret project's row of projectMeta, and every other world setting: the pick's fields stand in neither (a
+            // public project's row holds them, as it holds its room; earlier checks of this phase made two such).
+            const meta = game.settings.get("danganronpa-rpg", "projectMeta") ?? {};
+            const secretRows = Object.values(meta).filter(r => r && typeof r === "object" && r.secret === true
+                && (Object.hasOwn(r, "roomScene") || Object.hasOwn(r, "roomSceneByGm"))).length;
+            // Every registered world setting by name (the storage's entries carry no readable key here), projectMeta aside.
+            const others = [...game.settings.settings.values()].filter(c => c.scope === "world" && !(c.namespace === "danganronpa-rpg" && c.key === "projectMeta"))
+                .map(c => { try { return JSON.stringify(game.settings.get(c.namespace, c.key) ?? null); } catch { return ""; } }).join("\\n");
+            return { row: Boolean(row), fields: row ? ["roomScene", "roomSceneByGm", "room"].filter(f => Object.hasOwn(row, f)) : null,
+                secretRows, elsewhere: others.includes("roomSceneByGm") || others.includes('"roomScene"'), sight: S.toldSight(${J(secretId)}) };`);
+        const insider = await p1.eval(`const S = ${imp("projects-secrecy.mjs")}, P = ${imp("projects.mjs")};
+            return { scene: S.toldSight(${J(secretId)})?.roomScene === ${J(two.scene)}, stands: P.projectScene(${J(secretId)})?.id === ${J(two.scene)} };`);
+        check("facilities on two scenes: a secret project's picked scene is the GMs' and the insider's - p2's world holds no pick of it nor of any secret project, p2's sight copy names it not, and p1's copy carries the scene it stands on",
+            J(onGmSecret) === J([true, true]) && bystander.row === true && J(bystander.fields) === J([]) && bystander.secretRows === 0 && bystander.elsewhere === false
+                && bystander.sight === null
+                && insider.scene === true && insider.stands === true, J({ onGmSecret, bystander, insider }));
+
+        /* A CLOCK SET BACK BEFORE A PROJECT'S COMPLETION (P1, the owner's probe of 16.11.2026 and decision "b"): a project in
+           Dorm A completed at day 3 morning with an action of one day; the GM sets the clock back to day 1 morning, as the
+           owner's world was; p1's own Facilities rows for Aiko offer the action, and the clock is put back. */
+        phase("facilities after the clock is set back");
+        const backLabel = "E39 99 facility with the clock set back";
+        const clockWas = await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")}; return game.settings.get("danganronpa-rpg", SETTINGS.clock);`);
+        let backRead = null, backId = null, reasonRead = null;
+        try {
+            // Each step heard on its own, as at a table: a clock moved and moved back inside one burst is no change at all.
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")};
+                await game.settings.set("danganronpa-rpg", SETTINGS.clock, { ...game.settings.get("danganronpa-rpg", SETTINGS.clock), day: 3, timeOfDay: "morning", eclipse: false });
+                return true;`, { timeout: 60000 });
+            await settle(1500);
+            backId = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
+                const id = (await P.createProject({ name: ${J(backLabel)}, target: 1, room: "Dorm A" }))?.id ?? null;
+                await F.setProjectFacility(id, { label: ${J(backLabel)}, costsAction: false, limit: "none", lifetime: { kind: "days", n: 1 } });
+                await P.addProgress(id, 1);
+                return id;`, { timeout: 60000 });
+            await settle(1500);
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")};
+                await game.settings.set("danganronpa-rpg", SETTINGS.clock, { ...game.settings.get("danganronpa-rpg", SETTINGS.clock), day: 1, timeOfDay: "morning" });
+                return true;`, { timeout: 60000 });
+            await settle(1500);
+            backRead = await p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(backLabel)});`);
+            /* And past its lifetime (one day from the restamp, so day 2 morning): the GM reads why (facilities.mjs
+               `facilityWhyLine`), p1's own page reads no reason and no row - players see only an action that stands. */
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")};
+                await game.settings.set("danganronpa-rpg", SETTINGS.clock, { ...game.settings.get("danganronpa-rpg", SETTINGS.clock), day: 2, timeOfDay: "morning" });
+                return true;`, { timeout: 60000 });
+            await settle(1500);
+            reasonRead = {
+                gm: await gm.eval(`return (${imp("facilities.mjs")}).facilityWhyLine(${J(backId)}).includes(${J(backLabel)});`),
+                p1: await p1.eval(`return [(${imp("facilities.mjs")}).facilityWhyLine(${J(backId)}),
+                    (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(backLabel)})];`)
+            };
+        } finally {
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")}; await game.settings.set("danganronpa-rpg", SETTINGS.clock, ${J(clockWas)}); return true;`, { timeout: 60000 }).catch(() => null);
+        }
+        check("facilities after the clock is set back: a project completed at day 3 morning stands in p1's Facilities once the GM sets the clock back to day 1 morning",
+            backRead === true, J({ backRead }));
+        check("facilities after the clock is set back: past its lifetime the GM reads why the action does not stand, and p1 reads no reason and no row",
+            reasonRead?.gm === true && J(reasonRead?.p1) === J(["", false]), J({ reasonRead }));
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), w = globalThis.__s99was ?? {}, { SETTINGS } = ${imp("settings.mjs")};
             for (const i of a.items.filter(i => !(w.items ?? []).includes(i.id))) await i.delete();
@@ -437,6 +564,8 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
             if (fr.force !== undefined) await game.settings.set("danganronpa-rpg", "friskForce", fr.force);
             (${imp("frisk.mjs")}).forgetFriskAsks();
             delete globalThis.__s99flat; delete globalThis.__s99frisk;
+            const two = globalThis.__s99two;
+            if (two) { await game.scenes.get(two.scene)?.delete(); await canvas.scene.tokens.get("TOKAIKO000000000")?.update({ hidden: two.hidden }); delete globalThis.__s99two; }
             const P = ${imp("projects.mjs")};
             for (const p of P.allProjects().filter(p => String(p.name ?? "").includes("E39 99"))) await P.applyProjectChange(p.id, { remove: true }, { by: { kind: "gm" } });
             return true;`, { timeout: 60000 }).catch(() => null);

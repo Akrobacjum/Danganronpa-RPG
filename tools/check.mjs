@@ -98,6 +98,9 @@
  *             And (E59 C0) audit/gate/ci-record.json, when it exists, holds
  *             only rows audit/gate/ci-record.mjs wrote from a run it spawned,
  *             read by that file's own rules after its planted rows refuse.
+ *             And (E58 L1) the seeder's "empty world" rule, audit/live/
+ *             world-empty.mjs: the world v14 14.370 wrote at its first login
+ *             (read 16.11.2026) accepted, each planted world refused.
  *   live      every live check the code, the harness, the tools, the language
  *             files and the handbooks cite as LIVE-<id>-<n> (E<stage>, H<stage>,
  *             and since E109 any id of letters and digits: R4420, 113R, PV) is an
@@ -155,6 +158,10 @@
  *                decision 81; a table row is its line since the fix round,
  *                trailing "|" or not, as showdown reads it); the Polish ids,
  *                kinds and lines against the English are printed, a reading.
+ *                Then each facts file of FACTS_HELD held by the tool's check
+ *                to a fresh split of its handbook (facts-117), red on a
+ *                problem, with a control; a docs/handbook-facts.*.json in
+ *                neither FACTS_HELD nor FACTS_LEFT_OUT is red.
  *             5. The pilot's file, docs/dev/text-pilot.json (tools/text-render.mjs
  *                pilotSchema; "pilot: ..."): 40 strings, each entry's fields,
  *                its key one of lang/en.json or of config.mjs's prose, its
@@ -1222,7 +1229,18 @@ async function gatecode() {
             }
         }
     }
-    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s)${rec.commits ? ` (${rec.commits})` : ""}, ${rec.planted}; ${problems.length} problem(s)`);
+    /* THE SEEDER'S EMPTY WORLD (E58 L1, 16.11.2026): seed-world.mjs refused every fresh v14 world, since Foundry, the
+       system and the modules write documents at the first GM login. audit/live/world-empty.mjs names those narrowly;
+       its self-check holds the world read on the owner's sandbox as accepted and each planted world as refused. */
+    let seed = "not read";
+    if (!exists("audit/live/world-empty.mjs")) problems.push("audit/live/world-empty.mjs is missing - the seeder has no rule for a fresh v14 world");
+    else {
+        const W = await import(url.pathToFileURL(path.join(REPO, "audit", "live", "world-empty.mjs")).href);
+        const self = W.selfCheck();
+        seed = `${self.refused}/${self.planted} planted world(s) refused, the 14.370 world ${self.controlOk ? "accepted" : "refused"}`;
+        if (self.refused !== self.planted || !self.controlOk) problems.push(`the seeder's empty-world self-check: ${seed} (${self.missed.join("; ")})`);
+    }
+    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s)${rec.commits ? ` (${rec.commits})` : ""}, ${rec.planted}; seeder ${seed}; ${problems.length} problem(s)`);
     return problems;
 }
 
@@ -1578,6 +1596,46 @@ async function text() {
         console.log(`text: handbook-facts: ${f}: ${c.units} unit(s) - paragraph ${c.paragraph}, row ${c.row}, note ${c.note} - in ${c.sections} section(s); `
             + `the same on a second split: ${JSON.stringify(once) === JSON.stringify(again) ? "yes" : "no"}; ${once.problems.length} split problem(s)${once.problems.length ? ` (${once.problems.join("; ")})` : ""}`
             + (pair ? `; ids, kinds and lines as in English: ${shape(once) === shape(pair) ? "yes" : "no"}` : ""));
+    }
+    /* The facts files against their handbooks (facts-117, 16.11.2026): each facts file in FACTS_HELD held by `check` to a
+       fresh split of its handbook, docs/handbooks/<name>.en.md, red on each problem. Until then this part ran the tool's
+       self-check alone, so a handbook edit left its facts file behind unseen: at ff3e12e5, two days after E57 wrote them
+       at 90e01c50, `check` gave 2693 problems in the player handbook's file, 8845 in the GM handbook's and 2 in the
+       brochure's, with `quick` green. A problem is a place or id a handbook edit moved, a keyword the unit no longer
+       holds, or a unit that is gone: the facts are carried to the new split, or a changed unit's facts written again by
+       the tool's agent prompt (docs/dev/facts-117/STATUS.md). The first twenty problems of a file are listed, the rest
+       counted.
+       FACTS_LEFT_OUT is a file not held, each with why. Every docs/handbook-facts.*.json must be in one of the two lists,
+       so a new facts file cannot drop out unseen: one that is neither is red, and so is a name in either list with no
+       file. Its control: a copy of the first held file with one place changed must give exactly one problem more, or a
+       `check` broken to pass everything would leave this green. */
+    const FACTS_HELD = ["docs/handbook-facts.player-brochure.en.json", "docs/handbook-facts.player-handbook.en.json"];
+    const FACTS_LEFT_OUT = {
+        /* Not regenerated, by the owner's decision of 16.11.2026 ("nie trzeba", facts-117): E57's file of 90e01c50, which
+           measured at ff3e12e5 7222 facts against 1294 units, 8845 problems on 6877 facts (6670 places, 2178 keywords; one
+           place, s13.r23.f4, already stale at 90e01c50). Held here, it would be red until the file is carried to the
+           handbook - the method and the counts for that are in docs/dev/facts-117/STATUS.md. */
+        "docs/handbook-facts.gm-handbook.en.json": "not regenerated, the owner's decision of 16.11.2026"
+    };
+    const factsFound = fs.readdirSync(path.join(REPO, "docs")).filter(f => /^handbook-facts\..+\.json$/.test(f)).sort().map(f => `docs/${f}`);
+    for (const f of factsFound) if (!FACTS_HELD.includes(f) && !Object.hasOwn(FACTS_LEFT_OUT, f)) problems.push(`handbook-facts: ${f} is neither held to its handbook nor left out by name - add it to FACTS_HELD, or to FACTS_LEFT_OUT with why`);
+    for (const f of [...FACTS_HELD, ...Object.keys(FACTS_LEFT_OUT)]) if (!factsFound.includes(f)) problems.push(`handbook-facts: ${f} is named here but missing`);
+    for (const [f, why] of Object.entries(FACTS_LEFT_OUT)) if (factsFound.includes(f)) console.log(`text: handbook-facts: ${f}: left out, ${why}`);
+    for (const f of FACTS_HELD.filter(x => factsFound.includes(x))) {
+        const book = `docs/handbooks/${f.slice("docs/handbook-facts.".length, -".json".length)}.md`;
+        if (!exists(book)) { problems.push(`handbook-facts: ${f} has no handbook ${book}`); continue; }
+        let doc = null;
+        try { doc = JSON.parse(read(f)); } catch (err) { problems.push(`handbook-facts: ${f} does not parse (${err.message})`); continue; }
+        const units = cut[book] ?? facts.split(read(book), { file: book });
+        const faults = facts.check(doc, units);
+        problems.push(...faults.slice(0, 20).map(p => `handbook-facts: ${f}: ${p}`));
+        if (faults.length > 20) problems.push(`handbook-facts: ${f}: and ${faults.length - 20} problem(s) more`);
+        console.log(`text: handbook-facts: ${f}: ${Array.isArray(doc?.facts) ? doc.facts.length : 0} fact(s) against ${units.units.length} unit(s) of ${book}; ${faults.length} problem(s)`);
+        if (f === FACTS_HELD[0] && Array.isArray(doc?.facts) && doc.facts.length) {
+            const planted = { ...doc, facts: doc.facts.map((x, i) => i === 0 ? { ...x, place: `${x.place} (planted)` } : x) };
+            const more = facts.check(planted, units).length - faults.length;
+            if (more !== 1) problems.push(`handbook-facts: the control - ${f} with one place changed - gives ${more} problem(s) more, not 1: check would pass a stale file`);
+        }
     }
     /* The pilot's working file (E65 C14, E65-23): docs/dev/text-pilot.json, the 40 strings the owner reads in C-pilot, held
        to its shape against this tree's files (tools/text-render.mjs pilotSchema) - a file E65 writes, so a fault is red - and

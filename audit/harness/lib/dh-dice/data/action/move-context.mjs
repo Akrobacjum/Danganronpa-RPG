@@ -2,13 +2,13 @@
  * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E76, 12.11.2026; the owner's yes of 12.11,
  * relayed by the coordinator; the owner's decision P6 of 06.10.2026: Daggerheart's dice classes run in the harness).
  *
- * Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25), module/data/action/move-context.mjs - the whole file
- * (243 lines). Everything after this comment and the one blank line under it is that file byte for
- * byte, its imports included. It is here because the dice copied beside it import it, or because 2.12's
- * `actor.rollTrait` builds its config with it (the harness's actor, client-entry.mjs); an import that
- * lands outside what is copied lands on the harness's glue at the same relative path under lib/dh-dice/,
- * which says it is not Daggerheart's; audit/harness/README.md ("Daggerheart's dice") names the boundary.
- *
+ * Source: Foundryborne Daggerheart, tag 2.12.9 (commit 416942f490), module/data/action/move-context.mjs - the whole file
+ * (244 lines; re-copied 16.11.2026 from 2.12.8's 243, the owner's move to 2.12.9: one line added, `this.groupAction`).
+ * Everything after this comment and the one blank line under it is that file byte for byte, its imports included.
+ * It is here because the dice copied beside it import it, or because 2.12's `actor.rollTrait` builds its config with it
+ * (the harness's actor, client-entry.mjs); an import that lands outside what is copied lands on the harness's glue
+ * at the same relative path under lib/dh-dice/, which says it is not Daggerheart's; audit/harness/README.md
+ * ("Daggerheart's dice") names the boundary.
  * Re-copy it on an upgrade; never edit it. A model of this file could be wrong in the module's
  * favour - the reason it is the file itself.
  *
@@ -60,6 +60,7 @@ export class MoveContext {
         this.headerTitle = data.headerTitle;
         this.actionType = data.actionType ?? action?.actionType ?? 'action';
         this.fateType = data.fateType;
+        this.groupAction = data.groupAction;
 
         this.selectedMessageMode = data.selectedMessageMode ?? game.settings.get('core', 'messageMode');
         this.tierLimit = data.tierLimit;

@@ -1925,6 +1925,7 @@
         "onlyAfterDarkTooltip": "The trap goes off only in the evening, at night, or during an Eclipse",
         "notTheOneWhoTooltip": "The trap never goes off for the student who built it",
         "room2Tooltip": "Where students work on it and can sabotage it. With any room, they work anywhere and cannot sabotage it",
+        "roomSceneTooltip": "Several scenes have a room of this name. Pick the scene the project stands on, with its token and its action",
         "requiredWork2Tooltip": "The statistic rolled whenever somebody works on this project",
         "aPlayerSOnTooltip": "Ticked, this player sees the project while it is secret",
         "shareTooltip": "Lets one more player see a secret project",
@@ -1979,7 +1980,8 @@
         "whichRemnantTooltip": "Reinforced Remnants are listed, but you cannot wipe them",
         "scrubAtItTooltip": "Rolls to wipe the chosen Remnant away",
         "carryItThereTooltip": "Rolls to drag the body into the room you picked",
-        "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not"
+        "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not",
+        "executedEachTooltip": "Ticked: executed if the table got it wrong. Untick to spare this student."
       },
       "CasePlan": {
         "clearPlanTooltip": "Clears one chapter's planned Key Remnants and case schema, after a question that counts them",
@@ -2496,6 +2498,8 @@
         "other": "The Blackened of this chapter ({n}):"
       },
       "executedIfWrong": "Who is executed if the table got it wrong",
+      "executedEachIfWrong": "Who is executed if the table got it wrong: tick one of the accused, or more",
+      "pickOneAccused": "Tick at least one of the accused to give a wrong verdict.",
       "verdictNoteKnown": "If the table got it right, every Blackened above is executed, survivors get a Level Up, and this list is ignored. If not, your pick is executed, surviving Blackened stay in play with a Reinforced Level Up and share one new rule, and every Monokuma's Despair fills. Execution comes at the trial's end, or at once if it is over.",
       "verdictIntroKnown": "Only you know whether the table got it right. Say whether it found the killer, and who is executed if it did not.",
       "tiedVerdictNote": "The vote ended in a tie or without a majority. Unless the table settled it some other way, this counts as getting it wrong.",
@@ -3957,6 +3961,12 @@
       "projectHint": "From the project {project} · {life}",
       "forGood": "for good",
       "projectLine": "{action} in Facilities, {life}",
+      "notLive": {
+        "ended": "{action}: its time in Facilities ended at {time} of day {day}.",
+        "chapter": "{action}: it ended with the chapter it was completed in.",
+        "season": "{action}: it ended with the season it was completed in.",
+        "later": "{action}: the clock is earlier than its completion ({time} of day {day}), so the primary GM's browser counts it as completed now."
+      },
       "timesLeft": {
         "one": "{n} time of day left",
         "other": "{n} times of day left"
@@ -4503,6 +4513,10 @@
       "tracesUncovered": "not rolled, so the Remnant you leave is not hidden.",
       "toolRelief": "“{item}” is Tier {tier}, so every threshold on this roll comes down by {tier}.",
       "room": "Room",
+      "roomScene": "Scene of the room",
+      "roomSceneStale": "The scene picked for this room is gone or no longer holds it. The project stands on {scene} until you pick again.",
+      "roomSceneGone": "The scene {scene} was deleted. It was the scene picked for these projects' rooms; each now stands where it would with no pick, until a GM picks again:",
+      "roomSceneGoneRow": "{project}: now on {scene}",
       "anyRoom": "- any room -",
       "roomElsewhere": "{room} (on no scene now)",
       "roomOnNoScene": "No project was made: the room {room} is not on any scene now. Name a room that is on a scene, or leave the room out.",
@@ -6554,6 +6568,10 @@
       "title": "Debug log",
       "intro": "Everything this browser has failed at since the page loaded; reloading the page empties it. Repeats show as one row with a count.",
       "none": "Nothing has gone wrong since this page loaded.",
+      "dropped": {
+        "one": "{n} older row was dropped to keep the newest {kept}.",
+        "other": "{n} older rows were dropped to keep the newest {kept}."
+      },
       "clear": "Clear the log",
       "cleared": "The debug log on this browser is now empty.",
       "copy": "Copy to clipboard",

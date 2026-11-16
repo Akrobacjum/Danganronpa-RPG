@@ -153,8 +153,9 @@ async function snapshot(cast) {
            - "Remnant", under the traces, and "DRPG Project", under project tokens -
            standing in a world that had neither, from the first scenario that dropped
            one to the end of the run. Users and settings are never created or removed
-           here, and chat has its own line above. */
-        documents: new Map([...(game.collections ?? [])]
+           here, and chat has its own line above. `entries()`, as worldDump reads them: v14's
+           game.collections iterates its values (E58 L1, 16.11.2026). */
+        documents: new Map([...(game.collections?.entries?.() ?? [])]
             .filter(([name]) => !["User", "Setting", "ChatMessage"].includes(name))
             .map(([name, collection]) => [name, new Set(collection.map(d => d.id))]))
     };
@@ -9639,11 +9640,14 @@ const SCENARIOS = [
         }
         // The player is told the closed list's code; the GM's log keeps the reason (bridge-guards.mjs `reasonOf`) - one row a
         // repeat only re-dates (utils.mjs `record`), so a row from an earlier run in this session is not taken for this one's.
-        // THE LOG KEEPS ITS FIRST 60 ROWS (utils.mjs SESSION_LOG_CAP), and a new reason past them is said on the console
-        // only. The whole suite in one page fills them before this test (1.2.80 train, fix crlf-G1: the unsharded CRLF
-        // run, 63 different GM errors and warnings before this one), and CI's shards did not. So the reason is read where
-        // utils.mjs `warn` always says it (bridge-guards.mjs `refuse`), the GM's console, during the refused draw; and in
-        // the log as well whenever the log has a row left for it.
+        // THE LOG KEPT ITS FIRST 60 ROWS until 1.2.115 (utils.mjs SESSION_LOG_CAP), and a new reason past them was said on
+        // the console only: the whole suite in one page filled them before this test (1.2.80 train, fix crlf-G1: the
+        // unsharded CRLF run, 63 different GM errors and warnings before this one), and CI's shards did not. Since E109 it
+        // keeps the NEWEST 60 (`keepNewest`, R7124), so the reason lands as the newest row even in a full log. The reason
+        // is still read first where utils.mjs `warn` always says it (bridge-guards.mjs `refuse`), the GM's console, during
+        // the refused draw, and then in the log. The escape `rows.length >= 60` is kept (Q-E43-6's follow-up, 16.11.2026):
+        // a full log no longer keeps the reason out, but 60 other wordings between the refusal and this read would still
+        // drop it, and nothing here bounds what other tests' hooks log meanwhile, so removing it is not shown safe.
         const told = second?.sent?.find(r => r.action === "bridge.refused")?.reason ?? null;
         const { sessionFailures } = await import("./utils.mjs");
         const reason = "the GMs' marks of the characters are not open";
@@ -27056,6 +27060,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         });
         equal(stableJson([reading, answer]), stableJson([["cancel", ["cancel"]], "cancel"]),
             "Enter in the verdict window presses a verdict (the first submit button, the buttons marked default, the answer)");
+    }],
+
+    ["E40-T8 - two accused, each on their own: the verdict window ticks both, holds the wrong verdict off with none ticked, and a wrong verdict executes exactly the ticked - both, the first, the other; none gives no verdict (scripts/verdict.mjs `accusedChoices`, `executedChoice`, `read`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
+        /*
+         * Drawn on this GM over a record whose count accused two living students who are not known Blackened (tier 1 R7601,
+         * R7602 hold the pure halves). Four windows, each pressed "Got it wrong" with the answer held back from
+         * `applyVerdict` (`verdictWindow`): both ticked as opened, the second unticked, the first unticked, and both unticked
+         * with the button's hold taken off as a form edited around it would - that one answers `NONE_TICKED`, no verdict. The first window
+         * also reads the ticks' values and state, the legend, that no executed select is drawn, and the button's state
+         * with none ticked and then one. Red at 8a472e37: a select named one person.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn, its ticks clicked and a verdict pressed");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        const known = new Set(trialBlackenedActors().map(a => a.id));
+        const [A, B] = cast(3).filter(a => !known.has(a.id));
+        must(A && B, "no two living students who are not known Blackened");
+        const record = { voteClosed: true, accused: [{ id: A.id, n: 2 }, { id: B.id, n: 2 }], total: 4,
+            majority: 2, noMajority: false, tied: false, accusedIds: [A.id, B.id] };
+        const ticks = element => [...element.querySelectorAll('input[name="executedEach"]')];
+        const wrongButton = element => element.querySelector('footer button[data-action="wrong"]');
+        const press = untick => element => {
+            for (const input of ticks(element)) if (untick.includes(input.value)) input.click();
+            const button = wrongButton(element);
+            const held = Boolean(button?.disabled);
+            if (button) button.disabled = false;
+            button?.click();
+            return held;
+        };
+        const first = await verdictWindow(record, element => {
+            const shape = [ticks(element).map(input => [input.value, input.checked]), Boolean(element.querySelector('select[name="executed"]')),
+                element.querySelector("fieldset legend")?.textContent?.trim() ?? null];
+            const states = [wrongButton(element)?.disabled ?? null];
+            for (const input of ticks(element)) input.click();
+            states.push(wrongButton(element)?.disabled ?? null);
+            ticks(element).find(input => input.value === B.id)?.click();
+            states.push(wrongButton(element)?.disabled ?? null);
+            wrongButton(element)?.click();
+            return [shape, states];
+        });
+        const runs = [];
+        for (const untick of [[], [B.id], [A.id], [A.id, B.id]]) runs.push(await verdictWindow(record, press(untick)));
+        const executed = answer => answer && typeof answer === "object" ? [answer.correct, answer.executedIds] : answer;
+        equal(stableJson([first.reading, executed(first.answer), ...runs.map(run => [run.reading, executed(run.answer)])]),
+            stableJson([[[[[A.id, true], [B.id, true]], false, game.i18n.localize("DRPG.Vote.executedEachIfWrong")], [false, true, false]],
+                [false, [B.id]],
+                [false, [false, [A.id, B.id]]], [false, [false, [A.id]]], [false, [false, [B.id]]], [true, "noneTicked"]]),
+            "the verdict window over two accused does not tick both, holds the wrong verdict off otherwise than with none ticked, "
+            + "or a wrong verdict does not execute exactly the ticked ones (the ticks, the select, the legend, the button's state "
+            + "as opened, with none and with one; then both, the second unticked, the first unticked, none: whether held, and the answer)");
     }],
 
     ["a right verdict without the register executes the Blackened the GM names", async () => {
@@ -50128,11 +50181,27 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 }
                 row.__move = which(said.join(" | "));
             }
+            /* THE COLUMNS OF THE A10 AND A11 ROADS (E40, 16.11.2026, the line claude/e40-117; the coordinator's brief): a
+               Frisk's person gate (frisk.mjs `personActionRefusal`, the victim asking of the killer, both alone in one room,
+               `aloneTogether` below), a passage's show and its search on the live world (passages-gm.mjs `sharePassage`,
+               `resolvePassageSearch`, for a character that does not exist, so nothing is written: each asks the phase
+               first), and allowed-now.mjs's roads for each. */
+            row.__cols = {
+                frisk: Fr.personActionRefusal(victim, killer),
+                share: (await Pg.sharePassage({ actorId: "S40T3NOBODY00000", targetId: "S40T3NOBODY00001", passageId: "S40T3NONE" }))?.refused ?? null,
+                find: (await Pg.resolvePassageSearch({ actorId: "S40T3NOBODY00000", total: 0 }, quietFind))?.refused ?? null,
+                rule: { person: A.allowedNow(victim, null, { road: "person" }).why, share: A.allowedNow(victim, null, { road: "passageShare" }).why,
+                    find: A.allowedNow(victim, null, { road: "passageFind" }).why }
+            };
             await settle();
             return row;
         };
-        const matrix = {}, reachable = {}, moveRow = {};
+        const matrix = {}, reachable = {}, moveRow = {}, cols = {};
+        const Fr = await import("./frisk.mjs"), Pg = await import("./passages-gm.mjs");
+        const quietFind = { whisper: () => null, toast: () => null, note: () => null, hunted: () => null };
+        let stood = null;
         try {
+            stood = await aloneTogether(killer, victim);
             matrix.daily = await read();
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
             matrix.eclipse = await read();
@@ -50170,9 +50239,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
         }
+        await stood?.back();
+        await settle();
         equal(stableJson(reachable), stableJson({ startInFight: "DRPG.Eclipse.incidentFirst", openInEclipse: null, stageAfter: null }),
             "a fight and an Eclipse can stand together after all - the matrix must read that state too (an Eclipse started in a fight, a fight opened in an Eclipse, the fight's stage after)");
-        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; }
+        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; cols[state] = row.__cols ?? null; delete row.__cols; }
+        const ECLIPSE = "an Eclipse is running", TRIAL_WAIT = "that waits until the Class Trial is over", SIDE = "the character is a side of the running incident";
+        const LOCKED = "that action is locked", NONE = "no such character", IN_TRIAL = "the Class Trial is in session";
+        const W = A.WHY;
+        equal(stableJson(cols), stableJson({
+            daily: { frisk: null, share: NONE, find: NONE, rule: { person: null, share: null, find: null } },
+            eclipse: { frisk: ECLIPSE, share: LOCKED, find: NONE, rule: { person: W.eclipse, share: W.eclipse, find: null } },
+            trial: { frisk: TRIAL_WAIT, share: LOCKED, find: IN_TRIAL, rule: { person: W.trial, share: W.trial, find: W.trial } },
+            fight: { frisk: SIDE, share: NONE, find: NONE, rule: { person: W.incident, share: null, find: null } }
+        }), "a Frisk's gate or a passage's show or search answers otherwise than before, or otherwise than its road, in some state");
         const expected = key => ({
             daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
             eclipse: key === "directMurder" ? null : "eclipse",
@@ -50251,6 +50331,169 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the three roads answer the phase as they did before the shared rule");
         const off = Object.entries(said).flatMap(([state, r]) => ["rifle", "share", "find"].filter(k => r[k] !== r.rule[k]).map(k => `${state}/${k}: ${r[k]} vs rule ${r.rule[k]}`));
         equal(stableJson(off), "[]", `a road answers otherwise than the one rule: ${stableJson(said)}`);
+    }],
+
+    ["the Calls, the Monocub's abilities, the handover and a statistic proposal ask the phase of the one rule (E40-T6): in daily life, an Eclipse and the Class Trial each gate answers as before, in its own words, and as allowed-now.mjs's road for it", async () => {
+        /*
+         * E40 item 3, 16.11.2026 on the line claude/e40-117; the coordinator's brief of that day: the gates the shared
+         * rule's first commit left (docs/dev/e40/STATUS.md, "Not moved"). Read live on this GM, the clock's phase written
+         * raw to its setting as E40-T3 writes it: calls.mjs `callBarred` (Hope and Despair) and `hopeCallRefusal`, the
+         * sheet's `callLockNote` (a student's drawer and a Monokuma's), calls.mjs `spendDespairCallFor` (a Monokuma's,
+         * where it refuses - in daily life it would buy the Call, so it is not asked there), the Monocub's two phase locks
+         * (monocub.mjs `CUB_LOCKS`), the handover's window (handover.mjs `askWhoIsHere`, every window answered null) and a
+         * player's statistic proposal for a Search (bridge-guards.mjs `guardTraitRuling`, kind "action"). Each state's
+         * answers are held to what the module answered before the move (measured at ff3e12e5 with the rule stubbed, as
+         * E40-T3's table was), and each gate's to allowed-now.mjs's road for it, said as that gate says it. Red before
+         * the roads existed: `allowedNow` threw on a road it did not have.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's student, whose Calls, handover and proposal are read");
+        const A = await import("./allowed-now.mjs");
+        const C = await import("./calls.mjs");
+        const { callLockNote } = await import("./sheet-actions.mjs");
+        const { CUB_LOCKS } = await import("./monocub.mjs");
+        const { askWhoIsHere } = await import("./handover.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const monokuma = game.actors.find(a => a.getFlag(MODULE_ID, FLAGS.monokuma)) ?? null;
+        must(monokuma, "no Monokuma in the world - this would measure nothing");
+        const despairKey = Object.keys(DESPAIR_CALLS)[0];
+        const L = key => game.i18n.localize(key);
+        const D = foundry.applications.api.DialogV2;
+        const keptD = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptN = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const said = async run => {
+            const heard = [];
+            for (const k of ["warn", "info", "error"]) notes[k] = message => { heard.push(String(message)); };
+            for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+            try { await run(); } finally {
+                for (const [k, d] of Object.entries(keptD)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+            }
+            return heard;
+        };
+        const road = (name, key = null) => { const r = A.allowedNow(theirs, key, { road: name }); return r.ok ? null : r.why; };
+        const read = async state => ({
+            hope: await C.callBarred(theirs), despair: await C.callBarred(monokuma, { despair: true }), hopeRefusal: await C.hopeCallRefusal(theirs),
+            drawer: callLockNote(false), monokumaDrawer: callLockNote(true),
+            spend: state === "daily" ? null : (await said(() => C.spendDespairCallFor(monokuma, despairKey)))[0] ?? null,
+            cubEclipse: await CUB_LOCKS.eclipse.shut(), cubTrial: await CUB_LOCKS.classTrial.shut(),
+            handover: (await said(() => askWhoIsHere(theirs, { title: "E40-T6", intro: "E40-T6", note: "", okLabel: "E40-T6" }))).includes(L("DRPG.Eclipse.actionsLocked")),
+            proposal: await G.guardTraitRuling(player, { actorId: theirs.id, kind: "action", key: "search", variant: null }, {}),
+            roads: { callHope: road("callHope"), callDespair: road("callDespair"), cubEclipse: road("cubLock", "eclipse"), cubTrial: road("cubLock", "classTrial"),
+                handover: road("handover"), proposal: road("proposal") }
+        });
+        const clock = foundry.utils.deepClone(getClock());
+        const seen = {};
+        try {
+            seen.daily = await read("daily");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            seen.eclipse = await read("eclipse");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: false, phase: "classTrial" });
+            seen.trial = await read("trial");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        const gates = state => { const { roads, ...rest } = seen[state]; return rest; };
+        const ECL = L("DRPG.Eclipse.actionsLocked"), TRIAL = L("DRPG.Trial.callsLocked"), NOW = "that cannot be done now";
+        equal(stableJson({ daily: gates("daily"), eclipse: gates("eclipse"), trial: gates("trial") }), stableJson({
+            daily: { hope: null, despair: null, hopeRefusal: null, drawer: null, monokumaDrawer: null, spend: null, cubEclipse: false, cubTrial: false, handover: false, proposal: null },
+            eclipse: { hope: ECL, despair: ECL, hopeRefusal: ECL, drawer: L("DRPG.Eclipse.callsLocked"), monokumaDrawer: L("DRPG.Eclipse.callsLocked"), spend: ECL,
+                cubEclipse: true, cubTrial: false, handover: true, proposal: NOW },
+            trial: { hope: null, despair: TRIAL, hopeRefusal: null, drawer: null, monokumaDrawer: TRIAL, spend: TRIAL, cubEclipse: false, cubTrial: true, handover: false, proposal: NOW }
+        }), "a gate answers otherwise than before the shared rule");
+        const W = A.WHY;
+        equal(stableJson(Object.fromEntries(Object.entries(seen).map(([state, r]) => [state, r.roads]))), stableJson({
+            daily: { callHope: null, callDespair: null, cubEclipse: null, cubTrial: null, handover: null, proposal: null },
+            eclipse: { callHope: W.eclipse, callDespair: W.eclipse, cubEclipse: W.eclipse, cubTrial: null, handover: W.eclipse, proposal: W.eclipse },
+            trial: { callHope: null, callDespair: W.trial, cubEclipse: null, cubTrial: W.trial, handover: null, proposal: W.trial }
+        }), "a road of the one rule answers otherwise than its gate");
+    }],
+
+    ["every mode of the trial floor is a dimension of the phase matrix (E40-T7): for each mode of MODE_RULES and for no floor, what modeAllows allows the holder, the target and a third student is what each of its readers says, and is as it was; and with a floor of each mode in the Class Trial every action's tile and press lock as in the trial", async () => {
+        /*
+         * E40 item 3, 16.11.2026 on the line claude/e40-117 (the coordinator's brief: "the trial floor's modes as a
+         * dimension (R1023's modeAllows readers)"). R1023 holds `maySpeak`, `floorRefusal` and `targetRefusal` to
+         * `modeAllows` on three modes; MODE_RULES has more since E70, E72 and the Zones. Here every mode it has, with a
+         * floor whose holder and target are two students of the world and a third beside them, and no floor: the four
+         * kinds a student is asked about (speak, present, the target of an Objection, and whether the floor takes one)
+         * read through `modeAllows` and through each reader (`maySpeak`, `presentRefusal`, `floorRefusal`,
+         * `targetRefusal` with the three as the trial's participants and a fourth as the objector), and `adjust`; the
+         * readers must agree with the table, and the table's answers are held to ff3e12e5's, read there (the floor's
+         * rule is `modeAllows` itself: the shared rule does not wrap it, as allowed-now.mjs would then import the trial
+         * floor's whole graph). Then, with a floor of each mode written to the world in the Class Trial, the sheet's
+         * tile and the press for every key of ACTIONS lock as in the trial (E40-T3's trial row): no mode opens or shuts
+         * an action.
+         */
+        needs(world.atLeast("livingStudents", 3), "a floor's holder and target, and a third student");
+        const F = await import("./trial-floor.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [h, t, o] = livingStudents();
+        const H = h.id, T = t.id, O = o.id, Q = "S40T7OBJECTOR000";
+        const floorOf = mode => mode && { active: true, mode, holderId: H, targetId: T, seconds: 300, startedAt: 1, pending: false, messageId: null };
+        const modes = [null, ...Object.keys(F.MODE_RULES)];
+        const table = {}, readers = {};
+        for (const mode of modes) {
+            const f = floorOf(mode), key = mode ?? "none";
+            table[key] = {
+                speak: [H, T, O].map(a => F.modeAllows(f, "speak", a)), present: [H, T, O].map(a => F.modeAllows(f, "present", a)),
+                object: f ? F.modeAllows(f, "object") : false, target: [H, T, O].map(x => !f || F.modeAllows(f, "target", x)),
+                adjust: f ? F.modeAllows(f, "adjust") : false
+            };
+            readers[key] = {
+                speak: [H, T, O].map(a => F.maySpeak(a, f)), present: [H, T, O].map(a => F.presentRefusal(f, a) === null),
+                object: F.floorRefusal(f) === null, target: [H, T, O].map(x => F.targetRefusal(Q, x, f, { taking: [H, T, O, Q] }) === null),
+                adjust: table[key].adjust
+            };
+        }
+        equal(stableJson(readers), stableJson(table), "a reader of the floor's table says otherwise than modeAllows in some mode");
+        /* Read at ff3e12e5, 16.11.2026: each mode's [holder, target, third] for speak, present and target, and object and
+           adjust (a Closing with nobody's record of it has no timed phase, so no adjust). */
+        const WAS = {"closing":{"adjust":false,"object":true,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"debate":{"adjust":true,"object":true,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"dive":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"none":{"adjust":false,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"objection":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,false,false],"target":[true,true,true]},"panic":{"adjust":true,"object":false,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"rebuttal":{"adjust":true,"object":true,"present":[true,true,true],"speak":[true,true,false],"target":[true,true,false]},"scrum":{"adjust":true,"object":false,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"straw":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"testimony":{"adjust":true,"object":true,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]}};
+        equal(stableJson(table), stableJson(WAS), "a mode of the floor allows otherwise than it did");
+
+        /* The actions under each mode's floor in the Class Trial. */
+        const { actionButton } = await import("./sheet.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTION_GRID } = await import("./config.mjs");
+        must(!ACTION_GRID.includes("move"), "the sheet draws a Move tile again - E40-T3's note");
+        const keys = Object.keys(ACTIONS).filter(key => key !== "move");
+        const SENT = { trial: game.i18n.localize("DRPG.Trial.actionsLocked"), murderOnlyInEclipse: game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse") };
+        const which = text => Object.entries(SENT).filter(([, line]) => String(text ?? "").includes(line)).map(([k]) => k).join("+") || null;
+        const D = foundry.applications.api.DialogV2;
+        const keptD = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptN = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {});
+        const off = [];
+        try {
+            await game.drpg.setActions(h, game.drpg.actionsMax(h));
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            for (const mode of Object.keys(F.MODE_RULES)) {
+                await game.settings.set(MODULE_ID, SETTINGS.trialQueue, floorOf(mode));
+                must(F.trialFloor()?.mode === mode, `the floor of ${mode} was not read back - this would measure nothing`);
+                for (const key of keys) {
+                    const tile = which(actionButton(h, key, ACTIONS[key]).dataset.tooltip);
+                    const heard = [];
+                    for (const k of ["warn", "info", "error"]) notes[k] = message => { heard.push(String(message)); };
+                    for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+                    try { await performAction(h, key); } catch (err) { heard.push(`threw ${err?.message ?? err}`); }
+                    finally {
+                        for (const [k, d] of Object.entries(keptD)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                        for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+                    }
+                    const press = which(heard.join(" | "));
+                    const want = key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial";
+                    if (tile !== want || press !== want) off.push(`${mode}/${key}: tile ${tile}, press ${press}, as the trial ${want}`);
+                }
+            }
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        equal(stableJson(off), "[]", "under a floor of some mode an action locks otherwise than in the trial");
     }],
 
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {
@@ -68847,6 +69090,226 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             `a project in "${where.room}" on another scene, then one on the character's own ([Work list, Sabotage list, ruling out of reach, progress code, bar, sabotage code, frozen])`);
     }],
 
+    ["a project in a room that one place scene holds offers no choice of scene in its editor, stores none on Save, and stands where it stood before the choice existed (option (c), the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md: a world with no duplicate behaves as today)", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. A completed public project with a room action, made in the room a connected
+         * player's character stands in, which one place scene holds; its edit window drawn and saved as it opened. Read:
+         * whether the window shows the scene picker, whether Save stored a pick, whether `projectScene` answers what it
+         * answered before (its token's scene, else `sceneOfRoom`), its token's scene, and the action in the character's
+         * Facilities rows. Nothing to be red: it holds today's answers, so it is green at a56ffb13 as it must stay green
+         * after (the coordinator's "hold that with a test, not by reading"); its mutant is the pick read when none is stored.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(env.dialogs(), "the edit window is read off its drawn window");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const A = await import("./action-facilities.mjs");
+        const PM = await import("./projects-map.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const { actor, where } = await playerInRoom();
+        const holders = R.placeScenes().filter(s => R.roomRegions(s, where.room).length);
+        must(holders.length === 1, `"${where.room}" stands on ${holders.length} place scenes - this reads a world where one holds it`);
+        const title = game.i18n.localize("DRPG.Project.editTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const read = {};
+        let id = null, open = null;
+        try {
+            id = (await P.createProject({ name: "SUITE (c) one scene", target: 1, room: where.room, trait: "hand", description: "SUITE (c) one scene, its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE (c) one scene", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await P.addProgress(id, 1);
+            await settle();
+            open = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            const el = drawn().element;
+            const row = el.querySelector('.drpg-form-field[data-drpg-room-scene]');
+            read.picker = Boolean(row && !row.hidden);
+            el.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([open, wait(5000)]);
+            await settle();
+            const before = (PM.projectTokenOf(id)?.parent ?? null) ?? R.sceneOfRoom(where.room);
+            read.stored = Object.hasOwn(P.metaFor(id), "roomScene") ? P.metaFor(id).roomScene : "absent";
+            read.scene = [P.projectScene(id)?.id === before?.id, P.projectScene(id)?.id === where.scene.id, PM.projectTokenOf(id)?.parent?.id ?? null];
+            read.rows = (await A.facilityRows(actor)).some(r => r.value === `${F.PROJECT_PREFIX}${id}`);
+        } finally {
+            for (const a of [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.window?.title === title)) await a.close();
+            if (open) await Promise.race([open, wait(3000)]);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ picker: false, stored: "absent", scene: [true, true, where.scene.id], rows: true }),
+            "{picker: the editor shows a scene picker; stored: the pick Save wrote; scene: [as before the choice, the character's scene, the token's scene]; rows: the action in the character's Facilities}");
+    }],
+
+    ["a project picked onto a second scene that holds a room of the same name stands there alone: its token, its action offered and served there and not on the first scene, and back where it stood once that scene is deleted (option (c), the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md)", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. A scene of the suite's own holds a room named as the one a connected player's
+         * character stands in. A completed public project with a room action in that room: its edit window shows both
+         * scenes, the second picked and saved. Read on this GM: the stored pick, `projectScene`, its token's scene, the
+         * action offered (`projectActionsAt`, as the player's Facilities rows read it) to that player at each scene's room,
+         * and the GM's run of a use (`facility.use` judged as the player's) with the character's only shown token in the
+         * second scene's room; then the second scene deleted and the same read again. What p1's own page draws is
+         * scenario 99's. Red at a56ffb13: no picker, so the project stood on the character's scene throughout.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the use is a connected player's, as Foundry names only those");
+        needs(env.dialogs(), "the edit window is read off its drawn window");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const PM = await import("./projects-map.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const title = game.i18n.localize("DRPG.Project.editTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const offered = async scene => (await F.projectActionsAt({ room: where.room, scene }, player)).some(r => r.project.id === id);
+        const use = async () => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "facility.use", requestId: `SC${foundry.utils.randomID(8)}`, actorId: actor.id, actionId: `${F.PROJECT_PREFIX}${id}` },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value?.success ?? null;
+        };
+        const read = {};
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let id = null, open = null, other = null, standIn = null;
+        const shown = where.tokenDoc.hidden;
+        const stress = Number(actor.system.resources.stress.value) || 0;
+        try {
+            other = await Scene.create({ name: "SUITE (c) a second floor with a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            id = (await P.createProject({ name: "SUITE (c) two scenes", target: 1, room: where.room, trait: "hand", description: "SUITE (c) two scenes, its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE (c) two scenes", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await P.addProgress(id, 1);
+            await settle();
+            read.first = [P.projectScene(id)?.id === where.scene.id, await offered(where.scene), await offered(other)];
+            // Saved once as it opened, the picker untouched (option B: only a change is a pick): nothing is written.
+            open = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            drawn().element.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([open, wait(5000)]);
+            await settle();
+            read.untouched = [Object.hasOwn(P.metaFor(id), "roomScene"), P.roomSceneOf(id)];
+            open = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            const el = drawn().element;
+            const row = el.querySelector('.drpg-form-field[data-drpg-room-scene]');
+            const select = el.querySelector('select[name="roomScene"]');
+            read.picker = [Boolean(row && !row.hidden), [...(select?.options ?? [])].map(o => o.value).includes(other.id), [...(select?.options ?? [])].length];
+            if (select) {
+                select.value = other.id;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            el.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([open, wait(5000)]);
+            await settle();
+            read.picked = [P.roomSceneOf(id) === other.id, P.projectScene(id)?.id === other.id, PM.projectTokenOf(id)?.parent?.id === other.id,
+                await offered(where.scene), await offered(other)];
+            read.usedOnFirst = await use();
+            await where.tokenDoc.update({ hidden: true });
+            standIn = (await other.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, actorLink: true, x: 300, y: 300, width: 1, height: 1, hidden: false }]))[0] ?? null;
+            await settle();
+            read.usedOnSecond = await use();
+            await standIn?.delete();
+            standIn = null;
+            await where.tokenDoc.update({ hidden: shown });
+            await other.delete();
+            other = null;
+            await settle();
+            read.deleted = [P.roomSceneOf(id) !== null, P.projectScene(id)?.id === where.scene.id, await offered(where.scene)];
+        } finally {
+            for (const a of [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.window?.title === title)) await a.close();
+            if (open) await Promise.race([open, wait(3000)]);
+            await standIn?.delete().catch(() => {});
+            if (where.tokenDoc.hidden !== shown) await where.tokenDoc.update({ hidden: shown });
+            if (id) await P.deleteProject(id).catch(() => {});
+            await other?.delete().catch(() => {});
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if ((Number(actor.system.resources.stress.value) || 0) !== stress) await trustedWrite(actor, { "system.resources.stress.value": stress }, { reason: "gmRuling" }).catch(() => {});
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [true, true, false], untouched: [false, null], picker: [true, true, 2],
+            picked: [true, true, true, false, true], usedOnFirst: "notThere", usedOnSecond: true, deleted: [true, true, true] }),
+            "{first: [on the character's scene, offered there, offered on the second]; untouched: [a pick field after a Save that changed nothing, the pick]; picker: [shown, the second scene offered, options]; picked: [stored, projectScene, token there, offered on the first, offered on the second]; usedOnFirst/usedOnSecond: the GM's answer to a use from each; deleted: [the pick kept, back on the first scene, offered there]}");
+    }],
+
+    ["a project a player proposes stands on the scene of the proposer's token, a room changed later is found again from it, a GM's hand pick stays through a room change, and the deletion of a picked scene tells the other GMs alone (option B, the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md)", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. A scene of the suite's own holds a room named as the one a connected player's
+         * character stands in; the character's only shown token is put in it, and a project in that room is made as an
+         * approval makes one (createProject with `by`, the proposer). Read: the scene found and its mark, where the project
+         * stands and whose rooms offer its action to that player; the character back on its own scene and the project's
+         * room changed (as the manager changes one, with `roomSceneOnRoomChange`) to a room only its own scene holds; a GM's
+         * hand pick of the second scene with the first room; the room changed again; then the second scene deleted, and the
+         * GM whispers it made (none while this GM is the only one: `otherGmIds`). Red at 0858af76: no scene was found.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const second = R.roomNames(where.scene).find(name => name !== where.room && R.placeScenes().filter(s => R.roomRegions(s, name).length).length === 1) ?? null;
+        must(second, `${where.scene.name} has no second room that only it holds - the room change would measure nothing`);
+        const offered = async scene => (await F.projectActionsAt({ room: where.room, scene }, player)).some(r => r.project.id === id);
+        const read = {};
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const shown = where.tokenDoc.hidden;
+        let id = null, other = null, standIn = null;
+        try {
+            other = await Scene.create({ name: "SUITE B a second floor with a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await where.tokenDoc.update({ hidden: true });
+            standIn = (await other.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, actorLink: true, x: 300, y: 300, width: 1, height: 1, hidden: false }]))[0] ?? null;
+            await settle();
+            id = (await P.createProject({ name: "SUITE B proposed", target: 1, room: where.room, trait: "hand", by: actor.id, description: "SUITE B proposed, its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE B proposed", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await P.addProgress(id, 1);
+            await settle();
+            read.proposed = [P.roomSceneOf(id) === other.id, P.roomSceneByGmOf?.(id) ?? null, P.projectScene(id)?.id === other.id, await offered(other), await offered(where.scene)];
+            await standIn.delete();
+            standIn = null;
+            await where.tokenDoc.update({ hidden: shown });
+            await settle();
+            const change = async room => {
+                await P.applyProjectChange(id, P.projectEditChange({ room, ...(await P.roomSceneOnRoomChange(id, room)) }), { by: { kind: "gm" } });
+                await settle();
+            };
+            await change(second);
+            read.foundAgain = [P.roomSceneOf(id) === where.scene.id, P.roomSceneByGmOf(id)];
+            await P.applyProjectChange(id, P.projectEditChange({ room: where.room, roomScene: other.id, roomSceneByGm: true }), { by: { kind: "gm" } });
+            await settle();
+            read.byHand = [P.roomSceneOf(id) === other.id, P.roomSceneByGmOf(id), P.projectScene(id)?.id === other.id];
+            await change(second);
+            read.keptThrough = [P.roomSceneOf(id) === other.id, P.roomSceneByGmOf(id), P.projectScene(id)?.id === where.scene.id];
+            await change(where.room);
+            const before = game.messages.size;
+            await other.delete();
+            other = null;
+            await settle();
+            read.deleted = [P.projectScene(id)?.id === where.scene.id, P.otherGmIds(game.user.id).length, game.messages.size - before];
+        } finally {
+            await standIn?.delete().catch(() => {});
+            if (where.tokenDoc.hidden !== shown) await where.tokenDoc.update({ hidden: shown });
+            if (id) await P.deleteProject(id).catch(() => {});
+            await other?.delete().catch(() => {});
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        const gms = game.users.filter(u => u.isGM && u.id !== game.user.id).length;
+        equal(stableJson(read), stableJson({ proposed: [true, false, true, true, false], foundAgain: [true, false], byHand: [true, true, true],
+            keptThrough: [true, true, true], deleted: [true, gms, gms ? 1 : 0] }),
+            "{proposed: [found the proposer's scene, by hand, stands there, offered there, offered on the first]; foundAgain: [the proposer's scene for the new room, by hand]; byHand: [the GM's pick, by hand, stands there]; keptThrough: [the pick kept through a room change, by hand, stands on the first by today's rule]; deleted: [back on the first scene, other GMs, whispers made]}");
+    }],
+
     ["who stands in a room is counted on the scene the character stands on whatever scene is on screen", async () => {
         /*
          * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1 (re-sized to major by the security
@@ -75668,7 +76131,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const token = scene.tokens.find(t => t.actorId === student.id);
         const { diceLookStore } = await import("./gm-stores.mjs");
         const { gmStoresIdle } = await import("./gm-store.mjs");
-        const { ForcedDeletion, ForcedReplacement } = foundry.data.operators;
+        /* A ForcedReplacement's value is `[OPERATOR_VALUE]` on v14, not `.replacement` (read on 14.370, 16.11.2026, E58 L1). */
+        const { ForcedDeletion, ForcedReplacement, OPERATOR_VALUE } = foundry.data.operators;
         const path = `flags.${DSN_SCOPE}.appearance`;
         const found = actorDiceFound([student]);
         const own = { look: null };
@@ -75677,7 +76141,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             flags: { get: () => ({ [DSN_SCOPE]: { appearance: own.look } }) },
             update: { value: async changes => {
                 const value = changes?.[path];
-                own.look = value instanceof ForcedDeletion ? null : value instanceof ForcedReplacement ? value.replacement : value;
+                own.look = value instanceof ForcedDeletion ? null : value instanceof ForcedReplacement ? value[OPERATOR_VALUE] : value;
                 return synthetic;
             } }
         });
@@ -93430,7 +93894,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const laid = stableJson([["hope", hope.background], ["fear", fear.background]]);
         /* DAGGERHEART 2.10 AND LATER LAY NO TABLE LOOK (dice-look.mjs `tableDualityLook`: there the Hope and Fear dice
            wear Daggerheart's roles, so the module lays none). The harness boots as the Daggerheart module.json verifies
-           (lib/versions.mjs), 2.12.8 since 1.2.111 (8f1b1b38), where this test read the laying road's values and failed:
+           (lib/versions.mjs), 2.12.8 from 1.2.111 (8f1b1b38) and 2.12.9 since 16.11.2026. On 2.12.8 this test read the
+           laying road's values and failed:
            measured "drawn": false, "own": ["[]"], "history": [false, [null, null]], no marks, with the copy still kept and
            a player's write still put back. So it reads the rule the code states, by the version this browser runs: on
            2.10 and later the copy and its guard alone, and nothing laid; before 2.10 the whole laying road, as before.
@@ -93544,8 +94009,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E108, 13.11.2026. dice-look.mjs `layOnThrow` hands Dice So Nice (`diceSoNiceRollStart`'s `context.dsnRoll`) a
          * copy whose Hope, Fear, advantage and disadvantage dice carry Daggerheart's colorset (R5461, R5462). The harness's
-         * system answers module.json's verified version (lib/versions.mjs), 2.6.5, so `layOnThrow` - what the hook runs,
-         * here on the settings this test writes - is handed a system of 2.12.8, with a roll of the player's: the throw a
+         * system answers module.json's verified version (lib/versions.mjs): 2.6.5 where E108 wrote this (5ef2a88b), 2.12.8
+         * from 1.2.111 (8f1b1b38), 2.12.9 since 16.11.2026. So `layOnThrow` - what the hook runs, here on the settings
+         * this test writes - is handed a system of its own, 2.12.8, the version whose dsnConfig.mjs the four colorsets
+         * were read in (2.12.9's is the same file, `git diff 2.12.8 2.12.9`), with a roll of the player's: the throw a
          * GM's screen draws of it. The hook's own road is the 2.9 test's (the table's Hope and Despair dice, E60 C5d). Red
          * before E108: no layOnThrow exported, and on 2.12.8 nothing laid whatever the switch.
          */
@@ -99212,6 +99679,51 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ before: [0, null], done: [true, [[false, ""]], true], next: [false, ""],
             powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
             "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
+    }],
+    ["a completed project's action whose completion is later than a clock set back stands from now, and once its lifetime has run out the GM is told why and the player offered nothing (P1, the owner's probe of 16.11.2026 on their world and decisions \"tak\" and \"b\")", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. The owner's state: a public project in the room a connected player's character
+         * stands in, completed with an action of one day's lifetime, its completion at day 3 morning; the clock then at
+         * day 1 morning, as a GM's correction of the clock leaves it. Read after the clock's change: the completion as the
+         * primary GM holds it, the action offered to the player and its times of day left; then the clock moved on past
+         * the lifetime: offered or not, the GM's reason line; then a forward move from a fresh completion, which must not
+         * restamp anything. The clock and the project are put back. Red at 5b3d80b5: the action stood nowhere after the
+         * clock went back, and no line said why.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        const F = await import("./facilities.mjs");
+        const P = await import("./projects.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { player, where } = await playerInRoom();
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const at = (day, timeOfDay) => ({ ...clockWas, day, timeOfDay, eclipse: false });
+        const setClock = async c => { await game.settings.set(MODULE_ID, SETTINGS.clock, c); await settle(); await settle(); };
+        const offered = async () => (await F.projectActionsAt(where, player)).find(r => r.project.id === id) ?? null;
+        const read = {};
+        let id = null;
+        try {
+            await setClock(at(3, "morning"));
+            id = (await P.createProject({ name: "SUITE P1 Porzadki", target: 1, room: where.room, description: "SUITE P1 its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE P1 Odetchnij", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "days", n: 1 }, limit: "timeOfDay" });
+            await P.addProgress(id, 1);
+            await settle();
+            read.completed = F.projectFacilityOf(id).completedAt?.at ?? null;
+            await setClock(at(1, "morning"));
+            const back = await offered();
+            read.setBack = [F.projectFacilityOf(id).completedAt?.at ?? null, Boolean(back), back?.timesLeft ?? null, F.facilityWhyLine(id)];
+            await setClock(at(2, "morning"));
+            read.ranOut = [Boolean(await offered()), F.facilityWhyLine(id).includes("SUITE P1 Odetchnij"), F.facilityState(F.projectFacilityOf(id).facility, F.projectFacilityOf(id).completedAt).why];
+            await setClock(at(1, "noon"));
+            read.forward = F.projectFacilityOf(id).completedAt?.at ?? null;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ completed: 2 * TIMES_OF_DAY.length, setBack: [0, true, TIMES_OF_DAY.length, ""],
+            ranOut: [false, true, "ended"], forward: 0 }),
+            "{completed: the completion's time of day; setBack: [the completion after the clock went back, offered, times of day left, the GM's reason line]; ranOut: [offered past the lifetime, the GM's line names the action, why]; forward: the completion after a move that is not back past it}");
     }],
     ["E93-T16 - the Facilities tile is struck through only when no row of its window can be taken (scripts/action-facilities.mjs `facilitiesRows`, `facilitiesShutReason`, sheet-actions.mjs `roomBlockFor`; the owner's report of 13.11.2026 at a table on 1.2.112: \"The Facilities action is struck through when there are no rests available in the room, even though a GM's room action or a project's action is available\"): in a room with neither rest marked, the tile is live while a GM's room action is open; with that action closed this time of day and no project it is dimmed and its reason names every row's; with a completed project's free action there it is live again; under Lockdown it is dimmed with the Lockdown line; and at each step the window's rows say the same", async () => {
         /*

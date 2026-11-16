@@ -144,6 +144,7 @@ export function toldSight(countdownId) {
        row, or a copy sent before P1), so a reader can fall back to the GM's card; null where it says there is none. */
     return { in: held.in === true, name: typeof held.name === "string" ? held.name : null,
         murder: held.murder === true, room: typeof held.room === "string" && held.room ? held.room : null,
+        roomScene: typeof held.roomScene === "string" && held.roomScene ? held.roomScene : null,
         facility: !Object.hasOwn(held, "facility") ? undefined : held.facility && typeof held.facility === "object" ? held.facility : null };
 }
 
@@ -215,8 +216,12 @@ export function labelFor({ name = "", secret = false, secretName = null, sees = 
  * `isIndirectMurder` and `roomOf` - the meta (a public project), else the GMs' row on a GM (`secretsOf`), else the
  * player's sight of it (`toldSight`, `murder` and `room`), which the GMs send the players in on it and the Spectators
  * (projects.mjs `sightFor`). A project revealed takes both back into projectMeta, as the description.
+ *
+ * AND THE SCENE A GM PICKED FOR ITS ROOM (option (c), 16.11.2026; docs/dev/e43/SCENES.md): `roomScene`, beside `room` and
+ * for the same reason - a secret project with no token on the map would otherwise say on any console which scene's room
+ * it stands in. Read through projects.mjs `roomSceneOf`; it rides the sight copy with the room (`toldSight`).
  */
-export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility", "indirectMurder", "room"]);
+export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser

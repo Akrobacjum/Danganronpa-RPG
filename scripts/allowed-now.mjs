@@ -83,7 +83,36 @@ export const ROADS = Object.freeze({
         return open();
     },
     /* passages-gm.mjs `resolvePassageSearch`'s phase (A10, the wire's "passage.find"): the trial alone. */
-    passageFind: (key, f) => (f.trial() ? shut(WHY.trial) : open())
+    passageFind: (key, f) => (f.trial() ? shut(WHY.trial) : open()),
+    /* THE GATES THE FIRST COMMIT LEFT (E40, 16.11.2026, the line claude/e40-117; the coordinator's brief of that day), each
+       in its own order, each said in its caller's words. Tier 2 E40-T6. */
+    /* A Hope Call: the Eclipse alone (calls.mjs `callBarred`, `hopeCallRefusal`; the sheet's `callLockNote`): the trial
+       leaves a student's Calls open (T-1), and Overflow's Silence, the dead and the Call Silence are asked after it by
+       each caller, as before. */
+    callHope: (key, f) => (f.eclipse() ? shut(WHY.eclipse) : open()),
+    /* A Despair Call: the Eclipse, then the trial (calls.mjs `callBarred` with `despair`, `spendDespairCallFor`; a
+       Monokuma's drawer in `callLockNote`). */
+    callDespair: (key, f) => {
+        if (f.eclipse()) return shut(WHY.eclipse);
+        if (f.trial()) return shut(WHY.trial);
+        return open();
+    },
+    /* A Monocub's ability, one lock of its row at a time (monocub.mjs `CUB_LOCKS`, its rows' `locks` in config.mjs): the
+       key is the lock, "eclipse" or "classTrial"; the row keeps its order and the Ghost Bet's window lock beside them. */
+    cubLock: (key, f) => {
+        if (key === "eclipse") return f.eclipse() ? shut(WHY.eclipse) : open();
+        if (key === "classTrial") return f.trial() ? shut(WHY.trial) : open();
+        return open();
+    },
+    /* A handover's window (handover.mjs `askWhoIsHere`): the Eclipse alone. */
+    handover: (key, f) => (f.eclipse() ? shut(WHY.eclipse) : open()),
+    /* A player's statistic proposal for a project, a generic roll or a Search (bridge-guards.mjs `guardTraitRuling`): the
+       Eclipse or the trial, one sentence for both, as `performAction` refuses a Project in both. */
+    proposal: (key, f) => {
+        if (f.eclipse()) return shut(WHY.eclipse);
+        if (f.trial()) return shut(WHY.trial);
+        return open();
+    }
 });
 
 /** The facts, read live: each as the road that asked it before this file read it. */

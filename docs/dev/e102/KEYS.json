@@ -147,6 +147,14 @@
     "projects-ui:993"
    ]
   },
+  "roomSceneTooltip": {
+   "key": "DRPG.Tips.Actions.roomSceneTooltip",
+   "en": "Several scenes have a room of this name. Pick the scene the project stands on, with its token and its action",
+   "pl": "Pokój o tej nazwie jest na kilku scenach. Wybierz scenę, na której stoi projekt, z jego tokenem i akcją",
+   "sites": [
+    "projects-ui:1075"
+   ]
+  },
   "requiredWork2Tooltip": {
    "key": "DRPG.Tips.Actions.requiredWork2Tooltip",
    "en": "The statistic rolled whenever somebody works on this project",

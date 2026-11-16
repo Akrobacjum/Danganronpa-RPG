@@ -572,7 +572,8 @@ const env = Object.freeze({
     systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
     /* Daggerheart's MoveContext (E76b, 12.11.2026): the config 2.12's `actor.rollTrait` builds its roll from
        (game.system.api.data.actions.MoveContext, daggerheart.mjs:137-145, 2.12.8). Up to 2.10.x there is none, and a
-       test of what the module carries through it skips there; the harness runs 2.12.8's copy since E76 C3c. */
+       test of what the module carries through it skips there; the harness ran 2.12.8's copy from E76 C3c and runs
+       2.12.9's since 16.11.2026. */
     moveContext: () => probe("env.moveContext", typeof game.system?.api?.data?.actions?.MoveContext === "function",
         "this Daggerheart builds no MoveContext (before 2.12)"),
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
@@ -2649,7 +2650,9 @@ async function worldDump() {
             out.set(`client-orphan:${key}`, stableJson(client.getItem(key)));
         }
     }
-    for (const [name, collection] of game.collections ?? []) {
+    /* `entries()`: v14's game.collections is a Collection, which iterates its values, not [name, collection] pairs
+       (read on 14.370, 16.11.2026, E58 L1: "collection is not iterable" here, the first line of a tier 2 run). */
+    for (const [name, collection] of game.collections?.entries?.() ?? []) {
         for (const doc of collection) dumpDocument(out, `${name}.${doc.id}`, name, doc.toObject());
     }
     out.set("state:paused", stableJson(Boolean(game.paused)));
@@ -2742,8 +2745,11 @@ function describeDiff(d) {
 /**
  * WHAT THE GM'S CLIENT SAID WHILE A TEST RAN (E08+E28 C15, 04.10.2026). A test that reads "logged
  * on the GM" counts the lines `warn` and `error` (utils.mjs) write to the console from the watch
- * on, not the rows of `sessionFailures()`: that log keeps the first 60 wordings and drops every
- * new one after (`SESSION_LOG_CAP`), and a whole suite fills it. Measured on C15's first suite
+ * on, not the rows of `sessionFailures()`: that log kept the first 60 wordings and dropped every
+ * new one after (`SESSION_LOG_CAP`) until 1.2.115, and a whole suite fills it. Since E109 it keeps
+ * the newest 60 and drops the oldest (utils.mjs `keepNewest`, R7124), so a test's own line is no
+ * longer lost to a full log; the watch stays, because a repeat is still one row re-dated, not a
+ * second row, and a burst of other wordings can still push a test's row out. Measured on C15's first suite
  * run: the 60th wording arrived just before "a trace's band is the GM's, whatever the packet
  * names", which then counted none of its two lines, and "a bookmark note for another player's
  * character is refused" none of its two refusals - the first had passed on its named run, the

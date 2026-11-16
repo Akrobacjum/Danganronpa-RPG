@@ -4267,8 +4267,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * written back whole as they stand put nothing back and tell nobody (a guard). p2's writes take the bullet's
      * category with the rest, which is the sheet audit's to put back, not the bullet guard's: read on every client
      * beside the guarded fields (`kind`), and the audit's mark is to hold the bullet as the document does once it has
-     * judged both put-backs (`held`). The old spellings (`flags.-=<module>`, `flags.==<module>`) change nothing in
-     * the harness (LIVE-E30-01), so no check sends them. Between the checks the GM writes the module's flags back
+     * judged both put-backs (`held`). The old spellings (`flags.-=<module>`, `flags.==<module>`) are held by 91 and
+     * 92 (lib/old-keys.mjs), one reading each by name, so no check here sends them; since 16.11.2026 the default
+     * reading is "honoured", as Foundry 14.370's (LIVE-E30-01). Between the checks the GM writes the module's flags back
      * whole as they stood before the first (`scopeBefore`).
      *
      * At 528a72d the first four were red (e29run/r2h13red, 06.10.2026): p2's three writes stood on every client,

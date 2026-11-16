@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Jedna strona. Moduł 1.2.116 na Daggerheart.*
+*Jedna strona. Moduł 1.2.117 na Daggerheart.*
 
 **Jesteś** Ultimate: to ta jedna rzecz, którą twoja postać robi najlepiej, wpisana na arkuszu pod jej imieniem. Twoje sześć statystyk to Leg, Body, Hand, Eye, Shadow i Head.
 
@@ -34,7 +34,7 @@ Każda akcja kosztuje 1 akcję, chyba że jej wiersz mówi inaczej. **Remnant** 
 | **Search** | Eye albo inna, którą zatwierdzi GM | Nazwij, czego chcesz. 8+ daje Tier 0, 12+ Tier 1, 18+ Tier 2, a krytyk o 1 Tier więcej. Zużywa jeden Search Token. Jeśli weźmiesz narzędzie zbrodni albo narzędzie do sprzątania, zostawiasz Remnant. |
 | **Observe** | Eye | Kopiuje Remnant do ekwipunku jako Neutral Truth Bullet, czyli taki, którego rodzaju nie znasz, dopóki nie zostanie przeanalizowany. Porażka kosztuje 1 Sanity. |
 | **Analyze** | Head | Zidentyfikuj Truth Bullet (porażka blokuje go do końca rozdziału), poproś GM-a o podpowiedź (14+ / 18+), Find Stash (16+) albo Find Passage (16+). |
-| **Infiltrate** | Shadow, Leg, Body albo Hand | Listen (14+ ile osób jest za ścianą, 18+ kto, krytyk każdy sąsiedni pokój; pokoje, w których nie byłeś, zostają bez nazwy: *Nieodkryty pokój 1*, 2...), Echoes, Tail Someone, Dash (12+ 2 darmowe przejścia, 18+ 3, krytyk 4), Shut the Door, Force the Door, Pick the Lock, Keep Watch. |
+| **Infiltrate** | Shadow, Leg, Body albo Hand | Listen (14+ ile osób jest za ścianą, 18+ kto, krytyk każdy sąsiedni pokój; pokoje, w których nie byłeś, zostają bez nazwy: *Nieodkryty pokój 1*, 2...), Echoes, Tail Someone, Keep Watch, Dash (12+ 2 darmowe przejścia, 18+ 3, krytyk 4), Shut the Door, Force the Door, Pick the Lock. |
 | **Palm** | Hand, a Shadow, żeby nikt cię nie zauważył | Weź (12+, niezauważony 15+) coś z czyichś kieszeni albo podłóż (8+, niezauważony 13+) w nie coś swojego. Albo niczego nie bierz i tylko zobacz, co ktoś nosi: najpierw poproś, Body 12+ po odmowie; ukradkiem Shadow 15+, potem Hand 10+. |
 | **Projects** | rzut projektu | 12+ daje +1 postępu, 18+ daje +2, a krytyk +2 i oddaje ci akcję. Nowe projekty proponujesz GM-owi. Jest wśród nich Sabotage, który zawsze zostawia Remnant. |
 | **Facilities** | bez rzutu albo rzut z wiersza | Short Rest: 1 akcja, wybierasz 1, raz na porę dnia. Long Rest: 2 akcje, wybierasz 2, raz na sesję. Sleep przywraca Health, Meal Sanity, Breath Hope; odpoczynki działają tylko w pokojach dla nich oznaczonych. Niżej w oknie jest to, co oferuje twój pokój. |

@@ -17,8 +17,6 @@
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
-import { isEclipse } from "./eclipse.mjs";
-import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc, proseOf, gmIds } from "./utils.mjs";
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass, callRowsHtml, pickedRow, callPriceShort } from "./call-pickers.mjs";
@@ -64,10 +62,13 @@ export function hopeHeld(actor) {
  * @returns {Promise<string|null>} the sentence to say, or null when nothing bars it.
  */
 export async function callBarred(actor, { despair = false } = {}) {
-    if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.actionsLocked");
+    // The phase: allowed-now.mjs's `callHope` or `callDespair` road (E40, the line claude/e40-117), in this order.
+    const { allowedNow, WHY } = await import("./allowed-now.mjs");
+    const now = allowedNow(actor, null, { road: despair ? "callDespair" : "callHope" });
+    if (now.why === WHY.eclipse) return game.i18n.localize("DRPG.Eclipse.actionsLocked");
 
     if (despair) {
-        if (getClock().phase === "classTrial") return game.i18n.localize("DRPG.Trial.callsLocked");
+        if (now.why === WHY.trial) return game.i18n.localize("DRPG.Trial.callsLocked");
         return null;
     }
 
@@ -100,8 +101,9 @@ export async function hopeCallRefusal(actor) {
     // The Eclipse is placement-only - see the guard in action-rolls.mjs's
     // `performAction` for the full reasoning. A Call is not a room
     // crossing, so it waits for the same next time of day everything else
-    // does.
-    if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.actionsLocked");
+    // does. The rule is allowed-now.mjs's `callHope` road (E40, the line claude/e40-117).
+    const { allowedNow } = await import("./allowed-now.mjs");
+    if (!allowedNow(actor, null, { road: "callHope" }).ok) return game.i18n.localize("DRPG.Eclipse.actionsLocked");
 
     /*
      * SILENCE, THE WEATHER (Z10) - not to be confused with the Silence
@@ -416,8 +418,11 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             return null;
         }
 
-        // Same placement-only rule as a Hope Call - see the note above.
-        if (isEclipse()) {
+        // Same placement-only rule as a Hope Call - see the note above. The phase is allowed-now.mjs's `callDespair`
+        // road (E40, the line claude/e40-117): the Eclipse here, the trial below, each in its place.
+        const { allowedNow, WHY } = await import("./allowed-now.mjs");
+        const now = allowedNow(actor, key, { road: "callDespair" });
+        if (now.why === WHY.eclipse) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
             return null;
         }
@@ -430,7 +435,7 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
          * open, deliberately, and that asymmetry is the decision: see
          * `hopeCallBarred` above, which is NOT given a trial branch.
          */
-        if (getClock().phase === "classTrial") {
+        if (now.why === WHY.trial) {
             ui.notifications.warn(game.i18n.localize("DRPG.Trial.callsLocked"));
             return null;
         }

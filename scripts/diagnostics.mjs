@@ -2179,11 +2179,23 @@ function contractText(contract) {
         + " (unknown is a warning, never a pass)", ...contract.failed.map(line), ...contract.unknown.map(line)].join("\n");
 }
 
+/**
+ * The line that says how many older rows the log dropped, in English, or "" for none: diagnose()'s failures text
+ * (`failureText`, below) and the Debug log's Copy text (gm-panel.mjs `openFailureLog`) both carry it, so a log
+ * pasted from either says the same. English on purpose, as the rest of both texts is (the diagnostics stay English);
+ * the Debug log's window shows the same count in the page's language, DRPG.Failures.dropped (Q-E43-6's follow-up, R7640).
+ */
+export function failuresDroppedLine(dropped, kept) {
+    const n = Number(dropped) || 0;
+    return n > 0 ? `${n} older row${n === 1 ? " was" : "s were"} dropped to keep the newest ${kept}.` : "";
+}
+
 /* This session's failures as the debug log copies them (gm-panel.mjs `openFailureLog`), whole stacks, and since E109
-   (R7124) how many older rows the log dropped to keep the newest. Arguments for the test alone; the report reads this browser's. */
+   (R7124) how many older rows the log dropped to keep the newest, in `failuresDroppedLine`'s words, which the
+   Debug log's Copy text carries too (R7640). Arguments for the test alone; the report reads this browser's. */
 export function failureText(rows = sessionFailures(), dropped = sessionFailuresDropped()) {
     if (!rows.length && !dropped) return "Nothing has failed since this page loaded.";
-    const head = dropped ? [`${dropped} older row${dropped === 1 ? " was" : "s were"} dropped to keep the newest ${rows.length}.`] : [];
+    const head = dropped ? [failuresDroppedLine(dropped, rows.length)] : [];
     return [...head, ...rows.map(r => [`[${new Date(r.at).toISOString()}] (${r.level}${r.count > 1 ? ` x${r.count}` : ""}) ${r.message}`,
         ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])].join("\n"))].join("\n");
 }

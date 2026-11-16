@@ -7495,9 +7495,9 @@ const INVARIANTS = [
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
             // E93 C1: a secret project's room action (its label and effects) as well.
-            // The leak-pm line (1.2.113): whether it is an indirect murder, and its room.
-            ...["description", "facility", "indirectMurder", "room"].map(f => [`projectMeta while secret: ${f}`,
-                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" ? true : f === "room" ? "Gym" : "R190 the plan, in the killer's words"; },
+            // The leak-pm line (1.2.113): whether it is an indirect murder, and its room. Option (c) (16.11.2026): the scene picked for it.
+            ...["description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"].map(f => [`projectMeta while secret: ${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" || f === "roomSceneByGm" ? true : f === "room" ? "Gym" : f === "roomScene" ? "R190SCENE0000002" : "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
             // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).
@@ -7762,6 +7762,62 @@ const INVARIANTS = [
         const unfixtured = Object.keys(W.WORLD_SECRET_RULES.uniformActorRows ?? {}).filter(key => !named.has(key));
         ok(Object.keys(W.WORLD_SECRET_RULES.uniformActorRows ?? {}).length > 0 && !unfixtured.length,
             `a setting of uniformActorRows has no case here, or the rule names none: ${unfixtured.join(", ")}`);
+    }],
+
+    ["R7601 - two accused students living at the table are offered one tick each, each ticked unless a known Blackened; fewer than two living accused students leave the window's select as it was (scripts/verdict.mjs `accusedChoices`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
+        /*
+         * The coordinator's brief of 16.11.2026: when the vote accuses two students the verdict window offers each on its own,
+         * preselected by the select's rule (a living student who is not a known Blackened), and with one accused the window
+         * stays as it was. Pure, on three students A, B, C: the rows the window draws, in the count's order.
+         */
+        const { accusedChoices } = await import("./verdict.mjs");
+        const S = ["R7601A", "R7601B", "R7601C"].map(id => ({ id, name: id }));
+        const rows = opts => accusedChoices(S, opts).map(r => [r.id, r.checked]);
+        const cases = [
+            ["two accused", { accusedIds: ["R7601B", "R7601A"] }, [["R7601B", true], ["R7601A", true]]],
+            ["two accused, one a known Blackened", { accusedIds: ["R7601A", "R7601B"], known: ["R7601B"] }, [["R7601A", true], ["R7601B", false]]],
+            ["three accused", { accusedIds: ["R7601A", "R7601B", "R7601C"] }, [["R7601A", true], ["R7601B", true], ["R7601C", true]]],
+            ["two accused, one dead", { accusedIds: ["R7601A", "R7601B"], dead: ["R7601A"] }, []],
+            ["one accused", { accusedIds: ["R7601A"] }, []],
+            ["a student and Monokuma", { accusedIds: ["R7601A", "monokuma"] }, []],
+            ["one student named twice", { accusedIds: ["R7601A", "R7601A"] }, []],
+            ["nobody", {}, []]
+        ];
+        equal(JSON.stringify(cases.map(([what, opts]) => [what, rows(opts)])), JSON.stringify(cases.map(([what, , want]) => [what, want])),
+            "the ticks the verdict window offers are not one per living accused student, ticked unless a known Blackened, or are offered with fewer than two");
+    }],
+
+    ["R7602 - a wrong verdict over two accused executes exactly the ticked ones, both, either alone, and none refused (scripts/verdict.mjs `executedChoice`; E40, 16.11.2026, the line claude/e40-117)", async () => {
+        /*
+         * What `read` hands `applyVerdict` from the ticks: the ticked rows in the window's order, an id the window did not
+         * offer dropped (a form edited around it), and nothing ticked refused - the window then gives no verdict.
+         */
+        const { executedChoice } = await import("./verdict.mjs");
+        const rows = [{ id: "R7602A" }, { id: "R7602B" }];
+        const cases = [
+            ["both", ["R7602B", "R7602A"], { ok: true, executedIds: ["R7602A", "R7602B"] }],
+            ["the first alone", ["R7602A"], { ok: true, executedIds: ["R7602A"] }],
+            ["the other alone", ["R7602B"], { ok: true, executedIds: ["R7602B"] }],
+            ["none", [], { ok: false, executedIds: [] }],
+            ["one not offered", ["R7602X"], { ok: false, executedIds: [] }],
+            ["one offered twice and one not", ["R7602B", "R7602B", "R7602X"], { ok: true, executedIds: ["R7602B"] }]
+        ];
+        equal(JSON.stringify(cases.map(([what, ticked]) => [what, executedChoice(rows, ticked)])),
+            JSON.stringify(cases.map(([what, , want]) => [what, want])),
+            "the ticks do not execute exactly the ticked accused, or nothing ticked is not refused");
+    }],
+    ["R7603 - only an answer the verdict window's `read` built is a verdict: Cancel, the window closed and a wrong verdict with none of two accused ticked give none (scripts/verdict.mjs `verdictAnswer`; E40, 16.11.2026, the line claude/e40-117)", async () => {
+        /*
+         * `openVerdictDialog` hands `applyVerdict` only what this answers; a string reaching it would be read as a wrong
+         * verdict executing nobody, with the lock written. The answers a window can give, each held to the verdict it is.
+         */
+        const { verdictAnswer } = await import("./verdict.mjs");
+        const built = { correct: false, executedIds: ["R7603A"], blackenedIds: [] };
+        const cases = [["none ticked", "noneTicked", null], ["Cancel", "cancel", null], ["the wrong button's action", "wrong", null],
+            ["the window closed", null, null], ["nothing", undefined, null], ["a verdict read built", built, built]];
+        equal(JSON.stringify(cases.map(([what, answer]) => [what, verdictAnswer(answer) ?? null])),
+            JSON.stringify(cases.map(([what, , want]) => [what, want])),
+            "an answer of the verdict window that `read` did not build is taken as a verdict, or one it built is not");
     }],
     ["R193 - a death is the table's only once it is published", async () => {
         /*
@@ -27367,7 +27423,7 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
-    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 35 keys (34 until option (c), 16.11.2026) under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
@@ -27388,6 +27444,7 @@ const INVARIANTS = [
             ["DRPG.Tips.Actions.onlyAfterDarkTooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.notTheOneWhoTooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.room2Tooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.roomSceneTooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.requiredWork2Tooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.aPlayerSOnTooltip","projects-ui.mjs","viewerTicks"],
             ["DRPG.Tips.Actions.shareTooltip","projects-ui.mjs","openProjectManager"],
@@ -27412,7 +27469,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Actions");
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 35, "lang/en.json has not the family's 35 keys under DRPG.Tips.Actions");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27423,7 +27480,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 36 keys (34 until E110 C3) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 37 keys (34 until E110 C3, 36 until E40 on 16.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -27462,7 +27519,9 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"],
             // E110 C3 (14.11.2026): the Scrum speaker's thesis window - the family grew by two, on purpose.
             ["DRPG.Tips.Trial.thesisLineTooltip","trial-prompt.mjs","promptThesis"],
-            ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"]
+            ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"],
+            // E40 (16.11.2026, the line claude/e40-117): a tick per accused in the verdict window - the family grew by one.
+            ["DRPG.Tips.Trial.executedEachTooltip","verdict.mjs","openVerdictDialog"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -27470,7 +27529,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 36, "lang/en.json has not the family's 36 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 37, "lang/en.json has not the family's 37 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -52884,7 +52943,8 @@ const INVARIANTS = [
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             settings.get = ownGet;
         }
-        const createFields = ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret"];
+        // The scene of the room after the room since option (c) (16.11.2026; the owner's choice): its row hidden where one scene holds the name.
+        const createFields = ["img", "name", "description", "glyph", "target", "room", "roomScene", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret"];
         const t = key => game.i18n.localize(key);
         const viewers = game.users.some(u => !u.isGM) ? ["viewers"] : [];
         equal(stableJson(got), stableJson({
@@ -54679,6 +54739,37 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ "drpg-theme-stained-glass": [true, false, false], "drpg-theme-monokuma-legacy": [true, false, false] }),
             "{each theme: [the system's unarmed row hidden with !important, the readied row, the empty line]}");
+    }],
+    ["R7780 - the glass the sheet's header band is painted with reaches the band's edges (the owner at a table, 16.11.2026: \"dziura w kurtyne (krawedz ramki hope). Przeciagnijmy kurtyne do krawedzi sanity\"): under Stained Glass every canvas glass.mjs puts into `.character-header-sheet.drpg-glass-band` wins `padding-left` and `padding-right` 0 against Daggerheart's `.character-header-sheet > *:not(line-div, .tab-navigation)` 15 px, inside which a canvas draws its bitmap", async () => {
+        /*
+         * 16.11.2026. Measured in Chromium on Daggerheart 2.12.8's own sidebar.hbs and header.hbs and the rules of its
+         * stylesheet that reach them, with the module's stylesheets and the band dressed as glass.mjs `dressWindow` dresses
+         * it (audit/sheet-band.mjs): at aa697521 the system's rule for the header's rows (0,8,0; the same in 2.12.9) reached
+         * the band's canvases too, so the glass stood 15 px in from both edges of the band - the strip of the map the owner
+         * saw between Sanity and the Hope frame - in every glass case, desk and stacked, one column or two. The layout is
+         * that script's; this holds the cause in the suite. The system's rule is planted last, so a module rule wins only by
+         * outweighing it, as it must where neither sheet is in a layer; with the module's sheets in a layer after the
+         * system's, as the owner's screenshot reads v14 (that script's header), any module rule would. Red at aa697521: the
+         * canvases won the system's 15px.
+         */
+        const C = await styleCascade();
+        C.rules.push({ file: "daggerheart.css", selector: ".application.sheet.daggerheart.actor.dh-style.character .character-header-sheet > *:not(line-div, .tab-navigation)",
+            decls: [{ property: "padding-left", value: "15px", important: false }, { property: "padding-right", value: "15px", important: false }] });
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        body.innerHTML = `<form class="application sheet daggerheart actor dh-style character"><section class="window-content">`
+            + `<header class="character-header-sheet drpg-glass-band"><canvas class="sg"></canvas><canvas class="pulse"></canvas>`
+            + `<canvas class="seamline"></canvas><canvas class="flash"></canvas><line-div></line-div><div class="name-row"><h1>Aiko</h1></div>`
+            + `</header></section></form>`;
+        // the planted rule reaches the band's rows: without that, the canvases' reading below would measure nothing
+        must(C.winner(body.querySelector(".name-row"), ["padding-left", "padding"])?.value === "15px", "the system's rule did not reach the header's name row - this would measure nothing");
+        const read = {};
+        for (const canvas of body.querySelectorAll(".drpg-glass-band > canvas")) {
+            read[canvas.className] = ["padding-left", "padding-right"].map(side => C.winner(canvas, [side, "padding"])?.value ?? null);
+        }
+        equal(stableJson(read), stableJson({ sg: ["0", "0"], pulse: ["0", "0"], seamline: ["0", "0"], flash: ["0", "0"] }),
+            "{each of the band's canvases: [the padding-left it wins, the padding-right]}");
     }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
@@ -61852,6 +61943,129 @@ const INVARIANTS = [
             typeof U.sessionFailuresDropped === "function", /15 older rows? (?:were|was) dropped/.test(text), D.failureText([], 0)]),
         stableJson([60, "row 16", "row 75", 15, true, true, true, "Nothing has failed since this page loaded."]),
             "[rows kept, the oldest kept, the newest kept, rows dropped, record keeps through keepNewest, the dropped count is read, the report names it, an empty log's report]");
+    }],
+    ["R7640 - the GM panel's Debug log says how many older rows the session log dropped, the count diagnose() names (Q-E43-6's follow-up, the coordinator's ask of 16.11.2026; E109 built the ring, R7124): diagnostics.mjs `failuresDroppedLine` is the one English line diagnose()'s failures text and the Debug log's Copy text both carry, and gm-panel.mjs `openFailureLog` draws DRPG.Failures.dropped, a plural family in both languages, with `sessionFailuresDropped()`", async () => {
+        /*
+         * Red at a48e822e: the Debug log window and its Copy text read `sessionFailures()` alone, so a GM whose log had
+         * dropped its oldest rows read the newest 60 with no word that any went. Read on pure calls and on the source:
+         * tier 1 opens no window, and this browser's own log is not filled to measure it.
+         */
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const line = typeof D.failuresDroppedLine === "function" ? D.failuresDroppedLine : null;
+        const panel = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(panel, "openFailureLog");
+        const drawn = /sessionFailuresDropped\(\)/.test(body) && /plural\("DRPG\.Failures\.dropped"/.test(body);
+        const copied = /failuresDroppedLine\(/.test(body);
+        const sameInDiagnose = line ? D.failureText([{ level: "warn", message: "x", stack: null, at: 0, count: 1 }], 15).split("\n")[0] === line(15, 1) : false;
+        const shown = U.plural("DRPG.Failures.dropped", { n: 15, kept: 60 });
+        equal(stableJson([line?.(15, 60) ?? null, line?.(1, 60) ?? null, line?.(0, 60) ?? null, sameInDiagnose, drawn, copied,
+            shown.includes("15") && shown.includes("60") && !shown.includes("DRPG.")]),
+        stableJson(["15 older rows were dropped to keep the newest 60.", "1 older row was dropped to keep the newest 60.", "", true, true, true, true]),
+            "[the line for 15, for 1, for none; diagnose()'s first line is it; the window draws the plural key with the count; the Copy text carries the line; the key renders both numbers]");
+    }],
+    ["R7641 - a project stands on the scene a GM picked for its room, else where it stood (option (c), the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md): projects.mjs `projectSceneRule` answers a pick that is a place scene holding the project's room, else its token's scene, else the first place scene holding the room by name; `projectScene` asks it with the pick `roomSceneOf` reads; `roomScene` is one of projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET, held out of a secret project's projectMeta row by world-secrets.mjs, and rides the insider's sight copy", async () => {
+        /*
+         * Red at a56ffb13: a project stood on its token's scene, else on `sceneOfRoom`'s, and nothing read a pick. Asked of
+         * the rule with readers of its own: scene A is the home scene and holds a Kitchen, B holds one too, C holds none.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const W = await import("./world-secrets.mjs");
+        const rule = typeof P.projectSceneRule === "function" ? P.projectSceneRule : null;
+        const A = { id: "A" }, B = { id: "B" }, C = { id: "C" };
+        const readers = { sceneById: id => ({ A, B, C })[id] ?? null, isPlace: s => [A, B, C].includes(s),
+            holds: (s, room) => room === "Kitchen" && (s === A || s === B), byName: room => (room === "Kitchen" ? A : null) };
+        const ask = q => (rule ? rule(q, readers)?.scene?.id ?? null : "no rule");
+        const answers = [ask({ room: "Kitchen", pickId: "B" }), ask({ room: "Kitchen", pickId: "GONE" }), ask({ room: "Kitchen", pickId: "C" }),
+            ask({ room: "Kitchen", pickId: "B", tokenSceneId: "A" }), ask({ room: "Kitchen", tokenSceneId: "B" }), ask({ room: "Kitchen" }),
+            ask({ room: null, pickId: "B" }), ask({ room: "Kitchen", tokenSceneId: "GONE" })];
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const asked = /projectSceneRule\(/.test(fnSource(src, "projectScene")) && /roomSceneOf\(/.test(fnSource(src, "projectScene"));
+        const sight = /roomScene/.test(fnSource(src, "sightExtras"));
+        equal(stableJson([answers, typeof P.roomSceneOf === "function", asked, (S.PROJECT_SECRET_WHILE_SECRET ?? []).includes("roomScene"),
+            (W.WORLD_SECRET_RULES.settings.projectMeta?.whileSecret?.fields ?? []).includes("roomScene"), sight]),
+        stableJson([["B", "A", "A", "B", "B", "A", null, "A"], true, true, true, true, true]),
+            "[the scene for: a pick holding the room, a deleted pick, a pick without the room, a pick over a token elsewhere, a token alone, nothing, no room, a token whose scene is gone; roomSceneOf; projectScene asks the rule with the pick; roomScene kept with the GMs while secret, in the rule, and on the sight copy]");
+    }],
+    ["R7642 - the project's editor offers the scene of its room only where more than one place scene holds that room's name (option (c), the owner's choice of 16.11.2026): projects.mjs `roomSceneChoices` lists those scenes, the home scene first as `placeScenes` orders them, none for a name one scene holds or for no room, and names a stored pick that is not among them stale; projects-ui.mjs `openProjectDialog` draws the picker from it and reads it back, the Projects manager finds the scene again with the room it changes (option B), and the picker's words are in both languages", async () => {
+        /*
+         * Red at a56ffb13: there was no choice of scene. The choice is asked with scenes of its own; the window's source is
+         * read, as tier 1 opens no window (the tier-2 "a project picked onto a second scene ..." saves through the rule).
+         */
+        const P = await import("./projects.mjs");
+        const choose = typeof P.roomSceneChoices === "function" ? P.roomSceneChoices : null;
+        const A = { id: "A", name: "Floor 1" }, B = { id: "B", name: "Annex" }, C = { id: "C", name: "Roof" };
+        const holds = (s, room) => (room === "Kitchen" && (s === A || s === B)) || (room === "Gym" && s === C);
+        const ask = (room, pickId = null) => (choose ? choose(room, { places: [A, B, C], holds, pickId }) : "no choice");
+        const answers = [ask("Kitchen"), ask("Kitchen", "B"), ask("Kitchen", "GONE"), ask("Gym"), ask(null)];
+        const ui = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const dialog = fnSource(ui, "openProjectDialog"), manager = fnSource(ui, "applyProjectManager");
+        const drawn = /roomSceneChoices\(/.test(dialog) && /name="roomScene"/.test(dialog) && /roomScene:/.test(dialog);
+        // The manager has no picker: a room it changes finds its scene again from the proposer's token (option B, 16.11.2026).
+        const cleared = /roomSceneOnRoomChange\(/.test(manager);
+        const words = ["DRPG.Project.roomScene", "DRPG.Project.roomSceneStale", "DRPG.Tips.Actions.roomSceneTooltip"].every(k => game.i18n.has(k, false));
+        equal(stableJson([answers, drawn, cleared, words]), stableJson([[
+            { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: false },
+            { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: false },
+            { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: true },
+            { scenes: [], stale: false }, { scenes: [], stale: false }], true, true, true]),
+            "[the choices for a name two scenes hold, with a pick among them, with a pick that is not, for a name one scene holds, for no room; the editor draws and reads the picker; the manager finds the scene again with its room; the words in this language]");
+    }],
+    ["R7643 - a project's scene is found from its proposer's token, kept when a GM chose it by hand, and its loss told to the other GMs (option B, the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md): projects.mjs `detectedSceneFor` answers the scene a place stands on when it is a place scene holding the room, `roomSceneAfterRoomChange` keeps a GM's hand pick and otherwise takes the scene found again, writing nothing where nothing changes, `otherGmIds` names every GM but the one who deleted the scene; createProject finds the proposer's, the editor marks a pick by hand only when the GM changed the picker, a GM's drag of the token marks one, and `roomSceneByGm` stays with the GMs while the project is secret", async () => {
+        /*
+         * Red at 0858af76: the scene was never found from anybody's token, and a pick carried no mark of who made it.
+         * Asked of the rules with scenes of their own: A and B hold a Kitchen, C none.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const fn = name => (typeof P[name] === "function" ? P[name] : null);
+        const detect = fn("detectedSceneFor"), after = fn("roomSceneAfterRoomChange"), others = fn("otherGmIds");
+        const A = { id: "A" }, B = { id: "B" }, C = { id: "C" };
+        const readers = { isPlace: s => [A, B, C].includes(s), holds: (s, room) => room === "Kitchen" && (s === A || s === B) };
+        const found = detect ? [detect({ scene: B }, "Kitchen", readers), detect({ scene: C }, "Kitchen", readers), detect(null, "Kitchen", readers), detect({ scene: B }, null, readers)] : "none";
+        const kept = after ? [after({ byGm: true, pickId: "A", detectedId: "B" }), after({ byGm: false, pickId: "A", detectedId: "B" }), after({ byGm: false, pickId: null, detectedId: null }),
+            after({ byGm: false, pickId: "A", detectedId: null }), after({ byGm: false, pickId: "B", detectedId: "B" })] : "none";
+        const users = [{ id: "G1", isGM: true }, { id: "G2", isGM: true }, { id: "P1", isGM: false }];
+        const told = others ? [others("G1", users), others("G1", users.slice(0, 1)), others(null, users)] : "none";
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const projects = await src("projects.mjs"), ui = await src("projects-ui.mjs"), map = await src("projects-map.mjs");
+        const wired = [/proposerSceneFor\(/.test(fnSource(projects, "createProject")), /roomSceneByGm: true/.test(ui), /roomSceneAfterRoomChange|roomSceneOnRoomChange/.test(fnSource(ui, "applyProjectManager")),
+            /roomSceneByGm: true/.test(fnSource(map, "onProjectTokenMoved")), (S.PROJECT_SECRET_WHILE_SECRET ?? []).includes("roomSceneByGm")];
+        equal(stableJson([found, kept, told, wired]), stableJson([["B", null, null, null],
+            [{}, { roomScene: "B", roomSceneByGm: false }, {}, { roomScene: null, roomSceneByGm: false }, {}],
+            [["G2"], [], ["G1", "G2"]], [true, true, true, true, true]]),
+            "[the scene found from a place: on B, on C without the room, nowhere, no room; after a room change: a hand pick, a found pick moved, nothing, a found pick lost, the same; the GMs told of a deletion by G1, by G1 alone, by nobody named; createProject finds the proposer's, the editor and the drag mark a hand pick, the manager asks again, the mark kept with the GMs]");
+    }],
+    ["R7644 - a completed project's room action that does not stand says why to the GM, and a clock set back before the completion counts as completing it now (P1, the owner's probe of 16.11.2026 and decisions \"tak\" and \"b\"): facilities.mjs `facilityState` answers live, or why not - ended (and when), ended with its chapter, with its season, or the clock earlier than its completion; `completionAfterClockBack` restamps a completion later in the same season and chapter than the clock to now, and nothing else; the Projects window and the project's editor draw `facilityWhyLine` on a GM's browser; its words are in both languages", async () => {
+        /*
+         * Red at 5b3d80b5: a completion stamped at day 3 morning with the clock set back to day 1 morning stood nowhere and
+         * nothing said why (the owner's world, project "Porządki": lifetime one day, limit once a time of day). Asked of
+         * the rules with clocks of their own; one day is TIMES_OF_DAY.length times of day.
+         */
+        const F = await import("./facilities.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const state = typeof F.facilityState === "function" ? F.facilityState : null;
+        const back = typeof F.completionAfterClockBack === "function" ? F.completionAfterClockBack : null;
+        const day = { lifetime: { kind: "days", n: 1 }, label: "R7644" }, ever = { lifetime: { kind: "forever" }, label: "R7644" };
+        const clock = (d, tod, chapter = 1, season = 77) => ({ day: d, timeOfDay: tod, chapter, seasonStartedAt: season });
+        const owner = { season: 77, chapter: 1, at: 2 * TIMES_OF_DAY.length };
+        const read = q => (state ? state(...q) : "no state");
+        const states = [read([day, owner, clock(1, "morning")]), read([day, { season: 77, chapter: 1, at: 0 }, clock(2, "morning")]),
+            read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "night")]), read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "morning", 2)]),
+            read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "morning", 1, 78)]), read([ever, owner, clock(1, "morning")])];
+        const stamps = back ? [back(owner, clock(1, "morning")), back({ season: 77, chapter: 1, at: 0 }, clock(1, "noon")), back(owner, clock(1, "morning", 2)), back(null, clock(1, "morning")),
+            back(owner, clock(1, "morning", 1, 78))] : "no rule";
+        const left = back && state ? F.facilityTimesLeft(day, back(owner, clock(1, "morning")), clock(1, "morning")) : null;
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const picker = await src("action-project.mjs"), ui = await src("projects-ui.mjs");
+        const drawn = [/facilityWhyLine\(/.test(picker), /facilityWhyLine\(/.test(fnSource(ui, "openProjectDialog"))];
+        const words = ["DRPG.Facility.notLive.ended", "DRPG.Facility.notLive.chapter", "DRPG.Facility.notLive.season", "DRPG.Facility.notLive.later"].every(k => game.i18n.has(k, false));
+        equal(stableJson([states, stamps, left, drawn, words]), stableJson([[
+            { live: false, why: "later", at: { day: 3, timeOfDay: "morning" } }, { live: false, why: "ended", at: { day: 2, timeOfDay: "morning" } },
+            { live: true, why: null }, { live: false, why: "chapter" }, { live: false, why: "season" }, { live: true, why: null }],
+            [{ season: 77, chapter: 1, at: 0 }, null, null, null, null], TIMES_OF_DAY.length, [true, true], true]),
+            "[the state of: the owner's (completed day 3 morning, clock day 1 morning), a day's action at day 2 morning, the same at day 1 night, in another chapter, in another season, one for good; the restamp of: the owner's, one not later, one in another chapter, none, one in another season (a mutant's gap, 16.11.2026); the times of day left after the owner's restamp; the window and the editor draw the reason; its words]");
     }],
     ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
         /*

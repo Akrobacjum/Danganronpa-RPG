@@ -693,6 +693,20 @@ body.drpg-theme-stained-glass .drpg-glass-band > canvas {
     pointer-events: none;
     z-index: 0;
 }
+/* THE GLASS REACHES THE BAND'S EDGES (16.11.2026; the owner at a table: "dziura w kurtyne (krawedz ramki hope).
+   Przeciagnijmy kurtyne do krawedzi sanity"). Daggerheart stands its header's rows 15 px in with
+   `.character-header-sheet > *:not(line-div, .tab-navigation) { padding-left: 15px; padding-right: 15px }` (0,8,0; 2.12.8
+   and 2.12.9), and that reached the band's canvases too: they are the header's first children. A canvas draws its bitmap
+   inside its padding, so the glass stood 15 px in from each edge of the band, and between the left column's edge and the
+   Hope frame the map showed through the band's frosted 2 % - the strip the owner saw, 15 px of it at the band's left and
+   15 at its right in every glass case of audit/sheet-band.mjs at aa697521 (desk, stacked, one column or two), 0 after.
+   The rows keep their 15 px; only the glass under them goes to the edge. Daggerheart's own selector with the theme's body
+   and the band's class before the canvas, (0,9,2), so it outweighs the system's where neither sheet is in a layer, and no
+   `!important`: with the module's sheets in a layer after the system's - the owner's screenshot reads v14 so, its Hope
+   frame edged in this module's gold at (0,2,0) over Daggerheart's at (0,9,0) - any weight wins. R7780. */
+body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet.drpg-glass-band > canvas {
+    padding: 0;
+}
 body.drpg-theme-stained-glass .drpg-glass-band > :not(canvas) {
     position: relative;
     z-index: 1;

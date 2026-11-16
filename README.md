@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.116. If a later version and a handbook ever disagree,
+They describe version 1.2.117. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -226,7 +226,7 @@ checks that a LiveKit server answers.
 | Needs | Version |
 |---|---|
 | Foundry VTT | 14.364 or newer (verified on 14.365) |
-| [Daggerheart (Foundryborne)](https://foundryvtt.com/packages/daggerheart) | 2.6.5 or newer (verified on 2.12.8; a newer version loads, and the GM is told once per version that it has not been measured) |
+| [Daggerheart (Foundryborne)](https://foundryvtt.com/packages/daggerheart) | 2.6.5 or newer (verified on 2.12.9; a newer version loads, and the GM is told once per version that it has not been measured) |
 
 | Module | What it is for | |
 |---|---|---|
@@ -278,9 +278,9 @@ Another student's sheet shows their name, face, Ultimate, Health, Sanity and
 what is in their hands, and hides their traits, Hope and the rest of their
 inventory. Every character's items, with their names, still reach every
 browser; a Frisk lists another student's pockets only to the searcher and the
-GMs. <!-- leak:foundry-actor-items --> Where the traces lie, the GM's plan for
-the key clues and, until the lights come up, a murder declared during the
-Eclipse are all world data. <!-- leak:S17-64 --> A
+GMs. <!-- leak:foundry-actor-items --> Where the Remnants lie, the Key Remnants
+among them, and where every token goes during an Eclipse are world data; the
+Key Remnant plan and a murder declared in the dark stay on the GMs' browsers. <!-- leak:S17-64 --> A
 token the GM hides is hidden from view only: Foundry sends every token, with its
 name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know
@@ -303,6 +303,44 @@ killer's tokens are hidden and marked as veiled on every browser, so a console
 can tell which tokens they are and whose. <!-- leak:foundry-veiled-token-actor -->
 It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
+
+**What a player with a console always sees.** A player who opens their browser's
+console can read everything Foundry sent that browser, whatever the screen
+draws. For a GM who has not met this module before, that is:
+
+- every token on every scene, hidden or not, with its name, position and flags,
+  and every move it makes. So where the Remnants lie, and a token that crosses a
+  secret passage's wall or goes through a tunnel, are seen; each Remnant's note
+  and what it really is are not. A killer behind a "?" wears the module's "?"
+  picture, but their token still points to their character, and while a direct
+  murder's opening waits the killer's tokens are hidden and carry the veil's
+  mark, so a console can tell whose they are;
+- every scene's regions, walls and their flags. So a room whose only way in is a
+  secret passage is seen, and so are Foundry's own secret doors, which a console
+  can also open (the GM's browser shuts them again); the module's secret
+  passages, and who knows them, are not;
+- every character's sheet: its traits, Hope and other resources, and its items
+  with their names, whoever carries them. So a Monocub's move paid from its
+  purse is seen as actions spent and no Hope; who paid, and what the purse
+  holds, are not;
+- every chat message, rolls and whispers included, which is why the module's
+  private cards hold a stub and their words reach only their readers;
+- during a Class Trial, the trial's list of the dead, a death nobody has found
+  yet among them (the silenced microphones tell the table the same).
+
+What stays on the GMs' browsers and is sent only to the people it concerns: who
+the Mastermind is, who is in a running murder beyond what the killer's tokens
+above say, what an ordinary Remnant really is, how people voted, the GMs' own
+notes, and of a secret project its name, who proposed it, who is in on it, its
+condition, its description and its room action. A request from a player's
+console that the module did not offer that player - one naming another
+player's character, a GM's own action, or a packet of junk - changes nothing
+on the GM's browser that is not the sender's own. It is refused there, and the
+player is told why wherever their browser waits for an answer; a junk note of
+their own is saved as their note, in plain text. The module's own test
+harness sends every request the GM's browser judges that way from a player's
+browser, and checks each. A player who goes looking behind the curtain finds
+what the list above says.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The
 other GMs' changes are sent to it, and any GM can answer a card.
