@@ -1669,6 +1669,18 @@ export const diveSetStore = defineGmStore({
 });
 
 /**
+ * THE BALANCE LOG (E53 C3, 15.11.2026; Q-E53-3, the owner: off by default, recording only). A row per drawn action roll,
+ * `r:<rollId>` - `{ kind: "roll", at, chapter, day, timeOfDay, actionKey, trait, total, hope, fear, flat, adv, critical,
+ * withHope, withFear }` (balance-log.mjs `balanceRowOf`) - written by the primary GM while the world switch `balanceLog`
+ * is on, and a GM's note, `n:<id>` - `{ kind: "note", at, chapter, text, by }`. A GM store: no player's browser holds it.
+ * In the case's backup; no reset group: a season's rolls are what sessions 0 compare, so no reset cuts them.
+ */
+export const balanceLogStore = defineGmStore({
+    name: "balanceLog", key: SETTINGS.gmBalanceLog,
+    kind: "ledger", backup: true, sync: true
+});
+
+/**
  * WHICH OF THE HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 12.10.2026; plan-E13 3.3, decision D7, audit
  * S06-57). A row per actor of the linked trial hall's cast the GMs chose for, keyed `sceneId.actorId`
  * since E81 DZ6 (12.10.2026; `sceneId.tokenId` until then, moved by trial-scene.mjs `tidyTrialHall`,

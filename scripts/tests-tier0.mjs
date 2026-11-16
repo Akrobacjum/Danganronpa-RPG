@@ -7081,7 +7081,9 @@ const REGRESSIONS = [
         const UNCUT = {
             "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
             "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
-            "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none"
+            "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none",
+            // E53 C3: the balance log is what sessions 0 compare across a season, so no reset cuts it (gm-stores.mjs).
+            "the store balanceLog": "the balance log's rolls are what sessions 0 compare across seasons; nothing clears it yet (docs/balance.md)"
         };
         // A group the window offers and an entry of the registry clears (E42 C3: read through `seasonStateFor`).
         const strays = named.filter(([what, group]) => !(groups.has(group) && R.seasonStateFor(group)) && !(group === undefined && Object.hasOwn(UNCUT, what)))
@@ -21136,8 +21138,9 @@ const REGRESSIONS = [
             // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
             // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
             // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
-            counts: [20, 11, 39], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 39, the clock's entry does not "
+            // 40 since E53 C3: `balanceLog`, the balance log's switch, the table's as the rules of play the GM switches.
+            counts: [20, 11, 40], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 40, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -24028,10 +24031,11 @@ const REGRESSIONS = [
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
                 // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
-                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
+                // E53 C3: `balanceLog`, the balance log's switch, born in the rules section (no Foundry list showed it).
+                ["audio", "game", 2, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
             // E57 C3 (D34): `documentLanguage` in gm, beside them.
-            once: [], others: ["sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            once: [], others: ["balanceLog", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "

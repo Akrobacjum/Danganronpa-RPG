@@ -730,6 +730,10 @@ export const SETTINGS = {
     gmCaseTicks: "gmCaseTicks",
     /** LOGIC DIVE'S SETS (E73 C4): a GM store (gm-stores.mjs `diveSetStore`), a row per set, the truth of each question in it. */
     gmDiveSets: "gmDiveSets",
+    /** THE BALANCE LOG (E53 C3): a GM store (gm-stores.mjs `balanceLogStore`), a row per drawn roll or GM's note. */
+    gmBalanceLog: "gmBalanceLog",
+    /** Whether the balance log records (E53 C3; Q-E53-3, the owner 15.11.2026: off by default, recording only). */
+    balanceLog: "balanceLog",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -1178,7 +1182,7 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.balanceLog, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -3148,6 +3152,23 @@ export function registerSettings() {
 
     /* The GMs' switch on forcing a Frisk after a refusal (the A11 design's step 1; DA39, the family of
        the refused Restrain): off, an open Frisk only asks. A world setting, which only a GM writes. */
+    // The balance log's switch (E53 C3): off by default; on, the primary GM records each roll it draws (balance-log.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.balanceLog, {
+        name: "DRPG.Settings.balanceLog.name",
+        hint: "DRPG.Settings.balanceLog.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false
+    });
+    // The balance log itself (E53 C3): a GM store (`balanceLogStore`). No `onChange`: `balanceReport()` reads it when asked.
+    game.settings.register(MODULE_ID, SETTINGS.gmBalanceLog, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.friskForce, {
         name: "DRPG.Settings.friskForce.name",
         hint: "DRPG.Settings.friskForce.hint",

@@ -322,6 +322,10 @@
         "name": "Players' statistics need no approval",
         "hint": "A player's statistic for a Search or a project goes through without your approval. A Resolve never asks for one."
       },
+      "balanceLog": {
+        "name": "The balance log records the rolls",
+        "hint": "While on, every action roll you draw for a player is kept for balance questions, with no number changed. Read it with game.drpg.balanceReport() in the console."
+      },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",
         "hint": "When off, an open Frisk only asks: a refusal or no answer ends it."
@@ -7152,6 +7156,7 @@
         "closingClaim": "Who volunteered for the Closing Argument, and who was drawn, kept by the GMs",
         "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once",
         "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
+        "balanceLog": "The balance log: each roll the GMs drew while it was on, and the GMs' notes",
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
       },
       "copy": {

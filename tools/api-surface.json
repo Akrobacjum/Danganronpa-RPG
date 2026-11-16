@@ -456,6 +456,8 @@
     "a11y": "function",
     "relayGuard": "function",
     "perf": "function",
+    "balanceReport": "function",
+    "balanceNote": "function",
     "styleSnapshot": "function",
     "fps": "function",
     "counters": "function",

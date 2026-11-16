@@ -62017,6 +62017,53 @@ const INVARIANTS = [
         equal(stableJson([P.projectLabel("R7406NOPROJECT00"), P.projectLabel("R7406NOPROJECT00", other)]), stableJson(["", ""]),
             "projectLabel of an id no project holds [this user | another]");
     }],
+    ["R7407 - the balance log counts what the dice should give exactly and reads its rows against it (E53 C3; Q-E53-3, the owner 15.11.2026: off by default, recording only): balance-log.mjs `exactCount` over the 144 throws of 2d12 gives E64's own counts (a first band at 11: 104, at 12: 94), a critical whatever the total, Hope and Fear 66 each and 12 criticals, and an advantage die's faces and sign; `balanceRowOf` keeps a drawn roll's action, statistic, dice, flat modifiers and advantage; `balanceLines` reads an action under 20 rolls as too few and one over against the exact count; the world switch is off by default, the store is backed up and in no reset group, and roll-draw.mjs keeps each drawn roll through `noteBalanceRoll` after its record", async () => {
+        /*
+         * E53 C3, 15.11.2026. Red before C3: no balance-log.mjs. Pure readings and the routing; the writes are tier 2's
+         * ("E53-T1 ...").
+         */
+        let B = null;
+        try { B = await import("./balance-log.mjs"); } catch { B = null; }
+        must(B, "scripts/balance-log.mjs does not load");
+        const at = t => B.exactCount({ threshold: t });
+        const adv = B.exactCount({ adv: { faces: 6, sign: 1 }, threshold: 14 });
+        const dis = B.exactCount({ adv: { faces: 6, sign: -1 }, threshold: 14 });
+        equal(stableJson([at(11), at(12).hit, at(25).hit, B.exactCount({}).hit, [adv.throws, adv.hit, dis.hit]]),
+            // The advantage pair counted apart, in Python, over the 864 throws (15.11.2026): 640 and 248.
+            stableJson([{ throws: 144, hit: 104, critical: 12, hope: 66, fear: 66 }, 94, 12, null, [864, 640, 248]]),
+            "exactCount [at 11 | hit at 12 | at 25: the criticals alone | no threshold | advantage and disadvantage d6 at 14]");
+
+        const row = B.balanceRowOf({ rollId: "x", actionKey: "search", trait: "eye", total: 19, hope: 7, fear: 5, modifiers: [2, 1],
+            dice: [{ faces: 12 }, { faces: 12 }, { faces: 6 }], isCritical: false, withHope: true, withFear: false, at: 5 },
+            { chapter: 2, day: 3, timeOfDay: "noon" });
+        equal(stableJson(row), stableJson({ kind: "roll", at: 5, chapter: 2, day: 3, timeOfDay: "noon", actionKey: "search", trait: "eye",
+            total: 19, hope: 7, fear: 5, flat: 3, adv: { faces: 6, sign: 1 }, critical: false, withHope: true, withFear: false }),
+            "balanceRowOf keeps a drawn roll's facts, the advantage die read off the total");
+
+        const few = Array.from({ length: 3 }, () => ({ kind: "roll", actionKey: "search", total: 20, flat: 0, adv: null, withHope: true }));
+        const many = Array.from({ length: 20 }, (_, i) => ({ kind: "roll", actionKey: "listen", total: i < 10 ? 30 : 2, flat: 0, adv: null,
+            critical: false, withHope: i % 2 === 0, withFear: i % 2 === 1 }));
+        const lines = B.balanceLines([...few, ...many, { kind: "note", text: "x" }]);
+        const t = B.thresholdOf("listen");
+        const want = B.exactCount({ threshold: t });
+        equal(stableJson([lines[0], lines.find(l => l.startsWith("  search:")),
+            lines.find(l => l.startsWith("  listen:"))?.includes(`landed 10 (50.0%) at ${t} or a critical, against ${(Math.round(want.hit / want.throws * 1000) / 10).toFixed(1)}% by the exact count`),
+            lines.find(l => l.startsWith("  listen:"))?.includes("Hope 10, Fear 10, critical 0 (exact count: 45.8%, 45.8%, 8.3%)"),
+            Number.isFinite(t)]), stableJson(["Rolls the GMs drew while the log was on: 23; notes: 1.",
+            "  search: 3 roll(s) - too few to read (fewer than 20)", true, true, true]),
+            "balanceLines [the head | an action under the floor | one over, its hits against the exact count | its Hope, Fear and critical | Listen has a first band]");
+
+        const src = new Map(await moduleSources());
+        const draw = src.get("roll-draw.mjs"), set = src.get("settings.mjs");
+        must(draw && set, "roll-draw.mjs or settings.mjs was not read");
+        const { balanceLogStore } = await import("./gm-stores.mjs");
+        equal(stableJson({
+            afterRecord: /drawnBy: game\.user\?\.id \?\? null\n {4}\}\);\n(?: {4}\/\/[^\n]*\n)? {4}await noteBalanceRoll\(rollStore\.get\(rollId\)\);/.test(draw),
+            offByDefault: /register\(MODULE_ID, SETTINGS\.balanceLog, \{[^}]*type: Boolean,\s*default: false/.test(set),
+            store: [balanceLogStore.spec.backup, balanceLogStore.spec.resetGroup ?? null, balanceLogStore.spec.sync]
+        }), stableJson({ afterRecord: true, offByDefault: true, store: [true, null, true] }),
+            "the routing [noteBalanceRoll right after the drawn roll's record | the switch off by default | the store backed up, in no reset group, synced]");
+    }],
 ];
 
 /**
