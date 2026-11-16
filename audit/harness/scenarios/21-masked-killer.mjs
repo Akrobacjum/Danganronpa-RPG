@@ -183,6 +183,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         [veiled.victim, veiled.bystander, veiled.killer].every(r => r.tokens.length === tokenIds.length && r.tokens.every(t => t[3] === true && t[4] === true))
         && veiled.victim.tokens.every(t => t[5] === "hide") && veiled.bystander.tokens.every(t => t[5] === "hide") && veiled.killer.tokens.every(t => t[5] === "show")
         && veiled.mic === false, JSON.stringify(veiled), { flow: "murder-incident" });
+    /* WHAT A PLAYER'S CONSOLE READS OF THE VEIL (E112, 16.11.2026; the coordinator's read of the diff at assembly): every
+       Token document reaches every browser (known leak foundry-hidden-tokens), so a console lists the tokens that carry the
+       veil's flag, and the ones that turned hidden, and resolves each by its actorId - the opening's killer. The GMs' store
+       of the veil is a client setting of the GMs' (gm-stores.mjs `veilStore`): read as each player holds it. */
+    const CONSOLE = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const tokens = game.scenes.contents.flatMap(s => [...s.tokens]);
+        const name = t => game.actors.get(t.actorId)?.name ?? null;
+        return { flagged: tokens.filter(t => t.flags?.["${MOD}"]?.veiled).map(name),
+            hidden: tokens.filter(t => t.hidden && t.actor?.type === "character").map(name),
+            store: Object.keys(S.veilStore.entries() ?? {}).length };`;
+    const consoles = { victim: await p1.eval(CONSOLE), bystander: await p2.eval(CONSOLE), gm: await gm.eval(CONSOLE) };
+    const killerName = await gm.eval(`return game.actors.get("${ids.chie}").name;`);
+    check("a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag, and the characters' tokens turned hidden, resolve to the opening's killer",
+        !["victim", "bystander"].some(k => (consoles[k]?.flagged ?? []).includes(killerName) || (consoles[k]?.hidden ?? []).includes(killerName)),
+        JSON.stringify(consoles), { knownLeak: "foundry-veiled-token-actor", measured: veiled.mic === false && tokenIds.length > 0 });
+    check("road: the GMs' store of the veil holds nothing on the victim's and the bystander's browsers, and Chie's row on the GM's",
+        consoles.gm.store === 1 && consoles.victim.store === 0 && consoles.bystander.store === 0, JSON.stringify(consoles), { flow: "murder-incident" });
     // Let the held roll go: the opening is offered again on p3 (`throwOpeningRoll`), thrown on the forced faces, drawn and scored.
     await p3.eval(RELEASE);
     await gm.eval(`for (let i = 0; i < 100 && game.drpg.murderState()?.stage === "openingRoll"; i++) await new Promise(r => setTimeout(r, 100)); return true;`, { timeout: 30000 });

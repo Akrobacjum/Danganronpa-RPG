@@ -298,7 +298,10 @@ microphone is off, a body nobody has found yet among them, and every browser
 holds that list while the trial runs. <!-- leak:TR30 --> A killer behind a "?"
 after a murder's opening keeps their token's actor, so a player's browser
 console can still tell whose token it is; the interface does not.
-<!-- leak:foundry-masked-token-actor --> It is a curtain, not a
+<!-- leak:foundry-masked-token-actor --> While that opening waits, the
+killer's tokens are hidden and marked as veiled on every browser, so a console
+can tell which tokens they are and whose. <!-- leak:foundry-veiled-token-actor -->
+It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The

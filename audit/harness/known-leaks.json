@@ -131,6 +131,17 @@
       "detectedBy": [{"scenario": "30-security", "check": "a masked token's actor is read from a player's console - on p2 and p3 the \"?\" token's actorId resolves to the killer's name"}],
       "readme": "leak:foundry-masked-token-actor",
       "measuredAt": "E69 C8, 13.11.2026, on 04b62b02: p2 (the victim) and p3 (a witness) read game.actors.get(token.actorId).name as Aiko's on the \"?\" token (30-security, phase 'the killer behind a \"?\", read from a console')"
+    },
+    {
+      "id": "foundry-veiled-token-actor",
+      "findings": ["A113-C5-2"],
+      "class": "metadata",
+      "severity": "info",
+      "what": "While a direct murder's opening waits, the killer's tokens (and a third's on the killers' side) carry the veil's flag and Foundry's hidden on every scene, so a player's browser console lists the flagged or hidden character tokens and resolves them by actorId to the opening's killer; the interface shows nothing, and the GMs' store of the veil does not reach a player.",
+      "foundryLimit": "Foundry v14 sends every Token document to every connected client, hidden included, with its flags and its actorId: hiding a token from players is only Foundry's hidden, which every browser holds, and the killer's own browser reads the veil's flag on its own tokens to hold its microphone.",
+      "detectedBy": [{"scenario": "21-masked-killer", "check": "a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag, and the characters' tokens turned hidden, resolve to the opening's killer"}],
+      "readme": "leak:foundry-veiled-token-actor",
+      "measuredAt": "E112, 16.11.2026, on ed57d862 with this row's commit: in 21-masked-killer, phase 'road', while Chie's direct murder's opening waited, p1 (the victim) and p2 (a bystander) each listed one token with flags.danganronpa-rpg.veiled and one hidden character token, and game.actors.get(token.actorId).name read 'Chie Mori' on both; the veil store held 0 rows on p1 and p2 and 1 on the GM. A third on the killers' side was not in this scenario (its tokens take the same patch, mask-gm.mjs veilPatch)"
     }
   ]
 }
