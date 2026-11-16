@@ -689,6 +689,11 @@ function keepPanelFresh(dialog) {
  *
  * Newest last, the way a log reads. Repeats are one row with a count: the first
  * occurrence explains the cause, the four hundredth only proves it continued.
+ * The log holds the newest 60 rows since E109 (utils.mjs `keepNewest`; it kept the
+ * first 60 until 1.2.115), so a long session drops its oldest; how many went is
+ * said above the rows and in the Copy text, the count diagnose() names
+ * (`sessionFailuresDropped`; the copy in diagnostics.mjs `failuresDroppedLine`'s
+ * English words; Q-E43-6's follow-up, R7640).
  */
 async function openFailureLog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
@@ -698,8 +703,9 @@ async function openFailureLog() {
     // twice usually means the window is behind something.
     if (alreadyOpen("drpg-window-failures")) return RAISED;
 
-    const { sessionFailures, clearSessionFailures, localeFormat } = await import("./utils.mjs");
+    const { sessionFailures, sessionFailuresDropped, clearSessionFailures, localeFormat } = await import("./utils.mjs");
     const rows = sessionFailures();
+    const dropped = sessionFailuresDropped();
     // The page's language (E66 C1), where it was the browser's locale.
     const when = at => localeFormat("time", at);
 
@@ -723,6 +729,7 @@ async function openFailureLog() {
         width: "wide",
         body: `<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
+            ${dropped ? `<p class="notes">${esc(plural("DRPG.Failures.dropped", { n: dropped, kept: rows.length }))}</p>` : ""}
             ${body}
         </div>`,
         footer: {
@@ -749,9 +756,12 @@ async function openFailureLog() {
     // The header line carries the versions, because a pasted log always
     // arrives without them and they are always the first question back.
     if (action === "copy") {
+        // The dropped rows' line in diagnose()'s English words, as the rest of the copy is English (R7640).
+        const { failuresDroppedLine } = await import("./diagnostics.mjs");
         const text = [
             `Danganronpa RPG ${game.modules.get(MODULE_ID)?.version ?? "?"} - `
                 + `Foundry ${game.version} - ${game.user.name} - ${new Date().toISOString()}`,
+            ...(dropped ? [failuresDroppedLine(dropped, rows.length)] : []),
             ...rows.map(r => [
                 `[${when(r.at)}] (${r.level}${r.count > 1 ? ` ×${r.count}` : ""}) ${r.message}`,
                 ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])

@@ -288,6 +288,45 @@ export async function run(api) {
         return copies().length;`, { timeout: 60000 });
     await settle(1500);
 
+    /* ------------------------------------------------------------------ H */
+    /* A SCENE PICKED FOR A PROJECT'S ROOM, DELETED BY ONE GM (Q-SC-4, the owner, 16.11.2026: only a GM deletes a scene, so
+       the other GMs are told; projects-map.mjs `onPickedSceneDeleted`). The primary (gm) makes a scene with a Dorm A and
+       a project in Dorm A picked onto it by hand, then deletes the scene: the card goes to gm2 alone, through the GMs'
+       private road - gm2 reads the project's name in it, p1 does not, and gm is not among its readers. */
+    phase("H a picked scene deleted: the other GM is told");
+    const NAME_H = "E43 H project on a scene that goes";
+    const madeH = await gm.eval(`const P = ${imp("projects.mjs")}, R = ${imp("rooms.mjs")};
+        const other = await Scene.create({ name: "E43 H a floor that goes", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+        await other.createEmbeddedDocuments("Region", [{ name: "Dorm A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+            flags: { "${MOD}": { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+        const id = (await P.createProject({ name: ${J(NAME_H)}, target: 3, room: "Dorm A" }))?.id ?? null;
+        await P.applyProjectChange(id, P.projectEditChange({ roomScene: other.id, roomSceneByGm: true }), { by: { kind: "gm" } });
+        return { id, scene: other.id, picked: P.roomSceneOf(id) === other.id, had: game.messages.contents.map(m => m.id) };`, { timeout: 60000 });
+    await gm.eval(`await game.scenes.get(${J(madeH.scene)})?.delete(); return true;`, { timeout: 60000 });
+    const CARD_H = `const S = ${imp("secret.mjs")}; const had = new Set(${J(madeH.had)});
+        const cards = game.messages.contents.filter(m => !had.has(m.id));`;
+    const onGm2H = await until(() => gm2.eval(`${CARD_H} return cards.filter(m => (S.contentOf(m) ?? "").includes(${J(NAME_H)})).map(m => [...(m.whisper ?? [])]);`), v => v?.length > 0);
+    const onP1H = await p1.eval(`${CARD_H} return { cards: cards.length, named: cards.filter(m => (S.contentOf(m) ?? "").includes(${J(NAME_H)}) || JSON.stringify(m.toObject()).includes(${J(NAME_H)})).length };`);
+    check("H1: the primary deletes a scene picked for a project's room: one card to gm2 alone names the project, p1's browser holds no word of it, and gm is not told",
+        madeH.picked === true && J(onGm2H) === J([[GM2]]) && onP1H.named === 0, J({ picked: madeH.picked, onGm2H, onP1H }));
+    /* H2: the same, the scene deleted by gm2 while gm stays the primary: the card, written by the primary, goes to gm alone. */
+    const madeH2 = await gm.eval(`const P = ${imp("projects.mjs")}, R = ${imp("rooms.mjs")};
+        const other = await Scene.create({ name: "E43 H2 a floor gm2 deletes", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+        await other.createEmbeddedDocuments("Region", [{ name: "Dorm A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+            flags: { "${MOD}": { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+        await P.applyProjectChange(${J(madeH.id)}, P.projectEditChange({ roomScene: other.id, roomSceneByGm: true }), { by: { kind: "gm" } });
+        return { scene: other.id, picked: P.roomSceneOf(${J(madeH.id)}) === other.id, had: game.messages.contents.map(m => m.id) };`, { timeout: 60000 });
+    await settle(1000);
+    await gm2.eval(`await game.scenes.get(${J(madeH2.scene)})?.delete(); return true;`, { timeout: 60000 });
+    const CARD_H2 = `const S = ${imp("secret.mjs")}; const had = new Set(${J(madeH2.had)});
+        const cards = game.messages.contents.filter(m => !had.has(m.id));`;
+    const onGmH2 = await until(() => gm.eval(`${CARD_H2} return cards.filter(m => (S.contentOf(m) ?? "").includes(${J(NAME_H)})).map(m => [...(m.whisper ?? [])]);`), v => v?.length > 0);
+    const onGm2H2 = await gm2.eval(`${CARD_H2} return cards.filter(m => (S.contentOf(m) ?? "").includes(${J(NAME_H)})).length;`);
+    check("H2: gm2 deletes a scene picked for a project's room while gm is the primary: one card to gm alone names the project, and gm2 reads none",
+        madeH2.picked === true && J(onGmH2) === J([[IDS.gm]]) && onGm2H2 === 0, J({ picked: madeH2.picked, onGmH2, onGm2H2 }));
+    await gm.eval(`const P = ${imp("projects.mjs")}; if (${J(madeH.id)}) await P.deleteProject(${J(madeH.id)}).catch(() => {}); return true;`, { timeout: 60000 });
+    await settle(1000);
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }
