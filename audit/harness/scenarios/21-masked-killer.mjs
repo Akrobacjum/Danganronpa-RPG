@@ -158,6 +158,71 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
             mask: [words.includes("Strike - <span>?</span>"), words.includes("<span>?</span> loses")],
             dsnAsGm: (globalThis.__maskDsn ?? []).length > 0 && (globalThis.__maskDsn ?? []).every(id => game.users.get(id)?.isGM === true) };`;
 
+    /* THE ROAD THE OWNER TOOK (E112, 15.11.2026; the owner through the coordinator: on 1.2.115, The Forge, an opening on
+       Hope, the victim's screen showed the killer's token with its own name and picture, never changed). Above and below
+       the GM rules the opening itself (`resolveKillerOpening`); here the killer's browser throws it, as a table's does:
+       the invitation reaches p3, whose roll is held a moment, the GM draws the roll p3 throws on faces 11 and 5 (Hope,
+       over 8) and scores it (`murder.openingResult`). Read on the victim's (p1), a bystander's (p2) and the killer's (p3)
+       own browsers, as each holds Chie's tokens: while the opening waits, the veil (E112 item 1: hidden and flagged, the
+       one verdict `tokenShownTo` gives that browser, p3's microphone permission on the GM); after the roll, the mask (E112
+       item 2: the name, the picture, the flag, and her portrait). Then the mask ends and the tokens are read as before. */
+    phase("road", { flow: "murder-incident" });
+    const VIEW = `const V = await import("${repoUrl}/scripts/visibility.mjs");
+        const out = [];
+        for (const s of game.scenes) for (const t of s.tokens) if (t.actorId === "${ids.chie}") {
+            out.push([t.name, t.texture?.src ?? null, Boolean(t.flags?.["${MOD}"]?.masked), Boolean(t.hidden), Boolean(t.flags?.["${MOD}"]?.veiled),
+                V.tokenShownTo(t, V.viewerHere(doc => Boolean(doc?.isOwner)))]);
+        }
+        return { tokens: out, portrait: game.actors.get("${ids.chie}").img };`;
+    await p3.eval(`globalThis.__forceRoll = { hope: 11, fear: 5 }; ` + HOLD);
+    await gm.eval(`await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", openingTrait: "body" }); return true;`, { timeout: 60000 });
+    await settle(900);
+    const veiled = { victim: await p1.eval(VIEW), bystander: await p2.eval(VIEW), killer: await p3.eval(VIEW),
+        mic: await gm.eval(`return game.users.get("${p3.userId}").permissions?.BROADCAST_AUDIO ?? null;`) };
+    check("road: while the opening waits, Chie's tokens are hidden and veiled on every browser, hidden from the victim and the bystander and shown to her own player, and her microphone is blocked",
+        [veiled.victim, veiled.bystander, veiled.killer].every(r => r.tokens.length === tokenIds.length && r.tokens.every(t => t[3] === true && t[4] === true))
+        && veiled.victim.tokens.every(t => t[5] === "hide") && veiled.bystander.tokens.every(t => t[5] === "hide") && veiled.killer.tokens.every(t => t[5] === "show")
+        && veiled.mic === false, JSON.stringify(veiled), { flow: "murder-incident" });
+    /* WHAT A PLAYER'S CONSOLE READS OF THE VEIL (E112, 16.11.2026; the coordinator's read of the diff at assembly): every
+       Token document reaches every browser (known leak foundry-hidden-tokens), so a console lists the tokens that carry the
+       veil's flag, and the ones that turned hidden, and resolves each by its actorId - the opening's killer. The GMs' store
+       of the veil is a client setting of the GMs' (gm-stores.mjs `veilStore`): read as each player holds it. */
+    const CONSOLE = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const tokens = game.scenes.contents.flatMap(s => [...s.tokens]);
+        const name = t => game.actors.get(t.actorId)?.name ?? null;
+        return { flagged: tokens.filter(t => t.flags?.["${MOD}"]?.veiled).map(name),
+            hidden: tokens.filter(t => t.hidden && t.actor?.type === "character").map(name),
+            store: Object.keys(S.veilStore.entries() ?? {}).length };`;
+    const consoles = { victim: await p1.eval(CONSOLE), bystander: await p2.eval(CONSOLE), gm: await gm.eval(CONSOLE) };
+    const killerName = await gm.eval(`return game.actors.get("${ids.chie}").name;`);
+    check("a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag, and the characters' tokens turned hidden, resolve to the opening's killer",
+        !["victim", "bystander"].some(k => (consoles[k]?.flagged ?? []).includes(killerName) || (consoles[k]?.hidden ?? []).includes(killerName)),
+        JSON.stringify(consoles), { knownLeak: "foundry-veiled-token-actor", measured: veiled.mic === false && tokenIds.length > 0 });
+    check("road: the GMs' store of the veil holds nothing on the victim's and the bystander's browsers, and Chie's row on the GM's",
+        consoles.gm.store === 1 && consoles.victim.store === 0 && consoles.bystander.store === 0, JSON.stringify(consoles), { flow: "murder-incident" });
+    // Let the held roll go: the opening is offered again on p3 (`throwOpeningRoll`), thrown on the forced faces, drawn and scored.
+    await p3.eval(RELEASE);
+    await gm.eval(`for (let i = 0; i < 100 && game.drpg.murderState()?.stage === "openingRoll"; i++) await new Promise(r => setTimeout(r, 100)); return true;`, { timeout: 30000 });
+    await settle(900);
+    await p3.eval(`delete globalThis.__forceRoll; return true;`);
+    const MASK = `modules/${MOD}/icons/mask-unknown.svg`;
+    const scored = { stage: await gm.eval(`return game.drpg.murderState()?.stage ?? null;`),
+        stands: await gm.eval(`return (await import("${repoUrl}/scripts/mask-gm.mjs")).maskStands("${ids.chie}");`),
+        victim: await p1.eval(VIEW), bystander: await p2.eval(VIEW) };
+    check("road: the opening Chie's own browser threw on Hope is scored, and masks her - on the victim's and the bystander's browsers her tokens read \"?\" with the module's question mark, shown, and her portrait wears it",
+        scored.stage === "incident" && scored.stands === true
+        && [scored.victim, scored.bystander].every(r => r.tokens.length === tokenIds.length && r.portrait === MASK
+            && r.tokens.every(t => t[0] === "?" && t[1] === MASK && t[2] === true && t[3] === false)),
+        JSON.stringify(scored), { flow: "murder-incident" });
+    await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false });
+        await (await import("${repoUrl}/scripts/mask-gm.mjs")).endMask("${ids.chie}", "suite"); return true;`, { timeout: 60000 });
+    await settle(900);
+    const roadAfter = await p1.eval(VIEW);
+    check("road: once the mask ends, the victim's browser holds Chie's tokens and portrait as they were, shown",
+        roadAfter.portrait === "suite/CHIEPORTRAIT.webp" && roadAfter.tokens.length === tokenIds.length
+        && roadAfter.tokens.every(t => t[0] !== "?" && t[1] === "suite/CHIETOKEN.webp" && t[2] === false && t[3] === false && t[4] === false),
+        JSON.stringify(roadAfter), { flow: "murder-incident" });
+
     phase("masked", { flow: "murder-incident" });
     await p3.eval(HOLD);
     const opened = await gm.eval(`return (await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", openingTrait: "body" }))?.stage ?? null;`, { timeout: 60000 });
@@ -181,8 +246,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("masked: the fight went round twice - Aiko, Chie's Strike from p3's tile, Aiko, Chie's Finishing Blow - and the victim was sent its cards and Chie's dice",
         JSON.stringify(sides) === JSON.stringify(["killer", "victim", "killer", "victim"]) && victim.words >= 4 && victim.dice >= 1,
         JSON.stringify({ sides, words: victim.words, dice: victim.dice, dsn: victim.dsn }), { flow: "murder-incident" });
-    check("masked: Chie's token on the victim's and the bystander's map is the \"?\" with Foundry's mystery man",
-        [victim, bystander].every(r => r.tokens.length === tokenIds.length && r.tokens.every(t => JSON.stringify(t) === JSON.stringify(["?", "icons/svg/mystery-man.svg", true]))),
+    // E112 item 2a (15.11.2026): the module's own question mark in place of Foundry's mystery man.
+    check("masked: Chie's token on the victim's and the bystander's map is the \"?\" with the module's question mark",
+        [victim, bystander].every(r => r.tokens.length === tokenIds.length && r.tokens.every(t => JSON.stringify(t) === JSON.stringify(["?", `modules/${MOD}/icons/mask-unknown.svg`, true]))),
         JSON.stringify({ victim: victim.tokens, bystander: bystander.tokens }), { flow: "murder-incident" });
     check("masked: nothing the victim's browser was sent or draws names Chie, shows her portrait or token picture, or carries her id, her token's id or p3's - the cards' words, the chat documents, the drawn messages, the notices and their history, the Event card, the relayed dice and whose dice they play as, the cast",
         victim.n === 0, JSON.stringify(victim.hits), { flow: "murder-incident" });

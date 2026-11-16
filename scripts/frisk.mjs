@@ -12,15 +12,15 @@
  * end for every ask (`askToFrisk`, `answerFrisk`, `followFrisk`, `sweepFriskAsks`, `friskRouteSettled`).
  */
 
-import { SETTINGS, getSetting, getClock, isEclipse, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
+import { allowedNow, WHY } from "./allowed-now.mjs";
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, TIMING } from "./config.mjs";
 import { gmPlaceOf, lawfulRoomOf } from "./movement.mjs";
 import { bodyPlaceOf } from "./body-tile.mjs";
 import { witnessesOf } from "./chapter.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
-import { inClassTrial } from "./trial.mjs";
-import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
+import { esc, log, debug, error, hiddenByGm, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
@@ -160,12 +160,16 @@ export function personActionRefusal(asker, target, { body = false, user = null }
     // The tile is the one of the death the GMs hold (`flagsHeldNow`, as `theirs` above; E95 fix RV-6), not of a
     // `deathId` the body's player wrote on their own actor before its put-back.
     const there = theirs.getFlag(MODULE_ID, FLAGS.monokuma) ? null : body ? bodyPlaceOf(target, { held: flagsHeldNow }) : gmPlaceOf(target);
-    const hidden = body ? there?.hidden : there?.tokenDoc?.hidden;
+    const hidden = body ? there?.hidden : hiddenByGm(there?.tokenDoc);
     if (!there?.room || hidden || there.scene?.id !== here.scene?.id || floorKey(there.level) !== floorKey(here.level)
         || there.room !== here.room) return "the character is not in that room";
-    if (isEclipse()) return "an Eclipse is running";
-    if (inClassTrial()) return "that waits until the Class Trial is over";
-    if (!body && incidentParticipants().includes(asker.id)) return "the character is a side of the running incident";
+    // The phase: allowed-now.mjs's "person" road (E40 item 3), in this road's order - the Eclipse, the trial, then the
+    // asker's incident, which a body's loot does not ask.
+    // Each sentence written out, as the bridge's census of reasons reads them (R164).
+    const now = allowedNow(asker, null, { road: "person", facts: { participant: () => !body && incidentParticipants().includes(asker.id) } });
+    if (now.why === WHY.eclipse) return "an Eclipse is running";
+    if (now.why === WHY.trial) return "that waits until the Class Trial is over";
+    if (now.why === WHY.incident) return "the character is a side of the running incident";
     return null;
 }
 
@@ -543,7 +547,7 @@ function standing(row) {
     const searcher = game.actors.get(row.searcherId) ?? null;
     const target = game.actors.get(row.targetId) ?? null;
     if (!searcher || !target) return "interrupted";
-    const here = p => Boolean(p?.room) && !p.tokenDoc?.hidden && p.scene?.id === row.sceneId && floorKey(p.level) === row.level && p.room === row.room;
+    const here = p => Boolean(p?.room) && !hiddenByGm(p.tokenDoc) && p.scene?.id === row.sceneId && floorKey(p.level) === row.level && p.room === row.room;
     if (!here(gmPlaceOf(searcher))) return "letGo";
     if (!here(gmPlaceOf(target))) return "gone";
     if (!row.silent && (isDeadForGm(target) || incidentParticipants().includes(target.id))) return "interrupted";

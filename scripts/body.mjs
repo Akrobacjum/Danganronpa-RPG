@@ -13,7 +13,7 @@ import { getClock } from "./clock.mjs";
 import { sameSeason, deathRecordFor, seasonEpoch, setBodyDiscovery, isDeadForGm, recordBodyFound, SETTINGS, bodiesFoundIn, pendingDeath, deadIn, bodyDiscovery } from "./settings.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { log, error, isPrimaryGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
+import { log, error, isPrimaryGm, hiddenByGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
 import { drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { pendingBodyStore, deathStore, bodyHeardStore } from "./gm-stores.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
@@ -687,7 +687,7 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
     return [...tokens].filter(t => {
         const actor = t.actor;
         if (!actor || actor.type !== "character") return false;
-        if (t.hidden) return false;
+        if (hiddenByGm(t)) return false;
         if (bodies.has(actor.id)) return false;
         if (!students.has(actor.id)) return false;            // excludes Monokumas
         // No dead student finds a body, a Monocub neither (E72 C3, 12.11.2026; the owner's DC7, "never"). `monocubs` for
@@ -1021,7 +1021,7 @@ function heardBody(actorId, bodyId, deathId) {
 async function checkBodySound(tokenDoc) {
     if (!isPrimaryGm()) return 0;
     const actor = tokenDoc?.actor, scene = tokenDoc?.parent;
-    if (!actor?.id || actor.type !== "character" || tokenDoc.hidden || !scene) return 0;
+    if (!actor?.id || actor.type !== "character" || hiddenByGm(tokenDoc) || !scene) return 0;
     const { isEclipse } = await import("./eclipse.mjs");
     const { lawfulRoomOf } = await import("./movement.mjs");
     const { flagsHeldNow } = await import("./sheet-audit.mjs");

@@ -322,6 +322,10 @@
         "name": "Players' statistics need no approval",
         "hint": "A player's statistic for a Search or a project goes through without your approval. A Resolve never asks for one."
       },
+      "balanceLog": {
+        "name": "The balance log records the rolls",
+        "hint": "While on, every action roll you draw for a player is kept for balance questions, with no number changed. Read it with game.drpg.balanceReport() in the console."
+      },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",
         "hint": "When off, an open Frisk only asks: a refusal or no answer ends it."
@@ -523,7 +527,11 @@
       "reveal": "Reveal yourself",
       "stay": "Stay hidden",
       "card": "You are hidden behind a \"?\" and can neither speak nor hear anyone until you reveal yourself or the time of day ends. Your voice tile has a Reveal yourself button.",
-      "ended": "You are no longer hidden, and your voice is back: the time of day has ended."
+      "ended": "You are no longer hidden, and your voice is back: the time of day has ended.",
+      "tokenFailed": "The mask could not be put on a token of {name}: the other players may see their real picture. The console says why."
+    },
+    "Veil": {
+      "card": "Until your opening roll the other players do not see your tokens, and your microphone is off; you still hear everyone."
     },
     "Listen": {
       "prompt": "You are in {room}. Which neighboring room?",
@@ -2064,6 +2072,7 @@
         "facilityUntilTooltip": "How long a timed effect lasts; an effect that acts at once ignores it",
         "facilityTextTooltip": "The words a GM's text effect sends, or the name an Experience effect gives",
         "facilityLifetimeTooltip": "For good, or for the number of times of day or days set beside it",
+        "facilityLimitTooltip": "How often each character may use this action: with no limit, once each time of day, or once each day",
         "facilityRemoveTooltip": "Takes the room action off this project at once",
         "diceLookTooltip": "Shows how the dice look on this browser and why they may look different elsewhere",
         "acceptBribeTooltip": "Takes their Hope into your purse, if they still have it and your Hope has room",
@@ -2115,7 +2124,9 @@
         "bodyFoundTooltip": "Opens the discovery window; announcing brings everyone to the room you pick and plays the discovery sound",
         "realizationPreviewTooltip": "Shows where the planned Key Remnants would go; nothing is placed until you run it there",
         "placeFinalNowTooltip": "Places the Final Truth Remnant in the room you picked, as Save would",
-        "keepForLaterTooltip": "Your words are kept and nothing goes on the map; Save places it later"
+        "keepForLaterTooltip": "Your words are kept and nothing goes on the map; Save places it later",
+        "allOpenTooltip": "On, every node shows its fields. Off, a node shows its summary until you click it.",
+        "foldedListTooltip": "Opens the list: tick what this node rests on, or what it refutes."
       },
       "Sweep": {
         "Actions": {
@@ -3881,7 +3892,7 @@
         },
         "tail": {
           "label": "Tail Someone",
-          "hint": "Follow somebody in your room and learn each room they move to, as long as you keep up. They may notice you."
+          "hint": "Follow somebody in your room and learn each room they move to, as long as you keep up, through an Eclipse too, until the day ends. You cannot begin it during an Eclipse, and they may notice you."
         },
         "shut": {
           "label": "Shut the Door",
@@ -3893,7 +3904,7 @@
         },
         "pick": {
           "label": "Pick the Lock",
-          "hint": "Roll Hand to open a locked or sealed door out of your room, for you alone, until you leave the room beyond."
+          "hint": "Roll Hand to open a locked or sealed door out of your room, for you alone, until you leave the room beyond. Once you are through, it stays open for you through an Eclipse; if you have not gone through when one starts, it closes again."
         },
         "keepWatch": {
           "label": "Keep Watch",
@@ -3930,6 +3941,13 @@
       "traceNote": "Room action: {action}",
       "shieldTook": "{name}'s protection from Despair took this roll's point: no Despair was gained.",
       "closed": "Someone used this already this time of day.",
+      "usedTimeOfDay": "This character used it already this time of day.",
+      "usedDay": "This character used it already today.",
+      "limitLine": {
+        "none": "no limit",
+        "timeOfDay": "once per character each time of day",
+        "day": "once per character each day"
+      },
       "noActions": "Not enough actions.",
       "shut": {
         "lockdown": "Lockdown: no room actions this time of day.",
@@ -3953,7 +3971,7 @@
         "roomIntro": "Actions in {room}. Each is a roll and costs an action; once used, it is closed to everyone until the next time of day. A row with no name is dropped.",
         "roomNote": "Saving writes the room's actions at once. Only a character standing in the room sees them.",
         "projectTitle": "Room action: {project}",
-        "projectIntro": "What {project} gives once complete: a room action, no roll, once per character each time of day.",
+        "projectIntro": "What {project} gives once complete: a room action, no roll, as often as its Uses allow.",
         "projectNote": "A lifetime in times of day or days counts from the time of day the project is completed, and ends at the latest when the chapter or season changes. One for good does not end with the chapter.",
         "label": "Name",
         "labelPlaceholder": "Brew tea",
@@ -3968,6 +3986,12 @@
         "costsAction": "Costs an action",
         "lifetime": "Lifetime",
         "lifetimeN": "How many",
+        "limit": "Uses",
+        "limits": {
+          "none": "No limit",
+          "timeOfDay": "Once each time of day",
+          "day": "Once each day"
+        },
         "life": {
           "forever": "For good",
           "timesOfDay": "Times of day",
@@ -4221,7 +4245,7 @@
       "marked": "{name} is now a Spectator.",
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",
-      "talkBack": "Go back to your room",
+      "talkBack": "Listen in your room",
       "noChat": "A Spectator has no chat."
     },
     "Class": {
@@ -5879,6 +5903,7 @@
         "floorHeldPair": "The floor is {name}'s and {target}'s: your microphone stays off until you get the floor or the mode ends.",
         "listening": "Listening at a door: your microphone stays off until you stop.",
         "masked": "Hidden behind a \"?\": your microphone stays off until you reveal yourself.",
+        "veiled": "Before your opening roll: your microphone stays off until you throw it.",
         "cubSpeak": "Discussion: you may speak.",
         "cubListen": "{mode}: you listen.",
         "cubVote": "The vote: you listen.",
@@ -7128,6 +7153,7 @@
         "lockpicks": "Who may walk through a lock they picked, into which room",
         "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
         "masks": "Which killer hides behind a \"?\" after a murder's opening, and what their token looked like",
+        "veils": "Which killer is hidden and muted until their opening roll, and whether each of their tokens was hidden before",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table",
         "takeBack": "What the last start of a time of day changed, kept for five minutes so a GM can take back a misclick",
@@ -7152,6 +7178,8 @@
         "closingClaim": "Who volunteered for the Closing Argument, and who was drawn, kept by the GMs",
         "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once",
         "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
+        "facilityUses": "Room action uses: which character used which project's room action, and when",
+        "balanceLog": "The balance log: each roll the GMs drew while it was on, and the GMs' notes",
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
       },
       "copy": {
@@ -7402,7 +7430,9 @@
         "move": "The case map could not move a node.",
         "remove": "The case map could not remove a node.",
         "place": "The case map could not place a planned Remnant."
-      }
+      },
+      "allOpen": "All open",
+      "chosenOf": "Ticked: {n} of {of}"
     },
     "CaseRealize": {
       "preview": "Preview realization",

@@ -650,6 +650,8 @@ export const CAMERA_READERS = Object.freeze({
     "room-setup.mjs#openRoomSetupDialog": "window",
 
     "diagnostics.mjs#voiceDiagnosis": "diagnose",
+    // The scene a change of scene drew, to file its time under the trial hall or not (E53 C1).
+    "diagnostics.mjs#registerCanvasTimings": "diagnose",
     "fog-diagnostics.mjs#whatIsHere": "diagnose",
     "fog-diagnostics.mjs#checkRegions": "diagnose",
     "fog-diagnostics.mjs#sceneUncoveredPercent": "diagnose",

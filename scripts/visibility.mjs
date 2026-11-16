@@ -46,6 +46,9 @@ import { debug } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 
 export function registerVisibility() {
+    // A hidden token's ruler (owner-116): the ruler class asks this file's rule for each write of its `visible`.
+    import("./fog-doorways.mjs").then(m => { doorways = m; m.setRulerShown(rulerHere); })
+        .catch(err => debug("Visibility: the token ruler's rule could not be set", err));
     // `refreshToken` is the one that matters: Foundry recomputes `visible` from
     // its own vision logic on every refresh, so setting it from `sightRefresh`
     // alone was immediately overwritten - which is why standing at a gap in a
@@ -60,6 +63,8 @@ export function registerVisibility() {
     Hooks.on("updateToken", (doc, changes) => passForTokenUpdate(doc, changes));
     Hooks.on("createToken", () => applyAll());
     Hooks.on("deleteToken", () => applyAll());
+    // Isometric Perspective's silhouettes of the tokens this browser hides (E112; `hideSilhouettes`).
+    for (const hook of SILHOUETTE_HOOKS) Hooks.on(hook, () => silhouettesSoon());
 
     // A new Truth Bullet is the other half of `myRemnantRefs()` going stale -
     // it can land on this user's actor from a socket reply with no token on
@@ -414,6 +419,8 @@ function recheckAtRest(doc) {
  * the scene on screen alone, so the camera is not read here: rooms.mjs CAMERA_READERS), and is asked nothing.
  */
 export function passForTokenUpdate(doc, changes) {
+    // Foundry's own hide flipped (owner-116): the token's ruler asked again at once, so one standing goes with the token
+    if (changes?.hidden !== undefined) doorways?.reRuler?.(doc?.object);
     // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
     const gm = Boolean(game.user?.isGM);
     const ownedMove = Boolean(doc?.isOwner) && isMoveChange(changes);
@@ -542,6 +549,20 @@ export function tokenShownTo(tokenDoc, viewer) {
        for the same reason it does below: you have to be able to move it. */
     if (viewer.eclipse) return viewer.owns(tokenDoc) ? "show" : "hide";
 
+    /* THE OPENING'S VEIL (E112, mask-gm.mjs): a killer's token waiting on the opening is Foundry's `hidden` on every
+       browser, so Foundry draws it for no player. Its owner sees it - they have to be able to see themselves - and so
+       does the killers' side, where the room rule would show it (the accomplice beside the killer); nobody else, whatever
+       the setting. Read off the one flag (`veiled`: with the token's actorId a console reads it as the killer's, known leak
+       foundry-veiled-token-actor) and this browser's own copy of the cast, which
+       holds the killers for the killers' side alone (incident-store.mjs `castCopyFor`). */
+    if (veiledToken(tokenDoc)) {
+        if (viewer.owns(tokenDoc)) return "show";
+        if (!viewer.killersSide?.has(tokenDoc.actorId)) return "hide";
+        if (!viewer.enforcing) return "show";
+        const at = roomOfToken(tokenDoc);
+        return at && viewer.rooms.has(at) ? "show" : "hide";
+    }
+
     // Everything below is the room rule, which is what the setting governs.
     if (!viewer.enforcing) return null;
 
@@ -578,6 +599,24 @@ export function tokenShownTo(tokenDoc, viewer) {
     return room && viewer.rooms.has(room) ? "room" : "hide";
 }
 
+/** Whether a token is veiled for a murder's opening (E112), by its one flag: inline, as voice.mjs `ownVeiled` reads it. */
+function veiledToken(tokenDoc) {
+    return Boolean((tokenDoc?.flags ?? tokenDoc?._source?.flags)?.[MODULE_ID]?.veiled);
+}
+
+/**
+ * THE KILLERS' SIDE AS THIS BROWSER KNOWS IT (E112): the killer and a third on the killers' side in this browser's copy of
+ * the cast, when this browser owns one of them - else none. A victim's or a bystander's copy holds no killer while the
+ * opening waits (incident-store.mjs `castCopyFor`), and owning none of them keeps a copy that does from showing anything.
+ */
+function killersSideHere() {
+    if (game.user?.isGM) return new Set();
+    const cast = incidentCast();
+    const side = [cast.killerId, cast.thirdSide === "killer" ? cast.thirdId : null].filter(Boolean);
+    const mine = side.some(id => game.actors?.get?.(id)?.isOwner);
+    return mine ? new Set(side) : new Set();
+}
+
 /**
  * This browser as `tokenShownTo`'s viewer; `owns` reads a token document's own `isOwner` unless
  * the caller hands another (`applyToToken` hands the sprite's). The rooms, the lair and the
@@ -597,6 +636,8 @@ export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
         // Whether this browser watches (E92 C4): read only when the rule gets to it, as the rooms are; a computed key, as
         // the lair's, so R22 does not read a call to a function `spectator`.
         get ["spectator"]() { return spectatorViewer(game.user); },
+        // The killers this browser sits beside (E112's veil): read only for a veiled token, a computed key as the others.
+        get ["killersSide"]() { return killersSideHere(); },
         owns
     };
 }
@@ -757,6 +798,60 @@ export function dressSpectator(token) {
     return true;
 }
 
+/*
+ * ISOMETRIC PERSPECTIVE'S SILHOUETTES (E112, 15.11.2026; the owner's answer to Q4 through the coordinator: "a token the
+ * module hides from a client must not show its silhouette on that client either"). Isometric Perspective 14.0.6
+ * (occlusion.js, read at its commit 7122b36, not run) keeps a layer of its own on the stage, "OcclusionContainer" >
+ * "OcclusionTokens", which it empties and fills again on eight hooks of Foundry's (canvasReady, canvasPan,
+ * canvasTokensRefresh, updateToken, controlToken, refreshToken, preUpdateScene, updateScene) while its client setting "Token
+ * Silhouette" is on (off by default): a `new PIXI.Sprite(token.mesh.texture)` at the mesh's position for every token behind
+ * an occluding tile, with no test of the token's visibility - so a token this browser hides (another room, an Eclipse,
+ * the opening's veil, a GM's hidden) showed its 30%-dark silhouette there. The sprite names no token; it is matched back
+ * by the mesh's texture and position (`silhouettesToHide`) and hidden, a frame after the hook, since which of the two
+ * modules hears a hook first is not ours to say. A GM's browser hides nothing of the cast and is left alone. Nothing of
+ * Isometric's is edited. Read on a stand-in stage (R7407); a real canvas is LIVE-E112-05.
+ */
+const SILHOUETTE_HOOKS = Object.freeze(["canvasReady", "canvasPan", "canvasTokensRefresh", "updateToken", "controlToken", "refreshToken", "updateScene"]);
+
+/** The sprites of `sprites` drawn for a token of `tokens` that is not visible here: same texture, same position. Pure (R7407). */
+export function silhouettesToHide(sprites = [], tokens = []) {
+    const out = [];
+    for (const sprite of sprites ?? []) {
+        if (!sprite?.texture) continue;
+        const token = (tokens ?? []).find(t => t?.mesh?.texture === sprite.texture
+            && t.mesh.position?.x === sprite.position?.x && t.mesh.position?.y === sprite.position?.y);
+        if (token && token.visible === false) out.push(sprite);
+    }
+    return out;
+}
+
+/** Isometric Perspective's silhouette layer on `stage`, or null where it has none. */
+export function silhouetteLayer(stage = globalThis.canvas?.stage) {
+    const box = stage?.children?.find?.(child => child?.name === "OcclusionContainer") ?? null;
+    return box?.children?.find?.(child => child?.name === "OcclusionTokens") ?? null;
+}
+
+/** Hide this browser's hidden tokens' silhouettes; answers how many. */
+export function hideSilhouettes({ stage = globalThis.canvas?.stage, tokens = globalThis.canvas?.tokens?.placeables, isGm = Boolean(game.user?.isGM) } = {}) {
+    if (isGm) return 0;
+    const layer = silhouetteLayer(stage);
+    if (!layer?.children?.length) return 0;
+    const hidden = silhouettesToHide(layer.children, tokens);
+    for (const sprite of hidden) sprite.visible = false;
+    return hidden.length;
+}
+
+let silhouetteFrame = null;
+function silhouettesSoon() {
+    if (silhouetteFrame !== null || game.user?.isGM || !game.modules?.get?.("isometric-perspective")?.active) return;
+    const run = () => {
+        silhouetteFrame = null;
+        try { hideSilhouettes(); } catch { /* never break the canvas over this */ }
+    };
+    // Called where named (R571): a window function taken as a value runs on another object in some browsers.
+    silhouetteFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame(run) : setTimeout(run, 16);
+}
+
 function hide(token) {
     hiddenByUs.add(token);
     token.visible = false;
@@ -782,7 +877,8 @@ function hide(token) {
  * hidden from its owner too, which is what that control is for.
  */
 function show(token) {
-    if (token.document?.hidden) return;
+    // A token the opening veils is `hidden` on purpose (E112): its owner and the killers' side see it all the same.
+    if (token.document?.hidden && !veiledToken(token.document)) return;
     hiddenByUs.delete(token);
     token.visible = true;
     if (token.mesh) token.mesh.visible = true;
@@ -808,6 +904,40 @@ function show(token) {
  * during a real drag - the browser tool cannot drag the PIXI canvas. One drag
  * at the table, watched from a second seat, is what remains.
  */
+/*
+ * A HIDDEN TOKEN'S RULER (owner-116, 15.11.2026; the owner: "przycisk hide w foundry bazowym (prawy na token - hide)
+ * niech ukrywa tez linie dystansu pokonywanego przez token"). `hideMovementTrail` below writes a ruler off once, when
+ * this file hides a token; Foundry writes it on again at its next refresh, and Foundry's own hide (`hidden`) never came
+ * here at all. Since owner-116 the ruler class asks `rulerHere` on every write of its `visible` (fog-doorways.mjs
+ * `hourRulerFor`, `setRulerShown`): a GM always sees it; anyone else not for a token Foundry hides, nor where
+ * `tokenShownTo` hides the token (the room, the Eclipse, the Spectator), nor for one this file hid by its other rules
+ * (`hiddenByUs`: a Remnant, a project). The token's owner sees its ruler, hidden or not: at the owner's v14 table a
+ * player sees their own hidden token (the owner's answer, 15.11.2026; LIVE-E116-03 reads it again) - and `tokenShownTo`
+ * shows an owner their own token in every branch, so the exception opens nothing the module hides from an owner; a
+ * token this file hid by its other rules stays hidden, asked first. What reaches a player's browser of a hidden token's
+ * move is LIVE-E116-02.
+ */
+let doorways = null;
+
+/** Whether `viewer` may see `doc`'s ruler: a GM always, the token's owner always (hidden or not), anyone else as the
+ *  token's own answer (`tokenShownTo`) and never a hidden token's. */
+export function rulerShownTo(doc, viewer) {
+    if (viewer?.gm) return true;
+    if (!doc) return true;
+    // the owner sees their own hidden token at a v14 table (the owner, 15.11.2026), so its ruler too (LIVE-E116-03)
+    if (viewer?.owns?.(doc)) return true;
+    if (doc.hidden) return false;
+    return tokenShownTo(doc, viewer) !== "hide";
+}
+
+/** This browser's answer for a token's ruler (the ruler class's predicate). */
+function rulerHere(token) {
+    if (!token) return true;
+    if (game.user?.isGM) return true;
+    if (hiddenByUs.has(token)) return false;
+    return rulerShownTo(token.document, viewerHere(() => Boolean(token.isOwner)));
+}
+
 function hideMovementTrail(token) {
     const trail = token.ruler;
     if (trail && typeof trail === "object" && "visible" in trail) trail.visible = false;

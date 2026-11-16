@@ -32,7 +32,7 @@ import { MODULE_ID, FACILITIES, TRAITS, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { plural } from "./utils.mjs";
 import { roomFlag, writablePieces } from "./rooms.mjs";
-import { metaFor, secretsOf } from "./projects-secrecy.mjs";
+import { metaFor, secretsOf, toldSight } from "./projects-secrecy.mjs";
 import { cardMeta } from "./secret.mjs";
 
 /* ==========================================================================
@@ -114,7 +114,9 @@ export function cleanFacility(raw) {
     if (!label) return null;
     const kind = FACILITIES.lifetimes.includes(raw?.lifetime?.kind) ? raw.lifetime.kind : "forever";
     const lifetime = kind === "forever" ? { kind } : { kind, n: whole(raw?.lifetime?.n ?? 1, 1, FACILITIES.maxLifetime) ?? 1 };
-    return { label, effects: cleanEffects(raw?.effects), costsAction: raw?.costsAction !== false, lifetime };
+    // How often each character may use it (P2): one of FACILITIES.limits, the default where none is named.
+    const limit = FACILITIES.limits.includes(raw?.limit) ? raw.limit : FACILITIES.defaultLimit;
+    return { label, effects: cleanEffects(raw?.effects), costsAction: raw?.costsAction !== false, lifetime, limit };
 }
 
 /* ==========================================================================
@@ -127,6 +129,23 @@ export function cleanFacility(raw) {
  */
 export function facilityMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
+}
+
+/** The day a use belongs to: `facilityMark` without its time of day (P2's "day", the clock's day). Pure. */
+export function facilityDayMark(clock = getClock()) {
+    return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1].join(".");
+}
+
+/**
+ * Whether a project's action's use row (`{ mark }`, a `facilityMark`) uses it up at `clock` under `limit` (P2): never
+ * for "none"; for "day" a use on the same day, whatever its time of day; for "timeOfDay" (and any other) a use this
+ * time of day. A row written before P2 carries the same mark, so it is read alike. Pure.
+ */
+export function usedUp(row, limit, clock = getClock()) {
+    const mark = typeof row?.mark === "string" ? row.mark : null;
+    if (!mark || limit === "none") return false;
+    if (limit === "day") return mark.startsWith(`${facilityDayMark(clock)}.`);
+    return mark === facilityMark(clock);
 }
 
 /**
@@ -237,8 +256,18 @@ export async function setProjectFacility(projectId, raw) {
  */
 export function projectFacilityOf(projectId) {
     const meta = metaFor(projectId);
-    const raw = secretsOf(projectId).facility ?? meta.facility ?? (game.user?.isGM ? null : toldFacility(projectId));
+    const raw = secretsOf(projectId).facility ?? meta.facility ?? (game.user?.isGM ? null : toldOnPlayer(projectId));
     return { facility: raw ? cleanFacility(raw) : null, completedAt: meta.completedAt ?? null };
+}
+
+/**
+ * A secret project's room action on a player's browser (P1, 15.11.2026): the GMs' sight copy's, which carries it to those
+ * in on it since P1 and outlives a cleared chat log (projects.mjs `sightFor`); the newest GM card's where the copy says
+ * nothing of it (a copy sent before P1).
+ */
+function toldOnPlayer(projectId) {
+    const sight = toldSight(projectId)?.facility;
+    return sight === undefined ? toldFacility(projectId) : sight;
 }
 
 /** The meta key of a GM's private card that carries a secret project's room action to its insiders (projects.mjs `tellFacility`). */
@@ -305,7 +334,9 @@ export function facilityLineFor(projectId, clock = getClock()) {
     if (!facility || !facilityLive(facility, completedAt, clock)) return "";
     const left = facilityTimesLeft(facility, completedAt, clock);
     const life = left === null ? game.i18n.localize("DRPG.Facility.forGood") : plural("DRPG.Facility.timesLeft", { n: left });
-    return game.i18n.format("DRPG.Facility.projectLine", { action: facility.label, life });
+    // And how often each character may use it (P2).
+    return `${game.i18n.format("DRPG.Facility.projectLine", { action: facility.label, life })} · ${
+        game.i18n.localize(`DRPG.Facility.limitLine.${facility.limit ?? FACILITIES.defaultLimit}`)}`;
 }
 
 /* ==========================================================================

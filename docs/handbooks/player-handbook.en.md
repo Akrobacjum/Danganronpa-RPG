@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.115, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.116, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides". How the module does what it does, for the curious, is in section 17.
 
@@ -95,7 +95,7 @@ Click a statistic on your sheet when the GM asks you for a roll outside an actio
 
 ### If you are a Spectator
 
-The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. Your microphone is off. **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and the same button, now **Go back to your room**, brings you back; during an Eclipse it waits for the lights, as every player's voice does. If the GM turned the voice tile off, the button is not there. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat; the messenger still brings you the GM's messages, and you cannot answer them.
+The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. You talk with the other Spectators, wherever your token stands. **Listen in your room** on your voice tile lets you hear the room your token stands in instead, with your microphone off, and the same button, now **Talk with the Spectators**, brings you back; during an Eclipse nobody is in voice until the lights come back. If the GM turned the voice tile off, the button is not there and you stay with the Spectators. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat; the messenger still brings you the GM's messages, and you cannot answer them.
 
 When your character dies, you watch the same way, with a Spectator of your own: it has your character's name and pictures and stands where your body lies. Drag it anywhere, at no cost; other players do not see it. You still see only what a dead student sees. If you become a Monocub, its token becomes your Monocub.
 
@@ -393,7 +393,7 @@ A room action the GM set is rolled on the statistic and difficulty its row names
 
 ### Infiltrate: Listen - Shadow, 1 action
 
-The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, and Keep Watch. Each has its part of this section below.
+The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, and Pick the Lock. Each has its part of this section below.
 
 Listen works out who is in a neighboring room, with no GM ruling. You pick the room before you roll, and the answer arrives as a card only you and the GMs can read. In a room with no neighboring room Listen is grayed with the reason.
 
@@ -532,7 +532,7 @@ Hope is yours, and you hold at most **6**. It comes back when rolls go your way 
 
 A Reroll of a Find Passage or a Find Stash searches again with the new dice, in the room its roll was thrown in and only while you still stand there; otherwise the Reroll is given back whole. Going up, it finds once. Going down, a stash it opened stays open, and a passage only that roll found is taken back.
 
-A Call that affects a roll (Support, Talent, Resolve, and Loaded Die) waits for your next roll, a statistic from your sheet included, and is spent the moment you throw; a Loaded Die waits for your next action roll. A roll that only goes with an action, such as Palm's roll to stay unseen, an opening roll, or a roll to conceal your intent, spends none.
+A Call that affects a roll (Support, Talent, Resolve, and Loaded Die) waits for your next roll, a statistic from your sheet included, and is spent the moment you throw; a Loaded Die waits for your next action roll. A roll that only goes with an action, such as Palm's roll to stay unseen or a roll to conceal your intent, spends none. A murder's opening roll is the murder's own roll, and takes your armed Calls as any action roll does: a Loaded Die loads it, Support and Talent add their dice, a Resolve lets you pick the statistic if the GM has not picked it yet, and a hindering Call armed on you counts too; each is spent on it.
 
 A Call armed on you after your roll window opened is not part of that roll: the window says so, and the Call waits for your next one. A Call that hinders you (a disadvantage or a negative bonus) is the exception once it is a minute old: armed more than a minute before you roll, it counts even if your window opened first and does not show it.
 
@@ -743,6 +743,8 @@ As the killer you are asked **Stay hidden?** **Reveal yourself** gives everyone 
 | Critical | the incident begins, and the case keeps the fewest Key Remnants: 3 |
 
 The victim sees nothing while the killer rolls: no card, no music, nothing on the Event panel. When the roll succeeds, they are told at once that the incident has begun and who is moving on them, or, behind a "?", only that *someone* is. A failure leaves them nothing at all.
+
+**Unseen until the opening roll.** From the moment a direct murder opens until the killer's opening roll lands, the other players do not see the killer's tokens - the victim and everyone else in the room included - and the killer's microphone is off; the killer still hears the room and is told so in one line. An accomplice already on the killer's side is hidden and muted the same way, and sees the killer. For a murder declared in an Eclipse this starts as the lights come back, so nobody sees the killer when the new time of day begins. When the roll lands the killer's tokens come back as they were - behind a "?" first, if the roll puts the killer behind one. A trap and a death by one's own hand hide nobody.
 
 **Indirect Murder (a trap):** the **victim** rolls Eye or Head against **20**, the same at Night as by day, and the GM picks which. Being asked to roll is itself the warning: you are told that the GM is setting up a roll for you, and the window reads "Something feels wrong".
 
@@ -1142,7 +1144,7 @@ A Call that affects a roll (Support, Talent, Resolve, Loaded Die) is bought on t
 
 A Reroll is made on the GM's browser, which takes the Hope; with no GM connected it is not made, and nothing is spent.
 
-A hindering Call (a disadvantage or a negative bonus) armed more than a minute before the roll counts on a roll the GM's browser throws, named in the roll window or not: `HOSTILE_GRACE` (60 000 ms, config.mjs), roll-draw.mjs `hostileCalls`. The rolls that spend no Call are action-pipeline.mjs `rollTrait`'s `remember: false` rolls and roll-draw.mjs `SPENDS_NO_CALL` (Palm, the murder opening).
+A hindering Call (a disadvantage or a negative bonus) armed more than a minute before the roll counts on a roll the GM's browser throws, named in the roll window or not: `HOSTILE_GRACE` (60 000 ms, config.mjs), roll-draw.mjs `hostileCalls`. The rolls that spend no Call are action-pipeline.mjs `rollTrait`'s `remember: false` rolls and roll-draw.mjs `SPENDS_NO_CALL` (Palm); the murder opening was one until 1.2.116 and takes the killer's Calls since (call-effects.mjs `TAKES_CALLS`).
 
 The GMs' card that asks for a Talent's yes waits up to 5 minutes for an answer (`TIMING.hopeCallRulingMs`, call-gm.mjs `askHopeCallByCard`).
 

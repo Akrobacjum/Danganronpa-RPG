@@ -255,6 +255,7 @@ import {
 import { createPassage, grantPassage, revokePassage, closePassage, openPassage, makePassagePublic, makePassageSecret, deletePassage, listPassages,
     passageLog } from "./passages-gm.mjs";
 import { auditRows } from "./movement-audit.mjs";
+import { balanceReport, balanceNote } from "./balance-log.mjs";
 
 /*
  * A SHORTHAND WITH NO SCENE SAYS SO (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4). Since
@@ -1492,6 +1493,10 @@ export const DrpgApi = {
      *  `game.drpg.perf()` - every performance number in the audit was measured
      *  headlessly, and this is the only one measured where somebody is playing. */
     perf: perfReport,
+    /** The balance log read against the exact count of the dice (E53 C3, balance-log.mjs): `game.drpg.balanceReport()`,
+     *  a GM's; it writes nothing. `game.drpg.balanceNote(text)` adds a GM's entry while the world's switch is on. */
+    balanceReport,
+    balanceNote,
     /** What the module's surfaces compute to on THIS page (E44 C1d, style-snapshot.mjs): for each row of its fixed list
      *  (the windows' frames, footers, tabs, tables and fields, the notice history, the corner, the launchers, the room and
      *  voice tiles, Foundry tools) the computed colour, type, box and layout of the first match, or `found: false`.

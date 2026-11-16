@@ -45,7 +45,11 @@
  * fit of 0.445. The curves keep their shape (a spread bend moved the crossings out of the gap's middle fifth, 48% ->
  * 12%, but added crossings and left a crossing at 3 degrees).
  */
-export const MAP_GEOMETRY = Object.freeze({ nodeW: 240, nodeH: 54, openW: 352, colGap: 200, pitch: 66, pad: 12, head: 28 });
+/* A NODE 300 PX WIDE (owner-116, 15.11.2026; the owner: "Poszerzmy je też trochę", option A: every node open). 240 until
+ * then. Measured in Chromium (STATUS, item 1c), every node open: each 20 px of width took 3-8% off a tall node's height,
+ * and 300 is the coordinator's number; 280 and 320 read alike within that. The node rule's width in components.css is the
+ * same number, and the fields take it (R5821, R7520). */
+export const MAP_GEOMETRY = Object.freeze({ nodeW: 300, nodeH: 54, openW: 352, colGap: 200, pitch: 66, pad: 12, head: 28 });
 
 /** A node's size from `sizes` (a Map or an object of id to `{ w, h }`); a size not read, or read as 0 (jsdom), is the least. */
 function sizeOf(sizes, id, g) {
@@ -299,7 +303,10 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
        filling it (components.css). Its layout width, so the same at every zoom: the fields stand in the same scaled
        canvas. Measured in Chromium at 1366x768 and 1920x1080, both themes: the node 240 px, its fields 352 until then.
        In jsdom a face reads 0 and the stylesheet's width (the node's) stands. */
-    for (const [id, f] of edits) {
+    // every node open (owner-116): every face hidden and every field at the node rule's width, so no face is measured -
+    // toggling each face's classes forced a layout a node (Chromium, item 1c: 45-53 ms a relayout for 39 open nodes)
+    const allOpen = canvas.dataset?.drpgAllOpen === "1";
+    for (const [id, f] of allOpen ? [] : edits) {
         const b = buttons.get(id);
         if (!b) continue;
         const had = ["is-selected", "is-editing"].filter(c => b.classList.contains(c));

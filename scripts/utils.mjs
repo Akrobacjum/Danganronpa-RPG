@@ -434,6 +434,16 @@ export function serverNow() {
 }
 
 /**
+ * WHETHER A GM HID A TOKEN (E112, 15.11.2026): Foundry's `hidden`, but not the opening's veil (mask-gm.mjs `VEIL_FLAG`),
+ * which hides a killer's token from the other players and leaves them in the room - a witness, a target, a finder, as
+ * before. Every reading of "a token the GM has hidden is not in the scene" asks this. Pure.
+ */
+export function hiddenByGm(tokenDoc) {
+    const doc = tokenDoc?.document ?? tokenDoc;
+    return Boolean(doc?.hidden) && !(doc?.flags ?? doc?._source?.flags)?.[MODULE_ID]?.veiled;
+}
+
+/**
  * Exactly one client runs GM-side automation, so two GMs never both apply the
  * same effect.
  *

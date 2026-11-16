@@ -16,16 +16,29 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 
 /**
- * THE "SPECTATOR TALK" SWITCH (E92 C6): a flag on the Spectator's own User document, which its player writes - the one
- * choice of a Spectator's that crosses to the GMs. The primary honours it only for a Spectator's account
- * (voice.mjs `spectatorTalks`): a student's player who writes it changes nothing. Who talks with the Spectators is no
- * secret, so world-secrets.mjs has no rule for it.
+ * THE OLD "SPECTATOR TALK" SWITCH (E92 C6, 12.11.2026 - owner-116, 15.11.2026): true took a Spectator's account to the
+ * Spectators' room, absent left it listening where its token stood. Read by nothing since owner-116: its true is the
+ * default now, and its absence, the old default, is what the owner changed - so a world that holds either value keeps
+ * the Spectator in the Spectators' room, as the owner wants, and a flag left behind changes nothing. Named so that the
+ * role's road can tidy it off an account (monokuma.mjs `setSpectator`).
  */
 export const SPECTATOR_TALK_FLAG = "spectatorTalk";
 
-/** Whether `user`'s switch is on, on the document handed. */
-export function talkSwitchOn(user) {
-    return user?.getFlag?.(MODULE_ID, SPECTATOR_TALK_FLAG) === true;
+/**
+ * THE SPECTATORS' ROOM IS A SPECTATOR'S DEFAULT (owner-116, 15.11.2026; the owner: "Spectatorzy - niech ich pokój voice
+ * chat będzie globalny (graczy dalej per room)"): a Spectator's account talks in the Spectators' room from anywhere on
+ * the map, and its own switch - this flag on its own User document, which its player writes, the one choice of a
+ * Spectator's that crosses to the GMs - takes it to listen where its token stands, muted, until it is taken off. A new
+ * name, not the old flag read the other way: a stored `spectatorTalk: true` read as "listen here" would have taken the
+ * Spectators who chose the room out of it. The primary honours it only for a Spectator's account (voice.mjs
+ * `spectatorTalks`): a student's player who writes it changes nothing. Who talks with the Spectators is no secret, so
+ * world-secrets.mjs has no rule for it.
+ */
+export const SPECTATOR_LISTEN_FLAG = "spectatorListenHere";
+
+/** Whether `user` talks in the Spectators' room - its listen flag not set - on the document handed. */
+export function talksWithSpectators(user) {
+    return user?.getFlag?.(MODULE_ID, SPECTATOR_LISTEN_FLAG) !== true;
 }
 
 /*

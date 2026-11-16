@@ -16,7 +16,7 @@ import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { error, plural, esc, primaryGmId } from "./utils.mjs";
+import { error, plural, esc, primaryGmId, hiddenByGm } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
 import { launcher, drpgWindow, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
@@ -943,7 +943,7 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
         let findable = [];
         try {
             findable = (game.scenes?.contents ?? []).flatMap(scene => scene.tokens?.filter?.(t =>
-                t.actor?.id === waiting.id && !t.hidden && roomOfToken(t)) ?? []);
+                t.actor?.id === waiting.id && !hiddenByGm(t) && roomOfToken(t)) ?? []);
         } catch { /* a scene not readable here: no witness road the line can name */ }
         const here = findable.find(t => t.parent?.id === canvas?.scene?.id);
         const room = here ? roomOfToken(here) : null;

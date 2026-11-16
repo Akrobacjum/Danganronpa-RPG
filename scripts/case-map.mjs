@@ -114,19 +114,35 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
         ...marks.filter(m => MARK_KEYS[m]).map(m => L(MARK_KEYS[m]))].filter(Boolean).join(", ");
     const cls = ["drpg-case-node", `drpg-case-node--${node.kind}`, `is-${state}`, ...(loose ? ["is-loose"] : []),
         ...(selected ? ["is-selected"] : []), ...(editing ? ["is-editing"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(controlled ? ["has-controls"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
-    const mode = !node.evidence && node.mode ? `<span class="drpg-case-node-mode">${esc(modeLabel(node.mode))}</span>` : "";
     /* THE WHOLE CONTENT, ALWAYS (E97 fix; the owner's "zawsze wyswietlaly cala swoja zawartosc"): the head's parts wrap
        onto a second line rather than cut the kind, the name is whole, and the node's own words (a schema node's note, a
        Remnant's or a slot's description) stand under it whole. The button opens its fields (`aria-expanded`). */
     // its tooltip only on the Map (`editable`): the Class Trial console draws the same face read only, a press opening nothing
     return `<button type="button" class="${cls.join(" ")}" data-drpg-node="${esc(node.id)}" style="left: ${p.x}px; top: ${p.y}px"`
         + `${selected ? ` aria-current="true"` : ""} aria-expanded="${selected ? "true" : "false"}" aria-label="${esc(said)}"${editable ? tipAttr("DRPG.Tips.Case.nodeOnTheMapTooltip") : ""}>`
-        + `<span class="drpg-case-node-head"><span class="drpg-case-node-kind">${esc(kind)}</span>${mode}`
+        + nodeHeadHtml(node, { state, reach, warn })
+        + `<span class="drpg-case-node-name">${esc(name)}</span>`
+        + (text ? `<span class="drpg-case-node-text">${esc(text)}</span>` : "") + `</button>`;
+}
+
+/**
+ * A NODE'S HEAD: its kind, its trial mode, its state, a warning and its reach, on one line that wraps (E97 fix). The
+ * face's first line, and since owner-116 (15.11.2026; the owner's option A: every node open) the first line of an open
+ * node's fields too, where the face that carried them is hidden: a deduction's fields hold its name, note and mode, a
+ * Remnant's its name and words, and none of them says the node's kind, whether the class holds it or how many of its
+ * inputs are held.
+ */
+export function nodeHeadHtml(node, { state, reach = null, warn = false } = {}) {
+    const kind = kindLabel(node);
+    const stateText = STATE_KEYS[state] ? L(STATE_KEYS[state]) : "";
+    const r = reachOf(node, reach);
+    const reachText = r ? F(r.reachable ? "DRPG.CaseMap.reachYes" : "DRPG.CaseMap.reachNo", { held: r.held, of: r.of }) : "";
+    const mode = !node.evidence && node.mode ? `<span class="drpg-case-node-mode">${esc(modeLabel(node.mode))}</span>` : "";
+    return `<span class="drpg-case-node-head"><span class="drpg-case-node-kind">${esc(kind)}</span>${mode}`
         + (STATE_GLYPHS[state] ? `<span class="drpg-case-node-state">${glyphHtml(STATE_GLYPHS[state])}<span>${esc(stateText)}</span></span>` : "")
         + (warn ? `<span class="drpg-case-node-warn" title="${esc(L("DRPG.CaseMap.hasProblem"))}">${glyphHtml("case-warn")}!</span>` : "")
         + (r ? `<span class="drpg-case-node-reach${r.reachable ? " is-reachable" : ""}" title="${esc(reachText)}">${glyphHtml("reachable")}${r.held}/${r.of}</span>` : "")
-        + `</span><span class="drpg-case-node-name">${esc(name)}</span>`
-        + (text ? `<span class="drpg-case-node-text">${esc(text)}</span>` : "") + `</button>`;
+        + `</span>`;
 }
 
 /**
@@ -139,7 +155,13 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
  * case-view.mjs `relayoutCaseMap` needs to place the nodes again at their measured size (`data-drpg-place`); the viewport
  * (`.drpg-case-graph`) is the container's to size.
  */
-export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], editors = null, marks = {}, controls = null } = {}) {
+export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], editors = null, marks = {}, controls = null, allOpen = false } = {}) {
+    /* EVERY NODE OPEN (owner-116, 15.11.2026; the owner: "W planerze niech od teraz widok edycji modułu będzie domyślnym
+       widokiem modułu", option A): on the Map (`editors`) with `allOpen`, every node is drawn as its fields - each face
+       hidden (`is-editing`), each fieldset shown, with the face's head on top and no Close - and the canvas says so
+       (`data-drpg-all-open`, read by case-view.mjs `relayoutCaseMap` and `wireCaseMap`). Without it, one node opens at a
+       time as before (the toolbar's "All open" off). The Class Trial console draws no editors and is not touched. */
+    const open = Boolean(editors) && Boolean(allOpen);
     const warned = new Set((problems ?? []).map(p => p.node).filter(Boolean));
     const nodes = new Map((graph?.nodes ?? []).map(n => [n.id, n]));
     const unrelated = new Set(layout?.unrelated ?? []);
@@ -168,8 +190,8 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
             reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [], controlled: Boolean(controls?.[id]),
             // THE OPEN NODE IS ITS EDITOR (the owner at a real table, 12.11.2026): on the Map its face is hidden while open
             // (`is-editing`, components.css) and its fields take its place (`nodeEditHtml`).
-            editing: Boolean(editors) && id === selected, editable: Boolean(editors) }));
-        if (editors) fields.push(nodeEditHtml({ graph, node, p, open: id === selected, state, finders, authors, reach, problems, html: editors.get?.(id) ?? "" }));
+            editing: Boolean(editors) && (open || id === selected), editable: Boolean(editors) }));
+        if (editors) fields.push(nodeEditHtml({ graph, node, p, open: open || id === selected, allOpen: open, state, finders, authors, reach, problems, warn: warned.has(id), html: editors.get?.(id) ?? "" }));
     }
     /* THE TRIAL'S CONTROLS ON THE TILE (E99 C5, round 4; the owner's 12:00: "jako przycisk na kaflu"): `controls` by node
        id - `{ tick: bool, start: { action, mode, label, disabled, reason } }`. Each is a sibling of the node's button (a
@@ -202,7 +224,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         + `<button type="button" class="drpg-case-fold" data-drpg-case-fold aria-expanded="${fold ? "false" : "true"}"${editors ? tipAttr("DRPG.Tips.Case.notTiedToTheTooltip") : ""}>${esc(F("DRPG.CaseMap.unrelated", { n: unrelated.size }))}</button></div>`;
     const data = JSON.stringify({ positions: shown?.positions ?? {}, gapAt: shown?.gapAt ?? null, unrelated: [...unrelated], fold: Boolean(fold && unrelated.size) });
     const width = place.width;
-    return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}">`
+    return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}"${open ? ` data-drpg-all-open="1"` : ""}>`
         + heads.join("")
         + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${edges.join("")}</svg>`
         + gap + buttons.join("") + fields.join("") + controlled.join("") + `</div>`;
@@ -259,16 +281,19 @@ export function nodeInfoHtml({ graph, node, finders = null, authors = null, reac
  * by name, wherever it stands), so the Table's one Save writes a Map edit unchanged and a redraw carries a typed field by
  * its name (live.mjs). A node with no field of its own (another chapter's Remnant) shows its facts alone.
  */
-function nodeEditHtml({ graph, node, p, open, finders, authors, reach, problems, html }) {
+function nodeEditHtml({ graph, node, p, open, allOpen = false, state = null, finders, authors, reach, problems, warn = false, html }) {
     const b = (step, key) => `<button type="button" data-drpg-case-move="${step}"${tipAttr("DRPG.Tips.Case.moveUpMoveDownTooltip")}>${esc(L(key))}</button>`;
-    // Close beside the arrows: the face that closed the fields by a second click is hidden while they are open
-    const close = `<button type="button" data-drpg-case-close${tipAttr("DRPG.Tips.Case.closeNodeTooltip")}>${esc(L("DRPG.Panel.close"))}</button>`;
+    // Close beside the arrows: the face that closed the fields by a second click is hidden while they are open. With
+    // every node open (owner-116) there is nothing to close to, so no Close; the face's head stands on top instead.
+    const close = allOpen ? "" : `<button type="button" data-drpg-case-close${tipAttr("DRPG.Tips.Case.closeNodeTooltip")}>${esc(L("DRPG.Panel.close"))}</button>`;
+    const head = allOpen ? nodeHeadHtml(node, { state: state ?? nodeState(node, finders), reach: reach?.[node.id] ?? null, warn }) : "";
     const moves = `<div class="drpg-case-edit-actions drpg-case-edit-moves">${b(-1, "DRPG.CaseMap.moveUp")}${b(1, "DRPG.CaseMap.moveDown")}${close}</div>`;
     const cells = String(html ?? "");
     // The node's facts only where it has no field of its own (another chapter's Remnant); otherwise its warnings alone
     const said = nodeInfoHtml({ graph, node, finders, authors, reach, problems, rows: !cells.trim() });
     return `<fieldset class="drpg-case-edit" data-drpg-edit="${esc(node.id)}" aria-label="${esc(F("DRPG.CaseMap.editLabel", { name: nameOf(node) }))}"`
-        + ` style="left: ${p.x}px; top: ${p.y}px"${open ? "" : " hidden"}>` + said + cells + moves + `</fieldset>`;
+        // with every node open the fields are the node: they take the focus the hidden face cannot (owner-116, 16.11.2026)
+        + ` style="left: ${p.x}px; top: ${p.y}px"${allOpen ? ` tabindex="0"` : ""}${open ? "" : " hidden"}>` + head + said + cells + moves + `</fieldset>`;
 }
 
 /**
@@ -313,7 +338,7 @@ export function caseMapHtml({ graph, layout, finders = null, authors = null, rea
     return `<div class="drpg-case-map">${tools}`
         + caseOverviewHtml({ graph, finders, problems, open: Boolean(reading.overview), summary })
         + `<div class="drpg-case-graph" tabindex="-1">${caseGraphHtml({ graph, layout, finders, authors, selected: picked?.id ?? null, fold: Boolean(reading.fold), label, reach, problems,
-            editors: editors ?? new Map() })}</div>${cameraHtml(reading.camera?.z ?? 1)}`
+            editors: editors ?? new Map(), allOpen: reading.allOpen === true })}</div>${cameraHtml(reading.camera?.z ?? 1)}`
         + `</div>`;
 }
 
@@ -359,7 +384,11 @@ export function neighbourOf(points, from, key) {
  * store, never through Save, as a GM's arrangement of the map. A node's own arrows (up and down its column) and Remove
  * are on the node, with its fields; the camera's buttons in the graph's corner (`cameraHtml`).
  */
-export function caseToolsHtml({ sort = "kind", sorts = [] } = {}) {
+export function caseToolsHtml({ sort = "kind", sorts = [], allOpen = null } = {}) {
+    /* THE "ALL OPEN" SWITCH (owner-116, 15.11.2026; the owner's option A): pressed, every node is drawn as its fields;
+       off, one node opens at a time. Drawn where the caller hands a state (the Map's window), never otherwise. */
+    const view = allOpen === null ? "" : `<button type="button" class="drpg-case-view-switch" data-drpg-case-view aria-pressed="${allOpen ? "true" : "false"}"${
+        tipAttr("DRPG.Tips.Case.allOpenTooltip")}>${esc(L("DRPG.CaseMap.allOpen"))}</button>`;
     const b = (attr, value, key, extra = "") => `<button type="button" ${attr}="${esc(value)}"${tipAttr("DRPG.Tips.Case.addDeductionCounterSolutionTooltip")}${extra}>${esc(L(key))}</button>`;
     return `<div class="drpg-case-tools" role="toolbar" aria-label="${esc(L("DRPG.CaseMap.toolsLabel"))}">`
         + `<div class="drpg-case-tools-row">${b("data-drpg-case-add", "deduction", "DRPG.CaseMap.addDeduction")}${b("data-drpg-case-add", "counter", "DRPG.CaseMap.addCounter")}`
@@ -376,7 +405,7 @@ export function caseToolsHtml({ sort = "kind", sorts = [] } = {}) {
            the glass at 1366x768, over the 972 px it has, and took a second row from the graph (the E97 fix's sweep) */
         + `<select class="drpg-case-sort" data-drpg-case-sort aria-label="${esc(L("DRPG.CaseMap.sortLabel"))}" title="${esc(L("DRPG.CaseMap.sortLabel"))}">`
         + sorts.map(k => `<option value="${esc(k)}"${k === sort ? " selected" : ""}>${esc(L(`DRPG.CaseMap.sort.${k}`))}</option>`).join("")
-        + `</select></div>`;
+        + `</select>${view}</div>`;
 }
 
 /**
@@ -414,7 +443,7 @@ function motionStill() {
  * have loaded and whenever a node's box changes size. Answers the camera's handle.
  */
 export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFold = () => {}, onAdd = () => {}, onSort = () => {}, onMove = () => {}, onDrop = () => {},
-    onCheck = () => {}, onPlace = () => {}, onOverview = () => {}, camera: keep = {} } = {}) {
+    onCheck = () => {}, onPlace = () => {}, onOverview = () => {}, onView = () => {}, camera: keep = {} } = {}) {
     const graph = root?.querySelector?.(".drpg-case-graph");
     const canvas = graph?.querySelector?.(":scope > .drpg-case-canvas") ?? null;
     const readout = () => root?.querySelector?.("[data-drpg-case-zoom-level]");
@@ -426,6 +455,9 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
         tools.addEventListener("click", event => {
             const add = event.target?.closest?.("[data-drpg-case-add]");
             if (add) onAdd(add.dataset.drpgCaseAdd);
+            // the "All open" switch (owner-116): the state it asks for, the opposite of what it shows
+            const view = event.target?.closest?.("[data-drpg-case-view]");
+            if (view) onView(view.getAttribute("aria-pressed") !== "true");
         });
         tools.querySelector("[data-drpg-case-sort]")?.addEventListener("change", event => onSort(event.target.value));
         tools.querySelector("[data-drpg-case-add-plan]")?.addEventListener("change", event => {
@@ -453,7 +485,9 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
             else if (cam === "fit") camera.fit();
         });
     }
-    const openId = () => graph?.querySelector?.(":scope > .drpg-case-canvas > .drpg-case-edit[data-drpg-edit]:not([hidden])")?.dataset.drpgEdit ?? null;
+    // with every node open (owner-116) no node is "the open one": nothing to shut by Escape or a click outside, nothing to reveal
+    const allOpen = () => graph?.querySelector?.(":scope > .drpg-case-canvas")?.dataset.drpgAllOpen === "1";
+    const openId = () => (allOpen() ? null : graph?.querySelector?.(":scope > .drpg-case-canvas > .drpg-case-edit[data-drpg-edit]:not([hidden])")?.dataset.drpgEdit ?? null);
     if (graph && !graph.dataset.drpgWired) {
         graph.dataset.drpgWired = "1";
         graph.addEventListener("click", event => {
@@ -489,14 +523,20 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
                 onClose(open);
                 return;
             }
-            const node = event.target?.closest?.("[data-drpg-node]");
-            if (!node || !/^Arrow/.test(event.key)) return;
+            /* THE ARROWS WALK WHAT IS DRAWN (owner-116, 16.11.2026; the coordinator: "Focus must never land on something not
+               drawn"): with every node open the faces are hidden, so an arrow on an open node's fields (the fieldset itself,
+               never a field in it, whose arrows are the text's) moves the focus to the open node the faces' places put
+               next; with one node open at a time the faces walk as before. */
+            if (!/^Arrow/.test(event.key)) return;
+            const fields = allOpen() && event.target?.matches?.(".drpg-case-edit[data-drpg-edit]") ? event.target : null;
+            const node = fields ? null : event.target?.closest?.("[data-drpg-node]");
+            if (!fields && !node) return;
             const points = [...graph.querySelectorAll("[data-drpg-node]")].map(b => ({
                 id: b.dataset.drpgNode, x: parseFloat(b.style.left) || 0, y: parseFloat(b.style.top) || 0 }));
-            const next = neighbourOf(points, node.dataset.drpgNode, event.key);
+            const next = neighbourOf(points, fields ? fields.dataset.drpgEdit : node.dataset.drpgNode, event.key);
             if (!next) return;
             event.preventDefault();
-            graph.querySelector(`[data-drpg-node="${CSS.escape(next)}"]`)?.focus();
+            graph.querySelector(fields ? `.drpg-case-edit[data-drpg-edit="${CSS.escape(next)}"]` : `[data-drpg-node="${CSS.escape(next)}"]`)?.focus();
         });
     }
     if (canvas) {

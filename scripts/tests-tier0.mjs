@@ -2801,7 +2801,10 @@ const REGRESSIONS = [
             await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
         const body = bodyOf(src, "export async function performAction", { until: "\n}\n" });
 
-        const gate = body.indexOf('"classTrial"');
+        /* THE RULE IS allowed-now.mjs's SINCE E40 item 3 (15.11.2026): the press asks `allowedNow` once and each gate keeps
+           its place and its sentence, so the trial gate here is `now.why === WHY.trial`, and the order the rule asks in -
+           the fight before the trial, Analyze left open - is read in that file's `action` road below. */
+        const gate = body.indexOf("now.why === WHY.trial");
         const fight = body.indexOf("DRPG.Murder.actionsLocked");
         const dead = body.indexOf("DRPG.Chapter.deadCannotAct");
         const dispatch = body.indexOf("const def =");
@@ -2810,8 +2813,10 @@ const REGRESSIONS = [
         /* Above the dispatch, as the gate is (E30 review, 25.09.2026): since E30 `body` is
            the whole function, and the exemption read anywhere in it would hold after it
            moved below the dispatch while another "classTrial" kept `gate` above. */
-        ok(/actionKey !== "analyze" && getClock\(\)\.phase === "classTrial"/.test(bodyOf(body, "const def =", { back: body.length })),
-            "the trial gate no longer keeps Analyze open above the dispatch, which is the one tile it must");
+        const rule = bodyOf(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/allowed-now.mjs`).then(lfText)), "    action: (key, f) => {", { until: "\n    },\n" });
+        ok(/key !== "analyze" && f\.trial\(\)/.test(rule), "the trial's rule no longer keeps Analyze open, which is the one tile it must");
+        ok(rule.indexOf("f.fighting()) return shut") > 0 && rule.indexOf("f.fighting()) return shut") < rule.indexOf('key !== "analyze" && f.trial()'),
+            "the rule asks the trial before the fight, which outranks it");
         ok(fight > 0 && dead > 0, "the fight or the death refusal moved out of performAction");
         ok(gate > fight && gate > dead,
             "the trial gate rose above the fight or the death check, which outrank it");
@@ -7081,7 +7086,9 @@ const REGRESSIONS = [
         const UNCUT = {
             "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
             "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
-            "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none"
+            "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none",
+            // E53 C3: the balance log is what sessions 0 compare across a season, so no reset cuts it (gm-stores.mjs).
+            "the store balanceLog": "the balance log's rolls are what sessions 0 compare across seasons; nothing clears it yet (docs/dev/balance.md)"
         };
         // A group the window offers and an entry of the registry clears (E42 C3: read through `seasonStateFor`).
         const strays = named.filter(([what, group]) => !(groups.has(group) && R.seasonStateFor(group)) && !(group === undefined && Object.hasOwn(UNCUT, what)))
@@ -9865,6 +9872,7 @@ const REGRESSIONS = [
             ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, and a player's is not one; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
             // E62 C3b: the dead's Spectator token, read on its owner's browser.
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
+            ["HOOK mask-gm.mjs#registerMasks#createToken:inline", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK visibility.mjs#registerVisibility#createRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
             ["HOOK visibility.mjs#registerVisibility#updateRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
@@ -10090,6 +10098,7 @@ const REGRESSIONS = [
             ["SHEET movement.mjs#judgeMove", "out of scope (E77 C2 moved the body of `onUpdateToken` here; `onUpdateToken` now only announces its verdict): `isMonokuma` from the document skips Monokuma's token; a player's move in the hall finds no room once C1 makes `roomPieces(hall)` empty, so nothing is charged (41 b) [1b.1 a token's movement in the hall]"],
             ["SHEET settings.mjs#isDeadForGm", "not a source: the GM's own death record (settings.mjs `isDeadForGm`), not a player's flag"],
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
+            ["HOOK diagnostics.mjs#canvasReady#canvasDrawn", "out of scope: times this client's own scene change for perf() and keeps the number in memory (E53 C1, perf-timings.mjs); it writes nothing and decides no rule [1b.1 which scene a client views]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
@@ -10141,6 +10150,7 @@ const REGRESSIONS = [
             ["HOOK spectator-dead.mjs#deleteToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#updateToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#createToken#arrow2", "deleted, not judged (13.11.2026, scenario 78 part gm2): on the primary, a token made for a second Spectator of one student that this browser took away (`settleWatchers`, `lostWatchers`) is deleted when it arrives, and a token of a watcher sends its student's watchers to `settleWatchers`; neither reads nor judges a move into a room"],
+            ["HOOK mask-gm.mjs#createToken#arrow1", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK visibility.mjs#updateToken#arrow1", "out of scope: recomputes this client's draw on `hidden` or a move (visibility.mjs `registerVisibility`); C2's reveal and hide fire it on every client, expected"],
             ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -11263,6 +11273,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook and the Death fade on the dead student's browser; E79 adds no road through it"],
+            ["HOOK mask-gm.mjs#registerMasks#createToken/inline -> judge", "this file's own (E112): a token made while a mask or the veil stands joins it on the primary; no passage road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook on the dead student's browser when its Spectator token becomes the Monocub's; E79 adds no road through it"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -19739,7 +19750,9 @@ const REGRESSIONS = [
                 "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou",
                 // The owner's report of 13.11.2026 (R5900): a zone mode's line on the Event card, "Question 2 of 3" /
                 // "Pytanie 2 z 3", "Turn 1 of 4" / "Tura 1 z 4" - the seconds are the card's clock.
-                "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak"
+                "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak",
+                // owner-116 (15.11.2026): a folded list's line on the planner, "Ticked: 2 of 38" / "Zaznaczone: 2 z 38".
+                "CaseMap.chosenOf"
                 // E71 B10a (line C, 14.11.2026): Vote.accusesLine left the table - "a majority of {n} out of {total}" puts no count before a noun.
             ].map(key => [key, "R"]),
             ...[
@@ -19767,7 +19780,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1, G: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -21135,8 +21148,9 @@ const REGRESSIONS = [
             // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
             // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
             // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
-            counts: [20, 11, 39], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 39, the clock's entry does not "
+            // 40 since E53 C3: `balanceLog`, the balance log's switch, the table's as the rules of play the GM switches.
+            counts: [20, 11, 40], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 40, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -23230,7 +23244,8 @@ const REGRESSIONS = [
             "inventory.mjs": {"card": 2, "line": 3}, 
             "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4},
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
-            "mask-gm.mjs": {"card": 2}, "mastermind.mjs": {"message": 1},
+            // E112 (15.11.2026): the opening's veil adds the killer's one line before the roll (mask-gm.mjs `veilActor`).
+            "mask-gm.mjs": {"card": 3}, "mastermind.mjs": {"message": 1},
             "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
@@ -23563,7 +23578,8 @@ const REGRESSIONS = [
         const read = {
             gateReads: calls(gate),
             bodyBranch: /\bbody\s*\?\s*bodyPlaceOf\(target,\s*\{\s*held:\s*flagsHeldNow\s*\}\)\s*:\s*gmPlaceOf\(target\)/.test(gate),
-            hiddenFromPlace: /\bbody\s*\?\s*there\?\.hidden\s*:\s*there\?\.tokenDoc\?\.hidden/.test(gate),
+            // E112 (15.11.2026): the living road's `hidden` is read through utils.mjs `hiddenByGm`, which leaves the opening's veil in the room.
+            hiddenFromPlace: /\bbody\s*\?\s*there\?\.hidden\s*:\s*hiddenByGm\(there\?\.tokenDoc\)/.test(gate),
             friskImports: staticImports(src("frisk.mjs")).includes("body-tile.mjs"),
             lootBody: calls(fnSource(src("handover.mjs"), "lootBody")),
             lootAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker \}\)/.test(fnSource(src("handover.mjs"), "lootBody")),
@@ -24027,10 +24043,11 @@ const REGRESSIONS = [
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
                 // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
-                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
+                // E53 C3: `balanceLog`, the balance log's switch, born in the rules section (no Foundry list showed it).
+                ["audio", "game", 2, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
             // E57 C3 (D34): `documentLanguage` in gm, beside them.
-            once: [], others: ["sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            once: [], others: ["balanceLog", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
@@ -24755,7 +24772,8 @@ const REGRESSIONS = [
             at240: { width: "240px", face: ["is-selected", "is-editing"] },
             at300: { width: "300px", face: ["is-selected", "is-editing"] },
             jsdom: { width: "", face: ["is-selected", "is-editing"] },
-            css: { fields: "240px", node: "240px", boxes: true }
+            // 300 since owner-116 (15.11.2026; the owner: "Poszerzmy je też trochę"; R7525), 240 until then
+            css: { fields: "300px", node: "300px", boxes: true }
         }), "{the fields' width with the clicked face 240 px wide, and 300 px (its classes put back after the reading); a face reading 0 writes none; css: the fields' width, the node's, the text boxes filling the fields}");
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
@@ -24845,6 +24863,254 @@ const REGRESSIONS = [
         const placed = JSON.parse(a).at;
         equal(JSON.stringify({ same: [a === b, a === c], centred: placed.d0.y > g.head + g.pad }), JSON.stringify({ same: [true, true], centred: true }),
             "{the places called twice, and with the edges reversed; d0 (resting on rows 7 and 8) off the column's top}");
+    }],
+    ["R7520 - every field of an open planner node is the node's width, the selects too (owner-116, 15.11.2026; the owner: \"Pole wpisywania w planerze dalej jest węższe niż powinno\"; components.css): in the node's fields the theme's select wrapper (`.drpg-select`, Stained Glass) and a slot's status column (`.drpg-key-plan-field`) fill the field, by rules at more classes than the theme's and the column's", async () => {
+        /*
+         * owner-116, 15.11.2026. Measured in Chromium at e9f4a791 (1.2.115; audit/case-map-sweep.mjs `field`, probe 08's nine
+         * Map captures, both themes, 1366x768 and 1920x1080): every text box 220 px of the fields' 220, every select under
+         * glass 39-207 px, a slot's visibility and author under Legacy 121 and 173. Here, off the module's sheets (jsdom lays
+         * nothing out): the wrapper a block of the field's width, the column stretching its children, and each rule's weight
+         * over the rule it overrides - the theme's `body.drpg-theme-stained-glass .drpg-select` (0,2,1) and
+         * `.application.drpg-window-case .drpg-key-plan-field` (0,3,0). Red at e9f4a791: neither rule.
+         */
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        must(rules.length > 1000, "the module's stylesheets were not read");
+        const block = sel => rules.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{([^}]*)\\}"))?.[1] ?? null;
+        const wrap = block(".application.drpg-window-case .drpg-case-edit-field .drpg-select");
+        const column = block(".application.drpg-window-case .drpg-case-edit-field .drpg-key-plan-field");
+        const theme = block("body.drpg-theme-stained-glass .drpg-select");
+        equal(JSON.stringify({
+            wrap: wrap ? [/\bdisplay:\s*(flex|block)\b/.test(wrap), /\bwidth:\s*100%/.test(wrap), /!important/.test(wrap)] : null,
+            column: column ? [/\balign-items:\s*stretch\b/.test(column), /!important/.test(column)] : null,
+            theme: theme ? /\bdisplay:\s*inline-flex\b/.test(theme) : null
+        }), JSON.stringify({ wrap: [true, true, false], column: [true, false], theme: true }),
+            "{the wrapper in a node's field: a block, 100% wide, no !important; a slot's column in a node's field: stretched, no !important; the theme's wrapper still inline-flex (what the first overrides)}");
+    }],
+    ["R7521 - a floating field's placeholder takes the field's own layout size, under the map's zoom too (owner-116, 15.11.2026; float-text.mjs `holdSize`): untransformed, the screen box to the fraction; under a transform (the box off the offset size by a pixel or more), the computed width and height, with the padding and border where the box is the content's", async () => {
+        /*
+         * owner-116, 15.11.2026. The case map's camera scales its canvas by a CSS transform; the placeholder was given the
+         * field's screen box, so in the scaled canvas it was scaled once more and the floating field, placed on it, was 55 px
+         * wide over a field of 110 at zoom 0.5 and 880 over 440 at zoom 2 (audit/float-sweep.mjs I7, Chromium, both
+         * themes). Pure, on fixtures. Red at e9f4a791: no `holdSize` (the placeholder took the screen box).
+         */
+        const F = await import("./float-text.mjs");
+        must(typeof F.holdSize === "function", "float-text.mjs exports no holdSize");
+        const style = o => ({ width: o.width, height: o.height, boxSizing: o.sizing ?? "border-box", getPropertyValue: k => o[k] ?? "" });
+        const reads = [
+            F.holdSize({ width: 351.5, height: 49.25 }, { offsetWidth: 352, offsetHeight: 49 }, style({ width: "351.5px", height: "49.25px" })),
+            F.holdSize({ width: 110, height: 24.5 }, { offsetWidth: 220, offsetHeight: 49 }, style({ width: "220px", height: "49px" })),
+            F.holdSize({ width: 440, height: 98 }, { offsetWidth: 220, offsetHeight: 49 }, style({ width: "220px", height: "49px" })),
+            F.holdSize({ width: 110, height: 24.5 }, { offsetWidth: 220, offsetHeight: 49 }, style({ width: "200px", height: "35px", sizing: "content-box",
+                "padding-left": "4px", "padding-right": "4px", "border-left-width": "6px", "border-right-width": "6px",
+                "padding-top": "3px", "padding-bottom": "3px", "border-top-width": "4px", "border-bottom-width": "4px" }))
+        ];
+        equal(JSON.stringify(reads), JSON.stringify([{ width: 351.5, height: 49.25 }, { width: 220, height: 49 }, { width: 220, height: 49 }, { width: 220, height: 49 }]),
+            "[untransformed, the screen box kept to the fraction; zoom 0.5; zoom 2; zoom 0.5 with a content box, its padding and border added]");
+    }],
+    ["R7523 - a hidden token's ruler is hidden too (owner-116, 15.11.2026; the owner: \"przycisk hide w foundry bazowym (prawy na token - hide) niech ukrywa tez linie dystansu pokonywanego przez token\"; visibility.mjs `rulerShownTo`, fog-doorways.mjs `hourRulerFor`, `setRulerShown`, `reRuler`): the ruler is shown to a GM always, to the token's owner always (hidden or not: the owner's answer of 15.11.2026), and to anyone else only where the token is - not for a token Foundry hides, nor where `tokenShownTo` hides it; the ruler class asks the rule on every write of `visible`, with `visible` an accessor or a plain field, and a hide while a ruler stands takes it off at the next ask, an unhide waits for the next write", async () => {
+        /*
+         * owner-116, 15.11.2026. Pure, on fixtures: a token document's actor and a viewer as `viewerHere` builds one; two
+         * ruler classes of this test's own - one keeping `visible` behind an accessor whose constructor writes it, one as
+         * a plain field - since the harness has no TokenRuler (which shape v14's has is LIVE-E116-01). The predicate is
+         * this test's while it runs and the module's put back. Red at c44db5a3: no `rulerShownTo` and no `setRulerShown`.
+         * The owner's hidden token: false until the owner's answer of 15.11.2026 ("a player DOES see their own hidden token"
+         * at their table); red at 3a4dfafa on that row alone, owner [true, false].
+         */
+        const V = await import("./visibility.mjs");
+        const D = await import("./fog-doorways.mjs");
+        must(typeof V.rulerShownTo === "function" && typeof D.setRulerShown === "function" && typeof D.reRuler === "function",
+            "visibility.mjs has no rulerShownTo, or fog-doorways.mjs no setRulerShown or reRuler");
+        const actor = flags => ({ type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const doc = (hidden, flags = {}) => ({ hidden, actor: actor(flags), x: 0, y: 0, flags: {} });
+        const viewer = (o = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false, owns: () => false, ...o });
+        const rule = {
+            player: [V.rulerShownTo(doc(false), viewer()), V.rulerShownTo(doc(true), viewer())],
+            owner: [V.rulerShownTo(doc(false), viewer({ owns: () => true, enforcing: true })), V.rulerShownTo(doc(true), viewer({ owns: () => true }))],
+            gm: [V.rulerShownTo(doc(false), viewer({ gm: true })), V.rulerShownTo(doc(true), viewer({ gm: true }))],
+            eclipse: [V.rulerShownTo(doc(false), viewer({ eclipse: true })), V.rulerShownTo(doc(false), viewer({ eclipse: true, owns: () => true }))],
+            spectator: V.rulerShownTo(doc(false, { spectator: true }), viewer()),
+            none: V.rulerShownTo(null, viewer())
+        };
+        class Accessor { #v = false; constructor(token) { this.token = token; this.visible = true; } get visible() { return this.#v; } set visible(v) { this.#v = Boolean(v); } }
+        class Field { visible = true; constructor(token) { this.token = token; } }
+        const allowed = new Map();
+        const was = D.setRulerShown(token => allowed.get(token) !== false);
+        const run = Base => {
+            const Ruler = D.hourRulerFor(Base);
+            const shown = { id: "shown" }, hidden = { id: "hidden" };
+            allowed.set(shown, true); allowed.set(hidden, false);
+            const a = new Ruler(shown), b = new Ruler(hidden);
+            const built = [a.visible, b.visible];
+            a.visible = true; b.visible = true;
+            const written = [a.visible, b.visible];
+            // the flip: a ruler standing, its token hidden - taken off at the next ask; shown again - off until a write
+            allowed.set(shown, false); D.reRuler({ ruler: a });
+            const hiddenNow = a.visible;
+            allowed.set(shown, true); D.reRuler({ ruler: a });
+            const unhidNow = a.visible;
+            a.visible = true;
+            return { built, written, hiddenNow, unhidNow, refreshed: a.visible, own: Object.hasOwn(a, "visible") };
+        };
+        let rulers, flip;
+        try {
+            rulers = { accessor: run(Accessor), field: run(Field) };
+            // the hide heard (visibility.mjs `passForTokenUpdate`, `hidden` in the changes) asks the token's ruler again at once
+            const Ruler = D.hourRulerFor(Accessor), token = { id: "flip" };
+            allowed.set(token, true);
+            const ruler = new Ruler(token);
+            const standing = ruler.visible;
+            allowed.set(token, false);
+            try { V.passForTokenUpdate({ object: { ruler }, isOwner: false }, { hidden: true }); } catch { /* the pass after it reads a canvas: the ask came first */ }
+            flip = [standing, ruler.visible];
+        } finally {
+            D.setRulerShown(was);
+        }
+        // the module's own predicate stood before this test's: visibility.mjs's, set at its registration
+        equal(JSON.stringify({ registered: was?.name ?? null, rule, rulers, flip }), JSON.stringify({
+            registered: "rulerHere",
+            rule: { player: [true, false], owner: [true, true], gm: [true, true], eclipse: [false, true], spectator: false, none: true },
+            rulers: {
+                accessor: { built: [true, false], written: [true, false], hiddenNow: false, unhidNow: false, refreshed: true, own: false },
+                field: { built: [true, false], written: [true, false], hiddenNow: false, unhidNow: false, refreshed: true, own: false }
+            },
+            flip: [true, false]
+        }), "{the predicate the module set; the rule: a player (shown, hidden); the owner (shown, hidden); a GM (shown, hidden); an Eclipse (another's, own); another's Spectator; no document | the ruler classes: as built, written true, hidden while standing, shown again before a write, after Foundry's next write, no own field left; a standing ruler before and after its token's hide is heard}");
+    }],
+    ["R7524 - every planner node open (owner-116, 15.11.2026; the owner: \"W planerze niech od teraz widok edycji modułu będzie domyślnym widokiem modułu\", option A; case-map.mjs `caseGraphHtml`, `nodeHeadHtml`, `caseToolsHtml`): on the Map with `allOpen` every node is drawn as its fields - each face hidden (`is-editing`), each fieldset shown, the face's head (its kind) on top, no Close - and the canvas says so; without it one node opens at a time with Close, as before; `caseMapHtml` hands the window's `reading.allOpen` on; the toolbar's \"All open\" switch is pressed as the state it is handed, and absent where none is", async () => {
+        /*
+         * owner-116, 15.11.2026. Detached markup, as R5821's. Red at cc87ea3b: `caseGraphHtml` takes no `allOpen` (one node
+         * open, the rest hidden) and the toolbar has no switch.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7524 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7524 a", inputs: ["S.T1"] }, "d-b": { kind: "deduction", label: "R7524 b", inputs: ["d-a"] } } });
+        const editors = new Map([["d-a", M.editRow("R7524 note", `<textarea name="r7524:a" rows="2"></textarea>`)], ["d-b", M.editRow("R7524 note", `<textarea name="r7524:b" rows="2"></textarea>`)]]);
+        const draw = reading => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading, editors });
+            const canvas = d.querySelector(".drpg-case-canvas");
+            const fields = [...(canvas?.querySelectorAll(":scope > .drpg-case-edit[data-drpg-edit]") ?? [])];
+            return {
+                flag: canvas?.dataset.drpgAllOpen ?? null,
+                shown: fields.filter(f => !f.hidden).map(f => f.dataset.drpgEdit).sort(),
+                faces: [...(canvas?.querySelectorAll(":scope > button[data-drpg-node].is-editing") ?? [])].map(b => b.dataset.drpgNode).sort(),
+                close: fields.filter(f => f.querySelector("[data-drpg-case-close]")).length,
+                head: fields.filter(f => f.firstElementChild?.matches?.(".drpg-case-node-head") && f.querySelector(".drpg-case-node-kind")?.textContent.trim()).length
+            };
+        };
+        const tools = st => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseToolsHtml({ sort: "kind", sorts: ["kind"], ...(st === undefined ? {} : { allOpen: st }) });
+            const b = d.querySelector("[data-drpg-case-view]");
+            return b ? [b.getAttribute("aria-pressed"), b.textContent.trim() === game.i18n.localize("DRPG.CaseMap.allOpen")] : null;
+        };
+        equal(JSON.stringify({ open: draw({ allOpen: true }), one: draw({ node: "d-a" }), switch: [tools(true), tools(false), tools(undefined)] }), JSON.stringify({
+            open: { flag: "1", shown: ["S.T1", "d-a", "d-b"], faces: ["S.T1", "d-a", "d-b"], close: 0, head: 3 },
+            one: { flag: null, shown: ["d-a"], faces: ["d-a"], close: 3, head: 0 },
+            switch: [["true", true], ["false", true], null]
+        }), "{every node open: the canvas's flag, the fields shown, the faces hidden, the Close buttons, the heads with a kind; one node open as before (every node's fields, shown or hidden, carry Close); the switch handed on, off, and handed nothing}");
+    }],
+    ["R7525 - a planner node is 300 px wide and its fields take it (owner-116, 15.11.2026; the owner: \"Poszerzmy je też trochę\"; case-view.mjs `MAP_GEOMETRY`, `relayoutCaseMap`, components.css): the geometry's least width, the node rule's and the fields' rule's are 300 px; with every node open the relayout measures no face (no class taken off and put back, no width written on the fields), so the fields keep the rule's width", async () => {
+        /*
+         * owner-116, 15.11.2026. Red at cc87ea3b: 240 everywhere, and the relayout toggled every open node's face. The
+         * faces' classes are spied on as they are toggled (jsdom lays nothing out).
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7525 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7525 a", inputs: ["S.T1"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map([["d-a", M.editRow("R7525", `<textarea name="r7525"></textarea>`)]]) });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        let toggled = 0;
+        for (const b of canvas?.querySelectorAll(":scope > button[data-drpg-node]") ?? []) {
+            const real = b.classList.remove.bind(b.classList);
+            b.classList.remove = (...c) => { toggled++; return real(...c); };
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => 300 });
+        }
+        V.relayoutCaseMap(canvas);
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const widthOf = re => rules.match(re)?.[1] ?? null;
+        equal(JSON.stringify({
+            nodeW: V.MAP_GEOMETRY.nodeW,
+            css: { node: widthOf(/button\.drpg-case-node\[data-drpg-node\] \{[^}]*?\bwidth:\s*([\d.]+px)/), fields: widthOf(/\.drpg-window-case \.drpg-case-canvas > \.drpg-case-edit \{[^}]*?\bwidth:\s*([\d.]+px)/) },
+            toggled, written: [...(canvas?.querySelectorAll(":scope > .drpg-case-edit") ?? [])].map(f => f.style.width)
+        }), JSON.stringify({ nodeW: 300, css: { node: "300px", fields: "300px" }, toggled: 0, written: ["", ""] }),
+            "{the geometry's node width; the node rule's and the fields' rule's widths; faces' classes taken off by the relayout; widths written on the fields}");
+    }],
+    ["R7526 - with every planner node open nothing shuts a node, and the switch asks for the other drawing (owner-116, 15.11.2026; case-map.mjs `wireCaseMap`): Escape in a node's field goes on to the window (not held, no close asked), a click on empty space asks no close, and a press of \"All open\" asks `onView` for the opposite of its state", async () => {
+        /*
+         * owner-116, 15.11.2026. Red at cc87ea3b: Escape was held and asked to close the first fieldset, and no switch.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7526 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7526 a", inputs: ["S.T1"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseToolsHtml({ sort: "kind", sorts: ["kind"], allOpen: true })
+            + M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map([["d-a", M.editRow("R7526", `<textarea name="r7526"></textarea>`)]]) });
+        const said = [];
+        M.wireCaseMap(d, { onClose: id => said.push(["close", id]), onView: open => said.push(["view", open]) });
+        const field = d.querySelector('textarea[name="r7526"]');
+        must(field, "the Map drew no field");
+        const esc = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+        field.dispatchEvent(esc);
+        d.querySelector(".drpg-case-graph")?.click();
+        d.querySelector("[data-drpg-case-view]")?.click();
+        equal(JSON.stringify({ held: esc.defaultPrevented, said }), JSON.stringify({ held: false, said: [["view", false]] }),
+            "{Escape held from the window; what the Map asked: Escape, a click on empty space, a press of All open}");
+    }],
+    ["R7527 - with every planner node open the arrow keys walk the open nodes, never a hidden face (owner-116, 16.11.2026; the coordinator: \"Focus must never land on something not drawn\"; case-map.mjs `nodeEditHtml`, `wireCaseMap`): each open node can take the focus, an arrow on it moves the focus to the open node the faces' order puts next, an arrow typed in a field is left to the field, and with \"All open\" off the faces walk as before", async () => {
+        /*
+         * owner-116, 16.11.2026. Detached markup attached to the page while it runs (jsdom focuses an element in the
+         * document alone). Red at 5a09104a: an open node takes no focus and an arrow on it moves nothing; the faces it
+         * would walk are hidden.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7527 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7527 a", inputs: ["S.T1"] } } });
+        const editors = new Map([["S.T1", M.editRow("R7527", `<textarea name="r7527:t"></textarea>`)], ["d-a", M.editRow("R7527", `<textarea name="r7527:a"></textarea>`)]]);
+        const read = allOpen => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen }, editors });
+            document.body.append(d);
+            try {
+                M.wireCaseMap(d, {});
+                const key = (el, k) => { const e = new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; };
+                const where = () => { const a = document.activeElement; return a?.dataset?.drpgEdit ? `fields ${a.dataset.drpgEdit}` : a?.dataset?.drpgNode ? `face ${a.dataset.drpgNode}` : a?.tagName ?? null; };
+                if (allOpen) {
+                    const first = d.querySelector('.drpg-case-edit[data-drpg-edit="S.T1"]');
+                    const tabs = [...d.querySelectorAll(".drpg-case-edit[data-drpg-edit]")].map(f => f.tabIndex);
+                    first?.focus();
+                    const at = where();
+                    const held = key(first, "ArrowRight");
+                    const moved = where();
+                    const field = d.querySelector('textarea[name="r7527:a"]');
+                    field?.focus();
+                    const typed = key(field, "ArrowLeft");
+                    return { tabs, at, held, moved, typed, after: where() };
+                }
+                const face = d.querySelector('button[data-drpg-node="S.T1"]');
+                face?.focus();
+                key(face, "ArrowRight");
+                return { moved: where(), tabs: [...d.querySelectorAll(".drpg-case-edit[data-drpg-edit]")].map(f => f.getAttribute("tabindex")) };
+            } finally {
+                d.remove();
+            }
+        };
+        equal(JSON.stringify({ open: read(true), faces: read(false) }), JSON.stringify({
+            open: { tabs: [0, 0], at: "fields S.T1", held: true, moved: "fields d-a", typed: false, after: "TEXTAREA" },
+            faces: { moved: "face d-a", tabs: [null, null] }
+        }), "{every node open: the open nodes' tab order, the focus on the first, an arrow held, where it moved, an arrow in a field held, the focus after it | All open off: where an arrow on a face moves, the fields' tabindex}");
     }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
@@ -25546,7 +25812,7 @@ const REGRESSIONS = [
         const movement = stripComments(sources.get("movement.mjs") ?? "");
         ok(/^export function countsAsPresent\(/m.test(movement), "movement.mjs does not export countsAsPresent");
         const present = fnSource(movement, "countsAsPresent");
-        ok(/FLAGS\.monokuma/.test(present) && /FLAGS\.spectator/.test(present) && /isDeadForGm\(/.test(present) && /\.hidden/.test(present), "countsAsPresent no longer leaves out the Monokumas, the Spectators, the dead and the hidden");
+        ok(/FLAGS\.monokuma/.test(present) && /FLAGS\.spectator/.test(present) && /isDeadForGm\(/.test(present) && /hiddenByGm\(/.test(present), "countsAsPresent no longer leaves out the Monokumas, the Spectators, the dead and the hidden");
         const readers = {
             tellRooms: fnSource(stripComments(sources.get("doors-gm.mjs") ?? ""), "tellRooms"),
             tellBreach: fnSource(stripComments(sources.get("passages-gm.mjs") ?? ""), "tellBreach")
@@ -25582,7 +25848,8 @@ const REGRESSIONS = [
     ["R7168 - an account no longer a Spectator's leaves its talk switch behind (E59 C-115, CHAINS.md B-S6): the switch is the player's User flag (spectator.mjs `SPECTATOR_TALK_FLAG`), honoured for a Spectator's account alone, and nothing took it off - a player marked a Spectator again started in the Spectators' room with the microphone open, without a press; monokuma.mjs `setSpectator`, unmarking, unsets it for every account that stopped being a Spectator's (the users of `spectatorUserIds` before and not after)", async () => {
         const body = fnSource(stripComments(new Map(await otherSources()).get("monokuma.mjs") ?? ""), "setSpectator");
         ok(/\bbefore\b[\s\S]*\bnow\b/.test(body), "setSpectator no longer reads the Spectators' accounts before and after - this test reads the wrong road");
-        ok(/unsetFlag\(\s*MODULE_ID\s*,\s*SPECTATOR_TALK_FLAG\s*\)/.test(body), "setSpectator leaves the talk switch of an account that stopped being a Spectator's");
+        // since owner-116 (15.11.2026) the switch is the listen flag, unset with the old talk flag in one loop
+        ok(/\[\s*SPECTATOR_LISTEN_FLAG\s*,\s*SPECTATOR_TALK_FLAG\s*\]/.test(body) && /unsetFlag\(\s*MODULE_ID\s*,\s*flag\s*\)/.test(body), "setSpectator leaves the switch of an account that stopped being a Spectator's");
     }],
     ["R7169 - the Sound window's Test plays what the event plays (E59 C-115, CHAINS.md B-S12): an event left empty that names another to fall back to (`fallsBackTo`: \"Death fade\" plays the death's file) is played by sfx-play.mjs `pickSound` through `soundsFor`, which follows the fallback; `testSfx` asked `soundFor`, the event's own file, and said \"no file yet\" where the live sound plays; it asks `soundsFor` and never `soundFor`", async () => {
         const sfx = stripComments(new Map(await otherSources()).get("sfx-play.mjs") ?? "");

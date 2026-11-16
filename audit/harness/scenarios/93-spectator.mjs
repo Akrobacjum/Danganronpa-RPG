@@ -7,13 +7,15 @@
  *   role     the GM's roster leaves her out (`studentActors`, the trial's cast); p3's browser watches
  *            (scripts/spectator.mjs `spectatorViewer`) and hides its chat (`drpg-spectator`); p1's browser hides her
  *            token (visibility.mjs `tokenShownTo` "hide") and p3's leaves every student's to Foundry (null);
- *   voice    the primary blocks p3's BROADCAST_AUDIO by the trial's own write and row (voice.mjs `settleTrialVoices`),
- *            and p3's tile names it held, "spectator" (`micHold`);
+ *   voice    since owner-116 (15.11.2026) a Spectator talks in the Spectators' room by default: the primary leaves
+ *            p3's BROADCAST_AUDIO as it found it, and p3's tile names the Spectators' room's microphone open
+ *            ("spectatorTalk", `micHold`);
  *   map      Aiko has found the Cafeteria and Botan, the Mastermind, the Hall: p3's copy of the ledger is one row
  *            under Chie's own id (gm-stores.mjs `spectatorFogSection`), with the Cafeteria and not the Hall; p3's
  *            world data read against world-secrets.mjs and for the Mastermind's id (`canary.worldScan`);
- *   talk     the "Talk with the Spectators" switch on p3's voice tile and not on p1's (voice-tile.mjs
- *            `paintSpectatorTalk`, round 3): a press writes p3's own flag, a second takes it off;
+ *   talk     the voice switch on p3's voice tile and not on p1's (voice-tile.mjs `paintSpectatorTalk`, round 3): pressed
+ *            (in the Spectators' room) by default; a press writes p3's own listen flag (owner-116) and the primary blocks
+ *            p3's BROADCAST_AUDIO by the trial's own write and row (voice.mjs `settleTrialVoices`), a second takes it off;
  *   ghost    p3 drags Chie into Aiko's room and then into the Hall (its own token write): no action spent, no room
  *            found for her, and she is nobody in Aiko's room (`othersInRoom`);
  *   board    the end-of-day board on p3's browser holds the day's heading and the school's mood alone, and p1's keeps
@@ -98,11 +100,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const voice = await gm.eval(`const u = game.users.get("${p3User}"), own = (u._source ?? u).permissions ?? {};
             const S = ${imp("gm-stores.mjs")}, r = S.trialMuteStore.get(u.id);
             return { perm: own.BROADCAST_AUDIO ?? null, row: r ? { had: r.had, value: r.value, wrote: r.wrote } : null };`);
-        const tile = await p3.eval(`const V = ${imp("voice.mjs")};
-            return V.micHold({ room: "drpg-somewhere", external: false, connected: true, canBroadcastAudio: true });`);
-        check("voice: the primary blocks p3's microphone by the trial's row, and p3's tile names it held",
-            voice?.perm === false && voice.row?.wrote === true && voice.row.had === true && voice.row.value === true
-            && tile?.reason === "spectator" && tile.held === true, JSON.stringify({ voice, tile }));
+        const tile = await p3.eval(`const V = ${imp("voice.mjs")}, { SPECTATOR_ROOM } = ${imp("voice-client.mjs")};
+            return V.micHold({ room: SPECTATOR_ROOM, external: false, connected: true, canBroadcastAudio: true });`);
+        check("voice: a Spectator talks in the Spectators' room by default (owner-116): the primary leaves p3's microphone as found, and p3's tile names the Spectators' room's open",
+            voice?.perm === true && !voice.row?.wrote && tile?.reason === "spectatorTalk" && tile.held === false, JSON.stringify({ voice, tile }));
 
         phase("map");
         await settle(800);
@@ -147,8 +148,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         await canary.worldScan({ who: ["p1"], ids: [IDS.botan] });
 
         phase("talk");
-        /* The switch in the voice tile (E92 round 3): on p3's tile, after its microphone and speaker; on p1's none. A press
-           writes p3's own User flag and the primary sends p3 to the Spectators' room; a second press takes it back. */
+        /* The switch in the voice tile (E92 round 3): on p3's tile, after its microphone and speaker; on p1's none. Since
+           owner-116 p3 starts in the Spectators' room (pressed); a press writes p3's own listen flag and the primary takes
+           p3 to listen where its token stands, its microphone blocked by the trial's row; a second press takes it back. */
         /* The harness draws a tile only on a browser with its LiveKit shim (lib/livekit.mjs, as 75 installs it); both
            browsers read are given one and put back in the finally. */
         const voiceOn = c => c.eval(`if (typeof globalThis.__liveKit?.install !== "function") return false;
@@ -167,15 +169,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const talkOn = await tileOf(p3);
         const there = await gm.eval(`const { SPECTATOR_ROOM } = ${imp("voice-client.mjs")};
             const u = game.users.get("${p3User}");
-            return { flag: u.getFlag("danganronpa-rpg", "spectatorTalk") ?? null, room: SPECTATOR_ROOM };`);
+            const S = ${imp("gm-stores.mjs")}, r = S.trialMuteStore.get(u.id), own = (u._source ?? u).permissions ?? {};
+            return { flag: u.getFlag("danganronpa-rpg", "spectatorListenHere") ?? null, room: SPECTATOR_ROOM, perm: own.BROADCAST_AUDIO ?? null, wrote: r?.wrote ?? null };`);
         await press();
         await settle(2000);
         const talkBack = await tileOf(p3);
-        const flagBack = await gm.eval(`return game.users.get("${p3User}").getFlag("danganronpa-rpg", "spectatorTalk") ?? null;`);
-        check("talk: p3's tile holds the switch after its speaker and p1's none; a press turns it on, a second takes it off, the label following",
-            talkOff?.button?.pressed === "false" && talkOff.button.after === true && talkP1?.tile === true && talkP1.button === null
-            && there?.flag === true && talkOn?.button?.pressed === "true" && talkOn.button.label !== talkOff.button.label
-            && talkBack?.button?.pressed === "false" && flagBack === null,
+        const flagBack = await gm.eval(`const u = game.users.get("${p3User}"), own = (u._source ?? u).permissions ?? {};
+            return { flag: u.getFlag("danganronpa-rpg", "spectatorListenHere") ?? null, perm: own.BROADCAST_AUDIO ?? null };`);
+        check("talk: p3's tile holds the switch after its speaker, pressed (the Spectators' room, owner-116), and p1's none; a press sets the listen flag and the primary blocks p3's microphone, a second takes it off and gives it back, the label following",
+            talkOff?.button?.pressed === "true" && talkOff.button.after === true && talkP1?.tile === true && talkP1.button === null
+            && there?.flag === true && there.perm === false && there.wrote === true && talkOn?.button?.pressed === "false" && talkOn.button.label !== talkOff.button.label
+            && talkBack?.button?.pressed === "true" && flagBack?.flag === null && flagBack.perm === true,
             JSON.stringify({ shims, talkOff, talkP1, there, talkOn, talkBack, flagBack }));
 
         phase("ghost");
@@ -320,7 +324,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             if (mm) await MM.setMastermind(game.actors.get(mm)); else await MM.clearMastermind();
             const perm = ${JSON.stringify(before?.perm ?? [false, null])};
             await u.update({ "permissions.BROADCAST_AUDIO": perm[0] ? perm[1] : forcedDeletion() });
-            if (u.getFlag("danganronpa-rpg", "spectatorTalk") !== undefined) await u.unsetFlag("danganronpa-rpg", "spectatorTalk");
+            for (const f of ["spectatorTalk", "spectatorListenHere"]) if (u.getFlag("danganronpa-rpg", f) !== undefined) await u.unsetFlag("danganronpa-rpg", f);
             return true;`, { timeout: 60000 });
         await settle(1500);
     }

@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.115. If a later version and a handbook ever disagree,
+They describe version 1.2.116. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -298,7 +298,10 @@ microphone is off, a body nobody has found yet among them, and every browser
 holds that list while the trial runs. <!-- leak:TR30 --> A killer behind a "?"
 after a murder's opening keeps their token's actor, so a player's browser
 console can still tell whose token it is; the interface does not.
-<!-- leak:foundry-masked-token-actor --> It is a curtain, not a
+<!-- leak:foundry-masked-token-actor --> While that opening waits, the
+killer's tokens are hidden and marked as veiled on every browser, so a console
+can tell which tokens they are and whose. <!-- leak:foundry-veiled-token-actor -->
+It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The

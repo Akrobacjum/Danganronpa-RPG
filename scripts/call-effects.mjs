@@ -81,6 +81,18 @@ async function tell(actor, key, data = null) {
  */
 let shielded = 0;
 
+/*
+ * A ROLL THAT GOES WITH NOTHING BUT TAKES THE CALLS (E112 item 3, 15.11.2026; the owner: "loaded die nie zuzywa sie na
+ * otwarcie morderstwa", and to the coordinator's question whether the other Calls should reach it, "Inne tez"). A murder's
+ * opening is thrown with `remember: false` - it is not bookmarked as an action's roll - and the shield that raised hid
+ * every Call from it: the window showed none, the packet named none, the GM loaded and spent nothing (tier 2 "E112 - an
+ * armed Loaded Die ...", red on e9f4a791: faces 3 and 5, `used.loaded` false, the die still armed, on the drawn road and
+ * on the GM's own). The opening is the murder's own roll, so it raises no shield: the killer's armed Calls apply to it as
+ * to any action roll, the hindering ones too (the owner's confirmation through the coordinator, 15.11.2026), and are
+ * spent on it. Every other `remember: false` roll - a Palm's unseen roll, a concealment - is shielded as before.
+ */
+export const TAKES_CALLS = Object.freeze(new Set(["murderOpening"]));
+
 export function shieldCalls() { shielded += 1; }
 export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
 
@@ -120,7 +132,8 @@ export function clearSituational() { situational = 0; }
 /**
  * THE ROLL'S OWN DIE, WHICH THE SHIELD LEAVES ALONE (E32+E07 fix r2-G1, 03.10.2026; the
  * round-2 correctness review's M1). A murder's opening roll is thrown as a supporting
- * roll (`remember: false`, murder-rules.mjs `throwOpeningRoll`), so no Call is spent on it -
+ * roll (`remember: false`, murder-rules.mjs `throwOpeningRoll`), so no Call was spent on it (until E112,
+ * `TAKES_CALLS`) -
  * and its Night die, the killer's advantage and a trap's victim's disadvantage, was
  * armed as the action's (`armSituational`), where the same shield hid it: every
  * opening at Night rolled flat, measured at d9ee6e9 and read so in the oldest commit

@@ -6963,7 +6963,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        witness, then read what a console reads: Aiko's tokens' name, picture and the module's flags on them, and every
        packet of the module's socket that reached them while the mask went up. None may name Aiko by her name or her actor
        id. What does: a token document keeps its actorId (Foundry's limit, known leak foundry-masked-token-actor). p2's
-       console's reveal is refused. Put back: the mask, p1's microphone. */
+       console's reveal is refused. Put back: the mask, p1's microphone. The "?" picture is mask-gm.mjs's MASK_IMG, read
+       from the module (E112 drew its own "?" in 1.2.116, icons/mask-unknown.svg, where Foundry's mystery man stood; this
+       check held the old path by name and went red in the 1.2.116 assembly, CI 43810162456 on 88ed05b3). */
     phase("the killer behind a \"?\", read from a console", { flow: "mask" });
     const killerName = await gm.eval(`return game.actors.get("${ids.aiko}").name;`);
     const startListen = `globalThis.__maskPackets = []; game.socket.on("${SOCKET}", p => globalThis.__maskPackets.push(JSON.stringify(p))); return true;`;
@@ -6972,7 +6974,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const maskWas = await gm.eval(`const perms = foundry.utils.deepClone(game.users.get("${p1.userId}")._source.permissions ?? {});
         const K = await import("${repoUrl}/scripts/mask-gm.mjs");
         const done = await K.maskKiller({ active: true, stage: "incident", killerId: "${ids.aiko}", victimId: "${ids.botan}", indirect: false });
-        return { perms, done };`, { timeout: 30000 });
+        return { perms, done, img: K.MASK_IMG };`, { timeout: 30000 });
     await settle(1200);
     const consoleView = `const tokens = game.scenes.contents.flatMap(s => s.tokens.filter(t => t.actorId === "${ids.aiko}"));
         return { tokens: tokens.map(t => ({ name: t.name, src: t.texture?.src ?? null, flags: JSON.stringify(t.flags?.["${MOD}"] ?? {}) })),
@@ -7001,9 +7003,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         for (const m of game.messages.filter(m => m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000 && m.content?.includes("?"))) await m.delete();
         return true;`, { timeout: 30000 });
     await settle(800);
-    check("SECURITY: behind the \"?\" a victim's and a witness's console read Aiko's tokens as \"?\" with the mystery man, and neither her name nor her id in the tokens' name, picture, the module's flags on them or any packet that reached them; p2's console's reveal is refused",
+    check("SECURITY: behind the \"?\" a victim's and a witness's console read Aiko's tokens as \"?\" with the mask's \"?\" picture, and neither her name nor her id in the tokens' name, picture, the module's flags on them or any packet that reached them; p2's console's reveal is refused",
         maskWas?.done === true && ["p2", "p3"].every(k => maskView[k]?.tokens?.length > 0
-            && maskView[k].tokens.every(t => t.name === "?" && t.src === "icons/svg/mystery-man.svg") && !named(maskView[k]))
+            && maskView[k].tokens.every(t => t.name === "?" && typeof maskWas?.img === "string" && t.src === maskWas.img) && !named(maskView[k]))
             && maskView.revealTheirs.unchanged && maskView.revealTheirs.forOwnership,
         JSON.stringify({ maskWas, p2: maskView.p2, p3: maskView.p3, revealTheirs: maskView.revealTheirs }).slice(0, 3000), { flow: "mask" });
     /* The known leak, a Foundry limit: the token document keeps its actor, so a console resolves the "?" to the killer. */

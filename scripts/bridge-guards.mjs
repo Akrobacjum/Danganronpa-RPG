@@ -331,6 +331,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that stash has been gone through already this time of day$/],
     // E93 C3: a GM's room action anyone used, or a project's this character used, this time of day.
     ["alreadyDone", /^that room action has been used already this time of day$/],
+    // P2: a project's action used by its character today, under a "day" limit.
+    ["alreadyDone", /^that room action has been used already today$/],
     // E17 C3: "Refund last crossing" (movement.mjs `refundLastCrossing`), a GM's ask of the primary.
     ["nothingToUndo", /^the GMs hold no crossing of that character to give back$/],
     ["alreadyDone", /^that crossing was given back already$/],

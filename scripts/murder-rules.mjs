@@ -83,7 +83,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } fro
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, hiddenByGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
@@ -545,6 +545,13 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
         refuseSecondIncident(murderState());
         return null;
     }
+    /* THE OPENING'S VEIL GOES UP HERE (E112, mask-gm.mjs `settleVeils`): awaited before anything is said or asked, so the
+       killer's tokens are hidden before the opening's first card, and its one line comes before the invitation's. */
+    try {
+        await (await import("./mask-gm.mjs")).settleVeils();
+    } catch (err) {
+        error("Could not put up the opening's veil", err);
+    }
     /* THE CLOCK A BYSTANDER KEEPS (E17 C7, 26.10.2026; audit S10-07). A bystander's HUD freezes the clock at the open
        (hud-elapsed.mjs `clockForDisplay`) from the page's own copy, which a reload loses: the HUD showed the hour the incident
        had moved to. The clock as it stands now is written on the clock (`clockAtOpen`, clock.mjs `frozenClockOf`) -
@@ -772,6 +779,13 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     if (!await writeState(patch, { expect: opening })) {
         if (masks) await endMask(state.killerId, "lost");
         return null;
+    }
+    /* THE VEIL COMES OFF AFTER THE "?" GOES ON (E112, mask-gm.mjs `settleVeils`): the mask was written above, the stage
+       is written, and only now are the killer's tokens shown again - so no browser draws the real face for a frame. */
+    try {
+        await (await import("./mask-gm.mjs")).settleVeils();
+    } catch (err) {
+        error("Could not lift the opening's veil", err);
     }
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
@@ -3268,8 +3282,8 @@ async function maybeThirdParty(tokenDoc) {
     if (isSpectator(actor)) return;      // nor is a Spectator, who watches (E92 C1)
     if (isDeadForGm(actor)) return;
     // A token the GM has hidden is not in the scene as far as the fiction is
-    // concerned - the same rule `othersInRoom` applies.
-    if (tokenDoc.hidden) return;
+    // concerned - the same rule `othersInRoom` applies; a veiled killer (E112) is no newcomer, and `hiddenByGm` says so.
+    if (hiddenByGm(tokenDoc)) return;
 
     if (!await inIncidentRoom(tokenDoc, state)) return;
 
@@ -3555,6 +3569,13 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
         return null;
     }
     log(`Murder closed (${reason}).`);
+    // The opening's veil lifted with the incident (E112, mask-gm.mjs `settleVeils`): awaited here, so a close's
+    // caller finds every token as the veil found it. The write's own hook settles as well, on the primary.
+    try {
+        await (await import("./mask-gm.mjs")).settleVeils();
+    } catch (err) {
+        error("Could not lift the opening's veil", err);
+    }
 
     /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The
        suite's invariant grid (tests-grid.mjs, I4) counts closes with it: a betrayal that
@@ -4449,8 +4470,10 @@ let openingPickOpen = false;
  * whose roll the GM throws.
  *
  * Resolve is no exception here: the opening is a supporting roll (`remember: false`), which
- * every Call is shielded from (call-effects.mjs `shieldCalls`), so an armed Resolve buys no
- * picker on it - read off the code, 02.10.2026 - and the GM picks whatever is armed.
+ * every Call was shielded from (call-effects.mjs `shieldCalls`), so an armed Resolve bought no picker on it - read off
+ * the code, 02.10.2026. Since E112 the opening takes the killer's Calls (`TAKES_CALLS`; the owner, "Inne tez"), and a
+ * Resolve armed when the GM has not picked yet buys its picker: no GM window, the first listed statistic sent unlocked,
+ * and the GM's draw takes the statistic the window threw (roll-draw.mjs `TRAIT_SOURCES`' `resolve` row).
  * Null when there is to be no roll: a GM closed the window - the tracker's "Ask for the
  * opening roll again" opens it once more - or the opening is no longer wanted by the time
  * they picked.
@@ -4466,7 +4489,7 @@ async function openingTraitFor(side, actor, state, { tell, proposal = null }) {
     const proposing = await openingProposalFor(side, proposal);
     try {
         if (tell) await tellOpeningRoller(side, state, { proposed: Boolean(proposing.proposed) });
-        ruled = await traitFor(actor, spec, { resolveArmed: () => false, ...proposing });
+        ruled = await traitFor(actor, spec, proposing);
     } finally {
         openingPickOpen = false;
     }
@@ -4603,7 +4626,9 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
     const def = MURDER_OPENING[side];
     const actor = game.actors.get(actorId);
     if (!def || !actor) return null;
-    const { listedTraits } = await import("./trait-ruling.mjs");
+    const { listedTraits, resolveArmed } = await import("./trait-ruling.mjs");
+    // A Resolve armed on the roller buys its picker (E112): the window's statistic is theirs, not locked as the GM's.
+    const byGm = !resolveArmed(actor);
     if (!listedTraits({ kind: "opening", key: side }).includes(trait)) {
         warn(`An opening roll was asked without a statistic its side lists (${trait ?? "none"}); nothing was rolled.`);
         return null;
@@ -4642,7 +4667,7 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
             if (!openingStillWanted(side, actorId)) break;
             roll = await rollTrait(actor, trait, {
                 remember: false,
-                byGm: true,
+                byGm,
                 situational,
                 // A watch's hindrance die (E74, DA44), named in the window, its cause not (`rollOpening`).
                 hindrance: hindrance > 0 ? 1 : 0,

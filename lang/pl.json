@@ -322,6 +322,10 @@
         "name": "Statystyki graczy bez zatwierdzania",
         "hint": "Statystykę, którą gracz proponuje do Search albo projektu, moduł zatwierdza bez twojego kliknięcia. Resolve i tak nikogo nie pyta."
       },
+      "balanceLog": {
+        "name": "Dziennik balansu zapisuje rzuty",
+        "hint": "Gdy włączone, każdy rzut akcji, który losujesz za gracza, jest zapisywany do pytań o balans; żadna liczba się nie zmienia. Odczytasz go w konsoli przez game.drpg.balanceReport()."
+      },
       "friskForce": {
         "name": "Frisk: zmuszanie po odmowie",
         "hint": "Po wyłączeniu jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy."
@@ -528,7 +532,11 @@
       "reveal": "Ujawnij się",
       "stay": "Zostań w ukryciu",
       "card": "Jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, także po końcu incydentu. Wcześniej możesz się ujawnić przyciskiem „Ujawnij się” na swoim kafelku głosu.",
-      "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy."
+      "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "tokenFailed": "Nie udało się nałożyć maski na token postaci {name}: inni gracze mogą widzieć jej prawdziwy obrazek. Konsola mówi dlaczego."
+    },
+    "Veil": {
+      "card": "Do twojego rzutu otwarcia inni gracze nie widzą twoich tokenów, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy."
     },
     "Listen": {
       "prompt": "Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?",
@@ -2154,6 +2162,7 @@
         "facilityUntilTooltip": "Jak długo trwa efekt czasowy; efekt działający od razu pomija to pole",
         "facilityTextTooltip": "Słowa, które wysyła efekt Tekst GM-a, albo nazwa, którą dostaje efekt Experience",
         "facilityLifetimeTooltip": "Na stałe albo na tyle pór dnia lub dni, ile ustawisz obok",
+        "facilityLimitTooltip": "Jak często każda postać może użyć tej akcji: bez limitu, raz o każdej porze dnia albo raz dziennie",
         "facilityRemoveTooltip": "Od razu zabiera temu projektowi akcję w pokoju",
         "diceLookTooltip": "Pokazuje, jak wyglądają kości w tej przeglądarce i czemu gdzie indziej mogą wyglądać inaczej",
         "acceptBribeTooltip": "Przyjmuje ich Hope do sakiewki, jeśli nadal go mają, a twój Hope ma miejsce",
@@ -2205,7 +2214,9 @@
         "bodyFoundTooltip": "Otwiera okno odkrycia; ogłoszenie ściąga wszystkich do wybranego pokoju i odtwarza dźwięk odkrycia",
         "realizationPreviewTooltip": "Pokazuje, gdzie stanęłyby zaplanowane Key Remnanty; nic nie staje, dopóki nie uruchomisz tam realizacji",
         "placeFinalNowTooltip": "Stawia Final Truth Remnant w wybranym pokoju, tak jak zrobiłby to Zapisz",
-        "keepForLaterTooltip": "Twoje słowa zostają, a na mapie nic nie staje; Zapisz postawi go później"
+        "keepForLaterTooltip": "Twoje słowa zostają, a na mapie nic nie staje; Zapisz postawi go później",
+        "allOpenTooltip": "Włączone: każdy węzeł pokazuje swoje pola. Wyłączone: węzeł pokazuje skrót, dopóki go nie klikniesz.",
+        "foldedListTooltip": "Rozwija listę: zaznacz, z czego wynika ten węzeł albo co obala."
       },
       "Sweep": {
         "Actions": {
@@ -4154,7 +4165,7 @@
         },
         "tail": {
           "label": "Tail Someone",
-          "hint": "Idź za kimś z tego pokoju i dowiaduj się, dokąd przechodzi, dopóki dotrzymujesz mu kroku. Przy słabym rzucie Shadow cel dowie się, kto go śledzi."
+          "hint": "Idź za kimś z tego pokoju i dowiaduj się, dokąd przechodzi, dopóki dotrzymujesz mu kroku, także w trakcie Eclipse, aż do końca dnia. W trakcie Eclipse śledzenia nie zaczniesz. Przy słabym rzucie Shadow cel dowie się, kto go śledzi."
         },
         "shut": {
           "label": "Shut the Door",
@@ -4166,7 +4177,7 @@
         },
         "pick": {
           "label": "Pick the Lock",
-          "hint": "Rzuć Shadow, a potem Hand przy zamkniętych albo zapieczętowanych drzwiach z tego pokoju; barykady tak nie otworzysz. Otwarte drzwi wpuszczają tylko ciebie, dopóki nie wyjdziesz z pokoju za nimi."
+          "hint": "Rzuć Shadow, a potem Hand przy zamkniętych albo zapieczętowanych drzwiach z tego pokoju; barykady tak nie otworzysz. Otwarte drzwi wpuszczają tylko ciebie, dopóki nie wyjdziesz z pokoju za nimi. Gdy już przejdziesz, zostają dla ciebie otwarte także w trakcie Eclipse; jeśli nie przejdziesz przed jego początkiem, zamkną się znowu."
         },
         "keepWatch": {
           "label": "Keep Watch",
@@ -4203,6 +4214,13 @@
       "traceNote": "Akcja w pokoju: {action}",
       "shieldTook": "Ochrona przed Despair postaci {name} zabrała punkt tego rzutu: nie przybyło Despair.",
       "closed": "Ktoś już tego użył o tej porze dnia.",
+      "usedTimeOfDay": "Ta postać już tego użyła o tej porze dnia.",
+      "usedDay": "Ta postać już tego dziś użyła.",
+      "limitLine": {
+        "none": "bez limitu",
+        "timeOfDay": "raz na postać o każdej porze dnia",
+        "day": "raz na postać każdego dnia"
+      },
       "noActions": "Za mało akcji.",
       "shut": {
         "lockdown": "Lockdown: żadnych akcji w pokojach o tej porze dnia.",
@@ -4228,7 +4246,7 @@
         "roomIntro": "Akcje w pokoju {room}. Każda to rzut i kosztuje akcję; po użyciu jest zamknięta dla wszystkich do następnej pory dnia. Wiersz bez nazwy znika.",
         "roomNote": "Zapis od razu zmienia akcje pokoju. Widzi je tylko postać stojąca w pokoju.",
         "projectTitle": "Akcja w pokoju: {project}",
-        "projectIntro": "Co daje {project} po ukończeniu: akcję w pokoju, bez rzutu, raz na postać na porę dnia.",
+        "projectIntro": "Co daje {project} po ukończeniu: akcję w pokoju, bez rzutu, tak często, jak pozwalają jej Użycia.",
         "projectNote": "Czas działania liczony w porach dnia albo dniach biegnie od pory dnia, w której ukończono projekt, a taka akcja znika przy zmianie rozdziału lub sezonu. Akcja na stałe nie kończy się z rozdziałem.",
         "label": "Nazwa",
         "labelPlaceholder": "Zaparz herbatę",
@@ -4243,6 +4261,12 @@
         "costsAction": "Kosztuje akcję",
         "lifetime": "Czas działania",
         "lifetimeN": "Ile",
+        "limit": "Użycia",
+        "limits": {
+          "none": "Bez limitu",
+          "timeOfDay": "Raz o każdej porze dnia",
+          "day": "Raz dziennie"
+        },
         "life": {
           "forever": "Na stałe",
           "timesOfDay": "Pory dnia",
@@ -4504,7 +4528,7 @@
       "marked": "{name} jest teraz Widzem.",
       "unmarked": "{name} nie jest już Widzem.",
       "talk": "Porozmawiaj z Widzami",
-      "talkBack": "Wróć do swojego pokoju",
+      "talkBack": "Słuchaj w swoim pokoju",
       "noChat": "Widz nie ma czatu."
     },
     "Class": {
@@ -6315,6 +6339,7 @@
         "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
         "masked": "Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.",
+        "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
@@ -7585,7 +7610,7 @@
         },
         "listen": {
           "label": "Infiltrate",
-          "hint": "Listen przy ścianie, Echoes, Tail Someone, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Keep Watch. Każde kosztuje akcję.",
+          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door albo Pick the Lock. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "thresholds": {
             "0": {
@@ -8942,6 +8967,7 @@
         "lockpicks": "Kto może wejść do którego pokoju przez zamek otwarty wytrychem",
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
+        "veils": "Który zabójca jest ukryty i wyciszony do rzutu otwarcia i czy każdy jego token był ukryty już wcześniej",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole",
         "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",
@@ -8966,6 +8992,8 @@
         "closingClaim": "Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów",
         "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz",
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
+        "facilityUses": "Użycia akcji w pokoju: która postać użyła akcji którego projektu i kiedy",
+        "balanceLog": "Dziennik balansu: każdy rzut, który GM-owie losowali, gdy był włączony, i notatki GM-ów",
         "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
       },
       "copy": {
@@ -9240,7 +9268,9 @@
         "move": "Mapa sprawy nie przesunęła węzła.",
         "remove": "Mapa sprawy nie usunęła węzła.",
         "place": "Mapa sprawy nie umieściła zaplanowanego Remnantu."
-      }
+      },
+      "allOpen": "Wszystkie otwarte",
+      "chosenOf": "Zaznaczone: {n} z {of}"
     },
     "CaseRealize": {
       "preview": "Podejrzyj realizację",

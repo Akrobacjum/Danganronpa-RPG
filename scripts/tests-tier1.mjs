@@ -7731,6 +7731,38 @@ const INVARIANTS = [
             "a clean snapshot reads as holding a secret - the killer's id in another module's flags, or as the document's own id");
     }],
 
+    ["R7560 - a setting that names every actor alike lets their ids stand as its keys only while every row is alike (scripts/world-secrets.mjs `uniformActorRows`, `findWorldSecrets`; E40, 15.11.2026, the line claude/e39-40-116): diceLookWorld's rows for every actor, the watched one among them, read clean; a row for the watched actor alone, one actor without a row, a watched row unlike the others, a stamp that is not a number, the watched id in a value and the same rows in a setting the rule does not name are found", async () => {
+        /*
+         * The coordinator's decision (a) of 15.11.2026 on a finding red on main at e9f4a791: after a GM's reload 18-trial's
+         * scans flagged dice-sync.mjs's world copy, a row for every actor alike (WORLD_SECRET_RULES's note). Both
+         * directions on a snapshot of three actors, the third watched, as findWorldSecrets reads one: what the rule lets
+         * stand, and what it must stop letting stand. Every setting the rule names needs a case here.
+         */
+        const W = await import("./world-secrets.mjs");
+        const [A, B, K] = ["R7560ACTORA00000", "R7560ACTORB00000", "R7560KILLER00000"];
+        const row = { look: null, roles: null };
+        const look = (e, t) => ({ e, t, d: {}, cleared: 0, w: 1 });
+        const all = (v = row) => ({ [A]: v, [B]: v, [K]: v });
+        const snap = settings => ({ settings, actors: [A, B, K].map(id => ({ id, flags: {} })) });
+        const hits = settings => W.findWorldSecrets(snap(settings), { ids: [K] }).filter(h => h.kind === "id");
+        const CASES = [
+            ["every actor alike", { diceLookWorld: look(all(), { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 0],
+            ["every actor alike, the watched one's stamp its own", { diceLookWorld: look(all(), { [A]: 0.5, [B]: 0.5, [K]: 1794779275171 }) }, 0],
+            ["a row for the watched actor alone", { diceLookWorld: look({ [K]: row }, { [K]: 0.5 }) }, 2],
+            ["one actor without a row", { diceLookWorld: look({ [B]: row, [K]: row }, { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 2],
+            ["the watched actor's row unlike the others", { diceLookWorld: look({ ...all(), [K]: { look: "R7560 a look", roles: null } }, { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 2],
+            ["a stamp that is not a number", { diceLookWorld: look(all(), { [A]: 0.5, [B]: 0.5, [K]: "0.5" }) }, 2],
+            ["the watched id in a value of rows alike", { diceLookWorld: { ...look(all(), { [A]: 0.5, [B]: 0.5, [K]: 0.5 }), d: { last: K } } }, 1],
+            ["the same rows in a setting the rule does not name", { R7560Other: look(all(), { [A]: 0.5, [B]: 0.5, [K]: 0.5 }) }, 2]
+        ];
+        const wrong = CASES.map(([what, settings, want]) => [what, hits(settings), want])
+            .filter(([, found, want]) => found.length !== want).map(([what, found, want]) => `${what}: ${found.length} found, ${want} wanted (${JSON.stringify(found)})`);
+        ok(!wrong.length, `the rows alike were read otherwise than the rule says: ${wrong.join("; ")}`);
+        const named = new Set(CASES.flatMap(([, settings]) => Object.keys(settings)));
+        const unfixtured = Object.keys(W.WORLD_SECRET_RULES.uniformActorRows ?? {}).filter(key => !named.has(key));
+        ok(Object.keys(W.WORLD_SECRET_RULES.uniformActorRows ?? {}).length > 0 && !unfixtured.length,
+            `a setting of uniformActorRows has no case here, or the rule names none: ${unfixtured.join(", ")}`);
+    }],
     ["R193 - a death is the table's only once it is published", async () => {
         /*
          * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the
@@ -27550,7 +27582,8 @@ const INVARIANTS = [
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         // 28 of C5 and its reviews, and 14 of E102 C12 that R6353 holds (14.11.2026; the sheet's Bribe Accept and the lair's lock after E54)
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2, "lang/en.json has not the family's 28 keys and C12's 14 under DRPG.Tips.Setup");
+        // + 1 since P2 (15.11.2026): facilityLimitTooltip.
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2 + 1, "lang/en.json has not the family's 28 keys, C12's 14 and P2's 1 under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27572,6 +27605,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Case.closeNodeTooltip","case-map.mjs","nodeEditHtml"],
             ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
             ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
+            // owner-116 (15.11.2026): the toolbar's "All open" switch
+            ["DRPG.Tips.Case.allOpenTooltip","case-map.mjs","caseToolsHtml"],
             ["DRPG.Tips.Case.notNowTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
@@ -27610,6 +27645,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Gm.whatThePlayerIsTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Gm.howHardTheOriginalTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.giveFromPlanTooltip","investigation.mjs","schemaEditor"],
+            // owner-116 (15.11.2026): a node's folded "Rests on" or "Refutes" list
+            ["DRPG.Tips.Case.foldedListTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.removeFromTheCaseTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.roomPlannedFinalTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip","investigation.mjs","schemaEditor"],
@@ -27721,6 +27758,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Setup.facilityUntilTooltip","facility-editor.mjs","effectFields"],
             ["DRPG.Tips.Setup.facilityTextTooltip","facility-editor.mjs","effectFields"],
             ["DRPG.Tips.Setup.facilityLifetimeTooltip","facility-editor.mjs","projectFacilityBody"],
+            // P2 (15.11.2026): the project action's Uses select.
+            ["DRPG.Tips.Setup.facilityLimitTooltip","facility-editor.mjs","projectFacilityBody"],
             ["DRPG.Tips.Setup.facilityRemoveTooltip","facility-editor.mjs","editProjectFacility"],
             ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"],
             ["DRPG.Tips.Setup.acceptBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
@@ -58080,13 +58119,17 @@ const INVARIANTS = [
         const accounts = { watcher: spectatorAccount(user, { actors: [watcher, kuma] }), mixed: spectatorAccount(user, { actors: [watcher, student] }),
             none: spectatorAccount(user, { actors: [kuma] }), gm: spectatorAccount({ id: "R3853gm", isGM: true }, { actors: [watcher] }),
             held: spectatorAccount(user, { actors: [forged], held: () => e92Char("R3853-forged") }) };
-        const gmView = moduleHoldsMic(user, { actors: [watcher], eclipse: false, trial: false, dead: () => false });
+        // since owner-116 (15.11.2026) an account with no flag talks in the Spectators' room ("spectatorTalk"), and one with
+        // its listen flag set is the held Spectator ("spectator") this test read before
+        const listening = { ...user, getFlag: (scope, key) => (scope === MODULE_ID && key === "spectatorListenHere" ? true : undefined) };
+        const gmView = [moduleHoldsMic(user, { actors: [watcher], eclipse: false, trial: false, dead: () => false }),
+            moduleHoldsMic(listening, { actors: [e92Char("R3853-watch2", { spectator: true }, user.id)], eclipse: false, trial: false, dead: () => false })];
         const src = new Map(await otherSources());
         const settle = stripComments(fnSource(stripComments(src.get("voice.mjs") ?? ""), "settleTrialVoices"));
         equal(stableJson({ daily: at([watcher]), trial: at([watcher], trial), student: at([student]), accounts, gmView,
             settle: /spectatorAccount\(user, \{ held: flagsHeldNow \}\)/.test(settle) }),
             stableJson({ daily: { reason: "spectator", held: true }, trial: { reason: "spectator", held: true }, student: null,
-                accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: { reason: "spectator", held: true }, settle: true }),
+                accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: [{ reason: "spectatorTalk", held: true }, { reason: "spectator", held: true }], settle: true }),
             "[micHold for the Spectator's account in Daily Life and the trial; a student's account; spectatorAccount; the GMs' view; the settle blocks it as the GMs hold the flag]");
     }],
     ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it (it moves by dragging its own token; the bridge action `spectator.move` went in E92 round 3, R3863)", async () => {
@@ -58170,10 +58213,12 @@ const INVARIANTS = [
          */
         const V = await import("./voice.mjs");
         const { SPECTATOR_ROOM } = await import("./voice-client.mjs");
-        const { SPECTATOR_TALK_FLAG } = await import("./spectator.mjs");
+        const { SPECTATOR_LISTEN_FLAG } = await import("./spectator.mjs");
         const VT = await import("./voice-tile.mjs");
+        // since owner-116 (15.11.2026) the switch is the listen flag, the Spectators' room the default: "on" (talking) is
+        // the flag absent, "off" the flag set; the readings are the same
         const account = (id, talk) => ({ id, name: id, isGM: false, active: true,
-            getFlag: (scope, key) => (scope === MODULE_ID && key === SPECTATOR_TALK_FLAG ? talk : undefined) });
+            getFlag: (scope, key) => (scope === MODULE_ID && key === SPECTATOR_LISTEN_FLAG && !talk ? true : undefined) });
         const place = async (talk) => {
             const watch = account("R3860watch", talk), pupil = account("R3860pupil", true);
             const watcher = e92Char("R3860-watcher", { spectator: true }, watch.id), student = e92Char("R3860-student", {}, pupil.id);
@@ -58195,6 +58240,40 @@ const INVARIANTS = [
                 micThere: { reason: "spectatorTalk", held: false }, micHere: { reason: "spectator", held: true },
                 on2: [game.i18n.localize("DRPG.Spectator.talkBack"), "true"], off2: [game.i18n.localize("DRPG.Spectator.talk"), "false"] }),
             "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the tile's switch]");
+    }],
+    ["R7522 - a Spectator talks in the Spectators' room by default (owner-116, 15.11.2026; the owner: \"Spectatorzy - niech ich pokój voice chat będzie globalny (graczy dalej per room)\"): voice.mjs `placeVoices` sends a Spectator's account with no flag to voice-client.mjs `SPECTATOR_ROOM`, from anywhere on the map; its own \"listen where my token stands\" flag (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`) keeps it in its token's room; the old switch (`spectatorTalk`, E92 C6) moves nothing either way; a student's account stays in its room with either flag; in an Eclipse nobody is moved; the tile's button reads the default as in the Spectators' room", async () => {
+        /*
+         * owner-116, 15.11.2026. Stand-in accounts and characters, as R3860's; the room each stands in is handed. The old
+         * flag read as nothing: a stored `spectatorTalk: true` meant the Spectators' room, the default now, and its absence
+         * meant the token's room, which the owner's change makes the Spectators' room - so neither value is read. Red at
+         * 25e2d34e: the Spectator with no flag in its token's room, and no SPECTATOR_LISTEN_FLAG.
+         */
+        const V = await import("./voice.mjs");
+        const { SPECTATOR_ROOM } = await import("./voice-client.mjs");
+        const S = await import("./spectator.mjs");
+        must(typeof S.SPECTATOR_LISTEN_FLAG === "string" && typeof S.talksWithSpectators === "function", "spectator.mjs has no SPECTATOR_LISTEN_FLAG or talksWithSpectators");
+        const account = (id, flags) => ({ id, name: id, isGM: false, active: true, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const LISTEN = S.SPECTATOR_LISTEN_FLAG, OLD = "spectatorTalk";
+        const place = async (flags, { eclipse = false, student = false } = {}) => {
+            const watch = account("R7522watch", flags);
+            const who = e92Char("R7522-who", student ? {} : { spectator: true }, watch.id);
+            const out = await V.placeVoices({ actors: [who], users: [watch], userOf: () => watch, dead: () => false, eclipse,
+                monokumaOf: () => false, death: { cast: new Set() }, locate: () => ({ scene: { id: "R7522scene", name: "R7522" }, room: "Gym" }) });
+            return out.byUser.get(watch.id)?.target ?? null;
+        };
+        const gym = V.liveKitRoomFor("R7522scene", "Gym");
+        const reads = {
+            spectator: [await place({}), await place({ [LISTEN]: true }), await place({ [OLD]: true }), await place({ [OLD]: true, [LISTEN]: true }), await place({ [OLD]: false })],
+            student: [await place({}, { student: true }), await place({ [LISTEN]: true }, { student: true }), await place({ [OLD]: true }, { student: true })],
+            eclipse: (await place({}, { eclipse: true })) === SPECTATOR_ROOM,
+            tile: [S.talksWithSpectators(account("a", {})), S.talksWithSpectators(account("b", { [LISTEN]: true })), S.talksWithSpectators(account("c", { [OLD]: true }))]
+        };
+        equal(stableJson(reads), stableJson({
+            spectator: [SPECTATOR_ROOM, gym, SPECTATOR_ROOM, gym, SPECTATOR_ROOM],
+            student: [gym, gym, gym],
+            eclipse: false,
+            tile: [true, false, true]
+        }), "{a Spectator: no flag, listening, the old switch on, both, the old switch false; a student: none, listening, the old switch; a Spectator with no flag in an Eclipse in the Spectators' room; the tile's reading: none, listening, the old switch}");
     }],
     ["R3861 - what a Spectator sees of E61, E62 and E94 (E92 C7; the owner's 08.11 amend: \"E92 checks what a Spectator sees at the trial entry and cut-in, the day boards and phase transitions\"): the start-of-day board's cast, monokuma.mjs `studentActors`, leaves a Spectator out, as it leaves an NPC; and the trial's entry, the verdict's cut-in, the day's board and every transition play on every browser that hears them - none of sequence.mjs `playTrialEntry`, `playVerdictCut`, `playDayStart` or transitions.mjs asks who the viewer is, so a Spectator's browser plays them as a player's does", async () => {
         /*
@@ -58429,9 +58508,10 @@ const INVARIANTS = [
                 { kind: "health", n: FACILITIES.effects.health.amount, scope: "present" },
                 { kind: "searchToken", n: 2, scope: "self" }, { kind: "hope", n: 1, scope: "self" }, { kind: "sanity", n: 2, scope: "self" }] },
             noLabel: null, newId: true, dcLow: FACILITIES.dc.min, dcNaN: FACILITIES.defaultDc, many: FACILITIES.maxActions,
-            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime } },
-            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" } },
-            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" } }
+            // P2 (15.11.2026): every cleaned project action carries its use limit, the default where none is named.
+            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime }, limit: "timeOfDay" },
+            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" }, limit: "timeOfDay" },
+            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" }, limit: "timeOfDay" }
         }), "{action: a GM's action cleaned; noLabel; newId; dcLow, dcNaN; many: twelve with ten ids, cut to maxActions; facility: a project's; facilityDefaults; facilityOff} - what a GM typed must be held to FACILITIES' closed list");
     }],
     ["R3751 - a completed project's action lives for its lifetime, counted in times of day from the one it was completed in (scripts/facilities.mjs `facilityOrdinal`, `facilityLive`, `facilityTimesLeft`, `facilityMark`; E93 C1, the owner's audit entry E93 (4)): forever stands, timesOfDay n the time of day of completion and the n - 1 after it, days n for n days of them; none outlives its chapter or its season; the mark of a use is the season, chapter, session, day and time of day, not the phase", async () => {
@@ -58458,7 +58538,7 @@ const INVARIANTS = [
             none: [false, true], left: [2, 1, 0, null, n], mark: [true, true, true, true, true, true]
         }), "{ordinal; two: timesOfDay 2 before, at, after, past; day: days 1 at the last and the first past; ever; chapter: a new chapter, a new season; none: no action, no stamp; left; mark: the phase not in it, then each of season, chapter, session, day, time of day} - a project's action must live its lifetime and no longer");
     }],
-    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and not backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
+    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and, since P2 (15.11.2026), backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
         const S = await import("./gm-stores.mjs");
         const F = await import("./facilities.mjs");
         const { COMPLETION_EFFECTS } = await import("./projects.mjs");
@@ -58478,7 +58558,7 @@ const INVARIANTS = [
             keys: [F.gmActionKey("S1", "Kitchen", "a1"), F.projectActionKey("P1", "A1")]
         };
         equal(stableJson(read), stableJson({
-            store: ["ledger", "actions", true, false], setting: "world", row: [false, true, "completedAt", true],
+            store: ["ledger", "actions", true, true], setting: "world", row: [false, true, "completedAt", true],
             cost: [FACILITIES.gmCost, FACILITIES.gmCost + 1, FACILITIES.projectCost, 0, 1],
             shut: [null, "lockdown", "lockdown", null, "powercut"], keys: ["g:S1:Kitchen:a1", "p:P1:A1"]
         }), "{store: [kind, reset group, synced, backed up]; setting: the closed keys' scope; row: [no action, an action, the crossed patch, the uncrossed stamp null]; cost; shut; keys} - a room action's uses, its closing, its price and its shutting");
@@ -58538,7 +58618,8 @@ const INVARIANTS = [
         equal(stableJson({ ...read, project: read.project && { ...read.project, effects: read.project.effects.map(e => [e.kind, e.n, e.scope]) } }), stableJson({
             tab: "DRPG.Vault.tabFacilities", label: "Facilities", column: true, buttons: true, counts: true, rows: 3,
             room: [["R3754a", "Tea", "head", 14, [["sanity", 2, "present", ""]]], [null, "Radio", "eye", 12, [["text", 1, "self", "A song plays."]]], [null, "", "eye", 12, []]],
-            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 } }
+            // P2: the editor reads back its Uses select, the default for an action that names none.
+            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 }, limit: "timeOfDay" }
         }), `{tab; label; column, buttons, counts on the Facilities tab; rows; room: what the room's editor reads back; project: the project's} - Room Setup's Facilities tab and the two editors (window: ${Boolean(cfg)})`);
     }],
     ["R3755 - the Listen tile is the Infiltrate tile and its rows are one table (scripts/config.mjs `INFILTRATE`, `ACTIONS.listen`; E69 C1, DA27, DA28, DA48, DB40): the key stays `listen`, the label is Infiltrate in English and in Polish, the hint names all seven rows (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, Keep Watch) in both languages, `variants` lists `INFILTRATE`'s rows in order, Tail Someone's unseen roll is on Shadow at 15, and Dash rolls on Leg for 0, 2, 3 or 4 free crossings by band (the owner's of 13.11.2026)", async () => {
@@ -58563,7 +58644,8 @@ const INVARIANTS = [
             dash: I.dash ? [I.dash.traits, I.dash.bands?.map(b => [b.min, b.moves]), I.dash.critical?.moves] : null,
             inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
         };
-        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
             // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
             rows: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
             "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
@@ -58592,7 +58674,8 @@ const INVARIANTS = [
             stableJson({ rows: [...new Set(rows.map(r => stableJson([C.ACTIONS.listen.variants.join(), true, true, true])))].map(JSON.parse),
                 // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
                 // E69 C7 (13.11.2026) adds Echoes, second (an intended change).
-                variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], asksFirst: true }),
+                // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
+                variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"], asksFirst: true }),
             "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
     }],
     ["R6020 - Listen's eavesdrop is one more rule of the voice decision (scripts/voice.mjs `listeningRow`, `placeVoices`' `listens`; E69 C6, the owner's 10.11 (a)): an account whose character stands in the room it listens from is sent into the voice channel of the room it listens at, marked listening; one in another room, in no room or with no eavesdrop is placed as before; with no eavesdrop handed in nobody moves", async () => {
@@ -58798,7 +58881,7 @@ const INVARIANTS = [
         ok(at.kind >= 0 && at.seen >= 0 && at.under > at.kind && at.under < at.seen,
             `paint puts a trace under the characters after the character's way out and before the visibility check (${stableJson(at)})`);
     }],
-    ["R7402 - a masked token's ring shows the \"?\" too, and gets its own picture back (scripts/mask-gm.mjs `maskPatch`, `lookOf`, `restorePatch`; owner-115 item 1b): the patch writes the mystery man as the dynamic ring's subject texture (v14's `ring.subject.texture`, fvtt-types 14.370 client/documents/token.d.mts RingSubjectSchema); the look kept holds the subject's own texture, and the patch back writes it", async () => {
+    ["R7402 - a masked token's ring shows the \"?\" too, and gets its own picture back (scripts/mask-gm.mjs `maskPatch`, `lookOf`, `restorePatch`; owner-115 item 1b; E112 item 2a): the patch writes the mask's picture as the dynamic ring's subject texture (v14's `ring.subject.texture`, fvtt-types 14.370 client/documents/token.d.mts RingSubjectSchema); the look kept holds the subject's own texture, and the patch back writes it", async () => {
         /* owner-115 item 1b, 14.11.2026; the coordinator's road (a): a v14 token with the dynamic ring on may draw its subject
            texture, which the mask did not touch, so the killer's art could stay on the ring. Pure readings. */
         const K = await import("./mask-gm.mjs");
@@ -58807,7 +58890,8 @@ const INVARIANTS = [
         const read = { patch: K.maskPatch()["ring.subject.texture"] ?? "none", kept: look.subject ?? "none",
             back: K.restorePatch(look, "GONE")["ring.subject.texture"] ?? "none",
             none: (patch => (Object.hasOwn(patch, "ring.subject.texture") ? patch["ring.subject.texture"] : "none"))(K.restorePatch(K.lookOf({ _source: { name: "B", texture: { src: "b.webp" } } }), "GONE")) };
-        equal(stableJson(read), stableJson({ patch: "icons/svg/mystery-man.svg", kept: "tokens/aiko-subject.webp", back: "tokens/aiko-subject.webp", none: null }),
+        // E112 item 2a (15.11.2026): the module's own "?" in place of Foundry's mystery man; changed on purpose.
+        equal(stableJson(read), stableJson({ patch: `modules/${MODULE_ID}/icons/mask-unknown.svg`, kept: "tokens/aiko-subject.webp", back: "tokens/aiko-subject.webp", none: null }),
             "{the patch's subject texture; the look's; the patch back's; a token with no subject gets null back}");
     }],
     ["R7403 - while a mask stands, every private card's words name the masked character \"?\" to a reader outside it (scripts/secret.mjs `wordsFor`, `setNameMask`, `maskNames`; scripts/mask-gm.mjs `namesHiddenFrom`, `registerMasks`; owner-115 item 1b): a reader whose names are hidden reads \"?\" in the text and in attributes, a longer name that starts the same is left alone, and another reader reads the name; the names hidden from a player are the masked tokens' characters they do not own, none from a GM; the masks register the cut at ready", async () => {
@@ -58870,7 +58954,8 @@ const INVARIANTS = [
         };
         equal(stableJson(read), stableJson({
             // owner-115 item 1b (R7402): the ring's subject texture is masked too and put back; changed on purpose.
-            patch: { name: "?", "texture.src": "icons/svg/mystery-man.svg", "ring.enabled": false, "ring.subject.texture": "icons/svg/mystery-man.svg", displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
+            // E112 item 2a (15.11.2026): the module's own "?" in place of Foundry's mystery man; changed on purpose.
+            patch: { name: "?", "texture.src": `modules/${MODULE_ID}/icons/mask-unknown.svg`, "ring.enabled": false, "ring.subject.texture": `modules/${MODULE_ID}/icons/mask-unknown.svg`, displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
             look: { name: "Aiko Mori", src: "tokens/aiko.webp", ring: true, displayName: 30, displayBars: 20, subject: null },
             back: { name: "Aiko Mori", "texture.src": "tokens/aiko.webp", "ring.subject.texture": null, "ring.enabled": true, displayName: 30, displayBars: 20, [`flags.${MODULE_ID}.masked`]: "GONE" },
             flag: [true, false, false], namesNobody: true
@@ -58901,6 +58986,121 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ hold: ["masked", true, "gmBlock"], gm: "masked", settle: true,
             closed: [true, false, false, false, false], words: [true, true] }),
             "{hold: [masked: reason, held; not masked]; gm; settle blocks a masked account; closed: [another player, the owner, a GM, a Spectator, no mask]; words}");
+    }],
+    ["R7405 - the opening's veil hides a direct murder's killers while the opening waits, mutes them and shows them to their own side (scripts/mask-gm.mjs `veilWanted`, `veilPatch`, `unveilPatch`; voice.mjs `micHold`, `moduleHoldsMic`, `settleTrialVoices`; visibility.mjs `tokenShownTo`; murder-rules.mjs `resolveKillerOpening`; E112): a direct opening veils its killer and a third on the killers' side, a trap, a self-inflicted death and any other stage none; the patch sets `hidden` and the one flag, the unveil writes the token's own `hidden` back; the killer's own `micHold` and a GM's `moduleHoldsMic` hold a veiled account, reason veiled, and the settle blocks it; a veiled token shows to its owner and the killers' side and hides from everyone else, a GM left to Foundry; the mask goes on before the stage and the veil comes off after it; the words in English and Polish", async () => {
+        /* E112, 15.11.2026. Plain facts and source; nothing written. Red on e9f4a791: mask-gm.mjs has no `veilWanted`. */
+        needs(env.primaryGm(), "a GM's `moduleHoldsMic` answers on a GM's browser alone");
+        const K = await import("./mask-gm.mjs");
+        const V = await import("./voice.mjs");
+        const { tokenShownTo } = await import("./visibility.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const settle = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText), "settleTrialVoices") ?? "");
+        const open = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText), "resolveKillerOpening") ?? "");
+        // The sweeps a GM gone or reloaded mid opening is answered by: the primary settles at its ready, when a GM leaves, and on every write of the incident.
+        const register = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText), "registerMasks") ?? "");
+        const wanted = typeof K.veilWanted === "function" ? K.veilWanted : () => "none";
+        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", indirect: false, selfInflicted: false };
+        const user = { id: "R7405USER0000000", name: "R7405", isGM: false, active: true };
+        const hold = veiled => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial: null, listening: null, masked: false, veiled });
+        const doc = { actorId: "K", actor: { type: "character" }, flags: { [MODULE_ID]: { veiled: true } } };
+        const viewer = (owns, side = [], extra = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false,
+            killersSide: new Set(side), owns: () => owns, ...extra });
+        const at = (from, to) => [open.indexOf(from), open.indexOf(to)];
+        const [maskAt, stageAt] = at("maskKiller(state)", "writeState(patch");
+        const veilAt = open.indexOf("settleVeils()");
+        const read = {
+            wanted: [wanted(base), wanted({ ...base, thirdId: "T", thirdSide: "killer" }), wanted({ ...base, thirdId: "T", thirdSide: "victim" }),
+                wanted({ ...base, indirect: true }), wanted({ ...base, selfInflicted: true, victimId: "K" }), wanted({ ...base, stage: "incident" }), wanted(null)],
+            patch: typeof K.veilPatch === "function" ? [K.veilPatch(), K.unveilPatch(false), K.unveilPatch(true, "GONE")] : null,
+            hold: [hold(true)?.reason ?? null, hold(true)?.held ?? null, hold(false)?.reason ?? null],
+            gm: V.moduleHoldsMic(user, { actors: [], eclipse: false, trial: false, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set([user.id]) })?.reason ?? null,
+            settle: settle.includes("veilMutedIds()"),
+            shown: [tokenShownTo(doc, viewer(true)), tokenShownTo(doc, viewer(false)), tokenShownTo(doc, viewer(false, ["K"])),
+                tokenShownTo(doc, viewer(false, [], { gm: true })), tokenShownTo(doc, viewer(false, ["K"], { eclipse: true }))],
+            order: maskAt > 0 && stageAt > maskAt && veilAt > stageAt,
+            sweeps: [/Hooks\.once\("ready",\s*settle\)/.test(register), /Hooks\.on\("userConnected"[^]*?settle\(\)/.test(register), register.includes("SETTINGS.murderState")],
+            words: [game.i18n.has("DRPG.Veil.card"), typeof pl?.DRPG?.Veil?.card === "string", game.i18n.has("DRPG.Voice.held.veiled"), typeof pl?.DRPG?.Voice?.held?.veiled === "string"]
+        };
+        const flag = `flags.${MODULE_ID}.veiled`;
+        equal(stableJson(read), stableJson({
+            wanted: [["K"], ["K", "T"], ["K"], [], [], [], []],
+            patch: [{ hidden: true, [flag]: true }, { hidden: false, [flag]: false }, { hidden: true, [flag]: "GONE" }],
+            hold: ["veiled", true, "gmBlock"], gm: "veiled", settle: true,
+            shown: ["show", "hide", "show", null, "hide"], order: true, sweeps: [true, true, true], words: [true, true, true, true] }),
+            "{wanted: [direct, a third on the killers' side, on the victim's, a trap, self-inflicted, another stage, none]; patch: [veil, unveil, unveil a hidden one]; hold; gm; settle; shown: [owner, stranger, the killers' side, a GM, the killers' side in an Eclipse]; order: mask, stage, veil; sweeps: [at ready, a GM leaving, the incident's writes]; words}");
+    }],
+    ["R7406 - the mask wears the module's own question mark, on the map and on the portrait (scripts/mask-gm.mjs `MASK_IMG`, `maskPatch`, `portraitOf`, `portraitBack`, `maskKiller`, `endMask`; icons/mask-unknown.svg; E112 item 2): the mask's picture is the module's icons/mask-unknown.svg, served and drawn crisp, the token's texture and its ring's subject; the portrait kept is the actor's own picture and its prototype token's, and given back as they were; the killer's portrait is masked after the tokens and given back at the end", async () => {
+        /* E112 item 2, 15.11.2026. Pure readings, one fetch and source; nothing written. Red on e9f4a791: MASK_IMG is
+           Foundry's mystery man and mask-gm.mjs has no `portraitOf`. */
+        const K = await import("./mask-gm.mjs");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText);
+        const mask = stripComments(fnSource(src, "maskKiller") ?? "");
+        const end = stripComments(fnSource(src, "endMask") ?? "");
+        const svg = await fetch(`/modules/${MODULE_ID}/icons/mask-unknown.svg`).then(r => (r.ok ? lfText(r) : "")).catch(() => "");
+        const actor = { _source: { img: "portraits/aiko.webp", prototypeToken: { texture: { src: "tokens/aiko.webp" } } } };
+        const portrait = typeof K.portraitOf === "function" ? K.portraitOf(actor) : null;
+        const read = {
+            img: K.MASK_IMG,
+            served: [/^<svg[^>]*shape-rendering="crispEdges"/.test(svg), (svg.match(/<path /g) ?? []).length >= 3],
+            patch: [K.maskPatch()["texture.src"] === K.MASK_IMG, K.maskPatch()["ring.subject.texture"] === K.MASK_IMG],
+            portrait,
+            back: typeof K.portraitBack === "function" ? K.portraitBack(portrait) : null,
+            none: typeof K.portraitOf === "function" ? K.portraitOf({ _source: {} }) : null,
+            order: mask.indexOf("maskPatch()") > 0 && mask.indexOf("img: MASK_IMG") > mask.indexOf("maskPatch()"),
+            given: end.includes("portraitBack(row.portrait)")
+        };
+        equal(stableJson(read), stableJson({ img: `modules/${MODULE_ID}/icons/mask-unknown.svg`, served: [true, true], patch: [true, true],
+            portrait: { img: "portraits/aiko.webp", proto: "tokens/aiko.webp" }, back: { img: "portraits/aiko.webp", "prototypeToken.texture.src": "tokens/aiko.webp" },
+            none: { img: null, proto: null }, order: true, given: true }),
+            "{the mask's picture; the file served crisp, with its paths; the token and its ring wear it; the portrait kept; given back; none kept; masked after the tokens; given back at the end}");
+    }],
+    ["R7407 - a token this browser hides shows no Isometric Perspective silhouette either (scripts/visibility.mjs `silhouetteLayer`, `silhouettesToHide`, `hideSilhouettes`; E112, the owner's answer to Q4): on a stand-in stage holding Isometric Perspective 14.0.6's layer (OcclusionContainer > OcclusionTokens, a sprite on a token's mesh texture at its position), the silhouette of a token not visible here is hidden, a visible one's and a sprite matching no token are left, a stage with no such layer hides nothing, and a GM's browser hides nothing", async () => {
+        /* E112, 15.11.2026. A stand-in stage and stand-in tokens (the harness draws no canvas); nothing written. Red on
+           e9f4a791: visibility.mjs has no `hideSilhouettes`. */
+        const V = await import("./visibility.mjs");
+        must(typeof V.hideSilhouettes === "function", "visibility.mjs has no `hideSilhouettes` - the silhouettes are not looked at");
+        const tex = name => ({ name });
+        const token = (name, visible, x, y) => ({ visible, mesh: { texture: tex(name), position: { x, y } } });
+        const hidden = token("hidden", false, 100, 200), shown = token("shown", true, 300, 200), elsewhere = token("moved", false, 500, 500);
+        const sprite = (t, x = t.mesh.position.x, y = t.mesh.position.y) => ({ texture: t.mesh.texture, position: { x, y }, visible: true });
+        const sprites = [sprite(hidden), sprite(shown), sprite(elsewhere, 1, 1), { texture: tex("none"), position: { x: 0, y: 0 }, visible: true }];
+        const stage = { children: [{ name: "SomethingElse", children: [] }, { name: "OcclusionContainer", children: [{ name: "OcclusionTokens", children: sprites }] }] };
+        const n = V.hideSilhouettes({ stage, tokens: [hidden, shown, elsewhere], isGm: false });
+        const again = sprites.map(s => ({ ...s, visible: true }));
+        const gmN = V.hideSilhouettes({ stage: { children: [{ name: "OcclusionContainer", children: [{ name: "OcclusionTokens", children: again }] }] }, tokens: [hidden], isGm: true });
+        equal(stableJson([n, sprites.map(s => s.visible), V.hideSilhouettes({ stage: { children: [] }, tokens: [hidden], isGm: false }), gmN]),
+            stableJson([1, [false, true, true, true], 0, 0]),
+            "[how many hidden; each sprite's visibility: the hidden token's, the shown one's, one at another place, one matching no token; a stage with no layer; a GM's]");
+    }],
+    ["R7408 - an action that carries through an Eclipse says so in its hint, and says it as its rule is written (lang/*.json DRPG.Infiltrate.row.tail.hint, .pick.hint, .keepWatch.hint; tail-gm.mjs, lockpick-gm.mjs, action-rolls.mjs `performAction`; E112 item 5): Tail Someone's hint names the Eclipse, the day's end and that it cannot be begun in one, as a tail ends with the day and no action but Move and a Direct Murder is begun in an Eclipse; Pick the Lock's names the Eclipse and the door closing again, as an Eclipse's start ends a pass not yet used and keeps one used; Keep Watch's names the Eclipse; each in English and Polish", async () => {
+        /* E112 item 5, 15.11.2026; the owner: every action used before an Eclipse that keeps working through it says so,
+           as Keep Watch's hint does (the owner's example: Tail Someone did not). The hints and the rules they state, read
+           side by side, so neither can move alone. Source and the language files; nothing written. Red at 9cc67507: neither
+           Tail Someone's nor Pick the Lock's hint names the Eclipse. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const row = (lang, key) => String(lang?.DRPG?.Infiltrate?.row?.[key]?.hint ?? "");
+        const tailSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/tail-gm.mjs`).then(lfText), "registerTails") ?? "");
+        const pickSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/lockpick-gm.mjs`).then(lfText), "endPassesAtEclipseStart") ?? "");
+        const actSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText), "performAction") ?? "");
+        const now = await import("./allowed-now.mjs");
+        const inEclipse = { eclipse: () => true, trial: () => false, fighting: () => false, participant: () => false, betrayal: () => false };
+        const eclipseBegins = key => now.allowedNow(null, key, { facts: inEclipse }).why;
+        const read = {
+            /* The second reading asks the rule itself since E40 moved it out of performAction into allowed-now.mjs's
+               "action" road (the 1.2.116 assembly, 16.11.2026: the source pattern read the old line, which is gone): in an
+               Eclipse with no fight, trial or betrayal, Tail Someone is shut for the Eclipse, Move and a Direct Murder are not. */
+            tailRule: [/drpgTimeOfDayChanged[^]*endAllTails\("day"/.test(tailSrc), eclipseBegins("tail") === now.WHY.eclipse
+                && eclipseBegins("move") === null && eclipseBegins("directMurder") === null && /allowedNow\(/.test(actSrc)],
+            tailHint: [/through an Eclipse/.test(row(en, "tail")) && /until the day ends/.test(row(en, "tail")) && /cannot begin it during an Eclipse/.test(row(en, "tail")),
+                /w trakcie Eclipse/.test(row(pl, "tail")) && /do końca dnia/.test(row(pl, "tail")) && /W trakcie Eclipse śledzenia nie zaczniesz/.test(row(pl, "tail"))],
+            pickRule: /if \(row\?\.entered\) continue;/.test(pickSrc),
+            pickHint: [/through an Eclipse/.test(row(en, "pick")) && /closes again/.test(row(en, "pick")),
+                /w trakcie Eclipse/.test(row(pl, "pick")) && /zamkną się znowu/.test(row(pl, "pick"))],
+            watchHint: [/Eclipse/.test(row(en, "keepWatch")), /Eclipse/.test(row(pl, "keepWatch"))]
+        };
+        equal(stableJson(read), stableJson({ tailRule: [true, true], tailHint: [true, true], pickRule: true, pickHint: [true, true], watchHint: [true, true] }),
+            "{tailRule: [a tail ends with the day, nothing but Move and a Direct Murder begun in an Eclipse]; tailHint [EN, PL]; pickRule: a used pass outlasts an Eclipse's start; pickHint [EN, PL]; watchHint [EN, PL]}");
     }],
     ["R6030 - the mask is opened before the stage that sends the victim the cast, and taken back where the stage is lost (scripts/murder-rules.mjs `resolveKillerOpening`, `tellVictimTheIncidentBegan`; bridge-table.mjs `mask.reveal`; E69 C8): `maskKiller` is asked before the incident's stage is written and `endMask` where the write fails; the victim's first whisper of a masked killer is the line that names nobody; `mask.reveal` is a road owned by the sender's character, named in English and Polish, and the reveal's question has its words in both", async () => {
         /* E69 C8, 13.11.2026. Source and table read; nothing written. Red at f7e1721d. */
@@ -61899,6 +62099,204 @@ const INVARIANTS = [
             counts: /DRPG\.Investigation\.clearPlan\.slots/.test(open) && /DRPG\.Investigation\.clearPlan\.nodes/.test(open) && /DRPG\.Investigation\.clearPlan\.placed/.test(open)
         }), stableJson({ gm: true, drops: true, noTicks: true, button: true, runs: true, defaultChapter: true, destructive: true, counts: true }),
         "{a GM's only, dropped by tombstones on both stores, the ticks untouched, the button, its road, the clock's chapter picked, a destructive yes, the counts named}");
+    }],
+    ["R7540 - perf() prints what the table's own work cost, each line with its count (E53 C1, the plan's item 1): perf-timings.mjs keeps the last fifty of each name, takes p50 and p95 by the nearest rank and keeps no reading that is not a finite non-negative number; `costLines` gives each cost `n, p50, p95, slowest` or \"none since this browser loaded\", and says the audit is not measured off the primary GM; each cost is fed where its work runs (a ring rebuilt on both painters, the fog's repaint past the dissolve's queue, a live region's rebuild, the audit's judgement and its wait, a chat card's paint, the canvas between canvasTearDown and canvasReady with the trial hall told apart); the roll's round trip reads p50 and p95; the room tile, the notice history and the movement audit count their runs", async () => {
+        /*
+         * E53 C1, 15.11.2026. The plan's goal: perf() also measures the rings, the roll round trip (p50, p95), the cost of
+         * E29's audit on the primary GM, canvas.draw entering and leaving the trial room, the card render, the dashboard
+         * rebuild and the fog; the 11.10 amendment adds counters for the notice history, the room tile and `auditMove`.
+         * Red before C1: no perf-timings.mjs, no `costLines`, the trip line read "median" and "slowest" only.
+         * The numbers are never asserted (jsdom's clock): what is held is how a line is taken and that each cost is fed.
+         */
+        let T = null;
+        try { T = await import("./perf-timings.mjs"); } catch { T = null; }
+        must(T, "scripts/perf-timings.mjs does not load");
+        const D = await import("./diagnostics.mjs");
+        const name = "r7405.probe";
+        for (let i = 1; i <= 60; i++) T.sample(name, i);
+        T.sample(name, Number.NaN); T.sample(name, -1); T.sample(name, Infinity); T.sample(name, "x");
+        const five = "r7405.five";
+        for (const v of [5, 1, 4, 2, 3]) T.sample(five, v);
+        // A name fed only junk keeps nothing (mutant M5 of C1: with 1..60 a kept -1 left p50, p95 and the slowest as they were).
+        const junk = "r7405.junk";
+        for (const v of [-1, -0.5, Number.NaN, Infinity, "x"]) T.sample(junk, v);
+        equal(stableJson([T.KEPT, T.stats(name), T.stats(five), T.stats("r7405.never"), T.stats(junk)]),
+            stableJson([50, { n: 50, p50: 35, p95: 58, max: 60 }, { n: 5, p50: 3, p95: 5, max: 5 }, { n: 0 }, { n: 0 }]),
+            "perf-timings [kept | 1..60 after junk: the newest fifty, p50 and p95 by nearest rank | five readings | a name never fed | a name fed only junk]");
+
+        must(typeof D.costLines === "function", "diagnostics.mjs exports no costLines");
+        const fed = { "ownRing.rebuilt": { n: 3, p50: 1.234, p95: 2, max: 2 }, "audit.judged": { n: 1, p50: 7, p95: 7, max: 7 } };
+        const onPrimary = D.costLines({ read: n => fed[n] ?? { n: 0 }, primary: true });
+        const offPrimary = D.costLines({ read: n => fed[n] ?? { n: 0 }, primary: false });
+        const labelled = (lines, bit) => lines.find(l => l.includes(bit)) ?? null;
+        equal(stableJson([
+            onPrimary.length, offPrimary.length,
+            labelled(onPrimary, "a student's ring drawn again"),
+            labelled(onPrimary, "a Remnant's ring drawn again"),
+            labelled(onPrimary, "judged by the GMs' audit"),
+            labelled(onPrimary, "waiting for its judgement"),
+            labelled(offPrimary, "audit of a sheet write"),
+            ["the fog repainted", "the case dashboard rebuilt", "a chat card painted", "the canvas drawn, any scene",
+                "entering the trial hall", "leaving the trial hall"].map(bit => /none since this browser loaded$/.test(labelled(onPrimary, bit) ?? ""))
+        ]), stableJson([10, 9,
+            "  a student's ring drawn again: 3, p50    1.23 ms, p95       2 ms, slowest       2 ms",
+            "  a Remnant's ring drawn again: none since this browser loaded",
+            "  a sheet write judged by the GMs' audit: 1, p50       7 ms, p95       7 ms, slowest       7 ms",
+            "  a sheet write waiting for its judgement: none since this browser loaded",
+            "  the GMs' audit of a sheet write: not measured here - it runs on the primary GM's browser",
+            [true, true, true, true, true, true]
+        ]), "costLines [lines on the primary | off it | a fed ring | an unfed ring | the audit fed | its wait unfed | off the primary | the other six unfed]");
+
+        const src = new Map(await moduleSources());
+        const read = file => { const text = src.get(file); must(text, `${file} was not read`); return text; };
+        const diag = read("diagnostics.mjs");
+        const perf = fnSource(diag, "perfReport");
+        const canvasHooks = fnSource(diag, "registerCanvasTimings");
+        const paintOf = file => fnSource(read(file), "paint");
+        equal(stableJson({
+            perfReadsCosts: /costLines\(\)/.test(perf),
+            tripP50P95: /p50 \$\{/.test(perf) && /p95 \$\{/.test(perf) && !/median \$\{/.test(perf),
+            ownRing: /rebuiltAt = now\(\)/.test(paintOf("own-ring.mjs")) && /sample\("ownRing\.rebuilt"/.test(paintOf("own-ring.mjs")),
+            remnantRing: /rebuiltAt = now\(\)/.test(paintOf("remnant-ring.mjs")) && /sample\("remnantRing\.rebuilt"/.test(paintOf("remnant-ring.mjs")),
+            fogAfterQueue: /queueBehindDissolve\(\)\) return false;\s*startedAt = clockNow\(\);/.test(fnSource(read("fog.mjs"), "repaintFog"))
+                && /sample\("fog\.repaint"/.test(fnSource(read("fog.mjs"), "repaintFog")),
+            live: /sample\(`live\.\$\{region\}`/.test(fnSource(read("live.mjs"), "keepLive")),
+            audit: /sample\("audit\.waited", Date\.now\(\) - seen\.at\)/.test(fnSource(read("sheet-audit.mjs"), "judgeWrite"))
+                && /sample\("audit\.judged"/.test(fnSource(read("sheet-audit.mjs"), "judgeWrite")),
+            card: /sample\("chatCard\.paint"/.test(fnSource(read("private-rolls.mjs"), "paintChatCard")),
+            canvas: /Hooks\.on\("canvasTearDown"/.test(canvasHooks) && /Hooks\.on\("canvasReady"/.test(canvasHooks)
+                && /sample\("canvas\.draw\.trial"/.test(canvasHooks) && /sample\("canvas\.draw\.leaveTrial"/.test(canvasHooks),
+            registered: /safely\("the canvas's timing", registerCanvasTimings\)/.test(read("module.mjs")),
+            roomTile: /count\("roomTile\.paint"\)/.test(fnSource(read("room-tile.mjs"), "paintRoomTile")),
+            notices: /count\("noticeHistory\.record"\)/.test(read("notice-history.mjs")),
+            auditMove: /count\("movement\.auditMove"\)/.test(fnSource(read("movement-audit.mjs"), "auditMove"))
+        }), stableJson({ perfReadsCosts: true, tripP50P95: true, ownRing: true, remnantRing: true, fogAfterQueue: true, live: true,
+            audit: true, card: true, canvas: true, registered: true, roomTile: true, notices: true, auditMove: true }),
+            "each cost fed where its work runs, and perf() reads them");
+        // Only the test's own names are forgotten: a GM's runTests() at a table keeps the table's readings.
+        T.forget(name); T.forget(five); T.forget(junk);
+        equal(stableJson([T.stats(name).n, T.names().includes(five)]), stableJson([0, false]), "perf-timings forgets a name it was told to");
+    }],
+    ["R7541 - a project's name as one user may read it (E43's `projectLabel(id, user)`, E53 C4): projects-secrecy.mjs `labelFor` gives a public project's name to anyone, a secret one's GMs' name to a user who may see it and the countdown's neutral name to anyone else, and on a player's browser names no other user's secret project; `nameAs` asks it with the GMs' rule on a GM (`canSee`) and the user's own sight on a player's; `shownName` is `nameAs` for this browser's user, and projects.mjs `projectLabel` with a countdown id and a user answers `nameAs`", async () => {
+        /*
+         * E53 C4, 15.11.2026; E43's plan goal ("one helper projectLabel(id, user) is read by the tray, the token card,
+         * windows, chat and pickers"), which waited for S17-31 (docs/dev/e43/STATUS.md). Every list already reads
+         * `shownName` through `allProjects`; this holds the rule for any user, and the routing.
+         * Red before C4: no `labelFor` or `nameAs`; projectLabel of a string read `.current` of a string ("undefined").
+         */
+        const S = await import("./projects-secrecy.mjs");
+        const P = await import("./projects.mjs");
+        must(typeof S.labelFor === "function" && typeof S.nameAs === "function", "projects-secrecy.mjs has no labelFor or nameAs");
+        const L = facts => S.labelFor({ name: "???", secretName: "Poison the tea", ...facts });
+        equal(stableJson([
+            S.labelFor({ name: "Fix the door", secret: false, onGm: false, self: false }),
+            L({ secret: true, onGm: true, self: true, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: false }),
+            L({ secret: true, onGm: false, self: true, sees: true }),
+            L({ secret: true, onGm: false, self: true, sees: false }),
+            L({ secret: true, onGm: false, self: false, sees: true }),
+            L({ secret: true, onGm: true, self: false, sees: true, secretName: null })
+        ]), stableJson(["Fix the door", "Poison the tea", "Poison the tea", "???", "Poison the tea", "???", "???", "???"]),
+            "labelFor [public | GM itself | a GM asking for one who sees it | for one who does not | a player in on it | a player not | a player asked about another | no name held]");
+
+        const src = new Map(await moduleSources());
+        const sec = src.get("projects-secrecy.mjs"), proj = src.get("projects.mjs");
+        must(sec && proj, "projects-secrecy.mjs or projects.mjs was not read");
+        const nameAs = fnSource(sec, "nameAs"), shown = fnSource(sec, "shownName"), label = fnSource(proj, "projectLabel");
+        equal(stableJson({
+            shownIsNameAs: /return nameAs\(countdownId, game\.user, countdown\);/.test(shown),
+            gmRule: /onGm \? canSee\(countdownId, user\)/.test(nameAs),
+            ownSight: /self \? Boolean\(toldSight\(countdownId\)\?\.name\)/.test(nameAs),
+            gmName: /onGm \? secretsOf\(countdownId\)\.secretName/.test(nameAs),
+            labelById: /if \(typeof project === "string"\) return nameAs\(project, options\?\.id \? options : game\.user\);/.test(label)
+        }), stableJson({ shownIsNameAs: true, gmRule: true, ownSight: true, gmName: true, labelById: true }),
+            "the routing [shownName is nameAs for this user | the GMs' rule on a GM | the own sight on a player | the GMs' name on a GM | projectLabel by id]");
+        // A countdown id no project holds: the empty name, for this browser's user and for another alike.
+        const other = game.users.find(u => u.id !== game.user.id) ?? null;
+        equal(stableJson([P.projectLabel("R7541NOPROJECT00"), P.projectLabel("R7541NOPROJECT00", other)]), stableJson(["", ""]),
+            "projectLabel of an id no project holds [this user | another]");
+    }],
+    ["R7542 - the balance log counts what the dice should give exactly and reads its rows against it (E53 C3; Q-E53-3, the owner 15.11.2026: off by default, recording only): balance-log.mjs `exactCount` over the 144 throws of 2d12 gives E64's own counts (a first band at 11: 104, at 12: 94), a critical whatever the total, Hope and Fear 66 each and 12 criticals, and an advantage die's faces and sign; `balanceRowOf` keeps a drawn roll's action, statistic, dice, flat modifiers and advantage; `balanceLines` reads an action under 20 rolls as too few and one over against the exact count; the world switch is off by default, the store is backed up and in no reset group, and roll-draw.mjs keeps each drawn roll through `noteBalanceRoll` after its record", async () => {
+        /*
+         * E53 C3, 15.11.2026. Red before C3: no balance-log.mjs. Pure readings and the routing; the writes are tier 2's
+         * ("E53-T1 ...").
+         */
+        let B = null;
+        try { B = await import("./balance-log.mjs"); } catch { B = null; }
+        must(B, "scripts/balance-log.mjs does not load");
+        const at = t => B.exactCount({ threshold: t });
+        const adv = B.exactCount({ adv: { faces: 6, sign: 1 }, threshold: 14 });
+        const dis = B.exactCount({ adv: { faces: 6, sign: -1 }, threshold: 14 });
+        equal(stableJson([at(11), at(12).hit, at(25).hit, B.exactCount({}).hit, [adv.throws, adv.hit, dis.hit]]),
+            // The advantage pair counted apart, in Python, over the 864 throws (15.11.2026): 640 and 248.
+            stableJson([{ throws: 144, hit: 104, critical: 12, hope: 66, fear: 66 }, 94, 12, null, [864, 640, 248]]),
+            "exactCount [at 11 | hit at 12 | at 25: the criticals alone | no threshold | advantage and disadvantage d6 at 14]");
+
+        const row = B.balanceRowOf({ rollId: "x", actionKey: "search", trait: "eye", total: 19, hope: 7, fear: 5, modifiers: [2, 1],
+            dice: [{ faces: 12 }, { faces: 12 }, { faces: 6 }], isCritical: false, withHope: true, withFear: false, at: 5 },
+            { chapter: 2, day: 3, timeOfDay: "noon" });
+        equal(stableJson(row), stableJson({ kind: "roll", at: 5, chapter: 2, day: 3, timeOfDay: "noon", actionKey: "search", trait: "eye",
+            total: 19, hope: 7, fear: 5, flat: 3, adv: { faces: 6, sign: 1 }, critical: false, withHope: true, withFear: false }),
+            "balanceRowOf keeps a drawn roll's facts, the advantage die read off the total");
+
+        const few = Array.from({ length: 3 }, () => ({ kind: "roll", actionKey: "search", total: 20, flat: 0, adv: null, withHope: true }));
+        const many = Array.from({ length: 20 }, (_, i) => ({ kind: "roll", actionKey: "listen", total: i < 10 ? 30 : 2, flat: 0, adv: null,
+            critical: false, withHope: i % 2 === 0, withFear: i % 2 === 1 }));
+        const lines = B.balanceLines([...few, ...many, { kind: "note", text: "x" }]);
+        const t = B.thresholdOf("listen");
+        const want = B.exactCount({ threshold: t });
+        equal(stableJson([lines[0], lines.find(l => l.startsWith("  search:")),
+            lines.find(l => l.startsWith("  listen:"))?.includes(`landed 10 (50.0%) at ${t} or a critical, against ${(Math.round(want.hit / want.throws * 1000) / 10).toFixed(1)}% by the exact count`),
+            lines.find(l => l.startsWith("  listen:"))?.includes("Hope 10, Fear 10, critical 0 (exact count: 45.8%, 45.8%, 8.3%)"),
+            Number.isFinite(t)]), stableJson(["Rolls the GMs drew while the log was on: 23; notes: 1.",
+            "  search: 3 roll(s) - too few to read (fewer than 20)", true, true, true]),
+            "balanceLines [the head | an action under the floor | one over, its hits against the exact count | its Hope, Fear and critical | Listen has a first band]");
+
+        const src = new Map(await moduleSources());
+        const draw = src.get("roll-draw.mjs"), set = src.get("settings.mjs");
+        must(draw && set, "roll-draw.mjs or settings.mjs was not read");
+        const { balanceLogStore } = await import("./gm-stores.mjs");
+        equal(stableJson({
+            afterRecord: /drawnBy: game\.user\?\.id \?\? null\n {4}\}\);\n(?: {4}\/\/[^\n]*\n)? {4}await noteBalanceRoll\(rollStore\.get\(rollId\)\);/.test(draw),
+            offByDefault: /register\(MODULE_ID, SETTINGS\.balanceLog, \{[^}]*type: Boolean,\s*default: false/.test(set),
+            store: [balanceLogStore.spec.backup, balanceLogStore.spec.resetGroup ?? null, balanceLogStore.spec.sync]
+        }), stableJson({ afterRecord: true, offByDefault: true, store: [true, null, true] }),
+            "the routing [noteBalanceRoll right after the drawn roll's record | the switch off by default | the store backed up, in no reset group, synced]");
+    }],
+    ["R7543 - a project action's use limit (P2, the owner 15.11.2026: per character; no limit, once each time of day, once each day; none named reads once each time of day): config.mjs FACILITIES.limits and defaultLimit; facilities.mjs `cleanFacility` keeps a known limit and gives the default otherwise; `usedUp` never for \"none\", the same time of day for \"timeOfDay\", the same day at any time of day for \"day\", and a use of another day, chapter, session or season never; the GM's run judges a project's use by its limit and refuses \"today\" under \"day\", and the Facilities rows grey a used one by the same rule", async () => {
+        /*
+         * P2, 15.11.2026. Red before P2: no FACILITIES.limits, no `usedUp`, cleanFacility kept no limit. The use itself and
+         * the greyed row on a player's page are scenario 99's ("facility limits").
+         */
+        const { FACILITIES } = await import("./config.mjs");
+        const F = await import("./facilities.mjs");
+        must(typeof F.usedUp === "function" && Array.isArray(FACILITIES.limits), "no use limit: FACILITIES.limits or facilities.mjs usedUp is missing");
+        const clock = { seasonStartedAt: 5, chapter: 2, session: 3, day: 4, timeOfDay: "morning" };
+        const at = patch => F.facilityMark({ ...clock, ...patch });
+        const row = { mark: F.facilityMark(clock) };
+        const noon = { ...clock, timeOfDay: "noon" };
+        equal(stableJson([
+            [...FACILITIES.limits], FACILITIES.defaultLimit,
+            F.cleanFacility({ label: "x" }).limit, F.cleanFacility({ label: "x", limit: "day" }).limit, F.cleanFacility({ label: "x", limit: "weekly" }).limit,
+            ["none", "timeOfDay", "day"].map(l => F.usedUp(row, l, clock)),
+            ["none", "timeOfDay", "day"].map(l => F.usedUp(row, l, noon)),
+            [{ day: 5 }, { chapter: 3 }, { session: 4 }, { seasonStartedAt: 6 }].map(p => F.usedUp({ mark: at(p) }, "day", clock)),
+            [F.usedUp(null, "day", clock), F.usedUp({}, "timeOfDay", clock), F.usedUp(row, undefined, clock)]
+        ]), stableJson([["none", "timeOfDay", "day"], "timeOfDay", "timeOfDay", "day", "timeOfDay",
+            [false, true, true], [false, false, true], [false, false, false, false], [false, false, true]]),
+            "[the limits | the default | cleanFacility: none named, day, an unknown one | used now under each | at the next time of day | another day, chapter, session, season under day | no row, no mark, no limit named]");
+        const src = new Map(await moduleSources());
+        const run = fnSource(src.get("bridge-runs-acts.mjs") ?? "", "handleFacilityUse");
+        const rows = fnSource(src.get("action-facilities.mjs") ?? "", "facilityRows");
+        must(run && rows, "handleFacilityUse or facilityRows was not read");
+        equal(stableJson({
+            judged: /const limit = offer\.source === "project" \? offer\.facility\.limit \?\? "timeOfDay" : "timeOfDay";/.test(run) && /if \(usedUp\(facilityUseStore\.get\(offer\.key\), limit\)\)/.test(run),
+            today: /limit === "day" \? "that room action has been used already today"/.test(run),
+            told: /if \(offer\.source === "project"\) tellUsesOf\(actor\);/.test(run),
+            greyed: /usedUp\(useRowOf\(projectActionKey\(project\.id, actor\.id\)\), facility\.limit\)/.test(rows)
+        }), stableJson({ judged: true, today: true, told: true, greyed: true }),
+            "the routing [the GM judges by the project's limit | refuses 'today' under day | tells the owners their uses | the rows grey by the same rule]");
     }],
 ];
 

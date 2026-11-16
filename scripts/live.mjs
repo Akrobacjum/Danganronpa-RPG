@@ -50,6 +50,8 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { debug, error } from "./utils.mjs";
+// A rebuild in place is timed (E53 C1; perf-timings.mjs): `perf()`'s line for the case dashboard reads `live.<region>`.
+import { sample, now } from "./perf-timings.mjs";
 
 /**
  * The events that mean "something a window might be printing has changed".
@@ -160,6 +162,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             return;
         }
 
+        const startedAt = now();
         try {
             const carried = capture(element);
             const next = toElement(build());
@@ -190,6 +193,8 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
              * DOM.
              */
             Hooks.callAll("drpgWindowUpdated", next);
+            // From the capture through the dressing: what one rebuild of the region cost this browser.
+            sample(`live.${region}`, now() - startedAt);
         } catch (err) {
             // A region that cannot rebuild itself must not take the window down
             // with it, and must not keep trying every 120ms forever.

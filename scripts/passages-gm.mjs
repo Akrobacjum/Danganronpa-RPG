@@ -2093,11 +2093,12 @@ const floorKey = level => level?.id ?? level ?? null;
  * has found on that scene, from the discovery ledger and the room the GMs read it in.
  */
 async function liveShareWorld() {
-    const [{ isEclipse, isDeadForGm, isDeceased, incidentParticipants, discoveryLedger }, { inClassTrial }, { isMonocub },
-        { gmPlaceOf, passageRooms }] = await Promise.all([import("./settings.mjs"), import("./trial.mjs"), import("./monocub.mjs"), import("./movement.mjs")]);
+    const [{ isDeadForGm, isDeceased, incidentParticipants, discoveryLedger }, { allowedNow }, { isMonocub },
+        { gmPlaceOf, passageRooms }] = await Promise.all([import("./settings.mjs"), import("./allowed-now.mjs"), import("./monocub.mjs"), import("./movement.mjs")]);
     return {
         actor: id => game.actors?.get(id) ?? null,
-        locked: () => isEclipse() || inClassTrial(),
+        // The phase: allowed-now.mjs's `passageShare` road (E40 item 3) - an Eclipse or the Class Trial.
+        locked: () => !allowedNow(null, null, { road: "passageShare" }).ok,
         inIncident: actor => incidentParticipants().includes(actor.id),
         monocub: actor => isMonocub(actor),
         monokuma: actor => isMonokuma(actor),
@@ -2381,8 +2382,9 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
  */
 async function liveFindWorld() {
     const share = await liveShareWorld();
-    const { inClassTrial } = await import("./trial.mjs");
-    return { ...share, trial: () => inClassTrial() };
+    // The phase: allowed-now.mjs's `passageFind` road (E40 item 3) - the Class Trial.
+    const { allowedNow } = await import("./allowed-now.mjs");
+    return { ...share, trial: () => !allowedNow(null, null, { road: "passageFind" }).ok };
 }
 
 /**

@@ -133,7 +133,11 @@ export function projectFacilityBody(project, facility) {
             attrs: { "data-tooltip": tipText("DRPG.Tips.Sweep.Setup.facilityCostsActionTooltip") } })}</div>
         <div class="drpg-facility-line">
             ${select("p.life", FACILITIES.lifetimes.map(k => [k, t(`life.${k}`)]), life.kind, t("lifetime"), "DRPG.Tips.Setup.facilityLifetimeTooltip")}
-            ${stepper({ name: "p.n", value: life.n ?? 1, min: 1, max: FACILITIES.maxLifetime, compact: true, attrs: { "aria-label": t("lifetimeN") } })}
+            ${stepper({ name: "p.n", value: life.n ?? 1, min: 1, max: FACILITIES.maxLifetime, compact: true,
+                attrs: { "aria-label": t("lifetimeN"), "data-tooltip": tipText("DRPG.Tips.Setup.facilityLifetimeTooltip") } })}
+        </div>
+        <div class="drpg-facility-line">
+            ${select("p.limit", FACILITIES.limits.map(k => [k, t(`limits.${k}`)]), f.limit ?? FACILITIES.defaultLimit, t("limit"), "DRPG.Tips.Setup.facilityLimitTooltip")}
         </div>
         <p class="notes">${esc(t("projectNote"))}</p>
     </div>`;
@@ -145,7 +149,8 @@ export function readProjectFacility(form) {
     return {
         label: value("p.label"), effects: readEffects(form, "p"),
         costsAction: Boolean(form.querySelector('[name="p.costsAction"]')?.checked),
-        lifetime: { kind: value("p.life"), n: wholeNumber(value("p.n"), { fallback: 1 }) }
+        lifetime: { kind: value("p.life"), n: wholeNumber(value("p.n"), { fallback: 1 }) },
+        limit: value("p.limit")
     };
 }
 

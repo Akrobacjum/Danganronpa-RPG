@@ -1838,6 +1838,19 @@ async function glyphs() {
     return [...misses, ...problems, ...structure];
 }
 
+/* ------------------------------ budget ------------------------------ */
+
+/* E53 C2: audit/perf-baseline.json's budget held to every run a table measured; "not measured" line by line while
+   `runs` is empty, after the tool's planted cases (tools/perf-budget.mjs header). */
+async function budget() {
+    try {
+        const tool = await import(url.pathToFileURL(path.join(REPO, "tools", "perf-budget.mjs")).href);
+        return await tool.check(line => console.log(line));
+    } catch (err) {
+        return [`the budget could not be held (${String(err.message).split("\n")[0]})`];
+    }
+}
+
 /* ------------------------------ tooltips ------------------------------ */
 
 async function tooltips() {
@@ -1873,6 +1886,8 @@ PARTS.fonts = fontsPart;
 PARTS.rules = rulesParity;
 // E56 part 1: on its own line, for the same reason.
 PARTS.keys = keys;
+// E53 C2: the performance budget held to the table's runs (tools/perf-budget.mjs), on its own line as the others.
+PARTS.budget = budget;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);

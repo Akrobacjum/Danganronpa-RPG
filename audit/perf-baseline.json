@@ -52,6 +52,23 @@
         ],
         "headless": "a count and the marks' order are asserted headless (tier 2 \"perf() reports the round trip of a roll the GM drew\", 13-murder-signals); the milliseconds are the harness's and go nowhere",
         "liveRun": "LIVE-E33-05 at the owner's table: the first run from this body, a player's browser and the GM's each read"
+      },
+      {
+        "stage": "E53",
+        "version": "1.2.116",
+        "bodySha256": "fb46d56fe233df3b816aa8d0109f3965a89c421c41de1fde437bce6bc5a0e390",
+        "bodyIs": "the text from the line `export async function perfReport(` through its closing `}` and that line's newline: diagnostics.mjs:1745-1919 at E53 C1 (175 lines; 166 at E33 C13). `version` is the stage's planned one in tools/stages.json; the release that carries it writes the shipped one here if it differs",
+        "change": "the lines measured before are measured by the same code, with two changes: the roll's round trip reads p50 and p95 by the nearest rank beside the slowest, where it read the median (the lower middle reading, which p50 by the nearest rank also is) and the slowest; and one block appended, \"What the table's own work cost on this browser\" - ten lines (nine off the primary GM) from diagnostics.mjs `costLines`, each read off perf-timings.mjs, the last fifty durations of each cost kept where its work ran since the browser loaded, nothing made to happen for the report",
+        "measures": [
+          "ownRing.rebuilt, remnantRing.rebuilt: one token's ring drawn again (own-ring.mjs, remnant-ring.mjs `paint`, the rebuild branch only)",
+          "fog.repaint: one repaintFog() past the dissolve's queue, a stand-down included, with the doors' refresh",
+          "live..drpg-case-live: one rebuild in place of the case dashboard's region (live.mjs `keepLive`, from the capture through the dressing)",
+          "chatCard.paint: the module's paint of one card as the log renders it (private-rolls.mjs `paintChatCard`), not Foundry's render of the message",
+          "canvas.draw, canvas.draw.trial, canvas.draw.leaveTrial: canvasTearDown to canvasReady on a scene change, any scene, the linked trial hall, and the scene after it",
+          "audit.judged, audit.waited (the primary GM only): a sheet write's judgement, wall time with its own writes and the stores' waits, and its wait behind the writes before it on its student"
+        ],
+        "headless": "R7540 asserts how a line is taken (the nearest rank, fifty kept, junk readings dropped), the lines' text from stand-in readings and that each cost is fed where its work runs; the milliseconds are jsdom's and go nowhere",
+        "liveRun": "LIVE-E53-01: perf() and fps() on the GM's and the weakest player's browser, the largest map, both themes, after the table has changed scene into the trial hall and out, opened the case dashboard and seen a sheet write judged"
       }
     ]
   },
@@ -154,5 +171,116 @@
       ]
     }
   ],
-  "runs": []
+  "runs": [],
+  "budget": {
+    "about": "E53 C2 (15.11.2026; the plan's item 2): the most a measured reading may be, held by `node tools/check.mjs budget` (tools/perf-budget.mjs) against every run in `runs`, per theme, on the median of the run's repeats (perf-baseline.mjs `measure`). A line whose `blocks` is true fails the check over its budget; one whose `blocks` is false is printed as a warning and fails nothing. `max` null is no budget set: the line prints the reading and \"no budget set\". While `runs` is empty every line prints \"not measured\" and nothing is held. The plan put the budget in the root rules file, which this line may not edit (CLAUDE.md, held by the owner); it lives here, beside the readings it holds.",
+    "decision": "D27 (b): the frame time and the room switch block, at 1366x768 with the largest isometric map; the roll's round trip only warns. Every other line warns until the owner says otherwise. The thresholds are the owner's (Q1 of E53's first report, 15.11.2026): until given, each is null",
+    "lines": [
+      {
+        "key": "asIs",
+        "reads": "perf() \"As it stands\", ms a frame",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "sceneSwitch",
+        "reads": "perf-baseline.mjs `measure`: scene.view() to canvasReady onto the largest scene, the median of five",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "canvasTrialP95",
+        "reads": "perf() \"the canvas drawn entering the trial hall\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "canvasLeaveTrialP95",
+        "reads": "perf() \"the canvas drawn leaving the trial hall\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": true
+      },
+      {
+        "key": "drawnP95",
+        "reads": "perf() \"drawn for this browser, asked to dice shown\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "drewP95",
+        "reads": "perf() \"drawn here, packet in to answer out\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "pulseCost",
+        "reads": "perf() \"The pulse costs\"",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "blurCost",
+        "reads": "perf() \"The blur costs\"",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "windowOpen",
+        "reads": "perf() \"A window reaches the screen in\"",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "ownRingP95",
+        "reads": "perf() \"a student's ring drawn again\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "remnantRingP95",
+        "reads": "perf() \"a Remnant's ring drawn again\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "fogP95",
+        "reads": "perf() \"the fog repainted\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "dashboardP95",
+        "reads": "perf() \"the case dashboard rebuilt in place\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "chatCardP95",
+        "reads": "perf() \"a chat card painted\", p95",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      },
+      {
+        "key": "auditJudgedP95",
+        "reads": "perf() \"a sheet write judged by the GMs' audit\", p95 (the primary GM's browser)",
+        "max": null,
+        "unit": "ms",
+        "blocks": false
+      }
+    ]
+  }
 }

@@ -59,6 +59,8 @@ import { cleanCardHtml, cardMeta } from "./secret.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+// Each notice recorded counted (E53 C1, the 11.10 amendment A7; perf-counters.mjs).
+import { count } from "./perf-counters.mjs";
 
 const FORMAT = 1;
 
@@ -1171,7 +1173,7 @@ const engine = createNoticeEngine({
  * Keep one notice in this browser's history: the one road into it for E81's recorder (C3) and direct
  * calls (C4), and for E18, E50, E62 and E70 after it, which take this interface as it is.
  */
-export const recordNotice = entry => engine.record(entry);
+export const recordNotice = entry => { count("noticeHistory.record"); return engine.record(entry); };
 /** Move a kept notice: its state as its card closes, its snapshot while the card is on screen (popup.mjs, E81 C3). */
 export const updateNotice = (id, patch) => engine.update(id, patch);
 /** This login's notices, oldest first (the window, E81 C7). */

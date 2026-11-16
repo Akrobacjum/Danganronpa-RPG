@@ -44,7 +44,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf, listOf } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, isPrimaryGm, hiddenByGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf, listOf } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
     isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation, roomPhrase } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -3593,7 +3593,7 @@ function chosenPlace(places, sceneId) {
     if (places.length <= 1) return places[0] ?? null;
     const hinted = sceneId ? places.find(place => place.scene.id === sceneId) : null;
     if (hinted) return hinted;
-    const shown = places.filter(place => !place.tokenDoc.hidden);
+    const shown = places.filter(place => !hiddenByGm(place.tokenDoc));
     const pool = shown.length ? shown : places;
     if (pool.length === 1) return pool[0];
     const home = homeScene(), active = game.scenes?.active ?? null;
@@ -3685,7 +3685,8 @@ export function countsAsPresent(token) {
     // A Spectator watches and is nobody in the room (E92 C1): no witness, no target, nobody overheard, no company.
     if (actor.getFlag(MODULE_ID, FLAGS.spectator)) return false;
     if (isDeadForGm(actor)) return false;
-    return !doc.hidden;
+    // The opening's veil (E112) hides a killer from the other players, not from the room (utils.mjs `hiddenByGm`).
+    return !hiddenByGm(doc);
 }
 
 /**

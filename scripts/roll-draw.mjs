@@ -67,6 +67,8 @@ import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 import { box, roleButton, tipText } from "./ui-kit.mjs";
+// The balance log (E53 C3): a drawn roll kept while the world switch is on.
+import { noteBalanceRoll } from "./balance-log.mjs";
 
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
@@ -1668,7 +1670,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     // And the hostile Calls it did not name, armed long enough before it (`hostileCalls`, E29 C9).
     const { armedCallsHeld } = await import("./sheet-audit.mjs");
     const held = await armedCallsHeld(actor);
-    const applied = appliedCalls(actor, calls, held);
+    // A roll of `SPENDS_NO_CALL` applies none (E112: a Palm's unseen roll; a console's packet naming one was taken until then).
+    const applied = SPENDS_NO_CALL.has(key) ? [] : appliedCalls(actor, calls, held);
     const hostile = hostileCalls(actor, applied, held, { key, claimed });
     const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded, told: told.trait,
         actionType: json?.options?.actionType ?? null });
@@ -1755,6 +1758,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         // The GM that drew it: a part that only rides reads a handover off it (`handedOver`, E80 fix r1-G3).
         drawnBy: game.user?.id ?? null
     });
+    // The balance log (E53 C3): the roll as the GMs recorded it, kept only while the world's switch is on.
+    await noteBalanceRoll(rollStore.get(rollId));
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);
     return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, loaded: dieHeld, roll: legal.json } };
@@ -1845,8 +1850,11 @@ function appliedCalls(actor, nonces, held = null) {
 
 /** A Call that hinders the roll it is spent on: a disadvantage, or a bonus below nothing (a Meddle's -1). */
 const hinders = call => call?.grants === "disadvantage" || (call?.grants === "bonus" && Number(call.amount) < 0);
-/** The actions whose roll spends no Call (action-pipeline.mjs `rollTrait`'s `remember: false`): a Palm's unseen roll and an opening. */
-const SPENDS_NO_CALL = new Set(["palm", "murderOpening"]);
+/**
+ * The actions whose roll spends no Call (action-pipeline.mjs `rollTrait`'s `remember: false`): a Palm's unseen roll. The
+ * murder's opening was one until E112 (call-effects.mjs `TAKES_CALLS`): it takes the killer's Calls as an action roll does.
+ */
+const SPENDS_NO_CALL = new Set(["palm"]);
 
 /**
  * The hostile Calls held armed on the character that the roll did not name and that were armed more

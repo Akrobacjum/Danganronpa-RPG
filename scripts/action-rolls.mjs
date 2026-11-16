@@ -34,11 +34,7 @@
  */
 
 import { ACTIONS, MONOCUB } from "./config.mjs";
-import { isEclipse } from "./eclipse.mjs";
-// The phase, from the file that owns the clock setting and imports nothing but
-// config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
-// the whole trial floor into the action pipeline.
-import { getClock } from "./settings.mjs";
+import { allowedNow, WHY } from "./allowed-now.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { error, activeGmIds } from "./utils.mjs";
 import { performSearch } from "./action-search.mjs";
@@ -136,7 +132,9 @@ export async function performAction(actor, actionKey, options = {}) {
          */
         const { sideOf: sideInFight, murderState: fightState } = await import("./murder.mjs");
         const inFight = fightState()?.stage === "incident" && sideInFight(actor);
-        if (inFight && actionKey === "directMurder") return openCrisisMenu(actor);
+        // The phase's rules are allowed-now.mjs's (E40 item 3): this fight, read once here, is the one every gate below asks.
+        const fightNow = { fighting: () => Boolean(inFight) };
+        if (allowedNow(actor, actionKey, { facts: fightNow }).road === "crisis") return openCrisisMenu(actor);
 
         /*
          * A MONOCUB HAS TWO ACTIONS, AND THIS IS WHERE THAT IS TRUE (ACT-13, 20.09).
@@ -203,7 +201,12 @@ export async function performAction(actor, actionKey, options = {}) {
         // and everybody is crossing the map, which is the one moment the guide
         // gives for being alone with somebody. So it is the only ordinary action
         // that works during an Eclipse - and it works at no other time.
-        if (actionKey !== "move" && actionKey !== "directMurder" && isEclipse()) {
+        //
+        // THE PHASE, ASKED ONCE (E40 item 3, 15.11.2026): allowed-now.mjs `allowedNow` holds the order of the gates below
+        // (the Eclipse, the betrayal, Direct Murder outside an Eclipse, the fight, the trial); each gate keeps its place
+        // and its sentence here. Tier 2 E40-T3 holds this press and the sheet's tile to it in every phase.
+        const now = allowedNow(actor, actionKey, { facts: fightNow });
+        if (now.why === WHY.eclipse) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
             return null;
         }
@@ -225,13 +228,13 @@ export async function performAction(actor, actionKey, options = {}) {
          *
          * BEFORE the Eclipse refusal, because this is the exception to it.
          */
-        if (actionKey === "directMurder") {
+        if (now.road === "betrayal") {
             const { betrayalTarget } = await import("./murder.mjs");
             const partner = betrayalTarget(actor);
             if (partner) return performBetrayal(actor, partner, ACTIONS.directMurder, options);
         }
 
-        if (actionKey === "directMurder" && !isEclipse()) {
+        if (now.why === WHY.murderOnlyInEclipse) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse"));
             return null;
         }
@@ -253,7 +256,7 @@ export async function performAction(actor, actionKey, options = {}) {
         // And the other nine are refused, unchanged: the guide's turn structure
         // assumes the two people in an incident are doing nothing else. Direct
         // Murder has already been dealt with above.
-        if (inFight) {
+        if (now.why === WHY.incident) {
             const { crisisTileLabel } = await import("./murder.mjs");
             ui.notifications.warn(game.i18n.format("DRPG.Murder.actionsLocked", { tile: crisisTileLabel(actor) }));
             return null;
@@ -286,7 +289,7 @@ export async function performAction(actor, actionKey, options = {}) {
          * applies to them - only the phase lock does not, and a GM who calls a
          * clean-up by hand during a trial has decided to.
          */
-        if (actionKey !== "analyze" && getClock().phase === "classTrial") {
+        if (now.why === WHY.trial) {
             ui.notifications.warn(game.i18n.localize("DRPG.Trial.actionsLocked"));
             return null;
         }
