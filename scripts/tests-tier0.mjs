@@ -24890,12 +24890,14 @@ const REGRESSIONS = [
         equal(JSON.stringify(reads), JSON.stringify([{ width: 351.5, height: 49.25 }, { width: 220, height: 49 }, { width: 220, height: 49 }, { width: 220, height: 49 }]),
             "[untransformed, the screen box kept to the fraction; zoom 0.5; zoom 2; zoom 0.5 with a content box, its padding and border added]");
     }],
-    ["R7523 - a hidden token's ruler is hidden too (owner-116, 15.11.2026; the owner: \"przycisk hide w foundry bazowym (prawy na token - hide) niech ukrywa tez linie dystansu pokonywanego przez token\"; visibility.mjs `rulerShownTo`, fog-doorways.mjs `hourRulerFor`, `setRulerShown`, `reRuler`): the ruler is shown to a GM always, and to anyone else only where the token is - not for a token Foundry hides, its owner's too, nor where `tokenShownTo` hides it; the ruler class asks the rule on every write of `visible`, with `visible` an accessor or a plain field, and a hide while a ruler stands takes it off at the next ask, an unhide waits for the next write", async () => {
+    ["R7523 - a hidden token's ruler is hidden too (owner-116, 15.11.2026; the owner: \"przycisk hide w foundry bazowym (prawy na token - hide) niech ukrywa tez linie dystansu pokonywanego przez token\"; visibility.mjs `rulerShownTo`, fog-doorways.mjs `hourRulerFor`, `setRulerShown`, `reRuler`): the ruler is shown to a GM always, to the token's owner always (hidden or not: the owner's answer of 15.11.2026), and to anyone else only where the token is - not for a token Foundry hides, nor where `tokenShownTo` hides it; the ruler class asks the rule on every write of `visible`, with `visible` an accessor or a plain field, and a hide while a ruler stands takes it off at the next ask, an unhide waits for the next write", async () => {
         /*
          * owner-116, 15.11.2026. Pure, on fixtures: a token document's actor and a viewer as `viewerHere` builds one; two
          * ruler classes of this test's own - one keeping `visible` behind an accessor whose constructor writes it, one as
          * a plain field - since the harness has no TokenRuler (which shape v14's has is LIVE-E116-01). The predicate is
          * this test's while it runs and the module's put back. Red at c44db5a3: no `rulerShownTo` and no `setRulerShown`.
+         * The owner's hidden token: false until the owner's answer of 15.11.2026 ("a player DOES see their own hidden token"
+         * at their table); red at 3a4dfafa on that row alone, owner [true, false].
          */
         const V = await import("./visibility.mjs");
         const D = await import("./fog-doorways.mjs");
@@ -24949,7 +24951,7 @@ const REGRESSIONS = [
         // the module's own predicate stood before this test's: visibility.mjs's, set at its registration
         equal(JSON.stringify({ registered: was?.name ?? null, rule, rulers, flip }), JSON.stringify({
             registered: "rulerHere",
-            rule: { player: [true, false], owner: [true, false], gm: [true, true], eclipse: [false, true], spectator: false, none: true },
+            rule: { player: [true, false], owner: [true, true], gm: [true, true], eclipse: [false, true], spectator: false, none: true },
             rulers: {
                 accessor: { built: [true, false], written: [true, false], hiddenNow: false, unhidNow: false, refreshed: true, own: false },
                 field: { built: [true, false], written: [true, false], hiddenNow: false, unhidNow: false, refreshed: true, own: false }

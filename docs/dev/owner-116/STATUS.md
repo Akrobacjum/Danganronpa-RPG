@@ -189,10 +189,13 @@ pokonywanego przez token".
 - visibility.mjs: `rulerShownTo(doc, viewer)` - a GM always; anyone else not for a hidden token (its owner's too) and not
   where `tokenShownTo` hides the token; `rulerHere(token)` adds the tokens this file hid by its other rules (a Remnant, a
   project). Set at registration; `passForTokenUpdate` asks the token's ruler again when `hidden` flips.
-- The coordinator's defaults, and one difference: "the token's owner keeps seeing their own" and "one rule, the token's"
-  differ for a hidden token, which Foundry draws for the GMs alone (its documented behaviour, not read at a table). The
-  rule follows the token: a hidden token's ruler is the GMs' alone, its owner's too. LIVE-E116-03 reads it at a table; if
-  Foundry shows an owner its hidden token, the rule must change to match.
+- The owner of a hidden token (the owner's answer, 15.11.2026: at their table a player does see their own hidden token):
+  1cc78724 hid a hidden token's ruler from its owner too, following Foundry's documented drawing of a hidden token; the
+  commit after 3a4dfafa shows the owner the ruler, hidden or not. Checked first that this opens nothing the module hides
+  from an owner on purpose: `tokenShownTo` shows a viewer their own token in every branch (or leaves it to Foundry), the
+  murder's mask hides a killer from the others, and a token this file hid by its other rules (`hiddenByUs`) is asked
+  before the owner. R7523's owner row red at 3a4dfafa ([true, false]), green after; a mutant without the owner's line
+  killed. LIVE-E116-03 now reads that the owner sees both the hidden token and its ruler on v14.
 - No text in lang changes. GM handbook EN/PL: the players' rulers paragraph says that a hidden token's ruler is hidden,
   and a token the module hides likewise.
 
@@ -209,3 +212,10 @@ pokonywanego przez token".
   hidden token): AUDIT 9.2 items 553-555. The harness has no ruler and no canvas: nothing of what is drawn is measured.
 - Cost: the predicate runs on every write of a ruler's `visible` (Foundry's ruler refresh, often during a drag); for a
   player it reads `tokenShownTo`, whose rooms are memoised per pass. Not measured at a table (scenario 86 has no ruler).
+
+## The full tier 2 on 3a4dfafa (16.11.2026)
+
+Eight shards (`DRPG_SUITE_SHARD=i/8 node run-all.mjs suite`, one at a time) held together by `suite-merge.mjs`: "8
+shard(s) of 8 file(s), 1553 tier-2 tests in the list; 3297 passed, 0 failed, 27 skipped, 0 red: green". Shard 1 (tiers
+0-1, 01's parts A and B) 2011 s, 1734 passed, 0 failed, 16 skipped; shards 2-8 558-737 s, 0 failed. About 2.3 times the
+times CLAUDE.md gives (880 and 336 s), on this machine.
