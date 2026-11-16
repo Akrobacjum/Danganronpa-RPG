@@ -61948,6 +61948,35 @@ const INVARIANTS = [
             [["G2"], [], ["G1", "G2"]], [true, true, true, true, true]]),
             "[the scene found from a place: on B, on C without the room, nowhere, no room; after a room change: a hand pick, a found pick moved, nothing, a found pick lost, the same; the GMs told of a deletion by G1, by G1 alone, by nobody named; createProject finds the proposer's, the editor and the drag mark a hand pick, the manager asks again, the mark kept with the GMs]");
     }],
+    ["R7644 - a completed project's room action that does not stand says why to the GM, and a clock set back before the completion counts as completing it now (P1, the owner's probe of 16.11.2026 and decisions \"tak\" and \"b\"): facilities.mjs `facilityState` answers live, or why not - ended (and when), ended with its chapter, with its season, or the clock earlier than its completion; `completionAfterClockBack` restamps a completion later in the same season and chapter than the clock to now, and nothing else; the Projects window and the project's editor draw `facilityWhyLine` on a GM's browser; its words are in both languages", async () => {
+        /*
+         * Red at 5b3d80b5: a completion stamped at day 3 morning with the clock set back to day 1 morning stood nowhere and
+         * nothing said why (the owner's world, project "Porządki": lifetime one day, limit once a time of day). Asked of
+         * the rules with clocks of their own; one day is TIMES_OF_DAY.length times of day.
+         */
+        const F = await import("./facilities.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const state = typeof F.facilityState === "function" ? F.facilityState : null;
+        const back = typeof F.completionAfterClockBack === "function" ? F.completionAfterClockBack : null;
+        const day = { lifetime: { kind: "days", n: 1 }, label: "R7644" }, ever = { lifetime: { kind: "forever" }, label: "R7644" };
+        const clock = (d, tod, chapter = 1, season = 77) => ({ day: d, timeOfDay: tod, chapter, seasonStartedAt: season });
+        const owner = { season: 77, chapter: 1, at: 2 * TIMES_OF_DAY.length };
+        const read = q => (state ? state(...q) : "no state");
+        const states = [read([day, owner, clock(1, "morning")]), read([day, { season: 77, chapter: 1, at: 0 }, clock(2, "morning")]),
+            read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "night")]), read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "morning", 2)]),
+            read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "morning", 1, 78)]), read([ever, owner, clock(1, "morning")])];
+        const stamps = back ? [back(owner, clock(1, "morning")), back({ season: 77, chapter: 1, at: 0 }, clock(1, "noon")), back(owner, clock(1, "morning", 2)), back(null, clock(1, "morning"))] : "no rule";
+        const left = back && state ? F.facilityTimesLeft(day, back(owner, clock(1, "morning")), clock(1, "morning")) : null;
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const picker = await src("action-project.mjs"), ui = await src("projects-ui.mjs");
+        const drawn = [/facilityWhyLine\(/.test(picker), /facilityWhyLine\(/.test(fnSource(ui, "openProjectDialog"))];
+        const words = ["DRPG.Facility.notLive.ended", "DRPG.Facility.notLive.chapter", "DRPG.Facility.notLive.season", "DRPG.Facility.notLive.later"].every(k => game.i18n.has(k, false));
+        equal(stableJson([states, stamps, left, drawn, words]), stableJson([[
+            { live: false, why: "later", at: { day: 3, timeOfDay: "morning" } }, { live: false, why: "ended", at: { day: 2, timeOfDay: "morning" } },
+            { live: true, why: null }, { live: false, why: "chapter" }, { live: false, why: "season" }, { live: true, why: null }],
+            [{ season: 77, chapter: 1, at: 0 }, null, null, null], TIMES_OF_DAY.length, [true, true], true]),
+            "[the state of: the owner's (completed day 3 morning, clock day 1 morning), a day's action at day 2 morning, the same at day 1 night, in another chapter, in another season, one for good; the restamp of: the owner's, one not later, one in another chapter, none; the times of day left after the owner's restamp; the window and the editor draw the reason; its words]");
+    }],
     ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
         /*
          * Red at 9e7e3d78: there was no replay (E99's STATUS: "there is no board to replay"). Asked with the table's switch

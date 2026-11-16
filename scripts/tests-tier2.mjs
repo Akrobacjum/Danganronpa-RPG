@@ -99429,6 +99429,51 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
             "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
     }],
+    ["a completed project's action whose completion is later than a clock set back stands from now, and once its lifetime has run out the GM is told why and the player offered nothing (P1, the owner's probe of 16.11.2026 on their world and decisions \"tak\" and \"b\")", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. The owner's state: a public project in the room a connected player's character
+         * stands in, completed with an action of one day's lifetime, its completion at day 3 morning; the clock then at
+         * day 1 morning, as a GM's correction of the clock leaves it. Read after the clock's change: the completion as the
+         * primary GM holds it, the action offered to the player and its times of day left; then the clock moved on past
+         * the lifetime: offered or not, the GM's reason line; then a forward move from a fresh completion, which must not
+         * restamp anything. The clock and the project are put back. Red at 5b3d80b5: the action stood nowhere after the
+         * clock went back, and no line said why.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        const F = await import("./facilities.mjs");
+        const P = await import("./projects.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { player, where } = await playerInRoom();
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const at = (day, timeOfDay) => ({ ...clockWas, day, timeOfDay, eclipse: false });
+        const setClock = async c => { await game.settings.set(MODULE_ID, SETTINGS.clock, c); await settle(); await settle(); };
+        const offered = async () => (await F.projectActionsAt(where, player)).find(r => r.project.id === id) ?? null;
+        const read = {};
+        let id = null;
+        try {
+            await setClock(at(3, "morning"));
+            id = (await P.createProject({ name: "SUITE P1 Porzadki", target: 1, room: where.room, description: "SUITE P1 its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE P1 Odetchnij", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "days", n: 1 }, limit: "timeOfDay" });
+            await P.addProgress(id, 1);
+            await settle();
+            read.completed = F.projectFacilityOf(id).completedAt?.at ?? null;
+            await setClock(at(1, "morning"));
+            const back = await offered();
+            read.setBack = [F.projectFacilityOf(id).completedAt?.at ?? null, Boolean(back), back?.timesLeft ?? null, F.facilityWhyLine(id)];
+            await setClock(at(2, "morning"));
+            read.ranOut = [Boolean(await offered()), F.facilityWhyLine(id).includes("SUITE P1 Odetchnij"), F.facilityState(F.projectFacilityOf(id).facility, F.projectFacilityOf(id).completedAt).why];
+            await setClock(at(1, "noon"));
+            read.forward = F.projectFacilityOf(id).completedAt?.at ?? null;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ completed: 2 * TIMES_OF_DAY.length, setBack: [0, true, TIMES_OF_DAY.length, ""],
+            ranOut: [false, true, "ended"], forward: 0 }),
+            "{completed: the completion's time of day; setBack: [the completion after the clock went back, offered, times of day left, the GM's reason line]; ranOut: [offered past the lifetime, the GM's line names the action, why]; forward: the completion after a move that is not back past it}");
+    }],
     ["E93-T16 - the Facilities tile is struck through only when no row of its window can be taken (scripts/action-facilities.mjs `facilitiesRows`, `facilitiesShutReason`, sheet-actions.mjs `roomBlockFor`; the owner's report of 13.11.2026 at a table on 1.2.112: \"The Facilities action is struck through when there are no rests available in the room, even though a GM's room action or a project's action is available\"): in a room with neither rest marked, the tile is live while a GM's room action is open; with that action closed this time of day and no project it is dimmed and its reason names every row's; with a completed project's free action there it is live again; under Lockdown it is dimmed with the Lockdown line; and at each step the window's rows say the same", async () => {
         /*
          * 13.11.2026 (fix line 113f). A connected player's character in a named room, read on this GM's browser (`locateActor`

@@ -31,6 +31,7 @@ import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
 import { registerFacilityUses } from "./facility-uses.mjs";
+import { registerFacilityClock } from "./facilities-gm.mjs";
 import { registerEavesdrops } from "./eavesdrop-gm.mjs";
 import { registerMasks } from "./mask-gm.mjs";
 import { registerArrivalNotices } from "./arrival-notices.mjs";
@@ -265,6 +266,8 @@ Hooks.once("init", () => {
     safely("the pick's passes", registerLockpicks);
     // A player's own uses of project actions, so the Facilities window greys a used row (P2).
     safely("the room actions' uses", registerFacilityUses);
+    // A clock set back before a project's completion completes it now (P1, 16.11.2026), on the primary GM.
+    safely("the room actions' clock", registerFacilityClock);
     // Listen's eavesdrop (E69 C6): the owner's copy, and on the primary GM every end of one.
     safely("the eavesdrops", registerEavesdrops);
     // The murder's privacy (E69 C8): the killer behind a "?", its end at a new time of day, the killer's question.

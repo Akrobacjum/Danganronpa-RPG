@@ -28,9 +28,9 @@
  * an action is the GMs' (`facilityUseStore`); the public `facilityClosed` names which GM actions are closed, never by whom.
  */
 
-import { MODULE_ID, FACILITIES, TRAITS, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, FACILITIES, TRAITS, TIMES_OF_DAY, TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { plural } from "./utils.mjs";
+import { plural, isPrimaryGm } from "./utils.mjs";
 import { roomFlag, writablePieces } from "./rooms.mjs";
 import { metaFor, secretsOf, toldSight } from "./projects-secrecy.mjs";
 import { cardMeta } from "./secret.mjs";
@@ -174,6 +174,78 @@ export function facilityLive(facility, completedAt, clock = getClock()) {
     if (now.season !== completedAt.season || now.chapter !== completedAt.chapter) return false;
     const span = lifetimeSpan(facility);
     return now.at >= completedAt.at && now.at < completedAt.at + span;
+}
+
+/** The day and time of day an ordinal's `at` names in its chapter (`facilityOrdinal`'s inverse). Pure. */
+function ordinalPlace(at) {
+    const n = Math.max(0, Number(at) || 0);
+    return { day: Math.floor(n / TIMES_OF_DAY.length) + 1, timeOfDay: TIMES_OF_DAY[n % TIMES_OF_DAY.length] };
+}
+
+/**
+ * WHY A COMPLETED PROJECT'S ACTION DOES NOT STAND (P1, the owner's probe of 16.11.2026: "Porządki", completed at day 3
+ * morning, the clock set back to day 1 morning, so `facilityLive` was false and nothing said why; the owner's "tak":
+ * show the reason). `{ live: true, why: null }`, or `{ live: false, why, at? }`: "ended", its lifetime run out, with the
+ * time of day it ended at (`at`, `{ day, timeOfDay }`); "chapter" or "season", ended with its chapter or season;
+ * "later", the clock earlier than the time of day it was completed in (`at`), which the primary GM restamps to now
+ * (`completionAfterClockBack`), so a GM sees it only until that write lands. Pure (R7644).
+ */
+export function facilityState(facility, completedAt, clock = getClock()) {
+    if (facilityLive(facility, completedAt, clock)) return { live: true, why: null };
+    if (!facility || !completedAt) return { live: false, why: null };
+    const now = facilityOrdinal(clock);
+    if (now.season !== completedAt.season) return { live: false, why: "season" };
+    if (now.chapter !== completedAt.chapter) return { live: false, why: "chapter" };
+    if (now.at < completedAt.at) return { live: false, why: "later", at: ordinalPlace(completedAt.at) };
+    return { live: false, why: "ended", at: ordinalPlace(completedAt.at + lifetimeSpan(facility)) };
+}
+
+/**
+ * A CLOCK SET BACK BEFORE A PROJECT'S COMPLETION COUNTS AS COMPLETING IT NOW (P1; the owner's "b", 16.11.2026): the stamp
+ * to write for a completion later in the same season and chapter than `clock` - the time of day now, so its lifetime runs
+ * from now - else null (nothing to write). A pure read that took "the earlier of the two" instead would let the action
+ * stand from the set-back clock until the old stamp and then its lifetime after it, not "from now"; so it is a write,
+ * made once by the primary GM when the clock changes (`restampSetBack`). Use limits are not touched (the owner,
+ * 16.11.2026: a clock set back does not reset them). Pure (R7644).
+ */
+export function completionAfterClockBack(completedAt, clock = getClock()) {
+    if (!completedAt) return null;
+    const now = facilityOrdinal(clock);
+    if (now.season !== completedAt.season || now.chapter !== completedAt.chapter || !(completedAt.at > now.at)) return null;
+    return { season: now.season, chapter: now.chapter, at: now.at };
+}
+
+/**
+ * GM, the primary: each project whose completion the clock has been set back before is completed now, one change of its
+ * own (projects.mjs `applyProjectChange`). Asked at every clock change (`drpgTimeOfDayChanged`, which hears the day as
+ * well as the time of day) and at the primary's ready. Answers how many it restamped.
+ */
+export async function restampSetBack(clock = getClock()) {
+    if (!game.user?.isGM || !isPrimaryGm()) return 0;
+    const { allProjects, applyProjectChange } = await import("./projects.mjs");
+    let n = 0;
+    for (const project of allProjects()) {
+        const stamp = completionAfterClockBack(metaFor(project.id).completedAt ?? null, clock);
+        if (!stamp) continue;
+        await applyProjectChange(project.id, { meta: { completedAt: stamp } }, { by: { kind: "system" } });
+        n++;
+    }
+    return n;
+}
+
+/**
+ * The line a GM reads beside a completed project whose action does not stand (`facilityState`), in this browser's
+ * language: the action and why; "" where it stands, where there is none, and on a player's browser (players see only an
+ * action that stands, as before). Drawn by the Projects window (action-project.mjs) and the project's editor.
+ */
+export function facilityWhyLine(projectId, clock = getClock()) {
+    if (!game.user?.isGM) return "";
+    const { facility, completedAt } = projectFacilityOf(projectId);
+    const state = facilityState(facility, completedAt, clock);
+    if (state.live || !state.why) return "";
+    const timeOfDayLabel = key => TIME_OF_DAY_LABELS[key] ?? key;
+    return game.i18n.format(`DRPG.Facility.notLive.${state.why}`, { action: facility.label,
+        day: state.at?.day ?? "", time: state.at ? timeOfDayLabel(state.at.timeOfDay) : "" });
 }
 
 /** How many times of day a lifetime spans: n, or n days of them; null for one that stands for good. Pure. */

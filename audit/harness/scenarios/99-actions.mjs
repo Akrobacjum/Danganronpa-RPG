@@ -471,6 +471,36 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
         byRead.onFirst = await byRow();
         check("facilities on two scenes: a project Aiko proposed while standing on the second scene is found there, offered to p1 there, and not in Floor 1's Dorm A once she is back",
             J(byRead) === J({ found: true, byGm: false, onSecond: true, onFirst: false }), J(byRead));
+
+        /* A CLOCK SET BACK BEFORE A PROJECT'S COMPLETION (P1, the owner's probe of 16.11.2026 and decision "b"): a project in
+           Dorm A completed at day 3 morning with an action of one day; the GM sets the clock back to day 1 morning, as the
+           owner's world was; p1's own Facilities rows for Aiko offer the action, and the clock is put back. */
+        phase("facilities after the clock is set back");
+        const backLabel = "E39 99 facility with the clock set back";
+        const clockWas = await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")}; return game.settings.get("danganronpa-rpg", SETTINGS.clock);`);
+        let backRead = null;
+        try {
+            // Each step heard on its own, as at a table: a clock moved and moved back inside one burst is no change at all.
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")};
+                await game.settings.set("danganronpa-rpg", SETTINGS.clock, { ...game.settings.get("danganronpa-rpg", SETTINGS.clock), day: 3, timeOfDay: "morning", eclipse: false });
+                return true;`, { timeout: 60000 });
+            await settle(1500);
+            await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
+                const id = (await P.createProject({ name: ${J(backLabel)}, target: 1, room: "Dorm A" }))?.id ?? null;
+                await F.setProjectFacility(id, { label: ${J(backLabel)}, costsAction: false, limit: "none", lifetime: { kind: "days", n: 1 } });
+                await P.addProgress(id, 1);
+                return id;`, { timeout: 60000 });
+            await settle(1500);
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")};
+                await game.settings.set("danganronpa-rpg", SETTINGS.clock, { ...game.settings.get("danganronpa-rpg", SETTINGS.clock), day: 1, timeOfDay: "morning" });
+                return true;`, { timeout: 60000 });
+            await settle(1500);
+            backRead = await p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(backLabel)});`);
+        } finally {
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")}; await game.settings.set("danganronpa-rpg", SETTINGS.clock, ${J(clockWas)}); return true;`, { timeout: 60000 }).catch(() => null);
+        }
+        check("facilities after the clock is set back: a project completed at day 3 morning stands in p1's Facilities once the GM sets the clock back to day 1 morning",
+            backRead === true, J({ backRead }));
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), w = globalThis.__s99was ?? {}, { SETTINGS } = ${imp("settings.mjs")};
             for (const i of a.items.filter(i => !(w.items ?? []).includes(i.id))) await i.delete();

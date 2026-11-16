@@ -25,6 +25,8 @@ import {
     roomSceneOf, roomSceneChoices, projectScene, roomSceneOnRoomChange, proposerSceneFor
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
+// Why a completed project's action does not stand, on a GM's browser (P1, 16.11.2026).
+import { facilityWhyLine } from "./facilities.mjs";
 import { error, markFired, markLanguage, serialWrite, plural, esc } from "./utils.mjs";
 import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode, tipAttr, tipText } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -1004,6 +1006,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const foundScene = !editing && proposer && currentRoom ? await proposerSceneFor(proposer, currentRoom) : null;
     const scenePicker = roomScenePicker(currentRoom, { pickId: currentPick, standing: standingScene?.id ?? foundScene });
     const pickStale = Boolean(currentPick) && roomSceneChoices(currentRoom || null, { pickId: currentPick }).stale;
+    // Why a completed project's room action does not stand, to the GM (P1, the owner's "tak" of 16.11.2026).
+    const actionWhy = editing && project.complete ? facilityWhyLine(project.id) : "";
 
     const players = playerList();
 
@@ -1086,6 +1090,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         { label: t("DRPG.Project.roomScene"), id: idOf("roomScene"), attrs: { "data-drpg-room-scene": true, hidden: !scenePicker.shown },
             field: `<select name="roomScene" id="${idOf("roomScene")}" data-drpg-shown="${esc(scenePicker.chosen ?? "")}"${tipAttr("DRPG.Tips.Actions.roomSceneTooltip")}>${scenePicker.options}</select>${
                 pickStale ? `<p class="notes" data-drpg-room-scene-stale>${esc(game.i18n.format("DRPG.Project.roomSceneStale", { scene: standingScene?.name ?? "-" }))}</p>` : ""}` },
+        ...(actionWhy ? [{ full: `<p class="notes" data-drpg-action-why>${esc(actionWhy)}</p>` }] : []),
         { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWork2Tooltip")}>${traitOptions}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder"${

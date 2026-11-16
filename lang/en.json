@@ -3958,6 +3958,12 @@
       "projectHint": "From the project {project} · {life}",
       "forGood": "for good",
       "projectLine": "{action} in Facilities, {life}",
+      "notLive": {
+        "ended": "{action}: its time in Facilities ended at {time} of day {day}.",
+        "chapter": "{action}: it ended with the chapter it was completed in.",
+        "season": "{action}: it ended with the season it was completed in.",
+        "later": "{action}: the clock is earlier than its completion ({time} of day {day}), so the primary GM's browser counts it as completed now."
+      },
       "timesLeft": {
         "one": "{n} time of day left",
         "other": "{n} times of day left"

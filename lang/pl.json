@@ -4231,6 +4231,12 @@
       "projectHint": "Z projektu {project} · {life}",
       "forGood": "na stałe",
       "projectLine": "{action} w Facilities, {life}",
+      "notLive": {
+        "ended": "{action}: czas w Facilities minął ({time}, dzień {day}).",
+        "chapter": "{action}: czas minął wraz z rozdziałem, w którym ukończono projekt.",
+        "season": "{action}: czas minął wraz z sezonem, w którym ukończono projekt.",
+        "later": "{action}: zegar wskazuje czas sprzed ukończenia ({time}, dzień {day}), więc przeglądarka głównego GM-a uznaje projekt za ukończony teraz."
+      },
       "timesLeft": {
         "one": "jeszcze {n} pora dnia",
         "few": "jeszcze {n} pory dnia",

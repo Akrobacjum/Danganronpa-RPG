@@ -51,6 +51,20 @@ export async function offerAt(actor, place, actionId, sender) {
     return action ? { source: "gm", key: gmActionKey(place.scene.id, place.room, action.id), label: action.label, action } : null;
 }
 
+/**
+ * A clock set back before a project's completion completes it now (P1; the owner's "b", 16.11.2026; facilities.mjs
+ * `restampSetBack`): on the primary GM, at every change of the clock's calendar (`drpgTimeOfDayChanged` hears a day moved
+ * as well as a time of day) and at this browser's ready (a clock set back while no primary was here; `restampSetBack`
+ * asks whether this browser is the primary). gm-bridge.mjs's `drpgPrimaryReady` is not it: it fires on the other browsers.
+ */
+export function registerFacilityClock() {
+    // The clock read whole (settings.mjs `getClock`, its defaults merged), not the hook's argument: the setting as stored
+    // may lack a field the ordinal reads (`seasonStartedAt`).
+    const run = () => { void import("./facilities.mjs").then(m => m.restampSetBack()).catch(() => {}); };
+    Hooks.on("drpgTimeOfDayChanged", run);
+    Hooks.once("ready", run);
+}
+
 /** The Overflow's word on room actions now, read where it lives (overflow.mjs). */
 export async function overflowNow() {
     const { overflowFacilityStates, overflowFacilityToll } = await import("./overflow.mjs");
