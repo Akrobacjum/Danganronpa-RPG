@@ -59047,7 +59047,7 @@ const INVARIANTS = [
             closed: [true, false, false, false, false], words: [true, true] }),
             "{hold: [masked: reason, held; not masked]; gm; settle blocks a masked account; closed: [another player, the owner, a GM, a Spectator, no mask]; words}");
     }],
-    ["R7405 - the opening's veil hides a direct murder's killers while the opening waits, mutes them and shows them to their own side (scripts/mask-gm.mjs `veilWanted`, `veilPatch`, `unveilPatch`; voice.mjs `micHold`, `moduleHoldsMic`, `settleTrialVoices`; visibility.mjs `tokenShownTo`; murder-rules.mjs `resolveKillerOpening`; E112): a direct opening veils its killer and a third on the killers' side, a trap, a self-inflicted death and any other stage none; the patch sets `hidden` and the one flag, the unveil writes the token's own `hidden` back; the killer's own `micHold` and a GM's `moduleHoldsMic` hold a veiled account, reason veiled, and the settle blocks it; a veiled token shows to its owner and the killers' side and hides from everyone else, a GM left to Foundry; the mask goes on before the stage and the veil comes off after it; the words in English and Polish", async () => {
+    ["R7405 - the opening's veil hides a direct murder's killers while the opening waits, mutes them and shows them to their own side (scripts/mask-gm.mjs `veilWanted`, `veilPatch`, `unveilPatch`; voice.mjs `micHold`, `moduleHoldsMic`, `settleTrialVoices`; visibility.mjs `tokenShownTo`; murder-rules.mjs `resolveKillerOpening`; E112): a direct opening veils its killer and a third on the killers' side, a trap, a self-inflicted death and any other stage none; the patch sets the one flag and no `hidden` (E112v, road (b)), the unveil removes it; the killer's own `micHold` and a GM's `moduleHoldsMic` hold a veiled account, reason veiled, and the settle blocks it; a veiled token shows to its owner and the killers' side and hides from everyone else, a GM left to Foundry; the mask goes on before the stage and the veil comes off after it; the words in English and Polish", async () => {
         /* E112, 15.11.2026. Plain facts and source; nothing written. Red on e9f4a791: mask-gm.mjs has no `veilWanted`. */
         needs(env.primaryGm(), "a GM's `moduleHoldsMic` answers on a GM's browser alone");
         const K = await import("./mask-gm.mjs");
@@ -59071,7 +59071,7 @@ const INVARIANTS = [
         const read = {
             wanted: [wanted(base), wanted({ ...base, thirdId: "T", thirdSide: "killer" }), wanted({ ...base, thirdId: "T", thirdSide: "victim" }),
                 wanted({ ...base, indirect: true }), wanted({ ...base, selfInflicted: true, victimId: "K" }), wanted({ ...base, stage: "incident" }), wanted(null)],
-            patch: typeof K.veilPatch === "function" ? [K.veilPatch(), K.unveilPatch(false), K.unveilPatch(true, "GONE")] : null,
+            patch: typeof K.veilPatch === "function" ? [K.veilPatch(), K.unveilPatch(), K.unveilPatch("GONE")] : null,
             hold: [hold(true)?.reason ?? null, hold(true)?.held ?? null, hold(false)?.reason ?? null],
             gm: V.moduleHoldsMic(user, { actors: [], eclipse: false, trial: false, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set([user.id]) })?.reason ?? null,
             settle: settle.includes("veilMutedIds()"),
@@ -59084,10 +59084,82 @@ const INVARIANTS = [
         const flag = `flags.${MODULE_ID}.veiled`;
         equal(stableJson(read), stableJson({
             wanted: [["K"], ["K", "T"], ["K"], [], [], [], []],
-            patch: [{ hidden: true, [flag]: true }, { hidden: false, [flag]: false }, { hidden: true, [flag]: "GONE" }],
+            patch: [{ [flag]: true }, { [flag]: false }, { [flag]: "GONE" }],
             hold: ["veiled", true, "gmBlock"], gm: "veiled", settle: true,
             shown: ["show", "hide", "show", null, "hide"], order: true, sweeps: [true, true, true], words: [true, true, true, true] }),
-            "{wanted: [direct, a third on the killers' side, on the victim's, a trap, self-inflicted, another stage, none]; patch: [veil, unveil, unveil a hidden one]; hold; gm; settle; shown: [owner, stranger, the killers' side, a GM, the killers' side in an Eclipse]; order: mask, stage, veil; sweeps: [at ready, a GM leaving, the incident's writes]; words}");
+            "{wanted: [direct, a third on the killers' side, on the victim's, a trap, self-inflicted, another stage, none]; patch: [veil, unveil, unveil with a deletion]; hold; gm; settle; shown: [owner, stranger, the killers' side, a GM, the killers' side in an Eclipse]; order: mask, stage, veil; sweeps: [at ready, a GM leaving, the incident's writes]; words}");
+    }],
+    ["R7700 - the opening's veil writes no `hidden` (E112v, road (b), the owner's decision of 16.11.2026; scripts/mask-gm.mjs `veilPatch`, `unveilPatch`; LIVE-E112-01): the veil's patch is the one flag alone, the unveil removes the flag alone, and a token keeps the `hidden` it had - shown or hidden by a GM - through the veil", async () => {
+        /* E112v, 16.11.2026. Pure readings; nothing written. Red on a1d294ef: `veilPatch()` carries `hidden: true`, the
+           unveil writes a `hidden` back. */
+        const K = await import("./mask-gm.mjs");
+        const flag = `flags.${MODULE_ID}.veiled`;
+        const after = (hidden, patch) => foundry.utils.mergeObject({ hidden, flags: { [MODULE_ID]: {} } }, foundry.utils.expandObject(patch ?? {}), { inplace: false });
+        const read = {
+            patch: K.veilPatch(),
+            unveil: [K.unveilPatch(), K.unveilPatch("GONE")],
+            kept: [after(false, K.veilPatch()).hidden, after(true, K.veilPatch()).hidden],
+            flagged: after(false, K.veilPatch()).flags[MODULE_ID].veiled
+        };
+        equal(stableJson(read), stableJson({ patch: { [flag]: true }, unveil: [{ [flag]: false }, { [flag]: "GONE" }], kept: [false, true], flagged: true }),
+            "{patch: the veil's patch; unveil: [no deletion, a deletion]; kept: the token's own hidden after the veil, [shown, hidden by a GM]; flagged}");
+    }],
+    ["R7701 - while veiled, the killer's own token stays a vision source for its owner (E112v, road (b); LIVE-E112-01, L1 on Foundry 14.370: a hidden token is drawn for its owner but is no vision source; scripts/mask-gm.mjs `veilPatch`): read on a stand-in of the one input of Foundry's rule the veil touched - a non-GM's token with sight is no vision source while `hidden` - for the token as the veil leaves it", async () => {
+        /* E112v, 16.11.2026. A STAND-IN, NOT FOUNDRY'S CODE: the predicate below is what L1 measured (hidden: false as a
+           vision source, true before the veil), with the rest of Foundry's rule (sight, the scene's token vision, control)
+           held true. A real canvas is LIVE-E112V-01. Red on a1d294ef: the veil's patch sets `hidden`. */
+        const K = await import("./mask-gm.mjs");
+        const after = patch => foundry.utils.mergeObject({ hidden: false, sight: { enabled: true }, flags: { [MODULE_ID]: {} } }, foundry.utils.expandObject(patch ?? {}), { inplace: false });
+        const visionSource = (doc, user) => Boolean(doc.sight?.enabled) && !(doc.hidden && !user.isGM);
+        const owner = { isGM: false };
+        equal(stableJson([visionSource(after({}), owner), visionSource(after(K.veilPatch()), owner), visionSource(after(K.unveilPatch()), owner)]),
+            stableJson([true, true, true]), "[before the veil, while veiled, after it]: the owner's token as a vision source on the stand-in");
+    }],
+    ["R7702 - a veiled token is drawn only for its owner, the killers' side and GMs, a Spectator's browser included (E112v, road (b); scripts/visibility.mjs `tokenShownTo`; LIVE-E112-01 (g)): with no Foundry `hidden` behind it, the veil's verdict is the module's alone - owner show, a stranger hide, the killers' side show (the room rule off), a GM null, an Eclipse the owner alone, a Spectator watching hide", async () => {
+        /* E112v, 16.11.2026. Pure readings. Red on a1d294ef: a Spectator's browser left the veiled token to Foundry (null),
+           whose `hidden` hid it; on road (b) there is none. */
+        const { tokenShownTo } = await import("./visibility.mjs");
+        const doc = { actorId: "K", actor: { type: "character" }, hidden: false, flags: { [MODULE_ID]: { veiled: true } } };
+        const viewer = (owns, side = [], extra = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false,
+            killersSide: new Set(side), owns: () => owns, ...extra });
+        equal(stableJson([tokenShownTo(doc, viewer(true)), tokenShownTo(doc, viewer(false)), tokenShownTo(doc, viewer(false, ["K"])),
+            tokenShownTo(doc, viewer(false, [], { gm: true })), tokenShownTo(doc, viewer(true, [], { eclipse: true })), tokenShownTo(doc, viewer(false, ["K"], { eclipse: true })),
+            tokenShownTo(doc, viewer(false, [], { spectator: true }))]),
+            stableJson(["show", "hide", "show", null, "show", "hide", "hide"]),
+            "[owner, stranger, the killers' side, a GM, the owner in an Eclipse, the killers' side in an Eclipse, a Spectator]");
+    }],
+    ["R7703 - a veiled token's movement ruler follows the token (E112v, road (b); scripts/visibility.mjs `rulerShownTo`, owner-116's R7523): for the token as the veil leaves it, the ruler is shown to its owner, a GM and the killers' side where the token is shown to them, and to no victim, bystander or Spectator", async () => {
+        /* E112v, 16.11.2026. Pure readings. Red on a1d294ef: the veil's `hidden` refused the ruler to the killers' side,
+           who see the token. */
+        const K = await import("./mask-gm.mjs");
+        const { rulerShownTo } = await import("./visibility.mjs");
+        const doc = foundry.utils.mergeObject({ actorId: "K", actor: { type: "character" }, hidden: false, flags: { [MODULE_ID]: {} } },
+            foundry.utils.expandObject(K.veilPatch()), { inplace: false });
+        doc.actor = { type: "character" };
+        const viewer = (owns, side = [], extra = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false,
+            killersSide: new Set(side), owns: () => owns, ...extra });
+        equal(stableJson([rulerShownTo(doc, viewer(true)), rulerShownTo(doc, viewer(false, [], { gm: true })), rulerShownTo(doc, viewer(false, ["K"])),
+            rulerShownTo(doc, viewer(false)), rulerShownTo(doc, viewer(false, [], { spectator: true }))]),
+            stableJson([true, true, true, false, false]), "[owner, a GM, the killers' side, a victim or bystander, a Spectator]");
+    }],
+    ["R7704 - the veil's write asks this browser's verdicts again (E112v, road (b); scripts/visibility.mjs `movePass`): with no `hidden` change, the flag set or removed (either spelling of a removal) asks a whole pass, as Foundry's `hidden` did; another flag of the module's asks nothing", async () => {
+        /* E112v, 16.11.2026. Pure readings. Red on a1d294ef: a flag-only update asks no pass, so a victim's browser would
+           draw the token until its next refresh. */
+        const { movePass } = await import("./visibility.mjs");
+        const doc = { isOwner: false };
+        const flags = f => ({ flags: { [MODULE_ID]: f } });
+        // The old deletion's key put together at run time, as R152 reads the module's literals for it: a change as received.
+        const gone = "-" + "=" + "veiled";
+        equal(stableJson([movePass(doc, flags({ veiled: true })), movePass(doc, flags({ veiled: false })), movePass(doc, flags({ [gone]: null })),
+            movePass(doc, flags({ masked: true })), movePass(doc, { flags: {} })]),
+            stableJson(["all", "all", "all", null, null]), "[veiled, unveiled, the flag deleted, another flag, no flag]");
+    }],
+    ["R7705 - a `hidden` on a veiled token is a GM's (E112v, road (b); scripts/utils.mjs `hiddenByGm`): the veil writes none, so a veiled token the GM hid is hidden by the GM - out of the room for every reader of `hiddenByGm`, as any token the GM hid - and a veiled token not hidden is in it", async () => {
+        /* E112v, 16.11.2026. Pure readings. Red on a1d294ef: the flag excused every `hidden`, the GM's too. */
+        const { hiddenByGm } = await import("./utils.mjs");
+        const veiled = hidden => ({ hidden, flags: { [MODULE_ID]: { veiled: true } } });
+        equal(stableJson([hiddenByGm(veiled(true)), hiddenByGm(veiled(false)), hiddenByGm({ hidden: true }), hiddenByGm({ hidden: false }), hiddenByGm({ document: veiled(true) })]),
+            stableJson([true, false, true, false, true]), "[veiled and hidden by a GM, veiled, hidden, shown, a placeable veiled and hidden]");
     }],
     ["R7406 - the mask wears the module's own question mark, on the map and on the portrait (scripts/mask-gm.mjs `MASK_IMG`, `maskPatch`, `portraitOf`, `portraitBack`, `maskKiller`, `endMask`; icons/mask-unknown.svg; E112 item 2): the mask's picture is the module's icons/mask-unknown.svg, served and drawn crisp, the token's texture and its ring's subject; the portrait kept is the actor's own picture and its prototype token's, and given back as they were; the killer's portrait is masked after the tokens and given back at the end", async () => {
         /* E112 item 2, 15.11.2026. Pure readings, one fetch and source; nothing written. Red on e9f4a791: MASK_IMG is

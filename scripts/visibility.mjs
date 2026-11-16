@@ -301,6 +301,9 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     // makes, and it is the one moment a Remnant's visibility actually needs
     // recomputing for everyone who is not the finder.
     if (changes?.hidden !== undefined) return "all";
+    // The opening's veil set or lifted (E112v, road (b)): its one flag is all that changes, and every browser's verdict on
+    // the token turns on it - "all", as `hidden`, since a third on the killers' side reads the cast as well (R7704).
+    if (veilFlagChanged(changes)) return "all";
     // E89 fix FG2 (SEC-1; R1054): which characters are the viewer's, changed on the token itself with no move - another
     // actor on it, its link to one, an unlinked token's owners (v14's delta carrying `ownership` is not read here).
     if (changes?.actorId !== undefined || changes?.actorLink !== undefined || changes?.delta?.ownership !== undefined) return "all";
@@ -311,6 +314,12 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     const sameLair = (viewer.lairBefore ?? null) === (viewer.lairAfter ?? null);
     if (sameRooms && sameLair) return "one";
     return viewer.roomsBefore != null ? "rooms" : "all";
+}
+
+/** Whether `changes` sets or removes the opening's veil flag (either spelling of a removal). Pure. */
+function veilFlagChanged(changes) {
+    const flags = changes?.flags?.[MODULE_ID];
+    return Boolean(flags) && typeof flags === "object" && ("veiled" in flags || "-=veiled" in flags);
 }
 
 /**
@@ -420,7 +429,7 @@ function recheckAtRest(doc) {
  */
 export function passForTokenUpdate(doc, changes) {
     // Foundry's own hide flipped (owner-116): the token's ruler asked again at once, so one standing goes with the token
-    if (changes?.hidden !== undefined) doorways?.reRuler?.(doc?.object);
+    if (changes?.hidden !== undefined || veilFlagChanged(changes)) doorways?.reRuler?.(doc?.object);
     // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
     const gm = Boolean(game.user?.isGM);
     const ownedMove = Boolean(doc?.isOwner) && isMoveChange(changes);
@@ -530,6 +539,25 @@ export function tokenShownTo(tokenDoc, viewer) {
        (the plan's risk R3). AND A SPECTATOR SEES EVERY CHARACTER (goal (4)): its browser leaves each token to Foundry,
        whatever the room, in an Eclipse too (Q-E92-6's default) - Foundry's own `hidden` still hides a GM's hidden token. */
     if (flaggedSpectator(tokenDoc.actor)) return viewer.owns(tokenDoc) ? "show" : "hide";
+    /* THE OPENING'S VEIL (E112, mask-gm.mjs): a killer's token waiting on the opening. Its owner sees it - they have to
+       be able to see themselves - and so does the killers' side, where the room rule would show it (the accomplice beside
+       the killer); nobody else, whatever the setting, an Eclipse's darkness above it. Read off the one flag (`veiled`:
+       with the token's actorId a console reads it as the killer's, known leak foundry-veiled-token-actor) and this
+       browser's own copy of the cast, which holds the killers for the killers' side alone (incident-store.mjs
+       `castCopyFor`).
+       THE MODULE'S HIDING, NOT FOUNDRY'S (E112v, 16.11.2026; the owner's decision, road (b)): until E112v the veil was
+       Foundry's `hidden` too, which on v14 took the killer's own vision (LIVE-E112-01); now nothing but this verdict
+       hides the token, so it is asked above a Spectator's browser, which leaves every other token to Foundry: a Spectator
+       does not see the killer while the veil stands (LIVE-E112-01 (g)'s default; R7702). Below the GM and a Spectator's
+       own token, both of which answer for themselves. */
+    if (veiledToken(tokenDoc)) {
+        if (viewer.owns(tokenDoc)) return "show";
+        if (viewer.eclipse || !viewer.killersSide?.has(tokenDoc.actorId)) return "hide";
+        if (!viewer.enforcing) return "show";
+        const at = roomOfToken(tokenDoc);
+        return at && viewer.rooms.has(at) ? "show" : "hide";
+    }
+
     if (viewer.spectator) return null;
 
     /* THE ECLIPSE SITS ABOVE `roomVisibility`, NOT BEHIND IT.
@@ -548,20 +576,6 @@ export function tokenShownTo(tokenDoc, viewer) {
        out for one player and on for another. Your own token still shows,
        for the same reason it does below: you have to be able to move it. */
     if (viewer.eclipse) return viewer.owns(tokenDoc) ? "show" : "hide";
-
-    /* THE OPENING'S VEIL (E112, mask-gm.mjs): a killer's token waiting on the opening is Foundry's `hidden` on every
-       browser, so Foundry draws it for no player. Its owner sees it - they have to be able to see themselves - and so
-       does the killers' side, where the room rule would show it (the accomplice beside the killer); nobody else, whatever
-       the setting. Read off the one flag (`veiled`: with the token's actorId a console reads it as the killer's, known leak
-       foundry-veiled-token-actor) and this browser's own copy of the cast, which
-       holds the killers for the killers' side alone (incident-store.mjs `castCopyFor`). */
-    if (veiledToken(tokenDoc)) {
-        if (viewer.owns(tokenDoc)) return "show";
-        if (!viewer.killersSide?.has(tokenDoc.actorId)) return "hide";
-        if (!viewer.enforcing) return "show";
-        const at = roomOfToken(tokenDoc);
-        return at && viewer.rooms.has(at) ? "show" : "hide";
-    }
 
     // Everything below is the room rule, which is what the setting governs.
     if (!viewer.enforcing) return null;
@@ -877,8 +891,8 @@ function hide(token) {
  * hidden from its owner too, which is what that control is for.
  */
 function show(token) {
-    // A token the opening veils is `hidden` on purpose (E112): its owner and the killers' side see it all the same.
-    if (token.document?.hidden && !veiledToken(token.document)) return;
+    // A token the opening veils carries no `hidden` of the veil's since E112v (road (b)): a `hidden` on it is a GM's, kept.
+    if (token.document?.hidden) return;
     hiddenByUs.delete(token);
     token.visible = true;
     if (token.mesh) token.mesh.visible = true;

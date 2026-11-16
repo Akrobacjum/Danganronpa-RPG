@@ -163,15 +163,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        the GM rules the opening itself (`resolveKillerOpening`); here the killer's browser throws it, as a table's does:
        the invitation reaches p3, whose roll is held a moment, the GM draws the roll p3 throws on faces 11 and 5 (Hope,
        over 8) and scores it (`murder.openingResult`). Read on the victim's (p1), a bystander's (p2) and the killer's (p3)
-       own browsers, as each holds Chie's tokens: while the opening waits, the veil (E112 item 1: hidden and flagged, the
-       one verdict `tokenShownTo` gives that browser, p3's microphone permission on the GM); after the roll, the mask (E112
+       own browsers, as each holds Chie's tokens: while the opening waits, the veil (E112 item 1: flagged and, since E112v's
+       road (b) of 16.11.2026, never Foundry's hidden; the one verdict `tokenShownTo` gives that browser, whether its canvas
+       draws the token (`visible`, the harness's model of Foundry's refresh) and shows its ruler (`rulerShownTo`), p3's
+       microphone permission on the GM); after the roll, the mask (E112
        item 2: the name, the picture, the flag, and her portrait). Then the mask ends and the tokens are read as before. */
     phase("road", { flow: "murder-incident" });
     const VIEW = `const V = await import("${repoUrl}/scripts/visibility.mjs");
         const out = [];
         for (const s of game.scenes) for (const t of s.tokens) if (t.actorId === "${ids.chie}") {
+            const viewer = V.viewerHere(doc => Boolean(doc?.isOwner));
             out.push([t.name, t.texture?.src ?? null, Boolean(t.flags?.["${MOD}"]?.masked), Boolean(t.hidden), Boolean(t.flags?.["${MOD}"]?.veiled),
-                V.tokenShownTo(t, V.viewerHere(doc => Boolean(doc?.isOwner)))]);
+                V.tokenShownTo(t, viewer), t.parent === canvas.scene ? Boolean(canvas.tokens.get(t.id)?.visible) : null, V.rulerShownTo(t, viewer)]);
         }
         return { tokens: out, portrait: game.actors.get("${ids.chie}").img };`;
     await p3.eval(`globalThis.__forceRoll = { hope: 11, fear: 5 }; ` + HOLD);
@@ -179,10 +182,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     await settle(900);
     const veiled = { victim: await p1.eval(VIEW), bystander: await p2.eval(VIEW), killer: await p3.eval(VIEW),
         mic: await gm.eval(`return game.users.get("${p3.userId}").permissions?.BROADCAST_AUDIO ?? null;`) };
-    check("road: while the opening waits, Chie's tokens are hidden and veiled on every browser, hidden from the victim and the bystander and shown to her own player, and her microphone is blocked",
-        [veiled.victim, veiled.bystander, veiled.killer].every(r => r.tokens.length === tokenIds.length && r.tokens.every(t => t[3] === true && t[4] === true))
+    check("road: while the opening waits, Chie's tokens are veiled and not hidden on every browser, hidden from the victim and the bystander and shown to her own player, and her microphone is blocked",
+        [veiled.victim, veiled.bystander, veiled.killer].every(r => r.tokens.length === tokenIds.length && r.tokens.every(t => t[3] === false && t[4] === true))
         && veiled.victim.tokens.every(t => t[5] === "hide") && veiled.bystander.tokens.every(t => t[5] === "hide") && veiled.killer.tokens.every(t => t[5] === "show")
         && veiled.mic === false, JSON.stringify(veiled), { flow: "murder-incident" });
+    /* DRAWN AND ITS RULER (E112v, road (b)): with no `hidden` behind it, the module's own hiding is all that keeps the
+       token off the victim's and the bystander's canvases - read on the token as each canvas holds it (the scene each
+       browser has on screen: a token on a scene not drawn there reads null), and the ruler by the same rule. */
+    const drawnOn = r => r.tokens.map(t => t[6]).filter(v => v !== null);
+    check("road: while veiled, Chie's token is drawn, and its ruler shown, on her own player's canvas alone of the three players' - not the victim's, not the bystander's",
+        ["victim", "bystander"].every(k => drawnOn(veiled[k]).length > 0 && drawnOn(veiled[k]).every(v => v === false) && veiled[k].tokens.every(t => t[7] === false))
+        && drawnOn(veiled.killer).length > 0 && drawnOn(veiled.killer).every(v => v === true) && veiled.killer.tokens.every(t => t[7] === true),
+        JSON.stringify(veiled), { flow: "murder-incident" });
     /* WHAT A PLAYER'S CONSOLE READS OF THE VEIL (E112, 16.11.2026; the coordinator's read of the diff at assembly): every
        Token document reaches every browser (known leak foundry-hidden-tokens), so a console lists the tokens that carry the
        veil's flag, and the ones that turned hidden, and resolves each by its actorId - the opening's killer. The GMs' store
@@ -195,6 +206,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
             store: Object.keys(S.veilStore.entries() ?? {}).length };`;
     const consoles = { victim: await p1.eval(CONSOLE), bystander: await p2.eval(CONSOLE), gm: await gm.eval(CONSOLE) };
     const killerName = await gm.eval(`return game.actors.get("${ids.chie}").name;`);
+    // Since E112v (road (b)) no character token turns hidden for the veil: the hidden half of the reading is gone.
+    check("road: no character token turns hidden for the veil - on p1 and p2 a console's list of hidden characters' tokens holds none of the opening's killer's",
+        ["victim", "bystander"].every(k => Array.isArray(consoles[k]?.hidden) && !consoles[k].hidden.includes(killerName)),
+        JSON.stringify(consoles), { flow: "murder-incident" });
     check("a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag, and the characters' tokens turned hidden, resolve to the opening's killer",
         !["victim", "bystander"].some(k => (consoles[k]?.flagged ?? []).includes(killerName) || (consoles[k]?.hidden ?? []).includes(killerName)),
         JSON.stringify(consoles), { knownLeak: "foundry-veiled-token-actor", measured: veiled.mic === false && tokenIds.length > 0 });
