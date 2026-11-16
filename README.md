@@ -304,6 +304,44 @@ can tell which tokens they are and whose. <!-- leak:foundry-veiled-token-actor -
 It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
+**What a player with a console always sees.** A player who opens their browser's
+console can read everything Foundry sent that browser, whatever the screen
+draws. For a GM who has not met this module before, that is:
+
+- every token on every scene, hidden or not, with its name, position and flags,
+  and every move it makes. So where the Remnants lie, and a token that crosses a
+  secret passage's wall or goes through a tunnel, are seen; each Remnant's note
+  and what it really is are not. A killer behind a "?" wears the module's "?"
+  picture, but their token still points to their character, and while a direct
+  murder's opening waits the killer's tokens are hidden and carry the veil's
+  mark, so a console can tell whose they are;
+- every scene's regions, walls and their flags. So a room whose only way in is a
+  secret passage is seen, and so are Foundry's own secret doors, which a console
+  can also open (the GM's browser shuts them again); the module's secret
+  passages, and who knows them, are not;
+- every character's sheet: its traits, Hope and other resources, and its items
+  with their names, whoever carries them. So a Monocub's move paid from its
+  purse is seen as actions spent and no Hope; who paid, and what the purse
+  holds, are not;
+- every chat message, rolls and whispers included, which is why the module's
+  private cards hold a stub and their words reach only their readers;
+- during a Class Trial, the trial's list of the dead, a death nobody has found
+  yet among them (the silenced microphones tell the table the same).
+
+What stays on the GMs' browsers and is sent only to the people it concerns: who
+the Mastermind is, who is in a running murder beyond what the killer's tokens
+above say, what an ordinary Remnant really is, how people voted, the GMs' own
+notes, and of a secret project its name, who proposed it, who is in on it, its
+condition, its description and its room action. A request from a player's
+console that the module did not offer that player - one naming another
+player's character, a GM's own action, or a packet of junk - changes nothing
+on the GM's browser that is not the sender's own. It is refused there, and the
+player is told why wherever their browser waits for an answer; a junk note of
+their own is saved as their note, in plain text. The module's own test
+harness sends every request the GM's browser judges that way from a player's
+browser, and checks each. A player who goes looking behind the curtain finds
+what the list above says.
+
 **Several GMs.** The primary GM's browser writes the shared world state. The
 other GMs' changes are sent to it, and any GM can answer a card.
 

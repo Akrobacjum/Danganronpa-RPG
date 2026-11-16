@@ -54,6 +54,42 @@ E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress
 | (E53 C4) | **projectLabel(id, user)**, the plan's goal, on S17-31's base (E93, 1.2.111; E101 R2): projects-secrecy.mjs `nameAs(id, user)` with its pure rule `labelFor`; `shownName` is `nameAs` for this browser's user (every list reads it through `allProjects`), and projects.mjs `projectLabel` with a countdown id and a user answers it. For this browser's own user it answers what `shownName` answered before, on a GM and a player's browser alike. Read on the way: **E43-F11** (FINDINGS), the repair card's readers | R7541 (tier 1) red at e9f4a791 "projects-secrecy.mjs has no labelFor or nameAs", green after; R1106 green |
 | (E43-F11) | a sealed repair's end card names its secret target to each reader as they may read it: readers grouped by `projectLabel(targetId, user)`, one card a group (projects.mjs, the `repairs` completion effect) | 72-canary "a sealed repair's end", red at 2832f8e4 (p2 read the name), green after |
 
+## The line claude/e43-117 (16.11.2026, base ff3e12e5, 1.2.116; R block R7640-R7679, none used)
+
+| Item | What | Checks |
+| --- | --- | --- |
+| Q-E43-6 | bookkeeping: the ring was built in E109 (daba7d5c, 1.2.115); the open-questions row and FINDINGS' E43-F7 say so | R7124 by name on ff3e12e5: 2 passed, 0 failed, 0 skipped, 0 red. Not reached by E109 (read, not run): the GM panel's Debug log (gm-panel.mjs `openFailureLog`) and its Copy text do not say rows were dropped; two test comments still describe the first 60 kept (tests-tier2.mjs, the drawn roll before the GMs' marks; tests-kit.mjs `watchLog`). Put to the coordinator, default: left for a later line |
+| README | the chapter "What a player with a console always sees" placed in the root README.md after the **Privacy.** paragraph, on the owner's consent of 16.11.2026; [README-CHAPTER.md](README-CHAPTER.md) holds the same text and its sources | below |
+
+Every sentence of the 13.11 draft read again against the code and known-leaks.json on ff3e12e5. What changed, and why:
+
+| Draft sentence | Now | Why |
+| --- | --- | --- |
+| "every token on every scene, hidden or not, with its name and position, and every move it makes" | "... with its name, position and flags ..." | `foundry-veiled-token-actor` (E112): a token's flags reach every browser, and the veil's flag is one |
+| "where the traces lie ... each trace's note and what it really is are not" | "Remnants" for "traces" | docs/text-style.md EN15: "Remnant" is the thing in every sentence |
+| (none) | "A killer behind a "?" wears the module's "?" picture, but their token still points to their character, and while a direct murder's opening waits the killer's tokens are hidden and carry the veil's mark, so a console can tell whose they are" | known leaks `foundry-masked-token-actor` (1.2.115) and `foundry-veiled-token-actor` (E112, 1.2.116), both after the draft; the "?" picture is E112's (`MASK_IMG`) |
+| "Foundry's own secret doors, are seen" | "... which a console can also open (the GM's browser shuts them again)" | `foundry-secret-door-type`'s own words: a console's write of the door's state is taken, and the primary GM shuts it |
+| "the module's passages, and who knows them, are not" | "the module's secret passages" | the glossary's `secret-passage-word` |
+| "every character's items, with their names, whoever carries them" | "every character's sheet: its traits, Hope and other resources, and its items ... So a Monocub's move paid from its purse is seen as actions spent and no Hope; who paid, and what the purse holds, are not" | the draft left out the actor's own data, which reaches every browser like its items (`foundry-cub-purse`'s foundryLimit); `foundry-cub-purse` (E72) is a known leak the draft did not name |
+| "every chat message, whispers included" | "rolls and whispers included" | the Privacy paragraph: rolls are whispered and reach every browser like every chat message |
+| "the trial's list of the dead" | "..., a death nobody has found yet among them" | `TR30`'s own words; the draft's note "closes E72; while open, this line stays" no longer holds: TR30 is a foundryLimit (the owner's TR30 = 2), so the line stays for good |
+| "who is in a running murder" | "... beyond what the killer's tokens above say" | the two token leaks above: a console can tell the killer's token |
+| "what an ordinary trace really is" | "Remnant" | EN15 |
+| "a secret project's builder, condition and plan" | "of a secret project its name, who proposed it, who is in on it, its condition, its description and its room action" | S17-31 shipped in E93 (1.2.111): the name (`secretName`) and the insiders (`viewers`) are the GMs'; "builder" was `by`, who proposed it; "plan" named no field, the description is the GMs' while secret; the room action (`facility`) reaches insiders on the sight copy since P1 (2832f8e4); E43-F11 (8f1178bd) took the name off a sealed repair's end card for readers not in on it. The draft's closing note ("until then the list above must add a secret project's name and its ownership map") is void |
+| "is refused there, told why, and changes nothing" | "changes nothing on the GM's browser that is not the sender's own. It is refused there, and the player is told why wherever their browser waits for an answer; a junk note of their own is saved as their note, in plain text" | E43-F5: `note.save` saves the sender's own note from the junk as text, and is not refused; refusals of a quiet declaration tell nobody (E43-F6: three of the matrix's) |
+| "the module's own test harness sends every request it knows that way" | "every request the GM's browser judges that way from a player's browser, and checks each" | the fuzz reads the four tables off the GM's module (lib/fuzz.mjs), so "every request of the tables" holds; "it knows" was vaguer |
+| "It is still a curtain and not a wall: a player who goes looking behind it finds what the list above says." | "A player who goes looking behind the curtain finds what the list above says." | the Privacy paragraph right above ends on "a curtain, not a wall"; said once |
+
+Unchanged and read true: the opening two sentences, the regions-and-walls line, the private cards' stub (secret.mjs), the
+Mastermind, the votes (gm-stores.mjs `ballotStore`) and the GMs' notes (the stores `notes`, `note`).
+
+Read on the way, not this line's to change (the README beyond the chapter is not in the consent): the Privacy paragraph
+says "the GM's plan for the key clues and, until the lights come up, a murder declared during the Eclipse are all world
+data" beside the marker `leak:S17-64`, whose entry speaks of an unfound trace's token alone; on ff3e12e5 the Key plan is
+a GM store (gm-stores.mjs `keyPlanStore`) and the declarations made in the dark are lifted out of world data
+(eclipse.mjs). Whether that sentence means the placed Key Remnants' tokens and the tokens' moves in the dark, or is stale,
+was not measured; put to the coordinator.
+
 ## Not built, each with its reason
 
 - **The LIVE rows**: written on 14.11.2026 (items 534-536, and LIVE-E40-01 as 537; above).
@@ -62,11 +98,8 @@ E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress
 
 ## Proposals for the coordinator (with defaults)
 
-- **The README chapter**: place docs/dev/e43/README-CHAPTER.md's text after the root README.md's Privacy paragraph.
-  Default: placed by the coordinator at the release that carries E43, with S17-31's line as its sources table says.
-- **E43-F7, the GM's session log drops new rows once it holds 60** (utils.mjs `SESSION_LOG_CAP`): keep the newest
-  instead (drop the oldest row, count what was dropped). Every version of that fix changes what `diagnose()` and the GM
-  panel list (`sessionFailures()`), and no test can hold the drop without reading that list, so it is Q-E43-6 below.
+- **The README chapter**: placed on 16.11.2026 by the line claude/e43-117, on the owner's consent (above).
+- **E43-F7**: built in E109 (1.2.115); Q-E43-6 below.
 
 ## Needs a local Foundry
 
@@ -93,7 +126,7 @@ E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress
 | Q-E43-2 | S17-31 to the line now? | Already done on the E93 branch; not redone. Default taken, owner to confirm |
 | Q-E43-3 | Open 96 and 103 stay here? | Yes, read for this stage; see FINDINGS. Default taken, owner to confirm |
 | Q-E43-4 (this line's) | No new scenario number: where do 31-fuzz and 32-case-security go? | 31-fuzz is scenario 30's last part, the matrix (32's "the packet was delivered, then its effect") scenario 33's; both under the ci layer. Default taken, owner to confirm |
-| Q-E43-6 (14.11.2026) | E43-F7: should the GM's session log keep the newest 60 wordings (a ring, with a count of the dropped ones shown by `diagnose()`) instead of the first 60? | Unchanged in 1.2.113: the first 60 kept, as today; the owner decides, and the stage that takes it changes `diagnose()`'s text with it. Default taken, owner to confirm |
+| Q-E43-6 (14.11.2026) | E43-F7: should the GM's session log keep the newest 60 wordings (a ring, with a count of the dropped ones shown by `diagnose()`) instead of the first 60? | **Answered and built.** The owner, 14.11.2026: "Zmieniamy", again "tak" on 16.11. Built in E109 (daba7d5c, 1.2.115): utils.mjs `keepNewest` drops the oldest row of a full log, `record` keeps through it, `sessionFailuresDropped` counts the drops, and diagnostics.mjs `failureText` (diagnose()'s "failures" part) names them; R7124 (tier 1). Read on ff3e12e5 (16.11.2026, line claude/e43-117): R7124 by name, 2 passed, 0 failed, 0 skipped, 0 red. Not reached by E109, read not run: the GM panel's Debug log window (gm-panel.mjs `openFailureLog`) and its Copy text read `sessionFailures()` alone and do not say that rows were dropped; two comments still describe the first 60 kept (tests-tier2.mjs, the drawn roll thrown before the GMs' marks open; tests-kit.mjs `watchLog`). Both put to the coordinator on 16.11.2026, default: left for a later line |
 | Q-E43-5 (this line's) | SECRET_FIELDS "in gm-store.mjs": the engine imports config.mjs alone (R161) | A registry each owning file registers its list in, at import; gm-store.mjs exports it. Default taken, owner to confirm |
 
 ## Test results
