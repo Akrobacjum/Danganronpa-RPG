@@ -508,14 +508,14 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
         phase("facilities after the clock is set back");
         const backLabel = "E39 99 facility with the clock set back";
         const clockWas = await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")}; return game.settings.get("danganronpa-rpg", SETTINGS.clock);`);
-        let backRead = null;
+        let backRead = null, backId = null, reasonRead = null;
         try {
             // Each step heard on its own, as at a table: a clock moved and moved back inside one burst is no change at all.
             await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")};
                 await game.settings.set("danganronpa-rpg", SETTINGS.clock, { ...game.settings.get("danganronpa-rpg", SETTINGS.clock), day: 3, timeOfDay: "morning", eclipse: false });
                 return true;`, { timeout: 60000 });
             await settle(1500);
-            await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
+            backId = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
                 const id = (await P.createProject({ name: ${J(backLabel)}, target: 1, room: "Dorm A" }))?.id ?? null;
                 await F.setProjectFacility(id, { label: ${J(backLabel)}, costsAction: false, limit: "none", lifetime: { kind: "days", n: 1 } });
                 await P.addProgress(id, 1);
@@ -526,11 +526,24 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
                 return true;`, { timeout: 60000 });
             await settle(1500);
             backRead = await p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(backLabel)});`);
+            /* And past its lifetime (one day from the restamp, so day 2 morning): the GM reads why (facilities.mjs
+               `facilityWhyLine`), p1's own page reads no reason and no row - players see only an action that stands. */
+            await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")};
+                await game.settings.set("danganronpa-rpg", SETTINGS.clock, { ...game.settings.get("danganronpa-rpg", SETTINGS.clock), day: 2, timeOfDay: "morning" });
+                return true;`, { timeout: 60000 });
+            await settle(1500);
+            reasonRead = {
+                gm: await gm.eval(`return (${imp("facilities.mjs")}).facilityWhyLine(${J(backId)}).includes(${J(backLabel)});`),
+                p1: await p1.eval(`return [(${imp("facilities.mjs")}).facilityWhyLine(${J(backId)}),
+                    (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(backLabel)})];`)
+            };
         } finally {
             await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")}; await game.settings.set("danganronpa-rpg", SETTINGS.clock, ${J(clockWas)}); return true;`, { timeout: 60000 }).catch(() => null);
         }
         check("facilities after the clock is set back: a project completed at day 3 morning stands in p1's Facilities once the GM sets the clock back to day 1 morning",
             backRead === true, J({ backRead }));
+        check("facilities after the clock is set back: past its lifetime the GM reads why the action does not stand, and p1 reads no reason and no row",
+            reasonRead?.gm === true && J(reasonRead?.p1) === J(["", false]), J({ reasonRead }));
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), w = globalThis.__s99was ?? {}, { SETTINGS } = ${imp("settings.mjs")};
             for (const i of a.items.filter(i => !(w.items ?? []).includes(i.id))) await i.delete();

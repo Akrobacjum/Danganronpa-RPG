@@ -61965,7 +61965,8 @@ const INVARIANTS = [
         const states = [read([day, owner, clock(1, "morning")]), read([day, { season: 77, chapter: 1, at: 0 }, clock(2, "morning")]),
             read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "night")]), read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "morning", 2)]),
             read([day, { season: 77, chapter: 1, at: 0 }, clock(1, "morning", 1, 78)]), read([ever, owner, clock(1, "morning")])];
-        const stamps = back ? [back(owner, clock(1, "morning")), back({ season: 77, chapter: 1, at: 0 }, clock(1, "noon")), back(owner, clock(1, "morning", 2)), back(null, clock(1, "morning"))] : "no rule";
+        const stamps = back ? [back(owner, clock(1, "morning")), back({ season: 77, chapter: 1, at: 0 }, clock(1, "noon")), back(owner, clock(1, "morning", 2)), back(null, clock(1, "morning")),
+            back(owner, clock(1, "morning", 1, 78))] : "no rule";
         const left = back && state ? F.facilityTimesLeft(day, back(owner, clock(1, "morning")), clock(1, "morning")) : null;
         const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
         const picker = await src("action-project.mjs"), ui = await src("projects-ui.mjs");
@@ -61974,8 +61975,8 @@ const INVARIANTS = [
         equal(stableJson([states, stamps, left, drawn, words]), stableJson([[
             { live: false, why: "later", at: { day: 3, timeOfDay: "morning" } }, { live: false, why: "ended", at: { day: 2, timeOfDay: "morning" } },
             { live: true, why: null }, { live: false, why: "chapter" }, { live: false, why: "season" }, { live: true, why: null }],
-            [{ season: 77, chapter: 1, at: 0 }, null, null, null], TIMES_OF_DAY.length, [true, true], true]),
-            "[the state of: the owner's (completed day 3 morning, clock day 1 morning), a day's action at day 2 morning, the same at day 1 night, in another chapter, in another season, one for good; the restamp of: the owner's, one not later, one in another chapter, none; the times of day left after the owner's restamp; the window and the editor draw the reason; its words]");
+            [{ season: 77, chapter: 1, at: 0 }, null, null, null, null], TIMES_OF_DAY.length, [true, true], true]),
+            "[the state of: the owner's (completed day 3 morning, clock day 1 morning), a day's action at day 2 morning, the same at day 1 night, in another chapter, in another season, one for good; the restamp of: the owner's, one not later, one in another chapter, none, one in another season (a mutant's gap, 16.11.2026); the times of day left after the owner's restamp; the window and the editor draw the reason; its words]");
     }],
     ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
         /*
