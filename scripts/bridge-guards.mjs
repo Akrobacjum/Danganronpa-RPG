@@ -702,8 +702,9 @@ export async function guardTraitRuling(sender, payload, ctx) {
     }
     // A Search on another statistic than Eye (E68 C6; kind `action`, the one action that lists several) keeps the same clock.
     if (payload.kind === "project" || payload.kind === "generic" || payload.kind === "action") {
-        const { isEclipse, getClock } = await import("./settings.mjs");
-        return isEclipse() || getClock()?.phase === "classTrial" ? "that cannot be done now" : null;
+        // The phase: allowed-now.mjs's `proposal` road (E40, the line claude/e40-117) - the Eclipse or the trial, one sentence.
+        const { allowedNow } = await import("./allowed-now.mjs");
+        return allowedNow(actor, payload.key, { road: "proposal" }).ok ? null : "that cannot be done now";
     }
     const { cleanupBlocker } = await import("./cleanup.mjs");
     return cleanupBlocker(actor) ? "the character may not clean up now" : null;

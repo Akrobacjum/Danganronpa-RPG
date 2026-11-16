@@ -629,8 +629,11 @@ function injectCallsPanel(tab, actor, monokuma) {
  * a drawer the player is looking at.
  */
 export function callLockNote(monokuma) {
-    if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.callsLocked");
-    if (monokuma && inClassTrial()) return game.i18n.localize("DRPG.Trial.callsLocked");
+    // The phase: allowed-now.mjs's road for the drawer (E40, the line claude/e40-117) - a Monokuma's Despair Calls,
+    // a student's Hope Calls.
+    const now = allowedNow(null, null, { road: monokuma ? "callDespair" : "callHope" });
+    if (now.why === WHY.eclipse) return game.i18n.localize("DRPG.Eclipse.callsLocked");
+    if (now.why === WHY.trial) return game.i18n.localize("DRPG.Trial.callsLocked");
     /* SILENCE, THE WEATHER, ON THE DRAWER (E24 C3b, 08.11.2026; E24-24, audit S03-13). calls.mjs refuses every Hope
        Call while the Overflow's Silence runs (`overflowBlocksCalls`, `DRPG.Overflow.silenced`), and the drawer went
        on looking open: a player read six Hope and seven live tiles and learnt the rule from the refusal. A Despair

@@ -27058,6 +27058,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Enter in the verdict window presses a verdict (the first submit button, the buttons marked default, the answer)");
     }],
 
+    ["E40-T8 - two accused, each on their own: the verdict window ticks both, holds the wrong verdict off with none ticked, and a wrong verdict executes exactly the ticked - both, the first, the other; none gives no verdict (scripts/verdict.mjs `accusedChoices`, `executedChoice`, `read`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
+        /*
+         * Drawn on this GM over a record whose count accused two living students who are not known Blackened (tier 1 R7601,
+         * R7602 hold the pure halves). Four windows, each pressed "Got it wrong" with the answer held back from
+         * `applyVerdict` (`verdictWindow`): both ticked as opened, the second unticked, the first unticked, and both unticked
+         * with the button's hold taken off as a form edited around it would - that one answers `NONE_TICKED`, no verdict. The first window
+         * also reads the ticks' values and state, the legend, that no executed select is drawn, and the button's state
+         * with none ticked and then one. Red at 8a472e37: a select named one person.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn, its ticks clicked and a verdict pressed");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        const known = new Set(trialBlackenedActors().map(a => a.id));
+        const [A, B] = cast(3).filter(a => !known.has(a.id));
+        must(A && B, "no two living students who are not known Blackened");
+        const record = { voteClosed: true, accused: [{ id: A.id, n: 2 }, { id: B.id, n: 2 }], total: 4,
+            majority: 2, noMajority: false, tied: false, accusedIds: [A.id, B.id] };
+        const ticks = element => [...element.querySelectorAll('input[name="executedEach"]')];
+        const wrongButton = element => element.querySelector('footer button[data-action="wrong"]');
+        const press = untick => element => {
+            for (const input of ticks(element)) if (untick.includes(input.value)) input.click();
+            const button = wrongButton(element);
+            const held = Boolean(button?.disabled);
+            if (button) button.disabled = false;
+            button?.click();
+            return held;
+        };
+        const first = await verdictWindow(record, element => {
+            const shape = [ticks(element).map(input => [input.value, input.checked]), Boolean(element.querySelector('select[name="executed"]')),
+                element.querySelector("fieldset legend")?.textContent?.trim() ?? null];
+            const states = [wrongButton(element)?.disabled ?? null];
+            for (const input of ticks(element)) input.click();
+            states.push(wrongButton(element)?.disabled ?? null);
+            ticks(element).find(input => input.value === B.id)?.click();
+            states.push(wrongButton(element)?.disabled ?? null);
+            wrongButton(element)?.click();
+            return [shape, states];
+        });
+        const runs = [];
+        for (const untick of [[], [B.id], [A.id], [A.id, B.id]]) runs.push(await verdictWindow(record, press(untick)));
+        const executed = answer => answer && typeof answer === "object" ? [answer.correct, answer.executedIds] : answer;
+        equal(stableJson([first.reading, executed(first.answer), ...runs.map(run => [run.reading, executed(run.answer)])]),
+            stableJson([[[[[A.id, true], [B.id, true]], false, game.i18n.localize("DRPG.Vote.executedEachIfWrong")], [false, true, false]],
+                [false, [B.id]],
+                [false, [false, [A.id, B.id]]], [false, [false, [A.id]]], [false, [false, [B.id]]], [true, "noneTicked"]]),
+            "the verdict window over two accused does not tick both, holds the wrong verdict off otherwise than with none ticked, "
+            + "or a wrong verdict does not execute exactly the ticked ones (the ticks, the select, the legend, the button's state "
+            + "as opened, with none and with one; then both, the second unticked, the first unticked, none: whether held, and the answer)");
+    }],
+
     ["a right verdict without the register executes the Blackened the GM names", async () => {
         /*
          * E10 C4, 1.2.71; audit S06-04; the stage's doneWhen "Werdyktu nie da się wykonać na przypadkowej
@@ -50128,11 +50177,27 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 }
                 row.__move = which(said.join(" | "));
             }
+            /* THE COLUMNS OF THE A10 AND A11 ROADS (E40, 16.11.2026, the line claude/e40-117; the coordinator's brief): a
+               Frisk's person gate (frisk.mjs `personActionRefusal`, the victim asking of the killer, both alone in one room,
+               `aloneTogether` below), a passage's show and its search on the live world (passages-gm.mjs `sharePassage`,
+               `resolvePassageSearch`, for a character that does not exist, so nothing is written: each asks the phase
+               first), and allowed-now.mjs's roads for each. */
+            row.__cols = {
+                frisk: Fr.personActionRefusal(victim, killer),
+                share: (await Pg.sharePassage({ actorId: "S40T3NOBODY00000", targetId: "S40T3NOBODY00001", passageId: "S40T3NONE" }))?.refused ?? null,
+                find: (await Pg.resolvePassageSearch({ actorId: "S40T3NOBODY00000", total: 0 }, quietFind))?.refused ?? null,
+                rule: { person: A.allowedNow(victim, null, { road: "person" }).why, share: A.allowedNow(victim, null, { road: "passageShare" }).why,
+                    find: A.allowedNow(victim, null, { road: "passageFind" }).why }
+            };
             await settle();
             return row;
         };
-        const matrix = {}, reachable = {}, moveRow = {};
+        const matrix = {}, reachable = {}, moveRow = {}, cols = {};
+        const Fr = await import("./frisk.mjs"), Pg = await import("./passages-gm.mjs");
+        const quietFind = { whisper: () => null, toast: () => null, note: () => null, hunted: () => null };
+        let stood = null;
         try {
+            stood = await aloneTogether(killer, victim);
             matrix.daily = await read();
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
             matrix.eclipse = await read();
@@ -50170,9 +50235,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
         }
+        await stood?.back();
+        await settle();
         equal(stableJson(reachable), stableJson({ startInFight: "DRPG.Eclipse.incidentFirst", openInEclipse: null, stageAfter: null }),
             "a fight and an Eclipse can stand together after all - the matrix must read that state too (an Eclipse started in a fight, a fight opened in an Eclipse, the fight's stage after)");
-        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; }
+        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; cols[state] = row.__cols ?? null; delete row.__cols; }
+        const ECLIPSE = "an Eclipse is running", TRIAL_WAIT = "that waits until the Class Trial is over", SIDE = "the character is a side of the running incident";
+        const LOCKED = "that action is locked", NONE = "no such character", IN_TRIAL = "the Class Trial is in session";
+        const W = A.WHY;
+        equal(stableJson(cols), stableJson({
+            daily: { frisk: null, share: NONE, find: NONE, rule: { person: null, share: null, find: null } },
+            eclipse: { frisk: ECLIPSE, share: LOCKED, find: NONE, rule: { person: W.eclipse, share: W.eclipse, find: null } },
+            trial: { frisk: TRIAL_WAIT, share: LOCKED, find: IN_TRIAL, rule: { person: W.trial, share: W.trial, find: W.trial } },
+            fight: { frisk: SIDE, share: NONE, find: NONE, rule: { person: W.incident, share: null, find: null } }
+        }), "a Frisk's gate or a passage's show or search answers otherwise than before, or otherwise than its road, in some state");
         const expected = key => ({
             daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
             eclipse: key === "directMurder" ? null : "eclipse",
@@ -50251,6 +50327,169 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the three roads answer the phase as they did before the shared rule");
         const off = Object.entries(said).flatMap(([state, r]) => ["rifle", "share", "find"].filter(k => r[k] !== r.rule[k]).map(k => `${state}/${k}: ${r[k]} vs rule ${r.rule[k]}`));
         equal(stableJson(off), "[]", `a road answers otherwise than the one rule: ${stableJson(said)}`);
+    }],
+
+    ["the Calls, the Monocub's abilities, the handover and a statistic proposal ask the phase of the one rule (E40-T6): in daily life, an Eclipse and the Class Trial each gate answers as before, in its own words, and as allowed-now.mjs's road for it", async () => {
+        /*
+         * E40 item 3, 16.11.2026 on the line claude/e40-117; the coordinator's brief of that day: the gates the shared
+         * rule's first commit left (docs/dev/e40/STATUS.md, "Not moved"). Read live on this GM, the clock's phase written
+         * raw to its setting as E40-T3 writes it: calls.mjs `callBarred` (Hope and Despair) and `hopeCallRefusal`, the
+         * sheet's `callLockNote` (a student's drawer and a Monokuma's), calls.mjs `spendDespairCallFor` (a Monokuma's,
+         * where it refuses - in daily life it would buy the Call, so it is not asked there), the Monocub's two phase locks
+         * (monocub.mjs `CUB_LOCKS`), the handover's window (handover.mjs `askWhoIsHere`, every window answered null) and a
+         * player's statistic proposal for a Search (bridge-guards.mjs `guardTraitRuling`, kind "action"). Each state's
+         * answers are held to what the module answered before the move (measured at ff3e12e5 with the rule stubbed, as
+         * E40-T3's table was), and each gate's to allowed-now.mjs's road for it, said as that gate says it. Red before
+         * the roads existed: `allowedNow` threw on a road it did not have.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's student, whose Calls, handover and proposal are read");
+        const A = await import("./allowed-now.mjs");
+        const C = await import("./calls.mjs");
+        const { callLockNote } = await import("./sheet-actions.mjs");
+        const { CUB_LOCKS } = await import("./monocub.mjs");
+        const { askWhoIsHere } = await import("./handover.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const monokuma = game.actors.find(a => a.getFlag(MODULE_ID, FLAGS.monokuma)) ?? null;
+        must(monokuma, "no Monokuma in the world - this would measure nothing");
+        const despairKey = Object.keys(DESPAIR_CALLS)[0];
+        const L = key => game.i18n.localize(key);
+        const D = foundry.applications.api.DialogV2;
+        const keptD = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptN = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const said = async run => {
+            const heard = [];
+            for (const k of ["warn", "info", "error"]) notes[k] = message => { heard.push(String(message)); };
+            for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+            try { await run(); } finally {
+                for (const [k, d] of Object.entries(keptD)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+            }
+            return heard;
+        };
+        const road = (name, key = null) => { const r = A.allowedNow(theirs, key, { road: name }); return r.ok ? null : r.why; };
+        const read = async state => ({
+            hope: await C.callBarred(theirs), despair: await C.callBarred(monokuma, { despair: true }), hopeRefusal: await C.hopeCallRefusal(theirs),
+            drawer: callLockNote(false), monokumaDrawer: callLockNote(true),
+            spend: state === "daily" ? null : (await said(() => C.spendDespairCallFor(monokuma, despairKey)))[0] ?? null,
+            cubEclipse: await CUB_LOCKS.eclipse.shut(), cubTrial: await CUB_LOCKS.classTrial.shut(),
+            handover: (await said(() => askWhoIsHere(theirs, { title: "E40-T6", intro: "E40-T6", note: "", okLabel: "E40-T6" }))).includes(L("DRPG.Eclipse.actionsLocked")),
+            proposal: await G.guardTraitRuling(player, { actorId: theirs.id, kind: "action", key: "search", variant: null }, {}),
+            roads: { callHope: road("callHope"), callDespair: road("callDespair"), cubEclipse: road("cubLock", "eclipse"), cubTrial: road("cubLock", "classTrial"),
+                handover: road("handover"), proposal: road("proposal") }
+        });
+        const clock = foundry.utils.deepClone(getClock());
+        const seen = {};
+        try {
+            seen.daily = await read("daily");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            seen.eclipse = await read("eclipse");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: false, phase: "classTrial" });
+            seen.trial = await read("trial");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        const gates = state => { const { roads, ...rest } = seen[state]; return rest; };
+        const ECL = L("DRPG.Eclipse.actionsLocked"), TRIAL = L("DRPG.Trial.callsLocked"), NOW = "that cannot be done now";
+        equal(stableJson({ daily: gates("daily"), eclipse: gates("eclipse"), trial: gates("trial") }), stableJson({
+            daily: { hope: null, despair: null, hopeRefusal: null, drawer: null, monokumaDrawer: null, spend: null, cubEclipse: false, cubTrial: false, handover: false, proposal: null },
+            eclipse: { hope: ECL, despair: ECL, hopeRefusal: ECL, drawer: L("DRPG.Eclipse.callsLocked"), monokumaDrawer: L("DRPG.Eclipse.callsLocked"), spend: ECL,
+                cubEclipse: true, cubTrial: false, handover: true, proposal: NOW },
+            trial: { hope: null, despair: TRIAL, hopeRefusal: null, drawer: null, monokumaDrawer: TRIAL, spend: TRIAL, cubEclipse: false, cubTrial: true, handover: false, proposal: NOW }
+        }), "a gate answers otherwise than before the shared rule");
+        const W = A.WHY;
+        equal(stableJson(Object.fromEntries(Object.entries(seen).map(([state, r]) => [state, r.roads]))), stableJson({
+            daily: { callHope: null, callDespair: null, cubEclipse: null, cubTrial: null, handover: null, proposal: null },
+            eclipse: { callHope: W.eclipse, callDespair: W.eclipse, cubEclipse: W.eclipse, cubTrial: null, handover: W.eclipse, proposal: W.eclipse },
+            trial: { callHope: null, callDespair: W.trial, cubEclipse: null, cubTrial: W.trial, handover: null, proposal: W.trial }
+        }), "a road of the one rule answers otherwise than its gate");
+    }],
+
+    ["every mode of the trial floor is a dimension of the phase matrix (E40-T7): for each mode of MODE_RULES and for no floor, what modeAllows allows the holder, the target and a third student is what each of its readers says, and is as it was; and with a floor of each mode in the Class Trial every action's tile and press lock as in the trial", async () => {
+        /*
+         * E40 item 3, 16.11.2026 on the line claude/e40-117 (the coordinator's brief: "the trial floor's modes as a
+         * dimension (R1023's modeAllows readers)"). R1023 holds `maySpeak`, `floorRefusal` and `targetRefusal` to
+         * `modeAllows` on three modes; MODE_RULES has more since E70, E72 and the Zones. Here every mode it has, with a
+         * floor whose holder and target are two students of the world and a third beside them, and no floor: the four
+         * kinds a student is asked about (speak, present, the target of an Objection, and whether the floor takes one)
+         * read through `modeAllows` and through each reader (`maySpeak`, `presentRefusal`, `floorRefusal`,
+         * `targetRefusal` with the three as the trial's participants and a fourth as the objector), and `adjust`; the
+         * readers must agree with the table, and the table's answers are held to ff3e12e5's, read there (the floor's
+         * rule is `modeAllows` itself: the shared rule does not wrap it, as allowed-now.mjs would then import the trial
+         * floor's whole graph). Then, with a floor of each mode written to the world in the Class Trial, the sheet's
+         * tile and the press for every key of ACTIONS lock as in the trial (E40-T3's trial row): no mode opens or shuts
+         * an action.
+         */
+        needs(world.atLeast("livingStudents", 3), "a floor's holder and target, and a third student");
+        const F = await import("./trial-floor.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [h, t, o] = livingStudents();
+        const H = h.id, T = t.id, O = o.id, Q = "S40T7OBJECTOR000";
+        const floorOf = mode => mode && { active: true, mode, holderId: H, targetId: T, seconds: 300, startedAt: 1, pending: false, messageId: null };
+        const modes = [null, ...Object.keys(F.MODE_RULES)];
+        const table = {}, readers = {};
+        for (const mode of modes) {
+            const f = floorOf(mode), key = mode ?? "none";
+            table[key] = {
+                speak: [H, T, O].map(a => F.modeAllows(f, "speak", a)), present: [H, T, O].map(a => F.modeAllows(f, "present", a)),
+                object: f ? F.modeAllows(f, "object") : false, target: [H, T, O].map(x => !f || F.modeAllows(f, "target", x)),
+                adjust: f ? F.modeAllows(f, "adjust") : false
+            };
+            readers[key] = {
+                speak: [H, T, O].map(a => F.maySpeak(a, f)), present: [H, T, O].map(a => F.presentRefusal(f, a) === null),
+                object: F.floorRefusal(f) === null, target: [H, T, O].map(x => F.targetRefusal(Q, x, f, { taking: [H, T, O, Q] }) === null),
+                adjust: table[key].adjust
+            };
+        }
+        equal(stableJson(readers), stableJson(table), "a reader of the floor's table says otherwise than modeAllows in some mode");
+        /* Read at ff3e12e5, 16.11.2026: each mode's [holder, target, third] for speak, present and target, and object and
+           adjust (a Closing with nobody's record of it has no timed phase, so no adjust). */
+        const WAS = {"closing":{"adjust":false,"object":true,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"debate":{"adjust":true,"object":true,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"dive":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"none":{"adjust":false,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"objection":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,false,false],"target":[true,true,true]},"panic":{"adjust":true,"object":false,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"rebuttal":{"adjust":true,"object":true,"present":[true,true,true],"speak":[true,true,false],"target":[true,true,false]},"scrum":{"adjust":true,"object":false,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"straw":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"testimony":{"adjust":true,"object":true,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]}};
+        equal(stableJson(table), stableJson(WAS), "a mode of the floor allows otherwise than it did");
+
+        /* The actions under each mode's floor in the Class Trial. */
+        const { actionButton } = await import("./sheet.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTION_GRID } = await import("./config.mjs");
+        must(!ACTION_GRID.includes("move"), "the sheet draws a Move tile again - E40-T3's note");
+        const keys = Object.keys(ACTIONS).filter(key => key !== "move");
+        const SENT = { trial: game.i18n.localize("DRPG.Trial.actionsLocked"), murderOnlyInEclipse: game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse") };
+        const which = text => Object.entries(SENT).filter(([, line]) => String(text ?? "").includes(line)).map(([k]) => k).join("+") || null;
+        const D = foundry.applications.api.DialogV2;
+        const keptD = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptN = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {});
+        const off = [];
+        try {
+            await game.drpg.setActions(h, game.drpg.actionsMax(h));
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            for (const mode of Object.keys(F.MODE_RULES)) {
+                await game.settings.set(MODULE_ID, SETTINGS.trialQueue, floorOf(mode));
+                must(F.trialFloor()?.mode === mode, `the floor of ${mode} was not read back - this would measure nothing`);
+                for (const key of keys) {
+                    const tile = which(actionButton(h, key, ACTIONS[key]).dataset.tooltip);
+                    const heard = [];
+                    for (const k of ["warn", "info", "error"]) notes[k] = message => { heard.push(String(message)); };
+                    for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+                    try { await performAction(h, key); } catch (err) { heard.push(`threw ${err?.message ?? err}`); }
+                    finally {
+                        for (const [k, d] of Object.entries(keptD)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                        for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+                    }
+                    const press = which(heard.join(" | "));
+                    const want = key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial";
+                    if (tile !== want || press !== want) off.push(`${mode}/${key}: tile ${tile}, press ${press}, as the trial ${want}`);
+                }
+            }
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        equal(stableJson(off), "[]", "under a floor of some mode an action locks otherwise than in the trial");
     }],
 
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {

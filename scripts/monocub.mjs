@@ -702,8 +702,9 @@ function abilityRow(key) {
  * witness's Confusion lands.
  */
 export const CUB_LOCKS = Object.freeze({
-    eclipse: { shut: async () => (await import("./eclipse.mjs")).isEclipse(), say: "DRPG.Eclipse.actionsLocked" },
-    classTrial: { shut: async () => getClock().phase === "classTrial", say: "DRPG.Trial.callsLocked" },
+    // The two phase locks ask allowed-now.mjs's `cubLock` road (E40, the line claude/e40-117), each its own phase.
+    eclipse: { shut: async () => !(await import("./allowed-now.mjs")).allowedNow(null, "eclipse", { road: "cubLock" }).ok, say: "DRPG.Eclipse.actionsLocked" },
+    classTrial: { shut: async () => !(await import("./allowed-now.mjs")).allowedNow(null, "classTrial", { road: "cubLock" }).ok, say: "DRPG.Trial.callsLocked" },
     // A Ghost Bet once the vote has closed (E72 C18): the window is 0.
     betWindow: { shut: async () => betWindowNow() <= 0, say: "DRPG.Monocub.betClosed" }
 });

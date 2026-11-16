@@ -7763,6 +7763,62 @@ const INVARIANTS = [
         ok(Object.keys(W.WORLD_SECRET_RULES.uniformActorRows ?? {}).length > 0 && !unfixtured.length,
             `a setting of uniformActorRows has no case here, or the rule names none: ${unfixtured.join(", ")}`);
     }],
+
+    ["R7601 - two accused students living at the table are offered one tick each, each ticked unless a known Blackened; fewer than two living accused students leave the window's select as it was (scripts/verdict.mjs `accusedChoices`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
+        /*
+         * The coordinator's brief of 16.11.2026: when the vote accuses two students the verdict window offers each on its own,
+         * preselected by the select's rule (a living student who is not a known Blackened), and with one accused the window
+         * stays as it was. Pure, on three students A, B, C: the rows the window draws, in the count's order.
+         */
+        const { accusedChoices } = await import("./verdict.mjs");
+        const S = ["R7601A", "R7601B", "R7601C"].map(id => ({ id, name: id }));
+        const rows = opts => accusedChoices(S, opts).map(r => [r.id, r.checked]);
+        const cases = [
+            ["two accused", { accusedIds: ["R7601B", "R7601A"] }, [["R7601B", true], ["R7601A", true]]],
+            ["two accused, one a known Blackened", { accusedIds: ["R7601A", "R7601B"], known: ["R7601B"] }, [["R7601A", true], ["R7601B", false]]],
+            ["three accused", { accusedIds: ["R7601A", "R7601B", "R7601C"] }, [["R7601A", true], ["R7601B", true], ["R7601C", true]]],
+            ["two accused, one dead", { accusedIds: ["R7601A", "R7601B"], dead: ["R7601A"] }, []],
+            ["one accused", { accusedIds: ["R7601A"] }, []],
+            ["a student and Monokuma", { accusedIds: ["R7601A", "monokuma"] }, []],
+            ["one student named twice", { accusedIds: ["R7601A", "R7601A"] }, []],
+            ["nobody", {}, []]
+        ];
+        equal(JSON.stringify(cases.map(([what, opts]) => [what, rows(opts)])), JSON.stringify(cases.map(([what, , want]) => [what, want])),
+            "the ticks the verdict window offers are not one per living accused student, ticked unless a known Blackened, or are offered with fewer than two");
+    }],
+
+    ["R7602 - a wrong verdict over two accused executes exactly the ticked ones, both, either alone, and none refused (scripts/verdict.mjs `executedChoice`; E40, 16.11.2026, the line claude/e40-117)", async () => {
+        /*
+         * What `read` hands `applyVerdict` from the ticks: the ticked rows in the window's order, an id the window did not
+         * offer dropped (a form edited around it), and nothing ticked refused - the window then gives no verdict.
+         */
+        const { executedChoice } = await import("./verdict.mjs");
+        const rows = [{ id: "R7602A" }, { id: "R7602B" }];
+        const cases = [
+            ["both", ["R7602B", "R7602A"], { ok: true, executedIds: ["R7602A", "R7602B"] }],
+            ["the first alone", ["R7602A"], { ok: true, executedIds: ["R7602A"] }],
+            ["the other alone", ["R7602B"], { ok: true, executedIds: ["R7602B"] }],
+            ["none", [], { ok: false, executedIds: [] }],
+            ["one not offered", ["R7602X"], { ok: false, executedIds: [] }],
+            ["one offered twice and one not", ["R7602B", "R7602B", "R7602X"], { ok: true, executedIds: ["R7602B"] }]
+        ];
+        equal(JSON.stringify(cases.map(([what, ticked]) => [what, executedChoice(rows, ticked)])),
+            JSON.stringify(cases.map(([what, , want]) => [what, want])),
+            "the ticks do not execute exactly the ticked accused, or nothing ticked is not refused");
+    }],
+    ["R7603 - only an answer the verdict window's `read` built is a verdict: Cancel, the window closed and a wrong verdict with none of two accused ticked give none (scripts/verdict.mjs `verdictAnswer`; E40, 16.11.2026, the line claude/e40-117)", async () => {
+        /*
+         * `openVerdictDialog` hands `applyVerdict` only what this answers; a string reaching it would be read as a wrong
+         * verdict executing nobody, with the lock written. The answers a window can give, each held to the verdict it is.
+         */
+        const { verdictAnswer } = await import("./verdict.mjs");
+        const built = { correct: false, executedIds: ["R7603A"], blackenedIds: [] };
+        const cases = [["none ticked", "noneTicked", null], ["Cancel", "cancel", null], ["the wrong button's action", "wrong", null],
+            ["the window closed", null, null], ["nothing", undefined, null], ["a verdict read built", built, built]];
+        equal(JSON.stringify(cases.map(([what, answer]) => [what, verdictAnswer(answer) ?? null])),
+            JSON.stringify(cases.map(([what, , want]) => [what, want])),
+            "an answer of the verdict window that `read` did not build is taken as a verdict, or one it built is not");
+    }],
     ["R193 - a death is the table's only once it is published", async () => {
         /*
          * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the
@@ -27423,7 +27479,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 36 keys (34 until E110 C3) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 37 keys (34 until E110 C3, 36 until E40 on 16.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -27462,7 +27518,9 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"],
             // E110 C3 (14.11.2026): the Scrum speaker's thesis window - the family grew by two, on purpose.
             ["DRPG.Tips.Trial.thesisLineTooltip","trial-prompt.mjs","promptThesis"],
-            ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"]
+            ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"],
+            // E40 (16.11.2026, the line claude/e40-117): a tick per accused in the verdict window - the family grew by one.
+            ["DRPG.Tips.Trial.executedEachTooltip","verdict.mjs","openVerdictDialog"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -27470,7 +27528,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 36, "lang/en.json has not the family's 36 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 37, "lang/en.json has not the family's 37 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);

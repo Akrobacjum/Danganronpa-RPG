@@ -1979,7 +1979,8 @@
         "whichRemnantTooltip": "Reinforced Remnants are listed, but you cannot wipe them",
         "scrubAtItTooltip": "Rolls to wipe the chosen Remnant away",
         "carryItThereTooltip": "Rolls to drag the body into the room you picked",
-        "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not"
+        "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not",
+        "executedEachTooltip": "Ticked: executed if the table got it wrong. Untick to spare this student."
       },
       "CasePlan": {
         "clearPlanTooltip": "Clears one chapter's planned Key Remnants and case schema, after a question that counts them",
@@ -2496,6 +2497,8 @@
         "other": "The Blackened of this chapter ({n}):"
       },
       "executedIfWrong": "Who is executed if the table got it wrong",
+      "executedEachIfWrong": "Who is executed if the table got it wrong: tick one of the accused, or more",
+      "pickOneAccused": "Tick at least one of the accused to give a wrong verdict.",
       "verdictNoteKnown": "If the table got it right, every Blackened above is executed, survivors get a Level Up, and this list is ignored. If not, your pick is executed, surviving Blackened stay in play with a Reinforced Level Up and share one new rule, and every Monokuma's Despair fills. Execution comes at the trial's end, or at once if it is over.",
       "verdictIntroKnown": "Only you know whether the table got it right. Say whether it found the killer, and who is executed if it did not.",
       "tiedVerdictNote": "The vote ended in a tie or without a majority. Unless the table settled it some other way, this counts as getting it wrong.",

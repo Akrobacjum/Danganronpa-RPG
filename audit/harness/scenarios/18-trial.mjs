@@ -37,6 +37,12 @@
  * flag up, the trial started again, and a wrong Final verdict on Botan: one public card, the flag down, nobody
  * executed at the close; the scans look for the Mastermind's id and name too. Four mutants, each KILLED here.
  *
+ * AND THE REST OF THE PLAN'S LIST (16.11.2026, the line claude/e40-117): D4's offer once a verdict (one waiting
+ * Reinforced each for Chie and Daichi after the first wrong verdict, two after the second), a death nobody has found on
+ * p2's ballot as alive and on p3's as dead once published, a ballot naming Botan twice refused and the count's card
+ * naming each accused once, and the verdict's window opening on the first name accused. Season-wipe on a played world
+ * is LIVE-E40-02 (a harness has no played world). Six mutants, KILLED here.
+ *
  * A RESET DURING A SUICIDE INCIDENT (16.11.2026, the same line): last, Chie's murder of herself at Stage 6 and a season
  * reset of the incident group alone, the players' sockets open; the scans after each. Two mutants, KILLED here.
  *
@@ -85,6 +91,8 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
         return { fx, started: await startClassTrial(), phase: getClock().phase, known: I.trialBlackenedIds().slice().sort() };`, { timeout: 60000 });
     /* What the finally takes back, kept here and not on the GM's page, which the reload below clears. */
     const FX = { ...(opened?.fx ?? {}) };
+    FX.waited0 = await gm.eval(`const { deferredOfferStore } = ${imp("gm-stores.mjs")}; await deferredOfferStore.whenHydrated();
+        return ${J([IDS.chie, IDS.daichi])}.map(id => { const r = deferredOfferStore.get(id); return r ? [r.kind, r.count] : null; });`);
     await settle(1000);
     check("opened: the Class Trial starts on two public deaths, with Chie and Daichi the register's Blackened",
         opened?.started === true && opened.phase === "classTrial" && J(opened.known) === J(BLACKENED), J(opened));
@@ -126,6 +134,17 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
             verdict?.stage === "done" && J([...(verdict.sentenced ?? [])].sort()) === J([...ACCUSED].sort()) && verdict.botanDead === false && verdict.blackenedAlive === true, J(verdict));
         await scan("verdict");
 
+        /* D4'S OFFER, ONCE A VERDICT (E40, 16.11.2026, the line claude/e40-117; the plan's "D4's offer applied once"): a wrong
+           verdict leaves each surviving Blackened a Reinforced Level Up that waits for the class's next one (verdict.mjs
+           `verdictOffers`, level-up.mjs `deferAdvancement`, the GMs' `deferredOfferStore`), one for each wrong verdict
+           and never two for the same one (its `at`). Read on the GM: one each now, two each after the "Nobody" verdict
+           below. Its whisper to the Blackened's owner is veiled; the scans above read p1 and p2. */
+        const waits = () => gm.eval(`const { deferredOfferStore } = ${imp("gm-stores.mjs")}; await deferredOfferStore.whenHydrated();
+            return ${J([IDS.chie, IDS.daichi])}.map(id => { const r = deferredOfferStore.get(id); return r ? [r.kind, r.count] : null; });`);
+        const waited1 = await waits();
+        check("D4: the wrong verdict leaves Chie and Daichi, the surviving Blackened, one Reinforced Level Up each, waiting (none before the trial)",
+            J(FX.waited0) === J([null, null]) && J(waited1) === J([["reinforced", 1], ["reinforced", 1]]), J({ before: FX.waited0, waited1 }));
+
         phase("close", { flow: "class-trial" });
         const closed = await gm.eval(`const V = ${imp("vote.mjs")}; const done = await V.executeAtExit();
             return { executed: [...(done?.executed ?? [])].sort(), at: Boolean(V.trialProgress().executedAt), botanDead: game.drpg.isDeadForGm(game.actors.get("${IDS.botan}")),
@@ -149,16 +168,22 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
             const { getClock } = ${imp("settings.mjs")};
             for (const id of ${J(ACCUSED)}) await C.reviveCharacter(game.actors.get(id), { quiet: true });
             const late = await Actor.create({ name: "S18 Late", type: "character", ownership: { default: 0, "${P4}": 3 } });
+            /* A DEATH NOBODY HAS FOUND (E40, 16.11.2026, the line claude/e40-117; the plan's "a deceased before and after
+               discovery"): a student nobody plays, killed in secret before the second trial - the GMs' death, not yet the
+               table's (death.mjs \`killCharacter\` with \`secret\`). */
+            const hidden = await Actor.create({ name: "S18 Hidden", type: "character" });
+            await C.killCharacter(hidden, { secret: true, keepBullets: true });
             globalThis.__dialogAnswers.push(true);
             const ended = await UI.endClassTrial();
             const between = getClock().phase;
             globalThis.__dialogAnswers.push("ok", "ok");
             const started = await UI.startClassTrial();
             const p = V.trialProgress();
-            return { late: late.id, ended: Boolean(ended), between, started, phase: getClock().phase, verdictApplied: Boolean(p.verdictApplied),
+            return { late: late.id, hidden: hidden.id, hiddenForGm: game.drpg.isDeadForGm(hidden), hiddenFlag: game.drpg.isDeceased(hidden), ended: Boolean(ended), between, started, phase: getClock().phase, verdictApplied: Boolean(p.verdictApplied),
                 vote: p.vote ?? null, executedAt: p.executedAt ?? null,
                 alive: ${J(ACCUSED)}.every(id => !game.drpg.isDeadForGm(game.actors.get(id))) };`, { timeout: 60000 });
         FX.late = again?.late ?? null;
+        FX.hidden = again?.hidden ?? null;
         await settle(1200);
         check("second trial: ended and started again in the same chapter - Daily Life between, the Class Trial after, the first verdict's lock and its execution's stamp cleared, Botan and Aiko alive",
             again?.between !== "classTrial" && again.started === true && again.phase === "classTrial" && again.verdictApplied === false
@@ -227,22 +252,74 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
             J(lateAsk));
         await scan("late player");
 
-        Object.assign(answers2, { p2: await cast2(p2), p3: await cast2(p3) });
+        /* BEFORE AND AFTER DISCOVERY, AND A DUPLICATE (E40, 16.11.2026, the line claude/e40-117). p2 asks for its ballot
+           while S18 Hidden's death is the GMs' alone: the ballot lists S18 Hidden as alive, and p2's world holds no
+           death (`candidatesFor` reads the table's flag, `isDeceased`); p2's ballot naming Botan twice is refused (the
+           plan's "duplicates on the card"); then the GM publishes the death (death.mjs `publishDeath`), and p3's ballot
+           lists S18 Hidden as dead. */
+        const ballotOf = c => c.eval(`const B = ${imp("gm-bridge.mjs")}; const r = await B.requestBallot();
+            const row = (r?.value?.candidates ?? []).find(x => x.id === "${FX.hidden ?? ""}");
+            const h = game.actors.get("${FX.hidden ?? ""}");
+            return { listed: Boolean(row), dead: row?.dead ?? null, flag: h ? game.drpg.isDeceased(h) : null, forMe: h ? game.drpg.isDeadForGm(h) : null };`, { timeout: 30000 });
+        const before = await ballotOf(p2);
+        const twice = await p2.eval(`const B = ${imp("gm-bridge.mjs")};
+            const r = await B.requestBallotCast(${J(sent2?.round ?? 0)}, ${J([ACCUSED[0], ACCUSED[0]])});
+            return { ok: r?.ok ?? null, reason: r?.reason ?? null };`, { timeout: 30000 });
+        answers2.p2 = await cast2(p2);
+        const published = await gm.eval(`const D = ${imp("death.mjs")}; const h = game.actors.get("${FX.hidden ?? ""}");
+            if (h) await D.publishDeath(h); return h ? game.drpg.isDeceased(h) : null;`, { timeout: 30000 });
+        await settle(1200);
+        const after = await ballotOf(p3);
+        answers2.p3 = await cast2(p3);
         await settle(1200);
         const inNow2 = await gm.eval(`return (${imp("vote.mjs")}).votesIn();`);
-        check("second ballots in: p2 and p3 cast too - four in",
-            Object.values(answers2).every(a => a.ok === true) && inNow2 === 4, J({ answers2, inNow2 }));
+        check("second ballots in: S18 Hidden, dead where nobody has found the body, is on p2's ballot as alive and dead in no data of p2's; p2's ballot naming Botan twice is refused; once the death is published p3's ballot lists S18 Hidden as dead; p2 and p3 cast - four in",
+            again?.hiddenForGm === true && again.hiddenFlag === false && before.listed === true && before.dead === false && before.flag === false && before.forMe === false
+                && twice.ok === false && Boolean(twice.reason) && published === true && after.listed === true && after.dead === true && after.flag === true
+                && Object.values(answers2).every(a => a.ok === true) && inNow2 === 4, J({ hidden: { forGm: again?.hiddenForGm, flag: again?.hiddenFlag }, before, twice, published, after, answers2, inNow2 }));
         await scan("second ballots in");
 
         phase("second count", { flow: "class-trial" });
         const count2 = await gm.eval(`const V = ${imp("vote.mjs")}; await V.closeVote();
             const p = V.trialProgress(); return { closed: p.voteClosed, accused: p.accusedIds ?? null };`, { timeout: 60000 });
         await settle(1200);
-        check("second count: closed and counted, Botan and Aiko accused again",
-            count2?.closed === true && J([...(count2.accused ?? [])].sort()) === J([...ACCUSED].sort()), J(count2));
+        /* The count's card on p1: each accused on one row, with the four ballots (vote.mjs `closeRound`; a name counted
+           once a ballot, the duplicate above refused before it). */
+        const card2 = await p1.eval(`const cards = game.messages.contents.filter(m => String(m.content ?? "").includes("drpg-vote-count"));
+            const last = cards.at(-1); if (!last) return null;
+            const wrap = document.createElement("div"); wrap.innerHTML = last.content;
+            return [...wrap.querySelectorAll(".drpg-vote-row")].map(r => r.textContent.replace(/\\s+/g, " ").trim());`);
+        const names2 = await gm.eval(`return ${J(ACCUSED)}.map(id => game.actors.get(id)?.name ?? null);`);
+        const rowsOf = name => (card2 ?? []).filter(r => r.includes(name));
+        check("second count: closed and counted, Botan and Aiko accused again; the card p1 holds names each on one row, with 4",
+            count2?.closed === true && J([...(count2.accused ?? [])].sort()) === J([...ACCUSED].sort())
+                && (card2 ?? []).length === 2 && names2.every(n => rowsOf(n).length === 1 && /\b4\b/.test(rowsOf(n)[0])), J({ count2, card2, names2 }));
         await scan("second count");
 
         phase("nobody", { flow: "class-trial" });
+        /* PRESELECTION (E40, 16.11.2026, the line claude/e40-117; the plan's "a verdict with preselection"): the verdict's
+           window drawn on the GM (`__dialogWindows`); then Cancel. The count accused two living students, neither a known
+           Blackened, so since D5 (the owner's "gm wybiera czy chce zabic 1, czy 2 i ktora", 16.11.2026) the window draws a
+           tick for each, both ticked, and no "executed" select (verdict.mjs `accusedChoices`); before, one select opened on
+           the first accused. Tier 2 E40-T8 presses the ticks. */
+        const pre = await gm.eval(`const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+            const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+            const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+            const pending = game.drpg.verdictDialog();
+            let read = null, result = "hung";
+            try {
+                const deadline = Date.now() + 8000; let el = null;
+                while (!(el = drawn()?.element) && Date.now() < deadline) await new Promise(r => setTimeout(r, 100));
+                const selects = el ? [...el.querySelectorAll('select[name="executed"]')] : [];
+                const ticks = el ? [...el.querySelectorAll('input[name="executedEach"]')].map(i => [i.value, i.checked]) : [];
+                read = el ? { selects: selects.length, ticks, accused: (${imp("vote.mjs")}).trialProgress().accusedIds ?? [] } : null;
+                el?.querySelector('footer button[data-action="cancel"]')?.click();
+                result = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 5000))]);
+            } finally { globalThis.__dialogWindows = was; }
+            return { read, result };`, { timeout: 30000 });
+        check("preselection: the verdict's window offers each of the two accused on a tick of their own, both ticked, and no executed select; Cancel gives no verdict",
+            pre?.read?.selects === 0 && J(pre.read.ticks) === J((pre.read.accused ?? []).map(id => [id, true]))
+                && pre.read.accused.length === 2 && pre.result === null, J(pre));
         const nobody = await gm.eval(`const V = ${imp("vote.mjs")}, D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
             D.wait = async () => null;
             const from = game.messages.size;
@@ -256,6 +333,9 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
         await settle(1500);
         check("nobody: the wrong verdict that executes nobody is given - nobody sentenced, its public card says \"Nobody is executed\" and its cut-in names nobody",
             nobody?.stage === "done" && J(nobody.sentenced) === J([]) && nobody.saysNobody === true && J(nobody.cut) === J([]), J(nobody));
+        const waited2 = await waits();
+        check("D4: the second wrong verdict leaves each of them one more - two each, not more",
+            J(waited2) === J([["reinforced", 2], ["reinforced", 2]]), J(waited2));
         await scan("nobody");
 
         phase("second close", { flow: "class-trial" });
@@ -370,7 +450,9 @@ export async function run({ gm, p1, p2, p3, p4, check, phase, settle, canary, re
             if (Object.hasOwn(w, "pick")) { const MM = ${imp("mastermind.mjs")}; const pick = w.pick ? game.actors.get(w.pick) : null;
                 if (pick) await MM.setMastermind(pick); else await MM.clearMastermind(); }
             if (w.clock) await game.drpg.setClock({ phase: w.clock.phase, finalTrial: Boolean(w.clock.finalTrial) });
-            for (const id of [w.victim, w.second, w.mastermind, w.late]) if (id) await game.actors.get(id)?.delete();
+            for (const id of [w.victim, w.second, w.mastermind, w.late, w.hidden]) if (id) await game.actors.get(id)?.delete();
+            if (JSON.stringify(w.waited0) === JSON.stringify([null, null])) { const { deferredOfferStore } = ${imp("gm-stores.mjs")};
+                for (const id of ${J([IDS.chie, IDS.daichi])}) if (deferredOfferStore.get(id)) await deferredOfferStore.drop(id); }
             return true;`, { timeout: 60000 }).catch(() => null);
     }
 }

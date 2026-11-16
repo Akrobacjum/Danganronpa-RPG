@@ -1497,6 +1497,8 @@ Konsola pokazuje, kto jeszcze nie głosował. **Wyślij kartę ponownie** wysył
 
 Okno mówi, kogo rejestr zapisał jako Blackened (bez zabójcy, którego ofiar nikt jeszcze nie znalazł, sekcja 13.4), kogo wskazało liczenie i na ilu kartach, pyta, kto zostaje stracony, jeśli klasa się pomyliła, i czy trafili. Lista straconych wymienia każdego ucznia, także Blackened z rejestru, i otwiera się na uczniu wskazanym przez liczenie, a na swojej pierwszej opcji, **Nikt nie zostaje stracony**, po remisie, bez większości, gdy nikogo nie wskazano, gdy wskazany już nie żyje (okno to mówi) albo gdy wskazany jest jednym z tych Blackened. Zmarli zostają na liście, oznaczeni, ale wybrać można tylko żyjącego ucznia. Uczeń, którego ciała nikt nie znalazł, nie jest tu oznaczony jako martwy, bo dla stołu żyje, a okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej, gdy rozprawa się kończy.
 
+Gdy liczenie wskazało dwie osoby lub więcej, a co najmniej dwie z nich żyją, zamiast listy jest pole do zaznaczenia przy każdej żyjącej. Jest zaznaczone, chyba że ta osoba to Blackened z rejestru. Jeśli klasa się pomyliła, stracone zostają osoby zaznaczone: zostaw obie albo odznacz jedną, by stracić tylko drugą. Bez żadnego zaznaczenia przycisk **Pomylili się** jest wyszarzony, a werdykt wysłany mimo to nie zostaje ogłoszony: okno prosi o zaznaczenie co najmniej jednej osoby. Trafny werdykt pomija zaznaczenia. Przy jednym oskarżonym albo gdy żyje tylko jedna z tych osób, lista zostaje.
+
 Przyciski to Anuluj, **Trafili** i **Pomylili się**, w tej kolejności bez względu na wynik: domyślny jest Anuluj, więc Enter zamyka okno i nikt nie ginie.
 
 | Werdykt | Kto zostaje skazany | Co dalej |
