@@ -3,6 +3,24 @@
 The sandbox line on the owner's PC (WSL2 Ubuntu), branch `claude/e58-local`, made from origin/main at ff3e12e5
 (1.2.116, "Merge 1.2.116 (#66)"). Newest report on top. Nothing here is a release step.
 
+## Step 1 - seed: done (16.11.2026)
+
+The owner answered question 3 with the default (a), and questions 1 and 2 with theirs.
+
+| What | Ran | Reading |
+| --- | --- | --- |
+| Red first | `node tools/check.mjs gatecode` with its new part (the seeder's self-check) and no rule yet | red: "audit/live/world-empty.mjs is missing - the seeder has no rule for a fresh v14 world" |
+| The rule | audit/live/world-empty.mjs: `readInventory` (run in the page), `leftovers` (judged in node), `FIRST_LOGIN_14_370` (the inventory read on 16.11), `selfCheck`; seed-world.mjs reads the inventory before it writes and refuses on any leftover | accepted, each recognised by what was read: Folders of type Compendium; the scene `NUEDEFAULTSCENE0` on a `nue/` background with no tokens, notes, walls, regions, drawings, sounds or templates; a message by a GM, whispered to GMs only, spoken by no actor, with flags of `core` and the module alone, that is the tour's (`core.nue`, "Foundry Virtual Tabletop", an `<h3 class="nue">` head), Dice So Nice's (its alias, a `div.dice-so-nice` head) or the module's first note (`drpgMessage` and `secret` only, content exactly `<p class="notes" data-drpg-secret>-</p>`); any setting. Anything else, and any other collection not empty, refuses |
+| Green | the same | `seeder 22/22 planted world(s) refused, the 14.370 world accepted; 0 problem(s)`. Each planted world must be refused with its own line (a player added as a user does not count as the message rule held) |
+| Mutants | 7, each on an rsync copy of the tree, `check gatecode` there | 7 KILLED: Folder type ignored; whisper readers not read; the tour scene's tokens not read; unknown collections accepted (3 cases); the module note's content not read; extra flag scopes accepted; the author not read |
+| The seed | `DRPG_SANDBOX_WORLD=drpg-qa-gate node audit/live/seed-world.mjs` | `seed-world: created 3 User, 6 Actor, 2 Scene in drpg-qa-gate`, exit 0 |
+| Read back | a read-only page as GM against audit/harness/lib/seed.mjs | users PlayerOne, PlayerTwo, PlayerThree (role 1) with the seed's ids; the 6 actors (Aiko, Botan, Chie, Daichi, Monokuma, Remnant) with theirs; "Academy - Floor 1" active, 5 tokens, 6 regions; "Academy - Annex" 1 token. The tour's scene was made inactive by v14 itself when the active academy was created. The world's GM (`NlTKlEFf2ZXi2dtz`) stands in for the seed's `USERGM0000000000`, which the seed names only on its own User document. `__errors` on the GM's page: none |
+
+A deviation from question 3's wording: the rule is held by `check gatecode`'s self-check (as audit/gate/ci-record.mjs's
+is), not a tier 0 test - tier 0 runs in Foundry's page, and the seeder runs in node.
+
+Left: steps 2-8.
+
 ## Step 1 - seed: stopped, the world is not empty (16.11.2026)
 
 The owner launched `drpg-qa-gate` (16.11.2026). What ran and what it read:

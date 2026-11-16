@@ -98,6 +98,9 @@
  *             And (E59 C0) audit/gate/ci-record.json, when it exists, holds
  *             only rows audit/gate/ci-record.mjs wrote from a run it spawned,
  *             read by that file's own rules after its planted rows refuse.
+ *             And (E58 L1) the seeder's "empty world" rule, audit/live/
+ *             world-empty.mjs: the world v14 14.370 wrote at its first login
+ *             (read 16.11.2026) accepted, each planted world refused.
  *   live      every live check the code, the harness, the tools, the language
  *             files and the handbooks cite as LIVE-<id>-<n> (E<stage>, H<stage>,
  *             and since E109 any id of letters and digits: R4420, 113R, PV) is an
@@ -1222,7 +1225,18 @@ async function gatecode() {
             }
         }
     }
-    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s)${rec.commits ? ` (${rec.commits})` : ""}, ${rec.planted}; ${problems.length} problem(s)`);
+    /* THE SEEDER'S EMPTY WORLD (E58 L1, 16.11.2026): seed-world.mjs refused every fresh v14 world, since Foundry, the
+       system and the modules write documents at the first GM login. audit/live/world-empty.mjs names those narrowly;
+       its self-check holds the world read on the owner's sandbox as accepted and each planted world as refused. */
+    let seed = "not read";
+    if (!exists("audit/live/world-empty.mjs")) problems.push("audit/live/world-empty.mjs is missing - the seeder has no rule for a fresh v14 world");
+    else {
+        const W = await import(url.pathToFileURL(path.join(REPO, "audit", "live", "world-empty.mjs")).href);
+        const self = W.selfCheck();
+        seed = `${self.refused}/${self.planted} planted world(s) refused, the 14.370 world ${self.controlOk ? "accepted" : "refused"}`;
+        if (self.refused !== self.planted || !self.controlOk) problems.push(`the seeder's empty-world self-check: ${seed} (${self.missed.join("; ")})`);
+    }
+    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s)${rec.commits ? ` (${rec.commits})` : ""}, ${rec.planted}; seeder ${seed}; ${problems.length} problem(s)`);
     return problems;
 }
 
