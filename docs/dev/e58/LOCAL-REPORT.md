@@ -35,15 +35,35 @@ standing.
 
 | Row | Result | Reading |
 | --- | --- | --- |
-| LIVE-E112-01 (553), the veil | measured, in part | while the opening waited: on the victim's browser Chie's token `hidden` and `veiled`, not drawn on its canvas; the killer's own browser draws it; PlayerThree's `BROADCAST_AUDIO` false (the microphone blocked). Not read: the killer's vision - the seed's academy has token vision off (`tokenVision` false, the token's sight off), so `hasSight` was false before any incident too; a scene with vision on is needed. Hearing (LiveKit): not checkable here |
+| LIVE-E112-01 (553), the veil | **a defect found; open** | while the opening waited: on the victim's browser Chie's token `hidden` and `veiled`, not drawn on its canvas; the killer's own browser draws it; PlayerThree's `BROADCAST_AUDIO` false (the microphone blocked). **The killer's vision**, read with the academy's token vision switched on and sight on Chie's and Aiko's tokens for the run (put back after): before the opening Chie's token is PlayerThree's one vision source (`_isVisionSource()` true, vision active); while veiled it is drawn but **no vision source** (`_isVisionSource()` false, vision inactive), and PlayerThree's canvas sees from **Aiko's** token instead - every player observes every character (the module's ownership default 2), and Foundry takes an observed token's sight when the player's own gives none. So the owner's "the killer still sees their own token and has its vision" holds for the token, not the vision: on v14 the veiled killer sees from the victim's eyes. Not fixed here - design-level (proposal below). Shot e112-01-killer-vision-while-veiled.png (the roll window over the map). Hearing (LiveKit): not checkable here |
 | LIVE-E112-04 (556), the "?" | measured on v14 | after the Hope opening, on the victim's browser Chie's token reads name `?`, `texture.src` and `ring.subject.texture` `modules/danganronpa-rpg/icons/mask-unknown.svg`, the drawn mesh's texture that file, its nameplate `?`, drawn; the portrait the same file. The bystander's browser holds the same (not drawn: another room); the killer's too. Shots: e112-01-victim-before-opening.png ("the victim's map: no Chie in Dorm A"), e112-01-killer-before-opening.png ("the killer's own map: Chie drawn"), e112-04-victim-after-hope-opening.png ("Chie's token in Dorm A drawn as the module's ? disc"), e112-04-bystander-after-hope-opening.png, e112-04-killer-after-hope-opening.png. The Forge half: not checkable here |
 | LIVE-E112-05 (557), Isometric's silhouettes | left, not settled | client setting `enableOcclusionTokenSilhouette` "gpu", a scratch tile flagged `OccludingTile` over the Gym (Daichi, hidden from PlayerOne): the silhouette layer (`OcclusionTokens`) existed and held no sprite; the control - the tile over Aiko, whom PlayerOne sees - held none either. So on this sandbox (Isometric 14.0.6, the academy not flagged isometric) nothing was built for the module to hide, and its hiding was not exercised. Next: an isometric scene, the tile flagged through Isometric's own tile settings |
 | After each run | put back | the incident closed, the mask ended, Chie where she stood with her own picture and Body, the run's cards deleted, the pause restored |
+
+**Proposal (E112-01's vision; not built).** Foundry 14.370 drops a hidden token as its owner's vision source, and the veil
+is Foundry's `hidden`. Two roads: (a) keep `hidden` and make a token the module veils a vision source for its owner and
+the killers' side (a wrapper on the Token class's vision-source test, beside visibility.mjs `show()`); (b) veil without
+`hidden` - visibility.mjs's own per-browser hiding, as rooms already do - which keeps Foundry's vision rules and also
+takes away the console's one-hidden-character reading (known leak `foundry-veiled-token-actor`), but changes what a
+player's console reads of the token. And either way, the fallback onto an observed token: with every player an
+observer of every character, a player whose own token gives no sight sees from someone else's. Red first: a tier 2
+or scenario check that reads `_isVisionSource()` on the killer's browser while veiled needs a canvas (LIVE); headless,
+the predicate can be held on the token documents. For the coordinator and the owner.
 
 Withdrawn on the way: a first reading that the module's "Daggerheart is newer than the verified version" window, left
 open on the GM's browser, kept the opening's invitation from the killer. A control with the window left open and longer
 waits brought the roll window: the first runs ended the murder 4 s after opening it, before the invitation arrived.
 How long the invitation takes after a GM's login is not measured.
+
+**What the runs here left in the world, and what was put back** (a sweep against audit/harness/lib/seed.mjs, 16.11.2026
+evening): the GM's Despair pool `{GM: 3}` and Daggerheart's `ResourcesFear` 3 (the openings' rolls; the probes' clean-ups
+had not covered them) - both put back to empty; Aiko's Stress 6 (the incidents' turns) - 0; the shared "DRPG Project"
+actor the module makes at a first project - deleted (it makes it again on need); 19 cards the probes left - deleted
+(kept: Foundry's tour, Dice So Nice's first-use cards, the module's first-login notes); every token where the seed puts it,
+every actor's resources and traits the seed's. Not put back: PlayerOne's `preSessionNote` flag (`{written: true}`, from
+step 6's fuzz) - a GM's ForcedDeletion of it applied (both hooks, the GM's copy `{}`), and a fresh GM's load read it back
+about 22 s later with a newer `modifiedTime`, the same value: something writes it again at a GM's load; where the module
+keeps that note was not found. A question below.
 
 ## Step 6 - E43 and E40 at the table (16.11.2026; in progress)
 
@@ -108,6 +128,7 @@ Group 2 (26 items): 7 measured (M) + 1 measured, 9 not checkable, 1 closed, 0 de
 | 62 (LIVE-E05-10) | measured | with no GM online PlayerOne's `saveNote` answered "kept"; a GM logged in from a fresh browser held the note (`gmNotes`, `noteFor`) within 15 s and the user's flag was written. Found on the way: the fuzz of step 6 had left PlayerOne's note flag behind - one of its six `note.save` writes landed after lib/fuzz.mjs's put-back had read the flag clear (a race the harness's model does not show); this line took the flag off (the seed has none) |
 | 63 (LIVE-E05-11) | measured | avclient-livekit 0.6.8 registers `liveKitConnectionSettings` at world scope (a player's browser reads it), `config: false`, default `{}`; its server types `custom` and `tavern`; voice.mjs `liveKitSecretWarning` warns for custom with a secret and not for Tavern with one. The module's note that the first GM to connect gives the world `serverType: "custom"` was not seen: the value stays `{}` here after several GM logins (A/V off in this world). Nothing written |
 | 64 (LIVE-E05-12) | measured | a scratch unlinked token of Aiko on the Annex: `lastAction` written through its synthetic actor landed in the token's delta, the base actor untouched; `dropRollBookmarks()` `{ dropped: 1 }`, the delta's module flags `{}` after, the synthetic actor without it. A deletion on the delta's path works on 14.370 |
+| 68 (LIVE-E06-02) | measured, in part | the GM's drawn roll of the killer's opening (a Hope opening, Daggerheart 2.12.9) as PlayerTwo's (a bystander's) console holds it: no id, name or uuid of the killer's actor anywhere in its JSON; speaker `{ actor: null, alias: "Monokuma" }`; title "Duality Roll"; no `trait` in the roll's options, no effects, bonus effects or experiences, no modifier labels. Not read: the Reroll half (Hope and Sanity settled again, the same trait and experiences), whether `options.data` is empty, Daggerheart 2.6.5 |
 | 67 (LIVE-E06-01) | measured, with a question | the victim's browser (PlayerOne) through the opening: while the killer throws, no `drpg-incident-here`, no event panel, no sound; after a failed opening (Chie's Body -20), the same - but its chat shows three veiled cards placed for everybody ("To: GM, PlayerOne, PlayerThree, PlayerTwo", the placeholder `-`, no words reached it) and Foundry's stub of the GM's draw of the opening, "Duality Roll · GM privately rolled some dice", at that moment (private-rolls.mjs writes `blind: false`). After a Hope opening: `drpg-incident-here`, one event card "Face to face / Aiko Hoshino / your turn", the words "Someone is moving on you ..."; no "Chie" anywhere on the page or in its store. One earlier run's card read "Face to face Chie Mori against ..." on the victim: events.mjs names the pair only when that browser's cast holds the killer, which a success with Fear leaves (the mask opens on Hope or a critical); that run's dice were not recorded, and two runs since did not repeat it. Sounds: none captured - the seed has no murder playlist. Shots e06-01-victim-after-*.png |
 
 
