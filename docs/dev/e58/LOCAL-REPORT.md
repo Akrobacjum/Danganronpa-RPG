@@ -3,6 +3,19 @@
 The sandbox line on the owner's PC (WSL2 Ubuntu), branch `claude/e58-local`, made from origin/main at ff3e12e5
 (1.2.116, "Merge 1.2.116 (#66)"). Newest report on top. Nothing here is a release step.
 
+The owner, 16.11.2026, while step 1 ran: "nie czekaj na mnie albo na moje odpowiedzi. zrealizuj cale polecenie na
+domyslnych ... pracuj do samego konca". From here every question takes its default, written beside it, and the line
+goes on; what only the owner can give (a password, eyes on a screen) is written as not run with its reason.
+
+## Step 2 - dry run: every part dry-run (16.11.2026)
+
+| What | Ran | Reading |
+| --- | --- | --- |
+| The dry run | `DRPG_SANDBOX_WORLD=drpg-qa-gate npm run gate:local -- --dry-run` in audit/harness, at 1c76e88f | 0.27 s. `live-stained-glass`, `live-monokuma-legacy`, `live-world-diff`, `sandbox-14-quiet`, `sandbox-60-ledger`, `sandbox-81-render-budget`, `sandbox-83-roll-integrity`, `sandbox-84-viewports`: each `not-run`, reason `dry-run` ("http://localhost:30099 answered (HTTP 200); no part was run"). No drill listed (every stage row's `drills` is empty). Verdict incomplete, unsigned (DRPG_GATE_KEY not set, as the owner chose); nothing written |
+| What the dry run does not read | the runner's own first checks, run by hand from a scratch script (foundry.mjs `serverReason`'s rule, `servedDiff`'s loop copied, `login` for each account) | `/api/status` active, 14.370, world `drpg-qa-gate`: none of no-world, wrong-foundry, not-a-copy. 281 module files served (module.json, scripts, styles, lang), 0 differ from the checkout: not stale-module. GM, PlayerOne, PlayerTwo, PlayerThree each logged in on /join without a password (roles 4, 1, 1, 1; module 1.2.116, Daggerheart 2.12.9): not password-required |
+
+Nothing for the owner to change. Left: steps 3-8.
+
 ## Step 1 - seed: done (16.11.2026)
 
 The owner answered question 3 with the default (a), and questions 1 and 2 with theirs.
