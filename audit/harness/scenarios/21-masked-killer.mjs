@@ -196,7 +196,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         JSON.stringify(veiled), { flow: "murder-incident" });
     /* WHAT A PLAYER'S CONSOLE READS OF THE VEIL (E112, 16.11.2026; the coordinator's read of the diff at assembly): every
        Token document reaches every browser (known leak foundry-hidden-tokens), so a console lists the tokens that carry the
-       veil's flag, and the ones that turned hidden, and resolves each by its actorId - the opening's killer. The GMs' store
+       veil's flag, and resolves each by its actorId - the opening's killer. Until E112v it also listed them among the
+       characters' tokens turned hidden; since road (b) none turns hidden (the check above), and the flag stays, since
+       every browser that hides the token reads it (docs/dev/e112v/DESIGN.md section 3). The GMs' store
        of the veil is a client setting of the GMs' (gm-stores.mjs `veilStore`): read as each player holds it. */
     const CONSOLE = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const tokens = game.scenes.contents.flatMap(s => [...s.tokens]);
@@ -210,8 +212,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("road: no character token turns hidden for the veil - on p1 and p2 a console's list of hidden characters' tokens holds none of the opening's killer's",
         ["victim", "bystander"].every(k => Array.isArray(consoles[k]?.hidden) && !consoles[k].hidden.includes(killerName)),
         JSON.stringify(consoles), { flow: "murder-incident" });
-    check("a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag, and the characters' tokens turned hidden, resolve to the opening's killer",
-        !["victim", "bystander"].some(k => (consoles[k]?.flagged ?? []).includes(killerName) || (consoles[k]?.hidden ?? []).includes(killerName)),
+    check("a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag resolve to the opening's killer",
+        !["victim", "bystander"].some(k => (consoles[k]?.flagged ?? []).includes(killerName)),
         JSON.stringify(consoles), { knownLeak: "foundry-veiled-token-actor", measured: veiled.mic === false && tokenIds.length > 0 });
     check("road: the GMs' store of the veil holds nothing on the victim's and the bystander's browsers, and Chie's row on the GM's",
         consoles.gm.store === 1 && consoles.victim.store === 0 && consoles.bystander.store === 0, JSON.stringify(consoles), { flow: "murder-incident" });
