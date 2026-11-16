@@ -44,8 +44,9 @@ import { nameAsSeen } from "./mask-gm.mjs";
  * handover keeps its drop-down.
  */
 export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox = false }) {
-    const { isEclipse } = await import("./eclipse.mjs");
-    if (isEclipse()) {
+    // The phase: allowed-now.mjs's `handover` road (E40, the line claude/e40-117) - the Eclipse.
+    const { allowedNow } = await import("./allowed-now.mjs");
+    if (!allowedNow(actor, null, { road: "handover" }).ok) {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
         return null;
     }

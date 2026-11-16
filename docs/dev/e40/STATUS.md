@@ -437,6 +437,31 @@ without ids). A stamp's value is not held, only its shape: an actor made since t
 time), measured when 18-trial first made its Mastermind after the reload - the copy then had no row for it, the
 exemption stopped and the scans failed, as the rule says; the Mastermind's actor is made with the other fixtures now.
 
+## The line claude/e40-117 (16.11.2026, base ff3e12e5, 1.2.116; R block R7600-R7639)
+
+The coordinator's brief of 16.11.2026, the owner's word: "Etapy (lub czesci etapow) niewymagajace foundry niech wleca w
+1.2.117". Baseline at ff3e12e5: `npm run quick` green (lint 414 files, 25 check parts, gate 37/37); tiers 0-1 whole
+1759 ran, 1744 passed, 0 failed, 16 skipped, 0 red (449 s).
+
+| Commit | What | Where |
+| --- | --- | --- |
+| D1 | **The gates the shared rule's first commit left, moved onto it**: allowed-now.mjs roads `callHope` (the Eclipse), `callDespair` (the Eclipse, then the trial), `cubLock` (keyed by the lock, "eclipse" or "classTrial"), `handover` (the Eclipse) and `proposal` (the Eclipse or the trial, one sentence). Moved: calls.mjs `callBarred` (both sides), `hopeCallRefusal`, `spendDespairCallFor` (its Eclipse and trial gates, each in its place, the GM-only check before them as it was); the sheet's `callLockNote`; monocub.mjs `CUB_LOCKS`' two phase locks (the rows keep their `locks` order and the Ghost Bet's window lock); handover.mjs `askWhoIsHere`; bridge-guards.mjs `guardTraitRuling`'s phase for a project, a generic roll or a Search. Every sentence as it was. The four files that read the phase by `import()` read the rule the same way (R161 green). New tier 2 **E40-T6**: in daily life, an Eclipse and the trial, every one of those gates read live and held to the answers of ff3e12e5 (measured there with the rule's reading stubbed: only the roads' check failed) and to its road. Red at ff3e12e5: "allowedNow: no road callHope". R42 reads the Despair Call's trial gate through the road now | scripts/allowed-now.mjs, calls.mjs, sheet-actions.mjs, monocub.mjs, handover.mjs, bridge-guards.mjs, tests-tier0.mjs (R42), tests-tier2.mjs (E40-T6) |
+
+D1's mutants, 13 of 13 KILLED by E40-T6 (and R42 where it reads the gate): each road's phase dropped (`callHope`,
+`callDespair`'s trial, `cubLock`'s eclipse and its classTrial, `handover`, `proposal`'s trial); each caller's line off
+(`callBarred`'s trial, `hopeCallRefusal`, `spendDespairCallFor`'s trial, the drawer's trial, the Monocub's trial lock,
+the handover's window, the proposal's guard).
+
+Gates of D1: `npm run quick` green (lint 414 files, 25 parts, gate 37/37); tiers 0-1 whole 1759 ran, 1744 passed, 0
+failed, 16 skipped, 0 red (482 s); the 38 tier-2 tests that name a changed function or the Calls' lock sentences, by
+name, 47 passed, 0 failed; E40-T6, E40-T3, R42, R161 and R164 green.
+
+Not moved, on purpose: sheet-actions.mjs's budget line in an Eclipse (the crossings left: words, no lock),
+`directMurderIsFree` (whether Direct Murder costs nothing now: a price, not a lock) and `moveDragSaid` (whether the
+sheet says "Drag your token": words, not a lock). For scale, `git grep` of `isEclipse()`, `inClassTrial()` and
+`phase === "classTrial"` in scripts/ outside the tests and allowed-now.mjs, 16.11.2026 on this line: 149 reads; the
+roads moved are the ones the brief names, and the rest were not read one by one here.
+
 ## Needs a local Foundry
 
 - **LIVE-E40-01** (audit/AUDIT-1.2.42.md 9.2 item 537, written on this line; 532 on its branch, renumbered in the 1.2.113 assembly): `checkState()` at a real primary GM's

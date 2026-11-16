@@ -2845,7 +2845,10 @@ const REGRESSIONS = [
         ok(hopeGate.length > 100 && !hopeGate.includes("classTrial"),
             "Hope Calls are barred during a trial now, which is the opposite of the decision");
         const despairGate = bodyOf(callsSrc, "export async function spendDespairCallFor");
-        ok(despairGate.includes("classTrial"),
+        /* Since E40 (the line claude/e40-117) the phase is allowed-now.mjs's `callDespair` road: the Despair Call asks it
+           and refuses on its trial, and the road refuses the trial. */
+        const despairRule = bodyOf(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/allowed-now.mjs`).then(lfText)), "    callDespair: (key, f) => {", { until: "\n    },\n" });
+        ok(despairGate.includes('road: "callDespair"') && despairGate.includes("now.why === WHY.trial") && /f\.trial\(\)\) return shut\(WHY\.trial\)/.test(despairRule),
             "a Despair Call is no longer refused during a Class Trial");
     }],
 

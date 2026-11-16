@@ -50253,6 +50253,84 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(off), "[]", `a road answers otherwise than the one rule: ${stableJson(said)}`);
     }],
 
+    ["the Calls, the Monocub's abilities, the handover and a statistic proposal ask the phase of the one rule (E40-T6): in daily life, an Eclipse and the Class Trial each gate answers as before, in its own words, and as allowed-now.mjs's road for it", async () => {
+        /*
+         * E40 item 3, 16.11.2026 on the line claude/e40-117; the coordinator's brief of that day: the gates the shared
+         * rule's first commit left (docs/dev/e40/STATUS.md, "Not moved"). Read live on this GM, the clock's phase written
+         * raw to its setting as E40-T3 writes it: calls.mjs `callBarred` (Hope and Despair) and `hopeCallRefusal`, the
+         * sheet's `callLockNote` (a student's drawer and a Monokuma's), calls.mjs `spendDespairCallFor` (a Monokuma's,
+         * where it refuses - in daily life it would buy the Call, so it is not asked there), the Monocub's two phase locks
+         * (monocub.mjs `CUB_LOCKS`), the handover's window (handover.mjs `askWhoIsHere`, every window answered null) and a
+         * player's statistic proposal for a Search (bridge-guards.mjs `guardTraitRuling`, kind "action"). Each state's
+         * answers are held to what the module answered before the move (measured at ff3e12e5 with the rule stubbed, as
+         * E40-T3's table was), and each gate's to allowed-now.mjs's road for it, said as that gate says it. Red before
+         * the roads existed: `allowedNow` threw on a road it did not have.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's student, whose Calls, handover and proposal are read");
+        const A = await import("./allowed-now.mjs");
+        const C = await import("./calls.mjs");
+        const { callLockNote } = await import("./sheet-actions.mjs");
+        const { CUB_LOCKS } = await import("./monocub.mjs");
+        const { askWhoIsHere } = await import("./handover.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const monokuma = game.actors.find(a => a.getFlag(MODULE_ID, FLAGS.monokuma)) ?? null;
+        must(monokuma, "no Monokuma in the world - this would measure nothing");
+        const despairKey = Object.keys(DESPAIR_CALLS)[0];
+        const L = key => game.i18n.localize(key);
+        const D = foundry.applications.api.DialogV2;
+        const keptD = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptN = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const said = async run => {
+            const heard = [];
+            for (const k of ["warn", "info", "error"]) notes[k] = message => { heard.push(String(message)); };
+            for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+            try { await run(); } finally {
+                for (const [k, d] of Object.entries(keptD)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+            }
+            return heard;
+        };
+        const road = (name, key = null) => { const r = A.allowedNow(theirs, key, { road: name }); return r.ok ? null : r.why; };
+        const read = async state => ({
+            hope: await C.callBarred(theirs), despair: await C.callBarred(monokuma, { despair: true }), hopeRefusal: await C.hopeCallRefusal(theirs),
+            drawer: callLockNote(false), monokumaDrawer: callLockNote(true),
+            spend: state === "daily" ? null : (await said(() => C.spendDespairCallFor(monokuma, despairKey)))[0] ?? null,
+            cubEclipse: await CUB_LOCKS.eclipse.shut(), cubTrial: await CUB_LOCKS.classTrial.shut(),
+            handover: (await said(() => askWhoIsHere(theirs, { title: "E40-T6", intro: "E40-T6", note: "", okLabel: "E40-T6" }))).includes(L("DRPG.Eclipse.actionsLocked")),
+            proposal: await G.guardTraitRuling(player, { actorId: theirs.id, kind: "action", key: "search", variant: null }, {}),
+            roads: { callHope: road("callHope"), callDespair: road("callDespair"), cubEclipse: road("cubLock", "eclipse"), cubTrial: road("cubLock", "classTrial"),
+                handover: road("handover"), proposal: road("proposal") }
+        });
+        const clock = foundry.utils.deepClone(getClock());
+        const seen = {};
+        try {
+            seen.daily = await read("daily");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            seen.eclipse = await read("eclipse");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: false, phase: "classTrial" });
+            seen.trial = await read("trial");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        const gates = state => { const { roads, ...rest } = seen[state]; return rest; };
+        const ECL = L("DRPG.Eclipse.actionsLocked"), TRIAL = L("DRPG.Trial.callsLocked"), NOW = "that cannot be done now";
+        equal(stableJson({ daily: gates("daily"), eclipse: gates("eclipse"), trial: gates("trial") }), stableJson({
+            daily: { hope: null, despair: null, hopeRefusal: null, drawer: null, monokumaDrawer: null, spend: null, cubEclipse: false, cubTrial: false, handover: false, proposal: null },
+            eclipse: { hope: ECL, despair: ECL, hopeRefusal: ECL, drawer: L("DRPG.Eclipse.callsLocked"), monokumaDrawer: L("DRPG.Eclipse.callsLocked"), spend: ECL,
+                cubEclipse: true, cubTrial: false, handover: true, proposal: NOW },
+            trial: { hope: null, despair: TRIAL, hopeRefusal: null, drawer: null, monokumaDrawer: TRIAL, spend: TRIAL, cubEclipse: false, cubTrial: true, handover: false, proposal: NOW }
+        }), "a gate answers otherwise than before the shared rule");
+        const W = A.WHY;
+        equal(stableJson(Object.fromEntries(Object.entries(seen).map(([state, r]) => [state, r.roads]))), stableJson({
+            daily: { callHope: null, callDespair: null, cubEclipse: null, cubTrial: null, handover: null, proposal: null },
+            eclipse: { callHope: W.eclipse, callDespair: W.eclipse, cubEclipse: W.eclipse, cubTrial: null, handover: W.eclipse, proposal: W.eclipse },
+            trial: { callHope: null, callDespair: W.trial, cubEclipse: null, cubTrial: W.trial, handover: null, proposal: W.trial }
+        }), "a road of the one rule answers otherwise than its gate");
+    }],
+
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {
         /*
          * E32+E07 C16, 03.10.2026; audit S02-30. The killer's notice "This roll is yours"
