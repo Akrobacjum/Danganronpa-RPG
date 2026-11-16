@@ -68850,6 +68850,149 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             `a project in "${where.room}" on another scene, then one on the character's own ([Work list, Sabotage list, ruling out of reach, progress code, bar, sabotage code, frozen])`);
     }],
 
+    ["a project in a room that one place scene holds offers no choice of scene in its editor, stores none on Save, and stands where it stood before the choice existed (option (c), the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md: a world with no duplicate behaves as today)", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. A completed public project with a room action, made in the room a connected
+         * player's character stands in, which one place scene holds; its edit window drawn and saved as it opened. Read:
+         * whether the window shows the scene picker, whether Save stored a pick, whether `projectScene` answers what it
+         * answered before (its token's scene, else `sceneOfRoom`), its token's scene, and the action in the character's
+         * Facilities rows. Nothing to be red: it holds today's answers, so it is green at a56ffb13 as it must stay green
+         * after (the coordinator's "hold that with a test, not by reading"); its mutant is the pick read when none is stored.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(env.dialogs(), "the edit window is read off its drawn window");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const A = await import("./action-facilities.mjs");
+        const PM = await import("./projects-map.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const { actor, where } = await playerInRoom();
+        const holders = R.placeScenes().filter(s => R.roomRegions(s, where.room).length);
+        must(holders.length === 1, `"${where.room}" stands on ${holders.length} place scenes - this reads a world where one holds it`);
+        const title = game.i18n.localize("DRPG.Project.editTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const read = {};
+        let id = null, open = null;
+        try {
+            id = (await P.createProject({ name: "SUITE (c) one scene", target: 1, room: where.room, trait: "hand", description: "SUITE (c) one scene, its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE (c) one scene", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await P.addProgress(id, 1);
+            await settle();
+            open = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            const el = drawn().element;
+            const row = el.querySelector('.drpg-form-field[data-drpg-room-scene]');
+            read.picker = Boolean(row && !row.hidden);
+            el.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([open, wait(5000)]);
+            await settle();
+            const before = (PM.projectTokenOf(id)?.parent ?? null) ?? R.sceneOfRoom(where.room);
+            read.stored = Object.hasOwn(P.metaFor(id), "roomScene") ? P.metaFor(id).roomScene : "absent";
+            read.scene = [P.projectScene(id)?.id === before?.id, P.projectScene(id)?.id === where.scene.id, PM.projectTokenOf(id)?.parent?.id ?? null];
+            read.rows = (await A.facilityRows(actor)).some(r => r.value === `${F.PROJECT_PREFIX}${id}`);
+        } finally {
+            for (const a of [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.window?.title === title)) await a.close();
+            if (open) await Promise.race([open, wait(3000)]);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ picker: false, stored: "absent", scene: [true, true, where.scene.id], rows: true }),
+            "{picker: the editor shows a scene picker; stored: the pick Save wrote; scene: [as before the choice, the character's scene, the token's scene]; rows: the action in the character's Facilities}");
+    }],
+
+    ["a project picked onto a second scene that holds a room of the same name stands there alone: its token, its action offered and served there and not on the first scene, and back where it stood once that scene is deleted (option (c), the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md)", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. A scene of the suite's own holds a room named as the one a connected player's
+         * character stands in. A completed public project with a room action in that room: its edit window shows both
+         * scenes, the second picked and saved. Read on this GM: the stored pick, `projectScene`, its token's scene, the
+         * action offered (`projectActionsAt`, as the player's Facilities rows read it) to that player at each scene's room,
+         * and the GM's run of a use (`facility.use` judged as the player's) with the character's only shown token in the
+         * second scene's room; then the second scene deleted and the same read again. What p1's own page draws is
+         * scenario 99's. Red at a56ffb13: no picker, so the project stood on the character's scene throughout.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the use is a connected player's, as Foundry names only those");
+        needs(env.dialogs(), "the edit window is read off its drawn window");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const PM = await import("./projects-map.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const title = game.i18n.localize("DRPG.Project.editTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const offered = async scene => (await F.projectActionsAt({ room: where.room, scene }, player)).some(r => r.project.id === id);
+        const use = async () => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "facility.use", requestId: `SC${foundry.utils.randomID(8)}`, actorId: actor.id, actionId: `${F.PROJECT_PREFIX}${id}` },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value?.success ?? null;
+        };
+        const read = {};
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let id = null, open = null, other = null, standIn = null;
+        const shown = where.tokenDoc.hidden;
+        const stress = Number(actor.system.resources.stress.value) || 0;
+        try {
+            other = await Scene.create({ name: "SUITE (c) a second floor with a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            id = (await P.createProject({ name: "SUITE (c) two scenes", target: 1, room: where.room, trait: "hand", description: "SUITE (c) two scenes, its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE (c) two scenes", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await P.addProgress(id, 1);
+            await settle();
+            read.first = [P.projectScene(id)?.id === where.scene.id, await offered(where.scene), await offered(other)];
+            open = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            const el = drawn().element;
+            const row = el.querySelector('.drpg-form-field[data-drpg-room-scene]');
+            const select = el.querySelector('select[name="roomScene"]');
+            read.picker = [Boolean(row && !row.hidden), [...(select?.options ?? [])].map(o => o.value).includes(other.id), [...(select?.options ?? [])].length];
+            if (select) {
+                select.value = other.id;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            el.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([open, wait(5000)]);
+            await settle();
+            read.picked = [P.roomSceneOf(id) === other.id, P.projectScene(id)?.id === other.id, PM.projectTokenOf(id)?.parent?.id === other.id,
+                await offered(where.scene), await offered(other)];
+            read.usedOnFirst = await use();
+            await where.tokenDoc.update({ hidden: true });
+            standIn = (await other.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, actorLink: true, x: 300, y: 300, width: 1, height: 1, hidden: false }]))[0] ?? null;
+            await settle();
+            read.usedOnSecond = await use();
+            await standIn?.delete();
+            standIn = null;
+            await where.tokenDoc.update({ hidden: shown });
+            await other.delete();
+            other = null;
+            await settle();
+            read.deleted = [P.roomSceneOf(id) !== null, P.projectScene(id)?.id === where.scene.id, await offered(where.scene)];
+        } finally {
+            for (const a of [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.window?.title === title)) await a.close();
+            if (open) await Promise.race([open, wait(3000)]);
+            await standIn?.delete().catch(() => {});
+            if (where.tokenDoc.hidden !== shown) await where.tokenDoc.update({ hidden: shown });
+            if (id) await P.deleteProject(id).catch(() => {});
+            await other?.delete().catch(() => {});
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if ((Number(actor.system.resources.stress.value) || 0) !== stress) await trustedWrite(actor, { "system.resources.stress.value": stress }, { reason: "gmRuling" }).catch(() => {});
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [true, true, false], picker: [true, true, 2],
+            picked: [true, true, true, false, true], usedOnFirst: "notThere", usedOnSecond: true, deleted: [true, true, true] }),
+            "{first: [on the character's scene, offered there, offered on the second]; picker: [shown, the second scene offered, options]; picked: [stored, projectScene, token there, offered on the first, offered on the second]; usedOnFirst/usedOnSecond: the GM's answer to a use from each; deleted: [the pick kept, back on the first scene, offered there]}");
+    }],
+
     ["who stands in a room is counted on the scene the character stands on whatever scene is on screen", async () => {
         /*
          * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1 (re-sized to major by the security

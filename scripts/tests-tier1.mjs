@@ -7495,9 +7495,9 @@ const INVARIANTS = [
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
             // E93 C1: a secret project's room action (its label and effects) as well.
-            // The leak-pm line (1.2.113): whether it is an indirect murder, and its room.
-            ...["description", "facility", "indirectMurder", "room"].map(f => [`projectMeta while secret: ${f}`,
-                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" ? true : f === "room" ? "Gym" : "R190 the plan, in the killer's words"; },
+            // The leak-pm line (1.2.113): whether it is an indirect murder, and its room. Option (c) (16.11.2026): the scene picked for it.
+            ...["description", "facility", "indirectMurder", "room", "roomScene"].map(f => [`projectMeta while secret: ${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" ? true : f === "room" ? "Gym" : f === "roomScene" ? "R190SCENE0000002" : "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
             // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).
@@ -27367,7 +27367,7 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
-    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 35 keys (34 until option (c), 16.11.2026) under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
@@ -27388,6 +27388,7 @@ const INVARIANTS = [
             ["DRPG.Tips.Actions.onlyAfterDarkTooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.notTheOneWhoTooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.room2Tooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.roomSceneTooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.requiredWork2Tooltip","projects-ui.mjs","openProjectDialog"],
             ["DRPG.Tips.Actions.aPlayerSOnTooltip","projects-ui.mjs","viewerTicks"],
             ["DRPG.Tips.Actions.shareTooltip","projects-ui.mjs","openProjectManager"],
@@ -27412,7 +27413,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Actions");
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 35, "lang/en.json has not the family's 35 keys under DRPG.Tips.Actions");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -52884,7 +52885,8 @@ const INVARIANTS = [
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             settings.get = ownGet;
         }
-        const createFields = ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret"];
+        // The scene of the room after the room since option (c) (16.11.2026; the owner's choice): its row hidden where one scene holds the name.
+        const createFields = ["img", "name", "description", "glyph", "target", "room", "roomScene", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret"];
         const t = key => game.i18n.localize(key);
         const viewers = game.users.some(u => !u.isGM) ? ["viewers"] : [];
         equal(stableJson(got), stableJson({
@@ -61872,6 +61874,53 @@ const INVARIANTS = [
             shown.includes("15") && shown.includes("60") && !shown.includes("DRPG.")]),
         stableJson(["15 older rows were dropped to keep the newest 60.", "1 older row was dropped to keep the newest 60.", "", true, true, true, true]),
             "[the line for 15, for 1, for none; diagnose()'s first line is it; the window draws the plural key with the count; the Copy text carries the line; the key renders both numbers]");
+    }],
+    ["R7641 - a project stands on the scene a GM picked for its room, else where it stood (option (c), the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md): projects.mjs `projectSceneRule` answers a pick that is a place scene holding the project's room, else its token's scene, else the first place scene holding the room by name; `projectScene` asks it with the pick `roomSceneOf` reads; `roomScene` is one of projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET, held out of a secret project's projectMeta row by world-secrets.mjs, and rides the insider's sight copy", async () => {
+        /*
+         * Red at a56ffb13: a project stood on its token's scene, else on `sceneOfRoom`'s, and nothing read a pick. Asked of
+         * the rule with readers of its own: scene A is the home scene and holds a Kitchen, B holds one too, C holds none.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const W = await import("./world-secrets.mjs");
+        const rule = typeof P.projectSceneRule === "function" ? P.projectSceneRule : null;
+        const A = { id: "A" }, B = { id: "B" }, C = { id: "C" };
+        const readers = { sceneById: id => ({ A, B, C })[id] ?? null, isPlace: s => [A, B, C].includes(s),
+            holds: (s, room) => room === "Kitchen" && (s === A || s === B), byName: room => (room === "Kitchen" ? A : null) };
+        const ask = q => (rule ? rule(q, readers)?.scene?.id ?? null : "no rule");
+        const answers = [ask({ room: "Kitchen", pickId: "B" }), ask({ room: "Kitchen", pickId: "GONE" }), ask({ room: "Kitchen", pickId: "C" }),
+            ask({ room: "Kitchen", pickId: "B", tokenSceneId: "A" }), ask({ room: "Kitchen", tokenSceneId: "B" }), ask({ room: "Kitchen" }),
+            ask({ room: null, pickId: "B" }), ask({ room: "Kitchen", tokenSceneId: "GONE" })];
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const asked = /projectSceneRule\(/.test(fnSource(src, "projectScene")) && /roomSceneOf\(/.test(fnSource(src, "projectScene"));
+        const sight = /roomScene/.test(fnSource(src, "sightExtras"));
+        equal(stableJson([answers, typeof P.roomSceneOf === "function", asked, (S.PROJECT_SECRET_WHILE_SECRET ?? []).includes("roomScene"),
+            (W.WORLD_SECRET_RULES.settings.projectMeta?.whileSecret?.fields ?? []).includes("roomScene"), sight]),
+        stableJson([["B", "A", "A", "B", "B", "A", null, "A"], true, true, true, true, true]),
+            "[the scene for: a pick holding the room, a deleted pick, a pick without the room, a pick over a token elsewhere, a token alone, nothing, no room, a token whose scene is gone; roomSceneOf; projectScene asks the rule with the pick; roomScene kept with the GMs while secret, in the rule, and on the sight copy]");
+    }],
+    ["R7642 - the project's editor offers the scene of its room only where more than one place scene holds that room's name (option (c), the owner's choice of 16.11.2026): projects.mjs `roomSceneChoices` lists those scenes, the home scene first as `placeScenes` orders them, none for a name one scene holds or for no room, and names a stored pick that is not among them stale; projects-ui.mjs `openProjectDialog` draws the picker from it and reads it back, the Projects manager clears a pick with the room it changes, and the picker's words are in both languages", async () => {
+        /*
+         * Red at a56ffb13: there was no choice of scene. The choice is asked with scenes of its own; the window's source is
+         * read, as tier 1 opens no window (the tier-2 "a project picked onto a second scene ..." saves through the rule).
+         */
+        const P = await import("./projects.mjs");
+        const choose = typeof P.roomSceneChoices === "function" ? P.roomSceneChoices : null;
+        const A = { id: "A", name: "Floor 1" }, B = { id: "B", name: "Annex" }, C = { id: "C", name: "Roof" };
+        const holds = (s, room) => (room === "Kitchen" && (s === A || s === B)) || (room === "Gym" && s === C);
+        const ask = (room, pickId = null) => (choose ? choose(room, { places: [A, B, C], holds, pickId }) : "no choice");
+        const answers = [ask("Kitchen"), ask("Kitchen", "B"), ask("Kitchen", "GONE"), ask("Gym"), ask(null)];
+        const ui = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const dialog = fnSource(ui, "openProjectDialog"), manager = fnSource(ui, "applyProjectManager");
+        const drawn = /roomSceneChoices\(/.test(dialog) && /name="roomScene"/.test(dialog) && /roomScene:/.test(dialog);
+        const cleared = /roomScene: null/.test(manager);
+        const words = ["DRPG.Project.roomScene", "DRPG.Project.roomSceneStale", "DRPG.Tips.Actions.roomSceneTooltip"].every(k => game.i18n.has(k, false));
+        equal(stableJson([answers, drawn, cleared, words]), stableJson([[
+            { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: false },
+            { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: false },
+            { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: true },
+            { scenes: [], stale: false }, { scenes: [], stale: false }], true, true, true]),
+            "[the choices for a name two scenes hold, with a pick among them, with a pick that is not, for a name one scene holds, for no room; the editor draws and reads the picker; the manager clears a pick with its room; the words in this language]");
     }],
     ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
         /*

@@ -3,7 +3,9 @@
 Written 16.11.2026 by the line claude/e43-117 on ff3e12e5 (1.2.116); the first version (a48e822e) set out options (b)
 and (c) side by side. The owner chose **(c)** on 16.11.2026 (through the coordinator): the GM picks the scene in the
 project's editor, the picker shown only when more than one scene holds a room of that name; everything else as today.
-This version is (c) alone, the design the build follows. Every reader below was read on ff3e12e5.
+This version is (c) alone, the design the build follows. Every reader below was read on ff3e12e5. **Built** on this line
+(the commit after a56ffb13; [STATUS.md](STATUS.md) has its readings); where the build differs from the design below, the
+design was changed to say what was built.
 
 ## Where it stands
 
@@ -98,13 +100,13 @@ puts the token on that scene (below), and `tokenScene` agrees with the pick once
 | projects.mjs `projectScene` | the rule above. `standsAtProject` and every reader of the first table follow with no change of their own |
 | projects-map.mjs `placeProjectToken` | with no `scene` handed in, on the pick when it stands, else on `sceneOfRoom` as today |
 | projects-map.mjs `syncOneProjectToken`, `moveProjectToken` | a token standing on another scene than the picked one is taken off and put back (a token does not change scenes; the same road as a token whose scene lost the room) |
-| projects-map.mjs the sync's "has a place" test | the picked scene, else `sceneOfRoom` |
 | fog.mjs `carryRoomInWorld` | a picked project's room is carried when the pick is the renamed scene; an unpicked one's as today ("its token's scene, else the first holding the old name") |
-| traps.mjs, a trap's plant | a stood pick first, then as today (`tokenRefOf(...).sceneId ?? sceneOfRoom(room)`) |
+| traps.mjs `openPlantDialog`, the scene preselected | `projectScene(id)`: the stood pick, else the token's scene, else `sceneOfRoom` (before: the token's scene id, else `sceneOfRoom`) |
 | projects-ui.mjs `openProjectDialog` | the picker: shown when `placeScenes().filter(s => roomRegions(s, room).length)` holds two or more, redrawn when the room changes; its options those scenes by name, the home scene first; preselected with the stored pick when it stands, else with the scene `projectScene` answers now; a line under it when the stored pick fails (gone, or no longer holding the room) naming where the project stands now. Save writes the shown scene, or null when the picker is not shown |
 | the manager's room column (projects-ui.mjs `projectManagerRows`) | no picker of its own (the editor is the one place): a room changed there clears the pick, so it reads today's rule until a GM picks in the editor |
 | projects.mjs `sightFor` / `sightExtras`, `receiveSight` | the secret project's `roomScene` rides the insider's sight copy beside `room` |
-| api.mjs `createProject` | takes an optional scene, held to the same test as the picker's |
+| projects.mjs `createProject` | takes `roomScene`, kept only when it is one of the room's choices (`roomSceneChoices`); the console's `game.drpg` road was not given one (api.mjs unchanged) |
+| projects.mjs `projectEditChange` | carries `roomScene` beside `room`; the editor's Save writes it only when there is a pick or one to clear, so a world with no duplicate keeps its rows as they were |
 | text | the picker's label, its tooltip and the stale line (`DRPG.Project.roomScene`, `DRPG.Tips.Actions.roomSceneTooltip`, `DRPG.Project.roomSceneStale`), en and pl; the GM handbook's Projects section names the control, en and pl |
 
 Unchanged: `locateActor` and `gmPlaceOf`. They say where the character stands; the pick says where the project stands, and
@@ -138,8 +140,8 @@ either way.
   that lost the room, no pick with a token, no pick and no token - each answer. Red at ff3e12e5 (no pick is read).
 - Tier 1 (R7642): the editor's choice of scenes as a pure function - two place scenes holding the name give both, the
   home scene first; one gives none (no picker); a stale stored pick is named as stale.
-- Tier 0: `roomScene` in `PROJECT_SECRET_WHILE_SECRET` and in world-secrets.mjs's rule (the existing tier-0 reading holds
-  the two lists equal); R190's fixture for the rule.
+- Tier 0 and R190: `roomScene` in `PROJECT_SECRET_WHILE_SECRET` and in world-secrets.mjs's rule (the existing tier-0
+  reading holds the two lists equal); R190 (tier 1) given its fixture, as it asks of every rule.
 - Tier 2, **no duplicate behaves as today, held by a test**: on the suite's world (no two place scenes share a room
   name), a project made with a room through the editor's save stores no pick, and `projectScene`, its token's scene and
   the facility rows read what they read with the field absent.
@@ -153,6 +155,12 @@ either way.
   of its own holding a room of the same name (until now its scene clone answered the original's id,
   docs/dev/e53/STATUS.md): p1's Facilities rows read on p1's own page, in the picked scene's room and in the other's.
 - Scenario 72 (the canary): a secret project's `roomScene` on no bystander's browser, and on the insider's sight copy.
+  **Not built**: the coordinator's list named the no-duplicate test and the two-scene test on the GM and the player, and
+  72's world scan already holds every secret project's projectMeta row to the rule that now names `roomScene`; what no
+  run reads yet is a secret project with a pick - that it stays off a bystander's world data, and that the insider's
+  copy carries it (R7641 reads `sightExtras`' source only).
+
+What the build measured, and what it did not, is in STATUS.md.
 
 ## Questions for the owner (through the coordinator)
 

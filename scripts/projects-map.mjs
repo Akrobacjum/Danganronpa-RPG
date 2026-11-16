@@ -37,7 +37,7 @@
  */
 
 import { MODULE_ID, PROJECT_TOKEN, isProjectGlyph } from "./config.mjs";
-import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange }
+import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange, pickedSceneOf }
     from "./projects.mjs";
 import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { boundsOf, roomAt } from "./movement.mjs";
@@ -302,8 +302,9 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
        camera showed, else the one the GM's own client had drawn, so a project whose room is on another
        scene had no token until the primary GM looked there (read in the code; no reading of a table).
        The room's scene is the school's when it has the room, else the first place scene that does
-       (rooms.mjs `sceneOfRoom`). */
-    const target = scene ?? sceneOfRoom(room);
+       (rooms.mjs `sceneOfRoom`). Since option (c) (16.11.2026) the scene a GM picked for the room first, when it stands
+       (projects.mjs `pickedSceneOf`); no pick is the rule of before. */
+    const target = scene ?? pickedSceneOf(countdownId) ?? sceneOfRoom(room);
     if (!target) return null;
 
     const spot = centreOfRoom(target, room);
@@ -546,6 +547,13 @@ async function moveProjectToken(countdownId, token, room) {
     if (!game.user.isGM) return false;
     const scene = token.parent ?? null;
     if (!scene) return false;
+    /* ONTO THE PICKED SCENE (option (c), 16.11.2026): a token standing on another scene than the one a GM picked for the
+       room is taken off and put back there, the road of a token whose scene lost the room. No pick changes nothing. */
+    const picked = pickedSceneOf(countdownId);
+    if (picked && picked.id !== scene.id) {
+        await removeProjectToken(countdownId);
+        return Boolean(await placeProjectToken(countdownId));
+    }
     if (!centreOfRoom(scene, room)) {
         if (!sceneOfRoom(room)) return false;
         await removeProjectToken(countdownId);

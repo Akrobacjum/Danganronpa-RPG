@@ -632,20 +632,17 @@ export async function pruneTrapsFor(keep = null) {
 export async function openPlantDialog(projectId) {
     if (!game.user.isGM) return null;
 
-    const { tokenRefOf } = await import("./projects.mjs");
-    const { sceneOfRoom } = await import("./rooms.mjs");
-
     /* THE ROOM'S OWN SCENE (E12 fix r1-G2, 11.10.2026; review round 1 CR1-2). Since E12 C3 the
        window listed the rooms of the scene on the GM's screen and keyed the plant on it, while a
        Search takes a plant on the scene the searcher stands on: a GM ruling a Floor 1 Trap with the
        Annex on screen found the project's room chosen in the Annex's list and planted it there, and
        the Search in Floor 1's room never found it. Every place scene's rooms are listed now, the
        project's room on the scene of its map token (else the school's room of the name, rooms.mjs
-       `sceneOfRoom`) chosen, and the plant is keyed on the scene of the option picked. */
+       `sceneOfRoom`) chosen, and the plant is keyed on the scene of the option picked. Since option (c) (16.11.2026)
+       the scene a GM picked for the room first: projects.mjs `projectScene`, the pick when it stands, else as before. */
     // The room through projects.mjs `roomOf`: a secret project's is the GMs' row's since leak-pm (14.11.2026).
     const room = projectRoomOf(projectId);
-    const roomOptions = placeRoomOptions({ room,
-        sceneId: tokenRefOf(projectId)?.sceneId ?? sceneOfRoom(room)?.id ?? null });
+    const roomOptions = placeRoomOptions({ room, sceneId: projectScene(projectId)?.id ?? null });
 
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Trap.plantTitle"),
