@@ -25434,6 +25434,118 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["the chat log's copy of a thread's ruling card rules it on a GM: Approve in the log is the messenger's Approve", async () => {
+        /*
+         * F118, 16.11.2026; AUDIT 9.2 S7-2, measured by the owner's local run L1 on Foundry 14.370: a player's statistic
+         * ruling ask that belongs to a messenger thread reached the GM's chat log with enabled buttons that did
+         * nothing - a real click changed nothing in 20 s, with no error - because gm-bridge.mjs wired the log's copy
+         * only for a card carrying `callCard`, which only a card with no thread has. The killer's player asks for
+         * a weapon swing (`judge`, as the test above); the card's copy is drawn as the log draws it
+         * (`renderHTML`: at a table Foundry's own, on the harness client-entry.mjs's, both calling
+         * `renderChatMessageHTML`) and its Leg button clicked. Read: whether the card lives in a thread and carries no
+         * `callCard`, the answers sent and to whom, whether the card was settled and what it keeps. Until F118: the
+         * click ran nothing - no answer, the card unsettled, no record. A real mouse on v14's log is LIVE-F118-01.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const done = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && packet.requestId === "suite-f118-log") done.push([options?.recipients ?? [], packet.value ?? null]);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-f118-log", actorId: killer.id, kind: "crisis",
+                key: "weaponAttack", variant: null }, mine.id, { send: () => null });
+            await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            const card = game.messages.contents.find(m => !had.has(m.id));
+            must(String(contentOf(card) ?? "").includes('data-drpg-call="pickTrait"'), "no statistic card was posted for the fixture's request");
+            const shape = [Boolean(card.getFlag(MODULE_ID, "thread") ?? cardFlag(card, "thread")), Boolean(cardFlag(card, "callCard"))];
+            const li = await card.renderHTML();
+            await settle();
+            const button = [...li.querySelectorAll('[data-drpg-call="pickTrait"]')].find(b => b.dataset.trait === "leg") ?? null;
+            must(button, "the log's copy of the card drew no Leg button - this measured nothing");
+            button.click();
+            await until(() => cardFlag(card, "settled"));
+            await settle();
+            const record = { type: "trait", actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null, trait: "leg", how: "picked" };
+            equal(stableJson([shape, done, Boolean(cardFlag(card, "settled")), cardFlag(card, "ruling") ?? null]),
+                stableJson([[true, false], [[[mine.id], "leg"]], true, record]),
+                "the log's copy of a thread's ruling card did not rule it (the card's thread and callCard, the answers, settled, the record)");
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+        }
+    }],
+
+    ["a thread's ruling card answered in the messenger first is not ruled again from the log, and the log's buttons end disabled", async () => {
+        /*
+         * F118, 16.11.2026; AUDIT 9.2 S7-2. Since F118 both copies of a thread's ruling card are wired on a GM - the
+         * messenger's bubble and the chat log's - so one card has two sets of live buttons, and the claim on the
+         * primary (bridge-asks.mjs `claimCard`) is what keeps it to one ruling. The log's copy is drawn while the card
+         * is open (`renderHTML`), the card is answered Leg in the messenger (`wireCallActions` on a bubble's body), and
+         * then the open log copy's Hand is clicked. Read: the answers sent, the record the card keeps, whether every
+         * button of that log copy is disabled afterwards, and how many buttons a fresh draw of the log's copy holds.
+         * Until F118 the log copy was not wired at all, so its buttons stayed enabled on a card already ruled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const done = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && packet.requestId === "suite-f118-once") done.push([options?.recipients ?? [], packet.value ?? null]);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-f118-once", actorId: killer.id, kind: "crisis",
+                key: "weaponAttack", variant: null }, mine.id, { send: () => null });
+            await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            const card = game.messages.contents.find(m => !had.has(m.id));
+            must(String(contentOf(card) ?? "").includes('data-drpg-call="pickTrait"'), "no statistic card was posted for the fixture's request");
+            const li = await card.renderHTML();
+            await settle();
+            const logButtons = [...li.querySelectorAll("[data-drpg-call]")];
+            must(logButtons.length > 0, "the log's copy of the card drew no buttons - this measured nothing");
+            const bubble = document.createElement("div");
+            bubble.innerHTML = contentOf(card);
+            wireCallActions(bubble, card);
+            [...bubble.querySelectorAll('[data-drpg-call="pickTrait"]')].find(b => b.dataset.trait === "leg")?.click();
+            await until(() => cardFlag(card, "settled"));
+            await settle();
+            logButtons.find(b => b.dataset.trait === "hand")?.click();
+            await settle();
+            await settle();
+            const fresh = await card.renderHTML();
+            await settle();
+            equal(stableJson([done, cardFlag(card, "ruling")?.trait ?? null, logButtons.every(b => b.disabled),
+                fresh.querySelectorAll("[data-drpg-call]:not([disabled])").length]),
+                stableJson([[[[mine.id], "leg"]], "leg", true, 0]),
+                "a thread's card answered in the messenger was ruled again from the log, or the log's buttons were left live (answers, the record's statistic, the open log copy's buttons all disabled, live buttons on a fresh draw)");
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+        }
+    }],
+
     ["the opening's invitation carries the GM's pick and the window rolls it", async () => {
         /*
          * E32+E07 C11c, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09). Both
