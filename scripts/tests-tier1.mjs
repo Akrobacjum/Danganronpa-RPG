@@ -27572,6 +27572,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Case.closeNodeTooltip","case-map.mjs","nodeEditHtml"],
             ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
             ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
+            // owner-116 (15.11.2026): the toolbar's "All open" switch
+            ["DRPG.Tips.Case.allOpenTooltip","case-map.mjs","caseToolsHtml"],
             ["DRPG.Tips.Case.notNowTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
@@ -27610,6 +27612,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Gm.whatThePlayerIsTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Gm.howHardTheOriginalTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.giveFromPlanTooltip","investigation.mjs","schemaEditor"],
+            // owner-116 (15.11.2026): a node's folded "Rests on" or "Refutes" list
+            ["DRPG.Tips.Case.foldedListTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.removeFromTheCaseTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.roomPlannedFinalTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip","investigation.mjs","schemaEditor"],

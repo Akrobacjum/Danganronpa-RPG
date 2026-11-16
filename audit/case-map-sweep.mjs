@@ -117,7 +117,9 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
         if (plantBox) {
             const s = document.createElement("style");
             // the node rule's own selector (components.css), so the plant wins by coming later
-            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
+            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }"
+                // every node open (owner-116): the faces are hidden, so the box is put back on the open fields too
+                + " .application.drpg-window-case .drpg-case-canvas > .drpg-case-edit { height: 54px; overflow: hidden; }";
             document.head.appendChild(s);
         }
         if (plantNarrow) {
@@ -198,18 +200,22 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
            and after Fit to view; the fit's scale and the smallest node text it leaves, for the owner's 11 px question. */
         const graphEl = canvas.closest(".drpg-case-graph");
         const bar = document.querySelector(".drpg-case-camera");
-        if (plantBar && bar && nodes[0]) {
-            const r = nodes[0].getBoundingClientRect();
+        /* WHAT A NODE IS ON SCREEN (owner-116, 15.11.2026): its face, or with every node open its fields - a hidden face's
+           box is empty, so the bar's, the fold's and the fit's readings read the open fields too, and the controls plant on
+           the first box drawn. */
+        const drawn = [...nodes, ...open.values()].filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+        if (plantBar && bar && drawn[0]) {
+            const r = drawn[0].getBoundingClientRect();
             Object.assign(bar.style, { position: "fixed", left: `${r.left + 4}px`, top: `${r.top + 4}px`, right: "auto", bottom: "auto" });
         }
         const barOver = when => {
             if (!bar || !graphEl) return;
             const b = bar.getBoundingClientRect(), g = graphEl.getBoundingClientRect();
-            for (const n of nodes) {
+            for (const n of drawn) {
                 const r = n.getBoundingClientRect();
                 const v = { left: Math.max(r.left, g.left), top: Math.max(r.top, g.top), right: Math.min(r.right, g.right), bottom: Math.min(r.bottom, g.bottom) };
                 if (v.right - v.left < 1 || v.bottom - v.top < 1) continue;
-                if (b.left < v.right - 0.5 && v.left < b.right - 0.5 && b.top < v.bottom - 0.5 && v.top < b.bottom - 0.5) cut.push(`camera bar over ${n.dataset.drpgNode} (${when})`);
+                if (b.left < v.right - 0.5 && v.left < b.right - 0.5 && b.top < v.bottom - 0.5 && v.top < b.bottom - 0.5) cut.push(`camera bar over ${n.dataset.drpgNode ?? n.dataset.drpgEdit} (${when})`);
             }
         };
         barOver("at rest");
@@ -222,8 +228,8 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             canvas.classList.remove("is-easing");
             barOver("after fit");
             const z = cam?.z ?? 1;
-            const sizes = nodes.flatMap(n => [...n.querySelectorAll(".drpg-case-node-kind, .drpg-case-node-mode, .drpg-case-node-state, .drpg-case-node-name, .drpg-case-node-text")])
-                .filter(el => el.textContent.trim()).map(el => parseFloat(getComputedStyle(el).fontSize) * z);
+            const sizes = drawn.flatMap(n => [...n.querySelectorAll(".drpg-case-node-kind, .drpg-case-node-mode, .drpg-case-node-state, .drpg-case-node-name, .drpg-case-node-text, .drpg-case-edit-label, summary, input, textarea, select")])
+                .filter(el => (el.textContent.trim() || el.matches("input, textarea, select")) && el.getClientRects().length).map(el => parseFloat(getComputedStyle(el).fontSize) * z);
             fit = { z: Math.round(z * 1000) / 1000, minText: sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null };
             canvas.style.transform = was.transform;
             canvas.style.transition = was.transition;
@@ -256,9 +262,9 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             const inner = { left: f.left + fold.clientLeft, top: f.top + fold.clientTop, right: f.left + fold.clientLeft + fold.clientWidth, bottom: f.top + fold.clientTop + fold.clientHeight };
             if (t.width && (t.left < inner.left - 0.5 || t.right > inner.right + 0.5 || t.top < inner.top - 0.5 || t.bottom > inner.bottom + 0.5))
                 cut.push(`fold: words ${Math.round(t.width)}x${Math.round(t.height)} past its box ${Math.round(inner.right - inner.left)}x${Math.round(inner.bottom - inner.top)}`);
-            for (const n of nodes) {
+            for (const n of drawn) {
                 const r = n.getBoundingClientRect();
-                if (f.left < r.right - 0.5 && r.left < f.right - 0.5 && f.top < r.bottom - 0.5 && r.top < f.bottom - 0.5) cut.push(`fold over ${n.dataset.drpgNode}`);
+                if (f.left < r.right - 0.5 && r.left < f.right - 0.5 && f.top < r.bottom - 0.5 && r.top < f.bottom - 0.5) cut.push(`fold over ${n.dataset.drpgNode ?? n.dataset.drpgEdit}`);
             }
         }
         const overlaps = [];

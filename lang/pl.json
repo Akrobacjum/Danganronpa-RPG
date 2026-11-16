@@ -2205,7 +2205,9 @@
         "bodyFoundTooltip": "Otwiera okno odkrycia; ogłoszenie ściąga wszystkich do wybranego pokoju i odtwarza dźwięk odkrycia",
         "realizationPreviewTooltip": "Pokazuje, gdzie stanęłyby zaplanowane Key Remnanty; nic nie staje, dopóki nie uruchomisz tam realizacji",
         "placeFinalNowTooltip": "Stawia Final Truth Remnant w wybranym pokoju, tak jak zrobiłby to Zapisz",
-        "keepForLaterTooltip": "Twoje słowa zostają, a na mapie nic nie staje; Zapisz postawi go później"
+        "keepForLaterTooltip": "Twoje słowa zostają, a na mapie nic nie staje; Zapisz postawi go później",
+        "allOpenTooltip": "Włączone: każdy węzeł pokazuje swoje pola. Wyłączone: węzeł pokazuje skrót, dopóki go nie klikniesz.",
+        "foldedListTooltip": "Rozwija listę: zaznacz, z czego wynika ten węzeł albo co obala."
       },
       "Sweep": {
         "Actions": {
@@ -9240,7 +9242,9 @@
         "move": "Mapa sprawy nie przesunęła węzła.",
         "remove": "Mapa sprawy nie usunęła węzła.",
         "place": "Mapa sprawy nie umieściła zaplanowanego Remnantu."
-      }
+      },
+      "allOpen": "Wszystkie otwarte",
+      "chosenOf": "Zaznaczone: {n} z {of}"
     },
     "CaseRealize": {
       "preview": "Podejrzyj realizację",

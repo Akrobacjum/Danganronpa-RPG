@@ -1165,12 +1165,13 @@ async function drawnMurderWindow(open) {
  * The dashboard drawn, on the Table unless `view` says (the Map is the default since E97 C9; most of these read the
  * Table's rows).
  */
-async function drawnCaseWindow({ view = "table" } = {}) {
+async function drawnCaseWindow({ view = "table", allOpen = null } = {}) {
     const investigation = await import("./investigation.mjs");
     const open = () => [...foundry.applications.instances.values()]
         .filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
     const before = new Set(open());
-    const answer = Promise.resolve().then(() => investigation.openInvestigationDashboard({ view })).catch(() => null);
+    // `allOpen` false: the Map's one-node drawing ("All open" off, owner-116), for a test whose subject is a node's Close
+    const answer = Promise.resolve().then(() => investigation.openInvestigationDashboard({ view, ...(typeof allOpen === "boolean" ? { allOpen } : {}) })).catch(() => null);
     await until(() => open().some(a => !before.has(a) && a.element), 6000);
     const app = open().find(a => !before.has(a)) ?? null;
     const close = async () => {
@@ -30319,7 +30320,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await until(() => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden]) [name="name.${CSS.escape(key)}"]`), 3000).catch(() => {});
                 return root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden])`) ?? null;
             };
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             let edit = await open();
             must(edit, "the fixture's node did not open on the Map");
             win.field(`name.${key}`).value = "SUITE autosave closed";
@@ -30344,6 +30345,73 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{the name after the editor's Close, no Save; the name after the window closed mid-edit}");
     }],
 
+    ["owner-116: the planner draws every node open by default (owner-116, 15.11.2026; the owner's option A): the Map opens with every node's fields shown and no Close; a deduction's \"Rests on\" list is folded under a line naming how many are ticked, which follows a tick; a field changed in any node is written when the window closes; \"All open\" pressed draws one node at a time and is kept on the GM's own User, pressed again it is taken off", async () => {
+        /*
+         * owner-116, 15.11.2026. A fixture deduction resting on nothing, the dashboard drawn on the Map as this GM opens it;
+         * the GM's own User flag `caseMapFaces` put back as found. The list's line is compared with "Ticked: 0 of n", n the
+         * boxes drawn. Red at cc87ea3b: one node open at a time, the list unfolded, no switch.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "suite-r7527";
+        const flagWas = game.user.getFlag(MODULE_ID, "caseMapFaces");
+        let win = null;
+        const seen = {};
+        try {
+            if (flagWas !== undefined) await game.user.unsetFlag(MODULE_ID, "caseMapFaces");
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE R7527 as drawn", inputs: [] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`), 3000).catch(() => {});
+            const canvas = root?.querySelector(".drpg-case-canvas");
+            const fields = [...(canvas?.querySelectorAll(":scope > .drpg-case-edit") ?? [])];
+            const mine = root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`);
+            const list = mine?.querySelector(".drpg-case-fold-list");
+            const boxes = [...(list?.querySelectorAll('input[type="checkbox"]') ?? [])];
+            seen.drawn = { allOpen: canvas?.dataset.drpgAllOpen ?? null, hidden: fields.filter(f => f.hidden).length, some: fields.length > 1,
+                close: fields.filter(f => f.querySelector("[data-drpg-case-close]")).length, folded: list ? !list.open : null,
+                boxes: boxes.length > 0,
+                line: list?.querySelector("summary")?.textContent.trim() === game.i18n.format("DRPG.CaseMap.chosenOf", { n: 0, of: boxes.length }) };
+            const want = game.i18n.format("DRPG.CaseMap.chosenOf", { n: 1, of: boxes.length });
+            if (boxes[0]) { boxes[0].checked = true; boxes[0].dispatchEvent(new Event("change", { bubbles: true })); }
+            seen.ticked = list?.querySelector("summary")?.textContent.trim() === want;
+            win.field(`case:${ch}:${id}:label`).value = "SUITE R7527 typed";
+            await win.close();
+            win = null;
+            await until(() => S.caseRows(ch).rows?.[id]?.label === "SUITE R7527 typed", 4000).catch(() => {});
+            seen.saved = S.caseRows(ch).rows?.[id]?.label ?? null;
+            win = await drawnCaseWindow({ view: "map" });
+            const root2 = win.app?.element;
+            // a field changed in an open node, then the switch pressed: the field written before the other drawing
+            win.field(`case:${ch}:${id}:label`).value = "SUITE R7527 switched";
+            root2?.querySelector("[data-drpg-case-view]")?.click();
+            await until(() => game.user.getFlag(MODULE_ID, "caseMapFaces") === true && root2?.querySelector(".drpg-case-canvas")?.dataset.drpgAllOpen !== "1", 4000).catch(() => {});
+            await until(() => S.caseRows(ch).rows?.[id]?.label === "SUITE R7527 switched", 4000).catch(() => {});
+            seen.off = { flag: game.user.getFlag(MODULE_ID, "caseMapFaces") ?? null, allOpen: root2?.querySelector(".drpg-case-canvas")?.dataset.drpgAllOpen ?? null,
+                shown: [...(root2?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit:not([hidden])") ?? [])].length,
+                saved: S.caseRows(ch).rows?.[id]?.label ?? null };
+            // the window opened again: the drawing the GM's User keeps
+            await win.close();
+            win = await drawnCaseWindow({ view: "map" });
+            const root3 = win.app?.element;
+            await until(() => root3?.querySelector(".drpg-case-canvas"), 3000).catch(() => {});
+            seen.reopened = root3?.querySelector(".drpg-case-canvas")?.dataset.drpgAllOpen ?? null;
+            root3?.querySelector("[data-drpg-case-view]")?.click();
+            await until(() => game.user.getFlag(MODULE_ID, "caseMapFaces") === undefined, 4000).catch(() => {});
+            seen.on = game.user.getFlag(MODULE_ID, "caseMapFaces") ?? null;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(ch, id).catch(() => {});
+            if (flagWas === undefined) { if (game.user.getFlag(MODULE_ID, "caseMapFaces") !== undefined) await game.user.unsetFlag(MODULE_ID, "caseMapFaces"); }
+            else await game.user.setFlag(MODULE_ID, "caseMapFaces", flagWas);
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            drawn: { allOpen: "1", hidden: 0, some: true, close: 0, folded: true, boxes: true, line: true },
+            ticked: true, saved: "SUITE R7527 typed", off: { flag: true, allOpen: null, shown: 0, saved: "SUITE R7527 switched" }, reopened: null, on: null
+        }), "{the Map as drawn: every node open, none hidden, no Close, the list folded under its line; the line after a tick; the label after the window closed; All open pressed with a field changed: the flag, the drawing, fields shown, the field written; the window opened again: its drawing; pressed again: the flag}");
+    }],
     ["planner autosave: a node's write that fails is told and keeps the GM's text in its field, written at the next close; the footer's Close writes it too (perf-open's review for 1.2.111, section 2; the owner, 13.11.2026: \"Nie, ma zapisywac\")", async () => {
         /*
          * The review asked whether "Your text is still in the fields" holds after a failed write: the node closes and
@@ -30376,7 +30444,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE autofail as drawn" });
             await gmStoresIdle();
             ui.notifications.error = (text, ...rest) => { told.push(String(text)); return toast.call(ui.notifications, text, ...rest); };
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             const openNode = async () => {
                 root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
@@ -30699,7 +30767,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseNode(chapter, id, { kind: "incident", label: "SUITE e104 plan" });
             await S.setCaseNode(chapter, bare, { kind: "incident", label: "SUITE e104 no room" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:analysis`), 3000).catch(() => {});
@@ -30866,7 +30934,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseNode(chapter, id, { kind: "final", label: "SUITE e104 truth" });
             await S.setCaseNode(chapter, bare, { kind: "final", label: "SUITE e104 truth, no room" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:analysis`), 3000).catch(() => {});
@@ -30948,7 +31016,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE e104 bullet" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
@@ -31165,7 +31233,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE picture bullet", recipient: student.id, tell: false });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
@@ -31266,7 +31334,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(living.length >= 2, "fewer than two living students once the fixtures stand - this would measure nothing");
             for (const id of ids) await S.setCaseNode(chapter, id, { kind: "bullet", label: `SUITE everyone ${id.slice(-1)}`, tell: false });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             const base = `case:${chapter}:${ids[0]}`;
             root?.querySelector(`[data-drpg-node="${ids[0]}"]`)?.click();
@@ -31426,7 +31494,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseMeta(chapter, { autopsies: null, autopsySent: {} });
             await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE map first", text: "SUITE the first words" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             const openNode = async (id, field) => {
                 root?.querySelector(`[data-drpg-node="${id}"]`)?.click();

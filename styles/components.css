@@ -3463,7 +3463,7 @@ body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-trial) 
 body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] {
     position: absolute;
     box-sizing: border-box;
-    width: 240px;
+    width: 300px;
     height: auto;
     min-height: 54px;
     min-width: 0;
@@ -3561,7 +3561,7 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :
 .application.drpg-window-case .drpg-case-canvas > .drpg-case-edit {
     position: absolute;
     box-sizing: border-box;
-    width: 240px;
+    width: 300px;
     margin: 0;
     padding: 0.25rem 0.5rem 0.5rem;
     min-width: 0;
@@ -3573,6 +3573,12 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :
     border-radius: 0 0 var(--drpg-kit-btn-radius) var(--drpg-kit-btn-radius);
 }
 .application.drpg-window-case .drpg-case-edit[hidden] { display: none; }
+/* EVERY NODE OPEN (owner-116, 15.11.2026; option A): the face's head on top of each open node's fields (case-map.mjs
+   `nodeHeadHtml`), and a node's long list - what it rests on, what it refutes - folded to one line that names how many
+   are ticked (investigation.mjs `foldedList`); open, the list as before. */
+.application.drpg-window-case .drpg-case-edit > .drpg-case-node-head { padding: 0.125rem 0 0.25rem; border-bottom: 1px solid var(--drpg-kit-line); }
+.application.drpg-window-case .drpg-case-fold-list > summary { cursor: pointer; font-size: var(--drpg-text-sm); color: var(--drpg-kit-help-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.application.drpg-window-case .drpg-case-fold-list[open] > summary { margin-bottom: 0.25rem; }
 .application.drpg-window-case .drpg-case-info { padding-bottom: 0.25rem; border-bottom: 1px solid var(--drpg-kit-line); }
 .application.drpg-window-case .drpg-case-info-row {
     display: grid;

@@ -219,3 +219,63 @@ Eight shards (`DRPG_SUITE_SHARD=i/8 node run-all.mjs suite`, one at a time) held
 shard(s) of 8 file(s), 1553 tier-2 tests in the list; 3297 passed, 0 failed, 27 skipped, 0 red: green". Shard 1 (tiers
 0-1, 01's parts A and B) 2011 s, 1734 passed, 0 failed, 16 skipped; shards 2-8 558-737 s, 0 failed. About 2.3 times the
 times CLAUDE.md gives (880 and 336 s), on this machine.
+
+## Item 1a/1b - option A, built (the owner's answer, 15.11.2026)
+
+The owner chose A: every node open by default, its long lists folded to one line, nodes 300 px, and a toolbar switch.
+
+### Change
+
+- case-map.mjs: `caseGraphHtml({ allOpen })` - on the Map, every face hidden (`is-editing`), every node's fields shown,
+  the face's head (`nodeHeadHtml`: kind, trial mode, state, warning, reach) on top of the fields, no Close; the canvas
+  carries `data-drpg-all-open`. Without it one node opens at a time with Close, as before (the Class Trial console draws
+  no editors and is untouched). `caseToolsHtml({ allOpen })` draws the "All open" / "Wszystkie otwarte" switch
+  (`aria-pressed`); `wireCaseMap` asks `onView` for the other drawing, and with every node open lets Escape go on to the
+  window, shuts nothing on a click outside and reveals nothing on a redraw.
+- case-view.mjs: `MAP_GEOMETRY.nodeW` 300; with every node open `relayoutCaseMap` measures no face (each face's classes
+  were taken off and put back, a forced layout a node).
+- investigation.mjs: the switch's state on the GM's own User (`caseMapFaces` true while off; `caseMapAllOpen`), All open
+  by default; `openInvestigationDashboard({ allOpen })` for a caller that asks one drawing; a deduction's and the
+  solution's "Rests on" and a counter's "Refutes" folded under a line "Ticked: n of m" / "Zaznaczone: n z m" that follows
+  each tick; with every node open, every node's changed fields are written when the GM leaves the Map or switches.
+- components.css: the node and its fields 300 px; the head's line and the folded list's line.
+- Texts EN/PL: `DRPG.CaseMap.allOpen`, `DRPG.CaseMap.chosenOf`, `DRPG.Tips.Case.allOpenTooltip`. GM handbook EN/PL: a
+  paragraph after the Map's node paragraph.
+
+### Measured (Chromium, probe 08's captures drawn by this tree, and the 39-node scratch case)
+
+| Case, theme | Canvas (px) | Median / tallest node | Fit (1920x1080) | Smallest text at fit | Whole nodes at 100% | One relayout |
+| --- | --- | --- | --- | --- | --- | --- |
+| 13, glass | 1324 x 7870 | 785 / 1021 | 0.25 | 3.3 px | 0 of 13 | 0.8-1.1 ms |
+| 13, legacy | 1324 x 5624 | 549 / 695 | 0.25 | 2.8 px | 0 of 13 | 0.6 ms |
+| 39, glass | 2324 x 18113 | 512 / 1104 | 0.25 | 3.3 px | 0 of 39 | 2.1-2.2 ms |
+| 39, legacy | 2324 x 12815 | 359 / 810 | 0.25 | 2.8 px | 0 of 39 | 1.8-2.4 ms |
+
+Against 1c (every node open, 300 px, lists unfolded): the 39-node case 27404 -> 18113 px tall under glass (the lists'
+fold, as 1c's estimate of 18193 said), 23384 -> 12815 under Legacy; the 13-node case 7906 -> 7870 (its deductions rest on
+few nodes); one relayout 45-53 ms -> about 2 ms for 39 nodes (no face measured). What 1c said stands: at fit the camera
+stops at its least zoom, 0.25, and a case does not fit - a column of open nodes is what shows (shots/). "Faces only"
+draws the map as before, at 300 px.
+audit/case-map-sweep.mjs on every capture (en and pl, nine Map states and the 39-node case, both themes, both sizes):
+76 pages, 0 cut, 0 overlap, every field at the node's width. Its controls read faces only and so read nothing on an
+all-open page (the box planted on the faces: 0 cuts; the bar planted over a hidden face: 0): the sweep now plants on and
+reads the open fields too (the bar, the fold, the fit's text), and its controls read 13 cuts, 39 overlaps and 2 bars.
+Screenshots: docs/dev/owner-116/shots/ (the 13-node Map at 100% and at fit, glass and Legacy, Polish at 1366x768, the
+39-node case at fit).
+
+Not measured: the first draw's cost of a window holding every node open (the captures arrive drawn); a real table's
+machine; keyboard navigation between open nodes (the arrows walk the hidden faces - not changed).
+
+### Tests (option A)
+
+- R7524, R7525, R7526 (tier 0) red at cc87ea3b, green after: the drawing with every node open and with one, the switch;
+  300 px in the geometry and both rules, no face measured; Escape and a click outside shut nothing, the switch asks the
+  other drawing. The tier-2 "owner-116: the planner draws every node open by default" red at cc87ea3b, green after:
+  the window as a GM opens it, the folded list's line before and after a tick, a field written at the window's close
+  and at the switch, the switch kept on the User and read again when the window reopens.
+- Changed on purpose: R5821's stylesheet widths (240 -> 300); R4755's list of `DRPG.Tips.Case` keys (two rows: the
+  switch, the folded list); R1157's allow table (the folded list's line is a ratio, "Ticked: 2 of 38", reason R); eight
+  tier-2 tests whose subject is a node's Close ask the one-node drawing (`drawnCaseWindow({ allOpen: false })`).
+- Mutants (a copy of the tree): the drawing ignoring `allOpen`, the faces measured again, Escape held again, the switch
+  asking nothing, Close kept, the node 240 px, the list unfolded, the User's choice not read, the fields not written at
+  the switch - 9 of 9 killed (two after the tier-2 test was widened to read them).

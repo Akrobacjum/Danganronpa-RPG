@@ -19739,7 +19739,9 @@ const REGRESSIONS = [
                 "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou",
                 // The owner's report of 13.11.2026 (R5900): a zone mode's line on the Event card, "Question 2 of 3" /
                 // "Pytanie 2 z 3", "Turn 1 of 4" / "Tura 1 z 4" - the seconds are the card's clock.
-                "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak"
+                "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak",
+                // owner-116 (15.11.2026): a folded list's line on the planner, "Ticked: 2 of 38" / "Zaznaczone: 2 z 38".
+                "CaseMap.chosenOf"
                 // E71 B10a (line C, 14.11.2026): Vote.accusesLine left the table - "a majority of {n} out of {total}" puts no count before a noun.
             ].map(key => [key, "R"]),
             ...[
@@ -19767,7 +19769,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1, G: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -24755,7 +24757,8 @@ const REGRESSIONS = [
             at240: { width: "240px", face: ["is-selected", "is-editing"] },
             at300: { width: "300px", face: ["is-selected", "is-editing"] },
             jsdom: { width: "", face: ["is-selected", "is-editing"] },
-            css: { fields: "240px", node: "240px", boxes: true }
+            // 300 since owner-116 (15.11.2026; the owner: "Poszerzmy je też trochę"; R7525), 240 until then
+            css: { fields: "300px", node: "300px", boxes: true }
         }), "{the fields' width with the clicked face 240 px wide, and 300 px (its classes put back after the reading); a face reading 0 writes none; css: the fields' width, the node's, the text boxes filling the fields}");
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
@@ -24958,6 +24961,96 @@ const REGRESSIONS = [
             },
             flip: [true, false]
         }), "{the predicate the module set; the rule: a player (shown, hidden); the owner (shown, hidden); a GM (shown, hidden); an Eclipse (another's, own); another's Spectator; no document | the ruler classes: as built, written true, hidden while standing, shown again before a write, after Foundry's next write, no own field left; a standing ruler before and after its token's hide is heard}");
+    }],
+    ["R7524 - every planner node open (owner-116, 15.11.2026; the owner: \"W planerze niech od teraz widok edycji modułu będzie domyślnym widokiem modułu\", option A; case-map.mjs `caseGraphHtml`, `nodeHeadHtml`, `caseToolsHtml`): on the Map with `allOpen` every node is drawn as its fields - each face hidden (`is-editing`), each fieldset shown, the face's head (its kind) on top, no Close - and the canvas says so; without it one node opens at a time with Close, as before; `caseMapHtml` hands the window's `reading.allOpen` on; the toolbar's \"All open\" switch is pressed as the state it is handed, and absent where none is", async () => {
+        /*
+         * owner-116, 15.11.2026. Detached markup, as R5821's. Red at cc87ea3b: `caseGraphHtml` takes no `allOpen` (one node
+         * open, the rest hidden) and the toolbar has no switch.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7524 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7524 a", inputs: ["S.T1"] }, "d-b": { kind: "deduction", label: "R7524 b", inputs: ["d-a"] } } });
+        const editors = new Map([["d-a", M.editRow("R7524 note", `<textarea name="r7524:a" rows="2"></textarea>`)], ["d-b", M.editRow("R7524 note", `<textarea name="r7524:b" rows="2"></textarea>`)]]);
+        const draw = reading => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading, editors });
+            const canvas = d.querySelector(".drpg-case-canvas");
+            const fields = [...(canvas?.querySelectorAll(":scope > .drpg-case-edit[data-drpg-edit]") ?? [])];
+            return {
+                flag: canvas?.dataset.drpgAllOpen ?? null,
+                shown: fields.filter(f => !f.hidden).map(f => f.dataset.drpgEdit).sort(),
+                faces: [...(canvas?.querySelectorAll(":scope > button[data-drpg-node].is-editing") ?? [])].map(b => b.dataset.drpgNode).sort(),
+                close: fields.filter(f => f.querySelector("[data-drpg-case-close]")).length,
+                head: fields.filter(f => f.firstElementChild?.matches?.(".drpg-case-node-head") && f.querySelector(".drpg-case-node-kind")?.textContent.trim()).length
+            };
+        };
+        const tools = st => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseToolsHtml({ sort: "kind", sorts: ["kind"], ...(st === undefined ? {} : { allOpen: st }) });
+            const b = d.querySelector("[data-drpg-case-view]");
+            return b ? [b.getAttribute("aria-pressed"), b.textContent.trim() === game.i18n.localize("DRPG.CaseMap.allOpen")] : null;
+        };
+        equal(JSON.stringify({ open: draw({ allOpen: true }), one: draw({ node: "d-a" }), switch: [tools(true), tools(false), tools(undefined)] }), JSON.stringify({
+            open: { flag: "1", shown: ["S.T1", "d-a", "d-b"], faces: ["S.T1", "d-a", "d-b"], close: 0, head: 3 },
+            one: { flag: null, shown: ["d-a"], faces: ["d-a"], close: 3, head: 0 },
+            switch: [["true", true], ["false", true], null]
+        }), "{every node open: the canvas's flag, the fields shown, the faces hidden, the Close buttons, the heads with a kind; one node open as before (every node's fields, shown or hidden, carry Close); the switch handed on, off, and handed nothing}");
+    }],
+    ["R7525 - a planner node is 300 px wide and its fields take it (owner-116, 15.11.2026; the owner: \"Poszerzmy je też trochę\"; case-view.mjs `MAP_GEOMETRY`, `relayoutCaseMap`, components.css): the geometry's least width, the node rule's and the fields' rule's are 300 px; with every node open the relayout measures no face (no class taken off and put back, no width written on the fields), so the fields keep the rule's width", async () => {
+        /*
+         * owner-116, 15.11.2026. Red at cc87ea3b: 240 everywhere, and the relayout toggled every open node's face. The
+         * faces' classes are spied on as they are toggled (jsdom lays nothing out).
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7525 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7525 a", inputs: ["S.T1"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map([["d-a", M.editRow("R7525", `<textarea name="r7525"></textarea>`)]]) });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        let toggled = 0;
+        for (const b of canvas?.querySelectorAll(":scope > button[data-drpg-node]") ?? []) {
+            const real = b.classList.remove.bind(b.classList);
+            b.classList.remove = (...c) => { toggled++; return real(...c); };
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => 300 });
+        }
+        V.relayoutCaseMap(canvas);
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const widthOf = re => rules.match(re)?.[1] ?? null;
+        equal(JSON.stringify({
+            nodeW: V.MAP_GEOMETRY.nodeW,
+            css: { node: widthOf(/button\.drpg-case-node\[data-drpg-node\] \{[^}]*?\bwidth:\s*([\d.]+px)/), fields: widthOf(/\.drpg-window-case \.drpg-case-canvas > \.drpg-case-edit \{[^}]*?\bwidth:\s*([\d.]+px)/) },
+            toggled, written: [...(canvas?.querySelectorAll(":scope > .drpg-case-edit") ?? [])].map(f => f.style.width)
+        }), JSON.stringify({ nodeW: 300, css: { node: "300px", fields: "300px" }, toggled: 0, written: ["", ""] }),
+            "{the geometry's node width; the node rule's and the fields' rule's widths; faces' classes taken off by the relayout; widths written on the fields}");
+    }],
+    ["R7526 - with every planner node open nothing shuts a node, and the switch asks for the other drawing (owner-116, 15.11.2026; case-map.mjs `wireCaseMap`): Escape in a node's field goes on to the window (not held, no close asked), a click on empty space asks no close, and a press of \"All open\" asks `onView` for the opposite of its state", async () => {
+        /*
+         * owner-116, 15.11.2026. Red at cc87ea3b: Escape was held and asked to close the first fieldset, and no switch.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R7526 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7526 a", inputs: ["S.T1"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseToolsHtml({ sort: "kind", sorts: ["kind"], allOpen: true })
+            + M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map([["d-a", M.editRow("R7526", `<textarea name="r7526"></textarea>`)]]) });
+        const said = [];
+        M.wireCaseMap(d, { onClose: id => said.push(["close", id]), onView: open => said.push(["view", open]) });
+        const field = d.querySelector('textarea[name="r7526"]');
+        must(field, "the Map drew no field");
+        const esc = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+        field.dispatchEvent(esc);
+        d.querySelector(".drpg-case-graph")?.click();
+        d.querySelector("[data-drpg-case-view]")?.click();
+        equal(JSON.stringify({ held: esc.defaultPrevented, said }), JSON.stringify({ held: false, said: [["view", false]] }),
+            "{Escape held from the window; what the Map asked: Escape, a click on empty space, a press of All open}");
     }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*

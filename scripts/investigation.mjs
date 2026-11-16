@@ -1091,6 +1091,15 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
  * 1 of 12.11.2026). Not a secret: world-secrets.mjs forbids one User flag only (`preSessionNote.text`).
  */
 const INVESTIGATION_VIEWS = Object.freeze(["map", "table"]);
+
+/**
+ * WHETHER THIS GM'S MAP DRAWS EVERY NODE OPEN (owner-116, 15.11.2026; the owner's option A, "All open" by default): true
+ * unless the GM turned the toolbar's switch off, which is kept on their own User as the view is (`caseMapFaces` true).
+ * Not a secret, as the view's flag is not.
+ */
+export function caseMapAllOpen(user = game.user) {
+    return user?.getFlag?.(MODULE_ID, "caseMapFaces") !== true;
+}
 export function investigationView(user = game.user) {
     const v = user?.getFlag?.(MODULE_ID, "investigationView");
     return INVESTIGATION_VIEWS.includes(v) ? v : "map";
@@ -1146,7 +1155,7 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
     const reach = caseReach(graph);
     // The case's consistency (E97 C8): warnings on their nodes and in the summary; nothing is refused for them.
     const problems = checkCase(graph, { reach, cycle: layout.cycle ?? [], keyMax: KEY_REMNANTS.prepared });
-    const tools = caseToolsHtml({ sort: graph.meta?.sort ?? "kind", sorts: CASE_SORTS });
+    const tools = caseToolsHtml({ sort: graph.meta?.sort ?? "kind", sorts: CASE_SORTS, allOpen: reading.allOpen !== false });
     return `<div class="drpg-case-live drpg-case-view" data-drpg-view="map" data-drpg-chapter="${esc(graph.chapter)}"><form class="drpg-case-form">${
         caseMapHtml({ graph, layout, finders, authors, reading, editors, summary, tools, reach, problems })}</form></div>`;
 }
@@ -1455,14 +1464,21 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
         ].join("");
     }
+    /* A LONG LIST FOLDED TO ONE LINE (owner-116, 15.11.2026; the owner's option A): what a node rests on, or refutes, names
+       every other node of the case - about 1900 of a deduction's 2250 px open, Chromium, item 1c - so it stands folded
+       under a line naming how many are ticked, and opens in place. Its boxes stay in the form, read by Save as before. */
+    const foldedList = (boxes, ticked) => `<details class="drpg-case-fold-list"><summary data-drpg-chosen${tipAttr("DRPG.Tips.Case.foldedListTooltip")}>${esc(F("DRPG.CaseMap.chosenOf", { n: ticked, of: boxes.length }))}</summary>`
+        + `<div class="drpg-case-checklist">${boxes.join("")}</div></details>`;
     if (node.kind === "counter") {
         const targets = others.filter(n => !n.evidence);
-        rows.push(editRow(L("DRPG.CaseMap.field.refutes"), `<div class="drpg-case-checklist">${targets.map(n => box("ref", n, node.refutes.includes(n.id))).join("")
-            || `<em>${esc(L("DRPG.CaseMap.nothingToRefute"))}</em>`}</div>`));
+        const on = n => node.refutes.includes(n.id);
+        rows.push(editRow(L("DRPG.CaseMap.field.refutes"), targets.length ? foldedList(targets.map(n => box("ref", n, on(n))), targets.filter(on).length)
+            : `<div class="drpg-case-checklist"><em>${esc(L("DRPG.CaseMap.nothingToRefute"))}</em></div>`));
     } else {
         const inputs = new Set(node.inputs);
         const candidates = others.filter(n => n.kind !== "solution");
-        rows.push(editRow(L("DRPG.CaseMap.field.inputs"), `<div class="drpg-case-checklist">${candidates.map(n => box("in", n, inputs.has(n.id) || (n.trace && inputs.has(n.trace)))).join("")}</div>`));
+        const on = n => inputs.has(n.id) || Boolean(n.trace && inputs.has(n.trace));
+        rows.push(editRow(L("DRPG.CaseMap.field.inputs"), foldedList(candidates.map(n => box("in", n, on(n))), candidates.filter(on).length)));
     }
     rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
     return rows.join("");
@@ -1769,6 +1785,9 @@ let nodeWrites = Promise.resolve();
 
 /** The open node's changed fields in `root`, written. Answers what `applyDashboardSave` answered, or null. */
 function saveOpenNode(root) {
+    // every node open (owner-116): every node's changed fields, as the canvas holds them; else the one open node's
+    const canvas = root?.querySelector?.(".drpg-case-canvas");
+    if (canvas?.dataset?.drpgAllOpen === "1") return saveFieldsIn(canvas);
     return saveFieldsIn(root?.querySelector?.(".drpg-case-edit:not([hidden])"));
 }
 
@@ -1810,6 +1829,14 @@ function wireMap(dialog, reading, refresh) {
     if (root && !root.dataset.drpgZoneRows) {
         root.dataset.drpgZoneRows = "1";
         root.addEventListener("change", event => {
+            // a folded list's line follows its boxes (owner-116)
+            const list = event.target?.closest?.(".drpg-case-fold-list");
+            if (list) {
+                const boxes = [...list.querySelectorAll('input[type="checkbox"]')];
+                const line = list.querySelector(":scope > summary[data-drpg-chosen]");
+                if (line) line.textContent = game.i18n.format("DRPG.CaseMap.chosenOf", { n: boxes.filter(b => b.checked).length, of: boxes.length });
+                return;
+            }
             const select = event.target?.closest?.('.drpg-case-edit select[name$=":mode"]');
             if (!select) return;
             for (const row of select.closest(".drpg-case-edit").querySelectorAll("[data-drpg-zone-for]")) row.hidden = !row.dataset.drpgZoneFor.split(" ").includes(select.value);
@@ -1831,6 +1858,16 @@ function wireMap(dialog, reading, refresh) {
             saveOpenNode(root).then(() => { reading.node = null; reading.focus = id; refresh(); });
         },
         onFold: () => { reading.fold = !reading.fold; refresh(); },
+        // "All open" (owner-116): every node's changed fields written first, then the other drawing, kept on the GM's User
+        onView: open => {
+            saveOpenNode(root).then(() => {
+                reading.allOpen = open;
+                reading.node = null;
+                const flag = open ? game.user.unsetFlag?.(MODULE_ID, "caseMapFaces") : game.user.setFlag?.(MODULE_ID, "caseMapFaces", true);
+                Promise.resolve(flag).catch(err => error("Could not remember the Map's drawing on this user", err));
+                refresh();
+            });
+        },
         onOverview: open => { reading.overview = open; },
         camera: { get: () => reading.camera, set: cam => { reading.camera = cam; } },
         /* ADD, SORT, MOVE, REMOVE: AT ONCE (E97 C6; Q-E97-6's default keeps the fields on Save). A node added is the
@@ -2164,7 +2201,7 @@ async function placeFinalFromDashboard(action) {
  * never found is already its own consequence - the trial gets harder - and
  * the "this is getting thin" warning is what a GM actually needs from here.
  */
-export async function openInvestigationDashboard({ said = null, node = null, view = null } = {}) {
+export async function openInvestigationDashboard({ said = null, node = null, view = null, allOpen = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -2227,7 +2264,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
     /* Since the E97 fix: `node` is the node whose fields are open on it, `overview` the chapter's overview strip open,
        `camera` the schema's camera ({ x, y, z }, null until the GM moves it), kept here so a redraw keeps the view. */
     const reading = { order: "room", player: "", room: "", chapter: null, view: node ? "map" : INVESTIGATION_VIEWS.includes(view) ? view : investigationView(), node, fold: false, focus: null,
-        overview: false, camera: null };
+        overview: false, camera: null, allOpen: typeof allOpen === "boolean" ? allOpen : caseMapAllOpen() };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
     /** The window's element as drawn: the open node's fields are read off it after the window closed. */
