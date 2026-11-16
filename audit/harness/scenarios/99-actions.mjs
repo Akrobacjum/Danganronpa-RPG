@@ -471,6 +471,36 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
         byRead.onFirst = await byRow();
         check("facilities on two scenes: a project Aiko proposed while standing on the second scene is found there, offered to p1 there, and not in Floor 1's Dorm A once she is back",
             J(byRead) === J({ found: true, byGm: false, onSecond: true, onFirst: false }), J(byRead));
+        /* A SECRET PROJECT WITH A PICK (the coordinator's ask of 16.11.2026: a privacy rule gets a run). A secret project in Dorm
+           A that p1 is in on, its scene picked by hand onto the second scene (`roomScene`, `roomSceneByGm`: the GMs' row while
+           it is secret, projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET). Read on p2, a bystander: its projectMeta row holds
+           neither field, no world setting holds `roomSceneByGm`, and p2's sight copy names no such project; on p1, the insider:
+           its sight copy carries the scene, and the project stands there on p1's own page. */
+        const secretLabel = "E39 99 secret project with a pick";
+        const secretId = await gm.eval(`const P = ${imp("projects.mjs")};
+            const id = (await P.createProject({ name: ${J(secretLabel)}, target: 3, room: "Dorm A", secret: true, viewers: ["${IDS.p1}"], trait: "body" }))?.id ?? null;
+            await P.applyProjectChange(id, P.projectEditChange({ roomScene: ${J(two.scene)}, roomSceneByGm: true }), { by: { kind: "gm" } });
+            return id;`, { timeout: 60000 });
+        await settle(2000);
+        const onGmSecret = await gm.eval(`const P = ${imp("projects.mjs")}; return [P.roomSceneOf(${J(secretId)}) === ${J(two.scene)}, P.roomSceneByGmOf(${J(secretId)})];`);
+        const bystander = await p2.eval(`const S = ${imp("projects-secrecy.mjs")};
+            const row = (game.settings.get("danganronpa-rpg", "projectMeta") ?? {})[${J(secretId)}] ?? null;
+            // Every secret project's row of projectMeta, and every other world setting: the pick's fields stand in neither (a
+            // public project's row holds them, as it holds its room; earlier checks of this phase made two such).
+            const meta = game.settings.get("danganronpa-rpg", "projectMeta") ?? {};
+            const secretRows = Object.values(meta).filter(r => r && typeof r === "object" && r.secret === true
+                && (Object.hasOwn(r, "roomScene") || Object.hasOwn(r, "roomSceneByGm"))).length;
+            // Every registered world setting by name (the storage's entries carry no readable key here), projectMeta aside.
+            const others = [...game.settings.settings.values()].filter(c => c.scope === "world" && !(c.namespace === "danganronpa-rpg" && c.key === "projectMeta"))
+                .map(c => { try { return JSON.stringify(game.settings.get(c.namespace, c.key) ?? null); } catch { return ""; } }).join("\\n");
+            return { row: Boolean(row), fields: row ? ["roomScene", "roomSceneByGm", "room"].filter(f => Object.hasOwn(row, f)) : null,
+                secretRows, elsewhere: others.includes("roomSceneByGm") || others.includes('"roomScene"'), sight: S.toldSight(${J(secretId)}) };`);
+        const insider = await p1.eval(`const S = ${imp("projects-secrecy.mjs")}, P = ${imp("projects.mjs")};
+            return { scene: S.toldSight(${J(secretId)})?.roomScene === ${J(two.scene)}, stands: P.projectScene(${J(secretId)})?.id === ${J(two.scene)} };`);
+        check("facilities on two scenes: a secret project's picked scene is the GMs' and the insider's - p2's world holds no pick of it nor of any secret project, p2's sight copy names it not, and p1's copy carries the scene it stands on",
+            J(onGmSecret) === J([true, true]) && bystander.row === true && J(bystander.fields) === J([]) && bystander.secretRows === 0 && bystander.elsewhere === false
+                && bystander.sight === null
+                && insider.scene === true && insider.stands === true, J({ onGmSecret, bystander, insider }));
 
         /* A CLOCK SET BACK BEFORE A PROJECT'S COMPLETION (P1, the owner's probe of 16.11.2026 and decision "b"): a project in
            Dorm A completed at day 3 morning with an action of one day; the GM sets the clock back to day 1 morning, as the

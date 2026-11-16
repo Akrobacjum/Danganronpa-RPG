@@ -68949,6 +68949,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await P.addProgress(id, 1);
             await settle();
             read.first = [P.projectScene(id)?.id === where.scene.id, await offered(where.scene), await offered(other)];
+            // Saved once as it opened, the picker untouched (option B: only a change is a pick): nothing is written.
+            open = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            drawn().element.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([open, wait(5000)]);
+            await settle();
+            read.untouched = [Object.hasOwn(P.metaFor(id), "roomScene"), P.roomSceneOf(id)];
             open = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) });
             must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
             const el = drawn().element;
@@ -68988,9 +68995,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
             await settle();
         }
-        equal(stableJson(read), stableJson({ first: [true, true, false], picker: [true, true, 2],
+        equal(stableJson(read), stableJson({ first: [true, true, false], untouched: [false, null], picker: [true, true, 2],
             picked: [true, true, true, false, true], usedOnFirst: "notThere", usedOnSecond: true, deleted: [true, true, true] }),
-            "{first: [on the character's scene, offered there, offered on the second]; picker: [shown, the second scene offered, options]; picked: [stored, projectScene, token there, offered on the first, offered on the second]; usedOnFirst/usedOnSecond: the GM's answer to a use from each; deleted: [the pick kept, back on the first scene, offered there]}");
+            "{first: [on the character's scene, offered there, offered on the second]; untouched: [a pick field after a Save that changed nothing, the pick]; picker: [shown, the second scene offered, options]; picked: [stored, projectScene, token there, offered on the first, offered on the second]; usedOnFirst/usedOnSecond: the GM's answer to a use from each; deleted: [the pick kept, back on the first scene, offered there]}");
     }],
 
     ["a project a player proposes stands on the scene of the proposer's token, a room changed later is found again from it, a GM's hand pick stays through a room change, and the deletion of a picked scene tells the other GMs alone (option B, the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md)", async () => {

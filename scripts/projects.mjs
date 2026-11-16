@@ -448,8 +448,9 @@ async function tellSight(countdownId) {
     const watchers = [...spectatorUserIds()].filter(id => game.users.get(id) && !game.users.get(id).isGM && !inside.includes(id));
     /* What was told is the name, and since leak-pm (14.11.2026) the murder mark and the room the sight carries
        (`sightFor`): a change of either is told again. A plain project's mark is its name alone, as before. */
-    const { murder, room } = sightExtras(countdownId);
-    const mark = `${name}${murder ? "|murder" : ""}${room ? `|room:${room}` : ""}`;
+    // And the scene picked for that room (options (c) and B, 16.11.2026): a pick changed is told again, as a room is.
+    const { murder, room, roomScene } = sightExtras(countdownId);
+    const mark = `${name}${murder ? "|murder" : ""}${room ? `|room:${room}` : ""}${roomScene ? `|scene:${roomScene}` : ""}`;
     const letIn = inside.filter(id => told[id] !== mark);
     const letWatch = watchers.filter(id => told[id] !== `watch:${mark}`);
     const letOut = Object.keys(told).filter(id => told[id] !== false && !inside.includes(id) && !watchers.includes(id) && game.users.get(id));
@@ -557,6 +558,8 @@ async function receiveSight(sight, stamps) {
         mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null,
             ...(typeof row.description === "string" ? { description: row.description } : {}), murder: row.murder === true,
             room: typeof row.room === "string" && row.room ? row.room : null,
+            // The scene picked for the room (options (c) and B): an id, or none.
+            roomScene: typeof row.roomScene === "string" && row.roomScene ? row.roomScene : null,
             ...(Object.hasOwn(row, "facility") ? { facility: row.facility ? cleanFacility(row.facility) : null } : {}) };
     }
     const taken = await projectSightCopy.receive(mine, own);
