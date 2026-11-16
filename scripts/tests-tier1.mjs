@@ -59078,8 +59078,15 @@ const INVARIANTS = [
         const tailSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/tail-gm.mjs`).then(lfText), "registerTails") ?? "");
         const pickSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/lockpick-gm.mjs`).then(lfText), "endPassesAtEclipseStart") ?? "");
         const actSrc = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText), "performAction") ?? "");
+        const now = await import("./allowed-now.mjs");
+        const inEclipse = { eclipse: () => true, trial: () => false, fighting: () => false, participant: () => false, betrayal: () => false };
+        const eclipseBegins = key => now.allowedNow(null, key, { facts: inEclipse }).why;
         const read = {
-            tailRule: [/drpgTimeOfDayChanged[^]*endAllTails\("day"/.test(tailSrc), /actionKey !== "move" && actionKey !== "directMurder" && isEclipse\(\)/.test(actSrc)],
+            /* The second reading asks the rule itself since E40 moved it out of performAction into allowed-now.mjs's
+               "action" road (the 1.2.116 assembly, 16.11.2026: the source pattern read the old line, which is gone): in an
+               Eclipse with no fight, trial or betrayal, Tail Someone is shut for the Eclipse, Move and a Direct Murder are not. */
+            tailRule: [/drpgTimeOfDayChanged[^]*endAllTails\("day"/.test(tailSrc), eclipseBegins("tail") === now.WHY.eclipse
+                && eclipseBegins("move") === null && eclipseBegins("directMurder") === null && /allowedNow\(/.test(actSrc)],
             tailHint: [/through an Eclipse/.test(row(en, "tail")) && /until the day ends/.test(row(en, "tail")) && /cannot begin it during an Eclipse/.test(row(en, "tail")),
                 /w trakcie Eclipse/.test(row(pl, "tail")) && /do końca dnia/.test(row(pl, "tail")) && /W trakcie Eclipse śledzenia nie zaczniesz/.test(row(pl, "tail"))],
             pickRule: /if \(row\?\.entered\) continue;/.test(pickSrc),
