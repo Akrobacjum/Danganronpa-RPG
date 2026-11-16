@@ -386,6 +386,13 @@ Gates of C7: `npm run quick` green (24 parts); tiers 0-1 whole 1743 ran, 1728 pa
 (469 s); the 17 tier-2 tests that drive an ask's expiry, receipt or ruling, by name, 21 passed, 0 failed; E60-T14 alone
 green.
 
+The full tier 2 in shards at dc159200 (16.11.2026): `suite-merge.mjs` RED - 1555 tier-2 tests, 3295 passed, 1 failed,
+27 skipped, 0 red. E60-T14 green in its shard now. The one failure: A113-C5-7-T1 ("Take from the Body opens an action
+window") in shard 4, the window's two rows in the other order. Not this line's: the test sorts the rows it reads by item
+id with `localeCompare` and the order it expects with `Object.keys(...).sort()` (code units); the ids are random, and the
+two sorts disagree on about 17.8% of random pairs (200 000 pairs of 16-character ids, measured here). Alone: 1 failure in
+4 runs on dc159200, 0 in 4 on e9f4a791 (by chance at that rate, about 32%). Reported to the coordinator; not changed.
+
 A HARNESS TRAP, for whoever runs mutants next: lib/canary.mjs imports scripts/world-secrets.mjs from the checkout the harness sits in, not from
 `DRPG_REPO`, so a mutant of world-secrets.mjs read through a scenario's scans has to run in the copy's own harness; the
 first run of "never applies" through `DRPG_REPO` read the unchanged rule and passed (void, not a survival).
