@@ -34,21 +34,22 @@ goes on; what only the owner can give (a password, eyes on a screen) is written 
 11. **The voice module's default**: voice.mjs says the first GM to connect gives the world `serverType: "custom"`; this
     world kept `{}` after several GM logins (A/V off). Default: the comment unchanged until read with A/V on.
 
-## Where step 4 stands (16.11.2026, evening)
+## Where step 4 stands (16.11.2026, late evening; pass 2 under way)
 
 Counted over the 565 rows of docs/dev/e58/TRIAGE-9.2.md (section 7's 14 and 9.2's 551 numbered items):
 
 | Result | Rows | Which |
 | --- | --- | --- |
-| measured | 33 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, 477 LIVE-E76-03, 512 LIVE-E39-01) and 22; then S7-4, S7-5, S7-7, 15, 17, 18, 19, 20, 23, 44, 51, 52, 61, 62, 63, 64, 67, 68, 534, 535, 536, 556 (556 its v14 half; the Forge half not checkable) |
+| measured | 38 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, 477 LIVE-E76-03, 512 LIVE-E39-01) and 22; then S7-4, S7-5, S7-7, 15, 17, 18, 19, 20, 23, 44, 51, 52, 61, 62, 63, 64, 67, 68, 534, 535, 536, 556 (556 its v14 half; the Forge half not checkable); pass 2: S7-1, S7-2, S7-3, S7-8, S7-9 |
 | a defect found, open | 1 | 553 (LIVE-E112-01: the veiled killer has no vision of their own on v14) |
 | not checkable at this sandbox | 113 | the 98 the readers marked T less 553 and 556, which were read here (96), and 47 (Setup > Duplicate World) - each needs real people, a real LiveKit, The Forge, a second machine, a real GPU at a table, a phone or the owner's own install; and the 16 marked F, each a fixture world (DRPG_FIXTURES unset on purpose; 537 among them, a world played through a chapter). The T and F reasons are the readers' (TRIAGE-9.2.md), not re-read item by item here |
 | closed by its own text | 8 | S7-14, 21, 41, 213, 448, 449, 450, 451 |
-| left | 410 | everything else: K and S rows not yet driven or shot |
+| left | 405 | everything else: K and S rows not yet driven or shot |
 
 Defects found outside 9.2's rows, each red first and fixed: the tier-2 reader of `game.collections` (step 3, defect 1),
 the four registrations at init (step 3, defect 3), scenario 83's L9 race (step 3, item 4). Found and not fixed: the
-fuzz's put-back race in lib/fuzz.mjs (group 3, item 62), E112-01's vision (above).
+fuzz's put-back race in lib/fuzz.mjs (group 3, item 62), E112-01's vision (above), the dead ruling buttons in a GM's
+chat log (group 1, S7-2).
 
 ## Step 5 - E53's measurements (16.11.2026)
 
@@ -139,10 +140,22 @@ M 10 (step 3). A class is how an item can be settled here, not a result; each re
 | 22 | measured (M) | LIVE-E39-01's move (CALIBRATION.md section 3) |
 | 23 | measured | v14's toasts are not escaped but sanitised: `<b>`, `<img>`, `<a>` kept as elements; `onerror`, `javascript:` and `<script>` removed (a failing image's handler did not run). A name PlayerOne gave its own character with markup in it was stored as typed and drawn as markup in a GM toast (`DRPG.Anonymity.blocked`), its handler stripped. Not a defect by this reading; an `<img>` in a name makes a GM's browser fetch its address - a question for the coordinator |
 | S7-14, 21 | closed by their own text | "To nie błąd, ale warto wiedzieć"; "Nieaktualne od 1.2.67" |
-| S7-1, S7-2, S7-3, S7-6, S7-8, S7-9, S7-10, S7-11, 16 | left | flows not yet driven (a Search the GM leaves, the roll window's statistic, Self Roll and Despair, a trap, the safeword's second press - whose 1.2.43 text has changed since -, the HUD's minute counter, the overflow hat, two GMs' Despair, sticky trial cards) |
-| S7-12, S7-13, 24 | left | shots not yet taken |
+| S7-1 (Search, no GM answer) | measured (pass 2, 16.11 evening) | today's road: a Search proposing Hand (Eye is approved by itself in Daily Life, E32) posts the GM a ruling card, "Open until" five minutes on; the action is not spent while it waits; left unanswered past that time, PlayerOne was told "'The GM's pick of a statistic' was not carried out. The GM did not answer in time. You keep your act[ion]", actions 3, the room's tokens untouched, the search ended. Seen: 3.6 min past its time PlayerOne's notice copy of the card still read "Awaiting a ruling. Open until 09:27 PM." Two earlier runs pressed the window's default (Eye), which approves itself and left the roll window waiting - they measured nothing of an unanswered GM, and are not counted |
+| S7-2 (ROLL-06) | measured; **a defect found** | proposing Hand, approved on the GM: PlayerOne's Daggerheart window "Search · beat 8 / 12 / 18: Aiko Hoshino" holds the statistic locked (`trait` finesse, Daggerheart's Hand, disabled); the private result card "Search · Dorm A · 25 · needed 8 / 12 / 18 · Tier 3 · 25 critical 12+12+Hand +1". **The defect**: the ruling card of a player's thread reaches the GM's chat log ("Foundry tools") with enabled "Approve: Hand (+1)", "Change to: ...", "Refuse" buttons that do nothing - a real mouse click on the GM's visible copy changed nothing in 20 s (no error); gm-bridge.mjs wires the log's copy only for a card carrying `callCard`, which only a card with no thread has; a thread's card is answered in the messenger (`messenger-app.mjs` wires every bubble), which the GM's icon badges "1". The ruling itself worked through `pressCard` with the button's own data. Proposal, not built: on a GM's browser wire every card holding `[data-drpg-call]` in the log as the messenger does (`claimCard` already refuses a second ruling), or take the log copy's buttons off |
+| S7-3 (ROLL-14) | measured | v14's chat-bar mode is `core.messageMode` (not `core.rollMode`); set to "self" on PlayerOne, the roll window takes "self" and locks it; a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM: the GM's Despair pool `{}` to `{GM: 1}` and Daggerheart's Fear with it. Three earlier rolls had no Fear (3/3, 12/1, 12/5) |
+| S7-8 (CORE-13) | measured | PlayerOne pressed the safeword twice (`game.drpg.safeword()`, "Stop the scene" each time): one public card "THE SCENE IS STOPPED / Somebody used the safeword. Play stops here. A GM will pick this up, and the scene resumes from a point everyone agrees on."; the second press a "+1" on PlayerOne's notice, no second card; the game paused. The 1.2.43 "already had a safeword" text is gone. Not read: how the GMs are told who (no GM-only card appeared) |
+| S7-9 (CORE-06) | measured | an incident open (a drawn opening), PlayerTwo a bystander: its stopwatch "not started"; the GM moved the hour (`advanceTimeOfDay`, morning to noon, the setting noon on PlayerTwo too): the stopwatch stayed as it was 4 s and 16 s after - the display clock frozen on the last public hour for an outsider (hud-elapsed.mjs `paintElapsed`, clock `clockForDisplay`), as the CORE-06 fix intends |
+| S7-6, S7-10, S7-11, 16 | left | not yet driven: a trap that fires (an indirect murder's trigger), the overflow hat with a Monocub, two GMs' Despair writes in a race, a trial's sticky cards |
+| S7-12, S7-13, 24 | left | shots not yet taken (S rows, after the K rows) |
 
-Group 1: 9 measured, 0 not checkable, 2 closed, 0 defects, 12 left.
+Group 1 (24 rows): 15 measured, 0 not checkable, 2 closed, 1 defect found (S7-2's dead buttons; S7-2 itself measured), 7 left.
+
+The world after each run (pass 2): ~/drpg/l1-probes/restore.mjs puts back, against a baseline captured from the world as
+seeded and cleaned: all 64 world settings of the module (but the seven that write themselves at a load), Daggerheart's Fear
+and Countdowns, the messages, the actors (system, flags, picture, ownership, items), the tokens (place, hidden, picture,
+name, module flags), the scenes' extra tokens, tiles, walls, notes and drawings, the users' roles and module flags, the
+pause. A slip of its first run, mended: it took the module flags off the seed's trace token (`{isRemnant: true}`), the
+baseline then holding no token flags - put back by hand, the baseline now holds them and the restore compares them.
 
 ### Group 2: items 25-50
 
