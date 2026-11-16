@@ -18,9 +18,11 @@
  * Tell the player and the dice look), and the 28 its run of 62558842 noted after C6b (the Investigation window, its Map's
  * planned nodes, the Key Remnant windows). Since the 1.2.116 assembly (CI 43810162456 on 88ed05b3, 16.11.2026):
  * DRPG.Tips.Case.closeNodeTooltip is out, as owner-116 opens every node of the Map by default and an open-all Map draws no
- * node Close (case-map.mjs nodeEditHtml; R4755's family row still holds where it sits), and the eight keys that run noted
- * drawn and not held are in (the Map's open-all switch and folded list, the planner's Clear, the trial's edit, delete and
- * Monokuma's confirm, a project's scale and a secret project's player tick). The keys these windows never draw (a window probe 08 does not open, a state it does not
+ * node Close (case-map.mjs nodeEditHtml; R4755's family row still holds where it sits), and five keys a run of this scenario
+ * alone noted drawn and not held are in (the Map's open-all switch and folded list, the planner's Clear, a project's scale
+ * and a secret project's player tick). Three more it noted - the trial's edit, delete and Monokuma's confirm
+ * (DRPG.Tips.Trial.editTooltip, deleteTooltip, monokumaConfirmsTooltip) - were drawn alone and not drawn in CI 43819231988's
+ * bucket b2, where this scenario runs after 30, 69 and 86: they hang on the world's state, so they are not held. The keys these windows never draw (a window probe 08 does not open, a state it does not
  * build, a card, a sheet) are counted and listed in the evidence as not drawn here: what holds them is their family test
  * and `node tools/check.mjs tooltips`. A key with a placeholder or a plural is not looked for (its words vary).
  */
@@ -77,8 +79,8 @@ export const DRAWN = {
         "DRPG.Tips.Setup.tabsTierPoolsRoomTooltip"
     ],
     Trial: [
-        "DRPG.Tips.Trial.countThisAsSessionTooltip", "DRPG.Tips.Trial.deleteTooltip", "DRPG.Tips.Trial.editTooltip", "DRPG.Tips.Trial.findingsNTooltip", "DRPG.Tips.Trial.findingWhenSolvedTooltip",
-        "DRPG.Tips.Trial.killerTooltip", "DRPG.Tips.Trial.monokumaConfirmsTooltip", "DRPG.Tips.Trial.moveToChapterToTooltip", "DRPG.Tips.Trial.rightAnswerZoneATooltip",
+        "DRPG.Tips.Trial.countThisAsSessionTooltip", "DRPG.Tips.Trial.findingsNTooltip", "DRPG.Tips.Trial.findingWhenSolvedTooltip",
+        "DRPG.Tips.Trial.killerTooltip", "DRPG.Tips.Trial.moveToChapterToTooltip", "DRPG.Tips.Trial.rightAnswerZoneATooltip",
         "DRPG.Tips.Trial.schoolTrialHallTooltip", "DRPG.Tips.Trial.setTooltip", "DRPG.Tips.Trial.thesisTooltip",
         "DRPG.Tips.Trial.trialEvidenceLogTooltip", "DRPG.Tips.Trial.zoneAZoneBTooltip"
     ]
