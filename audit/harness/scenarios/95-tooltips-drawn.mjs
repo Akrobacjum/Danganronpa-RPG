@@ -16,7 +16,11 @@
  * level-up.mjs's three on windows of the 1.2.111 tree E102's run did not draw, and rest.mjs's doItTooltip. Since E102 C6 (claude/e102-c6, 14.11.2026) the Case family's seven keys its run of 9c1a4104
  * noted drawn and not held are in, and the four its run of cc4088ff noted (C6's node Close and Not now, C12's give tab
  * Tell the player and the dice look), and the 28 its run of 62558842 noted after C6b (the Investigation window, its Map's
- * planned nodes, the Key Remnant windows). The keys these windows never draw (a window probe 08 does not open, a state it does not
+ * planned nodes, the Key Remnant windows). Since the 1.2.116 assembly (CI 43810162456 on 88ed05b3, 16.11.2026):
+ * DRPG.Tips.Case.closeNodeTooltip is out, as owner-116 opens every node of the Map by default and an open-all Map draws no
+ * node Close (case-map.mjs nodeEditHtml; R4755's family row still holds where it sits), and the eight keys that run noted
+ * drawn and not held are in (the Map's open-all switch and folded list, the planner's Clear, the trial's edit, delete and
+ * Monokuma's confirm, a project's scale and a secret project's player tick). The keys these windows never draw (a window probe 08 does not open, a state it does not
  * build, a card, a sheet) are counted and listed in the evidence as not drawn here: what holds them is their family test
  * and `node tools/check.mjs tooltips`. A key with a placeholder or a plural is not looked for (its words vary).
  */
@@ -36,12 +40,12 @@ export const DRAWN = {
     Actions: [
         "DRPG.Tips.Actions.clearTheOverflowTooltip", "DRPG.Tips.Actions.detailsTooltip", "DRPG.Tips.Actions.doItTooltip",
         "DRPG.Tips.Actions.frameStudentTooltip", "DRPG.Tips.Actions.indirectMurderWindowTooltip", "DRPG.Tips.Actions.notTheOneWhoTooltip",
-        "DRPG.Tips.Actions.onlyAfterDarkTooltip", "DRPG.Tips.Actions.onPerRuleTooltip", "DRPG.Tips.Actions.requiredWork2Tooltip",
+        "DRPG.Tips.Actions.onlyAfterDarkTooltip", "DRPG.Tips.Actions.onPerRuleTooltip", "DRPG.Tips.Actions.scaleTooltip", "DRPG.Tips.Actions.aPlayerSOnTooltip", "DRPG.Tips.Actions.requiredWork2Tooltip",
         "DRPG.Tips.Actions.room2Tooltip", "DRPG.Tips.Actions.secretAProjectSTooltip"
     ],
     Case: [
-        "DRPG.Tips.Case.addDeductionCounterSolutionTooltip", "DRPG.Tips.Case.autopsyAtTooltip", "DRPG.Tips.Case.chapterFilterTooltip",
-        "DRPG.Tips.Case.checkConsistencyTooltip", "DRPG.Tips.Case.closeNodeTooltip", "DRPG.Tips.Case.deleteTooltip",
+        "DRPG.Tips.Case.addDeductionCounterSolutionTooltip", "DRPG.Tips.Case.allOpenTooltip", "DRPG.Tips.Case.autopsyAtTooltip", "DRPG.Tips.Case.chapterFilterTooltip",
+        "DRPG.Tips.Case.checkConsistencyTooltip", "DRPG.Tips.Case.deleteTooltip", "DRPG.Tips.Case.foldedListTooltip",
         "DRPG.Tips.Case.difficultyTooltip", "DRPG.Tips.Case.faintTooltip", "DRPG.Tips.Case.giveFromPlanTooltip",
         "DRPG.Tips.Case.issueAutopsyTruthBulletTooltip", "DRPG.Tips.Case.kindWhatItReallyTooltip", "DRPG.Tips.Case.leftByTooltip",
         "DRPG.Tips.Case.mapTableTooltip", "DRPG.Tips.Case.moveUpMoveDownTooltip", "DRPG.Tips.Case.nameNodeTooltip",
@@ -54,6 +58,7 @@ export const DRAWN = {
         "DRPG.Tips.Case.tiedToCrimeTooltip", "DRPG.Tips.Case.trialModeTooltip", "DRPG.Tips.Case.whatAnalysisRevealsTooltip",
         "DRPG.Tips.Case.whichRemnantTooltip"
     ],
+    CasePlan: ["DRPG.Tips.CasePlan.clearPlanTooltip"],
     Gm: [
         "DRPG.Tips.Gm.aCharacterDiesTooltip", "DRPG.Tips.Gm.campaignNameTooltip", "DRPG.Tips.Gm.categoryTooltip",
         "DRPG.Tips.Gm.chapterTooltip", "DRPG.Tips.Gm.despairPoolTooltip", "DRPG.Tips.Gm.giveATruthBulletTooltip",
@@ -72,8 +77,8 @@ export const DRAWN = {
         "DRPG.Tips.Setup.tabsTierPoolsRoomTooltip"
     ],
     Trial: [
-        "DRPG.Tips.Trial.countThisAsSessionTooltip", "DRPG.Tips.Trial.findingsNTooltip", "DRPG.Tips.Trial.findingWhenSolvedTooltip",
-        "DRPG.Tips.Trial.killerTooltip", "DRPG.Tips.Trial.moveToChapterToTooltip", "DRPG.Tips.Trial.rightAnswerZoneATooltip",
+        "DRPG.Tips.Trial.countThisAsSessionTooltip", "DRPG.Tips.Trial.deleteTooltip", "DRPG.Tips.Trial.editTooltip", "DRPG.Tips.Trial.findingsNTooltip", "DRPG.Tips.Trial.findingWhenSolvedTooltip",
+        "DRPG.Tips.Trial.killerTooltip", "DRPG.Tips.Trial.monokumaConfirmsTooltip", "DRPG.Tips.Trial.moveToChapterToTooltip", "DRPG.Tips.Trial.rightAnswerZoneATooltip",
         "DRPG.Tips.Trial.schoolTrialHallTooltip", "DRPG.Tips.Trial.setTooltip", "DRPG.Tips.Trial.thesisTooltip",
         "DRPG.Tips.Trial.trialEvidenceLogTooltip", "DRPG.Tips.Trial.zoneAZoneBTooltip"
     ]
