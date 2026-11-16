@@ -22,7 +22,7 @@ import {
     allProjects, metaFor, roomOf, isIndirectMurder, isSecret, shareWith, unshareWith,
     viewersOf, secretsOf, createProject, deleteProject,
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel,
-    roomSceneOf, roomSceneChoices, projectScene
+    roomSceneOf, roomSceneChoices, projectScene, roomSceneOnRoomChange, proposerSceneFor
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { error, markFired, markLanguage, serialWrite, plural, esc } from "./utils.mjs";
@@ -309,27 +309,36 @@ function rowName(columnKey, project) {
 function roomScenePicker(room, { pickId = null, standing = null } = {}) {
     const { scenes } = roomSceneChoices(room || null, { pickId });
     const chosen = scenes.some(c => c.id === pickId) ? pickId : scenes.some(c => c.id === standing) ? standing : scenes[0]?.id ?? null;
-    return { shown: scenes.length > 1, options: scenes.map(c => `<option value="${esc(c.id)}"${c.id === chosen ? " selected" : ""}>${esc(c.name)}</option>`).join("") };
+    return { shown: scenes.length > 1, chosen,
+        options: scenes.map(c => `<option value="${esc(c.id)}"${c.id === chosen ? " selected" : ""}>${esc(c.name)}</option>`).join("") };
 }
 
-/* The picker redrawn as the room select changes, its row shown or hidden with it; the stale line goes with the room it was about. */
-function wireRoomScenePicker(root, pickId) {
+/* The picker redrawn as the room select changes, its row shown or hidden with it, preselected on the scene the proposer's
+   token stands on for the new room (option B) where there is one; the stale line goes with the room it was about. */
+function wireRoomScenePicker(root, pickId, by = null) {
     const room = root?.querySelector('select[name="room"]');
     const select = root?.querySelector('select[name="roomScene"]');
     if (!room || !select) return;
-    room.addEventListener("change", () => {
-        const { shown, options } = roomScenePicker(room.value, { pickId });
+    room.addEventListener("change", async () => {
+        const asked = room.value;
+        const found = by ? await proposerSceneFor(by, asked || null) : null;
+        if (room.value !== asked) return;
+        const { shown, options, chosen } = roomScenePicker(asked, { pickId, standing: found });
         select.innerHTML = options;
+        select.dataset.drpgShown = chosen ?? "";
         for (const part of root.querySelectorAll("[data-drpg-room-scene]")) part.hidden = !shown;
         const stale = root.querySelector("[data-drpg-room-scene-stale]");
         if (stale) stale.hidden = true;
     });
 }
 
-/* The picker's answer: the scene shown, or null where no picker is shown. */
+/* The picker's answer: `{ scene, byGm }` - the scene shown, or null where no picker is shown, and whether the GM changed it
+   from the scene the window preselected (option B: only a change is a pick by hand). */
 function roomSceneAnswer(root) {
     const row = root?.querySelector(".drpg-form-field[data-drpg-room-scene]");
-    return row && !row.hidden ? root.querySelector('select[name="roomScene"]')?.value || null : null;
+    const select = root?.querySelector('select[name="roomScene"]');
+    if (!row || row.hidden || !select) return { scene: null, byGm: false };
+    return { scene: select.value || null, byGm: Boolean(select.value) && select.value !== (select.dataset.drpgShown ?? "") };
 }
 
 /**
@@ -612,10 +621,10 @@ async function applyProjectManager(result, projects) {
            written back on every Save, so a room the project gained while the window was open - its
            token dragged into another room (`onProjectTokenMoved`), another GM's edit - was put back
            to the one the window had read. Compared with the room the window opened with. */
-        /* A room changed here clears the scene a GM picked for the old one (option (c), 16.11.2026): the manager has no
-           picker, and a pick of the old room's scene would mean nothing for the new; the editor is where one is picked. */
+        /* A room changed here finds its scene again from the proposer's token, unless a GM picked it by hand (option B,
+           16.11.2026; `roomSceneOnRoomChange`): the manager has no picker (Q-SC-3), the editor is where one is picked. */
         const room = (entry.room || null) !== (before?.room ?? null)
-            ? { room: entry.room || null, ...(roomSceneOf(entry.id) ? { roomScene: null } : {}) } : null;
+            ? { room: entry.room || null, ...(await roomSceneOnRoomChange(entry.id, entry.room || null)) } : null;
 
         // A project that has only just been marked as an indirect murder is
         // sealed with it - that is the default the guide wants, and the box in
@@ -990,7 +999,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     // The scene of that room, where more than one place scene holds its name (option (c), 16.11.2026).
     const currentPick = editing ? roomSceneOf(project.id) : null;
     const standingScene = editing ? projectScene(project.id) : null;
-    const scenePicker = roomScenePicker(currentRoom, { pickId: currentPick, standing: standingScene?.id ?? null });
+    // A proposal's approval opens on the scene its proposer's token stands on (option B, 16.11.2026).
+    const proposer = editing ? secretsOf(project.id).by ?? null : start?.by ?? null;
+    const foundScene = !editing && proposer && currentRoom ? await proposerSceneFor(proposer, currentRoom) : null;
+    const scenePicker = roomScenePicker(currentRoom, { pickId: currentPick, standing: standingScene?.id ?? foundScene });
     const pickStale = Boolean(currentPick) && roomSceneChoices(currentRoom || null, { pickId: currentPick }).stale;
 
     const players = playerList();
@@ -1072,7 +1084,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         { label: t("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${offScale}${scaleOptions}</select>` },
         { label: t("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.room2Tooltip")}>${roomOptions}</select>` },
         { label: t("DRPG.Project.roomScene"), id: idOf("roomScene"), attrs: { "data-drpg-room-scene": true, hidden: !scenePicker.shown },
-            field: `<select name="roomScene" id="${idOf("roomScene")}"${tipAttr("DRPG.Tips.Actions.roomSceneTooltip")}>${scenePicker.options}</select>${
+            field: `<select name="roomScene" id="${idOf("roomScene")}" data-drpg-shown="${esc(scenePicker.chosen ?? "")}"${tipAttr("DRPG.Tips.Actions.roomSceneTooltip")}>${scenePicker.options}</select>${
                 pickStale ? `<p class="notes" data-drpg-room-scene-stale>${esc(game.i18n.format("DRPG.Project.roomSceneStale", { scene: standingScene?.name ?? "-" }))}</p>` : ""}` },
         { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWork2Tooltip")}>${traitOptions}</select>` },
         { full: `<label class="drpg-checkbox">
@@ -1160,7 +1172,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             guardDescription(dialog.element, "save");
             if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
             if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer, { over: passageOf.preset === "breach" });
-            wireRoomScenePicker(dialog.element, currentPick);
+            wireRoomScenePicker(dialog.element, currentPick, proposer);
         },
         rejectClose: false
     });
@@ -1216,9 +1228,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             img: result.img,
             glyph: result.glyph,
             room: result.room,
-            // The scene picked for it (option (c)); written when there is one, or one to clear, so a world with no
-            // duplicate keeps its rows as they were.
-            ...(result.roomScene || roomSceneOf(project.id) ? { roomScene: result.roomScene ?? null } : {}),
+            /* The scene of its room (options (c) and B): a pick the GM changed in the picker is theirs (`roomSceneByGm`); a room
+               changed with the picker left alone is found again from the proposer's token, unless a GM picked by hand
+               (`roomSceneOnRoomChange`); otherwise nothing is written, so a world with no duplicate keeps its rows. */
+            ...(result.roomScene?.byGm ? { roomScene: result.roomScene.scene, roomSceneByGm: true }
+                : (result.room || null) !== (roomOf(project.id) ?? null) ? await roomSceneOnRoomChange(project.id, result.room || null) : {}),
             trait: result.trait,
             indirectMurder: result.murder,
             condition: result.condition,
@@ -1293,7 +1307,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         // they opened it from the panel - where there is no proposer to name.
         by: start?.by ?? null,
         room: result.room,
-        roomScene: result.roomScene ?? null,
+        roomScene: result.roomScene?.scene ?? null,
+        roomSceneByGm: result.roomScene?.byGm === true,
         trait: result.trait,
         indirectMurder: result.murder,
         condition: result.condition,

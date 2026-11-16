@@ -7496,8 +7496,8 @@ const INVARIANTS = [
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
             // E93 C1: a secret project's room action (its label and effects) as well.
             // The leak-pm line (1.2.113): whether it is an indirect murder, and its room. Option (c) (16.11.2026): the scene picked for it.
-            ...["description", "facility", "indirectMurder", "room", "roomScene"].map(f => [`projectMeta while secret: ${f}`,
-                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" ? true : f === "room" ? "Gym" : f === "roomScene" ? "R190SCENE0000002" : "R190 the plan, in the killer's words"; },
+            ...["description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"].map(f => [`projectMeta while secret: ${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" || f === "roomSceneByGm" ? true : f === "room" ? "Gym" : f === "roomScene" ? "R190SCENE0000002" : "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
             // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).
@@ -61899,7 +61899,7 @@ const INVARIANTS = [
         stableJson([["B", "A", "A", "B", "B", "A", null, "A"], true, true, true, true, true]),
             "[the scene for: a pick holding the room, a deleted pick, a pick without the room, a pick over a token elsewhere, a token alone, nothing, no room, a token whose scene is gone; roomSceneOf; projectScene asks the rule with the pick; roomScene kept with the GMs while secret, in the rule, and on the sight copy]");
     }],
-    ["R7642 - the project's editor offers the scene of its room only where more than one place scene holds that room's name (option (c), the owner's choice of 16.11.2026): projects.mjs `roomSceneChoices` lists those scenes, the home scene first as `placeScenes` orders them, none for a name one scene holds or for no room, and names a stored pick that is not among them stale; projects-ui.mjs `openProjectDialog` draws the picker from it and reads it back, the Projects manager clears a pick with the room it changes, and the picker's words are in both languages", async () => {
+    ["R7642 - the project's editor offers the scene of its room only where more than one place scene holds that room's name (option (c), the owner's choice of 16.11.2026): projects.mjs `roomSceneChoices` lists those scenes, the home scene first as `placeScenes` orders them, none for a name one scene holds or for no room, and names a stored pick that is not among them stale; projects-ui.mjs `openProjectDialog` draws the picker from it and reads it back, the Projects manager finds the scene again with the room it changes (option B), and the picker's words are in both languages", async () => {
         /*
          * Red at a56ffb13: there was no choice of scene. The choice is asked with scenes of its own; the window's source is
          * read, as tier 1 opens no window (the tier-2 "a project picked onto a second scene ..." saves through the rule).
@@ -61913,14 +61913,40 @@ const INVARIANTS = [
         const ui = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
         const dialog = fnSource(ui, "openProjectDialog"), manager = fnSource(ui, "applyProjectManager");
         const drawn = /roomSceneChoices\(/.test(dialog) && /name="roomScene"/.test(dialog) && /roomScene:/.test(dialog);
-        const cleared = /roomScene: null/.test(manager);
+        // The manager has no picker: a room it changes finds its scene again from the proposer's token (option B, 16.11.2026).
+        const cleared = /roomSceneOnRoomChange\(/.test(manager);
         const words = ["DRPG.Project.roomScene", "DRPG.Project.roomSceneStale", "DRPG.Tips.Actions.roomSceneTooltip"].every(k => game.i18n.has(k, false));
         equal(stableJson([answers, drawn, cleared, words]), stableJson([[
             { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: false },
             { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: false },
             { scenes: [{ id: "A", name: "Floor 1" }, { id: "B", name: "Annex" }], stale: true },
             { scenes: [], stale: false }, { scenes: [], stale: false }], true, true, true]),
-            "[the choices for a name two scenes hold, with a pick among them, with a pick that is not, for a name one scene holds, for no room; the editor draws and reads the picker; the manager clears a pick with its room; the words in this language]");
+            "[the choices for a name two scenes hold, with a pick among them, with a pick that is not, for a name one scene holds, for no room; the editor draws and reads the picker; the manager finds the scene again with its room; the words in this language]");
+    }],
+    ["R7643 - a project's scene is found from its proposer's token, kept when a GM chose it by hand, and its loss told to the other GMs (option B, the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md): projects.mjs `detectedSceneFor` answers the scene a place stands on when it is a place scene holding the room, `roomSceneAfterRoomChange` keeps a GM's hand pick and otherwise takes the scene found again, writing nothing where nothing changes, `otherGmIds` names every GM but the one who deleted the scene; createProject finds the proposer's, the editor marks a pick by hand only when the GM changed the picker, a GM's drag of the token marks one, and `roomSceneByGm` stays with the GMs while the project is secret", async () => {
+        /*
+         * Red at 0858af76: the scene was never found from anybody's token, and a pick carried no mark of who made it.
+         * Asked of the rules with scenes of their own: A and B hold a Kitchen, C none.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const fn = name => (typeof P[name] === "function" ? P[name] : null);
+        const detect = fn("detectedSceneFor"), after = fn("roomSceneAfterRoomChange"), others = fn("otherGmIds");
+        const A = { id: "A" }, B = { id: "B" }, C = { id: "C" };
+        const readers = { isPlace: s => [A, B, C].includes(s), holds: (s, room) => room === "Kitchen" && (s === A || s === B) };
+        const found = detect ? [detect({ scene: B }, "Kitchen", readers), detect({ scene: C }, "Kitchen", readers), detect(null, "Kitchen", readers), detect({ scene: B }, null, readers)] : "none";
+        const kept = after ? [after({ byGm: true, pickId: "A", detectedId: "B" }), after({ byGm: false, pickId: "A", detectedId: "B" }), after({ byGm: false, pickId: null, detectedId: null }),
+            after({ byGm: false, pickId: "A", detectedId: null }), after({ byGm: false, pickId: "B", detectedId: "B" })] : "none";
+        const users = [{ id: "G1", isGM: true }, { id: "G2", isGM: true }, { id: "P1", isGM: false }];
+        const told = others ? [others("G1", users), others("G1", users.slice(0, 1)), others(null, users)] : "none";
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const projects = await src("projects.mjs"), ui = await src("projects-ui.mjs"), map = await src("projects-map.mjs");
+        const wired = [/proposerSceneFor\(/.test(fnSource(projects, "createProject")), /roomSceneByGm: true/.test(ui), /roomSceneAfterRoomChange|roomSceneOnRoomChange/.test(fnSource(ui, "applyProjectManager")),
+            /roomSceneByGm: true/.test(fnSource(map, "onProjectTokenMoved")), (S.PROJECT_SECRET_WHILE_SECRET ?? []).includes("roomSceneByGm")];
+        equal(stableJson([found, kept, told, wired]), stableJson([["B", null, null, null],
+            [{}, { roomScene: "B", roomSceneByGm: false }, {}, { roomScene: null, roomSceneByGm: false }, {}],
+            [["G2"], [], ["G1", "G2"]], [true, true, true, true, true]]),
+            "[the scene found from a place: on B, on C without the room, nowhere, no room; after a room change: a hand pick, a found pick moved, nothing, a found pick lost, the same; the GMs told of a deletion by G1, by G1 alone, by nobody named; createProject finds the proposer's, the editor and the drag mark a hand pick, the manager asks again, the mark kept with the GMs]");
     }],
     ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
         /*

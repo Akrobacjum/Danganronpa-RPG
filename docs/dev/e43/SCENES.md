@@ -1,4 +1,4 @@
-# A project in a room whose name several scenes hold: design note for option (c)
+# A project in a room whose name several scenes hold: design note for options (c) and B
 
 Written 16.11.2026 by the line claude/e43-117 on ff3e12e5 (1.2.116); the first version (a48e822e) set out options (b)
 and (c) side by side. The owner chose **(c)** on 16.11.2026 (through the coordinator): the GM picks the scene in the
@@ -6,6 +6,33 @@ project's editor, the picker shown only when more than one scene holds a room of
 This version is (c) alone, the design the build follows. Every reader below was read on ff3e12e5. **Built** on this line
 (the commit after a56ffb13; [STATUS.md](STATUS.md) has its readings); where the build differs from the design below, the
 design was changed to say what was built.
+
+## Option B, on top of (c) (the owner's choice of 16.11.2026)
+
+The owner, through the coordinator: Q-SC-3 "Tak. Scena niech automatycznie sie wykrywa po tokenie gracza", then "co do
+projektow to opcja B": **the project's scene is set once, automatically, from the token of the player who proposed it,
+and the GM can change it in the project's editor.** B keeps (c)'s storage, rule and picker below and adds the detection.
+Built on this line after (c) (see STATUS.md).
+
+| Piece | What it does |
+| --- | --- |
+| projects.mjs `proposerSceneFor(by, room)` | GM: the scene of the proposer's character's token (movement.mjs `locateActor`), when it is a place scene holding the room (`detectedSceneFor`); else null |
+| projects.mjs `createProject` | the GM's pick in the window when it holds the room, else the proposer's scene (`by`), else none. Stored even where one scene holds the room, so a duplicate added later finds the project where its proposer stood; it reads as no pick until then |
+| `roomSceneByGm` | a new field beside `roomScene`, kept with it (projectMeta; the GMs' row while secret: PROJECT_SECRET_WHILE_SECRET and world-secrets.mjs's rule, R190's fixture). True for a pick by hand |
+| a pick by hand | the editor's picker changed from the scene it opened on (`roomSceneAnswer`: Save writes nothing when it was left alone), or the project's token dragged into a room more than one scene holds (projects-map.mjs `onProjectTokenMoved`; otherwise the module would take the token to the scene found from the proposer). The drag is this line's default, put to the owner |
+| a room set or changed later | projects.mjs `roomSceneOnRoomChange` (`roomSceneAfterRoomChange`): a hand pick stays; otherwise the scene is found again from the proposer's token at that moment; nothing is written where nothing changes. Asked by the editor's Save (room changed, picker untouched), the manager's room column and the drag of a token into a room one scene holds |
+| the editor | opens on the stored pick, else the scene the project stands on, else (an approval) the proposer's scene; redrawn on a room change, preselected on the proposer's scene for the new room |
+| a picked scene deleted (Q-SC-4: "Tylko gm moze to zrobic") | the project falls back to today's rule (the field kept, the editor says so); the primary GM whispers the GMs other than the one who deleted it, through the GMs' private road, naming each project and where it stands now; nobody where there is no other GM (projects-map.mjs `onPickedSceneDeleted`, `otherGmIds`; DRPG.Project.roomSceneGone, roomSceneGoneRow) |
+
+Work, Sabotage, the Monocub and the traps read the same `projectScene`, so they follow the scene found or picked: one
+scene per project, as E12 fix r1-G3 wants. No reader was found where that is wrong.
+
+Tests of B: R7643 (tier 1: the rules, red at 0858af76); the tier-2 "a project a player proposes stands on the scene of the
+proposer's token ..." (the proposer on the second scene gives the second scene, offered there and not on the first; a room
+changed later is found again; a hand pick stays through a room change; a deletion with no other GM tells nobody; red at
+0858af76); scenario 99 "facilities on two scenes" second check (p1's own page: Aiko's proposal on the second scene is
+offered there, not in Floor 1's Dorm A); scenario 97 H1 (the primary deletes a picked scene: one card to gm2 alone, p1's
+browser holds no word of it).
 
 ## Where it stands
 
@@ -162,9 +189,12 @@ either way.
 
 What the build measured, and what it did not, is in STATUS.md.
 
-## Questions for the owner (through the coordinator)
+## The owner's answers (16.11.2026, through the coordinator)
 
-| Id | Question | Default |
+| Id | Question | Answer |
 | --- | --- | --- |
-| Q-SC-2 | A stale pick (its scene deleted, or no longer holding the room): fall back to today's rule, or hide the project until a GM picks again? | fall back, and the editor says so |
-| Q-SC-3 | Is the picker the editor's alone, or also a column of the Projects manager? | the editor's alone |
+| Q-SC-1 | (b) or (c) | (c), then option B on top of it ("co do projektow to opcja B") |
+| Q-SC-2 | A stale pick: fall back, or hide until a GM picks again? | fall back to today's rule, and the editor says so (the coordinator's default, kept) |
+| Q-SC-3 | The picker in the editor alone? | "Tak" - and the scene found from the player's token (option B) |
+| Q-SC-4 | Whisper the GMs when a picked scene is deleted? | "Tylko gm moze to zrobic": the other GMs, not the one who deleted it |
+| this line's default | A GM's drag of the project's token into a room more than one scene holds is a pick by hand | put to the owner |

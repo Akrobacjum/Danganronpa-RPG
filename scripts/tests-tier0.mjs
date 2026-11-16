@@ -23214,6 +23214,8 @@ const REGRESSIONS = [
             built: "markup a builder of its own returns (a variable or a call), read where it is built"
         };
         const PINNED = {
+            // Option B (16.11.2026, Q-SC-4): projects-map.mjs `onPickedSceneDeleted`, the other GMs told that a picked scene
+            // went, is a GMs' warning, so a warning card.
             "action-analyze.mjs": {"line": 4},
             // E69, E74, E93 (merged into this train with E49's count on 12.11.2026; the coordinator's rule of that day): the
             // result an action's roller reads - Shut, Force, Pick, a tail begun, a watch kept, a Dash, a room action, the GM's
@@ -23255,7 +23257,7 @@ const REGRESSIONS = [
             "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
-            "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
+            "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
             // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
             // PV (13.11.2026): a Secret Passage finder's "finished" moved from projects.mjs to projects-seen.mjs `postFoundDone`.
             "projects-seen.mjs": {"message": 1}, "projects.mjs": {"built": 3, "card": 1, "line": 9, "message": 1}, "relay-guard.mjs": {"built": 1, "card": 6},

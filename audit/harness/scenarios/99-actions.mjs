@@ -452,6 +452,25 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
             return Boolean((await A.useFacility(game.actors.get("${IDS.aiko}"), ${J("project:")} + ${J(two.id)}))?.success);`, { timeout: 60000 });
         check("facilities on two scenes: a project in a room two scenes hold is offered on p1 where it stood, and, once the GM picks the second scene, not there but in the second scene's room, where p1's use is carried out",
             J(twoRead) === J({ choices: 2, before: true, picked: true, onFirst: false, onSecond: true, used: true }), J(twoRead));
+        /* AND THE PROPOSER'S SCENE (option B, 16.11.2026): a project Aiko proposed while her only shown token stands in the
+           second scene's Dorm A (createProject with `by`, as an approval makes one) is found there, offered to p1 there, and
+           not once she is back in Floor 1's Dorm A. */
+        const byLabel = "E39 99 facility proposed on the second scene";
+        const proposed = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")};
+            const id = (await P.createProject({ name: ${J(byLabel)}, target: 1, room: "Dorm A", by: "${IDS.aiko}" }))?.id ?? null;
+            await F.setProjectFacility(id, { label: ${J(byLabel)}, costsAction: false, limit: "none" });
+            await P.addProgress(id, 1);
+            return { id, found: P.roomSceneOf(id) === ${J(two.scene)}, byGm: P.roomSceneByGmOf(id) };`, { timeout: 60000 });
+        await settle(1200);
+        const byRow = () => p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(byLabel)});`);
+        const byRead = { found: proposed.found, byGm: proposed.byGm, onSecond: await byRow() };
+        await gm.eval(`for (const t of [...game.scenes.get(${J(two.scene)}).tokens].filter(t => t.actorId === "${IDS.aiko}")) await t.delete();
+            await canvas.scene.tokens.get("TOKAIKO000000000")?.update({ hidden: globalThis.__s99two?.hidden ?? false });
+            return true;`, { timeout: 60000 });
+        await settle(1200);
+        byRead.onFirst = await byRow();
+        check("facilities on two scenes: a project Aiko proposed while standing on the second scene is found there, offered to p1 there, and not in Floor 1's Dorm A once she is back",
+            J(byRead) === J({ found: true, byGm: false, onSecond: true, onFirst: false }), J(byRead));
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), w = globalThis.__s99was ?? {}, { SETTINGS } = ${imp("settings.mjs")};
             for (const i of a.items.filter(i => !(w.items ?? []).includes(i.id))) await i.delete();

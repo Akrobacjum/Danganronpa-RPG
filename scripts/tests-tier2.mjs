@@ -68993,6 +68993,76 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{first: [on the character's scene, offered there, offered on the second]; picker: [shown, the second scene offered, options]; picked: [stored, projectScene, token there, offered on the first, offered on the second]; usedOnFirst/usedOnSecond: the GM's answer to a use from each; deleted: [the pick kept, back on the first scene, offered there]}");
     }],
 
+    ["a project a player proposes stands on the scene of the proposer's token, a room changed later is found again from it, a GM's hand pick stays through a room change, and the deletion of a picked scene tells the other GMs alone (option B, the owner's choice of 16.11.2026; docs/dev/e43/SCENES.md)", async () => {
+        /*
+         * 16.11.2026, line claude/e43-117. A scene of the suite's own holds a room named as the one a connected player's
+         * character stands in; the character's only shown token is put in it, and a project in that room is made as an
+         * approval makes one (createProject with `by`, the proposer). Read: the scene found and its mark, where the project
+         * stands and whose rooms offer its action to that player; the character back on its own scene and the project's
+         * room changed (as the manager changes one, with `roomSceneOnRoomChange`) to a room only its own scene holds; a GM's
+         * hand pick of the second scene with the first room; the room changed again; then the second scene deleted, and the
+         * GM whispers it made (none while this GM is the only one: `otherGmIds`). Red at 0858af76: no scene was found.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const second = R.roomNames(where.scene).find(name => name !== where.room && R.placeScenes().filter(s => R.roomRegions(s, name).length).length === 1) ?? null;
+        must(second, `${where.scene.name} has no second room that only it holds - the room change would measure nothing`);
+        const offered = async scene => (await F.projectActionsAt({ room: where.room, scene }, player)).some(r => r.project.id === id);
+        const read = {};
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const shown = where.tokenDoc.hidden;
+        let id = null, other = null, standIn = null;
+        try {
+            other = await Scene.create({ name: "SUITE B a second floor with a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await where.tokenDoc.update({ hidden: true });
+            standIn = (await other.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, actorLink: true, x: 300, y: 300, width: 1, height: 1, hidden: false }]))[0] ?? null;
+            await settle();
+            id = (await P.createProject({ name: "SUITE B proposed", target: 1, room: where.room, trait: "hand", by: actor.id, description: "SUITE B proposed, its words" }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE B proposed", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await P.addProgress(id, 1);
+            await settle();
+            read.proposed = [P.roomSceneOf(id) === other.id, P.roomSceneByGmOf?.(id) ?? null, P.projectScene(id)?.id === other.id, await offered(other), await offered(where.scene)];
+            await standIn.delete();
+            standIn = null;
+            await where.tokenDoc.update({ hidden: shown });
+            await settle();
+            const change = async room => {
+                await P.applyProjectChange(id, P.projectEditChange({ room, ...(await P.roomSceneOnRoomChange(id, room)) }), { by: { kind: "gm" } });
+                await settle();
+            };
+            await change(second);
+            read.foundAgain = [P.roomSceneOf(id) === where.scene.id, P.roomSceneByGmOf(id)];
+            await P.applyProjectChange(id, P.projectEditChange({ room: where.room, roomScene: other.id, roomSceneByGm: true }), { by: { kind: "gm" } });
+            await settle();
+            read.byHand = [P.roomSceneOf(id) === other.id, P.roomSceneByGmOf(id), P.projectScene(id)?.id === other.id];
+            await change(second);
+            read.keptThrough = [P.roomSceneOf(id) === other.id, P.roomSceneByGmOf(id), P.projectScene(id)?.id === where.scene.id];
+            await change(where.room);
+            const before = game.messages.size;
+            await other.delete();
+            other = null;
+            await settle();
+            read.deleted = [P.projectScene(id)?.id === where.scene.id, P.otherGmIds(game.user.id).length, game.messages.size - before];
+        } finally {
+            await standIn?.delete().catch(() => {});
+            if (where.tokenDoc.hidden !== shown) await where.tokenDoc.update({ hidden: shown });
+            if (id) await P.deleteProject(id).catch(() => {});
+            await other?.delete().catch(() => {});
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        const gms = game.users.filter(u => u.isGM && u.id !== game.user.id).length;
+        equal(stableJson(read), stableJson({ proposed: [true, false, true, true, false], foundAgain: [true, false], byHand: [true, true, true],
+            keptThrough: [true, true, true], deleted: [true, gms, gms ? 1 : 0] }),
+            "{proposed: [found the proposer's scene, by hand, stands there, offered there, offered on the first]; foundAgain: [the proposer's scene for the new room, by hand]; byHand: [the GM's pick, by hand, stands there]; keptThrough: [the pick kept through a room change, by hand, stands on the first by today's rule]; deleted: [back on the first scene, other GMs, whispers made]}");
+    }],
+
     ["who stands in a room is counted on the scene the character stands on whatever scene is on screen", async () => {
         /*
          * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1 (re-sized to major by the security

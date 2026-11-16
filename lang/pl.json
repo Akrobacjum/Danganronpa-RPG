@@ -4832,6 +4832,8 @@
       "room": "Pokój",
       "roomScene": "Scena pokoju",
       "roomSceneStale": "Wybranej sceny już nie ma albo nie ma na niej tego pokoju. Projekt stoi na scenie {scene}, dopóki nie wybierzesz innej.",
+      "roomSceneGone": "Usunięto scenę {scene}. Była sceną wybraną dla pokojów tych projektów; każdy stoi teraz tam, gdzie stałby bez wyboru, dopóki GM nie wybierze ponownie:",
+      "roomSceneGoneRow": "{project}: teraz na scenie {scene}",
       "anyRoom": "- dowolny pokój -",
       "roomElsewhere": "{room} (obecnie na żadnej scenie)",
       "roomOnNoScene": "Nie utworzono projektu: pokoju {room} nie ma teraz na żadnej scenie. Podaj pokój, który leży na którejś scenie, albo nie podawaj żadnego.",

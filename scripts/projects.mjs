@@ -168,6 +168,61 @@ export function pickedSceneOf(countdownId) {
     return read.by === "pick" ? read.scene : null;
 }
 
+/*
+ * THE SCENE FOUND FROM THE PROPOSER'S TOKEN (option B, the owner's choice of 16.11.2026, "co do projektow to opcja B"; the
+ * coordinator's reading: the project's scene is set once, automatically, from the token of the player who proposed it,
+ * and a GM may change it in the editor). Found on the GM, where the project is made (`createProject` with `by`) and
+ * again when its room is set or changed later (`roomSceneOnRoomChange`), unless a GM chose the scene by hand
+ * (`roomSceneByGm`: the editor's picker changed, or the project's token dragged into a room more than one scene holds);
+ * a hand pick stays. A project a GM made, or a proposer with no token on a place scene holding the room: no pick, the
+ * rule of before. Kept even where one scene holds the room, so a scene added later with a room of the same name finds
+ * the project where its proposer stood; it reads as no pick does until then.
+ */
+
+/** Whether the scene picked for this project's room was a GM's own choice (`roomSceneByGm`), as `roomSceneOf` reads the pick. */
+export function roomSceneByGmOf(countdownId) {
+    if (metaFor(countdownId).roomSceneByGm === true) return true;
+    if (!isSecret(countdownId) || !game.user?.isGM) return false;
+    return secretsOf(countdownId).roomSceneByGm === true;
+}
+
+/** The scene a place (`locateActor`'s `{ scene }`) stands on, as an id, when it is a place scene holding `room`; else null (R7643). */
+export function detectedSceneFor(place, room, { isPlace = SCENE_READERS.isPlace, holds = SCENE_READERS.holds } = {}) {
+    const scene = place?.scene ?? null;
+    return room && scene && isPlace(scene) && holds(scene, room) ? scene.id : null;
+}
+
+/** GM: the scene of this actor's token, the proposer's, when it holds `room` (movement.mjs `locateActor`, by `import()`). */
+export async function proposerSceneFor(actorId, room) {
+    const actor = actorId ? game.actors?.get(actorId) ?? null : null;
+    if (!actor || !room) return null;
+    const { locateActor } = await import("./movement.mjs");
+    return detectedSceneFor(locateActor(actor), room);
+}
+
+/**
+ * What a room change does to the scene picked (R7643), as fields of a change: a GM's hand pick stays (`{}`); otherwise the
+ * scene found again (`detectedId`) replaces the one held, and nothing is written where nothing changes, so a world that
+ * never had a pick gains no field.
+ */
+export function roomSceneAfterRoomChange({ byGm = false, pickId = null, detectedId = null } = {}) {
+    if (byGm) return {};
+    if ((pickId ?? null) === (detectedId ?? null)) return {};
+    return { roomScene: detectedId ?? null, roomSceneByGm: false };
+}
+
+/** GM: the fields a change of this project's room to `room` carries for its scene (`roomSceneAfterRoomChange`, from its proposer's token). */
+export async function roomSceneOnRoomChange(countdownId, room) {
+    const by = secretsOf(countdownId).by ?? null;
+    return roomSceneAfterRoomChange({ byGm: roomSceneByGmOf(countdownId), pickId: roomSceneOf(countdownId),
+        detectedId: by ? await proposerSceneFor(by, room) : null });
+}
+
+/** The GMs a scene's deletion is told to (Q-SC-4, the owner: "Tylko gm moze to zrobic"): every GM but the one who deleted it. */
+export function otherGmIds(deleterId, users = game.users) {
+    return [...(users ?? [])].filter(u => u?.isGM && u.id !== deleterId).map(u => u.id);
+}
+
 /**
  * What the project's editor offers as the scene of `room` (R7642): `{ scenes: [{ id, name }], stale }` - every place
  * scene holding a room of that name, in `placeScenes`' order (the home scene first), when there are two or more; none
@@ -1985,9 +2040,9 @@ export async function createProject({
      * Q-C9-3), not here: a repair, a sabotage's or a console's project may have none, and its card then draws none.
      */
     description = "",
-    // The scene a GM picked for the room, where more than one place scene holds its name (option (c), 16.11.2026); none
-    // is today's rule (`projectScene`). Kept only when it is one of the room's choices (`roomSceneChoices`).
-    roomScene = null,
+    // The scene of the room (options (c) and B, 16.11.2026): the one a GM picked in the window (`roomSceneByGm` when the GM
+    // changed the picker), else the one the proposer's token stands on (`proposerSceneFor`); none is today's rule.
+    roomScene = null, roomSceneByGm = false,
     // WHO PROPOSED IT, as an actor id.
     //
     // The proposal card has carried this since the bridge was written - the
@@ -2041,6 +2096,10 @@ export async function createProject({
         ? Array.from(new Set([...viewers, ...ownerIdsOfId(killerId ?? by)]))
         : [];
 
+    /* The scene of its room (options (c) and B, 16.11.2026): the GM's pick in the window when it holds the room, else the
+       proposer's token's scene (`proposerSceneFor`), else none - the rule of before. */
+    const picked = room && roomScene && detectedSceneFor({ scene: game.scenes?.get(roomScene) ?? null }, room) ? roomScene : null;
+    const roomSceneId = picked ?? (room && by ? await proposerSceneFor(by, room) : null);
     /* ONE CHANGE OF THE ENTRY (E36 C2, 25.10.2026; audit S17-18): the countdown and its meta are written in one
        step of `applyProjectChange`, on the primary, so no other change lands between them; another GM's
        creation goes there by `project.change`. The countdown is the step's (`createInStep`). */
@@ -2053,7 +2112,7 @@ export async function createProject({
         // stays explicit in the data, not just in this file's assumptions.
         meta: {
             room, indirectMurder, secret: hidden, trait, countsUp: true,
-            ...(roomScene && roomSceneChoices(room).scenes.some(scene => scene.id === roomScene) ? { roomScene } : {}),
+            ...(roomSceneId ? { roomScene: roomSceneId, roomSceneByGm: Boolean(picked && roomSceneByGm) } : {}),
             // Who is in on a secret project is the GMs' store's (S17-31: `viewers`), not the countdown's map.
             ...(hidden ? { viewers: audience } : {}),
             /* Beside the room and the trait, in the step that writes the countdown with its ownership already sealed
@@ -2557,6 +2616,7 @@ export function projectEditChange(patch = {}) {
     const meta = {};
     if (patch.room !== undefined) meta.room = patch.room || null;
     if (patch.roomScene !== undefined) meta.roomScene = patch.roomScene || null;
+    if (patch.roomSceneByGm !== undefined) meta.roomSceneByGm = patch.roomSceneByGm === true;
     if (patch.trait !== undefined) meta.trait = patch.trait || null;
     // Same gate as `createProject`, and for the same reason. An explicit null
     // is a GM clearing the choice, which is the hourglass again.

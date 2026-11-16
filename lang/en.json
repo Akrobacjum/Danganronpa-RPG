@@ -4506,6 +4506,8 @@
       "room": "Room",
       "roomScene": "Scene of the room",
       "roomSceneStale": "The scene picked for this room is gone or no longer holds it. The project stands on {scene} until you pick again.",
+      "roomSceneGone": "The scene {scene} was deleted. It was the scene picked for these projects' rooms; each now stands where it would with no pick, until a GM picks again:",
+      "roomSceneGoneRow": "{project}: now on {scene}",
       "anyRoom": "- any room -",
       "roomElsewhere": "{room} (on no scene now)",
       "roomOnNoScene": "No project was made: the room {room} is not on any scene now. Name a room that is on a scene, or leave the room out.",

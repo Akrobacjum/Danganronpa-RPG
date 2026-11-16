@@ -37,7 +37,8 @@
  */
 
 import { MODULE_ID, PROJECT_TOKEN, isProjectGlyph } from "./config.mjs";
-import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange, pickedSceneOf }
+import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange, pickedSceneOf,
+    roomSceneChoices, roomSceneOnRoomChange, roomSceneOf, otherGmIds, projectScene }
     from "./projects.mjs";
 import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { boundsOf, roomAt } from "./movement.mjs";
@@ -663,8 +664,13 @@ async function onProjectTokenMoved(tokenDoc, changes, options = {}) {
     const was = roomOf(id);
     if (!landedIn || landedIn === was) return;
 
+    /* AND ITS SCENE (options (c) and B, 16.11.2026): a GM who drags the token into a room more than one scene holds has
+       chosen this scene by hand, or the token would be taken to the scene found from the proposer's; a room one scene
+       holds finds its scene again as a room changed in the manager does (`roomSceneOnRoomChange`). */
+    const scenePart = roomSceneChoices(landedIn).scenes.length > 1 && tokenDoc.parent?.id
+        ? { roomScene: tokenDoc.parent.id, roomSceneByGm: true } : await roomSceneOnRoomChange(id, landedIn);
     // One change of the entry (E36 C2; audit S17-18): a GM's edit or a room's rename queued meanwhile is not lost to it.
-    await applyProjectChange(id, { meta: { room: landedIn } }, { by: { kind: "gm" } });
+    await applyProjectChange(id, { meta: { room: landedIn, ...scenePart } }, { by: { kind: "gm" } });
     const name = allProjects().find(p => p.id === id)?.name ?? id;
     await whisperToGms(`<p>${game.i18n.format("DRPG.Project.tokenMoved", {
         project: esc(name), from: esc(was ?? "-"), to: esc(landedIn)
@@ -713,6 +719,28 @@ function onProjectTokenDeleted(tokenDoc, options) {
         .catch(err => error(`Could not keep the project ${id} off the map`, err))
         .finally(() => { if (hiding.get(id) === done) hiding.delete(id); });
     hiding.set(id, done);
+}
+
+/**
+ * A SCENE PICKED FOR A PROJECT'S ROOM WAS DELETED (Q-SC-4; the owner, 16.11.2026: "Tylko gm moze to zrobic" - only a GM
+ * deletes a scene). The project stands where the rule of before puts it (projects.mjs `projectScene`: the pick fails),
+ * the field is kept, and the editor says so; the primary GM whispers the other GMs which projects lost their scene and
+ * where each stands now - not the GM who deleted it, and nobody where there is no other GM (`otherGmIds`). Through the
+ * GMs' private road (utils.mjs `whisperToGms`), as a secret project's name is in it.
+ */
+async function onPickedSceneDeleted(scene, userId) {
+    try {
+        if (!isPrimaryGm() || !scene?.id) return;
+        const lost = allProjects().filter(p => roomSceneOf(p.id) === scene.id);
+        const to = otherGmIds(userId);
+        if (!lost.length || !to.length) return;
+        const rows = lost.map(p => `<li>${esc(game.i18n.format("DRPG.Project.roomSceneGoneRow", { project: p.name ?? p.id, scene: projectScene(p.id)?.name ?? "-" }))}</li>`).join("");
+        // A GMs' warning, so a warning card (tier 0 R3510's rule).
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Project.roomSceneGone", { scene: scene.name ?? scene.id }))}</p><ul>${rows}</ul>` },
+            { whisper: to });
+    } catch (err) {
+        error("Could not tell the GMs that a project's picked scene was deleted", err);
+    }
 }
 
 /** The manager's "Show on the map": a project a GM deleted from the map goes back on it. GM only. */
@@ -965,6 +993,7 @@ export function registerProjectsMap() {
             .catch(err => error("Could not ask again who sees the project tokens", err));
     });
     Hooks.on("deleteToken", (tokenDoc, options) => onProjectTokenDeleted(tokenDoc, options));
+    Hooks.on("deleteScene", (scene, options, userId) => { void onPickedSceneDeleted(scene, userId); });
     // One hook, as the trace's card has it: ApplicationV2 fires a render hook for
     // every class in the chain, and the concrete sheet as well would run this twice.
     Hooks.on("renderActorSheetV2", (app, element) => {

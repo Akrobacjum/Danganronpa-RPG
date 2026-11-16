@@ -221,7 +221,7 @@ export function labelFor({ name = "", secret = false, secretName = null, sees = 
  * for the same reason - a secret project with no token on the map would otherwise say on any console which scene's room
  * it stands in. Read through projects.mjs `roomSceneOf`; it rides the sight copy with the room (`toldSight`).
  */
-export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility", "indirectMurder", "room", "roomScene"]);
+export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
