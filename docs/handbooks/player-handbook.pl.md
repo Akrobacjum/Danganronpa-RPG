@@ -393,7 +393,7 @@ Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i
 
 ### Infiltrate: Listen - Shadow, 1 akcja
 
-Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. Każdą opisuje osobna część tego rozdziału, niżej.
+Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door i Pick the Lock. Każdą opisuje osobna część tego rozdziału, niżej.
 
 Listen ustala, kto jest w sąsiednim pokoju, bez decyzji GM-a. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GM-owie. Gdy twój pokój nie ma sąsiadów, Listen jest wyszarzony, a obok stoi powód.
 
@@ -532,7 +532,7 @@ Masz najwyżej **6** Hope. Hope wraca, gdy rzuty idą po twojej myśli (+1 z Hop
 
 Reroll Find Passage albo Find Stash szuka jeszcze raz nowymi kośćmi, w pokoju, w którym padł rzut, i tylko wtedy, gdy wciąż tam stoisz; inaczej Reroll wraca do ciebie w całości. Gdy nowy wynik jest wyższy, znajduje najwyżej raz. Gdy jest niższy, skrytka, którą otworzył, zostaje otwarta, a przejście, które znalazł tylko ten rzut, przepada.
 
-Call, który wpływa na rzut (Support, Talent, Resolve i Loaded Die), czeka na twój następny rzut, a liczy się też rzut statystyką z arkusza; Call jest zużyty w chwili, gdy rzucasz. Loaded Die czeka na twój następny rzut akcji. Rzut, który tylko towarzyszy akcji, nie zużywa Calla: tak jest z rzutem Palm, żeby zostać niezauważonym, z rzutem otwarcia i z rzutem na ukrycie zamiaru.
+Call, który wpływa na rzut (Support, Talent, Resolve i Loaded Die), czeka na twój następny rzut, a liczy się też rzut statystyką z arkusza; Call jest zużyty w chwili, gdy rzucasz. Loaded Die czeka na twój następny rzut akcji. Rzut, który tylko towarzyszy akcji, nie zużywa Calla: tak jest z rzutem Palm, żeby zostać niezauważonym, i z rzutem na ukrycie zamiaru. Rzut otwarcia jest własnym rzutem morderstwa i bierze twoje nałożone Calle tak jak każdy rzut akcji: Loaded Die ustawia na nim kość, Support i Talent dodają swoje kości, Resolve pozwala ci wybrać statystykę, jeśli GM jeszcze jej nie wybrał, a Call, który ci utrudnia, też się liczy; każdy zużywa się na tym rzucie.
 
 Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny rzut. Wyjątkiem jest Call, który ci utrudnia (utrudnienie albo ujemna premia): jeśli nałożono go ponad minutę przed rzutem, liczy się, nawet jeśli okno otworzyło się wcześniej, a okno go wtedy nie pokazuje.
 
@@ -743,6 +743,8 @@ Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszys
 | Krytyk | Incydent się zaczyna, a sprawa ma najmniej Key Remnantów: 3. |
 
 Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął i kto na nią rusza; gdy zabójca jest ukryty za „?”, dowiaduje się tylko, że ktoś na nią rusza. Przy porażce ofiara niczego się nie dowiaduje.
+
+**Niewidoczny do rzutu otwarcia.** Od chwili, gdy zaczyna się Direct Murder, aż do rzutu otwarcia zabójcy pozostali gracze nie widzą tokenów zabójcy - także ofiara i wszyscy inni w pokoju - a mikrofon zabójcy jest wyłączony. Zabójca nadal słyszy pokój i dostaje o tym jedną linię. Wspólnik, który już jest po stronie zabójcy, jest ukryty i wyciszony tak samo i widzi zabójcę. Przy morderstwie zadeklarowanym w Eclipse zaczyna się to, gdy wracają światła, więc nikt nie widzi zabójcy na początku nowej pory dnia. Po rzucie tokeny zabójcy wracają takie, jakie były; jeśli rzut ukrywa zabójcę za „?”, najpierw pojawia się „?”. Pułapka i śmierć z własnej ręki nikogo nie ukrywają.
 
 **Morderstwo pośrednie (pułapka):** rzuca **ofiara**, Eye albo Head przeciw **20**, nocą tak samo jak za dnia; którą z dwóch, wybiera GM. Sama prośba o rzut jest ostrzeżeniem: słyszysz, że GM przygotowuje dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
@@ -1142,7 +1144,7 @@ Call, który wpływa na rzut (Support, Talent, Resolve, Loaded Die), kupuje się
 
 Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez połączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane.
 
-Call, który ci utrudnia, to utrudnienie albo ujemna premia. Nałożony ponad minutę przed rzutem, który rzuca przeglądarka GM-a, liczy się w tym rzucie, czy okno rzutu go wymienia, czy nie. `HOSTILE_GRACE` to 60 000 ms (`config.mjs`), Calle, które utrudniają, liczy `roll-draw.mjs` `hostileCalls`, a do rzutów, które nie wydają Calla, należą rzuty `remember: false` z `action-pipeline.mjs` `rollTrait` i `roll-draw.mjs` `SPENDS_NO_CALL` (Palm, otwarcie morderstwa).
+Call, który ci utrudnia, to utrudnienie albo ujemna premia. Nałożony ponad minutę przed rzutem, który rzuca przeglądarka GM-a, liczy się w tym rzucie, czy okno rzutu go wymienia, czy nie. `HOSTILE_GRACE` to 60 000 ms (`config.mjs`), Calle, które utrudniają, liczy `roll-draw.mjs` `hostileCalls`, a do rzutów, które nie wydają Calla, należą rzuty `remember: false` z `action-pipeline.mjs` `rollTrait` i `roll-draw.mjs` `SPENDS_NO_CALL` (Palm). Otwarcie morderstwa było takim rzutem do 1.2.116, a od tej wersji bierze Calle zabójcy (`call-effects.mjs` `TAKES_CALLS`).
 
 Karta GM-ów, która prosi o zgodę na Talent, czeka na odpowiedź najwyżej 5 minut; to `TIMING.hopeCallRulingMs`, w `call-gm.mjs` `askHopeCallByCard`.
 

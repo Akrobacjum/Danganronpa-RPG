@@ -21,7 +21,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { getClock, isDeadForGm, isEclipse } from "./settings.mjs";
-import { log } from "./utils.mjs";
+import { log, hiddenByGm } from "./utils.mjs";
 
 /**
  * The nearest room from `start` that `occupied` names, by the fewest crossings, ties broken by `random` (0 <= x < 1):
@@ -116,7 +116,7 @@ export async function echoesFor(actor, { random = Math.random } = {}) {
     for (const token of scene.tokens ?? []) {
         const other = token.actor;
         if (!other || other.id === actor.id) continue;
-        if (!echoCounts(other, askerOwners, { hidden: Boolean(token.hidden), dead: isDeadForGm(other), owners: playerOwners(other) })) continue;
+        if (!echoCounts(other, askerOwners, { hidden: hiddenByGm(token), dead: isDeadForGm(other), owners: playerOwners(other) })) continue;
         const room = M.roomOfToken(token);
         if (room) occupied.add(room);
     }

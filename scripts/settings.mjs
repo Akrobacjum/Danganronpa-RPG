@@ -546,6 +546,12 @@ export const SETTINGS = {
      */
     gmMasks: "gmMasks",
     /**
+     * THE OPENING'S VEIL (E112, 15.11.2026; the owner's request 1): a GM store (gm-stores.mjs `veilStore`), a row per
+     * character the opening hides `{ actorId, userIds, why, openedAt, tokens, at }`, `tokens` each token's own `hidden` as
+     * it was. No player copy: a player reads the one token flag. Synced; not backed up.
+     */
+    gmVeils: "gmVeils",
+    /**
      * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
      * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
      * characters' rows (`mineTimedEffects`, `timedEffectCopy`), which their sheet reads. Synced and backed up.
@@ -2374,6 +2380,13 @@ export function registerSettings() {
     });
     // The masks (E69 C8): no `onChange` - read by the primary (mask-gm.mjs) and by every GM's cast copies.
     game.settings.register(MODULE_ID, SETTINGS.gmMasks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The opening's veil (E112): no `onChange` - read by the primary (mask-gm.mjs) and its voice settle.
+    game.settings.register(MODULE_ID, SETTINGS.gmVeils, {
         scope: "client",
         config: false,
         type: Object,

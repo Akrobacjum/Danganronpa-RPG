@@ -153,8 +153,9 @@ export async function rollTrait(actor, drpgTrait,
     // `remember: false` marks a supporting roll - concealing an intent, hiding
     // traces. Those must not eat the Call the player bought for the action's own
     // roll, so the Call is hidden from this roll and from its dialog entirely. A die
-    // given to this roll by name is its own, and is not hidden (`situational`).
-    const supporting = !remember;
+    // given to this roll by name is its own, and is not hidden (`situational`). A murder's opening is not
+    // remembered and still takes the Calls (call-effects.mjs `TAKES_CALLS`, E112): it is the murder's own roll.
+    const supporting = !remember && !calls.TAKES_CALLS.has(actionKey);
     if (supporting) calls.shieldCalls();
     if (situational) calls.armOwnSituational(situational);
     if (hindrance) calls.armOwnHindrance(hindrance);

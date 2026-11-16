@@ -1449,7 +1449,7 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * they were. Ask the world's rows first - it writes.
  */
 async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye",
-    window: throughWindow = false, experiences = null, situational = 0, requestId = null } = {}) {
+    window: throughWindow = false, experiences = null, situational = 0, requestId = null, thrower = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -1457,14 +1457,18 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
     let packet = null;
     const hook = Hooks.on(`${game.system.id}.postDualityRollConfiguration`, (roll, config) => {
-        if (!packet && config?.[P.ROLL_NONCE]) packet = D.drawPacketOf(roll, config, { subject: actor, actionKey });
+        // A `thrower`'s roll is packed with its own claim, as the roller's browser packs it (roll-draw.mjs `drawAndPlay`):
+        // the Calls its window applied and the context its road gave it ride on that claim's `facts`.
+        if (!packet && config?.[P.ROLL_NONCE]) packet = D.drawPacketOf(roll, config, (thrower && P.rollClaimOf(config[P.ROLL_NONCE])) || { subject: actor, actionKey });
     });
     const made = [];
     const rolling = game.drpg.suiteRolling;
     let thrown;
     try {
         if (throughWindow) game.drpg.suiteRolling = false;
-        thrown = await neutralRoll(actor, { trait, remember: throughWindow, experiences, situational });
+        // `thrower` (E112): a roll thrown as its own road throws it - the opening's `rollTrait` (murder-rules.mjs
+        // `throwOpeningRoll`) - answering `{ message }`; the faces are the GM's here, as everywhere in this helper.
+        thrown = thrower ? await thrower() : await neutralRoll(actor, { trait, remember: throughWindow, experiences, situational });
     } finally {
         game.drpg.suiteRolling = rolling;
         Hooks.off(`${game.system.id}.postDualityRollConfiguration`, hook);
@@ -17463,6 +17467,577 @@ const SCENARIOS = [
         }
     }],
 
+    ["E112 - a mask puts its question mark on the killer's portrait as well as the tokens, and gives both back exactly", async () => {
+        /*
+         * E112 item 2b, 15.11.2026; the owner: "Nie chodzi tylko o portret w karcie postaci - chodzi tez o ikone tokenu na
+         * mapie". The mask rewrote the tokens and left `actor.img`, so every surface that reads the portrait - the sheet,
+         * the actors' list, the voice tile's face, a drawn roll's header, the sequence boards, Daggerheart's own cards -
+         * kept the killer's face. A direct murder between two students with players, its opening on Hope through the GM's
+         * own resolution (`resolveKillerOpening`), which masks; then the mask ended (`endMask`). Read: the killer's
+         * portrait and prototype token picture before, while masked and after; the tokens' pictures while masked.
+         * Red on e9f4a791: the portrait stays the killer's own.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const face = () => [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        // Pictures of the killer's own (the harness world's are Foundry's mystery man, the mask's picture until 1.2.116):
+        // the portrait, the prototype's, each token's - put back in the end.
+        const was = { face: face(), tokens: tokens().map(t => [t, t._source.texture?.src ?? null]) };
+        await killer.update({ img: "worlds/suite/e112-portrait.webp", "prototypeToken.texture.src": "worlds/suite/e112-token.webp" });
+        for (const [t] of was.tokens) await t.update({ "texture.src": "worlds/suite/e112-token.webp" });
+        const before = face();
+        const read = {};
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            read.masked = [killer._source.img === K.MASK_IMG, tokens().every(t => t._source.texture?.src === K.MASK_IMG)];
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.endMask(killer.id, "suite");
+            await settle();
+            read.back = stableJson(face()) === stableJson(before);
+            // The coordinator's H2: a row left standing (as a backup's restore brings one back, with no portrait, as 1.2.115
+            // kept none) met the next opening, which returned early and masked nothing.
+            const S = await import("./gm-stores.mjs");
+            await S.maskStore.patch(killer.id, { killerId: killer.id, victimId: victim.id, userIds: [], mark: "SUITE stale",
+                tokens: tokens().map(t => ({ sceneId: t.parent.id, tokenId: t.id, look: K.lookOf(t) })), at: Date.now() });
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            read.stale = [killer._source.img === K.MASK_IMG, tokens().every(t => t._source.texture?.src === K.MASK_IMG)];
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.endMask(killer.id, "suite");
+            await settle();
+            read.staleBack = stableJson(face()) === stableJson(before) && tokens().every(t => !t._source.flags?.[MODULE_ID]?.masked);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            const gone = (await import("./utils.mjs")).forcedDeletion();
+            await killer.update(was.face[1] ? { img: was.face[0], "prototypeToken.texture.src": was.face[1] } : { img: was.face[0], prototypeToken: gone });
+            for (const [t, src] of was.tokens) await t.update({ "texture.src": src ?? gone });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ masked: [true, true], back: true, stale: [true, true], staleBack: true }),
+            `a mask left the killer's portrait or a token showing their face, or did not give the portrait back exactly (masked: the portrait, the tokens; back; a row left standing: the portrait, the tokens; back) [${stableJson([before, face()])}]`);
+    }],
+
+    ["E112 - a token made while a mask or a veil stands joins it: one made from the prototype is masked or veiled, a carried copy keeps the look it was carried from, and each gets its own back at the end", async () => {
+        /*
+         * E112 item 2, the coordinator's H1 (15.11.2026): the mask's and the veil's rows list the tokens that stood when
+         * they went up. A token made afterwards from the prototype wore the killer's real art, and a copy carried to
+         * another scene (call-world.mjs `carryAcross`: the old token's data under a new id, marked `carriedFrom`) kept
+         * the "?" after the end, its row naming only the token it replaced. A direct murder between two students with
+         * players. The mask (an opening on Hope): a token made from the prototype and a copy of the killer's token made
+         * as `carryAcross` makes it; read each one's picture and flag, then after `endMask` each one's look against what
+         * it should get back - the prototype's own, the carried token's. The veil (a murder opened): a token made from
+         * the prototype; read its `hidden` and flag, then after the close its own `hidden`. Red on e9f4a791: the new
+         * token wears the real art, the copy stays "?" after the end.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const first = game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id))[0];
+        must(first, `${killer.name} has no token - this would measure nothing`);
+        const scene = first.parent;
+        const made = [];
+        const make = async data => {
+            const [doc] = await scene.createEmbeddedDocuments("Token", [data]);
+            made.push(doc?.id);
+            await settle();
+            return scene.tokens.find(t => t.id === doc?.id) ?? null;
+        };
+        const fromPrototype = async () => make((await killer.getTokenDocument({ x: first.x, y: first.y })).toObject());
+        const flags = t => t?._source?.flags?.[MODULE_ID] ?? {};
+        const look = t => [t?._source?.name ?? null, t?._source?.texture?.src ?? null];
+        const read = {};
+        // Pictures of the killer's own, as the portrait test gives them: the harness world's are the old mask's picture.
+        const was = { img: killer._source.img ?? null, proto: killer._source.prototypeToken?.texture?.src ?? null, src: first._source.texture?.src ?? null };
+        await killer.update({ img: "worlds/suite/e112-portrait.webp", "prototypeToken.texture.src": "worlds/suite/e112-token.webp" });
+        await first.update({ "texture.src": "worlds/suite/e112-first.webp" });
+        const firstLook = look(first);
+        // What a token made from the prototype looks like with no mask: its name and picture (`getTokenDocument`).
+        const protoBefore = (d => [d.name ?? null, d.texture?.src ?? null])((await killer.getTokenDocument({ x: first.x, y: first.y })).toObject());
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await K.settleVeils();
+            const veiled = await fromPrototype();
+            read.veil = [veiled?._source?.hidden === true, flags(veiled).veiled === true];
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            read.veilBack = [veiled?._source?.hidden === false, flags(veiled).veiled ?? null];
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            const fresh = await fromPrototype();
+            const data = first.toObject();
+            delete data._id;
+            data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), carriedFrom: `${scene.id}.${first.id}` } };
+            const copy = await make(data);
+            read.mask = [look(fresh)[1] === K.MASK_IMG && flags(fresh).masked === true, look(copy)[1] === K.MASK_IMG && flags(copy).masked === true];
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.endMask(killer.id, "suite");
+            await settle();
+            // The picture alone: the harness's prototype makes a token with no name, which `lookOf` keeps as "" (as before E112).
+            read.maskBack = [look(fresh)[1] === protoBefore[1] && Boolean(flags(fresh).masked) === false,
+                stableJson(look(copy)) === stableJson(firstLook) && Boolean(flags(copy).masked) === false];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            const ids = made.filter(id => scene.tokens.some(t => t.id === id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+            const gone = (await import("./utils.mjs")).forcedDeletion();
+            await killer.update(was.proto ? { img: was.img, "prototypeToken.texture.src": was.proto } : { img: was.img, prototypeToken: gone });
+            await first.update({ "texture.src": was.src ?? gone });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ veil: [true, true], veilBack: [true, null], mask: [true, true], maskBack: [true, true] }),
+            "a token made while a veil or a mask stood did not join it, or did not get its own back at the end (veil: hidden, flagged; after: own hidden, flag; mask: the prototype's token, the carried copy; after: each one's own look)");
+    }],
+
+    ["E112 - the start-of-day board shows a victim nobody has found as alive and the masked killer as they are, at the Morning Eclipse's start and at a roll-over; a found body as dead", async () => {
+        /*
+         * E112 item 6, 15.11.2026; the owner: "make sure the start-of-day screen does not show a dead person while the body is
+         * undiscovered", and the risk E112 item 2 brought: a mask masks the killer's portrait (`actor.img`), the board draws
+         * every student's portrait (sequence.mjs `dayStartBoard`), and the board plays at the Morning Eclipse's start or at a
+         * roll-over (`startBoardStamped`), while a mask ended only when the next time of day came (`drpgTimeOfDayChanged`,
+         * written after the clock) - so the killer's place on every morning board read "?". A direct murder on Hope (the
+         * killer masked), the incident closed, the victim's death kept by the GMs (`killCharacter`, secret). At Night the
+         * Morning Eclipse starts, then is taken back; at Night the clock rolls over (`advanceTimeOfDay`). At each clock write
+         * that lands with the board's stamp, read on this browser what `dayStartBoard` composes then: the killer's picture,
+         * the victim's dead mark, the alive count, and whether a mask still stands. Then the death published (a discovery's
+         * write, death.mjs `publishDeath`) and the board read again. Red at 9cc67507: the killer's picture is the mask's.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./clock.mjs"), E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs");
+        const D = await import("./death.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const faceWas = [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const real = "worlds/suite/e112-board-killer.webp";
+        const reads = [];
+        // The board as this browser composes it the moment the clock lands with the board's stamp.
+        const board = () => {
+            const b = Q.dayStartBoard(Q.dayStartClock(getClock()), studentActors());
+            const at = id => b.cast.find(c => c.id === id) ?? null;
+            return [at(killer.id)?.img ?? null, at(victim.id)?.dead ?? null, b.alive === b.cast.length, K.maskStands(killer.id)];
+        };
+        const watch = Hooks.on("updateSetting", setting => {
+            if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}` && Q.startBoardStamped(getClock())) reads.push(board());
+        });
+        // At Night first: a write of the clock's time of day ends every mask (`drpgTimeOfDayChanged`), so the mask goes up after it.
+        const masked = async () => {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+        };
+        try {
+            await killer.update({ img: real });
+            await setClock({ phase: "dailyLife", timeOfDay: "night", refilledFor: null });
+            await settle();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            await M.endMurder({ reason: "test", followUp: false });
+            await D.killCharacter(victim, { secret: true, keepBullets: true });
+            await settle();
+            must(isDeadForGm(victim) && K.maskStands(killer.id), "the victim's death was not kept, or the mask ended with the incident - this would measure something else");
+            await E.startEclipse();
+            await settle();
+            const eclipse = reads.length;
+            Q.endSequence("cut");
+            await E.endEclipse({ advance: false });
+            await settle();
+            // A mask that the Eclipse's start ended is put up again, at Night, for the roll-over's reading.
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            await setClock({ timeOfDay: "night" });
+            await settle();
+            await masked();
+            must(K.maskStands(killer.id), "the mask for the roll-over did not go up - this would measure nothing");
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await D.publishDeath(victim);
+            await settle();
+            const found = board();
+            equal(stableJson([eclipse, reads.length, reads, found[1]]), stableJson([1, 2, [[real, false, true, false], [real, false, true, false]], true]),
+                "the start-of-day board drew the masked killer's \"?\", a victim nobody had found as dead, or left them out of the alive count, or a mask stood as the board landed "
+                + "(the reads at the Eclipse's start; in all; each read: the killer's picture, the victim dead, everyone counted alive, a mask standing; the board after the death was published: the victim dead)");
+        } finally {
+            Hooks.off("updateSetting", watch);
+            Q.endSequence("cut");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await killer.update(faceWas[1] ? { img: faceWas[0], "prototypeToken.texture.src": faceWas[1] } : { img: faceWas[0] });
+            await settle();
+        }
+    }],
+
+    ["E112 - the masks end before the Class Trial is entered, a token copied from a masked one without its flag is not kept as \"?\", and the hall's own tokens go at the trial's exit", async () => {
+        /*
+         * E112, 16.11.2026; the owner's confirmation through the coordinator of 15.11: the masks end before the Class Trial is
+         * entered. Entering the trial moves the phase and not the time of day, so a mask stood into it, and the hall's
+         * tokens copy the school token's look and not its flags (trial-scene.mjs `hallTokenData`): the killer's hall token
+         * was "?" in a trial about who the killer is. A direct murder on Hope (masked), the incident closed, a token of the
+         * killer made on the scene as the hall makes one - the masked token's look, no flags. Read: whether that token
+         * joined the mask with the row's kept look (`adoptToken`) - after the mask ends it carries the killer's own name and
+         * picture, not "?"; then a mask put up again and the clock written into the Class Trial: whether a mask stands then
+         * and what the killer's token and portrait read. And the hall's exit plan (`stagePlan`, `into: false`): a token the
+         * stage made for a student is removed, so a "?" one a 1.2.113-1.2.115 trial left goes with that trial. Red at
+         * a626ef11: the copy is kept as "?", and the mask stands into the trial.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs"), T = await import("./trial-scene.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const first = game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id))[0];
+        must(first, `${killer.name} has no token - this would measure nothing`);
+        const scene = first.parent;
+        const was = { img: killer._source.img ?? null, proto: killer._source.prototypeToken?.texture?.src ?? null, src: first._source.texture?.src ?? null,
+            phase: getClock()?.phase ?? "dailyLife" };
+        const made = [];
+        const masked = async () => {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+        };
+        const read = {};
+        try {
+            await killer.update({ img: "worlds/suite/e112-trial-portrait.webp", "prototypeToken.texture.src": "worlds/suite/e112-trial-token.webp" });
+            await first.update({ "texture.src": "worlds/suite/e112-trial-first.webp" });
+            const real = [first._source.name, first._source.texture?.src ?? null];
+            await masked();
+            // As the hall copies it: the masked token's look, its flags left behind.
+            const data = first.toObject();
+            delete data._id;
+            data.flags = {};
+            const [copy] = await scene.createEmbeddedDocuments("Token", [data]);
+            made.push(copy?.id);
+            await settle();
+            await K.endMask(killer.id, "suite");
+            await settle();
+            const back = scene.tokens.find(t => t.id === copy?.id);
+            read.copy = [back?._source?.name ?? null, back?._source?.texture?.src ?? null];
+            read.real = real;
+            await masked();
+            await setClock({ phase: "classTrial" });
+            await settle();
+            read.trial = [K.maskStands(killer.id), first._source.name === real[0] && first._source.texture?.src === real[1], killer._source.img !== K.MASK_IMG];
+            await setClock({ phase: was.phase });
+            await settle();
+            const plan = T.stagePlan({ cast: [{ actorId: killer.id, in: true }], tokens: [{ id: "HALLTOKEN0000000", actorId: killer.id, cast: true }],
+                seats: { [killer.id]: { token: "HALLTOKEN0000000" } }, into: false });
+            read.exit = plan.remove;
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (getClock()?.phase !== was.phase) await setClock({ phase: was.phase });
+            const ids = made.filter(id => scene.tokens.some(t => t.id === id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+            const gone = (await import("./utils.mjs")).forcedDeletion();
+            await killer.update(was.proto ? { img: was.img, "prototypeToken.texture.src": was.proto } : { img: was.img, prototypeToken: gone });
+            await first.update({ "texture.src": was.src ?? gone });
+            await settle();
+        }
+        equal(stableJson([read.copy, read.trial, read.exit]), stableJson([read.real, [false, true, true], ["HALLTOKEN0000000"]]),
+            "a token copied from a masked one kept the \"?\", a mask stood into the Class Trial, or the hall's exit kept a token it made "
+            + "(the copy's name and picture after the mask, against the killer's own; in the trial: a mask stands, the token as it was, the portrait not the mask's; the exit's removals)");
+    }],
+
+    ["E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly: a success that opens a mask shows the token after the mask, a failure gives it its own hidden back, a trap and a self-inflicted death veil nothing, a row no opening holds is swept, and the lights' rows are taken over or lifted", async () => {
+        /*
+         * E112 item 1, 15.11.2026; the owner: "gdy morderca rzuca, dopoki nie rzuci otwarcia, jego token powinien byc
+         * niewidzialny dla ofiary, a sam morderca wyciszony. Dopiero po rzucie odslaniamy token". A direct murder between
+         * two students with players, its invitation held (`heldInvitations`). Read, on the killer's tokens: Foundry's
+         * `hidden` and the `veiled` flag while the opening waits, the GMs' row (each token's own `hidden` before), the
+         * killer's player among the blocked (`veilMutedIds`, the trial's mute row written); then, road by road, the
+         * tokens as they were and no row: (A) an opening on Hope, whose mask goes on first - the first write that
+         * shows a token again finds it masked already (`updateToken`, in the order the writes land); (B) a failed
+         * opening with one of the killer's tokens hidden by the GM beforehand, which stays hidden; (C) a trap and (D) a
+         * self-inflicted death, no row; (E) a row with no opening behind it, as a reload leaves it, swept by the
+         * primary's settle; (F) the lights: a row of "lights" stands while they judge, is taken over by the opening
+         * that follows with no second write to the tokens, and one no opening takes is lifted when they have judged.
+         * Red on e9f4a791: mask-gm.mjs has no veil.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof K.settleVeils === "function", "mask-gm.mjs has no `settleVeils` - the veil is not written");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const kp = owner(killer);
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        const looks = () => tokens().map(t => [t.id, Boolean(t._source.hidden), t._source.flags?.[MODULE_ID]?.veiled ?? null]);
+        const before = looks();
+        const flagOf = t => t._source.flags?.[MODULE_ID] ?? {};
+        const veiledNow = () => [tokens().every(t => t._source.hidden === true && flagOf(t).veiled === true),
+            stableJson((S.veilStore.get(killer.id)?.tokens ?? []).map(r => [r.tokenId, r.hidden])) === stableJson(before.map(([id, hidden]) => [id, hidden])),
+            K.veilMutedIds().has(kp.id), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
+        const cleared = expected => [stableJson(looks()) === stableJson(expected ?? before), S.veilStore.has(killer.id), K.veilMutedIds().has(kp.id)];
+        const open = extra => heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", ...extra }));
+        const close = async () => { if (M.murderState()) await M.endMurder({ reason: "test", followUp: false }); };
+        const read = {};
+        const hiddenBefore = tokens()[0];
+        try {
+            await S.veilStore.whenHydrated();
+            // (A) An opening on Hope: the mask first, then the token shown.
+            await open();
+            await K.settleVeils();
+            read.veiled = veiledNow();
+            const writes = [];
+            const hook = Hooks.on("updateToken", (doc, changes) => {
+                if (doc.actorId === killer.id && changes.hidden === false) writes.push(Boolean(doc._source.flags?.[MODULE_ID]?.masked));
+            });
+            try {
+                await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+                await settle();
+            } finally {
+                Hooks.off("updateToken", hook);
+            }
+            read.hope = [writes.length > 0 && writes.every(Boolean), K.maskStands(killer.id), S.veilStore.has(killer.id),
+                tokens().every(t => Boolean(t._source.hidden) === Boolean(before.find(([id]) => id === t.id)?.[1]))];
+            await close();
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            read.afterHope = cleared();
+            // (B) A failure, one token hidden by the GM before the murder: it stays hidden.
+            await hiddenBefore.update({ hidden: true });
+            const hiddenLooks = looks();
+            await open();
+            await K.settleVeils();
+            read.failVeiled = [tokens().every(t => t._source.hidden === true), (S.veilStore.get(killer.id)?.tokens ?? []).find(r => r.tokenId === hiddenBefore.id)?.hidden ?? null];
+            await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            read.failed = [M.murderState()?.active ?? null, ...cleared(hiddenLooks), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
+            await hiddenBefore.update({ hidden: before[0][1] });
+            // (C) A trap and (D) a self-inflicted death: no veil.
+            await open({ indirect: true, openingTrait: "eye" });
+            await K.settleVeils();
+            read.trap = S.veilStore.has(killer.id) || S.veilStore.has(victim.id);
+            await close();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: killer.id, openingTrait: "body" }));
+            await K.settleVeils();
+            read.self = S.veilStore.has(killer.id);
+            await close();
+            // (E) A row with no opening behind it, as a GM's reload mid opening leaves it: swept.
+            await S.veilStore.patch(killer.id, { actorId: killer.id, userIds: [kp.id], why: "opening", openedAt: 1,
+                tokens: before.map(([tokenId, hidden]) => ({ sceneId: tokens().find(t => t.id === tokenId)?.parent?.id ?? null, tokenId, hidden })), at: Date.now() });
+            for (const t of tokens()) await t.update(K.veilPatch());
+            const swept = await K.settleVeils();
+            read.swept = [swept?.lifted ?? null, ...cleared()];
+            // (F) The lights: taken over by the opening that follows, with no second write to the tokens; else lifted.
+            const hides = [];
+            const watch = Hooks.on("updateToken", (doc, changes) => { if (doc.actorId === killer.id && "hidden" in changes) hides.push(changes.hidden); });
+            try {
+                await K.veilAtTheLights([killer.id]);
+                const lit = [S.veilStore.get(killer.id)?.why ?? null, (await K.settleVeils())?.lifted ?? null];
+                await open();
+                await K.lightsJudged();
+                read.lights = [...lit, S.veilStore.get(killer.id)?.why ?? null, S.veilStore.get(killer.id)?.openedAt === M.murderState()?.openedAt];
+                await close();
+                read.lightsHides = [...hides];
+                await K.veilAtTheLights([killer.id]);
+                await K.lightsJudged();
+                read.unjudged = cleared();
+            } finally {
+                Hooks.off("updateToken", watch);
+            }
+        } finally {
+            await close();
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            for (const [id, hidden] of before) {
+                const t = tokens().find(x => x.id === id);
+                if (t && (Boolean(t._source.hidden) !== hidden || flagOf(t).veiled !== undefined)) await t.update(K.unveilPatch(hidden, (await import("./utils.mjs")).forcedDeletion()));
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            veiled: [true, true, true, true],
+            hope: [true, true, false, true], afterHope: [true, false, false],
+            failVeiled: [true, true], failed: [null, true, false, false, false],
+            trap: false, self: false,
+            swept: [[killer.id], true, false, false],
+            lights: ["lights", [], "opening", true], lightsHides: [true, false], unjudged: [true, false, false]
+        }), "the opening's veil did not hide the killer, did not lift on a road out, lifted before the mask, did not put back the token's own hidden, veiled a trap or a self-inflicted death, left a row no opening held, or wrote the lights' tokens twice "
+            + "(veiled: hidden and flagged, the row's hidden before, the player blocked, the mute row; hope: shown after the mask, the mask stands, a row left, hidden as before; after: looks as before, a row, blocked; "
+            + "failVeiled: all hidden, the GM's hidden kept on the row; failed: the incident, looks, row, blocked, the mute row; trap; self; swept: lifted, looks, row, blocked; lights: why, lifted while judging, why after the open, its openedAt; the hidden writes; unjudged: looks, row, blocked)");
+    }],
+
+    ["E112 - an armed Loaded Die loads the murder's opening roll and is spent on it, drawn for a player and thrown by the GM for one not connected", async () => {
+        /*
+         * E112 item 3, 15.11.2026; the owner: "loaded die nie zuzywa sie na otwarcie morderstwa (dziala, ale hope call
+         * nie jest wydany)". The opening is thrown as a supporting roll (`remember: false`, murder-rules.mjs
+         * `throwOpeningRoll`), and the shield that raises (call-effects.mjs `shieldCalls`) hid every Call from it, a
+         * Loaded Die included: the window saw none, the packet named none, and the GM's draw loaded nothing and spent
+         * nothing (roll-draw.mjs `SPENDS_NO_CALL`). The opening is the murder's own roll, so a Loaded Die armed for it
+         * applies and is spent once (the owner's default through the coordinator, 15.11.2026). A direct murder between
+         * two students with players, its invitation held (`heldInvitations`), a Loaded Die armed on the killer by the GM.
+         * Road A, a table's: the opening thrown as `throwOpeningRoll` throws it - `rollTrait` with its own options -
+         * through the roll window's glue, and the packet that makes judged as the killer's player's (`drawnForPlayer`),
+         * the GM's faces 3 and 5. Read: whether the packet named the die among its Calls and as its mark, the loaded
+         * die's face or Hope's, the other, the record's `used.loaded`, whether a critical Call is still armed (the
+         * assertion), then the killer's Hope after less before and the answers (in its message only). Road B: the same roll thrown on this GM's
+         * browser as for a killer whose player is not connected, faces 3 and 5, the Loaded Die armed again: its Free
+         * Critical and whether the Call is still armed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./call-effects.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const before = new Set(E.armedCallsShown(killer).map(c => c.nonce));
+        const criticals = () => E.armedCallsShown(killer).filter(c => c.grants === "critical" && !before.has(c.nonce)).map(c => c.nonce);
+        // The GM arms it under a nonce the test keeps (a Foundry id: the packet's `loaded` is sanitized as one). The roll
+        // that cuts road A's packet is this GM's own, which spends what it applied, and a mark loads once per browser
+        // (forced-roll.mjs `spent`) - on a table the roller's browser stands aside for a drawn roll and loads nothing.
+        // So the packet's names are read as cut, then turned to a second nonce armed the same way before the GM judges
+        // it (`windowDraw` arms again under one nonce; here the mark has to be new as well).
+        let die = null;
+        const entry = nonce => ({ key: "freeCrit", kind: "hope", grants: "critical", amount: null, from: null, nonce });
+        const arm = async () => {
+            die = entry(foundry.utils.randomID());
+            await E.appendArmedCall(killer, die);
+            must(criticals().length === 1, "the Loaded Die was not armed - this would measure nothing");
+        };
+        const second = foundry.utils.randomID();
+        let cut = null;
+        const turned = p => {
+            cut = [stableJson(p.calls) === stableJson([die.nonce]), p.loaded === die.nonce];
+            return { ...p, calls: p.calls.map(n => (n === die.nonce ? second : n)), loaded: p.loaded === die.nonce ? second : p.loaded };
+        };
+        const armedAgain = async () => {
+            if (!E.armedCallsShown(killer).some(c => c.nonce === second)) await E.appendArmedCall(killer, entry(second));
+        };
+        const hope = () => Number(killer.system?.resources?.hope?.value ?? 0);
+        const opening = () => rolls.rollTrait(killer, "body", { remember: false, byGm: true, actionKey: "murderOpening",
+            title: game.i18n.localize("DRPG.Roll.opening.killer"), dc: 8, context: { side: "killer" } });
+        const read = [];
+        let F = null;
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.stage === "openingRoll", `the incident is not waiting on its opening: ${stableJson(M.murderState()?.stage ?? null)}`);
+                await arm();
+                const hopeBefore = hope();
+                F = await drawnForPlayer(owner(killer), killer, { actionKey: "murderOpening", pay: false, window: true, faces: { hope: 3, fear: 5 }, edit: turned, ready: armedAgain,
+                    thrower: async () => { const outcome = await opening(); return { outcome, message: outcome?.raw?.message ?? null }; } });
+                const faces = F.record?.used?.at === "fear" ? [F.record.fear, F.record.hope] : [F.record?.hope ?? null, F.record?.fear ?? null];
+                read.push([...(cut ?? [null, null]), ...faces, F.record?.used?.loaded ?? null, criticals().length > 0, hope() - hopeBefore,
+                    F.sent.map(r => r.reason ?? r.action)]);
+            });
+            if (criticals().length) await E.consumeCallsByNonce(killer, criticals());
+            await arm();
+            const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+            let own = null;
+            try {
+                globalThis.__forceRoll = { hope: 3, fear: 5 };
+                own = await opening();
+            } finally {
+                if (hadForce) globalThis.__forceRoll = force;
+                else delete globalThis.__forceRoll;
+                await settle();
+            }
+            if (own?.raw?.message?.id) await game.messages.get(own.raw.message.id)?.delete();
+            read.push([own?.freeCritical ?? null, criticals().length > 0]);
+        } finally {
+            if (criticals().length) await E.consumeCallsByNonce(killer, criticals());
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await F?.putBack();
+        }
+        equal(stableJson([read[0]?.slice(0, 6) ?? null, read[1] ?? null]), stableJson([[true, true, 12, 3, true, false], [true, false]]),
+            `an armed Loaded Die did not load the opening or was not spent on it [road A: the packet named the die among its Calls, and as its mark; the loaded die or Hope, the other, loaded, still armed; then Hope's change and the answers; road B: Free Critical, still armed]: ${stableJson(read)}`);
+    }],
+
+    ["E112 - the GM's draw of an opening takes the killer's armed Calls as an action roll does: a named Support gives its die and is spent, an Obstacle armed long before counts unnamed, and a Call not armed or armed on another character gives nothing", async () => {
+        /*
+         * E112 item 3, 15.11.2026; the owner through the coordinator: the opening takes the other Calls too ("Inne tez"), the
+         * hindering ones included (confirmed the same day). Until E112 the GM's draw held an opening (`SPENDS_NO_CALL`) to
+         * no hostile Call, and took any armed Call its packet named (`appliedCalls`) - the roller's shield the one thing
+         * that kept them off. A direct murder between two students with players, its invitation held; on the killer a
+         * Support (named by the packet), an Obstacle armed two graces back (named by nobody); on the victim a Support whose
+         * nonce the killer's packet names too, and a nonce armed on nobody. The killer's opening drawn as their player's
+         * (`drawnForPlayer`). Read: which of the four the record says it used, the dice the GM read off the named Calls
+         * and off the hostile ones (`legal.read`), and which are still armed. Red on e9f4a791: the Support used, the
+         * Obstacle neither counted nor spent.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./call-effects.mjs");
+        const { HOSTILE_GRACE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
+        const listOf = actor => { const f = actor.getFlag(MODULE_ID, FLAGS.pendingCall); return Array.isArray(f) ? f : f ? [f] : []; };
+        const support = (from, nonce) => ({ key: "support", kind: "hope", grants: "advantage", amount: null, from, nonce });
+        const S = foundry.utils.randomID(), O = foundry.utils.randomID(), V = foundry.utils.randomID(), N = foundry.utils.randomID();
+        const armed = actor => E.armedCallsShown(actor).map(c => c.nonce);
+        let F = null, read = null;
+        try {
+            must(!E.armedCallsShown(killer).some(c => ["advantage", "disadvantage"].includes(c?.grants)), `${killer.name} has a Call of dice armed already - this would measure something else`);
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.stage === "openingRoll", `the incident is not waiting on its opening: ${stableJson(M.murderState()?.stage ?? null)}`);
+                await E.appendArmedCall(killer, support(victim.id, S));
+                await killer.update({ [flag]: [...listOf(killer), { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce: O, at: Date.now() - 2 * (HOSTILE_GRACE ?? 60_000) }] });
+                await E.appendArmedCall(victim, support(killer.id, V));
+                must(armed(killer).includes(S) && armed(killer).includes(O) && armed(victim).includes(V), "the Calls were not armed - this would measure nothing");
+                F = await drawnForPlayer(owner(killer), killer, { actionKey: "murderOpening", pay: false, faces: { hope: 3, fear: 5 },
+                    edit: p => ({ ...p, calls: [S, V, N], context: { side: "killer" } }) });
+                must(F.record, `the opening was not drawn: ${stableJson(F.sent)}`);
+                const used = new Set(F.record.used?.calls ?? []);
+                read = [[S, O, V, N].map(n => used.has(n)), F.record.legal?.read?.calls ?? null, F.record.legal?.read?.hostile?.dice ?? null,
+                    [armed(killer).includes(S), armed(killer).includes(O), armed(victim).includes(V)]];
+            });
+        } finally {
+            const left = armed(killer).filter(n => n === S || n === O);
+            if (left.length) await E.spendCallsByNonce(killer, left);
+            if (armed(victim).includes(V)) await E.spendCallsByNonce(victim, [V]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await F?.putBack();
+        }
+        equal(stableJson(read), stableJson([[true, true, false, false], 1, -1, [false, false, true]]),
+            "an opening's draw did not take the killer's armed Calls as an action roll does, or took one not armed or not theirs (used: the Support, the Obstacle, the victim's, one armed on nobody; the dice off the named Calls; off the hostile; still armed: the Support, the Obstacle, the victim's)");
+    }],
+
     ["Stage 6's clean-ups each name a clean-up's roll", async () => {
         /*
          * E08+E28 C17, 04.10.2026; audit S10-06. Stage 6's four actions - the two that aim at a
@@ -24898,6 +25473,52 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["E112 - a Resolve armed on the killer buys the opening's picker: no GM window, the first listed statistic sent, and the window not locked as the GM's", async () => {
+        /*
+         * E112 item 3, 15.11.2026: the opening takes the killer's Calls (call-effects.mjs `TAKES_CALLS`), so a Resolve armed
+         * before the GM picks does what it does on any roll with a pick - the roller picks. Until E112 the opening asked
+         * `traitFor` with Resolve read as never armed (`openingTraitFor`) and threw the invitation's statistic locked as the
+         * GM's. A direct murder opened with no statistic picked, a Resolve armed on the killer by the GM; the GM's window
+         * answered Hand if it is asked (`answerTraitWindows`). Read: the windows the GM was shown, the invitation sent to
+         * the killer's player (`openingAsks`), and what this browser throws on it - the character's `rollTrait` replaced
+         * by one that notes the statistic and whether the GM's mark is on. Red on e9f4a791: the GM's window asked, Hand
+         * sent, and thrown marked as the GM's.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const E = await import("./call-effects.mjs");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const traits = answerTraitWindows();
+        traits.pick = () => "hand";
+        const nonce = foundry.utils.randomID();
+        const thrown = [];
+        try {
+            await E.appendArmedCall(killer, { key: "resolve", kind: "hope", grants: "trait", amount: null, from: null, nonce });
+            must(E.armedCallsShown(killer).some(c => c.nonce === nonce), "the Resolve was not armed - this would measure nothing");
+            const asks = await openingAsks(async sent => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id });
+                await until(() => sent.length > 0);
+            });
+            killer.rollTrait = async (dh, config) => {
+                thrown.push([dh, config?.[TRAIT_BY_GM] === true]);
+                if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+                return null;
+            };
+            const ask = asks[0] ?? {};
+            await M.throwOpeningRoll(ask.side, ask.actorId, ask.trait);
+            equal(stableJson([traits.asked.length, asks.map(a => [a.side, a.trait]), thrown]), stableJson([0, [["killer", "body"]], [["strength", false]]]),
+                "an armed Resolve did not buy the opening's picker (the GM's windows asked; the invitations' side and statistic; the throws: the statistic, marked as the GM's)");
+        } finally {
+            traits.restore();
+            delete killer.rollTrait;
+            if (E.armedCallsShown(killer).some(c => c.nonce === nonce)) await E.spendCallsByNonce(killer, [nonce]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        }
+    }],
+
     ["at Night the opening roll carries its die: advantage for a direct killer, none for a trap's victim (since E64, S02-75), none by day", async () => {
         /*
          * E32+E07 fix r2-G1, 03.10.2026; the round-2 correctness review's M1. The opening is a
@@ -24946,8 +25567,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     }
                 });
             }
+            // E112 (15.11.2026): the opening takes the roller's Calls (call-effects.mjs `TAKES_CALLS`; the owner, "Inne tez"), so
+            // each throw sees its Support - an intended change; the Night's die is read as before.
             equal(stableJson([seen, [killer, victim].map(a => C.pendingCalls(a).length)]),
-                stableJson([[["night", "killer", 1, 0], ["night", "victim", 0, 0], ["noon", "killer", 0, 0], ["noon", "victim", 0, 0]], [1, 1]]),
+                stableJson([[["night", "killer", 1, 1], ["night", "victim", 0, 1], ["noon", "killer", 0, 1], ["noon", "victim", 0, 1]], [1, 1]]),
                 "an opening at Night lost its die or had the wrong one, one at Noon had a die, or a Call reached the opening or was spent on it (each throw: time, side, the situation's dice, the Calls seen; then the Calls left)");
         } finally {
             for (const actor of [killer, victim]) await C.consumeCalls(actor);
@@ -101278,7 +101901,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length)) await m.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ masked: true, tokens: tokens().map(() => ["?", "icons/svg/mystery-man.svg", true]), kept: true,
+        // E112 item 2a (15.11.2026): the module's own "?" in place of Foundry's mystery man; changed on purpose.
+        equal(stableJson(read), stableJson({ masked: true, tokens: tokens().map(() => ["?", `modules/${MODULE_ID}/icons/mask-unknown.svg`, true]), kept: true,
             copies: [null, killer.id], block: [true, true], theirs: "notYours", reveal: "done", back: [true, null, false, false, true],
             again: "refused", timeOfDay: [1, true, null] }),
             "{masked; tokens [name, picture, flag]; kept: the looks in the GMs' store; copies [victim's killerId, killer's]; block [muted, blocked]; theirs; reveal; back [looks as before, row, muted, blocked, victim's copy names the killer]; again; timeOfDay [ended, looks, row]} - the mask");

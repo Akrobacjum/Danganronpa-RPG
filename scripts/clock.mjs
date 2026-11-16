@@ -142,6 +142,17 @@ export async function setClock(patch = {}) {
        (tier 2 E17-T1 at 9f727e07: of two fields written together one was left). What follows the write - the
        discovery's end, the phase's and the Eclipse's reconciling - runs after the step, so a write of the clock they
        make waits for no step of its own key. */
+    /* THE MASKS END BEFORE THE CLASS TRIAL IS ENTERED (E112, 16.11.2026; the owner's confirmation through the coordinator
+       of 15.11). Entering the trial moves the phase and not the time of day, so a mask stood into it, and the hall's tokens
+       copy the school token's look and not its flags (trial-scene.mjs `hallTokenData`): the killer's hall token was "?",
+       naming them in a trial about who it is. Ended before the write, so the hall is staged from the real look - not for a
+       write the edge's Eclipse rule below refuses. mask-gm.mjs `endMasksBeforeTheBoard`, as before the start-of-day board. */
+    {
+        const now = getClock();
+        if (patch.phase === "classTrial" && now.phase !== "classTrial" && ({ ...now, ...patch }).eclipse !== true) {
+            await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
+        }
+    }
     const written = await serialWrite(CLOCK_KEY, async () => {
         const before = getClock();
         const next = { ...before, ...patch };
@@ -412,6 +423,8 @@ export async function advanceTimeOfDay({
     const { draft, mood } = rolledOver || nightFalls ? await morningInputs({ line: rolledOver, mood: !opened }) : { draft: "", mood: null };
     // the new day as the start board's stamp (`dayBoard`, 12.11.2026): this roll-over plays it, a correction does not
     const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day, opened, nightFalls });
+    // The masks end before a write that plays the start-of-day board (E112 item 6; mask-gm.mjs `endMasksBeforeTheBoard`).
+    if (rolledOver) await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
     const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });

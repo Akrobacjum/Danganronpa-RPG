@@ -528,7 +528,11 @@
       "reveal": "Ujawnij się",
       "stay": "Zostań w ukryciu",
       "card": "Jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, także po końcu incydentu. Wcześniej możesz się ujawnić przyciskiem „Ujawnij się” na swoim kafelku głosu.",
-      "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy."
+      "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "tokenFailed": "Nie udało się nałożyć maski na token postaci {name}: inni gracze mogą widzieć jej prawdziwy obrazek. Konsola mówi dlaczego."
+    },
+    "Veil": {
+      "card": "Do twojego rzutu otwarcia inni gracze nie widzą twoich tokenów, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy."
     },
     "Listen": {
       "prompt": "Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?",
@@ -4154,7 +4158,7 @@
         },
         "tail": {
           "label": "Tail Someone",
-          "hint": "Idź za kimś z tego pokoju i dowiaduj się, dokąd przechodzi, dopóki dotrzymujesz mu kroku. Przy słabym rzucie Shadow cel dowie się, kto go śledzi."
+          "hint": "Idź za kimś z tego pokoju i dowiaduj się, dokąd przechodzi, dopóki dotrzymujesz mu kroku, także w trakcie Eclipse, aż do końca dnia. W trakcie Eclipse śledzenia nie zaczniesz. Przy słabym rzucie Shadow cel dowie się, kto go śledzi."
         },
         "shut": {
           "label": "Shut the Door",
@@ -4166,7 +4170,7 @@
         },
         "pick": {
           "label": "Pick the Lock",
-          "hint": "Rzuć Shadow, a potem Hand przy zamkniętych albo zapieczętowanych drzwiach z tego pokoju; barykady tak nie otworzysz. Otwarte drzwi wpuszczają tylko ciebie, dopóki nie wyjdziesz z pokoju za nimi."
+          "hint": "Rzuć Shadow, a potem Hand przy zamkniętych albo zapieczętowanych drzwiach z tego pokoju; barykady tak nie otworzysz. Otwarte drzwi wpuszczają tylko ciebie, dopóki nie wyjdziesz z pokoju za nimi. Gdy już przejdziesz, zostają dla ciebie otwarte także w trakcie Eclipse; jeśli nie przejdziesz przed jego początkiem, zamkną się znowu."
         },
         "keepWatch": {
           "label": "Keep Watch",
@@ -6315,6 +6319,7 @@
         "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
         "masked": "Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.",
+        "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
@@ -7585,7 +7590,7 @@
         },
         "listen": {
           "label": "Infiltrate",
-          "hint": "Listen przy ścianie, Echoes, Tail Someone, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Keep Watch. Każde kosztuje akcję.",
+          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door albo Pick the Lock. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "thresholds": {
             "0": {
@@ -8942,6 +8947,7 @@
         "lockpicks": "Kto może wejść do którego pokoju przez zamek otwarty wytrychem",
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
+        "veils": "Który zabójca jest ukryty i wyciszony do rzutu otwarcia i czy każdy jego token był ukryty już wcześniej",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole",
         "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",
