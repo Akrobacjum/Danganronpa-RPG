@@ -1,8 +1,13 @@
 # audit/live - the runner for a real Foundry v14
 
-**None of this has ever run against a real Foundry.** It was written on
-24.09.2026 in a container with no Foundry binary, no licence and nothing on
-`localhost:30099`. The first real run is its test. What it assumes about
+**Written blind, first run on 16.11.2026.** It was written on 24.09.2026 in a
+container with no Foundry binary, no licence and nothing on `localhost:30099`.
+Its first run against a real server was on the owner's sandbox (Foundry 14.370,
+Daggerheart 2.12.9; E58 L1, docs/dev/e58/LOCAL-REPORT.md): the join form's
+selectors, the seeder's empty world and settings, and the parts' browsers'
+storage were wrong and are corrected, each with its reading in the code; the
+gate's parts themselves (`suite.mjs`, `sandbox-cluster.mjs`) have not yet run
+there, and `perf-baseline.mjs --probe` has. What it assumes about
 Foundry and has not measured is marked `UNMEASURED` in the code: the field
 names of `/api/status`, the join form's selectors on v14, the keys of
 `game.collections`. When it breaks, a part is recorded as `error` - the runner

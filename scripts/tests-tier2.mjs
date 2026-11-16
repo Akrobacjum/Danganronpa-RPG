@@ -153,8 +153,9 @@ async function snapshot(cast) {
            - "Remnant", under the traces, and "DRPG Project", under project tokens -
            standing in a world that had neither, from the first scenario that dropped
            one to the end of the run. Users and settings are never created or removed
-           here, and chat has its own line above. */
-        documents: new Map([...(game.collections ?? [])]
+           here, and chat has its own line above. `entries()`, as worldDump reads them: v14's
+           game.collections iterates its values (E58 L1, 16.11.2026). */
+        documents: new Map([...(game.collections?.entries?.() ?? [])]
             .filter(([name]) => !["User", "Setting", "ChatMessage"].includes(name))
             .map(([name, collection]) => [name, new Set(collection.map(d => d.id))]))
     };
@@ -75668,7 +75669,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const token = scene.tokens.find(t => t.actorId === student.id);
         const { diceLookStore } = await import("./gm-stores.mjs");
         const { gmStoresIdle } = await import("./gm-store.mjs");
-        const { ForcedDeletion, ForcedReplacement } = foundry.data.operators;
+        /* A ForcedReplacement's value is `[OPERATOR_VALUE]` on v14, not `.replacement` (read on 14.370, 16.11.2026, E58 L1). */
+        const { ForcedDeletion, ForcedReplacement, OPERATOR_VALUE } = foundry.data.operators;
         const path = `flags.${DSN_SCOPE}.appearance`;
         const found = actorDiceFound([student]);
         const own = { look: null };
@@ -75677,7 +75679,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             flags: { get: () => ({ [DSN_SCOPE]: { appearance: own.look } }) },
             update: { value: async changes => {
                 const value = changes?.[path];
-                own.look = value instanceof ForcedDeletion ? null : value instanceof ForcedReplacement ? value.replacement : value;
+                own.look = value instanceof ForcedDeletion ? null : value instanceof ForcedReplacement ? value[OPERATOR_VALUE] : value;
                 return synthetic;
             } }
         });

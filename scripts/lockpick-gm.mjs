@@ -213,7 +213,11 @@ export function registerLockpicks() {
     Hooks.on("drpgEclipseChanged", active => {
         if (active === true && isPrimaryGm()) endPassesAtEclipseStart().catch(err => error("The unused passes could not be ended as the Eclipse began", err));
     });
-    if (game.user.isGM) return;
-    askForPasses();
+    /* A player's first ask, at `ready`: this registers at `init` (module.mjs), where `game.user` is null on Foundry 14.370
+       (read on the owner's sandbox, 16.11.2026, E58 L1) - the ask read `game.user.isGM` here and threw on every browser,
+       so a player's browser never asked for its copy at a load and held none until the next change sent one. */
+    Hooks.once("ready", () => {
+        if (!game.user?.isGM) askForPasses();
+    });
     Hooks.on("drpgPrimaryReady", primary => askForPasses(primary));
 }

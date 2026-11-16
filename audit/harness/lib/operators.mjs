@@ -38,22 +38,31 @@
 /** The key a serialised operator carries. The module never sees it. */
 export const WIRE = "__harnessOperator";
 
+/* v14's names for the operator's wire mark and the key its value lives under (read on 14.370, 16.11.2026, E58 L1:
+   `"__$OPERATOR$__"` and `Symbol(DataFieldOperatorValue)`). The harness's own wire form keeps WIRE; the module never
+   sees either. */
+export const OPERATOR_IDENTIFIER = "__$OPERATOR$__";
+export const OPERATOR_VALUE = Symbol("DataFieldOperatorValue");
+
 export class DataFieldOperator {}
 
 export class ForcedDeletion extends DataFieldOperator {
-    static #one = null;
-    /** One shared instance, as `_del` is one value. */
-    static create() { return (ForcedDeletion.#one ??= new ForcedDeletion()); }
+    /** A new instance each call, as on Foundry 14.370 (16.11.2026, E58 L1: `create() !== create()`); `_del` is one of them. */
+    static create() { return new ForcedDeletion(); }
     toJSON() { return { [WIRE]: "ForcedDeletion" }; }
 }
 
+/* As on 14.370 (16.11.2026, E58 L1): no `.replacement` or `.value`; the whole value at `[OPERATOR_VALUE]` and, for a
+   plain object, its own keys copied onto the instance (`create({a: 1}).a === 1`). Until then the shim held it under
+   `.replacement`, which a tier-2 test read and v14 does not have. */
 export class ForcedReplacement extends DataFieldOperator {
     constructor(replacement) {
         super();
-        this.replacement = replacement;
+        this[OPERATOR_VALUE] = replacement;
+        if (replacement && typeof replacement === "object" && !Array.isArray(replacement)) Object.assign(this, replacement);
     }
     static create(replacement) { return new ForcedReplacement(replacement); }
-    toJSON() { return { [WIRE]: "ForcedReplacement", replacement: this.replacement }; }
+    toJSON() { return { [WIRE]: "ForcedReplacement", replacement: this[OPERATOR_VALUE] }; }
 }
 
 /** A serialised operator: a plain object whose WIRE key names its kind. */
@@ -68,7 +77,7 @@ export const kindOf = v => v instanceof ForcedDeletion ? "ForcedDeletion"
     : isWire(v) ? v[WIRE] : null;
 
 /** What a ForcedReplacement puts in place, in either form. */
-export const replacementOf = v => v instanceof ForcedReplacement ? v.replacement : v?.replacement;
+export const replacementOf = v => v instanceof ForcedReplacement ? v[OPERATOR_VALUE] : v?.replacement;
 
 /** A copy of `v` with every wire-form operator turned back into an instance. Only arrays and plain objects are walked. */
 export function revive(v) {
@@ -85,16 +94,21 @@ export function revive(v) {
 export const LEGACY = /^(?:-=|==)/;
 
 /*
- * THE TWO READINGS OF THE OLD KEYS (E76 C4, 12.11.2026; the owner's DY7). Which one v14 has is not
- * known here, and it may differ between v14 builds:
+ * THE TWO READINGS OF THE OLD KEYS (E76 C4, 12.11.2026; the owner's DY7). They may differ between v14 builds:
  *   - "ignored" - the module's own notes, measured on the 14.36x the module was built on: `-=key`
- *     removes nothing and `==key` replaces nothing. The harness's model since E30, and the default.
+ *     removes nothing and `==key` replaces nothing. The harness's model from E30 and its default until
+ *     16.11.2026; 91-old-keys-ignored holds it by name.
  *   - "honoured" - Foundry issue 14806, closed in 14.369 (read through its title and the release
  *     list, not the code: AUDIT 9.2 item 153): `ObjectField#clean` did not turn the old keys into
  *     operators, and flags and ownership are such fields. Read here as: from 14.369 a server's clean
  *     turns `-=key` into a ForcedDeletion of `key` and `==key` into a ForcedReplacement of it, on any
  *     path, before the write is judged, applied and sent to the other browsers (`honourLegacy`).
- * Whether 14.370 honours them, and on which fields, is LIVE-E76-03 (LIVE-E30-01 repeated). A run takes
+ * MEASURED on Foundry 14.370 (16.11.2026, the owner's sandbox, E58 L1; LIVE-E76-03, LIVE-E30-01): honoured.
+ * `{"flags.danganronpa-rpg.-=calibA": null}` on an actor and on a token deleted the key and stored no `-=` key,
+ * `==calibD` replaced the object whole, and each wrote v14's deprecation warning to the console ("The {-=calibA:
+ * null} syntax for forced deletion of a data field value is no longer supported in favor of {calibA: new
+ * foundry.data.operators.ForcedDeletion()} / Deprecated since Version 14"). Fields other than flags not read.
+ * So "honoured" is the default since then. A run takes
  * its reading from `DRPG_LEGACY_KEYS` ("ignored" or "honoured"); a scenario that exports
  * `legacyReading` names its own, which wins (cluster.mjs `main`), and every results file says which
  * reading it ran (`legacyReading`). The module is held to what both readings promise: a delete
@@ -104,7 +118,7 @@ export const LEGACY_READINGS = ["ignored", "honoured"];
 
 function readingFromEnv() {
     const asked = globalThis.process?.env?.DRPG_LEGACY_KEYS;
-    if (asked === undefined || asked === "") return "ignored";
+    if (asked === undefined || asked === "") return "honoured";
     if (!LEGACY_READINGS.includes(asked)) throw new Error(`DRPG_LEGACY_KEYS=${asked}: the readings are ${LEGACY_READINGS.join(" and ")}`);
     return asked;
 }

@@ -567,23 +567,33 @@ roll at a table.
   player's Stress edit, and the GM's copy still went from 0 to 5). The order of
   the two steps and the empty update are recalled, not read: LIVE-E30-03. The
   server does not diff: an update that changes nothing is still broadcast and
-  fires the update hooks.
-- **Operators** (E30). A key spelled `-=key` or `==key` changes nothing and is
-  reported: on the log, as `legacyKeys` in the scenario api and as
+  fires the update hooks. **v14 differs** (read on 14.370, 16.11.2026, E58 L1;
+  docs/dev/e39/CALIBRATION.md): `_preUpdate` runs before the `preUpdate` hook and
+  an update they empty or refuse is not sent, as here; but the client diffs
+  what is left against the document, so an update hook gets only the changed
+  keys (with `_stats.modifiedTime` on a world document), an update that changes
+  nothing is not sent at all (no hook, `update()` answers `undefined`), and only
+  a token update naming a movement field is sent unchanged (its hook gets
+  `{_id}`). Not modelled yet: a proposal to the coordinator.
+- **Operators** (E30). A key spelled `-=key` or `==key` deletes or replaces, and
+  is reported: on the log, as `legacyKeys` in the scenario api and as
   `legacyKeysIgnored` in the results file. `ForcedDeletion`, `ForcedReplacement`,
-  `_del` and `_replace` delete and replace. All of it is modelled from the
-  module's own measured notes and from Daggerheart's use of them, not from v14's
-  source, and the wire form they travel in is the harness's own
-  (`lib/operators.mjs`). Not confirmed on v14: LIVE-E30-01 (what `-=` does),
-  LIVE-E30-02 (the operator API), LIVE-E30-03 (what a hook's `changes` holds).
-  Since E76 C4 that is the "ignored" reading, the default; the "honoured" one
+  `_del` and `_replace` delete and replace; `ForcedDeletion.create()` is a new
+  instance each call. The wire form they travel in is the harness's own
+  (`lib/operators.mjs`). Read on Foundry 14.370 (16.11.2026, E58 L1): `-=` and
+  `==` are honoured on an actor's and a token's flags, with v14's deprecation
+  warning (LIVE-E30-01, LIVE-E76-03); `create()` makes a new instance, `_del` is
+  one, `_replace` a function (LIVE-E30-02); a hook gets the operator instance
+  after `unsetFlag`, `_del` and `_replace`, in `preUpdate` and `update` alike
+  (LIVE-E30-03). Until 16.11.2026 the "ignored" reading was the default; since
+  then the "honoured" one is, as on 14.370; the "honoured" one
   (Foundry issue 14806, closed in 14.369, read from its title) turns `-=key` into
   a ForcedDeletion and `==key` into a ForcedReplacement on the cluster before the
   write is judged, applied and sent on (`futil.mjs` `honourLegacy`), each still
   reported. `DRPG_LEGACY_KEYS=honoured` runs a whole run in it; a scenario that
   exports `legacyReading` names its own (91 and 92 run the same parts, one each);
-  every results file says which ran (`legacyReading`). LIVE-E76-03 is the table's
-  answer for 14.370.
+  every results file says which ran (`legacyReading`). LIVE-E76-03 was read on
+  14.370 on the owner's sandbox (above): honoured.
 - **Users.** Four are seeded (a GM and three players), and a scenario adds more
   with `accounts` (E30). Each is connected until a scenario calls
   `disconnect(who)`, which ends that client and tells the others through

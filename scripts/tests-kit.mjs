@@ -2649,7 +2649,9 @@ async function worldDump() {
             out.set(`client-orphan:${key}`, stableJson(client.getItem(key)));
         }
     }
-    for (const [name, collection] of game.collections ?? []) {
+    /* `entries()`: v14's game.collections is a Collection, which iterates its values, not [name, collection] pairs
+       (read on 14.370, 16.11.2026, E58 L1: "collection is not iterable" here, the first line of a tier 2 run). */
+    for (const [name, collection] of game.collections?.entries?.() ?? []) {
         for (const doc of collection) dumpDocument(out, `${name}.${doc.id}`, name, doc.toObject());
     }
     out.set("state:paused", stableJson(Boolean(game.paused)));

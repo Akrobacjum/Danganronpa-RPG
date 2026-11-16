@@ -507,7 +507,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         while (M.murderState()?.stage !== "incident" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         for (let i = 0; i < 4 && M.murderState()?.turnSide !== "killer"; i++) await M.passTurn();
         return { stage: M.murderState()?.stage ?? null, turn: M.murderState()?.turnSide ?? null };`, { timeout: 90000 });
+    /* p3 acts on its own copy of the murder state, which the GM's turn passes reach a moment later: until 16.11.2026 the
+       press went at once, and with the shim's world collections as v14 keeps them (E58 L1) p3's copy still read the
+       victim's turn and refused it as "not their turn" every run - the turn's arrival is waited for, as a table's player
+       would see it on their screen before pressing. */
     const l9Crisis = await p3.eval(`const M = await import("${SCRIPT("murder")}");
+        for (let i = 0; i < 100 && M.murderState()?.turnSide !== "killer"; i++) await new Promise(r => setTimeout(r, 100));
         let r = null, err = null;
         try { r = await M.takeCrisisAction(game.actors.get("${chie}"), "finishingBlow"); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
         return { taken: Boolean(r), err };`, { timeout: 120000 });
