@@ -1842,10 +1842,69 @@ const RULER_STYLES = ["_getSegmentStyle", "_getGridHighlightStyle", "_getWaypoin
 /** A ruler style of Foundry's in the hour's colour: the style handed back with its `color` replaced, anything else as it came. */
 const inTheHour = style => (style && typeof style === "object" ? { ...style, color: outlineColour() } : style);
 
+/*
+ * A HIDDEN TOKEN'S RULER IS HIDDEN TOO (owner-116, 15.11.2026; the owner: "przycisk hide w foundry bazowym (prawy na
+ * token - hide) niech ukrywa tez linie dystansu pokonywanego przez token"). Foundry's own hide (the token HUD's eye,
+ * `TokenDocument.hidden`) left the ruler a token's move draws - its path, waypoints and distance - on a player's screen.
+ * The ruler's `visible` is asked of one predicate, set by visibility.mjs at its registration (`setRulerShown`;
+ * `rulerShownTo` there: a GM always, else not for a hidden token and not where `tokenShownTo` hides the token, nor for a
+ * token this browser hid by the module's other rules): whatever writes `visible` true - Foundry's refresh, a planned
+ * move another user broadcast - writes it false here when the token is not this viewer's to see. Read on every write,
+ * so a hide that lands while a ruler stands takes it off on the next write (`reRuler`, from the token's own update),
+ * and an unhide shows it on Foundry's next refresh. Two shapes of `visible` are met: an accessor on the class's chain
+ * (super's setter carries the value) and a plain field (an own property the constructor made, moved into a slot here
+ * so the accessor below is not shadowed). Which v14's BaseTokenRuler has, and whether its label and planned movement
+ * follow `visible`, is LIVE-E116-01 and LIVE-E116-02: the harness has no ruler, R7523 reads both shapes on classes of its own.
+ */
+let rulerShown = () => true;
+
+/** visibility.mjs's predicate for a ruler: `(token) => boolean`; anything else leaves every ruler to Foundry. Answers the
+ *  predicate it replaced (the suite puts it back). */
+export function setRulerShown(fn) {
+    const was = rulerShown;
+    rulerShown = typeof fn === "function" ? fn : () => true;
+    return was;
+}
+
+/** A ruler's `visible` where its class keeps it as a plain field (moved here), by ruler. */
+const RULER_SHOWN = new WeakMap();
+
+/** Whether the predicate lets `ruler`'s token's ruler show; a predicate that throws leaves it to Foundry. */
+function rulerAllowed(ruler) {
+    try { return rulerShown(ruler?.token) !== false; } catch { return true; }
+}
+
+/** Whether `Base`'s chain carries `visible` as an accessor (a getter or a setter), read once per class. */
+function visibleAccessorOf(Base) {
+    for (let p = Base?.prototype; p && p !== Object.prototype; p = Object.getPrototypeOf(p)) {
+        const d = Object.getOwnPropertyDescriptor(p, "visible");
+        if (d) return Boolean(d.get || d.set);
+    }
+    return false;
+}
+
 /** The token ruler over `Base` whose styles wear the hour's colour, or null where `Base` is no class. Exported for R1115. */
 export function hourRulerFor(Base) {
     if (typeof Base !== "function") return null;
+    const accessor = visibleAccessorOf(Base);
     class HourTokenRuler extends Base {
+        constructor(...args) {
+            super(...args);
+            // a plain field the constructor made would shadow the accessor below: its value moved into the slot
+            if (!accessor && Object.hasOwn(this, "visible")) {
+                const was = this.visible;
+                delete this.visible;
+                RULER_SHOWN.set(this, Boolean(was) && rulerAllowed(this));
+            }
+        }
+        get visible() { return accessor ? super.visible : RULER_SHOWN.get(this) === true; }
+        set visible(value) {
+            // a WeakMap and a plain function, no private member: Base's own constructor may write `visible` before this
+            // class's members exist on the instance
+            const on = Boolean(value) && rulerAllowed(this);
+            if (accessor) super.visible = on;
+            else RULER_SHOWN.set(this, on);
+        }
         _getSegmentStyle(...args) { return inTheHour(super._getSegmentStyle(...args)); }
         _getGridHighlightStyle(...args) { return inTheHour(super._getGridHighlightStyle(...args)); }
         _getWaypointStyle(...args) { return inTheHour(super._getWaypointStyle(...args)); }
@@ -1853,6 +1912,14 @@ export function hourRulerFor(Base) {
     // A style Foundry's class does not have is not one it asks: left out, never added with nothing under it.
     for (const name of RULER_STYLES) if (typeof Base.prototype?.[name] !== "function") delete HourTokenRuler.prototype[name];
     return HourTokenRuler;
+}
+
+/** A token's ruler asked again (owner-116): its `visible` written as it reads, so the predicate takes a ruler off that
+ *  stood while the token was hidden; nothing for a token with no ruler. */
+export function reRuler(token) {
+    const ruler = token?.ruler;
+    if (!ruler || typeof ruler !== "object" || !("visible" in ruler)) return;
+    try { ruler.visible = ruler.visible; } catch { /* a ruler that refuses the write keeps Foundry's own */ }
 }
 
 /** At init, from fog.mjs `registerFog`: Foundry's token ruler class taken over by `hourRulerFor`, once. */

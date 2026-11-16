@@ -233,7 +233,7 @@ export async function setSpectator(actor, value = true) {
     if (!value && (await import("./spectator-dead.mjs")).isDeadWatcher(actor)) return null;
     // The class's map leaves a Spectator made a student again (E92 C4): its own rows stay, the fold's are unticked first.
     if (!value && isSpectator(actor)) await (await import("./fog.mjs")).forgetSpectatorMap(actor);
-    const { spectatorUserIds, SPECTATOR_TALK_FLAG } = await import("./spectator.mjs");
+    const { spectatorUserIds, SPECTATOR_TALK_FLAG, SPECTATOR_LISTEN_FLAG } = await import("./spectator.mjs");
     const before = spectatorUserIds();
     if (value) await actor.setFlag(MODULE_ID, FLAGS.spectator, true);
     else await actor.unsetFlag(MODULE_ID, FLAGS.spectator);
@@ -242,11 +242,12 @@ export async function setSpectator(actor, value = true) {
     const now = spectatorUserIds();
     const left = [...before].filter(id => !now.has(id));
     await (await import("./projects.mjs")).seeAsSpectators(left);
-    // An account no longer a Spectator's leaves its talk switch (E59 on the 1.2.115 line, CHAINS.md B-S6; R7168): kept,
-    // a player marked a Spectator again started in the Spectators' room with the microphone open, without a press.
+    // An account no longer a Spectator's leaves its switch (E59 on the 1.2.115 line, CHAINS.md B-S6; R7168): marked a
+    // Spectator again, it starts where every Spectator starts - the Spectators' room since owner-116 - not where its last
+    // press left it. The listen flag, and the old talk flag a world from before owner-116 may hold (read by nothing).
     for (const id of left) {
         const user = game.users.get(id);
-        if (user?.getFlag(MODULE_ID, SPECTATOR_TALK_FLAG)) await user.unsetFlag(MODULE_ID, SPECTATOR_TALK_FLAG);
+        for (const flag of [SPECTATOR_LISTEN_FLAG, SPECTATOR_TALK_FLAG]) if (user?.getFlag(MODULE_ID, flag) !== undefined) await user.unsetFlag(MODULE_ID, flag);
     }
     ui.notifications.info(game.i18n.format(value ? "DRPG.Spectator.marked" : "DRPG.Spectator.unmarked", { name: actor.name }));
     actor.sheet?.render(false);

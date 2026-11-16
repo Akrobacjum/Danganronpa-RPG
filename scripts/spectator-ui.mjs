@@ -20,22 +20,23 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { spectatorViewer, spectatorUserIds, talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
+import { spectatorViewer, spectatorUserIds, talksWithSpectators, SPECTATOR_LISTEN_FLAG } from "./spectator.mjs";
 import { error, log, isPrimaryGm } from "./utils.mjs";
 
 const SPECTATOR_BODY_CLASS = "drpg-spectator";
 
 /**
- * THE "SPECTATOR TALK" SWITCH's one write (E92 C6): the player's own User flag (scripts/spectator.mjs
- * `SPECTATOR_TALK_FLAG`), set or taken off; the primary moves the account to the Spectators' room and lifts its block
- * there (voice.mjs `placeVoices`, `settleTrialVoices`), and back when it is off. A GM is no Spectator, and its own
- * flag is honoured for nobody (voice.mjs `spectatorTalks`); nothing is written for one.
+ * THE SPECTATOR'S VOICE SWITCH's one write (E92 C6; the other way round since owner-116, 15.11.2026): the player's own
+ * User flag (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`), set or taken off. Set, the primary takes the account out of
+ * the Spectators' room to listen where its token stands, its microphone held (voice.mjs `placeVoices`,
+ * `settleTrialVoices`); taken off, back to the Spectators' room, the default. A GM is no Spectator, and its own flag is
+ * honoured for nobody (voice.mjs `spectatorTalks`); nothing is written for one.
  */
 export async function toggleSpectatorTalk(user = game.user) {
     try {
         if (!user || user.isGM) return;
-        if (talkSwitchOn(user)) await user.unsetFlag(MODULE_ID, SPECTATOR_TALK_FLAG);
-        else await user.setFlag(MODULE_ID, SPECTATOR_TALK_FLAG, true);
+        if (talksWithSpectators(user)) await user.setFlag(MODULE_ID, SPECTATOR_LISTEN_FLAG, true);
+        else await user.unsetFlag(MODULE_ID, SPECTATOR_LISTEN_FLAG);
     } catch (err) {
         error("Could not change the Spectator talk switch", err);
     }

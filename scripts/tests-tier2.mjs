@@ -1165,12 +1165,13 @@ async function drawnMurderWindow(open) {
  * The dashboard drawn, on the Table unless `view` says (the Map is the default since E97 C9; most of these read the
  * Table's rows).
  */
-async function drawnCaseWindow({ view = "table" } = {}) {
+async function drawnCaseWindow({ view = "table", allOpen = null } = {}) {
     const investigation = await import("./investigation.mjs");
     const open = () => [...foundry.applications.instances.values()]
         .filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
     const before = new Set(open());
-    const answer = Promise.resolve().then(() => investigation.openInvestigationDashboard({ view })).catch(() => null);
+    // `allOpen` false: the Map's one-node drawing ("All open" off, owner-116), for a test whose subject is a node's Close
+    const answer = Promise.resolve().then(() => investigation.openInvestigationDashboard({ view, ...(typeof allOpen === "boolean" ? { allOpen } : {}) })).catch(() => null);
     await until(() => open().some(a => !before.has(a) && a.element), 6000);
     const app = open().find(a => !before.has(a)) ?? null;
     const close = async () => {
@@ -30942,7 +30943,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await until(() => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden]) [name="name.${CSS.escape(key)}"]`), 3000).catch(() => {});
                 return root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden])`) ?? null;
             };
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             let edit = await open();
             must(edit, "the fixture's node did not open on the Map");
             win.field(`name.${key}`).value = "SUITE autosave closed";
@@ -30967,6 +30968,79 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{the name after the editor's Close, no Save; the name after the window closed mid-edit}");
     }],
 
+    ["owner-116: the planner draws every node open by default (owner-116, 15.11.2026; the owner's option A): the Map opens with every node's fields shown and no Close; a deduction's \"Rests on\" list is folded under a line naming how many are ticked, which follows a tick; a field changed in any node is written when the window closes; \"All open\" pressed draws one node at a time and is kept on the GM's own User, pressed again it is taken off", async () => {
+        /*
+         * owner-116, 15.11.2026. A fixture deduction resting on nothing, the dashboard drawn on the Map as this GM opens it;
+         * the GM's own User flag `caseMapFaces` put back as found. The list's line is compared with "Ticked: 0 of n", n the
+         * boxes drawn. Red at cc87ea3b: one node open at a time, the list unfolded, no switch.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "suite-r7527";
+        const flagWas = game.user.getFlag(MODULE_ID, "caseMapFaces");
+        let win = null;
+        const seen = {};
+        try {
+            if (flagWas !== undefined) await game.user.unsetFlag(MODULE_ID, "caseMapFaces");
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE R7527 as drawn", inputs: [] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`), 3000).catch(() => {});
+            const canvas = root?.querySelector(".drpg-case-canvas");
+            const fields = [...(canvas?.querySelectorAll(":scope > .drpg-case-edit") ?? [])];
+            const mine = root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`);
+            const list = mine?.querySelector(".drpg-case-fold-list");
+            const boxes = [...(list?.querySelectorAll('input[type="checkbox"]') ?? [])];
+            seen.drawn = { allOpen: canvas?.dataset.drpgAllOpen ?? null, hidden: fields.filter(f => f.hidden).length, some: fields.length > 1,
+                close: fields.filter(f => f.querySelector("[data-drpg-case-close]")).length, folded: list ? !list.open : null,
+                boxes: boxes.length > 0,
+                line: list?.querySelector("summary")?.textContent.trim() === game.i18n.format("DRPG.CaseMap.chosenOf", { n: 0, of: boxes.length }) };
+            const want = game.i18n.format("DRPG.CaseMap.chosenOf", { n: 1, of: boxes.length });
+            if (boxes[0]) { boxes[0].checked = true; boxes[0].dispatchEvent(new Event("change", { bubbles: true })); }
+            seen.ticked = list?.querySelector("summary")?.textContent.trim() === want;
+            // the redraw after a node's Move down hands the focus to the node's fields, never to its hidden face (16.11.2026)
+            mine?.querySelector('[data-drpg-case-move="1"]')?.click();
+            const fieldsNow = () => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`);
+            await until(() => document.activeElement && document.activeElement === fieldsNow(), 3000).catch(() => {});
+            const a = document.activeElement;
+            seen.focus = a?.dataset?.drpgEdit === id ? "fields" : a?.dataset?.drpgNode ? "face" : a?.tagName ?? null;
+            win.field(`case:${ch}:${id}:label`).value = "SUITE R7527 typed";
+            await win.close();
+            win = null;
+            await until(() => S.caseRows(ch).rows?.[id]?.label === "SUITE R7527 typed", 4000).catch(() => {});
+            seen.saved = S.caseRows(ch).rows?.[id]?.label ?? null;
+            win = await drawnCaseWindow({ view: "map" });
+            const root2 = win.app?.element;
+            // a field changed in an open node, then the switch pressed: the field written before the other drawing
+            win.field(`case:${ch}:${id}:label`).value = "SUITE R7527 switched";
+            root2?.querySelector("[data-drpg-case-view]")?.click();
+            await until(() => game.user.getFlag(MODULE_ID, "caseMapFaces") === true && root2?.querySelector(".drpg-case-canvas")?.dataset.drpgAllOpen !== "1", 4000).catch(() => {});
+            await until(() => S.caseRows(ch).rows?.[id]?.label === "SUITE R7527 switched", 4000).catch(() => {});
+            seen.off = { flag: game.user.getFlag(MODULE_ID, "caseMapFaces") ?? null, allOpen: root2?.querySelector(".drpg-case-canvas")?.dataset.drpgAllOpen ?? null,
+                shown: [...(root2?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit:not([hidden])") ?? [])].length,
+                saved: S.caseRows(ch).rows?.[id]?.label ?? null };
+            // the window opened again: the drawing the GM's User keeps
+            await win.close();
+            win = await drawnCaseWindow({ view: "map" });
+            const root3 = win.app?.element;
+            await until(() => root3?.querySelector(".drpg-case-canvas"), 3000).catch(() => {});
+            seen.reopened = root3?.querySelector(".drpg-case-canvas")?.dataset.drpgAllOpen ?? null;
+            root3?.querySelector("[data-drpg-case-view]")?.click();
+            await until(() => game.user.getFlag(MODULE_ID, "caseMapFaces") === undefined, 4000).catch(() => {});
+            seen.on = game.user.getFlag(MODULE_ID, "caseMapFaces") ?? null;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(ch, id).catch(() => {});
+            if (flagWas === undefined) { if (game.user.getFlag(MODULE_ID, "caseMapFaces") !== undefined) await game.user.unsetFlag(MODULE_ID, "caseMapFaces"); }
+            else await game.user.setFlag(MODULE_ID, "caseMapFaces", flagWas);
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            drawn: { allOpen: "1", hidden: 0, some: true, close: 0, folded: true, boxes: true, line: true },
+            ticked: true, focus: "fields", saved: "SUITE R7527 typed", off: { flag: true, allOpen: null, shown: 0, saved: "SUITE R7527 switched" }, reopened: null, on: null
+        }), "{the Map as drawn: every node open, none hidden, no Close, the list folded under its line; the line after a tick; where the focus is after a Move down; the label after the window closed; All open pressed with a field changed: the flag, the drawing, fields shown, the field written; the window opened again: its drawing; pressed again: the flag}");
+    }],
     ["planner autosave: a node's write that fails is told and keeps the GM's text in its field, written at the next close; the footer's Close writes it too (perf-open's review for 1.2.111, section 2; the owner, 13.11.2026: \"Nie, ma zapisywac\")", async () => {
         /*
          * The review asked whether "Your text is still in the fields" holds after a failed write: the node closes and
@@ -30999,7 +31073,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE autofail as drawn" });
             await gmStoresIdle();
             ui.notifications.error = (text, ...rest) => { told.push(String(text)); return toast.call(ui.notifications, text, ...rest); };
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             const openNode = async () => {
                 root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
@@ -31322,7 +31396,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseNode(chapter, id, { kind: "incident", label: "SUITE e104 plan" });
             await S.setCaseNode(chapter, bare, { kind: "incident", label: "SUITE e104 no room" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:analysis`), 3000).catch(() => {});
@@ -31489,7 +31563,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseNode(chapter, id, { kind: "final", label: "SUITE e104 truth" });
             await S.setCaseNode(chapter, bare, { kind: "final", label: "SUITE e104 truth, no room" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:analysis`), 3000).catch(() => {});
@@ -31571,7 +31645,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE e104 bullet" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
@@ -31788,7 +31862,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE picture bullet", recipient: student.id, tell: false });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
@@ -31889,7 +31963,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(living.length >= 2, "fewer than two living students once the fixtures stand - this would measure nothing");
             for (const id of ids) await S.setCaseNode(chapter, id, { kind: "bullet", label: `SUITE everyone ${id.slice(-1)}`, tell: false });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             const base = `case:${chapter}:${ids[0]}`;
             root?.querySelector(`[data-drpg-node="${ids[0]}"]`)?.click();
@@ -32049,7 +32123,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseMeta(chapter, { autopsies: null, autopsySent: {} });
             await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE map first", text: "SUITE the first words" });
             await gmStoresIdle();
-            win = await drawnCaseWindow({ view: "map" });
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
             const root = win.app?.element;
             const openNode = async (id, field) => {
                 root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
@@ -48217,13 +48291,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             size: [true, true, true]
         }), "(1) a failed sentence asked again: dead, the cause, the death's phase, the stamp, bodies to find; (2) a Final sentence not held here: named twice, the GMs told, the store backed up; (3) the trial's size: every player of a student who takes part, at least the ballot's, a listed student not counted");
     }],
-    ["a Spectator's microphone is blocked outside the trial and in it, by the trial's own write and row, lifted while its \"Spectator talk\" switch is on, and given back as it was found when the role is taken off (E92 C2, C6)", async () => {
+    ["a Spectator's microphone is open in the Spectators' room by default, blocked outside the trial and in it while it listens where its token stands, by the trial's own write and row, and given back as it was found when the role is taken off (E92 C2, C6; owner-116)", async () => {
         /*
          * E92 C2, 12.11.2026 (the owner's E92 goal (2): "always muted: the microphone is blocked in every phase"). On this
          * primary: a living student whose player is here and has no other voice is given a grant of its own, made a
          * Spectator by the GM's road (monokuma.mjs `setSpectator`), and the voices settled as the flag's hook settles them
          * (voice.mjs `settleTrialVoices`): (1) in Daily Life the player's BROADCAST_AUDIO off, the store's row naming the
          * grant it found; the switch on, the grant back and no row; off, blocked again (C6); (2) the Class Trial written raw and settled again: still blocked, one row; (3) the role taken off
+         * Since owner-116 (15.11.2026; the owner: "Spectatorzy - niech ich pokój voice chat będzie globalny") the Spectators'
+         * room is the default: made a Spectator, the account talks there, its grant kept and no row; its listen flag set
+         * (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`), blocked as above, in the trial too; taken off, open again.
          * and settled: the grant put back as found, no row. Red before C2: nothing blocked. The flag, the clock, the
          * player's permission and the store are put back.
          */
@@ -48248,25 +48325,25 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await user.update({ "permissions.BROADCAST_AUDIO": true });
             await setSpectator(actor, true);
             await settleNow();
-            read.daily = { perm: perm(user), row: row(), held: voice.moduleHoldsMic(user)?.reason ?? null };
-            // E92 C6: the "Spectator talk" switch on (the player's own User flag, written here by the GM): the block lifted
-            // while it talks in the Spectators' room, and written again when the switch is off.
-            await user.setFlag(MODULE_ID, "spectatorTalk", true);
+            read.talking = { perm: perm(user), row: row(), held: voice.moduleHoldsMic(user)?.reason ?? null };
+            // owner-116: the listen flag set (the player's own User flag, written here by the GM): the block written while it
+            // listens where its token stands, in Daily Life and in the trial, and lifted when the flag is off.
+            await user.setFlag(MODULE_ID, "spectatorListenHere", true);
             await settleNow();
-            read.talking = { perm: perm(user), row: row() };
-            await user.unsetFlag(MODULE_ID, "spectatorTalk");
-            await settleNow();
-            read.quiet = { perm: perm(user), row: row() };
+            read.listening = { perm: perm(user), row: row(), held: voice.moduleHoldsMic(user)?.reason ?? null };
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial", eclipse: false });
             await settleNow();
             read.trial = { perm: perm(user), rows: Object.keys(stores.trialMuteStore.entries()).filter(id => id === user.id).length };
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await user.unsetFlag(MODULE_ID, "spectatorListenHere");
+            await settleNow();
+            read.again = { perm: perm(user), row: row() };
             await setSpectator(actor, false);
             await settleNow();
             read.back = { perm: perm(user), row: row(), spectator: isSpectator(actor) };
         } finally {
             if (isSpectator(actor)) await setSpectator(actor, false);
-            if (user.getFlag(MODULE_ID, "spectatorTalk") !== undefined) await user.unsetFlag(MODULE_ID, "spectatorTalk");
+            for (const f of ["spectatorTalk", "spectatorListenHere"]) if (user.getFlag(MODULE_ID, f) !== undefined) await user.unsetFlag(MODULE_ID, f);
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
             await settleNow();
             if (JSON.stringify(perm(user)) !== JSON.stringify(before)) await user.update({ "permissions.BROADCAST_AUDIO": before[0] ? before[1] : forcedDeletion() });
@@ -48275,12 +48352,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(read), stableJson({
-            daily: { perm: [true, false], row: { had: true, value: true, wrote: true }, held: "spectator" },
-            talking: { perm: [true, true], row: null },
-            quiet: { perm: [true, false], row: { had: true, value: true, wrote: true } },
+            talking: { perm: [true, true], row: null, held: "spectatorTalk" },
+            listening: { perm: [true, false], row: { had: true, value: true, wrote: true }, held: "spectator" },
             trial: { perm: [true, false], rows: 1 },
+            again: { perm: [true, true], row: null },
             back: { perm: [true, true], row: null, spectator: false }
-        }), "a Spectator's microphone (1) in Daily Life: its permission, the store's row, the GMs' view; (2) in the Class Trial; (3) the role taken off");
+        }), "a Spectator's microphone (1) in Daily Life by default, then listening: its permission, the store's row, the GMs' view; (2) in the Class Trial, listening; (3) the flag off; (4) the role taken off");
     }],
     ["the dead are muted for the trial, a death nobody found too, and nobody else; a death in the trial joins, a new Monocub leaves; the exit puts back only what the trial wrote and leaves a GM's block (E70-T8)", async () => {
         /*

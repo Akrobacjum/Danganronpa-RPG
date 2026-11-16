@@ -48,7 +48,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, dea
 import { moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
-import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
+import { talksWithSpectators, SPECTATOR_LISTEN_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore, veilStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
@@ -403,9 +403,9 @@ export function reconcileTrigger(hook, doc, changes) {
             return changes && typeof changes === "object" && "ownership" in changes ? {} : null;
         }
         case "updateUser": {
-            // The Spectator's switch (E92 C6): its account goes to the Spectators' room or back at once.
+            // The Spectator's switch (E92 C6; its listen flag since owner-116): its account goes to its token's room or back at once.
             const own = changes?.flags?.[MODULE_ID];
-            if (own && typeof own === "object" && Object.keys(own).some(key => key.includes(SPECTATOR_TALK_FLAG))) return { immediate: true };
+            if (own && typeof own === "object" && Object.keys(own).some(key => key.includes(SPECTATOR_LISTEN_FLAG))) return { immediate: true };
             return changes && typeof changes === "object" && ("character" in changes || "role" in changes) ? {} : null;
         }
         case "createRegion":
@@ -1468,11 +1468,13 @@ export function spectatorAccount(user, { actors = null, held = actor => actor } 
 }
 
 /**
- * Whether a Spectator's account talks in the Spectators' room (E92 C6): its own switch (scripts/spectator.mjs
- * `talkSwitchOn`), honoured for a Spectator's account alone. The flag is the player's own to write.
+ * Whether a Spectator's account talks in the Spectators' room (E92 C6): by default since owner-116 (15.11.2026; the
+ * owner: "Spectatorzy - niech ich pokój voice chat będzie globalny"), unless its own switch keeps it listening where its
+ * token stands (scripts/spectator.mjs `talksWithSpectators`), and for a Spectator's account alone. The flag is the
+ * player's own to write.
  */
 function spectatorTalks(user, { actors = null, held = actor => actor } = {}) {
-    return talkSwitchOn(user) && spectatorAccount(user, { actors, held });
+    return talksWithSpectators(user) && spectatorAccount(user, { actors, held });
 }
 
 /**
@@ -1792,7 +1794,7 @@ export async function settleTrialVoices({ release = false } = {}) {
             // A Spectator's account is blocked in every phase, by the same write and the same row (E92 C2), so the
             // trial's exit and a role given back put back exactly what the block found; `release` gives it back too.
             // While it talks in the Spectators' room the block is lifted (E92 C6), and written again when it leaves.
-            const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
+            const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talksWithSpectators(user);
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
             // The mask's block outside the trial alone (Q-E110-16): in the trial the floor's speakers decide.
             const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);

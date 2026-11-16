@@ -2119,7 +2119,9 @@
         "bodyFoundTooltip": "Opens the discovery window; announcing brings everyone to the room you pick and plays the discovery sound",
         "realizationPreviewTooltip": "Shows where the planned Key Remnants would go; nothing is placed until you run it there",
         "placeFinalNowTooltip": "Places the Final Truth Remnant in the room you picked, as Save would",
-        "keepForLaterTooltip": "Your words are kept and nothing goes on the map; Save places it later"
+        "keepForLaterTooltip": "Your words are kept and nothing goes on the map; Save places it later",
+        "allOpenTooltip": "On, every node shows its fields. Off, a node shows its summary until you click it.",
+        "foldedListTooltip": "Opens the list: tick what this node rests on, or what it refutes."
       },
       "Sweep": {
         "Actions": {
@@ -4225,7 +4227,7 @@
       "marked": "{name} is now a Spectator.",
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",
-      "talkBack": "Go back to your room",
+      "talkBack": "Listen in your room",
       "noChat": "A Spectator has no chat."
     },
     "Class": {
@@ -7408,7 +7410,9 @@
         "move": "The case map could not move a node.",
         "remove": "The case map could not remove a node.",
         "place": "The case map could not place a planned Remnant."
-      }
+      },
+      "allOpen": "All open",
+      "chosenOf": "Ticked: {n} of {of}"
     },
     "CaseRealize": {
       "preview": "Preview realization",

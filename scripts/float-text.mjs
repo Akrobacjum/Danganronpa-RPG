@@ -78,6 +78,21 @@ export function floats(el) {
     return Boolean(el.closest?.(FLOAT_SCOPE));
 }
 
+/**
+ * THE PLACEHOLDER'S SIZE: the field's own layout box, in CSS px (owner-116, 15.11.2026). `box` the field's box on the screen
+ * (`getBoundingClientRect`), `el` its `offsetWidth` and `offsetHeight`, `cs` its computed style. Untransformed, the screen
+ * box is the layout's, to the fraction (`offsetWidth` is rounded, and half a pixel moved a window's other elements:
+ * reveal-confirm's field under glass, 351.5 against 352); under a transform - the case map's camera scales its canvas -
+ * the computed width and height, with the padding and border where the box is the content's. Pure.
+ */
+export function holdSize(box, el, cs) {
+    const scaled = Math.abs(box.width - el.offsetWidth) >= 1 || Math.abs(box.height - el.offsetHeight) >= 1;
+    if (!scaled) return { width: box.width, height: box.height };
+    const px = k => parseFloat(cs.getPropertyValue(k)) || 0;
+    const sides = (a, b) => cs.boxSizing === "border-box" ? 0 : px(`padding-${a}`) + px(`padding-${b}`) + px(`border-${a}-width`) + px(`border-${b}-width`);
+    return { width: (parseFloat(cs.width) || el.offsetWidth) + sides("left", "right"), height: (parseFloat(cs.height) || el.offsetHeight) + sides("top", "bottom") };
+}
+
 /** The height a floating field takes, in px, from its own height, the height its text needs and the screen's. */
 export function floatHeight({ own, needed, screen }) {
     const cap = Math.max(own, Math.floor(screen * CAP_SHARE));
@@ -147,11 +162,17 @@ function lift(el) {
     const bg = rgbaOf(fieldColor);
     const root = getComputedStyle(document.body);
     const ground = groundFor(cs.color, { ink: root.getPropertyValue("--drpg-ink").trim() || undefined, bone: root.getPropertyValue("--drpg-bone").trim() || undefined });
-    // the placeholder: the field's box, in the field's place
+    /* the placeholder: the field's box, in the field's place - at the field's own layout size, not its box on the screen
+       (owner-116, 15.11.2026: under the case map's zoom, a CSS transform on its canvas, the screen box is the layout size
+       times the zoom, and a placeholder given it was scaled once more - at zoom 0.5 half the field's width and height on
+       the screen, at 2 twice - its node's other fields moved, and the floating field, placed on the placeholder, was 55 px
+       wide over a field of 110; audit/float-sweep.mjs I7). The floating field itself stands in the top layer, which no
+       transform reaches, so it keeps the screen box. */
     const hold = document.createElement("div");
     hold.className = HOLD_CLASS;
     hold.setAttribute("aria-hidden", "true");
-    hold.style.cssText = `display:${display};box-sizing:border-box;width:${box.width}px;height:${box.height}px;visibility:hidden;pointer-events:none;${placeCss}`;
+    const layout = holdSize(box, el, cs);
+    hold.style.cssText = `display:${display};box-sizing:border-box;width:${layout.width}px;height:${layout.height}px;visibility:hidden;pointer-events:none;${placeCss}`;
     el.before(hold);
     /* Each written `important`: the module's sheets state a field's face with `!important` in places (Legacy's textarea
        ground, read 13.11.2026 on Room setup's description: its inline ground lost to it and the rows behind showed

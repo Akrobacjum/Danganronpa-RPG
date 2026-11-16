@@ -27604,6 +27604,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Case.closeNodeTooltip","case-map.mjs","nodeEditHtml"],
             ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
             ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
+            // owner-116 (15.11.2026): the toolbar's "All open" switch
+            ["DRPG.Tips.Case.allOpenTooltip","case-map.mjs","caseToolsHtml"],
             ["DRPG.Tips.Case.notNowTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
@@ -27642,6 +27644,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Gm.whatThePlayerIsTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Gm.howHardTheOriginalTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.giveFromPlanTooltip","investigation.mjs","schemaEditor"],
+            // owner-116 (15.11.2026): a node's folded "Rests on" or "Refutes" list
+            ["DRPG.Tips.Case.foldedListTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.removeFromTheCaseTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.roomPlannedFinalTooltip","investigation.mjs","schemaEditor"],
             ["DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip","investigation.mjs","schemaEditor"],
@@ -58112,13 +58116,17 @@ const INVARIANTS = [
         const accounts = { watcher: spectatorAccount(user, { actors: [watcher, kuma] }), mixed: spectatorAccount(user, { actors: [watcher, student] }),
             none: spectatorAccount(user, { actors: [kuma] }), gm: spectatorAccount({ id: "R3853gm", isGM: true }, { actors: [watcher] }),
             held: spectatorAccount(user, { actors: [forged], held: () => e92Char("R3853-forged") }) };
-        const gmView = moduleHoldsMic(user, { actors: [watcher], eclipse: false, trial: false, dead: () => false });
+        // since owner-116 (15.11.2026) an account with no flag talks in the Spectators' room ("spectatorTalk"), and one with
+        // its listen flag set is the held Spectator ("spectator") this test read before
+        const listening = { ...user, getFlag: (scope, key) => (scope === MODULE_ID && key === "spectatorListenHere" ? true : undefined) };
+        const gmView = [moduleHoldsMic(user, { actors: [watcher], eclipse: false, trial: false, dead: () => false }),
+            moduleHoldsMic(listening, { actors: [e92Char("R3853-watch2", { spectator: true }, user.id)], eclipse: false, trial: false, dead: () => false })];
         const src = new Map(await otherSources());
         const settle = stripComments(fnSource(stripComments(src.get("voice.mjs") ?? ""), "settleTrialVoices"));
         equal(stableJson({ daily: at([watcher]), trial: at([watcher], trial), student: at([student]), accounts, gmView,
             settle: /spectatorAccount\(user, \{ held: flagsHeldNow \}\)/.test(settle) }),
             stableJson({ daily: { reason: "spectator", held: true }, trial: { reason: "spectator", held: true }, student: null,
-                accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: { reason: "spectator", held: true }, settle: true }),
+                accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: [{ reason: "spectatorTalk", held: true }, { reason: "spectator", held: true }], settle: true }),
             "[micHold for the Spectator's account in Daily Life and the trial; a student's account; spectatorAccount; the GMs' view; the settle blocks it as the GMs hold the flag]");
     }],
     ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it (it moves by dragging its own token; the bridge action `spectator.move` went in E92 round 3, R3863)", async () => {
@@ -58202,10 +58210,12 @@ const INVARIANTS = [
          */
         const V = await import("./voice.mjs");
         const { SPECTATOR_ROOM } = await import("./voice-client.mjs");
-        const { SPECTATOR_TALK_FLAG } = await import("./spectator.mjs");
+        const { SPECTATOR_LISTEN_FLAG } = await import("./spectator.mjs");
         const VT = await import("./voice-tile.mjs");
+        // since owner-116 (15.11.2026) the switch is the listen flag, the Spectators' room the default: "on" (talking) is
+        // the flag absent, "off" the flag set; the readings are the same
         const account = (id, talk) => ({ id, name: id, isGM: false, active: true,
-            getFlag: (scope, key) => (scope === MODULE_ID && key === SPECTATOR_TALK_FLAG ? talk : undefined) });
+            getFlag: (scope, key) => (scope === MODULE_ID && key === SPECTATOR_LISTEN_FLAG && !talk ? true : undefined) });
         const place = async (talk) => {
             const watch = account("R3860watch", talk), pupil = account("R3860pupil", true);
             const watcher = e92Char("R3860-watcher", { spectator: true }, watch.id), student = e92Char("R3860-student", {}, pupil.id);
@@ -58227,6 +58237,40 @@ const INVARIANTS = [
                 micThere: { reason: "spectatorTalk", held: false }, micHere: { reason: "spectator", held: true },
                 on2: [game.i18n.localize("DRPG.Spectator.talkBack"), "true"], off2: [game.i18n.localize("DRPG.Spectator.talk"), "false"] }),
             "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the tile's switch]");
+    }],
+    ["R7522 - a Spectator talks in the Spectators' room by default (owner-116, 15.11.2026; the owner: \"Spectatorzy - niech ich pokój voice chat będzie globalny (graczy dalej per room)\"): voice.mjs `placeVoices` sends a Spectator's account with no flag to voice-client.mjs `SPECTATOR_ROOM`, from anywhere on the map; its own \"listen where my token stands\" flag (scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG`) keeps it in its token's room; the old switch (`spectatorTalk`, E92 C6) moves nothing either way; a student's account stays in its room with either flag; in an Eclipse nobody is moved; the tile's button reads the default as in the Spectators' room", async () => {
+        /*
+         * owner-116, 15.11.2026. Stand-in accounts and characters, as R3860's; the room each stands in is handed. The old
+         * flag read as nothing: a stored `spectatorTalk: true` meant the Spectators' room, the default now, and its absence
+         * meant the token's room, which the owner's change makes the Spectators' room - so neither value is read. Red at
+         * 25e2d34e: the Spectator with no flag in its token's room, and no SPECTATOR_LISTEN_FLAG.
+         */
+        const V = await import("./voice.mjs");
+        const { SPECTATOR_ROOM } = await import("./voice-client.mjs");
+        const S = await import("./spectator.mjs");
+        must(typeof S.SPECTATOR_LISTEN_FLAG === "string" && typeof S.talksWithSpectators === "function", "spectator.mjs has no SPECTATOR_LISTEN_FLAG or talksWithSpectators");
+        const account = (id, flags) => ({ id, name: id, isGM: false, active: true, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const LISTEN = S.SPECTATOR_LISTEN_FLAG, OLD = "spectatorTalk";
+        const place = async (flags, { eclipse = false, student = false } = {}) => {
+            const watch = account("R7522watch", flags);
+            const who = e92Char("R7522-who", student ? {} : { spectator: true }, watch.id);
+            const out = await V.placeVoices({ actors: [who], users: [watch], userOf: () => watch, dead: () => false, eclipse,
+                monokumaOf: () => false, death: { cast: new Set() }, locate: () => ({ scene: { id: "R7522scene", name: "R7522" }, room: "Gym" }) });
+            return out.byUser.get(watch.id)?.target ?? null;
+        };
+        const gym = V.liveKitRoomFor("R7522scene", "Gym");
+        const reads = {
+            spectator: [await place({}), await place({ [LISTEN]: true }), await place({ [OLD]: true }), await place({ [OLD]: true, [LISTEN]: true }), await place({ [OLD]: false })],
+            student: [await place({}, { student: true }), await place({ [LISTEN]: true }, { student: true }), await place({ [OLD]: true }, { student: true })],
+            eclipse: (await place({}, { eclipse: true })) === SPECTATOR_ROOM,
+            tile: [S.talksWithSpectators(account("a", {})), S.talksWithSpectators(account("b", { [LISTEN]: true })), S.talksWithSpectators(account("c", { [OLD]: true }))]
+        };
+        equal(stableJson(reads), stableJson({
+            spectator: [SPECTATOR_ROOM, gym, SPECTATOR_ROOM, gym, SPECTATOR_ROOM],
+            student: [gym, gym, gym],
+            eclipse: false,
+            tile: [true, false, true]
+        }), "{a Spectator: no flag, listening, the old switch on, both, the old switch false; a student: none, listening, the old switch; a Spectator with no flag in an Eclipse in the Spectators' room; the tile's reading: none, listening, the old switch}");
     }],
     ["R3861 - what a Spectator sees of E61, E62 and E94 (E92 C7; the owner's 08.11 amend: \"E92 checks what a Spectator sees at the trial entry and cut-in, the day boards and phase transitions\"): the start-of-day board's cast, monokuma.mjs `studentActors`, leaves a Spectator out, as it leaves an NPC; and the trial's entry, the verdict's cut-in, the day's board and every transition play on every browser that hears them - none of sequence.mjs `playTrialEntry`, `playVerdictCut`, `playDayStart` or transitions.mjs asks who the viewer is, so a Spectator's browser plays them as a player's does", async () => {
         /*

@@ -14,6 +14,8 @@
  *   cut      a node (its face) or an open node's fields whose content is larger than its box (scrollWidth or scrollHeight
  *            over clientWidth or clientHeight by more than 1 px), a text part of a node (kind, mode, state, name, words)
  *            whose box leaves its node's, or one drawn with an ellipsis or a line clamp;
+ *   field    (owner-116, 15.11.2026) a text box or select of an open node narrower than its fields' content box by more than
+ *            1 px - with its control: a text box planted at half that width, on the first page with a node open, must read;
  *   overlap  two nodes (a face with its open fields under it) whose boxes meet;
  *   reveal   with a node open, case-view.mjs `wireCaseCamera`'s reveal run as the Map runs it: the open node's face must
  *            then stand inside the graph's viewport;
@@ -108,14 +110,21 @@ function pageHtml(styles, html, title, width, theme, vh = 0) {
 }
 
 /** Read in the page: relayout through the module's code, then every node's cut and every pair's overlap. */
-async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false } = {}) {
-    return page.evaluate(async ({ plantBox, staleLayout, plantBar }) => {
+async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false, plantNarrow = false } = {}) {
+    return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow }) => {
         const V = await import("/scripts/case-view.mjs");
         await document.fonts.ready;
         if (plantBox) {
             const s = document.createElement("style");
             // the node rule's own selector (components.css), so the plant wins by coming later
-            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
+            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }"
+                // every node open (owner-116): the faces are hidden, so the box is put back on the open fields too
+                + " .application.drpg-window-case .drpg-case-canvas > .drpg-case-edit { height: 54px; overflow: hidden; }";
+            document.head.appendChild(s);
+        }
+        if (plantNarrow) {
+            const s = document.createElement("style");
+            s.textContent = ".application.drpg-window-case .drpg-case-edit .drpg-case-edit-field textarea { width: 50% !important; }";
             document.head.appendChild(s);
         }
         const canvas = document.querySelector(".drpg-case-canvas");
@@ -149,6 +158,17 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             let box = { id, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
             if (f) {
                 over(f, `${id} fields`);
+                /* EVERY FIELD THE NODE'S WIDTH (owner-116, 15.11.2026; the owner: "Pole wpisywania w planerze dalej jest
+                   węższe niż powinno"): each text box and select of the open node as wide as its fields' content box (the
+                   box less its padding), within 1 px. Red at e9f4a791 (1.2.115): under Stained Glass every select stood in
+                   the theme's content-wide `.drpg-select` (chrome.mjs `dressSelect`), 39-207 px of 220, and a slot's
+                   visibility and author in a content-wide `.drpg-key-plan-field` under Legacy (121 and 173). Layout widths,
+                   so the same at every zoom of the camera. */
+                const fcs = getComputedStyle(f);
+                const inner = f.clientWidth - parseFloat(fcs.paddingLeft) - parseFloat(fcs.paddingRight);
+                for (const el of f.querySelectorAll("input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]), textarea, select")) {
+                    if (el.offsetWidth && el.offsetWidth < inner - 1) cut.push(`${id} ${el.name || el.tagName.toLowerCase()}: a field ${el.offsetWidth} px wide in ${Math.round(inner)}`);
+                }
                 const q = f.getBoundingClientRect();
                 /* The open node is its editor since the owner's 12.11 at a table: its face hidden (`is-editing`), its fields at
                    the face's own place (`style.top` the same); before, the fields joined the face's bottom. */
@@ -180,18 +200,22 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
            and after Fit to view; the fit's scale and the smallest node text it leaves, for the owner's 11 px question. */
         const graphEl = canvas.closest(".drpg-case-graph");
         const bar = document.querySelector(".drpg-case-camera");
-        if (plantBar && bar && nodes[0]) {
-            const r = nodes[0].getBoundingClientRect();
+        /* WHAT A NODE IS ON SCREEN (owner-116, 15.11.2026): its face, or with every node open its fields - a hidden face's
+           box is empty, so the bar's, the fold's and the fit's readings read the open fields too, and the controls plant on
+           the first box drawn. */
+        const drawn = [...nodes, ...open.values()].filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+        if (plantBar && bar && drawn[0]) {
+            const r = drawn[0].getBoundingClientRect();
             Object.assign(bar.style, { position: "fixed", left: `${r.left + 4}px`, top: `${r.top + 4}px`, right: "auto", bottom: "auto" });
         }
         const barOver = when => {
             if (!bar || !graphEl) return;
             const b = bar.getBoundingClientRect(), g = graphEl.getBoundingClientRect();
-            for (const n of nodes) {
+            for (const n of drawn) {
                 const r = n.getBoundingClientRect();
                 const v = { left: Math.max(r.left, g.left), top: Math.max(r.top, g.top), right: Math.min(r.right, g.right), bottom: Math.min(r.bottom, g.bottom) };
                 if (v.right - v.left < 1 || v.bottom - v.top < 1) continue;
-                if (b.left < v.right - 0.5 && v.left < b.right - 0.5 && b.top < v.bottom - 0.5 && v.top < b.bottom - 0.5) cut.push(`camera bar over ${n.dataset.drpgNode} (${when})`);
+                if (b.left < v.right - 0.5 && v.left < b.right - 0.5 && b.top < v.bottom - 0.5 && v.top < b.bottom - 0.5) cut.push(`camera bar over ${n.dataset.drpgNode ?? n.dataset.drpgEdit} (${when})`);
             }
         };
         barOver("at rest");
@@ -204,8 +228,8 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             canvas.classList.remove("is-easing");
             barOver("after fit");
             const z = cam?.z ?? 1;
-            const sizes = nodes.flatMap(n => [...n.querySelectorAll(".drpg-case-node-kind, .drpg-case-node-mode, .drpg-case-node-state, .drpg-case-node-name, .drpg-case-node-text")])
-                .filter(el => el.textContent.trim()).map(el => parseFloat(getComputedStyle(el).fontSize) * z);
+            const sizes = drawn.flatMap(n => [...n.querySelectorAll(".drpg-case-node-kind, .drpg-case-node-mode, .drpg-case-node-state, .drpg-case-node-name, .drpg-case-node-text, .drpg-case-edit-label, summary, input, textarea, select")])
+                .filter(el => (el.textContent.trim() || el.matches("input, textarea, select")) && el.getClientRects().length).map(el => parseFloat(getComputedStyle(el).fontSize) * z);
             fit = { z: Math.round(z * 1000) / 1000, minText: sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null };
             canvas.style.transform = was.transform;
             canvas.style.transition = was.transition;
@@ -238,9 +262,9 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             const inner = { left: f.left + fold.clientLeft, top: f.top + fold.clientTop, right: f.left + fold.clientLeft + fold.clientWidth, bottom: f.top + fold.clientTop + fold.clientHeight };
             if (t.width && (t.left < inner.left - 0.5 || t.right > inner.right + 0.5 || t.top < inner.top - 0.5 || t.bottom > inner.bottom + 0.5))
                 cut.push(`fold: words ${Math.round(t.width)}x${Math.round(t.height)} past its box ${Math.round(inner.right - inner.left)}x${Math.round(inner.bottom - inner.top)}`);
-            for (const n of nodes) {
+            for (const n of drawn) {
                 const r = n.getBoundingClientRect();
-                if (f.left < r.right - 0.5 && r.left < f.right - 0.5 && f.top < r.bottom - 0.5 && r.top < f.bottom - 0.5) cut.push(`fold over ${n.dataset.drpgNode}`);
+                if (f.left < r.right - 0.5 && r.left < f.right - 0.5 && f.top < r.bottom - 0.5 && r.top < f.bottom - 0.5) cut.push(`fold over ${n.dataset.drpgNode ?? n.dataset.drpgEdit}`);
             }
         }
         const overlaps = [];
@@ -267,7 +291,7 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
         return { nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
             viewport: graph ? [graph.clientWidth, graph.clientHeight] : null, canvas: [parseFloat(canvas.style.width), parseFloat(canvas.style.height)],
             measured: canvas.dataset.drpgMeasured ?? null, slot, fit, bar: Boolean(bar), cut, overlaps };
-    }, { plantBox, staleLayout, plantBar });
+    }, { plantBox, staleLayout, plantBar, plantNarrow });
 }
 
 const server = await serve();
@@ -276,6 +300,7 @@ const styles = JSON.parse(fs.readFileSync(path.join(REPO, "module.json"), "utf8"
 const chromeAt = args.indexOf("--chromium");
 const browser = await chromium.launch(chromeAt >= 0 ? { executablePath: args[chromeAt + 1] } : {});
 let failed = 0;
+let fieldControlled = false;
 const rows = [];
 try {
     if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
@@ -314,6 +339,16 @@ try {
                     controlled = true;
                     await load();
                 }
+                if (!fieldControlled && /investigation--map-/.test(w.id)) {
+                    // THE FIELDS' CONTROL (owner-116), on the first page with a node open: a text box planted at half the
+                    // fields' width must read
+                    const narrow = await readMap(page, { plantNarrow: true });
+                    const read = (narrow.cut ?? []).filter(c => / px wide in /.test(c)).length;
+                    console.log(`control  ${read ? "ok  " : "FAIL"} a text box planted at half its fields' width read ${read} narrow field(s) (${w.id})`);
+                    if (!read) failed++;
+                    fieldControlled = true;
+                    await load();
+                }
                 const r = await readMap(page);
                 if (/^class-trial/.test(w.id) && (r.controls ?? 0) > 0 && theme === MIN_TEXT.theme && vh <= MIN_TEXT.maxHeight && r.fit && r.fit.minText < MIN_TEXT.px)
                     (r.cut ??= []).push(`fit text ${r.fit.minText} px under ${MIN_TEXT.px} (a trial runs, ${theme}, ${vh} px high)`);
@@ -347,6 +382,7 @@ try {
     await browser.close();
     server.close();
 }
+if (!fieldControlled && rows.some(r => r.open?.length)) { console.log("control  FAIL the fields' control never ran on a page with a node open"); failed++; }
 if (SHOTS) fs.writeFileSync(path.join(SHOTS, "sweep-rows.json"), JSON.stringify(rows, null, 1));
 console.log(`case-map-sweep: ${rows.length} page(s), ${failed} failing`);
 process.exitCode = failed ? 1 : 0;
