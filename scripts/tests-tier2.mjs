@@ -50128,11 +50128,27 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 }
                 row.__move = which(said.join(" | "));
             }
+            /* THE COLUMNS OF THE A10 AND A11 ROADS (E40, 16.11.2026, the line claude/e40-117; the coordinator's brief): a
+               Frisk's person gate (frisk.mjs `personActionRefusal`, the victim asking of the killer, both alone in one room,
+               `aloneTogether` below), a passage's show and its search on the live world (passages-gm.mjs `sharePassage`,
+               `resolvePassageSearch`, for a character that does not exist, so nothing is written: each asks the phase
+               first), and allowed-now.mjs's roads for each. */
+            row.__cols = {
+                frisk: Fr.personActionRefusal(victim, killer),
+                share: (await Pg.sharePassage({ actorId: "S40T3NOBODY00000", targetId: "S40T3NOBODY00001", passageId: "S40T3NONE" }))?.refused ?? null,
+                find: (await Pg.resolvePassageSearch({ actorId: "S40T3NOBODY00000", total: 0 }, quietFind))?.refused ?? null,
+                rule: { person: A.allowedNow(victim, null, { road: "person" }).why, share: A.allowedNow(victim, null, { road: "passageShare" }).why,
+                    find: A.allowedNow(victim, null, { road: "passageFind" }).why }
+            };
             await settle();
             return row;
         };
-        const matrix = {}, reachable = {}, moveRow = {};
+        const matrix = {}, reachable = {}, moveRow = {}, cols = {};
+        const Fr = await import("./frisk.mjs"), Pg = await import("./passages-gm.mjs");
+        const quietFind = { whisper: () => null, toast: () => null, note: () => null, hunted: () => null };
+        let stood = null;
         try {
+            stood = await aloneTogether(killer, victim);
             matrix.daily = await read();
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
             matrix.eclipse = await read();
@@ -50170,9 +50186,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
         }
+        await stood?.back();
+        await settle();
         equal(stableJson(reachable), stableJson({ startInFight: "DRPG.Eclipse.incidentFirst", openInEclipse: null, stageAfter: null }),
             "a fight and an Eclipse can stand together after all - the matrix must read that state too (an Eclipse started in a fight, a fight opened in an Eclipse, the fight's stage after)");
-        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; }
+        for (const [state, row] of Object.entries(matrix)) { moveRow[state] = row.__move ?? null; delete row.__move; cols[state] = row.__cols ?? null; delete row.__cols; }
+        const ECLIPSE = "an Eclipse is running", TRIAL_WAIT = "that waits until the Class Trial is over", SIDE = "the character is a side of the running incident";
+        const LOCKED = "that action is locked", NONE = "no such character", IN_TRIAL = "the Class Trial is in session";
+        const W = A.WHY;
+        equal(stableJson(cols), stableJson({
+            daily: { frisk: null, share: NONE, find: NONE, rule: { person: null, share: null, find: null } },
+            eclipse: { frisk: ECLIPSE, share: LOCKED, find: NONE, rule: { person: W.eclipse, share: W.eclipse, find: null } },
+            trial: { frisk: TRIAL_WAIT, share: LOCKED, find: IN_TRIAL, rule: { person: W.trial, share: W.trial, find: W.trial } },
+            fight: { frisk: SIDE, share: NONE, find: NONE, rule: { person: W.incident, share: null, find: null } }
+        }), "a Frisk's gate or a passage's show or search answers otherwise than before, or otherwise than its road, in some state");
         const expected = key => ({
             daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
             eclipse: key === "directMurder" ? null : "eclipse",
@@ -50329,6 +50356,91 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             eclipse: { callHope: W.eclipse, callDespair: W.eclipse, cubEclipse: W.eclipse, cubTrial: null, handover: W.eclipse, proposal: W.eclipse },
             trial: { callHope: null, callDespair: W.trial, cubEclipse: null, cubTrial: W.trial, handover: null, proposal: W.trial }
         }), "a road of the one rule answers otherwise than its gate");
+    }],
+
+    ["every mode of the trial floor is a dimension of the phase matrix (E40-T7): for each mode of MODE_RULES and for no floor, what modeAllows allows the holder, the target and a third student is what each of its readers says, and is as it was; and with a floor of each mode in the Class Trial every action's tile and press lock as in the trial", async () => {
+        /*
+         * E40 item 3, 16.11.2026 on the line claude/e40-117 (the coordinator's brief: "the trial floor's modes as a
+         * dimension (R1023's modeAllows readers)"). R1023 holds `maySpeak`, `floorRefusal` and `targetRefusal` to
+         * `modeAllows` on three modes; MODE_RULES has more since E70, E72 and the Zones. Here every mode it has, with a
+         * floor whose holder and target are two students of the world and a third beside them, and no floor: the four
+         * kinds a student is asked about (speak, present, the target of an Objection, and whether the floor takes one)
+         * read through `modeAllows` and through each reader (`maySpeak`, `presentRefusal`, `floorRefusal`,
+         * `targetRefusal` with the three as the trial's participants and a fourth as the objector), and `adjust`; the
+         * readers must agree with the table, and the table's answers are held to ff3e12e5's, read there (the floor's
+         * rule is `modeAllows` itself: the shared rule does not wrap it, as allowed-now.mjs would then import the trial
+         * floor's whole graph). Then, with a floor of each mode written to the world in the Class Trial, the sheet's
+         * tile and the press for every key of ACTIONS lock as in the trial (E40-T3's trial row): no mode opens or shuts
+         * an action.
+         */
+        needs(world.atLeast("livingStudents", 3), "a floor's holder and target, and a third student");
+        const F = await import("./trial-floor.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [h, t, o] = livingStudents();
+        const H = h.id, T = t.id, O = o.id, Q = "S40T7OBJECTOR000";
+        const floorOf = mode => mode && { active: true, mode, holderId: H, targetId: T, seconds: 300, startedAt: 1, pending: false, messageId: null };
+        const modes = [null, ...Object.keys(F.MODE_RULES)];
+        const table = {}, readers = {};
+        for (const mode of modes) {
+            const f = floorOf(mode), key = mode ?? "none";
+            table[key] = {
+                speak: [H, T, O].map(a => F.modeAllows(f, "speak", a)), present: [H, T, O].map(a => F.modeAllows(f, "present", a)),
+                object: f ? F.modeAllows(f, "object") : false, target: [H, T, O].map(x => !f || F.modeAllows(f, "target", x)),
+                adjust: f ? F.modeAllows(f, "adjust") : false
+            };
+            readers[key] = {
+                speak: [H, T, O].map(a => F.maySpeak(a, f)), present: [H, T, O].map(a => F.presentRefusal(f, a) === null),
+                object: F.floorRefusal(f) === null, target: [H, T, O].map(x => F.targetRefusal(Q, x, f, { taking: [H, T, O, Q] }) === null),
+                adjust: table[key].adjust
+            };
+        }
+        equal(stableJson(readers), stableJson(table), "a reader of the floor's table says otherwise than modeAllows in some mode");
+        /* Read at ff3e12e5, 16.11.2026: each mode's [holder, target, third] for speak, present and target, and object and
+           adjust (a Closing with nobody's record of it has no timed phase, so no adjust). */
+        const WAS = {"closing":{"adjust":false,"object":true,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"debate":{"adjust":true,"object":true,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"dive":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"none":{"adjust":false,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"objection":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,false,false],"target":[true,true,true]},"panic":{"adjust":true,"object":false,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"rebuttal":{"adjust":true,"object":true,"present":[true,true,true],"speak":[true,true,false],"target":[true,true,false]},"scrum":{"adjust":true,"object":false,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]},"straw":{"adjust":true,"object":false,"present":[true,true,true],"speak":[true,true,true],"target":[true,true,true]},"testimony":{"adjust":true,"object":true,"present":[true,false,false],"speak":[true,false,false],"target":[true,false,false]}};
+        equal(stableJson(table), stableJson(WAS), "a mode of the floor allows otherwise than it did");
+
+        /* The actions under each mode's floor in the Class Trial. */
+        const { actionButton } = await import("./sheet.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTION_GRID } = await import("./config.mjs");
+        must(!ACTION_GRID.includes("move"), "the sheet draws a Move tile again - E40-T3's note");
+        const keys = Object.keys(ACTIONS).filter(key => key !== "move");
+        const SENT = { trial: game.i18n.localize("DRPG.Trial.actionsLocked"), murderOnlyInEclipse: game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse") };
+        const which = text => Object.entries(SENT).filter(([, line]) => String(text ?? "").includes(line)).map(([k]) => k).join("+") || null;
+        const D = foundry.applications.api.DialogV2;
+        const keptD = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptN = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {});
+        const off = [];
+        try {
+            await game.drpg.setActions(h, game.drpg.actionsMax(h));
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            for (const mode of Object.keys(F.MODE_RULES)) {
+                await game.settings.set(MODULE_ID, SETTINGS.trialQueue, floorOf(mode));
+                must(F.trialFloor()?.mode === mode, `the floor of ${mode} was not read back - this would measure nothing`);
+                for (const key of keys) {
+                    const tile = which(actionButton(h, key, ACTIONS[key]).dataset.tooltip);
+                    const heard = [];
+                    for (const k of ["warn", "info", "error"]) notes[k] = message => { heard.push(String(message)); };
+                    for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+                    try { await performAction(h, key); } catch (err) { heard.push(`threw ${err?.message ?? err}`); }
+                    finally {
+                        for (const [k, d] of Object.entries(keptD)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                        for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+                    }
+                    const press = which(heard.join(" | "));
+                    const want = key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial";
+                    if (tile !== want || press !== want) off.push(`${mode}/${key}: tile ${tile}, press ${press}, as the trial ${want}`);
+                }
+            }
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await settle();
+        equal(stableJson(off), "[]", "under a floor of some mode an action locks otherwise than in the trial");
     }],
 
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {
