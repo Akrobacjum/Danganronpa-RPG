@@ -37392,6 +37392,91 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["an ask whose card is gone ends nothing when its time runs out (E40-T5): a held Call's ask, a Call's yes sent on and a Dynamic ruling sent on, each card deleted, then its asker's expiry - no GM store read or written, no card made or changed, no packet sent", async () => {
+        /*
+         * E40, 16.11.2026 on the line claude/e39-40-116; the coordinator's Q5 (b) of that day. An ORDER-AND-TIMING
+         * DEPENDENCE THAT EXISTED ON MAIN: an ask card's expiry (call-gm.mjs `endAtExpiry`, about five minutes) outlived
+         * the tier-2 test that made it, whose restore deleted the card; when the timer fired it asked `underClaim`, which
+         * read the GMs' `ruledCards`, inside whatever test ran then - in this line's dealing E60-T14's window, which counts
+         * every GM store read (measured with a probe, STATUS). A card that is gone has nothing left to end, so `endExpired`
+         * and `endSentOn` return before any store is read. Driven here by the asker's own expiry (`ruling.expired`, the
+         * road `expiredOnPrimary` takes into both), as the E18 C1 tests beside this one drive it, each packet handed to the
+         * bridge's runner with the user Foundry would name; the timer takes the same two functions. Counted while each
+         * expiry is judged: every GM store's reads and writes (`gmStoreHandles`), the chat's creates and updates, and
+         * `game.socket.emit`. A Call's yes is still taken back (bridge-guards.mjs `forgetCallYes`, this browser's memory,
+         * no store): a yes for a card nobody can see any more must not stay usable.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the asks are a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { gmStoreHandles } = await import("./gm-store.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const made = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        /* The window: what one expiry does once its card is gone. */
+        const counted = async run => {
+            const touched = [], undo = [];
+            for (const handle of gmStoreHandles()) {
+                for (const key of ["get", "has", "entries", "patch", "patchMany", "drop", "dropMany", "clear"]) {
+                    const original = handle[key];
+                    if (typeof original !== "function") continue;
+                    undo.push(() => { handle[key] = original; });
+                    handle[key] = (...args) => { touched.push(`${handle.name}.${key}`); return original(...args); };
+                }
+            }
+            const emit = game.socket.emit;
+            game.socket.emit = (...args) => { touched.push("socket"); return emit.apply(game.socket, args); };
+            undo.push(() => { game.socket.emit = emit; });
+            for (const hook of ["createChatMessage", "updateChatMessage"]) {
+                const heard = () => touched.push(hook);
+                Hooks.on(hook, heard);
+                undo.push(() => Hooks.off(hook, heard));
+            }
+            try { await run(); await settle(300); } finally { for (const put of undo.reverse()) put(); }
+            return [...new Set(touched)].sort();
+        };
+        const card = async () => {
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            const message = created.shift();
+            await message.delete();
+            await settle(200);
+            must(!game.messages.get(message.id), "the card was not deleted - this would measure nothing");
+        };
+        const read = {};
+        try {
+            const held = foundry.utils.randomID(16);
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E40-T5 held", nonce: foundry.utils.randomID(16) }, player.id, held);
+            await card();
+            read.held = await counted(() => judged("ruling.expired", { rid: held }, player.id));
+
+            const yes = foundry.utils.randomID(16);
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E40-T5 yes", nonce: foundry.utils.randomID(16) }, player.id, yes);
+            must(await until(() => created.length > 0, 5000), "the second ask put no card up - this would measure nothing");
+            must(await B.answerHopeCall(yes, player.id, true), "the GM's yes was not sent on - this would measure nothing");
+            await card();
+            read.yes = await counted(() => judged("ruling.expired", { rid: yes }, player.id));
+
+            const dynamic = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E40-T5 dynamic", actorName: theirs.name, room: null }, player.id, dynamic);
+            must(await until(() => created.length > 0, 5000), "the Dynamic ask put no card up - this would measure nothing");
+            must(await B.answerDynamic(dynamic, player.id, { tier: 2, trait: "agility" }), "the Dynamic ruling was not sent on - this would measure nothing");
+            await card();
+            read.dynamic = await counted(() => judged("ruling.expired", { rid: dynamic }, player.id));
+        } finally {
+            Hooks.off("createChatMessage", made);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: [], yes: [], dynamic: [] }),
+            "an expiry of an ask whose card is gone read or wrote a GM store, made or changed a card, or sent a packet");
+    }],
+
     ["an ask its player stopped waiting for ends its card once: only its asker's expiry ends it, the card says so, and a later yes is not kept (E18 C1)", async () => {
         /*
          * E18 C1, 19.10.2026; audits S10-25 and S11-13 (E18-05). Until C1 a Hope Call's card stayed open after its

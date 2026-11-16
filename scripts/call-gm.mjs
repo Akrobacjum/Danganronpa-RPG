@@ -592,7 +592,21 @@ function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, rulin
  */
 const expiryWaiting = new Set();
 
+/*
+ * A CARD THAT IS GONE ENDS NOTHING (E40, 16.11.2026 on the line claude/e39-40-116; the coordinator's Q5 (b)). A card a GM
+ * deleted - or tier 2's restore, after the test that made it - kept its expiry (`endAtExpiry`, about five minutes) and
+ * its holds, and when either came due this read the GMs' `ruledCards` (`underClaim`) for a card it could no longer end:
+ * `endAskCard` answers null for a message that is not there. Measured on main's code as an order-and-timing dependence
+ * between tier-2 tests: such a timer, fired inside E60-T14's window, was counted as the dice look's store read. So both
+ * roads to the end - this and `endSentOn` - return before any store is read or written. Tier 2 E40-T5.
+ */
+const cardGone = messageId => !game.messages.get(messageId ?? "");
+
 async function endExpired(messageId) {
+    if (cardGone(messageId)) {
+        expiryWaiting.delete(messageId);
+        return null;
+    }
     if (await underClaim(messageId)) {
         expiryWaiting.add(messageId);
         debug("An ask's card ran out while a GM is ruling on it: it ends once that GM's ruling does.");
@@ -672,6 +686,8 @@ async function rolledOnRuling(sent) {
 async function endSentOn(sent, { askerExpired = false } = {}) {
     const name = game.users.get(sent.by ?? "")?.name ?? "?";
     const fate = sent.yes ? forgetCallYes(sent.yes) : null;
+    // A yes is taken back above whether its card is there or not (this browser's memory); the rest reads stores (`cardGone`).
+    if (cardGone(sent.messageId)) return null;
     if (fate === "taken" || (await rolledOnRuling(sent))) return endAskCard(sent.messageId, { key: sent.text, name });
     if (fate === "forgotten" || askerExpired || (!sent.ruling && !sent.fromMark)) return endExpired(sent.messageId);
     return endAskCard(sent.messageId, { key: "DRPG.Bridge.settledUnconfirmed", name });
