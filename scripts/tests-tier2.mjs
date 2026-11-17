@@ -84217,6 +84217,64 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[the rifle's refusal, the list after the room's rename, the list and the GMs' mark after the first stash was taken away]");
     }],
 
+    ["a player's Find Stash through the bridge, whose GM write equals the note that player's own pending write left, moves the GMs' mark (bridge-runs-acts.mjs `handleFindStash`, sheet-audit.mjs `noteOwnDropped`; the line claude/shim-118, 17.11.2026; the coordinator's check on a90a0dc4)", async () => {
+        /*
+         * E16-T29's window driven as a table drives it: the GM's write comes from a bridge run acting for the player,
+         * not from this GM calling `resolveStashSearch`. A bridge run writes through the GM's roads after its guards, so
+         * the road that judges a write the diff drops (`noteOwnDropped`) is reached from it with the trust the update
+         * hook already gave such a write. A connected player's character in a room with the concealed stashes of two
+         * others (`hiddenStashesHere`), outside a Class Trial; its player's own write of the found list naming the first
+         * stash, the put-back held off (a hook refusing it); then that player's Find Stash at 30, sent to the bridge's
+         * runner with the player's id and a roll this GM drew for it (`playerRollBookmark`). The GMs' search opens the
+         * first stash and writes the list the player's note already left, which the diff drops. Read: whether the
+         * packet was answered, and the list on the sheet and in the GMs' mark after the hold is taken off. Before
+         * a90a0dc4 the mark kept the GMs' old list and the put-back wrote it over the find.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packet is a connected player's, as Foundry names only those");
+        needs(world.atLeast("livingStudents", 3), "a finder and two other students whose stashes are hidden in that room");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const S = await hiddenStashesHere();
+        const { V, player, actor, owners } = S;
+        const PATH = `flags.${MODULE_ID}.${V.VAULT_FLAGS.found}`;
+        const listNow = () => foundry.utils.deepClone(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
+        const seen = new Set(game.messages.map(m => m.id));
+        let read = null, F = null;
+        try {
+            await setClock({ phase: "investigation" });
+            const veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+                doc.id === actor.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+            try {
+                const forged = await asPlayerWrite(actor, { [PATH]: [S.key(owners[0])] }, player);
+                await sheetAuditIdle();
+                must(forged?.verdict === "putBack" && stableJson(listNow()) === stableJson([S.key(owners[0])]),
+                    `the player's note was not left on the sheet with its put-back held off - this would measure nothing: ${stableJson([forged?.verdict, listNow()])}`);
+                F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 30 } });
+                const answer = await F.ask({ action: "vault.findStash", requestId: `SHIM118${foundry.utils.randomID(8)}`, actorId: actor.id,
+                    total: 30, isCritical: false, rollId: F.message.id });
+                await settle();
+                await sheetAuditIdle();
+                read = [Boolean(answer)];
+            } finally {
+                Hooks.off("preUpdateActor", veto);
+                await sheetAuditIdle();
+                await settle();
+            }
+            read.push(listNow(), foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.flags?.[V.VAULT_FLAGS.found] ?? null));
+        } finally {
+            if (F) await F.putBack();
+            await setClock({ phase });
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await S.putBack();
+            await sheetAuditIdle();
+        }
+        const mine = [S.key(owners[0])];
+        equal(stableJson(read), stableJson([true, mine, mine]),
+            "a player's Find Stash through the bridge, whose GM write equalled the player's own pending note, did not move the GMs' mark, or the put-back wrote the GMs' old list over the find [answered, the list on the sheet and in the GMs' mark]");
+    }],
+
     ["E16-T38 - a mark taken before the found list was marked reads the sheet's list, and the next compare takes it in and puts nothing back (the review's E16p2-SEC-1, E16R-01, E16P2-R1)", async () => {
         /*
          * E16 fix e1-G1, 26.10.2026. A mark holds only the marked flags its student held when it was taken, and a world's
