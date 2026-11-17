@@ -324,9 +324,23 @@ function stampOf(reason, ref, { giveBack = false, ...options } = {}) {
         ...(reason === "refund" ? { [HOPE_REFUND]: true } : {}), ...(giveBack && gm ? { [GIVE_BACK]: true } : {}) };
 }
 
+/*
+ * A GM'S OWN WRITE TOLD TO THE GMS' AUDIT BEFORE IT LEAVES (the line claude/shim-118, 17.11.2026): sheet-audit.mjs
+ * `noteOwnDropped`, which judges the leaves the diff will drop. Registered by sheet-audit.mjs at init, not imported:
+ * sheet-audit.mjs imports this file. Asked on a GM's browser only; it stands aside itself on any GM but the primary.
+ */
+let ownWriteNote = null;
+
+/** Who hears a GM's own `trustedWrite` before it leaves: sheet-audit.mjs `noteOwnDropped`, at its registration. */
+export function noteOwnWritesWith(fn) {
+    ownWriteNote = typeof fn === "function" ? fn : null;
+}
+
 /** Update a document as the module, for `reason`. */
 export async function trustedWrite(doc, changes, { reason, ref = null, ...options } = {}) {
-    return doc.update(changes, stampOf(reason, ref, options));
+    const stamped = stampOf(reason, ref, options);
+    if (game.user?.isGM) ownWriteNote?.(doc, changes, stamped);
+    return doc.update(changes, stamped);
 }
 
 /**

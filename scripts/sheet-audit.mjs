@@ -141,7 +141,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, primaryGmId, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
 import { sheetMarkStore, sheetWriteStore, rollStore } from "./gm-stores.mjs";
-import { trustedWrite, trustedCreate, trustedDelete, HOPE_REFUND, GIVE_BACK } from "./resource-guard.mjs";
+import { trustedWrite, trustedCreate, trustedDelete, HOPE_REFUND, GIVE_BACK, noteOwnWritesWith } from "./resource-guard.mjs";
 import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
 import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
 import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inventory.mjs";
@@ -3299,6 +3299,54 @@ export function onSheetWrite(kind, doc, changes, options, userId, { primary = is
 }
 
 /*
+ * A GM'S OWN WRITE THAT THE DIFF DROPS (the line claude/shim-118, 17.11.2026; the coordinator's answer on E16-T29).
+ * Foundry 14.370 diffs a write on the writer against the writer's own copy and does not send what it would not change,
+ * and no hook hears it (docs/dev/e39/CALIBRATION.md; LIVE-E30-03; the harness's D3, 5b9269ba). The GMs' mark moves only
+ * by what the hooks hear (`judgeNow`), so a GM's write of a guarded field to the value a player's own write had just
+ * left there - its put-back still on its way - moved nothing, and the put-back then wrote the GMs' old value over the
+ * GM's own. Measured on 5b9269ba by tier 2: E16-T29 (a Find Stash's find, stash-reach.mjs `resolveStashSearch`) read
+ * the stash missing from the mark, and the same window on `notInClass` (a GM's own write of true after a player's,
+ * its put-back held off; the tier-2 test that came with the GM roads' calls) read the mark's flag null. A `diff: false` does not help: 14.370's server hands such a write to the hooks
+ * as `{_id}` alone.
+ *
+ * So a write this primary GM makes itself is told here before it leaves (`trustedWrite` on a GM, through
+ * resource-guard.mjs `noteOwnWritesWith`, and the GM roads that write a student's flag bare - the survey is the
+ * commit's message), and the leaves it asks that already hold their value on this browser's copy - the ones the diff
+ * drops - are judged as this GM's write, through `onSheetWrite` as its hook would have handed them, under this GM's
+ * own id. The leaves that change are left to the hook, so no path is judged twice. What may take this road, and
+ * what may not (.claude/rules/trust-model.md, layer two): it is a call, never a hook. Nothing a player's browser
+ * or another GM's sends reaches it - a player's write is heard on the primary only by its hook, and Daggerheart's
+ * relay, which writes on this browser for a player (relay-guard.mjs; dh-relay.mjs `document.update(data.data)`
+ * after an `await`), calls `update` itself and never this, so no option and no hook could tell its write from
+ * the GM's here - which is why this is not a `preUpdateActor` hook. On a player's browser, and on a GM's that is
+ * not the primary, it does nothing (`game.user.isGM`, `isPrimaryGm`): the mark is the primary's. The audit's own
+ * put-back and a write set aside (`AUDIT_ASIDE`) write what the mark holds and are passed over, as `judgeNow`
+ * passes them. A leaf under `items`, `effects`, `_id` or `_stats` is not read here: those are judged by
+ * their own hooks. Nor is an operator (a forced deletion or replacement): the harness sends every one
+ * (lib/futil.mjs `diffChanges`), so its hook hears it, and whether 14.370 drops a deletion of a key the
+ * document no longer holds - an `unsetFlag` of a GM-only flag a player's pending write already took off -
+ * is not measured (LIVE-E39-17); headless it cannot go red, so it is not built. Before the write, not after: after
+ * it, the source holds the asked value at every leaf, sent or dropped alike. Answers the judgement's promise,
+ * or null when nothing was dropped.
+ */
+export function noteOwnDropped(actor, changes, options = {}) {
+    if (actor?.documentName !== "Actor" || actor.type !== "character" || !game.user?.isGM || !isPrimaryGm()) return null;
+    if (options?.[AUDIT_ASIDE] || options?.drpgWrite?.reason === "auditPutBack") return null;
+    const src = actor._source ?? {}, dropped = {};
+    const leaves = (value, at) => {
+        if (isPlain(value)) { for (const [key, inner] of Object.entries(value)) leaves(inner, at ? `${at}.${key}` : key); return; }
+        if (value !== null && typeof value === "object" && !Array.isArray(value)) return;
+        const path = at, root = path.split(".")[0];
+        if (["items", "effects", "_id", "_stats"].includes(root) || path.split(".").some(key => /^[-=]=/.test(key))) return;
+        const held = foundry.utils.getProperty(src, path);
+        if (held !== undefined && stableJson(held) === stableJson(value)) foundry.utils.setProperty(dropped, path, clone(value));
+    };
+    leaves(changes ?? {}, "");
+    if (!Object.keys(dropped).length) return null;
+    return onSheetWrite("updateActor", actor, dropped, options, game.user.id);
+}
+
+/*
  * WHEN THE PRIMARY LEAVES (E29 fix r1-G6, 05.10.2026; review round 1 cor m7). Only the primary judges,
  * and its queue is its browser's: the writes it had heard and not judged when it left, and those that
  * reached the next GM while that GM still counted it here, were judged by nobody, and the comparison
@@ -3320,6 +3368,7 @@ function primaryLeft(user, connected) {
 
 /** On every browser; each hook stands aside unless this is the primary GM. At `init`, so the hydration below is not missed. */
 export function registerSheetAudit() {
+    noteOwnWritesWith(noteOwnDropped);
     /* Who is a Spectator, as the GMs hold it, for the roads that give one more than a student (E92 DRPG-D1, scripts/spectator.mjs).
        Registered at init, before a user is known: on a player's browser `flagsHeldNow` finds no mark and reads the document. */
     readSpectatorsWith(flagsHeldNow);
