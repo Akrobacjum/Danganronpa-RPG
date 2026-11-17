@@ -1135,13 +1135,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const left = read();
         const tokens = ["${ids.botan}", "${ids.daichi}"].map(id => canvas.scene.tokens.find(t => t.actorId === id));
         const was = tokens.map(t => ({ x: t.x, y: t.y }));
-        await tokens[0].update(Mv.positionIn(room, tokens[0]), PLACE);
+        await tokens[0].update(Mv.positionIn(room, tokens[0]), { ...PLACE });
         await new Promise(r => setTimeout(r, 1000));
         const back = { ...read(), there: Mv.roomOfToken(tokens[0]) === room };
-        await tokens[1].update(Mv.positionIn(room, tokens[1]), PLACE);
+        await tokens[1].update(Mv.positionIn(room, tokens[1]), { ...PLACE });
         await until(() => M.murderState()?.thirdId === "${ids.daichi}");
         const next = read();
-        for (const [i, t] of tokens.entries()) await t.update(was[i], PLACE);
+        for (const [i, t] of tokens.entries()) await t.update(was[i], { ...PLACE });
         return { room, left, back, next };
     `, { timeout: 60000 });
     await settle(900);

@@ -370,7 +370,7 @@ export function buildDocumentClasses(ctx) {
             // reading that proves less. Configure Ownership saves this way, and
             // anonymity.mjs guards it after the fact.
             const options = opts(context);
-            if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) return this;
+            if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook), caller: context }))) return this;
             /* THE WRITER'S DIFF (D3, 17.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-03). On Foundry 14.370 a write
                of a value the document already held ran the `pre` hook and then nothing: not sent, no update hook on any
                client, and `update()` answered undefined; with `{ diff: false }` it was sent. Until D3 the shim sent every
@@ -423,7 +423,7 @@ export function buildDocumentClasses(ctx) {
             for (const entry of updates) {
                 const update = revive(U.expandObject(sanitize(entry)));
                 const doc = this._collections[collKey]?.get(update._id);
-                if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) continue;
+                if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook), caller: context }))) continue;
                 // The writer's diff, entry by entry (`update`'s note, D3).
                 const sent = !doc || context?.diff === false ? update : { ...U.diffChanges(doc._source, update), _id: update._id };
                 const moving = embeddedName === "Token" && Boolean(options._movement?.[update._id]);
@@ -627,20 +627,38 @@ export function buildDocumentClasses(ctx) {
          * other fourteen keys (left out, not filled with guesses); and a drag by mouse (`method: "dragging"`, where
          * `pending` may hold the rest of a route) - not read, so not modelled: a test that needs a drag in flight
          * stands it on the document's `movement` itself.
+         *
+         * THE MOVE IS WRITTEN INTO THE CALLER'S OPTIONS TOO (E58 L1, a6b25c51, 17.11.2026; reconciled with D4 on this line
+         * at the merge of 0e70bfe3). v14's `TokenDocument#_preUpdate` runs `options._movement ??= {}` (client/documents/
+         * token.mjs:1742) and, for an update that moves the token, `Object.defineProperty(options._movement, this.id,
+         * { value: move, enumerable: true })` (:2009) - on the object the caller passed, not a copy, and not configurable.
+         * So one options object handed to two moves of the same token throws "Cannot redefine property: <the token's id>"
+         * on the second: measured on the sandbox (Foundry 14.370), 152 tier-2 failures whose tests kept one `PLACE` for a
+         * token's move out and its move back. L1 modelled the throw alone, with `{}` as the value; here it is the one
+         * record, defined on the caller's object where v14's `_preUpdate` stands (before the `pre` hooks, so a move a hook
+         * then refuses has defined it too) and filled with the move once the pre steps have run, the same object
+         * `options._movement[id]` carries to the hooks. A move is a change to one of the movement fields whose value
+         * differs from the token's (L1's rule; an update naming a field where the token stands defines nothing). Whether
+         * `move()` passes its options on to the update the same way was not read (LIVE-E39-19): here it builds its own.
          */
-        async _runPreUpdate(update, options, { noHook = false } = {}) {
+        async _runPreUpdate(update, options, { noHook = false, caller = null } = {}) {
             if (!TOKEN_MOVEMENT_FIELDS.some(field => field in update)) return super._runPreUpdate(update, options, { noHook });
             const id = this.id, hooks = ctx.hooks();
             const named = new Set(Object.keys(update));
             const origin = tokenSpot(this._source, this);
+            const record = {};
+            if (caller && typeof caller === "object" && TOKEN_MOVEMENT_FIELDS.some(field => field in update && !sameValue(update[field], origin[field]))) {
+                caller._movement ??= {};
+                Object.defineProperty(caller._movement, id, { value: record, enumerable: true });
+            }
             for (const field of TOKEN_MOVEMENT_FIELDS) if (!(field in update)) update[field] = origin[field];
             const asked = options.movement?.[id] ?? null;
             options.movement = { ...(options.movement ?? {}), [id]: { ...(asked ?? {}), waypoints: asked?.waypoints ?? [pickSpot(update)], method: asked?.method ?? "api" } };
             if (await this._preUpdate?.(update, options, ctx.gameRef().user) === false) return false;
             if (!noHook && hooks.call("preMoveToken", this, tokenMove(this, origin, update, options), options) === false) return false;
             if (!noHook && hooks.call("preUpdateToken", this, update, options, ctx.userId()) === false) return false;
-            // What the pre steps left is the move: its end is the update's, whatever a hook changed.
-            const record = tokenMove(this, origin, update, options);
+            // What the pre steps left is the move: its end is the update's, whatever a hook changed. Filled into the object the caller's options hold.
+            Object.assign(record, tokenMove(this, origin, update, options));
             // The regions before: the token's own `_regions` where it holds them (every seeded token, cluster.mjs), else read here.
             const held = this._source._regions;
             const prior = Array.isArray(held) ? [...held].sort() : this.regionIdsAt(origin), after = this.regionIdsAt(tokenSpot(update, this));

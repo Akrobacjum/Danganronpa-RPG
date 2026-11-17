@@ -610,7 +610,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         const g = globalThis.drpg83e35 = { at: {}, stowed: [], traits: {}, actions: {}, items: {}, region: null, stashes: undefined, dead: false };
         const at = tok(aiko);
         // Daichi too since E14 part 1 C1: a body is looted only from its room (inventory.mjs \`transferRefusal\`, mode "loot").
-        for (const a of [botan, chie, daichi]) { const t = tok(a); if (!t || !at) continue; g.at[a.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, PLACE); }
+        for (const a of [botan, chie, daichi]) { const t = tok(a); if (!t || !at) continue; g.at[a.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, { ...PLACE }); }
         await new Promise(r => setTimeout(r, 300));
         const room = M.locateActor(aiko)?.room ?? null;
         for (const a of [aiko, botan, chie, daichi]) {
@@ -827,7 +827,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             for (const [actorId, n] of Object.entries(g.actions)) { const a = game.actors.get(actorId); if (game.drpg.actionsLeft(a) !== n) await game.drpg.setActions(a, n); }
             const region = g.region ? scene.regions.get(g.region) : null;
             if (region) await region.update({ ["flags.${MOD}." + V.VAULT_FLAGS.stashes]: g.stashes === undefined ? foundry.data.operators.ForcedDeletion.create() : g.stashes });
-            for (const [actorId, xy] of Object.entries(g.at)) await scene.tokens.find(t => t.actorId === actorId)?.update(xy, PLACE);
+            for (const [actorId, xy] of Object.entries(g.at)) await scene.tokens.find(t => t.actorId === actorId)?.update(xy, { ...PLACE });
             await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle();
             delete globalThis.drpg83e35;
             return { items: Object.fromEntries(Object.entries(g.items).map(([id, had]) => [id, game.actors.get(id).items.size === had.length])),

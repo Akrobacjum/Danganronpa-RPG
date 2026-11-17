@@ -315,6 +315,31 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
     };
 
     /*
+     * A TEST PAST ITS LIMIT STOPS THE RUN (R7562, R7563; E58 L1, 17.11.2026, the coordinator's decision of that day).
+     * `runOne` gives up on a test still running at its limit and marks it `timedOut`; the test goes on running behind it,
+     * so no later test runs - it would be measured on top of the one still going - and no later tier. The windows open
+     * on this browser at that moment go in the report under the test, title and buttons, since a test that never ends
+     * is most often waiting on one (tier 2 on the sandbox: Daggerheart's roll window, nobody to press Roll). Another
+     * browser's windows cannot be read from here: the live runner (audit/live) reads each page's itself.
+     */
+    let stoppedAt = null;
+    const openWindows = () => [...foundry.applications.instances.values()]
+        .filter(a => a.rendered && a.element?.querySelector?.(".window-header"))
+        .map(a => {
+            const title = a.title || a.element.querySelector(".window-title")?.textContent?.trim() || a.constructor.name;
+            const buttons = [...a.element.querySelectorAll("button")].map(b => b.textContent.trim()).filter(Boolean).slice(0, 8);
+            return `${title}${buttons.length ? ` [${buttons.join(", ")}]` : ""}`;
+        });
+    const stopsHere = r => {
+        if (!r?.timedOut) return false;
+        stoppedAt = r.name;
+        const open = openWindows();
+        lines.push(`        windows open on this browser when it stopped: ${open.length ? open.join("; ") : "none"}`,
+            "        the run stops here: no later test or tier ran");
+        return true;
+    };
+
+    /*
      * AN `only` THAT RAN NOTHING IS NOT A GREEN RUN (E30 review, 25.09.2026). A name
      * that matched no test in the tiers asked for printed "1 passed, 0 failed" - the
      * purity line alone - and so did `runTests({ only: "legacy trace" })` once the
@@ -368,17 +393,21 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
         if (first) lines.push("TIER 0 - module-wide regression (source is read, not called)");
         for (const entry of first ? pick(REGRESSIONS) : []) {
             running = entry[0];
-            record(await runOne(entry, { tier: 0, ledger }));
+            const r = await runOne(entry, { tier: 0, ledger });
+            record(r);
             running = null;
+            if (stopsHere(r)) break;
         }
 
-        if (tier >= 1 && first) {
+        if (tier >= 1 && first && !stoppedAt) {
             lines.push("");
             lines.push("TIER 1 - invariants (the world is not touched)");
             for (const entry of pick(INVARIANTS)) {
                 running = entry[0];
-                record(await runOne(entry, { tier: 1, ledger }));
+                const r = await runOne(entry, { tier: 1, ledger });
+                record(r);
                 running = null;
+                if (stopsHere(r)) break;
             }
         }
 
@@ -425,7 +454,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
             tier = 1;
         }
 
-        if (tier >= 2) {
+        if (tier >= 2 && !stoppedAt) {
             lines.push("");
             lines.push("TIER 2 - scenarios (fixtures built and put back)");
             /* What the world is made of, in one line, before anything is built in it
@@ -505,8 +534,10 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                 shard.ran = mine.map(([name]) => name);
                 for (const entry of mine) {
                     running = entry[0];
-                    record(await runOne(entry, { tier: 2, ledger }));
+                    const r = await runOne(entry, { tier: 2, ledger });
+                    record(r);
                     running = null;
+                    const stop = stopsHere(r);
                     // After EVERY scenario, not once at the end: a scenario that
                     // fails half way leaves an incident open, and the next one
                     // would then be testing the wreckage of the last.
@@ -530,6 +561,9 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                             ].join("\n") });
                         left.forEach(d => reported.add(d.path));
                     }
+                    // Its restore was still tried above, once: the world put back as far as it can be with the test
+                    // still waiting behind it.
+                    if (stop) break;
                 }
                 await settle();
                 const late = dumpDiff(asFound, await worldDump()).filter(d => !reported.has(d.path));

@@ -868,12 +868,12 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         const t = canvas.scene.tokens.get("TOKAIKO000000000"), aiko = game.actors.get("${IDS.aiko}");
         const PLACE = { drpgRevert: true, teleport: true, movementAction: "displace", animate: false };
         const centre = M.positionIn("Storage", t), hallAt = M.positionIn("Hall", t);
-        await t.update(hallAt, PLACE);
+        await t.update(hallAt, { ...PLACE });
         await new Promise(r => setTimeout(r, 1000));
         const hall = M.roomOfToken(t);
         const flag = aiko.setFlag("${MOD}", "monokuma", true);
         ${LANDED}
-        await t.update({ x: centre.x + 50, y: centre.y }, PLACE);
+        await t.update({ x: centre.x + 50, y: centre.y }, { ...PLACE });
         await flag;
         const atReturn = M.roomOfToken(t);
         return { hall, hallAt: { x: hallAt.x, y: hallAt.y }, room: landedRoom(), atReturn };`, { timeout: 30000 });

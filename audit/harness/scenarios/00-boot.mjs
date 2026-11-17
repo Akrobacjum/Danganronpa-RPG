@@ -224,6 +224,24 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         [d4Back.gm, d4Back.p2].every(side => J(side.at) === J([300, 300]) && heard(side)?.teleport === true
             && steps(heard(side)?.moved).at(-1)?.action === "displace"),
         J(d4Back));
+    /* THE MOVE IN THE CALLER'S OPTIONS (E58 L1, a6b25c51; reconciled with D4 at the merge of 0e70bfe3; lib/shim.mjs
+       `TokenDocument#_runPreUpdate`): on Foundry 14.370 `_preUpdate` defines the move on the options object the caller
+       passed, not configurable, so a second move of the same token with that object throws "Cannot redefine property:
+       <id>" (152 tier-2 failures on the sandbox). Here, as the GM: a move with an options object `o`; the same `o` for a
+       second move; then a move back with fresh options. Read: what each answered or threw, and whether `o._movement[id]`
+       is the move's own record (its passed waypoints) and not configurable. */
+    const d11 = await gm.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}"), o = {}, out = {};
+        out.first = await t.update({ x: 400 }, o).then(r => r ? "moved" : String(r), e => "threw: " + e.message);
+        const held = Object.getOwnPropertyDescriptor(o._movement ?? {}, t.id);
+        out.record = held ? { configurable: held.configurable, enumerable: held.enumerable, steps: held.value?.passed?.waypoints?.length ?? null } : null;
+        out.second = await t.update({ x: 500 }, o).then(r => r ? "moved" : String(r), e => "threw: " + e.message);
+        out.fresh = await t.update({ x: 300 }, {}).then(r => r ? "moved" : String(r), e => "threw: " + e.message);
+        out.at = [t.x, t.y];
+        return out;`);
+    await settle(300);
+    check("D11: a token's move defines its record on the caller's own options, not configurable, so a second move with the same object throws \"Cannot redefine property\" and a fresh object moves it, as on v14 14.370",
+        d11.first === "moved" && d11.record?.configurable === false && d11.record?.enumerable === true && d11.record?.steps > 0
+        && d11.second === `threw: Cannot redefine property: ${d4Made.token}` && d11.fresh === "moved" && J(d11.at) === J([300, 300]), J(d11));
     for (const c of [gm, p1, p2]) await c.eval(`for (const [name, id] of globalThis.__d4ids ?? []) Hooks.off(name, id); delete globalThis.__d4ids; return true;`);
     await gm.eval(`await game.scenes.get("${IDS.scene}").deleteEmbeddedDocuments("Token", ["${d4Made.token}"]);
         await game.actors.get("${d4Made.actor}")?.delete(); return true;`);
