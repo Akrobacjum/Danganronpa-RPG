@@ -7839,6 +7839,36 @@ const INVARIANTS = [
         equal(JSON.stringify(cases.map(([what, points]) => [what, path(points)])), JSON.stringify(cases.map(([what, , want]) => [what, want])),
             "a route's waypoints are not read room by room, each room once where the route went on from another with its newest spot");
     }],
+
+    ["R7742 - a wall passage that names no floor takes its scene's floor where the scene has exactly one, and is refused where it has several (scripts/passages-gm.mjs `passageRowFor`; the line claude/shim-118, 17.11.2026; the coordinator's answer after D5)", async () => {
+        /*
+         * On Foundry 14.370 every scene holds a floor - `defaultLevel0000` where it was given none (docs/dev/e39/CALIBRATION.md
+         * section 3) - so the rule "name one of the scene's floors" refused a passage with no floor named on every v14 scene,
+         * the GM console's `game.drpg.passages.create` among them (scenario 76 A on the D5 shim). R554's scene of one floor,
+         * and the same with a second.
+         */
+        const P = await import("./passages-gm.mjs");
+        const room = (name, y) => ({ id: name, name, behaviors: [], getFlag: () => true, shapes: [{ x: 0, y, width: 600, height: 100 }] });
+        const rooms = [room("R7742 Kitchen", 300), room("R7742 Pantry", 400)];
+        const one = { id: "R7742ONE", grid: { size: 100 }, levels: [{ id: "R7742L1", elevation: { bottom: 0, top: 20 } }], regions: rooms };
+        const two = { ...one, id: "R7742TWO", levels: [...one.levels, { id: "R7742L2", elevation: { bottom: 20, top: 40 } }] };
+        const wall = { id: "R7742WALL", c: [100, 400, 500, 400] };
+        const read = scene => { const r = P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400, x2: 300, y2: 400 } }); return r.refused ?? r.row?.level ?? null; };
+        equal(JSON.stringify([read(one), read(two)]), JSON.stringify(["R7742L1", "name one of the scene's floors."]),
+            "[no floor named on a scene of one floor, on a scene of two] - the one floor not taken, or the two not refused");
+    }],
+
+    ["R7743 - a tunnel's end that names no floor takes its scene's floor where the scene has exactly one, and is refused where it has several (scripts/passages-gm.mjs `tunnelEndAt`; the line claude/shim-118, 17.11.2026)", async () => {
+        /* The same rule for a tunnel's or the stairs' end (R7742's note). R594's rooms on a scene of one floor, and of two. */
+        const P = await import("./passages-gm.mjs");
+        const region = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }], levels: new Set() });
+        const one = { id: "R7743ONE", grid: { size: 100 }, levels: [{ id: "R7743L1", elevation: { bottom: 0, top: 20 } }],
+            regions: [region("R7743RK", "R7743 Kitchen", 1200, 800, 800, 300)], walls: Object.assign([], { get: () => undefined }) };
+        const two = { ...one, id: "R7743TWO", levels: [...one.levels, { id: "R7743L2", elevation: { bottom: 20, top: 40 } }] };
+        const read = scene => { const r = P.tunnelEndAt(scene, { x: 1300, y: 900 }, null); return r.refused ?? [r.level, r.room]; };
+        equal(JSON.stringify([read(one), read(two)]), JSON.stringify([["R7743L1", "R7743 Kitchen"], "floor"]),
+            "[no floor named on a scene of one floor, on a scene of two] - the one floor not taken, or the two not refused");
+    }],
     ["R193 - a death is the table's only once it is published", async () => {
         /*
          * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the
@@ -17776,10 +17806,13 @@ const INVARIANTS = [
         equal(J([P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 402, x2: 300, y2: 400 }, level }).refused ?? null,
             P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400, x2: 200, y2: 400 }, level }).refused ?? null,
             P.passageRowFor(scene, wall, { level }).row?.passageSeg, P.passageRowFor(scene, { id: "R554GONE" }, { level }).refused ?? null,
-            P.passageRowFor(scene, wall).refused ?? null]),
+            P.passageRowFor(scene, wall).row?.level ?? null]),
+        /* No floor named on this scene of one floor takes that floor since the line claude/shim-118 (17.11.2026; passages-gm.mjs
+           `floorNamed`, R7742): on Foundry 14.370 every scene holds one, so refusing it refused every passage with no floor
+           named. It read "name one of the scene's floors." until then; a scene of several still refuses (R7742, R594). */
         J(["the stretch is not on that wall.", "the stretch needs two different ends.", { x1: 100, y1: 400, x2: 500, y2: 400 }, "no such wall on that scene.",
-            "name one of the scene's floors."]),
-        "a stretch 2 px off its wall, one of no length, no stretch (the whole wall), no wall, and no floor on a scene that has one");
+            "R554LEVEL"]),
+        "a stretch 2 px off its wall, one of no length, no stretch (the whole wall), no wall, and no floor named on a scene of one floor (taken)");
 
         let t = 7_000_000;
         const engineFor = self => G.createGmStoreEngine({
@@ -21886,7 +21919,7 @@ const INVARIANTS = [
             await create([end(1700, 1000, L1), end(2400, 700, L2)], { rooms: ["R594 Hall", "R594 Attic"] }), await create([end(1700, 1000, L1), end(2400, 700, L2)], { shape: "pit" })];
         equal(J([refusedRows, named, madeNot, ofSite().length - before]),
             J([["an end stands on the square of another passage's end.", "both ends are in one room.", "an end is in no room on its floor.",
-                "name one of the scene's floors for each end (none on a scene with no floors).", "a tunnel needs two ends, [{ x, y, level }, { x, y, level }]."],
+                "name one of the scene's floors for each end.", "a tunnel needs two ends, [{ x, y, level }, { x, y, level }]."],
                 "the ends stand in R594 Kitchen and R594 Attic, not the rooms named.", [null, null, null, null], 0]),
             "[the console's words for an end on another's, one room, no room, no floor, one end; rooms named that are not the ends'; four creates refused; rows written]");
 

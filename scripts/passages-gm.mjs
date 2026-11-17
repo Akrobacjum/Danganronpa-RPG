@@ -1333,10 +1333,23 @@ function studentOf(actorId) {
 }
 
 /**
+ * THE FLOOR A NEW PASSAGE NAMES (the line claude/shim-118, 17.11.2026; the coordinator's answer after D5): `level` where it is
+ * one, else the scene's one floor where `floors` (`floorsOf`) holds exactly one, else null - which a scene with floors refuses
+ * (`passageRowFor`, `tunnelEndAt`). On Foundry 14.370 every scene holds a floor, `defaultLevel0000` where it was given none
+ * (docs/dev/e39/CALIBRATION.md section 3), so "name one of the scene's floors" refused a passage with no floor named on every
+ * v14 scene - the GM console's `game.drpg.passages.create` among them (scenario 76 A on the D5 shim); a scene of several still
+ * asks which. Tier 1 R7742, R7743.
+ */
+function floorNamed(floors, level) {
+    if (typeof level === "string" && level) return level;
+    return floors.length === 1 ? (floors[0]?.id ?? null) : null;
+}
+
+/**
  * A new passage's row, `{ row }`, or `{ refused }` with the reason: `seg` a stretch of the wall
  * (the whole wall when none is given) whose ends are within 1 px of it, on a wall that is no door
  * and blocks movement, `level` the id of one of the scene's floors where it has any and null where
- * it has none, the wall on that floor, and the stretch what the pick would make of two clicks on
+ * it has none - the scene's one floor where it has exactly one and none is named (`floorNamed`) - the wall on that floor, and the stretch what the pick would make of two clicks on
  * its ends (`stretchOnMap`): between two rooms of that floor, the same two at both ends, at least
  * `PICK_SHORTEST` long, and on no stretch of `taken` (the scene's other passages, `takenOn`).
  * `rooms` are the map's two, sorted; a caller that names rooms names those or is refused.
@@ -1359,7 +1372,7 @@ export function passageRowFor(scene, wall, { seg = null, rooms = [], level = nul
     if (!xy.every(Number.isFinite) || (xy[0] === xy[2] && xy[1] === xy[3])) return { refused: "the stretch needs two different ends." };
     if (!onWall(xy[0], xy[1], c) || !onWall(xy[2], xy[3], c)) return { refused: "the stretch is not on that wall." };
     const floors = floorsOf(scene);
-    const floor = typeof level === "string" && level ? level : null;
+    const floor = floorNamed(floors, level);
     if (floors.length ? !floors.some(f => f.id === floor) : floor !== null) {
         return { refused: floors.length ? "name one of the scene's floors." : "that scene has no floors." };
     }
@@ -2662,7 +2675,7 @@ function takenOn(sceneId, except, stores) {
  * Where one end of a tunnel or stairs lands for a click at `point` on `level` (E80 C1): the middle of the
  * grid square clicked, `{ x, y, level, room }` with the room it stands in on that floor (the first by name
  * where rooms overlap, as movement.mjs `passageRooms` names it), or `{ refused }` - "floor" for a floor the
- * scene has not (none on a scene with no floors), "offRoom" for a square in no room of that floor,
+ * scene has not, or none named on a scene of several (`floorNamed`), "offRoom" for a square in no room of that floor,
  * "endTaken" for a square another passage's end holds on that floor (`taken`, `[{ x, y, level }]`). The
  * middle of a square because the token that comes through stands on one; a room is read where a stretch's
  * sides are (`pickRooms`). Pure but for `scene`.
@@ -2671,7 +2684,7 @@ export function tunnelEndAt(scene, point, level = null, { taken = [] } = {}) {
     const cell = Number(scene?.grid?.size) || 100;
     const px = Number(point?.x), py = Number(point?.y);
     const floors = floorsOf(scene);
-    const floor = typeof level === "string" && level ? level : null;
+    const floor = floorNamed(floors, level);
     if (floors.length ? !floors.some(f => f.id === floor) : floor !== null) return { refused: "floor" };
     if (!Number.isFinite(px) || !Number.isFinite(py)) return { refused: "offRoom" };
     const x = (Math.floor(px / cell) + 0.5) * cell, y = (Math.floor(py / cell) + 0.5) * cell;
@@ -2683,7 +2696,7 @@ export function tunnelEndAt(scene, point, level = null, { taken = [] } = {}) {
 
 /* The console's words for a tunnel's codes (`tunnelRowFor`): English, as every refusal here is. */
 const TUNNEL_REFUSALS = Object.freeze({
-    floor: "name one of the scene's floors for each end (none on a scene with no floors).",
+    floor: "name one of the scene's floors for each end.",
     offRoom: "an end is in no room on its floor.",
     endTaken: "an end stands on the square of another passage's end.",
     oneRoom: "both ends are in one room.",
