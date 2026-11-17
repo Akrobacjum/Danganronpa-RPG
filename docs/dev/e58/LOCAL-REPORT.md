@@ -95,14 +95,17 @@ commit once `npm test` and the chunks no longer read the files. Of the other fai
 **The `npm test` that was to judge the stand-in did not.** It booted the module from a scratch worktree through
 `DRPG_REPO`, and against another tree the harness counts every expected-red and known-leak check as a plain one
 (cluster.mjs:52-57): 21-masked-killer red there, green in this tree with the strict stand-in (its Foundry-limit check
-expected red). That run (4 suite failures, 7 scenarios red) says nothing about the change; `npm test` in this tree, the
-stand-in strict and the kit unfixed, is running.
+expected red). So that run's 7 red scenarios are not a reading of the change until each is checked in this tree, and its 4
+suite failures are plain failures that rule does not explain ("a Reroll of a successful erase removes the trace again", "a
+changed old store is reported, and taking it never overwrites what changed since the upgrade", E42-T9, E60-T20; the
+sandbox's browser was running beside it). `npm test` in this tree, the stand-in strict and the kit unfixed, is running: a
+result other than the two Meddle tests failing is the stand-in's or the load's, and will be said which.
 
 **The stand-in.** The owner wrote "zgoda na dh-dice" in this session on 17.11.2026, about 02:40 local time (between this
 line's readings at 02:36 and 02:44). Under it the glue window reads `this.config.costs.length` as Daggerheart does
 (d20RollDialog.mjs :127-132); with it both Meddle tests fail headless as on the sandbox ("the window did not write the
 Meddle's +1 ..."; "the window draws no bonus input" - the shim's render keeps the throw to itself, so the message differs)
-and pass with the kit's fix. `npm test` against both is running; neither is committed yet.
+and pass with the kit's fix (both by name, through the suite's runner). Neither is committed yet.
 
 ## Questions for the coordinator and the owner (16.11.2026; each with the default this line takes)
 
