@@ -71,6 +71,11 @@ async function snapshot(cast) {
         stored: clientStored(),
         clock: foundry.utils.deepClone(getClock()),
         despair: monokumas().map(user => ({ id: user.id, value: getDespair(user.id) })),
+        /* DAGGERHEART'S FEAR (E58 L1, 17.11.2026): a GM's resource the runner's dump watches (world:daggerheart.ResourcesFear),
+           raised by a Fear result on any drawn roll - at a table the dice are real, so a test that passes can leave it moved
+           (the sandbox: "the trait the GM picked: another one is flagged", 0 -> 2). Null where Daggerheart has no such
+           setting; `restore` writes it back only when it moved. */
+        fear: (() => { try { return game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear); } catch { return null; } })(),
         overflow: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
         // The other half of the incident (LIVE-001) and the Blackened register are
@@ -333,6 +338,11 @@ async function restore(snap) {
         if (getDespair(row.id) !== row.value) await setDespair(row.id, row.value);
     }
     await game.settings.set(MODULE_ID, SETTINGS.overflow, snap.overflow);
+    // Daggerheart's Fear as `snapshot` found it (its note says why), written only when it moved.
+    if (snap.fear !== null && snap.fear !== undefined) {
+        const key = CONFIG.DH.SETTINGS.gameSettings.Resources.Fear;
+        if (game.settings.get(CONFIG.DH.id, key) !== snap.fear) await game.settings.set(CONFIG.DH.id, key, snap.fear);
+    }
     await game.settings.set(MODULE_ID, SETTINGS.murderState, snap.murder);
     await game.settings.set(MODULE_ID, SETTINGS.motive, snap.motive);
     await game.settings.set(MODULE_ID, SETTINGS.pendingGather, snap.gather);
@@ -103069,6 +103079,35 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             mapped: ["trial.testimony", "trial.objection", "trial.rebuttal", "trial.scrumSides", "trial.scrumConfer", "trial.scrumSpeak", "trial.discussion"],
             primary: [true, true]
         }), "{unmapped: [Testimony, a Rebuttal]; mapped: [Testimony, the Objection's minute, its Rebuttal, Scrum's Sides, Camps confer, turns, no floor]; primary: [this GM the primary, the engine's gate]}");
+    }],
+
+    ["tier 2's restore puts Daggerheart's Fear back as it found it", async () => {
+        /*
+         * E58 L1, 17.11.2026. Tier 2 on the sandbox (Foundry 14.370, Daggerheart 2.12.9), one test per call: "the trait the
+         * GM picked: another one is flagged" passed and the runner said "could not restore the world after" it -
+         * "world:daggerheart.ResourcesFear 0 -> 2". At a table its draws are real dice, and a Fear result raises the GM's
+         * Fear; `snapshot` kept the module's settings and Despair pools but not Daggerheart's Fear, which the runner's dump
+         * watches, so `restore` could not give it back. Here the runner's own two, as the runner calls them: `snapshot`,
+         * Fear raised by one, `restore`. Read: Fear before, after the raise, after `restore`.
+         */
+        const { studentActors } = await import("./monokuma.mjs");
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const key = gameSettings.Resources.Fear;
+        const before = game.settings.get(CONFIG.DH.id, key);
+        const snap = await snapshot(studentActors());
+        let raised = null, after = null;
+        try {
+            await game.settings.set(CONFIG.DH.id, key, before + 1);
+            raised = game.settings.get(CONFIG.DH.id, key);
+            await restore(snap);
+            await settle();
+            after = game.settings.get(CONFIG.DH.id, key);
+        } finally {
+            if (game.settings.get(CONFIG.DH.id, key) !== before) await game.settings.set(CONFIG.DH.id, key, before);
+        }
+        must(raised === before + 1, `Fear could not be raised from ${before} - this would measure nothing`);
+        equal(stableJson([before, raised, after]), stableJson([before, before + 1, before]),
+            "tier 2's restore did not put Daggerheart's Fear back (before, raised, after restore)");
     }],
 ];
 
