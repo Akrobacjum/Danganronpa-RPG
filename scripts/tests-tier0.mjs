@@ -13,7 +13,7 @@ import { atReadableFloor } from "./tests-css.mjs";
 import {
     ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
-    markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
+    markerProblem, runOne, scriptDice, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
@@ -6061,6 +6061,69 @@ const REGRESSIONS = [
         const tier2 = /const stop = stopsHere\(r\);[\s\S]*?if \(stop\) break;/.test(suite);
         equal(JSON.stringify([calls, named, stops, guards, tier2]), JSON.stringify([3, 3, 3, [true, true], true]),
             "runSuite runs a test that is not followed by the stop, or starts a tier after a stop (runOne calls, of the named form, stops, the tier 1 and 2 guards, tier 2's break)");
+    }],
+
+    ["R7564 - the kit's dice script names a roll's faces for one evaluation and leaves the dice real behind it", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision that day ("Na czas jednego testu zestaw testowy ustawia kości także na
+         * prawdziwym Foundry") and the coordinator's safeguards. `scriptDice` on a stand-in class whose `buildEvaluate` draws
+         * two faces from `CONFIG.Dice.randomUniform` as v14 maps them, the randomiser itself held at 0.999 (a 1 on every die)
+         * for the length of this test, so every face read is known. Read: the faces with `__forceRoll` { hope: 7, fear: 3 }; the
+         * faces of a roll the GM plays back (`drpgDrawn`), which reads no script; whether the randomiser is the stub again
+         * after an evaluation that throws; whether the class's own `buildEvaluate` and the randomiser are back once the
+         * script is taken off; and whether a class the harness already scripts (`scriptsDice`) is left unwrapped.
+         */
+        const D = CONFIG.Dice, real = D.randomUniform, stub = () => 0.999;
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const face = (u, faces) => Math.ceil((1 - u) * faces);
+        const roll = { dice: [{ faces: 12 }, { faces: 12 }] };
+        class Stand { static async buildEvaluate(r, config = {}) { return r.dice.map(d => face(D.randomUniform(), d.faces)); } }
+        class Thrower { static async buildEvaluate() { D.randomUniform(); throw new Error("planted"); } }
+        const harnessOwn = Object.assign(async () => null, { scriptsDice: "harness" });
+        class Harness { static buildEvaluate = harnessOwn; }
+        const own = Stand.buildEvaluate;
+        const read = {};
+        D.randomUniform = stub;
+        try {
+            globalThis.__forceRoll = { hope: 7, fear: 3 };
+            const off = scriptDice(Stand);
+            read.named = await Stand.buildEvaluate(roll, {});
+            read.drawn = await Stand.buildEvaluate(roll, { drpgDrawn: true });
+            const offThrower = scriptDice(Thrower);
+            try { await Thrower.buildEvaluate(roll, {}); } catch { /* planted */ }
+            read.afterThrow = D.randomUniform === stub;
+            offThrower();
+            off();
+            read.putBack = [Stand.buildEvaluate === own, D.randomUniform === stub];
+            const offHarness = scriptDice(Harness);
+            read.harnessLeft = Harness.buildEvaluate === harnessOwn;
+            offHarness();
+        } finally {
+            D.randomUniform = real;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+        }
+        equal(JSON.stringify(read), JSON.stringify({ named: [7, 3], drawn: [1, 1], afterThrow: true, putBack: [true, true], harnessLeft: true }),
+            "the kit's dice script did not name the faces, scripted a played-back roll, left the randomiser after a throw, stayed on after it was taken off, or wrapped the harness's own");
+    }],
+
+    ["R7565 - tier 2 runs each test inside the dice script, takes it off whatever the test did, and reads the dice real at the end", async () => {
+        /*
+         * E58 L1, 17.11.2026 (R7564's note; the coordinator's safeguards: "always removed in a finally, also when the test
+         * throws or times out", "at the end of every run, the runner checks that the dice are real again"). Read off tests.mjs
+         * `runSuite`, cut with the kit: tier 2's test is run between `scriptDice()` and a `finally` that calls what it answered
+         * and puts `__forceRoll` back; and a record "the dice are real again after tier 2" compares Daggerheart's
+         * `buildEvaluate`, Foundry's randomiser and `__forceRoll` with what they were before the first test.
+         */
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const suite = fnSource(src, "runSuite");
+        const wrapped = /const unscript = scriptDice\(\);[\s\S]{0,300}?try \{\s*r = await runOne\(entry, \{ tier: 2, ledger \}\);\s*\} finally \{\s*unscript\(\);/.test(suite);
+        const putBack = /finally \{\s*unscript\(\);\s*if \(hadForce\) globalThis\.__forceRoll = force;\s*else delete globalThis\.__forceRoll;/.test(suite);
+        const atEnd = /name: "the dice are real again after tier 2"/.test(suite)
+            && /buildEvaluate \?\? null\) !== realDice\.evaluate/.test(suite) && /randomUniform !== realDice\.uniform/.test(suite)
+            && /__forceRoll !== realDice\.force/.test(suite);
+        equal(JSON.stringify([wrapped, putBack, atEnd]), JSON.stringify([true, true, true]),
+            "tier 2 runs a test outside the dice script, does not take it off in a finally, or does not read the dice real at the end (wrapped, put back, read at the end)");
     }],
 
     ["R155 - every expectedRed names a stage that has not shipped", async () => {

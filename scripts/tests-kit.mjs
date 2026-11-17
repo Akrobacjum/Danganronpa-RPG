@@ -330,6 +330,45 @@ function untilProblem(rule, ledger) {
  * call, the slowest without a press 157.4 s ("a Frisk's rolls ride a Palm's one payment (A11-4) ..."), and the same
  * first test 246.3 s with the kit pressing its windows. Fifteen minutes is 3.7 times the slowest.
  */
+/*
+ * THE DICE A TEST NAMES, AT A TABLE TOO (E58 L1, 17.11.2026; the owner's decision that day: "Na czas jednego testu zestaw
+ * testowy ustawia kości także na prawdziwym Foundry" - for the length of one test the suite sets the dice on a real
+ * Foundry as well; the coordinator's safeguards of the same day). A test names its faces in `globalThis.__forceRoll`
+ * (`{ hope, fear, advantage }`); only the harness read it (client-entry.mjs `harnessEvaluate`), so at a table the dice
+ * were real and every such test measured them: on the sandbox (Foundry 14.370, Daggerheart 2.12.9) at least 21 of tier
+ * 2's failures. `scriptDice(target)` wraps `target.buildEvaluate` (Daggerheart's `DualityRoll`) so that one evaluation
+ * draws `CONFIG.Dice.randomUniform` from those faces, in the order the dice ask, then the randomiser again - as the
+ * harness does; v14 maps a draw u to a face as `minValue - 1 + ceil((1 - u) * faces)` (client/dice/terms/dice.mjs
+ * `mapRandomFace`), and `1 - (face - 0.5) / faces` is the draw that gives `face`. A roll the GM plays back from its own
+ * faces (`config.drpgDrawn`) reads no script, as in the harness. Answers the function that takes the wrapper off; where
+ * the harness's own seam stands (`scriptsDice === "harness"`) nothing is wrapped. The safeguards: the script is this
+ * page's memory alone, the world holds nothing of it, and a reload clears it; the runner takes it off in a `finally`
+ * around every test, timed out or thrown (tests.mjs `runSuite`), and reads the dice real again at the end of the run.
+ */
+function scriptDice(target = globalThis.game?.system?.api?.dice?.DualityRoll) {
+    if (!target || typeof target.buildEvaluate !== "function" || target.buildEvaluate.scriptsDice) return () => {};
+    const own = target.buildEvaluate, hadOwn = Object.hasOwn(target, "buildEvaluate");
+    const kit = async function buildEvaluate(roll, config = {}, message = {}) {
+        const forced = config?.drpgDrawn ? null : globalThis.__forceRoll;
+        const D = globalThis.CONFIG.Dice, real = D.randomUniform;
+        const script = forced ? [forced.hope, forced.fear, forced.advantage]
+            .map((face, i) => typeof face === "number" ? 1 - (face - 0.5) / (roll?.dice?.[i]?.faces ?? 12) : null) : null;
+        if (script) D.randomUniform = () => script.shift() ?? real();
+        try {
+            return await own.call(this, roll, config, message);
+        } finally {
+            if (script) D.randomUniform = real;
+        }
+    };
+    kit.scriptsDice = "kit";
+    target.buildEvaluate = kit;
+    return () => {
+        if (target.buildEvaluate !== kit) return;
+        if (hadOwn) target.buildEvaluate = own;
+        else delete target.buildEvaluate;
+    };
+}
+
 const TEST_LIMIT_MS = 15 * 60 * 1000;
 async function runOne([name, fn, red = null], { tier, ledger = null, limitMs = TEST_LIMIT_MS } = {}) {
     const ctx = { name, tier, assertions: 0, failures: [], probes: [], wrote: null };
@@ -2983,7 +3022,7 @@ export {
     dhSettingsMarkup, dhSettingsStandIn, dhTraitsStandIn,
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
-    runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
+    runOne, scriptDice, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,

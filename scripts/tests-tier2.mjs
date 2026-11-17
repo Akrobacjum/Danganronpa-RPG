@@ -103150,6 +103150,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson([before, raised, after]), stableJson([before, before + 1, before]),
             "tier 2's restore did not put Daggerheart's Fear back (before, raised, after restore)");
     }],
+
+    ["a test's named dice are the roll's on this browser, at a table too", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision that day ("Na czas jednego testu zestaw testowy ustawia kości także na
+         * prawdziwym Foundry"). A roll of a student thrown on this GM through the module's `rollTrait` (`neutralRoll`, no
+         * window) with `__forceRoll` { hope: 7, fear: 3 }: headless the harness's seam scripts it; at a table the runner's
+         * (tests-kit.mjs `scriptDice`), for this test's length. Until that seam, at a table the dice were real. Read: the
+         * Hope and Fear dice of the message's roll.
+         */
+        const [who] = cast(1);
+        let message = null;
+        try {
+            ({ message } = await neutralRoll(who, { faces: { hope: 7, fear: 3 } }));
+            const roll = message?.rolls?.[0] ?? null;
+            must(roll, "the roll wrote no message - this would measure nothing");
+            const hope = roll.dHope?.total ?? roll.dice?.[0]?.total ?? null, fear = roll.dFear?.total ?? roll.dice?.[1]?.total ?? null;
+            equal(stableJson([hope, fear]), stableJson([7, 3]), "the roll's Hope and Fear dice are not the faces the test named");
+        } finally {
+            await message?.delete();
+            await settle();
+        }
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
