@@ -26007,6 +26007,73 @@ const REGRESSIONS = [
         const through = [...move.matchAll(/\bputBackWrite\(/g)].length + [...runs.matchAll(/\bprepared\.putBackWrite\(/g)].length;
         equal(through, 4, "the put-backs through putBackWrite are not sendBack's, refundLastCrossing's and the bridge's send-back (with the helper's own name, four)");
     }],
+    ["R7744 - every bare write of a student's guarded flag tells the GMs' audit first (resource-guard.mjs `noteOwnWrite`), or names why it cannot be dropped (the line claude/shim-118, 17.11.2026; the coordinator's choice A on E16-T29)", async () => {
+        /*
+         * THE CENSUS OF THE DROPPED WRITE. A GM's write of a guarded field to a value its own copy already holds is not sent
+         * on 14.370 and no hook hears it, so the GMs' mark moves only if the write was told to sheet-audit.mjs
+         * `noteOwnDropped` before it left (tier 2: E16-T29, and "a GM's own write of a student's GM-only flag ..."). Every
+         * module road through `trustedWrite` is told there; this reads the rest. Every `setFlag` or `update` outside the
+         * suite and resource-guard.mjs whose arguments name a flag the mark holds - the names read off sheet-audit.mjs's own
+         * `GM_FLAGS`, `MARKED_FLAGS` and `LEDGER_FLAGS`, so a flag added there is held here, and vault-store.mjs's
+         * `VAULT_FLAGS.found` - or a `system.` root of the mark, must have a `noteOwnWrite(` of its own: after the write
+         * before it in the same top-level declaration, or that declaration's start. Otherwise a NOT_NOTED row names it and
+         * why its value is never the one the sheet holds. An `unsetFlag` is set aside, counted: whether 14.370 drops a
+         * deletion of a key already gone is not measured (LIVE-E39-17). Fail-closed by construction: a new bare road of a
+         * guarded flag with no note is red here. What it cannot read: a flag handed in by a name built elsewhere (a
+         * variable `flag`), as R220 cannot; a write's receiver, so a guarded flag's name on a document that is not a
+         * student counts as one. The reader runs first on a planted file.
+         */
+        const census = (src, rows) => {
+            const audit = stripComments(src.get("sheet-audit.mjs") ?? "");
+            const gm = audit.match(/const GM_FLAGS = \[\.\.\.\[([^\]]*)\]/)?.[1] ?? "";
+            const lists = ["MARKED_FLAGS", "LEDGER_FLAGS"].map(name => audit.match(new RegExp(`const ${name} = \\[([^\\]]*)\\]`))?.[1] ?? "");
+            const names = [...new Set([...gm.matchAll(/"(\w+)"/g), ...lists.flatMap(text => [...text.matchAll(/FLAGS\.(\w+)/g)])].map(m => m[1]))];
+            const guarded = new RegExp(`\\b(?:FLAGS\\.(?:${names.join("|")})|VAULT_FLAGS\\.found)\\b|["'\`.]system\\.(?:traits|experiences|resources|rules|bonuses|levelData|scars)\\b`);
+            const sites = [], bare = [], deletions = [];
+            for (const [file, raw] of src) {
+                if (/^tests/.test(file) || file === "resource-guard.mjs") continue;
+                const code = stripComments(raw);
+                const tops = [...code.matchAll(/^(?:export\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));
+                let last = { top: null, at: 0 };
+                for (const m of code.matchAll(/\.\s*(setFlag|unsetFlag|update)\s*\(/g)) {
+                    let depth = 0, end = m.index + m[0].length - 1;
+                    for (; end < code.length; end++) if (code[end] === "(") depth++; else if (code[end] === ")" && --depth === 0) break;
+                    const top = tops.filter(t => t.at <= m.index).pop() ?? { at: 0, name: "(top level)" };
+                    const from = last.top === top ? last.at : top.at;
+                    last = { top, at: m.index };
+                    if (!guarded.test(code.slice(m.index + m[0].length, end))) continue;
+                    const site = `${file} ${top.name} ${m[1]}`;
+                    sites.push(site);
+                    if (m[1] === "unsetFlag") deletions.push(site);
+                    else if (!/\bnoteOwnWrite\(/.test(code.slice(from, m.index))) bare.push(site);
+                }
+            }
+            const named = new Set(rows.map(([file, fn, kind]) => `${file} ${fn} ${kind}`));
+            return { names, sites, deletions, unnoted: bare.filter(site => !named.has(site)), stale: [...named].filter(site => !bare.includes(site)) };
+        };
+        const PLANTED = new Map([["sheet-audit.mjs", 'const GM_FLAGS = [...["notInClass"].map(key => FLAGS[key]), "drpgStashesFound"];\nconst LEDGER_FLAGS = [FLAGS.freeMoveGrants];\nconst MARKED_FLAGS = [...GM_FLAGS, FLAGS.pendingCall, ...LEDGER_FLAGS];'],
+            ["planted.mjs", [
+                "export async function bare(actor) { await actor.setFlag(MODULE_ID, FLAGS.notInClass, true); }",
+                "export async function told(actor) { noteOwnWrite(actor, {}); await actor.setFlag(MODULE_ID, FLAGS.pendingCall, []); }",
+                "export async function twice(actor) { noteOwnWrite(actor, {}); await actor.setFlag(MODULE_ID, FLAGS.pendingCall, []); await actor.update({ \"system.traits.agility.value\": 2 }); }",
+                "export async function gone(actor) { await actor.unsetFlag(MODULE_ID, FLAGS.notInClass); }",
+                "export async function other(actor) { await actor.setFlag(MODULE_ID, FLAGS.cubToken, 1); /* actor.setFlag(MODULE_ID, FLAGS.notInClass, 1) */ }",
+                "export async function rowed(actor) { await actor.setFlag(MODULE_ID, FLAGS.freeMoveGrants, Date.now()); }"].join("\n")]]);
+        const planted = census(PLANTED, [["planted.mjs", "rowed", "setFlag", "planted"], ["planted.mjs", "told", "setFlag", "planted, and noted"]]);
+        equal(JSON.stringify([planted.sites.length, planted.deletions, planted.unnoted, planted.stale]),
+            JSON.stringify([6, ["planted.mjs gone unsetFlag"], ["planted.mjs bare setFlag", "planted.mjs twice update"], ["planted.mjs told setFlag"]]),
+            "the census does not read the planted file as it is - a bare write, a noted one, a second write behind one note, a deletion, a flag the mark does not hold and a comment, a row, a stale row");
+        const NOT_NOTED = [
+            ["character.mjs", "stampStartingSheet", "setFlag", "the starting sheet's stamp carries `at: Date.now()`: never the value the sheet holds"],
+            ["death.mjs", "markDeceased", "setFlag", "the death's record carries a fresh `deathId` (foundry.utils.randomID): never the value the sheet holds"],
+            ["rest.mjs", "migrateRestStamps", "setFlag", "written right after its own `unsetFlag` of the same flag, so the key is gone and the write is never dropped"]
+        ];
+        const read = census(new Map(await otherSources()), NOT_NOTED);
+        must(read.names.length >= 19 && read.sites.length >= 20,
+            `the census read ${read.names.length} guarded flag(s) and ${read.sites.length} write(s) of one - fewer than 19 and 20 on 17.11.2026, so it would measure nothing`);
+        log(`R7744: ${read.names.length} guarded flags; ${read.sites.length} bare write(s) of one, ${read.deletions.length} deletion(s) aside (LIVE-E39-17), ${NOT_NOTED.length} row(s)`);
+        equal(JSON.stringify([read.unnoted, read.stale]), "[[],[]]", "a bare write of a student's guarded flag does not tell the GMs' audit first, or a NOT_NOTED row names nothing [unnoted, stale]");
+    }],
 ];
 
 

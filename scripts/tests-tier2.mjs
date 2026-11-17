@@ -84063,6 +84063,47 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "hint: what the Analyze answered, the actions untouched, messages posted, told here, found, hunts; the passage's search: its refusal]");
     }],
 
+    ["a GM's own write of a student's GM-only flag that a player's pending write already left on the sheet moves the GMs' mark (monokuma.mjs `setNotInClass` through resource-guard.mjs `noteOwnWrite`; the line claude/shim-118, 17.11.2026; the coordinator's answer on E16-T29)", async () => {
+        /*
+         * E16-T29's window on another field. On Foundry 14.370 a write of a value the document already holds is not sent and
+         * no hook hears it (docs/dev/e39/CALIBRATION.md, LIVE-E30-03; the shim's D3), and the GMs' mark moved only by what the
+         * hooks heard (`judgeNow`), so a GM's write landing while a player's forged write of the same field waits for its
+         * put-back moved nothing, and the put-back then wrote the GMs' old value over the GM's own. A connected player's
+         * student; its player's write of `notInClass` true (a GM-only flag, put back) with the put-back held off; this GM's
+         * own road for it, `setNotInClass`, writing the same; read: the GMs' mark of the flag. Then the hold taken off and the flag put back as found.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the pending write is a connected player's, as Foundry names only those");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const { setNotInClass } = await import("./monokuma.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const actor = cast(1).find(a => ownerOf(a)?.active && !ownerOf(a)?.isGM);
+        must(actor, "no connected player's student - this would measure nothing");
+        const player = ownerOf(actor), PATH = `flags.${MODULE_ID}.${FLAGS.notInClass}`;
+        const was = actor.getFlag(MODULE_ID, FLAGS.notInClass) ?? null;
+        must(was !== true, "the student is out of the class already - this would measure nothing");
+        let mark = "unread";
+        const veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+            doc.id === actor.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+        try {
+            const forged = await asPlayerWrite(actor, { [PATH]: true }, player);
+            await sheetAuditIdle();
+            must(forged?.verdict === "putBack" && actor.getFlag(MODULE_ID, FLAGS.notInClass) === true,
+                `the player's write was not left on the sheet with its put-back held off - this would measure nothing: ${stableJson(forged?.verdict ?? null)}`);
+            await setNotInClass(actor, true);
+            await sheetAuditIdle();
+            await settle();
+            mark = foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.flags?.[FLAGS.notInClass] ?? null);
+        } finally {
+            Hooks.off("preUpdateActor", veto);
+            if (was === null) await actor.unsetFlag(MODULE_ID, FLAGS.notInClass); else await actor.setFlag(MODULE_ID, FLAGS.notInClass, was);
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(mark), "true", "a GM's own write of the value a player's pending write had left on the sheet did not move the GMs' mark (the mark's value of the flag)");
+    }],
+
     ["E16-T29 - a student's own write of the stashes it has found is put back, and the GMs' search reads the list they hold (design-notes D10)", async () => {
         /*
          * E16 part 2 C3, 26.10.2026; E16-50, beyond the plan (design-notes D10). The list of stashes a student has found

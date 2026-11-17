@@ -20,6 +20,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
+import { noteOwnWrite } from "./resource-guard.mjs";
 import { SETTINGS, isDeadForGm } from "./settings.mjs";
 // Statically imported: `poolUserFor` is synchronous and read at render time by
 // the sheet and by the voice reconciler. despair.mjs does not reach back into
@@ -185,6 +186,7 @@ export function viewerNeedsAssigning(list = ownedStudents(), assigned = game.use
 export async function setMonokuma(actor, value = true) {
     if (!game.user.isGM || !actor) return null;
 
+    noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.monokuma]: Boolean(value) } } });
     await actor.setFlag(MODULE_ID, FLAGS.monokuma, Boolean(value));
 
     if (value) {
@@ -214,6 +216,7 @@ export async function setMonokuma(actor, value = true) {
  */
 export async function setNotInClass(actor, value = true) {
     if (!game.user.isGM || !actor) return null;
+    if (value) noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.notInClass]: true } } });
     if (value) await actor.setFlag(MODULE_ID, FLAGS.notInClass, true);
     else await actor.unsetFlag(MODULE_ID, FLAGS.notInClass);
     log(`${actor.name} is ${value ? "now" : "no longer"} not in the class.`);
@@ -235,6 +238,7 @@ export async function setSpectator(actor, value = true) {
     if (!value && isSpectator(actor)) await (await import("./fog.mjs")).forgetSpectatorMap(actor);
     const { spectatorUserIds, SPECTATOR_TALK_FLAG, SPECTATOR_LISTEN_FLAG } = await import("./spectator.mjs");
     const before = spectatorUserIds();
+    if (value) noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.spectator]: true } } });
     if (value) await actor.setFlag(MODULE_ID, FLAGS.spectator, true);
     else await actor.unsetFlag(MODULE_ID, FLAGS.spectator);
     log(`${actor.name} is ${value ? "now" : "no longer"} a Spectator.`);

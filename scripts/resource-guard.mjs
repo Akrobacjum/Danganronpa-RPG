@@ -336,10 +336,20 @@ export function noteOwnWritesWith(fn) {
     ownWriteNote = typeof fn === "function" ? fn : null;
 }
 
+/**
+ * Tell the GMs' audit of a write this GM is about to make itself (sheet-audit.mjs `noteOwnDropped`): every GM road that
+ * writes a student's guarded field calls it just before the write - `trustedWrite` below, and each bare `setFlag` or
+ * `update` of such a field, which R7744 holds to it. On a player's browser it does nothing. Answers the judgement's
+ * promise, or null.
+ */
+export function noteOwnWrite(doc, changes, options = {}) {
+    return game.user?.isGM ? ownWriteNote?.(doc, changes, options) ?? null : null;
+}
+
 /** Update a document as the module, for `reason`. */
 export async function trustedWrite(doc, changes, { reason, ref = null, ...options } = {}) {
     const stamped = stampOf(reason, ref, options);
-    if (game.user?.isGM) ownWriteNote?.(doc, changes, stamped);
+    noteOwnWrite(doc, changes, stamped);
     return doc.update(changes, stamped);
 }
 

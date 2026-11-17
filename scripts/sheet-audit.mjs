@@ -3309,9 +3309,9 @@ export function onSheetWrite(kind, doc, changes, options, userId, { primary = is
  * its put-back held off; the tier-2 test that came with the GM roads' calls) read the mark's flag null. A `diff: false` does not help: 14.370's server hands such a write to the hooks
  * as `{_id}` alone.
  *
- * So a write this primary GM makes itself is told here before it leaves (`trustedWrite` on a GM, through
- * resource-guard.mjs `noteOwnWritesWith`, and the GM roads that write a student's flag bare - the survey is the
- * commit's message), and the leaves it asks that already hold their value on this browser's copy - the ones the diff
+ * So a write this primary GM makes itself is told here before it leaves (resource-guard.mjs `noteOwnWrite`, which
+ * `trustedWrite` calls on a GM and every GM road that writes a student's guarded field bare calls before its write -
+ * R7744 holds them to it; the survey is the commits' messages, a90a0dc4 and the one after), and the leaves it asks that already hold their value on this browser's copy - the ones the diff
  * drops - are judged as this GM's write, through `onSheetWrite` as its hook would have handed them, under this GM's
  * own id. The leaves that change are left to the hook, so no path is judged twice. What may take this road, and
  * what may not (.claude/rules/trust-model.md, layer two): it is a call, never a hook. Nothing a player's browser

@@ -34,6 +34,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
+import { noteOwnWrite } from "./resource-guard.mjs";
 import { log, warn, error, forcedDeletion, isPrimaryGm } from "./utils.mjs";
 import { deathStore } from "./gm-stores.mjs";
 import { isDeadForGm } from "./settings.mjs";
@@ -214,6 +215,9 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
 /** The death is the table's: the link leaves the GMs' row for the watcher's own flag (`FLAGS.watcherOf`). */
 async function linkPublicly(watcher, student) {
     if (!game.user?.isGM) return;
+    /* Before the skip as well as the write: a link a player's own write has just left on the sheet, its put-back still on
+       its way, is skipped here as the diff would drop it, and would leave the GMs' mark without it (`noteOwnWrite`). */
+    noteOwnWrite(watcher, { flags: { [MODULE_ID]: { [FLAGS.watcherOf]: student.id } } });
     if (watcher.getFlag?.(MODULE_ID, FLAGS.watcherOf) === student.id) return;
     try {
         await watcher.setFlag(MODULE_ID, FLAGS.watcherOf, student.id);

@@ -56,9 +56,9 @@
 
 import { MODULE_ID, BEDROOM_KEY_FLAG, ROOMS_PER_PLAYER } from "./config.mjs";
 import { ITEM_FLAGS, isStashed } from "./inventory.mjs";
-import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
+import { trustedWrite, trustedDelete, noteOwnWrite } from "./resource-guard.mjs";
 // Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches this file by no static import (R161).
-import { itemsHeldNow, judgedFor, flagsHeldNow, noteOwnDropped } from "./sheet-audit.mjs";
+import { itemsHeldNow, judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 // The key rule both this file and the door read (E14 part 1 C2; bedroom-keys.mjs's header).
 import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
@@ -1022,7 +1022,7 @@ async function forgetStashFound(room, ownerId, scene) {
         if (!found.length) continue;
         const kept = found.filter(key => !gone.has(String(key)));
         if (kept.length === found.length) continue;
-        noteOwnDropped(actor, { flags: { [MODULE_ID]: { [VAULT_FLAGS.found]: kept } } });
+        noteOwnWrite(actor, { flags: { [MODULE_ID]: { [VAULT_FLAGS.found]: kept } } });
         await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, kept);
     }
 }
@@ -1277,7 +1277,7 @@ export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(sc
         });
         const moved = next.filter((note, i) => note !== notes[i]).length;
         if (!moved) continue;
-        noteOwnDropped(actor, { flags: { [MODULE_ID]: { [VAULT_FLAGS.found]: next } } });
+        noteOwnWrite(actor, { flags: { [MODULE_ID]: { [VAULT_FLAGS.found]: next } } });
         await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, next);
         found += moved;
     }
