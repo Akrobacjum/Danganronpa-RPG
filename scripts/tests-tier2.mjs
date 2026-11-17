@@ -1435,6 +1435,32 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
         } };
 }
 
+
+/*
+ * A PLAYER'S PRESS OF ROLL (E58 L1, 17.11.2026; the coordinator's decision of that day). Daggerheart's roll window
+ * (`D20RollDialog.configure`, build :7359-7365 in 2.12.9) opens and resolves only when it closes - on a press of Roll -
+ * and at a table nobody presses it for a test: tier 2 on the sandbox (Foundry 14.370) hung on "a statistic clicked on a
+ * student's sheet goes through its window as a reaction", and, run one test per call with a probe pressing Roll after
+ * 30 s, twelve tests waited for the probe. The harness's glue window presses Roll itself once it is drawn
+ * (lib/dh-dice/applications/dialogs/d20RollDialog.mjs `play`), so headless none of them waited. `pressingRoll(run)` runs
+ * `run` and, while it runs, presses Roll on each of Daggerheart's roll windows drawn on this browser, once, after the
+ * renders it set off have settled - after the module's render hooks and the test's own, which were registered before.
+ * A window that plays itself (the glue's `play`) is left to it. Answers what `run` answers.
+ */
+async function pressingRoll(run) {
+    const Window = game.system.api?.dice?.DualityRoll?.DefaultDialog ?? null;
+    const seen = new Set();
+    const hook = Hooks.on("renderApplicationV2", app => {
+        if (!Window || !(app instanceof Window) || seen.has(app) || typeof app.play === "function") return;
+        seen.add(app);
+        (async () => {
+            if (typeof app.settled === "function") await app.settled();
+            await settle();
+            if (app.rendered) app.element?.querySelector('button[data-action="submitRoll"]')?.click();
+        })();
+    });
+    try { return await run(); } finally { Hooks.off("renderApplicationV2", hook); }
+}
 /**
  * A PLAYER'S ROLL, DRAWN BY THE GM (E08+E28 C12a, 04.10.2026). The suite is the GM's browser,
  * whose own rolls are not drawn, so the player's half is a packet of the shape the roller's
@@ -1480,7 +1506,7 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
         if (throughWindow) game.drpg.suiteRolling = false;
         // `thrower` (E112): a roll thrown as its own road throws it - the opening's `rollTrait` (murder-rules.mjs
         // `throwOpeningRoll`) - answering `{ message }`; the faces are the GM's here, as everywhere in this helper.
-        thrown = thrower ? await thrower() : await neutralRoll(actor, { trait, remember: throughWindow, experiences, situational });
+        thrown = await pressingRoll(() => thrower ? thrower() : neutralRoll(actor, { trait, remember: throughWindow, experiences, situational }));
     } finally {
         game.drpg.suiteRolling = rolling;
         Hooks.off(`${game.system.id}.postDualityRollConfiguration`, hook);
@@ -10260,7 +10286,7 @@ const SCENARIOS = [
         });
         try {
             globalThis.__forceRoll = { hope: 9, fear: 4 };
-            result = await who.rollTrait("instinct", {});
+            result = await pressingRoll(() => who.rollTrait("instinct", {}));
         } finally {
             Hooks.off("renderApplicationV2", hook);
             if (hadForce) globalThis.__forceRoll = force;
@@ -10297,7 +10323,7 @@ const SCENARIOS = [
             must(C.pendingCalls(who).length === 0, `${who.name} has a Confusion armed`);
             must(await C.armCall(who, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
             globalThis.__forceRoll = { hope: 9, fear: 4, advantage: 3 };
-            result = await who.rollTrait("instinct", {});
+            result = await pressingRoll(() => who.rollTrait("instinct", {}));
             await settle();
             const die = result?.evaluated?.dAdvantage;
             const thrown = result?.evaluated ? { type: result.roll?.advantage?.type ?? result.roll?.advantage, dice: die?.denomination, value: die?.total }
@@ -23970,7 +23996,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await shut;
                 return thrown.call(actor, dh, config);
             };
-            const pending = rollTrait(actor, "body", { remember: false, actionKey: "project", title: game.i18n.localize("DRPG.Roll.project") });
+            const pending = pressingRoll(() => rollTrait(actor, "body", { remember: false, actionKey: "project", title: game.i18n.localize("DRPG.Roll.project") }));
             must(await until(() => held), "the project's roll never reached its window");
             sheet = (await thrown.call(actor, "agility", {}))?.message ?? null;
             letGo();
@@ -52942,7 +52968,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         delete globalThis.__forceRoll;
         let result = null, card = null;
         try {
-            result = await who.rollTrait("instinct", { dialog: { configure: false }, actionType: "reaction" });
+            result = await pressingRoll(() => who.rollTrait("instinct", { dialog: { configure: false }, actionType: "reaction" }));
             card = result?.message?.rolls?.[0] ?? null;
         } finally {
             for (const [name, fn] of listeners) Hooks.off(name, fn);
@@ -74491,7 +74517,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             game.drpg.suiteRolling = false;
             globalThis.__forceRoll = { hope: 9, fear: 4 };
             for (const [name, trait, options, extend] of throws) {
-                const outcome = await rolls.rollTrait(actor, trait, options);
+                const outcome = await pressingRoll(() => rolls.rollTrait(actor, trait, options));
                 outcomes.push(outcome);
                 if (extend) await rolls.noteRollContext(actor, extend);
                 const hand = rolls.rollInHand(actor);
@@ -74552,7 +74578,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             globalThis.__forceRoll = { hope: 9, fear: 4 };
             for (const [key, options] of throws) {
                 seen = { done: false, read: "no window" };
-                outcomes.push(await rolls.rollTrait(actor, "body", options));
+                outcomes.push(await pressingRoll(() => rolls.rollTrait(actor, "body", options)));
                 read[key] = seen.read;
             }
         } finally {
