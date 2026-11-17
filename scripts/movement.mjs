@@ -1426,7 +1426,7 @@ export async function refundLastCrossing(actorId) {
             const to = { x: Number(row.back.x), y: Number(row.back.y), elevation: Number(row.back.elevation) || 0 };
             if (row.back.level !== null && row.back.level !== undefined) to.level = row.back.level;
             try {
-                await token.update(to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });
+                await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });
                 back = true;
             } catch (err) {
                 error(`Could not stand "${token.name}" where it was before the crossing given back`, err);
@@ -3479,6 +3479,22 @@ export async function announceCrossingOnGm(actor, from, to, tokenDoc, cost) {
 }
 
 /**
+ * A PUT-BACK WRITES THE WHOLE SPOT (the line claude/shim-118, 17.11.2026; the coordinator's answer of that day on scenario
+ * 76 D). Foundry's client is taken to diff an update against its own copy before it sends it - an update that changes
+ * nothing is not sent, and 14.370 sent one only when asked with `{ diff: false }` (docs/dev/e39/CALIBRATION.md,
+ * LIVE-E30-03); where v14 diffs was not read (LIVE-E39-12). A put-back written while a newer move of the token is still on
+ * its way reads the old spot in the writer's copy: the coordinate the copy already holds is dropped, the other is written
+ * after the move lands, and the token stands where it never stood - 76 D read Botan at 1250,450, the put-back's x with the
+ * move's y, on the D4 shim, two runs in three. So every put-back of a token's spot - `sendBack`, `refundLastCrossing` and the
+ * bridge's send-back (bridge-runs-records.mjs `handleSendback`) - writes through here, with `diff: false`, every coordinate
+ * it names sent whatever the copy holds. The options are the caller's otherwise. Tier 2 "a put-back writes every coordinate
+ * it names"; tier 0 R7741 holds the three to this road.
+ */
+export function putBackWrite(tokenDoc, to, options = {}) {
+    return tokenDoc.update(to, { ...options, diff: false });
+}
+
+/**
  * Put a token back where it came from.
  *
  * Called from inside the `updateToken` hook, so the write is deferred a tick -
@@ -3510,7 +3526,7 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null,
             // elevation and level, the owner's 13.10).
             const to = previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y };
             if (elevation && Number.isFinite(Number(previous.elevation))) to.elevation = Number(previous.elevation);
-            await tokenDoc.update(to,
+            await putBackWrite(tokenDoc, to,
                 { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } }
             );
             wrote = true;

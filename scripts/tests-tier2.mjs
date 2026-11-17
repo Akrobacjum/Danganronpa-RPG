@@ -27062,6 +27062,34 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Enter in the verdict window presses a verdict (the first submit button, the buttons marked default, the answer)");
     }],
 
+    ["a put-back writes every coordinate it names, whatever the writer's copy of the token holds (movement.mjs `putBackWrite`; the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
+        /*
+         * 76 D, on the D4 shim (two runs in three): the GM's put-back of Botan to 1250,400, written while p2's move to 1200,450
+         * was still on its way, left him at 1250,450 - the GM's copy held y 400 already, so the writer's diff dropped y and the
+         * move's y stood. Here the race is staged on this GM: a scratch token at 300,400, this browser's copy of it told it
+         * stands at y 300 (the target's y, as a copy that has not heard the move would), and a put-back to 300,300. Read: the
+         * changes `updateToken` hands for that write name y - what every other browser applies. Red before `putBackWrite` sent
+         * diff: false: the shim drops what the writer's copy already holds (lib/shim.mjs `TOKEN MOVEMENT`).
+         */
+        const M = await import("./movement.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back", x: 300, y: 400, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let seen = null;
+        const hook = Hooks.on("updateToken", (doc, changes) => { if (doc.id === token.id) seen = Object.keys(changes).filter(k => k !== "_id").sort(); });
+        try {
+            token._source.y = 300;
+            await M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            await wait(300);
+            equal(JSON.stringify(seen?.includes("y") ?? null), "true",
+                `a put-back to 300,300, written by a copy that held y 300 already, did not send y (the changes updateToken handed: ${JSON.stringify(seen)})`);
+        } finally {
+            Hooks.off("updateToken", hook);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+    }],
+
     ["E40-T8 - two accused, each on their own: the verdict window ticks both, holds the wrong verdict off with none ticked, and a wrong verdict executes exactly the ticked - both, the first, the other; none gives no verdict (scripts/verdict.mjs `accusedChoices`, `executedChoice`, `read`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
         /*
          * Drawn on this GM over a record whose count accused two living students who are not known Blackened (tier 1 R7601,

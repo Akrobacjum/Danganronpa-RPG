@@ -8719,13 +8719,14 @@ const REGRESSIONS = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
-            ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
             // E92 C6: the player's own User document, its "Spectator talk" switch.
             ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
-            ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
+            // The line claude/shim-118 (17.11.2026): every put-back of a token's spot writes here - `sendBack`'s, `refundLastCrossing`'s
+            // and the bridge's send-back (`handleSendback`), whose own rows these were - with diff: false (R7741; scenario 76 D).
+            ["movement.mjs", "putBackWrite", "tokenDoc", "a token put back where it stood: a refused move, a crossing given back, a send-back out of a locked room"],
             ["murder-rules.mjs", "undoLastCrisis", "remnantById().document", "the trace token the crisis action left (its ref's token since E60 C1b)"],
             ["murder-rules.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
             // E41 C9a (1.2.97): the music's engine moved to music-play.mjs, the Sound window to sound-panel.mjs.
@@ -25987,6 +25988,24 @@ const REGRESSIONS = [
         const rule = bodyOf(place, "for (const [userId, row] of byUser) {\n        if (", { length: 160 });
         ok(/spectatorTalks\(/.test(rule), `the Spectators' room rule was not found where it stood: ${rule}`);
         ok(/\beclipse\b/.test(rule), `the Spectators' room rule does not ask the Eclipse: ${rule}`);
+    }],
+
+    ["R7741 - every put-back of a token's spot writes through movement.mjs `putBackWrite`, which sends it with diff: false (the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
+        /* TEXT GUARD: a put-back written while a newer move is in flight lost a coordinate to the writer's diff (76 D on the
+           D4 shim); `putBackWrite` sends every coordinate it names, and tier 2 "a put-back writes every coordinate it names"
+           drives it. Read here: the helper sends `diff: false` after the caller's options, and no module write that marks
+           itself a put-back (`REVERT`) through a token's own `update` is left in movement.mjs or bridge-runs-records.mjs - the
+           gather's displacement in call-world.mjs, which moves the cast rather than putting one token back, is not one. */
+        const src = new Map(await otherSources());
+        const move = stripComments(src.get("movement.mjs") ?? ""), runs = stripComments(src.get("bridge-runs-records.mjs") ?? "");
+        must(move.length > 1000 && runs.length > 1000, "movement.mjs or bridge-runs-records.mjs read as nothing - this would measure nothing");
+        const helper = fnSource(move, "putBackWrite");
+        ok(/tokenDoc\.update\(to,\s*\{\s*\.\.\.options,\s*diff:\s*false\s*\}\)/.test(helper), `putBackWrite does not send the caller's options with diff: false after them: ${helper}`);
+        const direct = [["movement.mjs", move], ["bridge-runs-records.mjs", runs]].flatMap(([file, text]) =>
+            [...text.matchAll(/\b\w+\.update\([^;]*REVERT\]:\s*true[^;]*\)/g)].map(m => `${file}: ${m[0].slice(0, 90)}`));
+        equal(JSON.stringify(direct), "[]", "a put-back writes through a token's own update, not putBackWrite");
+        const through = [...move.matchAll(/\bputBackWrite\(/g)].length + [...runs.matchAll(/\bprepared\.putBackWrite\(/g)].length;
+        equal(through, 4, "the put-backs through putBackWrite are not sendBack's, refundLastCrossing's and the bridge's send-back (with the helper's own name, four)");
     }],
 ];
 

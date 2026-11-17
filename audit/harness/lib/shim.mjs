@@ -618,6 +618,7 @@ export function buildDocumentClasses(ctx) {
         async _runPreUpdate(update, options, { noHook = false } = {}) {
             if (!TOKEN_MOVEMENT_FIELDS.some(field => field in update)) return super._runPreUpdate(update, options, { noHook });
             const id = this.id, hooks = ctx.hooks();
+            const named = new Set(Object.keys(update));
             const origin = tokenSpot(this._source, this);
             for (const field of TOKEN_MOVEMENT_FIELDS) if (!(field in update)) update[field] = origin[field];
             const asked = options.movement?.[id] ?? null;
@@ -635,7 +636,14 @@ export function buildDocumentClasses(ctx) {
             options._movement = { ...(options._movement ?? {}), [id]: record };
             options._priorRegions = { ...(options._priorRegions ?? {}), [id]: prior };
             if (options.teleport === undefined || options.teleport === null) options.teleport = record.passed.waypoints.every(w => w.action === "displace");
-            for (const field of TOKEN_MOVEMENT_FIELDS) if (sameValue(update[field], origin[field])) delete update[field];
+            /* What is unchanged is not sent, but with `diff: false` a field the caller named is: Foundry 14.370 sent a token update
+               that changed nothing when it was asked with `{ diff: false }` (CALIBRATION.md, LIVE-E30-03). Where v14 diffs - on
+               the writer's client against its own copy, or on the server - was not read (LIVE-E39-12); the shim diffs on the
+               writer's client, so a put-back written while a newer move is in flight drops an x or a y its copy already holds
+               (scenario 76 D, movement.mjs `putBackWrite`). The movement fields only this hook filled in are dropped either way. */
+            for (const field of TOKEN_MOVEMENT_FIELDS) {
+                if (sameValue(update[field], origin[field]) && !(options.diff === false && named.has(field))) delete update[field];
+            }
             if (prior.join() !== after.join()) update._regions = after;
             // Sent even when it changes nothing: v14 sent an update naming a movement field where the token stood (LIVE-E30-03).
             return true;
