@@ -84331,7 +84331,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await settle();
                 must(unseen(spot), `the token stood on ${spot.x},${spot.y} a minute ago - it would be honoured as a send-back`);
                 const sent = told.length, said = made.length;
-                await token.update(spot, revert ? { ...asPlayer, [M.REVERT]: true } : asPlayer);
+                await token.update(spot, revert ? { ...asPlayer, [M.REVERT]: true } : { ...asPlayer });
                 await settle();
                 await until(() => token.x === start.x && token.y === start.y, 1200);
                 await settle();
@@ -84974,7 +84974,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const spot = i => ({ x: 400 * i + 100, y: (y += 7) });
             const go = async (to, { revert = false } = {}) => {
                 const sent = told.length, before = { x: token.x, y: token.y };
-                await token.update(to, revert ? { ...asPlayer, [M.REVERT]: true } : asPlayer);
+                await token.update(to, revert ? { ...asPlayer, [M.REVERT]: true } : { ...asPlayer });
                 await settle();
                 await until(() => token.x !== to.x || token.y !== to.y || M.standingOf(token)?.lawful !== false, 1200);
                 await settle();
