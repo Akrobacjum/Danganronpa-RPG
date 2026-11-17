@@ -318,13 +318,17 @@ function untilProblem(rule, ledger) {
  * The running-test slot is saved and put back, so the kit's self-tests can run a
  * test inside a test.
  */
+/* `ms`, the test's own time in whole milliseconds, from its start to its end or its throw (R7561; E58 L1, 17.11.2026):
+   added beside the fields the readers already take, which none of them changes. */
 async function runOne([name, fn, red = null], { tier, ledger = null } = {}) {
     const ctx = { name, tier, assertions: 0, failures: [], probes: [], wrote: null };
     const outer = current;
     current = ctx;
     let err = null;
+    const started = performance.now();
     try { await fn(); } catch (e) { err = e; } finally { current = outer; }
-    return { tier, name, assertions: ctx.assertions, ...judge(ctx, err, red, ledger) };
+    const ms = Math.round(performance.now() - started);
+    return { tier, name, assertions: ctx.assertions, ms, ...judge(ctx, err, red, ledger) };
 }
 
 /* THE ORDER MATTERS. A stale or malformed marker fails whatever the test did; a

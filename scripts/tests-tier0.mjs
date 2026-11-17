@@ -6008,6 +6008,23 @@ const REGRESSIONS = [
         equal([...outcomes].sort().join(" "), "fail pass red skip", "the self-tests do not reach all four outcomes");
     }],
 
+    ["R7561 - every result `runOne` gives carries the time its test took, in whole milliseconds", async () => {
+        /*
+         * E58 L1, 17.11.2026 (the coordinator's order: the time of each test first, then a limit taken from the slowest).
+         * Tier 2 on the sandbox (Foundry 14.370) was read one `runTests({ only })` per test to learn each test's time,
+         * because no result said it; a limit on a test needs that number from every run, headless and at a table. Two
+         * of the kit's own shapes run through the same `runOne` the suite uses: one that waits 40 ms and passes, one that
+         * waits 40 ms and fails. Read: each result's `ms`, a whole number of at least 40 and under 5000, and the outcome
+         * unchanged by it.
+         */
+        const pause = ms => new Promise(r => setTimeout(r, ms));
+        const passing = await runOne(["R7561 fixture: waits and passes", async () => { await pause(40); equal(2 + 2, 4, "two and two"); }], { tier: 0 });
+        const failing = await runOne(["R7561 fixture: waits and fails", async () => { await pause(40); ok(false, "planted"); }], { tier: 0 });
+        const read = r => [r.outcome, Number.isInteger(r.ms) && r.ms >= 40 && r.ms < 5000];
+        equal(JSON.stringify([read(passing), read(failing)]), JSON.stringify([["pass", true], ["fail", true]]),
+            `a result carries no time, a time out of 40-5000 ms, or another outcome (outcome, ms in range; the passing fixture's ms ${passing.ms}, the failing one's ${failing.ms})`);
+    }],
+
     ["R155 - every expectedRed names a stage that has not shipped", async () => {
         /*
          * E30, 24.09.2026; audit S17-03. `[name, fn, expectedRed("E07", why)]` is a
