@@ -320,14 +320,30 @@ function untilProblem(rule, ledger) {
  */
 /* `ms`, the test's own time in whole milliseconds, from its start to its end or its throw (R7561; E58 L1, 17.11.2026):
    added beside the fields the readers already take, which none of them changes. */
-async function runOne([name, fn, red = null], { tier, ledger = null } = {}) {
+/*
+ * ONE LIMIT PER TEST (R7562; E58 L1, 17.11.2026, the coordinator's decision of that day). Tier 2 on the sandbox (Foundry
+ * 14.370) hung three hours on one test waiting on a roll window nobody pressed, and nothing said which. A test still
+ * running at `limitMs` comes back failed, "timed out", with `timedOut: true`, and the runner stops the run there
+ * (tests.mjs `runSuite`): the test is still running behind it, and a next test would be measured on top of it. The limit
+ * is the slowest test measured with a wide margin: headless (17.11.2026, the suite in two shards, 3325 results with
+ * `ms`) the slowest 84.1 s, "every legal modifier the GM lists is scored without an alarm"; on the sandbox, one test per
+ * call, the slowest without a press 157.4 s ("a Frisk's rolls ride a Palm's one payment (A11-4) ..."), and the same
+ * first test 246.3 s with the kit pressing its windows. Fifteen minutes is 3.7 times the slowest.
+ */
+const TEST_LIMIT_MS = 15 * 60 * 1000;
+async function runOne([name, fn, red = null], { tier, ledger = null, limitMs = TEST_LIMIT_MS } = {}) {
     const ctx = { name, tier, assertions: 0, failures: [], probes: [], wrote: null };
     const outer = current;
     current = ctx;
-    let err = null;
+    let err = null, timer = null, timedOut = false;
     const started = performance.now();
-    try { await fn(); } catch (e) { err = e; } finally { current = outer; }
+    const limit = new Promise(resolve => { timer = setTimeout(() => { timedOut = true; resolve(); }, limitMs); });
+    try { await Promise.race([Promise.resolve().then(fn), limit]); } catch (e) { err = e; } finally { clearTimeout(timer); current = outer; }
     const ms = Math.round(performance.now() - started);
+    if (timedOut) {
+        return { tier, name, assertions: ctx.assertions, ms, outcome: "fail", timedOut: true,
+            message: `timed out: still running after ${Math.round(limitMs / 1000)} s, the limit on one test; the run stops here` };
+    }
     return { tier, name, assertions: ctx.assertions, ms, ...judge(ctx, err, red, ledger) };
 }
 

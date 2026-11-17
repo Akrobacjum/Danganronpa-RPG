@@ -6026,6 +6026,43 @@ const REGRESSIONS = [
             `a result carries no time, a time out of 30-5000 ms, or another outcome (outcome, ms in range; the passing fixture's ms ${passing.ms}, the failing one's ${failing.ms})`);
     }],
 
+    ["R7562 - a test that runs past its limit comes back failed as timed out, and says so", async () => {
+        /*
+         * E58 L1, 17.11.2026; the coordinator's decision of that day: one limit per test in `runOne`; on expiry the test
+         * fails as "timed out", the runner lists every open window on its page, and the run stops. Tier 2 on the sandbox
+         * hung for three hours on one test waiting on a window nobody pressed, and the runner said nothing until it was
+         * killed. One of the kit's own shapes that never ends, run through `runOne` with a limit of 300 ms, guarded here by
+         * 5 s of the test's own so that a runner without a limit fails this test instead of holding the suite. Read: whether
+         * `runOne` came back within the guard, its outcome, `timedOut`, and whether its message says "timed out".
+         */
+        const never = ["R7562 fixture: never ends", () => new Promise(() => {})];
+        const guard = new Promise(resolve => setTimeout(() => resolve(null), 5000));
+        const r = await Promise.race([runOne(never, { tier: 0, limitMs: 300 }), guard]);
+        equal(JSON.stringify([r !== null, r?.outcome ?? null, r?.timedOut ?? null, /timed out/.test(r?.message ?? "")]),
+            JSON.stringify([true, "fail", true, true]),
+            `a test past its limit did not come back within 5 s, or came back other than failed as timed out (returned, outcome, timedOut, says so): ${r?.message ?? "no result"}`);
+    }],
+
+    ["R7563 - the runner stops after a test past its limit: each tier's loop asks, and no later tier starts", async () => {
+        /*
+         * E58 L1, 17.11.2026; the coordinator's decision of that day (R7562's note). A test past its limit is still running
+         * behind the runner, so no test may run after it. Read off tests.mjs `runSuite`, cut with the kit: every test it
+         * runs is run as `const r = await runOne(entry, { tier: N, ledger })` and none any other way, each of the three is
+         * followed in its loop by the stop (`stopsHere(r)`; tier 2's breaks after its restore), and tiers 1 and 2 start
+         * only when nothing stopped. Read: how many `runOne` calls, how many of the named form, how many stops, the two
+         * guards, tier 2's break.
+         */
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const suite = fnSource(src, "runSuite");
+        const calls = (suite.match(/\brunOne\(/g) ?? []).length;
+        const named = (suite.match(/const r = await runOne\(entry, \{ tier: [012], ledger \}\);/g) ?? []).length;
+        const stops = (suite.match(/\bstopsHere\(r\)/g) ?? []).length;
+        const guards = [/if \(tier >= 1 && first && !stoppedAt\)/.test(suite), /if \(tier >= 2 && !stoppedAt\)/.test(suite)];
+        const tier2 = /const stop = stopsHere\(r\);[\s\S]*?if \(stop\) break;/.test(suite);
+        equal(JSON.stringify([calls, named, stops, guards, tier2]), JSON.stringify([3, 3, 3, [true, true], true]),
+            "runSuite runs a test that is not followed by the stop, or starts a tier after a stop (runOne calls, of the named form, stops, the tier 1 and 2 guards, tier 2's break)");
+    }],
+
     ["R155 - every expectedRed names a stage that has not shipped", async () => {
         /*
          * E30, 24.09.2026; audit S17-03. `[name, fn, expectedRed("E07", why)]` is a
