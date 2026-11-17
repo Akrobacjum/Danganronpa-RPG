@@ -124,8 +124,12 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
         context.selectedMessageMode = this.config.selectedMessageMode ?? game.settings.get('core', 'messageMode');   // :72
         context.hasSelectedEffects = Boolean(this.selectedEffects && Object.keys(this.selectedEffects).length);   // :79
         context.selectedEffects = this.selectedEffects;
-        // :82-104 not run (the header): the costs as the config holds them, so the cost rows' markup has its inputs.
-        context.costs = this.config.costs ?? [];
+        // :82 read as 2.12.8 and 2.12.9 read it, `this.config.costs.length`, so a config with no `costs` throws here as it
+        // throws at a table (measured on the sandbox, 17.11.2026, Daggerheart 2.12.9: "Cannot read properties of undefined
+        // (reading 'length')" in 23 tier-2 tests). Until then `costs ?? []` here, under which seven tests passed headless
+        // that fail with this reading (the owner's "zgoda na dh-dice", 17.11.2026). :83-104 not run (the header): the
+        // costs as the config holds them, so the cost rows' markup has its inputs.
+        if (this.config.costs.length) context.costs = this.config.costs;
         if (this.roll) {
             context.roll = this.roll;
             context.rollType = this.roll?.constructor.name;
