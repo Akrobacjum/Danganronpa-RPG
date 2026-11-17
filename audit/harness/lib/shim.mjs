@@ -1581,6 +1581,8 @@ export function buildApplications(ctx) {
     const autoAnswered = new Map();
     class DialogV2 extends ApplicationV2 {
         static DEFAULT_OPTIONS = { classes: ["dialog"], tag: "dialog", window: { minimizable: false }, position: { width: 400 }, form: { closeOnSubmit: true } };
+        /* This DialogV2 reads `__dialogAnswers` itself, so the suite's kit leaves it unwrapped (tests-kit.mjs `answerDialogs`). */
+        static answersQueue = "harness";
         /* The instance form, as Foundry's: a form holding the content and a footer of buttons. */
         async _renderHTML() {
             const doc = globalThis.document;

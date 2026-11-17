@@ -103182,6 +103182,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
     }],
+
+    ["a test's queued dialog answer is the window's answer on this browser, at a table too", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision (b), relayed by the coordinator that day. `true` queued in
+         * `__dialogAnswers`, then a DialogV2 confirm opened on this GM: headless the harness's DialogV2 answers it from the
+         * queue; at a table the runner's (tests-kit.mjs `answerDialogs`), for this test's length. Until that seam, at a table
+         * there was no queue and the window waited for a person. Guarded by 5 s of the test's own, so a window nobody
+         * answers fails this test and does not hold the suite; any window it left open is closed after. Read: the answer.
+         */
+        const title = "E58 queued answer";
+        const guard = new Promise(resolve => setTimeout(() => resolve("no answer within 5 s"), 5000));
+        let answer = null;
+        try {
+            must(Array.isArray(globalThis.__dialogAnswers), "this page holds no __dialogAnswers to queue in - the answer cannot be named");
+            globalThis.__dialogAnswers.push(true);
+            answer = await Promise.race([foundry.applications.api.DialogV2.confirm({ window: { title }, content: "<p>E58</p>" }), guard]);
+        } finally {
+            for (const app of [...foundry.applications.instances.values()]) if (app.title === title || app.options?.window?.title === title) await app.close().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(answer), stableJson(true), "the queued answer did not answer the window");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

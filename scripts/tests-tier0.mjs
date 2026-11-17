@@ -13,7 +13,7 @@ import { atReadableFloor } from "./tests-css.mjs";
 import {
     ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
-    markerProblem, runOne, scriptDice, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
+    markerProblem, runOne, scriptDice, answerDialogs, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
@@ -6118,13 +6118,63 @@ const REGRESSIONS = [
          */
         const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
         const suite = fnSource(src, "runSuite");
-        const wrapped = /const unscript = scriptDice\(\);[\s\S]{0,300}?try \{\s*r = await runOne\(entry, \{ tier: 2, ledger \}\);\s*\} finally \{\s*unscript\(\);/.test(suite);
-        const putBack = /finally \{\s*unscript\(\);\s*if \(hadForce\) globalThis\.__forceRoll = force;\s*else delete globalThis\.__forceRoll;/.test(suite);
+        // Other seams' removals may come first in the same `finally` (the dialog answers', R7567).
+        const wrapped = /const unscript = scriptDice\(\);[\s\S]{0,400}?try \{\s*r = await runOne\(entry, \{ tier: 2, ledger \}\);\s*\} finally \{(?:\s*\w+\(\);)*?\s*unscript\(\);/.test(suite);
+        const putBack = /finally \{(?:\s*\w+\(\);)*?\s*unscript\(\);\s*if \(hadForce\) globalThis\.__forceRoll = force;\s*else delete globalThis\.__forceRoll;/.test(suite);
         const atEnd = /name: "the dice are real again after tier 2"/.test(suite)
             && /buildEvaluate \?\? null\) !== realDice\.evaluate/.test(suite) && /randomUniform !== realDice\.uniform/.test(suite)
             && /__forceRoll !== realDice\.force/.test(suite);
         equal(JSON.stringify([wrapped, putBack, atEnd]), JSON.stringify([true, true, true]),
             "tier 2 runs a test outside the dice script, does not take it off in a finally, or does not read the dice real at the end (wrapped, put back, read at the end)");
+    }],
+
+    ["R7566 - the kit's dialog answers answer a window from the queue, open the real one when it is empty, and leave no trace", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision (b), relayed by the coordinator that day ("__dialogAnswers na prawdziwym
+         * Foundry: decyzja właściciela (b) - seam w zestawie testowym jak przy kościach"). `answerDialogs` on a stand-in
+         * class whose `wait`, `confirm` and `prompt` answer "real" (the window a person would answer), with no queue on the
+         * page before. Read: `confirm` with `true` queued; `wait` with a function queued, called with the window's config;
+         * `prompt` with nothing queued; then, taken off, whether the three are the class's own again and the queue is gone;
+         * and whether a class the harness marks (`answersQueue`) is left unwrapped.
+         */
+        const had = Object.hasOwn(globalThis, "__dialogAnswers"), was = globalThis.__dialogAnswers;
+        class Stand { static async wait() { return "real"; } static async confirm() { return "real"; } static async prompt() { return "real"; } }
+        const own = [Stand.wait, Stand.confirm, Stand.prompt];
+        class Harness { static answersQueue = "harness"; static async confirm() { return "harness"; } }
+        const harnessConfirm = Harness.confirm;
+        const read = {};
+        try {
+            delete globalThis.__dialogAnswers;
+            const off = answerDialogs(Stand);
+            globalThis.__dialogAnswers.push(true, config => `answered ${config.window?.title}`);
+            read.answered = [await Stand.confirm({}), await Stand.wait({ window: { title: "W" } }), await Stand.prompt({})];
+            off();
+            read.putBack = [Stand.wait === own[0], Stand.confirm === own[1], Stand.prompt === own[2], !Object.hasOwn(globalThis, "__dialogAnswers")];
+            const offHarness = answerDialogs(Harness);
+            read.harnessLeft = Harness.confirm === harnessConfirm;
+            offHarness();
+        } finally {
+            if (had) globalThis.__dialogAnswers = was;
+            else delete globalThis.__dialogAnswers;
+        }
+        equal(JSON.stringify(read), JSON.stringify({ answered: [true, "answered W", "real"], putBack: [true, true, true, true], harnessLeft: true }),
+            "the kit's dialog answers did not answer from the queue, answered with nothing queued, stayed on after they were taken off, left the queue, or wrapped the harness's own");
+    }],
+
+    ["R7567 - tier 2 runs each test inside the dialog answers, takes them off whatever the test did, and reads the dialogs real at the end", async () => {
+        /*
+         * E58 L1, 17.11.2026 (R7566's note; the dice's safeguards, R7565). Read off tests.mjs `runSuite`, cut with the kit: tier
+         * 2's test is run between `answerDialogs()` and a `finally` that calls what it answered; and a record "the dialogs are
+         * real again after tier 2" compares DialogV2's `wait`, `confirm`, `prompt` and `__dialogAnswers` with what they were
+         * before the first test.
+         */
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const suite = fnSource(src, "runSuite");
+        const wrapped = /const unanswer = answerDialogs\(\);[\s\S]{0,400}?try \{\s*r = await runOne\(entry, \{ tier: 2, ledger \}\);\s*\} finally \{(?:\s*\w+\(\);)*?\s*unanswer\(\);/.test(suite);
+        const atEnd = /name: "the dialogs are real again after tier 2"/.test(suite) && /Dialog\?\.\[name\] !== realDialogs\[name\]/.test(suite)
+            && /__dialogAnswers !== realDialogs\.answers/.test(suite);
+        equal(JSON.stringify([wrapped, atEnd]), JSON.stringify([true, true]),
+            "tier 2 runs a test outside the dialog answers, does not take them off in a finally, or does not read the dialogs real at the end (wrapped, read at the end)");
     }],
 
     ["R155 - every expectedRed names a stage that has not shipped", async () => {

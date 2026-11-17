@@ -369,6 +369,51 @@ function scriptDice(target = globalThis.game?.system?.api?.dice?.DualityRoll) {
     };
 }
 
+/*
+ * THE ANSWERS A TEST NAMES FOR ITS DIALOGS, AT A TABLE TOO (E58 L1, 17.11.2026; the owner's decision (b), relayed by the
+ * coordinator that day: "__dialogAnswers na prawdziwym Foundry: decyzja właściciela (b) - seam w zestawie testowym jak przy
+ * kościach"). A test queues answers in `globalThis.__dialogAnswers` (a value, or a function called with the window's config
+ * and answering for it); only the harness's DialogV2 read them (lib/shim.mjs `wait`, `confirm`, `prompt`), so at a table the
+ * queue did not exist - "Cannot set properties of undefined (setting 'length')" on the sandbox in the open-Frisk tests, and
+ * test 357 waiting on its confirm until the runner's limit. `answerDialogs(Dialog)` makes the queue where there is none and
+ * wraps `Dialog.wait`, `confirm` and `prompt`: while an answer is queued a call takes the next and draws no window; with
+ * none it opens the real window, which waits for a person, as at a table. Answers the function that takes it off: the three
+ * put back, and the queue taken away if this made it. Where the harness's DialogV2 reads the queue itself
+ * (`answersQueue === "harness"`) nothing is wrapped. The safeguards are the dice's (`scriptDice`): this page's memory alone,
+ * nothing in the world, off in a `finally` around every tier-2 test, and read real again at the end of the run. Not
+ * modelled: the harness's own answer when the queue is empty (it presses the default button headless); at a table that window
+ * waits, and a test leaning on it waits too.
+ */
+function answerDialogs(Dialog = globalThis.foundry?.applications?.api?.DialogV2) {
+    if (!Dialog || Dialog.answersQueue === "harness") return () => {};
+    const made = !Array.isArray(globalThis.__dialogAnswers);
+    if (made) globalThis.__dialogAnswers = [];
+    const queue = globalThis.__dialogAnswers;
+    const own = Object.fromEntries(["wait", "confirm", "prompt"].map(name => [name, Object.getOwnPropertyDescriptor(Dialog, name)]));
+    const kit = {};
+    for (const name of ["wait", "confirm", "prompt"]) {
+        const real = Dialog[name];
+        if (typeof real !== "function") continue;
+        kit[name] = async function (config = {}, ...rest) {
+            if (queue.length) {
+                const next = queue.shift();
+                return typeof next === "function" ? next(config) : next;
+            }
+            return real.call(this, config, ...rest);
+        };
+        kit[name].answersQueue = "kit";
+        Dialog[name] = kit[name];
+    }
+    return () => {
+        for (const [name, fn] of Object.entries(kit)) {
+            if (Dialog[name] !== fn) continue;
+            if (own[name]) Object.defineProperty(Dialog, name, own[name]);
+            else delete Dialog[name];
+        }
+        if (made && globalThis.__dialogAnswers === queue) delete globalThis.__dialogAnswers;
+    };
+}
+
 const TEST_LIMIT_MS = 15 * 60 * 1000;
 async function runOne([name, fn, red = null], { tier, ledger = null, limitMs = TEST_LIMIT_MS } = {}) {
     const ctx = { name, tier, assertions: 0, failures: [], probes: [], wrote: null };
@@ -3022,7 +3067,7 @@ export {
     dhSettingsMarkup, dhSettingsStandIn, dhTraitsStandIn,
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
-    runOne, scriptDice, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
+    runOne, scriptDice, answerDialogs, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,
