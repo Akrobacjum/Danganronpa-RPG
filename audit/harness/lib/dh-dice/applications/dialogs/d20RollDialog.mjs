@@ -49,7 +49,8 @@
  * IT NO LONGER PRESSES ROLL (E58 L1, 17.11.2026; the owner's consent that day: "zgoda na dh-dice: okno przestaje samo
  * klikać Roll"). Until then the player pressed Roll too, so headless no test waited on a window, and at a table, where
  * Daggerheart's window waits for a person, tier 2 hung on the first test that did (the sandbox, Foundry 14.370). Now
- * the window waits here as it waits there, and the test presses Roll (tests-tier2.mjs `pressingRoll`). A caller's experiences reach 2.12.8's
+ * the window waits here as it waits there, and Roll is pressed by the suite's test (tests-tier2.mjs `pressingRoll`) or, in
+ * a scenario, by the player at that browser (client-entry.mjs `installHarnessPlayer`). A caller's experiences reach 2.12.8's
  * window selected; none of the module's callers sends any to a window today (scripts/: the GM's draw sends them with
  * the window skipped).
  */
