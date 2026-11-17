@@ -275,6 +275,46 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
     await gm.eval(`await game.scenes.get("${d5Made.scene}")?.delete(); await game.actors.get("${d5Made.actor}")?.delete(); return true;`);
     await settle(300);
 
+    /* D3, THE UPDATE DIFF AS FOUNDRY 14.370 MADE IT (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 1, LIVE-E30-03, read by E58 L1). On a scratch actor every browser observes and a scratch token, each written by
+       the GM and read on the GM and on p1: a write of a value already there runs `preUpdateActor` and then nothing - no
+       `updateActor` anywhere, `update()` answering undefined; an update with one key unchanged and one new hands `updateActor`
+       the new key alone with `_stats` and `_id`; with `{ diff: false }` a write that changes nothing is sent and its hook gets
+       `{_id}` alone; a token's no-op on its name is not sent, a mixed update's hook gets the changed key alone, and an update
+       naming a movement field where the token stands is sent with `{_id}` alone. Both deleted after. */
+    const d3Made = await gm.eval(`const actor = await Actor.create({ name: "00 D3 diff", type: "adversary", ownership: { default: 2 }, flags: { world: { d3: { keep: 1 } } } });
+        const [t] = await game.scenes.get("${IDS.scene}").createEmbeddedDocuments("Token", [{ name: "00 D3 token", x: 1300, y: 1300 }]);
+        return { actor: actor.id, token: t?.id ?? null };`);
+    await settle(400);
+    const d3Watch = c => c.eval(`globalThis.__d3 = [];
+        globalThis.__d3ids = ["preUpdateActor", "updateActor", "updateToken"].map(name => [name, Hooks.on(name, (doc, changes) => {
+            if (doc.id === "${d3Made.actor}" || doc.id === "${d3Made.token}") globalThis.__d3.push([name, Object.keys(changes).sort(), JSON.stringify(changes.flags ?? null)]);
+        })]); return true;`);
+    for (const c of [gm, p1]) await d3Watch(c);
+    const d3Take = c => c.eval(`const seen = globalThis.__d3; globalThis.__d3 = []; return seen;`);
+    const d3Step = async write => { const answer = await gm.eval(write); await settle(400); return { answer, gm: await d3Take(gm), p1: await d3Take(p1) }; };
+    const actorAt = `game.actors.get("${d3Made.actor}")`, tokenAt = `game.scenes.get("${IDS.scene}").tokens.get("${d3Made.token}")`;
+    const d3Same = await d3Step(`const r = await ${actorAt}.update({ "flags.world.d3.keep": 1 }); return r === undefined ? "undefined" : typeof r;`);
+    const mixed = await d3Step(`const r = await ${actorAt}.update({ "flags.world.d3.keep": 1, "flags.world.d3.fresh": 2 }); return r === undefined ? "undefined" : typeof r;`);
+    const whole = await d3Step(`const r = await ${actorAt}.update({ "flags.world.d3.keep": 1 }, { diff: false }); return r === undefined ? "undefined" : typeof r;`);
+    const tName = await d3Step(`const r = await ${tokenAt}.update({ name: "00 D3 token" }); return r === undefined ? "undefined" : typeof r;`);
+    const tMixed = await d3Step(`const r = await ${tokenAt}.update({ name: "00 D3 token", hidden: true }); return r === undefined ? "undefined" : typeof r;`);
+    const tStill = await d3Step(`const r = await ${tokenAt}.update({ x: 1300 }); return r === undefined ? "undefined" : typeof r;`);
+    const updates = side => side.filter(([name]) => name !== "preUpdateActor");
+    check("D3: a write of a value already there runs preUpdateActor and then nothing - no updateActor on the GM or p1, update() answering undefined - as on v14 14.370",
+        d3Same.answer === "undefined" && J(d3Same.gm.map(r => r[0])) === J(["preUpdateActor"]) && J(d3Same.p1) === "[]", J(d3Same));
+    check("D3: an update with one key unchanged and one new hands updateActor the new key alone, with _stats and _id, on the GM and p1, as on v14 14.370",
+        [mixed.gm, mixed.p1].every(side => J(updates(side)) === J([["updateActor", ["_id", "_stats", "flags"], J({ world: { d3: { fresh: 2 } } })]])), J(mixed));
+    check("D3: with { diff: false } a write that changes nothing is sent and updateActor gets {_id} alone, on the GM and p1, as on v14 14.370",
+        whole.answer === "object" && [whole.gm, whole.p1].every(side => J(updates(side)) === J([["updateActor", ["_id"], "null"]])), J(whole));
+    check("D3: a token's no-op on its name is not sent, a mixed update's hook gets the changed key alone, and an update naming a movement field where it stands is sent with {_id} alone, as on v14 14.370",
+        tName.answer === "undefined" && J(tName.gm) === "[]" && J(tName.p1) === "[]"
+        && [tMixed.gm, tMixed.p1].every(side => J(side) === J([["updateToken", ["_id", "hidden"], "null"]]))
+        && [tStill.gm, tStill.p1].every(side => J(side) === J([["updateToken", ["_id"], "null"]])), J({ tName, tMixed, tStill }));
+    for (const c of [gm, p1]) await c.eval(`for (const [name, id] of globalThis.__d3ids ?? []) Hooks.off(name, id); delete globalThis.__d3ids; delete globalThis.__d3; return true;`);
+    await gm.eval(`await game.scenes.get("${IDS.scene}").deleteEmbeddedDocuments("Token", ["${d3Made.token}"]); await ${actorAt}?.delete(); return true;`);
+    await settle(300);
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;

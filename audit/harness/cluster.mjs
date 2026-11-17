@@ -259,9 +259,18 @@ function applyOp(userId, op, onLegacyKey = null) {
             const others = collName === "Scene" && op.changes?.active === true
                 ? list.filter(d => d._id !== op.docId && d.active) : [];
             for (const other of others) other.active = false;
+            /* THE SERVER'S DIFF, FOR THE HOOKS (D3, 17.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-03): on Foundry
+               14.370 an update with one key unchanged and one new handed `updateActor` the new key alone, with
+               `_stats.modifiedTime` and `_id`, on every client; an update sent with `{ diff: false }` that changed nothing
+               handed it `{_id}` alone. What reaches every client is the part of the write that changes the world's copy
+               (futil.mjs `diffChanges`), the modification time with it where something changed. The write itself is
+               applied whole, as before. Until D3 every client was handed the write as sent. */
+            const changed = U.diffChanges(doc, op.changes);
+            if (Object.keys(changed).length) changed._stats = { ...(changed._stats ?? {}), modifiedTime: Date.now() };
             U.applyDocChanges(collName, doc, op.changes, { onLegacyKey: path => onLegacyKey?.(path) });
+            if (changed._stats) doc._stats = { ...(doc._stats ?? {}), modifiedTime: changed._stats.modifiedTime };
             return { first: others.map(other => ({ t: "apply", action: "update", collName, docId: other._id, changes: { active: false }, userId, options: op.options })),
-                broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: op.changes, userId, options: op.options }, result: op.docId };
+                broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: changed, userId, options: op.options }, result: op.docId };
         }
         case "delete": {
             const i = list.findIndex(d => d._id === op.docId);
@@ -279,17 +288,20 @@ function applyOp(userId, op, onLegacyKey = null) {
         }
         case "embedded-update": {
             const { doc, key, via } = embeddedHost(list, collName, op);
+            // The server's diff, entry by entry (the "update" case's note, D3): a token's hook got only its changed key on 14.370.
+            const handed = [];
             for (const u of op.payload) {
                 const raw = (doc[key] ?? []).find(d => d._id === u._id);
                 if (!raw) continue;
                 const { _id, ...changes } = u;
+                handed.push({ ...U.diffChanges(raw, changes), _id });
                 /* An embedded document is a parent too (E29 fix r2-H8, 06.10.2026): an actor's item updated with its
                    `effects` merges them by id, as the actor's own list does (futil.mjs `applyDocChanges`). Applied
                    as a plain update the list was replaced by the patch - measured by the fix's probe at 0d86603, a
                    Tool's effect changed through the Tool's update lost its name. */
                 U.applyDocChanges(op.embeddedName, raw, changes, { onLegacyKey: path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }) });
             }
-            return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, updates: op.payload, userId, options: op.options }, result: op.payload.map(u => u._id) };
+            return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, updates: handed, userId, options: op.options }, result: op.payload.map(u => u._id) };
         }
         case "embedded-delete": {
             const { doc, key, via } = embeddedHost(list, collName, op);

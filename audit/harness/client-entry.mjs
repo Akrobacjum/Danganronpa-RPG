@@ -1875,7 +1875,8 @@ function applyRemote(msg) {
         doc._exposeSource?.();
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
-        const changed = revive(U.expandObject(U.deepClone(msg.changes)));
+        // With the document's `_id`, as Foundry 14.370 handed `updateActor` its changes (D3; CALIBRATION.md, LIVE-E30-03).
+        const changed = { ...revive(U.expandObject(U.deepClone(msg.changes))), _id: doc.id };
         if (!options.noHook) hooks.callAll(`update${collName}`, doc, changed, options, userId);
         if (open && JSON.stringify(doc._source) !== was) renderApps(doc, `update${collName}`, changed, options);
         /* A SCENE MADE ACTIVE IS VIEWED BY EVERY CLIENT (E13 C0, 11.10.2026; plan-E13 2.1 item 1, A5's reading
@@ -1944,7 +1945,8 @@ function applyRemote(msg) {
                 if (!raws.includes(doc._source)) U.applyDocChanges(msg.embeddedName, doc._source, changes);
                 doc._exposeSource?.();   // the field the update brought, as for a world document above
                 rebuildEmbedded(doc);
-                const changed = revive(U.expandObject(U.deepClone(changes)));
+                // With its `_id`, as 14.370 handed `updateToken` a move that changed nothing `{_id}` (D3; CALIBRATION.md, LIVE-E30-03).
+                const changed = { ...revive(U.expandObject(U.deepClone(changes))), _id };
                 hooks.callAll(`update${msg.embeddedName}`, doc, changed, options, userId);
                 // D4: `moveToken` once on every client for a move, after `updateToken` (the order not read on 14.370).
                 if (msg.embeddedName === "Token" && options._movement?.[u._id]) hooks.callAll("moveToken", doc, options._movement[u._id], options, userId);

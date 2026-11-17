@@ -319,6 +319,31 @@ export const EMBEDDED_ARRAYS = {
  * operators before it judges and sends it (`honourLegacy`), so this branch is reached by a
  * client's local writes (the shim's updateSource and clone) alone.
  */
+/*
+ * WHAT AN UPDATE CHANGES (D3; the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-03, read
+ * by E58 L1 on Foundry 14.370): a write of a value a document already holds is not sent, an update with one key unchanged and
+ * one new hands its hooks the new key alone, and with `{ diff: false }` an update is sent as given. `changes` (expanded or
+ * flat) against `source`: the part of it that changes something - a plain object walked key by key, an operator, an old key
+ * (`-=`, `==`) and a value of another type kept, anything else kept only where it differs from what `source` holds there
+ * (arrays and values compared whole). Answers a new expanded object, empty when nothing changes. lib/shim.mjs diffs on the
+ * writer's client against its own copy, cluster.mjs on the server against the world's, for the hooks; which of the two v14
+ * does for each is LIVE-E39-12.
+ */
+export function diffChanges(source, changes) {
+    const out = {};
+    for (const [key, value] of Object.entries(expandObject(changes ?? {}))) {
+        const held = source?.[key];
+        if (LEGACY.test(key) || isOperator(value)) { out[key] = value; continue; }
+        if (walkable(value) && walkable(held)) {
+            const inner = diffChanges(held, value);
+            if (Object.keys(inner).length) out[key] = inner;
+            continue;
+        }
+        if (JSON.stringify(value ?? null) !== JSON.stringify(held ?? null) || (value === undefined) !== (held === undefined)) out[key] = value;
+    }
+    return out;
+}
+
 export function applyUpdate(target, changes, { onLegacyKey = null } = {}) {
     return applyExpanded(target, expandObject(changes), onLegacyKey, "");
 }

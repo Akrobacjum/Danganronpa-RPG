@@ -371,10 +371,19 @@ export function buildDocumentClasses(ctx) {
             // anonymity.mjs guards it after the fact.
             const options = opts(context);
             if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) return this;
+            /* THE WRITER'S DIFF (D3, 17.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-03). On Foundry 14.370 a write
+               of a value the document already held ran the `pre` hook and then nothing: not sent, no update hook on any
+               client, and `update()` answered undefined; with `{ diff: false }` it was sent. Until D3 the shim sent every
+               update the pre steps left. What is left after them is diffed against this client's own copy (futil.mjs
+               `diffChanges`); a token's move is sent even when nothing of it changes (`TOKEN MOVEMENT`, D4). The server's diff,
+               for the hooks, is cluster.mjs's. */
+            const sent = context?.diff === false ? update : { ...U.diffChanges(this._source, update), _id: this.id };
+            const moving = this.documentName === "Token" && Boolean(options._movement?.[this.id]);
+            if (!moving && !Object.keys(sent).some(key => key !== "_id")) return undefined;
             if (this.parent) {
-                await this.parent._embeddedOp("update", this.documentName, [update], context, options);
+                await this.parent._embeddedOp("update", this.documentName, [sent], context, options);
             } else {
-                const { _id, ...written } = update;
+                const { _id, ...written } = sent;
                 await ctx.bus.op({ action: "update", coll: this.documentName, docId: this.id, changes: written, options });
             }
             return this;
@@ -415,7 +424,11 @@ export function buildDocumentClasses(ctx) {
                 const update = revive(U.expandObject(sanitize(entry)));
                 const doc = this._collections[collKey]?.get(update._id);
                 if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) continue;
-                kept.push(update);
+                // The writer's diff, entry by entry (`update`'s note, D3).
+                const sent = !doc || context?.diff === false ? update : { ...U.diffChanges(doc._source, update), _id: update._id };
+                const moving = embeddedName === "Token" && Boolean(options._movement?.[update._id]);
+                if (doc && !moving && !Object.keys(sent).some(key => key !== "_id")) continue;
+                kept.push(sent);
             }
             if (kept.length) await this._embeddedOp("update", embeddedName, kept, context, options);
             return kept.map(u => this._collections[collKey]?.get(u._id)).filter(Boolean);
