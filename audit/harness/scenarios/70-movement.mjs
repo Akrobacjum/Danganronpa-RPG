@@ -74,6 +74,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
         await new Promise(r => setTimeout(r, ${rest}));
         return { warned: globalThis.__s70warn.slice(n) };`, { timeout: 30000 });
 
+    /* One move through rooms (E40 on claude/shim-118, 16.11.2026; L1's LIVE-E05-13): v14's own `TokenDocument#move` with a
+       waypoint in each room, which Foundry 14.370 delivers as one update, every grid step of the route in its passed
+       waypoints (lib/shim.mjs `TOKEN MOVEMENT`, D4). */
+    const moveThrough = (who, rooms, rest = 1500) => players[who].eval(`const t = canvas.scene.tokens.get("${TOKENS[who]}");
+        const n = globalThis.__s70warn.length;
+        try { await t.move(${J(rooms.map(room => spot(room, 0)))}); } catch (err) { return { threw: String(err?.message ?? err) }; }
+        await new Promise(r => setTimeout(r, ${rest}));
+        return { warned: globalThis.__s70warn.slice(n) };`, { timeout: 30000 });
+
     phase("setup");
     const setup = await gm.eval(`const { SETTINGS } = ${imp("settings.mjs")}, R = ${imp("rooms.mjs")};
         globalThis.__s70was = { charge: game.settings.get("${MOD}", SETTINGS.chargeMovement), at: {}, actors: {}, clock: foundry.utils.deepClone(game.settings.get("${MOD}", SETTINGS.clock)) };
@@ -136,6 +145,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
             paid.room === "E39 B" && paid.actions === 0 && refunds?.first?.reply?.kind === "action" && refunds.first.reply.given === true && refunds.first.reply.back === true
             && typeof refunds.second?.refused === "string" && refunds.refunded === true && back.room === "E39 A" && back.actions === 1, J({ paid, refunds, back }));
 
+        /* ONE MOVE THROUGH TWO ROOMS COSTS TWO CROSSINGS IN DAILY LIFE (E40 on claude/shim-118, 16.11.2026; the coordinator's
+           brief after L1's LIVE-E05-13, which read two on 14.370): Aiko's one move from E39 A by a waypoint in E39 B to
+           E39 C, with three actions, the free Move spent, takes two actions - as the two drags of "leg" take one each. */
+        phase("route: one move through two rooms in Daily Life costs two crossings", { flow: "crossing-fee-refund" });
+        await stand(["aiko"], "E39 A", 3);
+        const dayRoute = await moveThrough("aiko", ["E39 B", "E39 C"]);
+        const afterDay = (await read()).aiko;
+        check("route: Aiko's one move from E39 A through E39 B to E39 C in Daily Life takes two actions, one a crossing, as two drags do, and she stands in E39 C",
+            !dayRoute.threw && afterDay.room === "E39 C" && afterDay.actions === 1, J({ dayRoute, afterDay }));
+        /* And a route whose second leg is no walk - E39 A by E39 B to E39 D, which is no neighbour of E39 B - is refused
+           whole on p1's browser, as the drag B to D would be: Aiko stays in E39 A and pays nothing. */
+        await stand(["aiko"], "E39 A", 3);
+        const badRoute = await moveThrough("aiko", ["E39 B", "E39 D"]);
+        const afterBad = (await read()).aiko;
+        check("route: one move from E39 A by E39 B to E39 D, its second leg to no neighbour, is refused on p1 - Aiko in E39 A, no action taken - as the drag from B to D is",
+            !badRoute.threw && (badRoute.warned ?? []).length > 0 && afterBad.room === "E39 A" && afterBad.actions === 3, J({ badRoute, afterBad }));
+
         phase("eclipse: the Eclipse's crossings, and the one past them", { flow: "eclipse-route-veto" });
         await stand(["aiko"], "E39 A", 2);
         const ecl = await gm.eval(`const E = ${imp("eclipse.mjs")};
@@ -173,6 +199,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
         const putBack = (await read()).aiko;
         check("eclipse: the crossing past the allowance from p1's console, its own veto stepped past, lands and is put back by the GMs into the room she reached, at no action",
             forced?.vetoOff === true && forced.landed === true && putBack.room === lawful.at(-1)?.room && putBack.actions === 2, J({ forced, putBack }));
+        await gm.eval(`const E = ${imp("eclipse.mjs")}; await E.endEclipse({ advance: false }); return true;`, { timeout: 60000 });
+
+        /* ONE MOVE PAST THE ECLIPSE'S ALLOWANCE IS STOPPED WHERE A WALK IS (E40 on claude/shim-118, 16.11.2026; L1's
+           LIVE-E05-13: on 14.370 one move of Aiko's through the Cafeteria and the Hall into the Storage, an allowance of two,
+           counted only its start and end and ended a room past the limit). A fresh Eclipse, Aiko in E39 A with two actions,
+           and one move with a waypoint in each room of the walk above, one room more than the allowance: she ends where the
+           walk ended, in the room the last allowed crossing reached, at no action, and the GMs count the allowance. */
+        phase("eclipse route: one move past the allowance stops at its last allowed crossing", { flow: "eclipse-route-veto" });
+        await stand(["aiko"], "E39 A", 2);
+        const ecl2 = await gm.eval(`const E = ${imp("eclipse.mjs")};
+            const started = Boolean(await E.startEclipse());
+            await new Promise(r => setTimeout(r, 1000));
+            return { started, allowance: E.eclipseAllowance(), used: E.movesUsed(game.actors.get("${IDS.aiko}")) };`, { timeout: 60000 });
+        const far2 = Number.isFinite(ecl2?.allowance) ? ["E39 B", "E39 C", "E39 D", "E39 C", "E39 B", "E39 A"].slice(0, ecl2.allowance + 1) : [];
+        const eclRoute = far2.length ? await moveThrough("aiko", far2, 2500) : { threw: "no allowance" };
+        const afterEcl = (await read()).aiko;
+        const counted2 = await gm.eval(`const E = ${imp("eclipse.mjs")}; return E.movesUsed(game.actors.get("${IDS.aiko}"));`);
+        check("eclipse route: one move of Aiko's with a waypoint in each room, one room past the Eclipse's allowance, ends in the room its last allowed crossing reached, at no action, and the GMs count the allowance - as the walk above",
+            ecl2?.started === true && ecl2.used === 0 && far2.length === ecl2.allowance + 1 && !eclRoute.threw
+            && afterEcl.room === far2[ecl2.allowance - 1] && afterEcl.actions === 2 && counted2 === ecl2.allowance, J({ ecl2, far2, eclRoute, afterEcl, counted2 }));
         await gm.eval(`const E = ${imp("eclipse.mjs")}; await E.endEclipse({ advance: false }); return true;`, { timeout: 60000 });
     } finally {
         await gm.eval(`const w = globalThis.__s70was ?? {}, { SETTINGS } = ${imp("settings.mjs")}, S = ${imp("gm-stores.mjs")}, E = ${imp("eclipse.mjs")};

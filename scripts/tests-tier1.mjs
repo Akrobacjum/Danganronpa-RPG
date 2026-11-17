@@ -7819,6 +7819,26 @@ const INVARIANTS = [
             JSON.stringify(cases.map(([what, , want]) => [what, want])),
             "an answer of the verdict window that `read` did not build is taken as a verdict, or one it built is not");
     }],
+
+    ["R7740 - a route of one update is read room by room off its waypoints: a room where the route went on from another, its newest spot there, a point in no room and one with no position left out (scripts/movement.mjs `roomsAlong`; E40 on the line claude/shim-118, 17.11.2026; L1's LIVE-E05-13)", async () => {
+        /*
+         * Foundry 14.370 sends a route as one update with every grid step in its passed waypoints (docs/dev/e39/CALIBRATION.md
+         * section 3); the module read such a route as its two ends, so an Eclipse counted two crossings of three. Pure, on
+         * a row of three rooms 100 wide: the path the charge and the veto read.
+         */
+        const { roomsAlong } = await import("./movement.mjs");
+        const roomOf = p => (p.x < 0 ? null : ["A", "B", "C"][Math.floor(p.x / 100)] ?? null);
+        const path = points => roomsAlong(points, roomOf).map(r => [r.room, r.level, r.spot.x]);
+        const cases = [
+            ["a walk through three rooms", [{ x: 10, y: 0 }, { x: 50, y: 0 }, { x: 150, y: 0 }, { x: 250, y: 0 }], [["A", null, 50], ["B", null, 150], ["C", null, 250]]],
+            ["out and back", [{ x: 150, y: 0 }, { x: 50, y: 0 }, { x: 150, y: 0 }], [["B", null, 150], ["A", null, 50], ["B", null, 150]]],
+            ["a floor kept", [{ x: 150, y: 0, level: "L2" }], [["B", "L2", 150]]],
+            ["a point in no room, one with no position", [{ x: -50, y: 0 }, { y: 0 }, { x: 50, y: 0 }], [["A", null, 50]]],
+            ["nothing", undefined, []]
+        ];
+        equal(JSON.stringify(cases.map(([what, points]) => [what, path(points)])), JSON.stringify(cases.map(([what, , want]) => [what, want])),
+            "a route's waypoints are not read room by room, each room once where the route went on from another with its newest spot");
+    }],
     ["R193 - a death is the table's only once it is published", async () => {
         /*
          * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the
