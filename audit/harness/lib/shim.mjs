@@ -370,6 +370,7 @@ export function buildDocumentClasses(ctx) {
             // reading that proves less. Configure Ownership saves this way, and
             // anonymity.mjs guards it after the fact.
             const options = opts(context);
+            noteMove(this, update, context);
             if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) return this;
             if (this.parent) {
                 await this.parent._embeddedOp("update", this.documentName, [update], context, options);
@@ -414,6 +415,7 @@ export function buildDocumentClasses(ctx) {
             for (const entry of updates) {
                 const update = revive(U.expandObject(sanitize(entry)));
                 const doc = this._collections[collKey]?.get(update._id);
+                noteMove(doc, update, context);
                 if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) continue;
                 kept.push(update);
             }
@@ -484,6 +486,27 @@ export function buildDocumentClasses(ctx) {
     function opts(context) {
         const { parent, ...rest } = context ?? {};
         return sanitize(rest);
+    }
+
+    /*
+     * A TOKEN'S MOVE IS WRITTEN INTO THE CALLER'S OPTIONS (E58 L1, 17.11.2026). v14's `TokenDocument#_preUpdate` runs
+     * `options._movement ??= {}` (client/documents/token.mjs:1742) and, for an update that moves the token,
+     * `Object.defineProperty(options._movement, this.id, { value: move, enumerable: true })` (:2009) - on the object the
+     * caller passed, not a copy, and not configurable. So one options object handed to two moves of the same token throws
+     * "Cannot redefine property: <the token's id>" on the second: measured on the sandbox (Foundry 14.370), 152 tier-2
+     * failures whose tests kept one `PLACE` for a token's move out and its move back. The harness wrote nothing there and
+     * never threw. This writes the same property on the caller's object, after `opts` has copied it, so no hook and no
+     * other client sees it: only the throw is modelled. What `_movement` holds (the route, its passed waypoints) is
+     * not - CALIBRATION.md D4. A move is a change to one of v14's `MOVEMENT_FIELDS` (common/documents/token.mjs:204) whose
+     * value differs from the token's.
+     */
+    const MOVEMENT_FIELDS = ["x", "y", "elevation", "width", "height", "depth", "shape", "level"];
+    function noteMove(doc, update, context) {
+        if (doc?.documentName !== "Token" || !context || typeof context !== "object") return;
+        const src = doc._source ?? doc;
+        if (!MOVEMENT_FIELDS.some(k => k in update && JSON.stringify(update[k]) !== JSON.stringify(src[k]))) return;
+        context._movement ??= {};
+        Object.defineProperty(context._movement, doc.id, { value: {}, enumerable: true });
     }
 
     class ActorImpl extends BaseDocument {

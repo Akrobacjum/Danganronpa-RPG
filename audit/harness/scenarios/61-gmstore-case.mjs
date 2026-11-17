@@ -2169,7 +2169,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const s0 = await gma.eval(`${LOOT} const { grantItem } = await import("${repoUrl}/scripts/inventory.mjs");
         const PLACE = { teleport: true, movementAction: "displace", animate: false }, tok = id => canvas.scene?.tokens?.find(t => t.actorId === id);
         const at = tok(d.id), was = {};
-        for (const id of ["${IDS.aiko}", "${IDS.chie}"]) { const t = tok(id); if (!t || !at) continue; was[t.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, PLACE); }
+        for (const id of ["${IDS.aiko}", "${IDS.chie}"]) { const t = tok(id); if (!t || !at) continue; was[t.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, { ...PLACE }); }
         await new Promise(r => setTimeout(r, 500));
         const M = await import("${repoUrl}/scripts/movement.mjs");
         const together = ["${IDS.aiko}", "${IDS.chie}"].every(id => M.sameRoom(game.actors.get(id), d));
@@ -2201,7 +2201,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         if (S.lootTraceStore.has(d.id)) await S.lootTraceStore.drop(d.id);
         await C.reviveCharacter(d, { quiet: true });
         const PLACE = { teleport: true, movementAction: "displace", animate: false };
-        for (const [id, xy] of Object.entries(${J(s0.was ?? {})})) await canvas.scene?.tokens?.get(id)?.update(xy, PLACE);
+        for (const [id, xy] of Object.entries(${J(s0.was ?? {})})) await canvas.scene?.tokens?.get(id)?.update(xy, { ...PLACE });
         return out;`, { timeout: 30000 });
     check("S1: two GMs each serving a loot of one body nobody has found, neither having heard the other, both owe both",
         s0.kept && s0.together && s0.items.length === 2 && s1.took && s2.took && s2.heard.length === 0

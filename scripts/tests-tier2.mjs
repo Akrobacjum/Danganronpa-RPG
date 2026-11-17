@@ -837,13 +837,13 @@ async function aloneTogether(killer, victim, { asked = false } = {}) {
     ok(room, "every named room on the scene on screen has somebody in it");
     const was = tokens.map(t => ({ x: t.x, y: t.y }));
     const PLACE = { teleport: true, movementAction: "displace", animate: false };
-    for (const t of tokens) await t.update(positionIn(room, t), PLACE);
+    for (const t of tokens) await t.update(positionIn(room, t), { ...PLACE });
     await settle();
     equal(stableJson(othersInRoom(killer).map(a => a.id)), stableJson(victim ? [victim.id] : []), `the fixture could not stand the two alone in ${room}`);
     return {
         room,
         back: async () => {
-            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             await settle();
         }
     };
@@ -2530,11 +2530,11 @@ async function standAlone(actor) {
     must(room, "every named room on the scene on screen has somebody in it");
     const was = { x: token.x, y: token.y };
     const PLACE = { teleport: true, movementAction: "displace", animate: false };
-    await token.update(positionIn(room, token), PLACE);
+    await token.update(positionIn(room, token), { ...PLACE });
     await settle();
     const stood = roomOfActor(actor) === room && othersInRoom(actor).length === 0;
     const back = async () => {
-        if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+        if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
         await settle();
     };
     if (!stood) await back();
@@ -2650,7 +2650,7 @@ async function withLootTrace(run) {
                     must(other, "no third student with a token on the scene - this would measure nothing");
                     const token = scene.tokens.find(t => t.actorId === other.id);
                     moved = { token, was: { x: token.x, y: token.y } };
-                    await token.update(Mv.positionIn(room, token), PLACE);
+                    await token.update(Mv.positionIn(room, token), { ...PLACE });
                     await settle();
                     must(Mv.roomOfToken(token) === room, `the third student could not be stood in ${room} - this would measure nothing`);
                     return other;
@@ -2660,7 +2660,7 @@ async function withLootTrace(run) {
                     && /<em>/.test(contentOf(m)))
             });
         } finally {
-            if (moved) { await moved.token.update(moved.was, PLACE); await settle(); }
+            if (moved) { await moved.token.update(moved.was, { ...PLACE }); await settle(); }
             for (const m of game.messages.contents.filter(m => !since.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
             for (const item of taker.items.filter(i => !had.has(i.id))) { try { await item.delete(); } catch { /* already gone */ } }
             for (const item of body.items.filter(i => i.name.startsWith("SUITE E68 C10"))) { try { await item.delete(); } catch { /* already gone */ } }
@@ -2730,7 +2730,7 @@ async function withBodyTile(run) {
     const tileRoom = Mv.allRooms(scene).find(r => r !== fixture.room);
     const takerToken = scene.tokens.find(t => t.actorId === taker.id), bodyToken = scene.tokens.find(t => t.actorId === body.id);
     const standTaker = async room => {
-        await takerToken.update(Mv.positionIn(room, takerToken), PLACE);
+        await takerToken.update(Mv.positionIn(room, takerToken), { ...PLACE });
         await settle();
         must(Mv.roomOfToken(takerToken) === room, `the taker could not be stood in ${room} - this would measure nothing`);
     };
@@ -12221,7 +12221,7 @@ const SCENARIOS = [
         const read = {}, dead = new Set();
         const stood = await aloneTogether(asker, target);
         try {
-            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), { ...PLACE });
             await settle();
             read.control = gate(asker, target);
             read.oneself = gate(asker, asker);
@@ -12280,7 +12280,7 @@ const SCENARIOS = [
             if (targetToken.hidden) await targetToken.update({ hidden: false });
             await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
             await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWere);
-            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, PLACE);
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, { ...PLACE });
             await stood.back();
         }
         const here = Mv.locateActor(asker);
@@ -12343,7 +12343,7 @@ const SCENARIOS = [
         const stood = await aloneTogether(asker, target);
         try {
             room = stood.room;
-            await thirdToken.update(Mv.positionIn(room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(room, thirdToken), { ...PLACE });
             await settle();
             read.lessTwo = seen([asker.id, target.id]);
             read.all = seen([]);
@@ -12368,7 +12368,7 @@ const SCENARIOS = [
             if (dead && deathStore.has(third.id)) await deathStore.drop(third.id);
             for (const [key, was] of flagsWere) if (third.getFlag(MODULE_ID, key) !== was) await putFlag(key, was);
             if (thirdToken.hidden) await thirdToken.update({ hidden: false });
-            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, PLACE);
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, { ...PLACE });
             await stood.back();
         }
         equal(stableJson(read), stableJson({ lessTwo: [third.id], all: [asker.id, target.id, third.id].sort(), hidden: [], deadForGms: [],
@@ -12545,7 +12545,7 @@ const SCENARIOS = [
         try {
             item = await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
             must(item, `${other.name} could not be handed an item - this would measure nothing`);
-            await thirdToken.update(positionIn(fixture.room, thirdToken), PLACE);
+            await thirdToken.update(positionIn(fixture.room, thirdToken), { ...PLACE });
             await settle();
             for (const [hand, shade] of [[HIGH, HIGH], [HIGH, LOW], [LOW, HIGH], [LOW, LOW], [CRIT, LOW], [LOW, CRIT]]) read.push(await frisk(hand, shade));
             const [hh, , , ll, ch, lc] = read.map(r => r.faces);
@@ -12580,7 +12580,7 @@ const SCENARIOS = [
             for (const r of held.reverse()) await r.putBack();
             D.forgetPayments?.(theirs.id);
             for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
-            if (thirdToken.x !== thirdWas.x || thirdToken.y !== thirdWas.y) await thirdToken.update(thirdWas, PLACE);
+            if (thirdToken.x !== thirdWas.x || thirdToken.y !== thirdWas.y) await thirdToken.update(thirdWas, { ...PLACE });
             await fixture.back();
         }
     }],
@@ -12825,7 +12825,7 @@ const SCENARIOS = [
                 leave: await judged("action.friskFollow", { searcherId: theirs.id, askId: a2.askId }, player.id), ...read() };
             // Silence: a second ask of the searcher's, the third's ask of the same target, the answer's clock, the force's clock.
             F.forgetFriskAsks?.();
-            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), { ...PLACE });
             await settle();
             const a3 = await ask();
             const youBusy = (await ask()).out;
@@ -12838,12 +12838,12 @@ const SCENARIOS = [
             F.forgetFriskAsks?.();
             const a4 = await ask();
             const elsewhere = Mv.allRooms(scene).find(r => r !== stood.room && Mv.othersInNamedRoom(r).length === 0);
-            await otherToken.update(Mv.positionIn(elsewhere, otherToken), PLACE);
+            await otherToken.update(Mv.positionIn(elsewhere, otherToken), { ...PLACE });
             await settle();
             await F.friskRouteSettled?.({ tokenDoc: otherToken });
             seen.gone = { ...a4, left: rowOf(theirs.id) === null, ...read() };
-            await otherToken.update(Mv.positionIn(stood.room, otherToken), PLACE);
-            await thirdToken.update(thirdWas, PLACE);
+            await otherToken.update(Mv.positionIn(stood.room, otherToken), { ...PLACE });
+            await thirdToken.update(thirdWas, { ...PLACE });
             await settle();
             // An Eclipse before the answer: no dice, and the primary writes no refund - the searcher's browser hands back what
             // it paid (E80 part 2 fix r1-G1, E80-C3-3; that road is read in "an open Frisk's ask keeps its clocks").
@@ -12895,7 +12895,7 @@ const SCENARIOS = [
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
             if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
             for (const a of [other, theirs]) for (const i of a.items.filter(i => [NAME, NEW].includes(i.name))) await i.delete();
-            await thirdToken.update(thirdWas, PLACE);
+            await thirdToken.update(thirdWas, { ...PLACE });
             await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
             await stood.back();
@@ -13005,7 +13005,7 @@ const SCENARIOS = [
             await INV.grantItem(other, { name: BULLET, category: "truthBullet", tier: 1, override: true, quiet: true });
             await INV.grantItem(other, { name: STASHED, category: "tool", tier: 1, override: true, quiet: true, location: INV.LOCATIONS.vault });
             must(other.items.some(i => i.name === STASHED && INV.isStashed(i)), "the stashed item is not in a stash - this would measure nothing");
-            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), { ...PLACE });
             await settle();
             must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
             const from = made.length, sent = packets.length;
@@ -13024,7 +13024,7 @@ const SCENARIOS = [
             F.forgetFriskAsks?.();
             if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
             for (const i of other.items.filter(i => [TOOL, BULLET, STASHED].includes(i.name))) await i.delete();
-            await thirdToken.update(thirdWas, PLACE);
+            await thirdToken.update(thirdWas, { ...PLACE });
             await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
             await stood.back();
@@ -13119,7 +13119,7 @@ const SCENARIOS = [
         await settle();
         const seen = {};
         try {
-            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), { ...PLACE });
             await settle();
             must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
             const give = async (actor, name) => {
@@ -13148,7 +13148,7 @@ const SCENARIOS = [
             // Newest first: each puts Fear back to what it was before its own draw.
             for (const d of drawn.reverse()) await d.putBack();
             for (const a of [other, theirs]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
-            await thirdToken.update(thirdWas, PLACE);
+            await thirdToken.update(thirdWas, { ...PLACE });
             await stood.back();
         }
         equal(stableJson(seen), stableJson({
@@ -13589,14 +13589,14 @@ const SCENARIOS = [
             must(elsewhere, "no other empty room on the scene on screen - this would measure nothing");
             const opening = judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id);
             const waiting = await until(() => rowOf(theirs.id)?.state === "opening", 1000);
-            await mine.update(Mv.positionIn(elsewhere, mine), PLACE);
+            await mine.update(Mv.positionIn(elsewhere, mine), { ...PLACE });
             const settled = await F.friskRouteSettled({ tokenDoc: mine });
             await pay();
             const out = await opening;
             await settle();
             seen.orphan = { waiting, settled: settled.length, out, held: rowOf(theirs.id) !== null, orphans: orphans(), ...read() };
-            await mine.update(mineWas, PLACE);
-            await mine.update(Mv.positionIn(stood.room, mine), PLACE);
+            await mine.update(mineWas, { ...PLACE });
+            await mine.update(Mv.positionIn(stood.room, mine), { ...PLACE });
             await settle();
             // C3-3: a Burst pays a GM's own open Frisk; then a free one at no actions left.
             await trustedWrite(theirs, { [ACT]: top, [GRANTS]: 1 }, { reason: "gmRuling" });
@@ -13640,7 +13640,7 @@ const SCENARIOS = [
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
             if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
             for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
-            if (mine.x !== mineWas.x || mine.y !== mineWas.y) await mine.update(mineWas, PLACE);
+            if (mine.x !== mineWas.x || mine.y !== mineWas.y) await mine.update(mineWas, { ...PLACE });
             await putBack();
             D.forgetPayments?.(theirs.id);
             await stood.back();
@@ -14501,10 +14501,10 @@ const SCENARIOS = [
             const a4 = await ask();
             const elsewhere = Mv.allRooms(scene).find(r => r !== stood.room && Mv.othersInNamedRoom(r).length === 0);
             must(elsewhere, "no other empty room on the scene on screen - this would measure nothing");
-            await otherToken.update(Mv.positionIn(elsewhere, otherToken), PLACE);
+            await otherToken.update(Mv.positionIn(elsewhere, otherToken), { ...PLACE });
             await settle();
             const walked = a4.row ? (F.friskAsks.has(a4.row.askId) ? "held" : "ended by the move") : "no row";
-            await otherToken.update(Mv.positionIn(stood.room, otherToken), PLACE);
+            await otherToken.update(Mv.positionIn(stood.room, otherToken), { ...PLACE });
             await settle();
             seen.gone = { end: walked, tickets: tickets(), ...await probe() };
             // THE CONTROL: refused and still open, its force rides its ticket; a Search does not.
@@ -14522,7 +14522,7 @@ const SCENARIOS = [
             F.forgetFriskAsks?.();
             for (const R of held.reverse()) await R.putBack();
             if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
-            if (otherToken.x !== otherWas.x || otherToken.y !== otherWas.y) await otherToken.update(otherWas, PLACE);
+            if (otherToken.x !== otherWas.x || otherToken.y !== otherWas.y) await otherToken.update(otherWas, { ...PLACE });
             await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
             await stood.back();
@@ -14698,7 +14698,7 @@ const SCENARIOS = [
         await settle();
         try {
             if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
-            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), { ...PLACE });
             await settle();
             const elsewhere = Mv.allRooms(scene).find(r => r !== stood.room && Mv.othersInNamedRoom(r).length === 0);
             must(elsewhere, "no other empty room on the scene on screen - this would measure nothing");
@@ -14750,11 +14750,11 @@ const SCENARIOS = [
             read();
             // The searcher walks out.
             const s1 = await ask();
-            await mine.update(Mv.positionIn(elsewhere, mine), PLACE);
+            await mine.update(Mv.positionIn(elsewhere, mine), { ...PLACE });
             await settle();
             seen.searcherLeft = { held: F.friskAsks.has(s1.askId ?? ""),
                 actions: actionsLeft(theirs) === top - 1 ? "still spent" : actionsLeft(theirs), ...read() };
-            await mine.update(Mv.positionIn(stood.room, mine), PLACE);
+            await mine.update(Mv.positionIn(stood.room, mine), { ...PLACE });
             await settle();
             read();
             // The Class Trial starts before the answer.
@@ -14778,7 +14778,7 @@ const SCENARIOS = [
             // A refusal, then the target walks out.
             const r1 = await ask();
             const no = await answer(r1.askId, false);
-            await otherToken.update(Mv.positionIn(elsewhere, otherToken), PLACE);
+            await otherToken.update(Mv.positionIn(elsewhere, otherToken), { ...PLACE });
             await settle();
             seen.goneAfterNo = { no, held: F.friskAsks.has(r1.askId ?? ""), ...read() };
         } finally {
@@ -14793,7 +14793,7 @@ const SCENARIOS = [
             if (stableJson(other.ownership) !== stableJson(ownershipWas)) await ownershipBack();
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
             if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
-            for (const [token, was] of moved) if (token.x !== was.x || token.y !== was.y) await token.update(was, PLACE);
+            for (const [token, was] of moved) if (token.x !== was.x || token.y !== was.y) await token.update(was, { ...PLACE });
             await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
             await settle();
@@ -14905,7 +14905,7 @@ const SCENARIOS = [
         const seen = {};
         const stood = await aloneTogether(theirs, other);
         try {
-            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), { ...PLACE });
             await settle();
             equal(stableJson(Mv.othersInRoom(theirs).map(a => a.id).sort()), stableJson([other.id, third.id].sort()), `the fixture could not stand the three in ${stood.room}`);
             if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
@@ -14936,7 +14936,7 @@ const SCENARIOS = [
             if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
             await putBack();
             D.forgetPayments?.(theirs.id);
-            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, PLACE);
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, { ...PLACE });
             await stood.back();
         }
         const expected = {
@@ -15158,10 +15158,10 @@ const SCENARIOS = [
             steps.push(["(d) to 14", await reroll(F, HIGH)]);
             F = await hand("rummage", 5, 20);
             const elsewhere = allRooms(canvas.scene).find(r => r !== fixture.room);
-            await token.update(positionIn(elsewhere, token), PLACE);
+            await token.update(positionIn(elsewhere, token), { ...PLACE });
             await settle();
             steps.push(["(b) to 14, the target gone", await reroll(F, HIGH)]);
-            await token.update(positionIn(fixture.room, token), PLACE);
+            await token.update(positionIn(fixture.room, token), { ...PLACE });
             await settle();
             F = await hand("frisk", 14, 0, { judge: false });
             steps.push(["a force", await reroll(F, HIGH)]);
@@ -18502,20 +18502,20 @@ const SCENARIOS = [
         const read = {};
         try {
             for (const a of [cub, far]) await a.setFlag(MODULE_ID, FLAGS.monocub, true);
-            await cubToken.update(MV.positionIn(room, cubToken), PLACE);
-            await farToken.update(MV.positionIn(elsewhere, farToken), PLACE);
+            await cubToken.update(MV.positionIn(room, cubToken), { ...PLACE });
+            await farToken.update(MV.positionIn(elsewhere, farToken), { ...PLACE });
             await settle();
             await fightOpen(MU, killer, victim);
             await settle();
             read.atOpening = [MC.isCrimeSilenced(cub), MC.isCrimeSilenced(far)];
             await MC.setSilenced(cub, false);
-            await cubToken.update(MV.positionIn(elsewhere, cubToken), PLACE);
+            await cubToken.update(MV.positionIn(elsewhere, cubToken), { ...PLACE });
             await settle();
-            await cubToken.update(MV.positionIn(room, cubToken), PLACE);
+            await cubToken.update(MV.positionIn(room, cubToken), { ...PLACE });
             await until(() => MC.isCrimeSilenced(cub), 3000);
             read.walkedIn = [MC.isCrimeSilenced(cub), MC.isCrimeSilenced(far), MU.murderState()?.thirdId ?? null];
         } finally {
-            for (const [i, t] of [cubToken, farToken].entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of [cubToken, farToken].entries()) if (scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             for (const a of [cub, far]) await a.unsetFlag(MODULE_ID, FLAGS.monocub);
             if (cubStore) {
                 for (const [id, row] of rows) {
@@ -19578,7 +19578,7 @@ const SCENARIOS = [
             let room;
             ({ room, back } = await aloneTogether(a, target));
             must(tokenB, "the second Monocub has no token - this would measure nothing");
-            await tokenB.update(positionIn(room, tokenB), PLACE);
+            await tokenB.update(positionIn(room, tokenB), { ...PLACE });
             for (const x of [a, b]) {
                 await x.setFlag(MODULE_ID, FLAGS.monocub, true);
                 if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
@@ -19605,7 +19605,7 @@ const SCENARIOS = [
             if (confusionStore?.has?.(target.id)) await confusionStore.drop(target.id);
             if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
             if (capWas) await S.cubTargetStore.patch(target.id, capWas);
-            if (tokenB && wasB && canvas.scene.tokens.has(tokenB.id)) await tokenB.update(wasB, PLACE);
+            if (tokenB && wasB && canvas.scene.tokens.has(tokenB.id)) await tokenB.update(wasB, { ...PLACE });
             if (back) await back();
             await settle();
         }
@@ -24982,7 +24982,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const PLACE = { teleport: true, movementAction: "displace", animate: false };
         const stood = await aloneTogether(killer, victim, { asked: true });
         const walk = async (i, inside) => {
-            await tokens[i].update(inside ? positionIn(stood.room, tokens[i]) : was[i], PLACE);
+            await tokens[i].update(inside ? positionIn(stood.room, tokens[i]) : was[i], { ...PLACE });
             await settle();
         };
         const read = () => { const s = M.murderState(); return [s?.stage ?? null, s?.thirdId ?? null, s?.departed ?? null]; };
@@ -25023,7 +25023,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a third who left was seated again by their token or the GM's call, a failed escape's third still counted or its card did not say "
             + "they got out alone, or the victim's copy holds who left");
         } finally {
-            for (const [i, t] of tokens.entries()) if (canvas.scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (canvas.scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             await stood.back();
         }
     }],
@@ -36475,7 +36475,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // Into the receiver's room, and verified rather than assumed: if
             // the move did not take, every assertion below would be measuring a
             // refusal instead of a copy.
-            await giverToken.update({ x: hostToken.x, y: hostToken.y }, PLACE);
+            await giverToken.update({ x: hostToken.x, y: hostToken.y }, { ...PLACE });
             await settle();
             equal(roomOfActor(giver), roomOfActor(receiver),
                 "the fixture could not stand the two students in one room");
@@ -36555,7 +36555,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // The student goes back where the world put them, first: a fixture
             // that leaves somebody standing in the wrong room changes what
             // every later test in this run is looking at.
-            try { await giverToken.update(wasAt, PLACE); } catch { /* scene already gone */ }
+            try { await giverToken.update(wasAt, { ...PLACE }); } catch { /* scene already gone */ }
             for (const item of made) {
                 const live = item?.actor?.items?.get(item.id);
                 if (live) await live.delete();
@@ -49701,7 +49701,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const [here, there] = allRooms(canvas?.scene);
         const was = tokens.map(t => ({ x: t.x, y: t.y }));
         const PLACE = { teleport: true, movementAction: "displace", animate: false };
-        const stand = async (token, room) => { await token.update(positionIn(room, token), PLACE); };
+        const stand = async (token, room) => { await token.update(positionIn(room, token), { ...PLACE }); };
         const read = form => {
             const warning = form?.querySelector("[data-drpg-rooms]");
             const rooms = !warning ? null : warning.hidden ? "hidden" : [warning.textContent.includes(here), warning.textContent.includes(there)];
@@ -49732,7 +49732,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "two rooms were not said or not named, a trap or one room was said, or the trap's budget showed without the box or not with it (apart, trap, one room)");
         } finally {
             closeOpen("drpg-window-murder");
-            for (const [i, token] of tokens.entries()) if (token && scene.tokens.has(token.id)) await token.update(was[i], PLACE);
+            for (const [i, token] of tokens.entries()) if (token && scene.tokens.has(token.id)) await token.update(was[i], { ...PLACE });
             await settle();
         }
     }],
@@ -61235,7 +61235,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             for (const [id, at] of was) {
                 const t = scene.tokens.get(id);
-                if (t && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+                if (t && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
             }
             if (flagWas === undefined) { if (cub.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); }
             else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
@@ -63339,7 +63339,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "the verdict did not make the held death the execution, or the phase is not Daily Life - this would measure nothing");
             const before = cards(), stood = [];
             for (const t of tokens) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 await settle();
                 stood.push(roomOfToken(t));
             }
@@ -63352,7 +63352,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const [name, desc] of Object.entries(own)) {
                 if (desc) Object.defineProperty(D, name, desc); else delete D[name];
             }
-            for (const [i, t] of tokens.entries()) if (t && scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (t && scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             if (isDeadForGm(convict)) await reviveCharacter(convict, { quiet: true });
             for (const a of studentActors()) if (offerStore.has(a.id)) await offerStore.drop(a.id);
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
@@ -63402,7 +63402,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "the phase is not the Class Trial, or the death is not the GMs' alone - this would measure nothing");
             const before = cards(), stood = [];
             for (const t of tokens) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 await settle();
                 stood.push(roomOfToken(t));
             }
@@ -63415,7 +63415,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const [name, desc] of Object.entries(own)) {
                 if (desc) Object.defineProperty(D, name, desc); else delete D[name];
             }
-            for (const [i, t] of tokens.entries()) if (t && scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (t && scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
@@ -64186,7 +64186,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const phase = deathRecord(convict)?.phase ?? null;
             const before = [cards(), stamps()], stood = [];
             for (const t of tokens) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 await settle();
                 stood.push(roomOfToken(t));
             }
@@ -64202,7 +64202,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (desc) Object.defineProperty(D, name, desc); else delete D[name];
             }
             if (isDeadForGm(convict)) await reviveCharacter(convict, { quiet: true });
-            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
             for (const a of studentActors()) if (offerStore.has(a.id)) await offerStore.drop(a.id);
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
@@ -64261,7 +64261,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // Two witnesses wait for the GM's word since 1.2.113: the prompt is answered "announce".
             D.wait = async cfg => announceTheBody(cfg);
             await setClock({ phase: "dailyLife" });
-            await tokens[0].update(positionIn(room, tokens[0]), PLACE);
+            await tokens[0].update(positionIn(room, tokens[0]), { ...PLACE });
             await settle();
             must(roomOfToken(tokens[0]) === room, `${victim.name} was not stood in ${room} - this would measure nothing`);
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s first death was not kept by the GMs`);
@@ -64277,7 +64277,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.push(toFind());
             const before = cards(), stood = [];
             for (const t of tokens.slice(1)) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 // Read as the move returns: the discovery's gather moves the second walker on (measured 10.10.2026: null after it).
                 stood.push(roomOfToken(t));
                 await settle();
@@ -64299,7 +64299,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (desc) Object.defineProperty(D, name, desc); else delete D[name];
             }
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
-            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
             }
@@ -64364,7 +64364,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             };
             await setClock({ phase: "dailyLife" });
             for (const t of tokens) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 await settle();
             }
             must(tokens.every(t => roomOfToken(t) === room), `the two were not stood in ${room} - this would measure nothing`);
@@ -64399,7 +64399,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             if (bystander.getFlag(MODULE_ID, FLAGS.deceased)) await bystander.unsetFlag(MODULE_ID, FLAGS.deceased);
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
-            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
             }
@@ -64592,7 +64592,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             D.wait = async cfg => announceTheBody(cfg);
             await setClock({ phase: "dailyLife" });
             for (const t of tokens.slice(0, 2)) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 await settle();
             }
             must(tokens.slice(0, 2).every(t => roomOfToken(t) === room), `the two bodies were not laid in ${room} - this would measure nothing`);
@@ -64602,7 +64602,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(await killCharacter(body, { secret: true, keepBullets: true }), `${body.name}'s death was not kept by the GMs`);
             const before = [cards(), bodiesFoundIn(clock.chapter, seasonEpoch()).length], seen = [], stood = [];
             for (const t of tokens.slice(2)) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 // Read as the move returns: the discovery's gather moves the walkers on.
                 stood.push(roomOfToken(t));
                 await settle();
@@ -64617,11 +64617,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const again = cards(), away = tokens.slice(2).map(t => was.find(([w]) => w.id === t.id)?.[1]);
             must(away.every(Boolean) && !bodyDiscovery(), "a walker has no place to step out to, or the hold was not answered - this would measure nothing");
             for (const [i, t] of tokens.slice(2).entries()) {
-                await t.update(away[i], PLACE);
+                await t.update(away[i], { ...PLACE });
                 await settle();
             }
             for (const t of tokens.slice(2)) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 await settle();
                 await wait(300);
             }
@@ -64631,7 +64631,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (desc) Object.defineProperty(D, name, desc); else delete D[name];
             }
             for (const a of [body, old]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
-            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
             }
@@ -65347,7 +65347,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const phase = deathRecord(mastermind)?.phase ?? null;
             const before = [cards(), stamps()], stood = [];
             for (const t of tokens) {
-                await t.update(positionIn(room, t), PLACE);
+                await t.update(positionIn(room, t), { ...PLACE });
                 await settle();
                 stood.push(roomOfToken(t));
             }
@@ -65362,7 +65362,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (desc) Object.defineProperty(D, name, desc); else delete D[name];
             }
             if (isDeadForGm(mastermind)) await reviveCharacter(mastermind, { quiet: true });
-            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
             if ((S.mastermindStore.record()?.actorId ?? null) !== pickBefore) await S.mastermindStore.patch("record", { actorId: pickBefore });
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
@@ -65565,12 +65565,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "a discovery, an Eclipse or an incident is open - the line would answer that first, and this would measure nothing");
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
             for (const t of elsewhere) await t.update({ hidden: true });
-            await tokens[0].update(spot, PLACE);
+            await tokens[0].update(spot, { ...PLACE });
             await settle();
             const drawn = await line();
             const before = cards(), stood = [];
             for (const t of tokens.slice(1)) {
-                await t.update(spot, PLACE);
+                await t.update(spot, { ...PLACE });
                 await settle();
                 stood.push(roomOfToken(t));
             }
@@ -65585,7 +65585,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             for (const t of elsewhere) if (t.parent?.tokens?.has?.(t.id) && t.hidden) await t.update({ hidden: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
-            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
             }
@@ -66277,7 +66277,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             ok(third, `${second.name} has no token on the scene on screen`);
             if (!third) return;
-            await third.update(Mv.positionIn(stood.room, third), PLACE);
+            await third.update(Mv.positionIn(stood.room, third), { ...PLACE });
             await settle();
             await G.withGmStoreWorld(`suite-c3-${foundry.utils.randomID(8)}`, async () => {
                 let scene = null;
@@ -66315,7 +66315,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.dropMany([killer.id]);
-            if (third && was && home?.tokens?.has(third.id)) await third.update(was, PLACE);
+            if (third && was && home?.tokens?.has(third.id)) await third.update(was, { ...PLACE });
             await stood.back();
         }
         const expected = [home?.id ?? null, stood.room, stood.room, true, false];
@@ -68078,7 +68078,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await wait(400);
             const sentIn = [MV.roomOfToken(thirdToken), M.murderState()?.thirdId ?? null, MV.standingOf?.(thirdToken)?.lawful ?? "no standingOf"];
-            await thirdToken.update({ x: spot.x + 1 }, PLACE);
+            await thirdToken.update({ x: spot.x + 1 }, { ...PLACE });
             await until(() => M.murderState()?.thirdId === third.id, 3000);
             read = [sentIn, [M.murderState()?.thirdId ?? null, MV.standingOf?.(thirdToken)?.lawful ?? "no standingOf"]];
         } finally {
@@ -68086,7 +68086,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (old === undefined || old === null) await piece.unsetFlag(MODULE_ID, MV.ROOM_FLAGS.locked);
                 else await piece.setFlag(MODULE_ID, MV.ROOM_FLAGS.locked, old);
             }
-            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(was, PLACE);
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(was, { ...PLACE });
             await back();
         }
         equal(stableJson(read), stableJson([[room, null, false], [third.id, true]]),
@@ -69755,7 +69755,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         let made = null, read = null;
         try {
             must(away, `no second room on the scene on screen - this would measure nothing`);
-            await theirs.update(Mv.positionIn(away, theirs), PLACE);
+            await theirs.update(Mv.positionIn(away, theirs), { ...PLACE });
             for (const [piece] of pieces) await piece.setFlag(MODULE_ID, Mv.ROOM_FLAGS.locked, true);
             await settle();
             const centre = Mv.positionIn(stood.room, theirs);
@@ -71521,11 +71521,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                         whisper: async (to, content) => { told.push([to.id, content]); } });
                     return [out?.refused ? B.reasonOf(out.refused) : out, cell(hana)];
                 };
-                const put = async spot => { await token.update(spot, PLACE); await settle(); };
+                const put = async spot => { await token.update(spot, { ...PLACE }); await settle(); };
                 const jump = async spot => {
                     must(!M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y),
                         "the token stood on the jump's spot a minute ago - it would be honoured as a send-back and this would measure nothing");
-                    await token.update(spot, asPlayer);
+                    await token.update(spot, { ...asPlayer });
                     await settle();
                 };
                 const forget = async actor => { if (cell(actor)) await P.revokePassage(id, actor.id); };
@@ -71905,7 +71905,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 for (const [what, from, to, via = null] of [["a miss in the Cafeteria, rerolled in the Dorm", { x: 700, y: 200 }, { x: 200, y: 200 }],
                     ["a miss in the Dorm, rerolled in the Cafeteria", { x: 200, y: 200 }, { x: 700, y: 200 }],
                     ["a miss in the Dorm, rerolled there after a walk out and back", { x: 200, y: 200 }, { x: 200, y: 200 }, { x: 700, y: 200 }]]) {
-                    await token.update(from, PLACE);
+                    await token.update(from, { ...PLACE });
                     await settle();
                     if (botan.system.resources.hope.value < 3) await trustedWrite(botan, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
                     F = await playerRollBookmark(thrower, botan, "analyze", {});
@@ -71916,11 +71916,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     must(first?.searched === true && first.found === false && F.row()?.facts?.findPassage === true && !cell(),
                         `the first search at 12 was refused, found, or left no fact for its Reroll - this would measure nothing: ${stableJson([first, F.row()])}`);
                     if (via) {
-                        await token.update(via, PLACE);
+                        await token.update(via, { ...PLACE });
                         await settle();
                         must(token.x === via.x && token.y === via.y, "this GM's move of the token out of the room did not land - this would measure nothing");
                     }
-                    await token.update(to, PLACE);
+                    await token.update(to, { ...PLACE });
                     await settle();
                     must(token.x === to.x && token.y === to.y, "this GM's move of the token did not land - this would measure nothing");
                     must(meansHeld(botan).hope >= 3, `the GMs hold ${meansHeld(botan).hope} of Botan's Hope - the Reroll could not be bought, and this would measure nothing`);
@@ -71933,7 +71933,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     F = null;
                 }
                 // A find taken back by a lower Reroll, where it was thrown (E80-C3-7): the down road through reroll.mjs.
-                await token.update({ x: 200, y: 200 }, PLACE);
+                await token.update({ x: 200, y: 200 }, { ...PLACE });
                 await settle();
                 if (botan.system.resources.hope.value < 3) await trustedWrite(botan, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
                 F = await playerRollBookmark(thrower, botan, "analyze", {});
@@ -72018,7 +72018,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 for (const [what, from, to] of [["a miss in the Cafeteria, rerolled in the Dorm", IN_CAFE, IN_DORM],
                     ["a miss in the Dorm, rerolled in the Cafeteria", IN_DORM, IN_CAFE],
                     ["a miss in the Dorm, rerolled in the Dorm", IN_DORM, IN_DORM]]) {
-                    await token.update(from, PLACE);
+                    await token.update(from, { ...PLACE });
                     await settle();
                     if (hana.system.resources.hope.value < 3) await trustedWrite(hana, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
                     F = await playerRollBookmark(thrower, hana, "analyze", {}, { record: { total: 12 } });
@@ -72027,7 +72027,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     await settle();
                     must(asked && !opened() && F.row()?.facts?.findStash === true,
                         `the first search at 12 was refused, opened the stash, or left no fact for its Reroll - this would measure nothing: ${stableJson([asked, F.sent, F.row()])}`);
-                    if (to !== from) await token.update(to, PLACE);
+                    if (to !== from) await token.update(to, { ...PLACE });
                     await settle();
                     must(token.x === to.x && token.y === to.y, "this GM's move of the token did not land - this would measure nothing");
                     must(meansHeld(hana).hope >= 3, `the GMs hold ${meansHeld(hana).hope} of Hana's Hope - the Reroll could not be bought, and this would measure nothing`);
@@ -72224,13 +72224,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     "the token or the student the suite holds is not the one the hooks hand on - nothing below would be held");
                 const [inner] = await scene.createEmbeddedDocuments("Wall", [{ c: [1550, 0, 1550, 600] }]);
                 await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "sendBack");
-                await aside(() => token.update({ x: 1600, y: 200 }, PLACE));
+                await aside(() => token.update({ x: 1600, y: 200 }, { ...PLACE }));
                 await budget({ actions: 2 });
                 const tokenWrite = Object.getPrototypeOf(token).update;
                 Object.defineProperty(token, "update", { configurable: true, value: (data, options = {}) => options?.[M.REVERT] && !release
                     ? new Promise(done => { release = () => { done?.(tokenWrite.call(token, data, options)); done = null; }; }) : tokenWrite.call(token, data, options) });
                 must(unseen({ x: 1300, y: 200 }), "the token stood on the jump's spot a minute ago - it would be honoured as a send-back and this would measure nothing");
-                await aside(async () => { await token.update({ x: 1300, y: 200 }, asPlayer); await until(() => release); });
+                await aside(async () => { await token.update({ x: 1300, y: 200 }, { ...asPlayer }); await until(() => release); });
                 must(release, "the GMs' audit sent nothing back across the wall - this would measure nothing");
                 await counted("a put-back on its way");
                 await aside(async () => { release(); await until(() => token.x === 1600); });
@@ -72249,7 +72249,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await counted("a jump the doors refused");
                 lawful.push(M.standingOf(token)?.lawful ?? null);
                 // A move that lands while the price is taken (here a GM's, made from the price's own write).
-                await aside(() => token.update({ x: 200, y: 200 }, PLACE));
+                await aside(() => token.update({ x: 200, y: 200 }, { ...PLACE }));
                 await budget({ actions: 2 });
                 await settle();
                 const actorWrite = Object.getPrototypeOf(student).update;
@@ -72257,7 +72257,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     if (data?.["system.resources.actions.value"] === undefined) return actorWrite.call(student, data, options);
                     delete student.update;
                     const n = writes.length;
-                    await token.update({ x: 420, y: 300 }, PLACE);
+                    await token.update({ x: 420, y: 300 }, { ...PLACE });
                     writes.splice(n);
                     moved = true;
                     return student.update(data, options);
@@ -72269,7 +72269,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 must(moved, "nothing moved the token while the price was taken - this would measure nothing");
                 await scene.deleteEmbeddedDocuments("Wall", [inner.id]);
                 if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
-                await aside(() => token.update({ x: 1400, y: 200 }, PLACE));
+                await aside(() => token.update({ x: 1400, y: 200 }, { ...PLACE }));
                 await budget({ actions: 2 });
                 await step("an action, the write failing", failing);
                 await budget({ actions: 2, burst: 1 });
@@ -72418,7 +72418,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charged);
                     must(unseen(spot), `the token stood on ${spot.x},${spot.y} a minute ago - it would be honoured as a send-back`);
                     const rows = A.auditRows().rows.length + A.auditRows().dropped, sent = told.length, said = made.length;
-                    await token.update({ x: spot.x, y: spot.y, level: L2 }, asPlayer);
+                    await token.update({ x: spot.x, y: spot.y, level: L2 }, { ...asPlayer });
                     await settle();
                     if (audit === "sendBack") await until(() => token.x === 200 && token.y === 200, 3000);
                     await settle();
@@ -72428,7 +72428,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                         fresh.map(r => [r.floor ?? null, r.mode, r.verdict, r.user === asker.id]), told.slice(sent),
                         made.slice(said).filter(id => String(SEC.secretHtml(game.messages.get(id)) ?? "").includes(`data-drpg-wall="${token.id}"`)).length]);
                     // Back downstairs by a GM's own move, which the audit leaves alone.
-                    await token.update({ x: 200, y: 200, level: L1 }, PLACE);
+                    await token.update({ x: 200, y: 200, level: L1 }, { ...PLACE });
                     await settle();
                 };
                 await jump("sendBack, crossing rooms costs a Move", { x: 1300, y: 200 }, { audit: "sendBack", charged: true });
@@ -77125,8 +77125,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const otherToken = canvas.scene?.tokens?.find(t => t.actorId === other.id) ?? null;
             must(otherToken, `${other.name} has no token on the scene on screen - this would measure nothing`);
             const otherWas = { x: otherToken.x, y: otherToken.y }, PLACE = { teleport: true, movementAction: "displace", animate: false };
-            otherBack = async () => { if (otherToken.parent?.tokens?.has(otherToken.id)) await otherToken.update(otherWas, PLACE); await settle(); };
-            await otherToken.update(positionIn(fixture.room, otherToken), PLACE);
+            otherBack = async () => { if (otherToken.parent?.tokens?.has(otherToken.id)) await otherToken.update(otherWas, { ...PLACE }); await settle(); };
+            await otherToken.update(positionIn(fixture.room, otherToken), { ...PLACE });
             await settle();
             await victim.items.find(i => i.name === FULL)?.delete();
             const knives = [await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true }),
@@ -77533,7 +77533,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             back = await handFreeFor(taker, "tool");
             read.control = await modes();
-            await takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE);
+            await takerToken.update(Mv.positionIn(elsewhere, takerToken), { ...PLACE });
             await settle();
             must(!Mv.sameRoom(giver, taker), "the second could not be stood in another room - this would measure nothing");
             read.apart = await modes();
@@ -77554,7 +77554,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await clear();
             }
             read.roads = roads;
-            await takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE);
+            await takerToken.update(Mv.positionIn(fixture.room, takerToken), { ...PLACE });
             await settle();
             must(Mv.sameRoom(giver, taker), "the second could not be stood back beside the first - this would measure nothing");
             for (const [who, label] of [[taker, "takerDead"], [giver, "giverDead"]]) {
@@ -77706,7 +77706,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const was = { x: token.x, y: token.y }, PLACE = { teleport: true, movementAction: "displace", animate: false };
         const read = {};
         try {
-            await token.update(spot, PLACE);
+            await token.update(spot, { ...PLACE });
             await settle();
             must(!locateActor(actor)?.room, `${actor.name} still stands in a room - this would measure nothing`);
             const hunt = async replay => {
@@ -77717,7 +77717,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.hunt = await hunt(false);
             read.replay = await hunt(true);
         } finally {
-            if (token.x !== was.x || token.y !== was.y) await token.update(was, PLACE);
+            if (token.x !== was.x || token.y !== was.y) await token.update(was, { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ hunt: [{ found: false, reason: "noRoom" }, 1], replay: [{ found: false, reason: "noRoom" }, 0] }),
@@ -77762,8 +77762,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const take = () => (win ? win.take() : null);
                 const after = async change => { await change(); await settle(); await wait(200); return take(); };
                 read.drawn = take();
-                read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE));
-                read.back = await after(() => takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE));
+                read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), { ...PLACE }));
+                read.back = await after(() => takerToken.update(Mv.positionIn(fixture.room, takerToken), { ...PLACE }));
                 read.trial = await after(() => game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "classTrial" }));
                 read.over = await after(() => game.settings.set(MODULE_ID, SETTINGS.clock, clockWas));
                 for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
@@ -77950,7 +77950,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.living = await loot({ askedBy: player.id });
             // A side of the running incident, at a body whose death the GMs' row lets its player know (26.09): the third
             // stood in while the body is still alive, as a walk-in on a body is a discovery that gathers every token.
-            await thirdToken.update(Mv.positionIn(fixture.room, thirdToken), PLACE);
+            await thirdToken.update(Mv.positionIn(fixture.room, thirdToken), { ...PLACE });
             await settle();
             await M.openMurder({ killerId: taker.id, victimId: third.id, openingTrait: "body" });
             await settle();
@@ -77961,7 +77961,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await deathStore.drop(body.id);
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
-            await thirdToken.update(thirdWas, PLACE);
+            await thirdToken.update(thirdWas, { ...PLACE });
             await settle();
             published = Boolean(await killCharacter(body, { secret: false, keepBullets: true }));
             must(published, "the body could not be stood dead on a published death - this would measure nothing");
@@ -77970,12 +77970,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.byGm = await loot();
             read.itself = await loot({ takerId: body.id });
             read.window = [await drawn()];
-            await bodyToken.update(Mv.positionIn(elsewhere, bodyToken), PLACE);
+            await bodyToken.update(Mv.positionIn(elsewhere, bodyToken), { ...PLACE });
             await settle();
             must(!Mv.sameRoom(taker, body), "the body could not be stood in another room - this would measure nothing");
             read.apart = await loot({ askedBy: player.id });
             read.window.push(await drawn());
-            await bodyToken.update(Mv.positionIn(fixture.room, bodyToken), PLACE);
+            await bodyToken.update(Mv.positionIn(fixture.room, bodyToken), { ...PLACE });
             await settle();
             await bodyToken.update({ hidden: true });
             await settle();
@@ -78017,7 +78017,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (monocubWas === undefined) await body.unsetFlag(MODULE_ID, FLAGS.monocub); else await body.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
             }
             if (bodyToken.hidden) await bodyToken.update({ hidden: false });
-            await thirdToken.update(thirdWas, PLACE);
+            await thirdToken.update(thirdWas, { ...PLACE });
             const trace = lootTraceStore.get(body.id);
             const token = trace?.tokenId ? game.scenes.get(trace.sceneId)?.tokens?.get(trace.tokenId) ?? null : null;
             if (token) {
@@ -78601,7 +78601,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.push(["entered", notices()]);
             await cross();
             read.push(["again", notices()]);
-            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await ownerToken.update(positionIn(room, ownerToken), { ...PLACE });
             await settle();
             await forgetRifles(first);
             await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[2].id });
@@ -78617,7 +78617,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await forgetRifles(second);
             for (const id of made) await game.messages.get(id)?.delete();
             if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
-            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, { ...PLACE });
             await together.back();
         }
         equal(stableJson(read), stableJson([["away", 1, 0], ["entered", 1], ["again", 1], ["present", 0, 1], ["after", 1]]),
@@ -78705,11 +78705,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             let again = null;
             const sent = await sentDuring(async () => { again = await reach(first, a4); });
             read.again = [...again, sent.packets.filter(p => (p.to === null || p.to.includes(player.id)) && p.html.includes(words)).length];
-            await token.update(spot, PLACE);
+            await token.update(spot, { ...PLACE });
             await settle();
             read.nowhere = await reach(first, a4);
         } finally {
-            if (token.x !== was.x || token.y !== was.y) await token.update(was, PLACE);
+            if (token.x !== was.x || token.y !== was.y) await token.update(was, { ...PLACE });
             await forgetRifles(thief);
             for (const a of [first, second, thief]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
             if (back) await back();
@@ -83856,7 +83856,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         let read = null;
         try {
             if (phase === "classTrial") await setClock({ phase: "investigation" });
-            await token.update(positionIn(stood.room, token), PLACE);
+            await token.update(positionIn(stood.room, token), { ...PLACE });
             await settle();
             must(roomOfActor(witness) === stood.room && othersInRoom(actor).some(a => a.id === witness.id),
                 `${witness.name} could not be stood beside ${actor.name} in ${stood.room} - this would measure nothing`);
@@ -83882,7 +83882,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
             if (made) await P.deleteProject(made);
-            if (canvas.scene.tokens.has(token.id)) await token.update(was, PLACE);
+            if (canvas.scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
             await stood.back();
             await setClock({ phase });
         }
@@ -84324,7 +84324,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const unseen = spot => !M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y);
             const step = async (what, start, spot, { audit, revert = false }) => {
                 await game.settings.set(MODULE_ID, SETTINGS.moveAudit, audit);
-                await token.update({ ...start, elevation: 0 }, PLACE);
+                await token.update({ ...start, elevation: 0 }, { ...PLACE });
                 await settle();
                 must(unseen(spot), `the token stood on ${spot.x},${spot.y} a minute ago - it would be honoured as a send-back`);
                 const sent = told.length, said = made.length;
@@ -84431,7 +84431,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await until(() => t.x === start.x && t.y === start.y, 1200);
                 await settle();
                 out.push([what, M.roomOfToken(t) === GYM, told.slice(sent).filter(([id]) => id === t.id).map(([, code]) => code)]);
-                await t.update(start, PLACE);
+                await t.update(start, { ...PLACE });
                 await settle();
             };
             const B = await import("./bridge-guards.mjs");
@@ -84545,7 +84545,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             };
             const codes = (t, from) => told.slice(from).filter(([id]) => id === t.id).map(([, code]) => code);
             // (a) Out of the Lab, which is then locked, and back to the spot it left.
-            await token.update({ x: 300, y: 100 }, asPlayer);
+            await token.update({ x: 300, y: 100 }, { ...asPlayer });
             await settle();
             must(M.roomOfToken(token) === HALL && M.standingOf(token)?.lawful !== false, "the walk out of the Lab did not stand - this would measure nothing");
             const lab = scene.regions.find(r => r.name === LAB);
@@ -84655,7 +84655,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const tokenWrite = Object.getPrototypeOf(token).update;
             Object.defineProperty(token, "update", { configurable: true, value: (data, options = {}) => options?.[M.REVERT] && !release && game.user.isGM && !options?.[M.SENT_BACK]
                 ? new Promise(done => { release = () => { done?.(tokenWrite.call(token, data, options)); done = null; }; }) : tokenWrite.call(token, data, options) });
-            await token.update({ x: 800, y: 300 }, asPlayer);
+            await token.update({ x: 800, y: 300 }, { ...asPlayer });
             await settle();
             await until(() => release, 1500);
             const held = Boolean(release);
@@ -84675,7 +84675,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const [climber] = await upstairs.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 100, y: 100, level: L1, width: 1, height: 1 }]);
             await settle();
             must(R.levelOf(climber) === L1 && M.isLocked(upstairs, "SUITE E17 T3 Attic"), "the climber is not downstairs or the Attic is not locked - this would measure nothing");
-            await climber.update({ x: 200, y: 200, level: L2, elevation: 12 }, asPlayer);
+            await climber.update({ x: 200, y: 200, level: L2, elevation: 12 }, { ...asPlayer });
             await settle();
             await until(() => climber.x === 100 && climber.y === 100, 1500);
             await settle();
@@ -84758,12 +84758,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const count = () => E.movesUsed(student);
             const fresh = async () => {
                 await S.eclipseMoveStore.drop(student.id);
-                await token.update({ x: 100, y: 100 }, PLACE);
+                await token.update({ x: 100, y: 100 }, { ...PLACE });
                 await settle();
             };
             const walk = async (i, y) => {
                 const sent = told.length, before = { x: token.x, y: token.y };
-                await token.update({ x: 400 * i + 100, y }, asPlayer);
+                await token.update({ x: 400 * i + 100, y }, { ...asPlayer });
                 await settle();
                 await until(() => token.x !== 400 * i + 100 || M.standingOf(token)?.lawful !== false, 1200);
                 await settle();
@@ -84965,7 +84965,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             let y = 100;
             const fresh = async () => {
                 await S.eclipseMoveStore.drop(student.id);
-                await token.update({ x: 100, y: 100 }, PLACE);
+                await token.update({ x: 100, y: 100 }, { ...PLACE });
                 await settle();
             };
             const spot = i => ({ x: 400 * i + 100, y: (y += 7) });
@@ -85168,14 +85168,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             Hooks.on("createChatMessage", onMessage);
             await S.crossingStore.drop(student.id);
             const start = async (x = 300, y = 300) => {
-                await token.update({ x, y, elevation: 0 }, PLACE);
+                await token.update({ x, y, elevation: 0 }, { ...PLACE });
                 await settle();
             };
             // A player's crossing into the Lab, to a spot never stood on, as the primary hears it.
             const cross = async () => {
                 n += 1;
                 const at = Date.now();
-                await token.update({ x: 1300 + 10 * n, y: 300 + 10 * n }, asPlayer);
+                await token.update({ x: 1300 + 10 * n, y: 300 + 10 * n }, { ...asPlayer });
                 await settle();
                 await until(() => (S.crossingStore.get(student.id)?.at ?? 0) >= at, 1500);
             };
@@ -87676,7 +87676,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             let empty = null;
             for (const room of allRooms(scene).filter(r => othersInNamedRoom(r, student).length === 0)) {
-                await token.update(positionIn(room, token), PLACE);
+                await token.update(positionIn(room, token), { ...PLACE });
                 await settle();
                 if (roomOfActor(student) === room && !(await observeCandidates(student)).candidates.length) { empty = room; break; }
             }
@@ -87699,7 +87699,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             windows.restore();
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
-            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
             for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
             if (bookmark) await rerollBookmarkStore.patch(student.id, bookmark);
@@ -88126,8 +88126,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 [placed] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE E51-T9 Monokuma", actorId: mono.id, actorLink: true,
                     x: spot.x, y: spot.y, width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]);
                 await settle();
-                await placed.update(M.positionIn(second, placed), PLACE);
-                await student.update(M.positionIn(elsewhere, student), PLACE);
+                await placed.update(M.positionIn(second, placed), { ...PLACE });
+                await student.update(M.positionIn(elsewhere, student), { ...PLACE });
                 await until(() => F.discoveredFor(scene.id, student.actorId).includes(elsewhere), 4000);
                 await settle();
                 const off = { sounds: asked() - before, layer: Boolean(FR.findLayer()), outline: FR.roomOutline?.room ?? null,
@@ -88137,13 +88137,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await until(() => !/setting is off/.test(F.diagnoseFog().lastReason ?? ""), 4000);
                 await settle();
                 read = { off, on: { sounds: asked() - again, said: !/setting is off/.test(F.diagnoseFog().lastReason ?? "") } };
-                await student.update(was, PLACE);
+                await student.update(was, { ...PLACE });
                 await settle();
             });
         } finally {
             if (!F.fogEnabled()) await game.settings.set(MODULE_ID, SETTINGS.regionFog, true);
             if (placed && scene.tokens.get(placed.id)) await placed.delete();
-            if (student.x !== was.x || student.y !== was.y) await student.update(was, PLACE);
+            if (student.x !== was.x || student.y !== was.y) await student.update(was, { ...PLACE });
             await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
             await game.settings.set(MODULE_ID, SETTINGS.sfxVolumes, volumes);
             await settle();
@@ -97083,7 +97083,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             must(deathStore.has(who.id) && !C.isDeceased(who), `${who.name}'s death was not kept - this would measure nothing`);
             read.kept = B.bodyTilesOf(who.id).length;
-            await token.update(Mv.positionIn(other, token), PLACE);
+            await token.update(Mv.positionIn(other, token), { ...PLACE });
             await settle();
             must(Mv.roomOfToken(token) === other, `${who.name}'s token could not be moved into ${other} - this would measure nothing`);
             read.moved = B.bodyTilesOf(who.id).length;
@@ -97093,7 +97093,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.published = [laid.length, laid[0]?.doc.x === token.x && laid[0]?.doc.y === token.y, B.bodyRoomOf(who) === other];
         } finally {
             if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
-            await token.update(was, PLACE);
+            await token.update(was, { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ kept: 0, moved: 0, published: [1, true, true] }),
@@ -97390,7 +97390,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             must(Mv.roomOfToken(token) === other, `${who.name}'s body could not be dragged into ${other} - this would measure nothing`);
             read.dragged = where();
-            await token.update(Mv.positionIn(home, token), PLACE);
+            await token.update(Mv.positionIn(home, token), { ...PLACE });
             await settle();
             read.teleported = where();
             read.anotherUser = typeof B.followBody !== "function" ? "no followBody" : someoneElse ? await B.followBody(token, { x: token.x + 1 }, {}, someoneElse.id) : "no other user";
@@ -97401,7 +97401,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                corpse, whose tile now follows a GM's move of it (the e93 review's F3). So the walker is moved here, read as
                the student's place (movement.mjs `locateActor`); a Monocub with one token walks that one, as before. */
             const walker = Mv.locateActor(who)?.tokenDoc ?? token;
-            await walker.update(Mv.positionIn(other, walker), PLACE);
+            await walker.update(Mv.positionIn(other, walker), { ...PLACE });
             await settle();
             read.monocub = [...where(), Mv.roomOfToken(walker)];
         } finally {
@@ -97410,7 +97410,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
             else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
             await who.update(Object.fromEntries(keys.filter(k => res[k] !== null).map(k => [`${R}.${k}`, res[k]])));
-            await token.update(was, PLACE);
+            await token.update(was, { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({
@@ -97709,10 +97709,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await sheetAuditIdle();
                 must(item, "the body's Tool was not made - this would measure nothing");
                 read.open = await look();
-                await takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE);
+                await takerToken.update(Mv.positionIn(elsewhere, takerToken), { ...PLACE });
                 await settle();
                 read.away = await look();
-                await takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE);
+                await takerToken.update(Mv.positionIn(fixture.room, takerToken), { ...PLACE });
                 await settle();
                 read.back = await look();
                 for (let n = 0; n < 6 && INV.canCarry(taker, "tool").ok; n++) {
@@ -97782,8 +97782,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     return state();
                 };
                 read.drawn = state();
-                read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE), true);
-                read.back = await after(() => takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE), false);
+                read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), { ...PLACE }), true);
+                read.back = await after(() => takerToken.update(Mv.positionIn(fixture.room, takerToken), { ...PLACE }), false);
                 for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
             });
         } finally {
@@ -100314,7 +100314,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             const exits = [(await D.openExits(scene, few)).length, (await D.openExits(scene, many)).length];
             must(exits[0] >= 1 && exits[0] <= INFILTRATE.shut.maxExits && exits[1] > INFILTRATE.shut.maxExits, `the doors written did not take: ${JSON.stringify(exits)}`);
-            await token.update(M.positionIn(few, token), PLACE);
+            await token.update(M.positionIn(few, token), { ...PLACE });
             await settle();
             const next = M.neighbouringRooms(scene, few)[0];
             read.shut = [await ask({ total: 30, rollId: await rollOf(14) }), M.roomBarricaded(scene, few), S.barricadeStore.get(key(few))?.strength ?? null];
@@ -100323,7 +100323,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const passage = M.crossingVerdict(other, next, few, scene, null, { mover: { gm: false, mastermind: false }, pay: false, keyed: true, joined: true, via: "passage" });
             read.walk = [student?.code ?? student, gm?.code === "barricaded", passage?.code === "barricaded"];
             read.left = [await D.onDoorCrossing({ actorId: actor.id, from: few, to: next }), M.roomBarricaded(scene, few), S.barricadeStore.get(key(few))];
-            await token.update(M.positionIn(many, token), PLACE);
+            await token.update(M.positionIn(many, token), { ...PLACE });
             await settle();
             read.many = await ask({ rollId: await rollOf(14) });
             read.theirs = await ask({ actorId: other.id, rollId: await rollOf(14) });
@@ -100340,7 +100340,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (value === null) await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.neighbours);
                 else await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, value);
             }
-            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ shut: [{ room: few }, true, 14], walk: ["barricaded", false, false], left: [1, false, null],
@@ -100410,8 +100410,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
             }
             for (const piece of roomRegions(scene, B)) keep(piece, M.ROOM_FLAGS.locked);
-            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
-            await tokens[1].update(M.positionIn(C, tokens[1]), PLACE);
+            await tokens[0].update(M.positionIn(A, tokens[0]), { ...PLACE });
+            await tokens[1].update(M.positionIn(C, tokens[1]), { ...PLACE });
             await settle();
             await barricade(14);
             read.barricade = [shape(await ask({ rollId: await rollOf(14) })), shape(await ask({ rollId: await rollOf(15) })), M.roomBarricaded(scene, B)];
@@ -100441,7 +100441,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 else await piece.setFlag(MODULE_ID, key, value);
             }
             for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, other.id].includes(m.speaker?.actor))) await m.delete();
-            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ barricade: [[false, "barricade"], [true, "barricade"], false], heard: 1,
@@ -100501,7 +100501,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const seenIds = new Set(game.messages.map(m => m.id));
         const cards = () => game.messages.filter(m => !seenIds.has(m.id) && m.speaker?.actor === other.id && m.whisper?.length).length;
         const roomNow = () => M.roomOfToken(scene.tokens.get(tokens[0].id));
-        const backToA = async () => { await tokens[0].update(M.positionIn(A, tokens[0]), PLACE); await settle(); };
+        const backToA = async () => { await tokens[0].update(M.positionIn(A, tokens[0]), { ...PLACE }); await settle(); };
         // The third column: a pass to B held and the picker still in A (E74, DA9 as the plan has it: an open walks nobody).
         const P = await import("./lockpick-gm.mjs");
         const step = async (hand, cover, withHope = true) => {
@@ -100521,7 +100521,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             for (const piece of roomRegions(scene, B)) { keep(piece, M.ROOM_FLAGS.locked); keep(piece, ROOM_OWNER_FLAG); }
             await backToA();
-            await tokens[1].update(M.positionIn(B, tokens[1]), PLACE);
+            await tokens[1].update(M.positionIn(B, tokens[1]), { ...PLACE });
             await settle();
             await setFlag(M.ROOM_FLAGS.locked, true);
             read.lock = [await step(14, 16), await step(15, 16), M.isLocked(scene, B)];
@@ -100555,7 +100555,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 else await piece.setFlag(MODULE_ID, key, value);
             }
             for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, other.id].includes(m.speaker?.actor))) await m.delete();
-            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ lock: [[false, "lock", false, 0], [true, "lock", true, 0], true], seen: [[false, "lock", false, 1], [false, "lock", false, 0]],
@@ -100837,7 +100837,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const read = {};
         try {
             for (const [room, list] of [[A, [B]], [B, [A]]]) for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
-            await token.update(M.positionIn(A, token), PLACE);
+            await token.update(M.positionIn(A, token), { ...PLACE });
             await settle();
             // A Dash of no crossings.
             await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0 }, { reason: "gmRuling" });
@@ -100859,7 +100859,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.pick = [await reroll("pick", { pickRoom: B, opened: false, coverTotal: 20, coverCritical: false }), M.roomOfToken(scene.tokens.get(token.id)) === B
                 ? "walked" : (await import("./lockpick-gm.mjs")).passOf(actor.id)?.room ?? null];
             { const P = await import("./lockpick-gm.mjs"); if (P.passOf(actor.id)) await P.endPass(actor.id); }
-            await token.update(M.positionIn(A, token), PLACE);
+            await token.update(M.positionIn(A, token), { ...PLACE });
             await settle();
             // A watch the first roll kept none of, then one it kept, rerolled into a miss.
             read.watch = [await reroll("keepWatch", { watchKept: false }), Boolean(S.watchStore.get(actor.id))];
@@ -100874,7 +100874,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
             }
             await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: was.grants, "system.resources.hope.value": was.hope }, { reason: "gmRuling" });
-            if (scene.tokens.has(token.id)) await token.update({ x: was.x, y: was.y }, PLACE);
+            if (scene.tokens.has(token.id)) await token.update({ x: was.x, y: was.y }, { ...PLACE });
             await settle();
         }
         const ok1 = { stood: true, noReplay: false };
@@ -100969,7 +100969,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const read = {};
         try {
             for (const [room, list] of [[A, [B]], [B, [A]], [C, []]]) for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
-            await token.update(M.positionIn(A, token), PLACE);
+            await token.update(M.positionIn(A, token), { ...PLACE });
             await settle();
             read.whole = (await ask(B)).refused;
             await M.setRoomBroken(scene, B, true);
@@ -100994,7 +100994,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
                 for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
             }
-            if (scene.tokens.has(token.id)) await token.update({ x: was.x, y: was.y }, PLACE);
+            if (scene.tokens.has(token.id)) await token.update({ x: was.x, y: was.y }, { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ whole: "that lock is not broken.", far: "that lock is on no door of the builder's room.",
@@ -101052,8 +101052,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const read = {};
         try {
             for (const [room, list] of [[A, [B]], [B, [A]], [C, []]]) for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
-            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
-            await tokens[1].update(M.positionIn(B, tokens[1]), PLACE);
+            await tokens[0].update(M.positionIn(A, tokens[0]), { ...PLACE });
+            await tokens[1].update(M.positionIn(B, tokens[1]), { ...PLACE });
             await settle();
             read.shut = [await judge({ action: "door.shut", actorId: actor.id, rollId: await rollOf("shut", 14) }), traces()];
             read.pickBands = [{ opened: false, total: 10, withHope: false }, { opened: false, total: 10, withHope: true }, { opened: true, total: 16, withHope: true },
@@ -101062,7 +101062,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const author = cards(actor);
             read.knock = [await judge({ action: "door.knock", actorId: other.id, room: A }, game.user.id), cards(actor) - author];
             read.again = [await D.knockDoor({ actor: other, room: A }), cards(actor) - author];
-            await tokens[1].update(M.positionIn(C, tokens[1]), PLACE);
+            await tokens[1].update(M.positionIn(C, tokens[1]), { ...PLACE });
             await settle();
             read.far = (await D.knockDoor({ actor: other, room: A })).refused ?? null;
             await D.endBarricade(D.barricadeKey(scene.id, A));
@@ -101086,7 +101086,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, other.id].includes(m.speaker?.actor))) await m.delete();
             await trustedWrite(actor, { "system.resources.stress.value": was.stress }, { reason: "gmRuling" });
-            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was.at[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was.at[i], { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ shut: ["done", ["subtle"]], pickBands: ["evident", "subtle", "subtle", "hidden", "hidden"],
@@ -101222,7 +101222,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
             }
             for (const piece of roomRegions(scene, B)) { keep(piece, M.ROOM_FLAGS.locked); await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true); }
-            await token.update(M.positionIn(A, token), PLACE);
+            await token.update(M.positionIn(A, token), { ...PLACE });
             await settle();
             const out = await pick(15);
             await settle();
@@ -101264,7 +101264,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (value === null) await piece.unsetFlag(MODULE_ID, key);
                 else await piece.setFlag(MODULE_ID, key, value);
             }
-            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ open: [true, A, [B, false], true, "doorLocked"], copy: [B, true, false],
@@ -101354,9 +101354,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
             }
             for (const piece of roomRegions(scene, B)) keep(piece, M.ROOM_FLAGS.locked);
-            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
-            await tokens[1].update(M.positionIn(A, tokens[1]), PLACE);
-            await tokens[2].update(M.positionIn(B, tokens[2]), PLACE);
+            await tokens[0].update(M.positionIn(A, tokens[0]), { ...PLACE });
+            await tokens[1].update(M.positionIn(A, tokens[1]), { ...PLACE });
+            await tokens[2].update(M.positionIn(B, tokens[2]), { ...PLACE });
             await settle();
             read.shut = await step(async () => ask({ action: "door.shut", rollId: await rollOf("shut", 14) }));
             await D.endBarricade(D.barricadeKey(scene.id, A));
@@ -101368,7 +101368,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.pickSeen = await step(async () => ask({ action: "door.pick", room: B, rollId: await rollOf("pick", 14), coverRollId: await rollOf("pickCover", 10) }));
             await lock(false);
             // The knock: `near` joins `other` in B, `other` barricades it, the character in A tries B's door.
-            await tokens[1].update(M.positionIn(B, tokens[1]), PLACE);
+            await tokens[1].update(M.positionIn(B, tokens[1]), { ...PLACE });
             await settle();
             read.barricaded = Boolean((await D.shutDoor({ actor: other, total: 14 }))?.room);
             const knock = await step(async () => {
@@ -101394,7 +101394,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 else await piece.setFlag(MODULE_ID, key, value);
             }
             for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, near.id, other.id].includes(m.speaker?.actor))) await m.delete();
-            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ shut: ["done", ["shut"], []], forceHope: ["done", ["tried"], []], forceDespair: ["done", ["tried"], ["tried"]],
@@ -101542,7 +101542,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return out;
         };
         const force = async total => ask({ action: "door.force", rollId: await rollOf("force", total) });
-        const stand = async (i, room) => { await tokens[i].update(M.positionIn(room, tokens[i]), PLACE); await settle(); };
+        const stand = async (i, room) => { await tokens[i].update(M.positionIn(room, tokens[i]), { ...PLACE }); await settle(); };
         const cross = async () => {
             Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: B, tokenDoc: tokens[1] });
             await settle();
@@ -101623,7 +101623,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             // Every card this test made: the doors', the breach's to the rooms and the GMs, the notes.
             for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
-            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], { ...PLACE });
             await settle();
         }
         equal(stableJson(read), stableJson({ away: ["done", [], "done", [], true, [], true, []], entered: [["warned", "yourDoor", "breached", "mended"]],
@@ -101672,7 +101672,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const cards = () => packets.filter(w => w.to.some(id => readers(owner).includes(id)) && w.html.includes(text)).length;
                 await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
                 for (const [piece] of flagsWere) await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
-                await token.update(M.positionIn(far, token), PLACE);
+                await token.update(M.positionIn(far, token), { ...PLACE });
                 await wait();
                 read.push(["held", await D.noteBedroom({ scene, room: B, kind: "mended" }), cards()]);
                 Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: far, to: B, via: null, eclipse: null, sceneId: scene.id });
@@ -101682,12 +101682,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await wait();
                 read.push(["paid after", cards()]);
                 await D.noteBedroom({ scene, room: B, kind: "mended" });
-                await token.update(M.positionIn(B, token), PLACE);
+                await token.update(M.positionIn(B, token), { ...PLACE });
                 await wait();
                 read.push(["placed", cards(), noteKeys().length]);
-                await token.update(M.positionIn(far, token), PLACE);
+                await token.update(M.positionIn(far, token), { ...PLACE });
                 await wait();
-                await token.update(M.positionIn(B, token), PLACE);
+                await token.update(M.positionIn(B, token), { ...PLACE });
                 await wait();
                 read.push(["placed again", cards()]);
             });
@@ -101697,7 +101697,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (value === null) await piece.unsetFlag(MODULE_ID, ROOM_OWNER_FLAG);
                 else await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, value);
             }
-            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
             await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, feesWere);
             await settle();
         }
@@ -101755,7 +101755,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 things.push(await INV.grantItem(owner, { name: `${NAME} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
                     location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } }));
             }
-            await ownerToken.update(positionIn(elsewhere, ownerToken), PLACE);
+            await ownerToken.update(positionIn(elsewhere, ownerToken), { ...PLACE });
             await wait();
             must(roomOfToken(canvas.scene.tokens.get(ownerToken.id)) !== room, "the owner could not be stood outside the room - this would measure nothing");
             for (const thief of [first, second]) backs.push(await handFreeFor(thief, "usable"));
@@ -101772,12 +101772,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.push(["paid after", notices()]);
             await V.stealFromVault({ thiefId: second.id, ownerId: owner.id, itemId: things[1].id });
             await settle();
-            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await ownerToken.update(positionIn(room, ownerToken), { ...PLACE });
             await wait();
             read.push(["placed", notices()]);
-            await ownerToken.update(positionIn(elsewhere, ownerToken), PLACE);
+            await ownerToken.update(positionIn(elsewhere, ownerToken), { ...PLACE });
             await wait();
-            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await ownerToken.update(positionIn(room, ownerToken), { ...PLACE });
             await wait();
             read.push(["placed again", notices()]);
         } finally {
@@ -101788,7 +101788,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await forgetRifles(second);
             for (const id of made) await game.messages.get(id)?.delete();
             if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
-            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, { ...PLACE });
             await together.back();
             await settle();
         }
@@ -101856,7 +101856,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => false, 400);
             await settle();
             read.told = gmCards().slice(read.away.length);
-            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await ownerToken.update(positionIn(room, ownerToken), { ...PLACE });
             await settle();
             await until(() => false, 400);
             await forgetRifles(first);
@@ -101871,7 +101871,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await forgetRifles(first);
             for (const id of made) await game.messages.get(id)?.delete();
             if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
-            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, { ...PLACE });
             await together.back();
             await settle();
         }
