@@ -1016,9 +1016,17 @@ export function buildDocumentClasses(ctx) {
      * still a GM's.
      */
     class UserImpl extends BaseDocument {
+        /* A USER'S `active` IS ITS OWN DATA PROPERTY (E58 L1's reading on 14.370, 17.11.2026, relayed by the coordinator):
+           own, writable, true for a connected user, nothing on the prototype, so `delete user.active` removes it at a
+           table. Until the merge of 93f14e01 on claude/shim-118 the shim read it through a getter here, where a delete took
+           nothing and the getter answered again (00-boot, red first). Set at construction from the world's record, and by
+           client-entry.mjs's `userActivity` as a user comes and goes. */
+        constructor(data = {}, context = {}) {
+            super(data, context);
+            Object.defineProperty(this, "active", { value: Boolean(this._source.active), writable: true, enumerable: true, configurable: true });
+        }
         static get documentName() { return "User"; }
         get isGM() { return this.hasRole("ASSISTANT"); }
-        get active() { return !!this._source.active; }
         get role() { return this._source.role ?? 1; }
         get character() { return ctx.gameRef().actors.get(this._source.character) ?? null; }
         get color() { return U.Color.from(this._source.color ?? 0x888888); }
@@ -1722,6 +1730,8 @@ export function buildApplications(ctx) {
     const autoAnswered = new Map();
     class DialogV2 extends ApplicationV2 {
         static DEFAULT_OPTIONS = { classes: ["dialog"], tag: "dialog", window: { minimizable: false }, position: { width: 400 }, form: { closeOnSubmit: true } };
+        /* This DialogV2 reads `__dialogAnswers` itself, so the suite's kit leaves it unwrapped (tests-kit.mjs `answerDialogs`). */
+        static answersQueue = "harness";
         /* The instance form, as Foundry's: a form holding the content and a footer of buttons. */
         async _renderHTML() {
             const doc = globalThis.document;

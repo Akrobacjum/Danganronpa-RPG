@@ -400,6 +400,19 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         [ownDot, ownNest, ownOld].every(r => r.p1 === 3 && r.heard.length === 0) && ownFlag.flag === null && ownFlag.p1 === 3 && ownWhole.p1 === null,
         J({ ownDot, ownNest, ownOld, ownFlag, ownWhole }));
 
+    /* A USER'S `active` IS ITS OWN DATA PROPERTY (E58 L1's reading on 14.370, 17.11.2026, relayed by the coordinator;
+       lib/shim.mjs `UserImpl`): a User's `active` was an own, writable data property, true for a connected user, with
+       nothing on the prototype, so `delete user.active` removed it there. Here, on the GM, p1's User: the descriptor,
+       whether the prototype holds one, `active` after a delete, and after the descriptor is put back. */
+    const activeRead = await gm.eval(`const u = game.users.get("${IDS.p1}"), d = Object.getOwnPropertyDescriptor(u, "active");
+        const out = { own: d ? { value: d.value ?? null, writable: d.writable ?? null, accessor: Boolean(d.get) } : null,
+            onProto: Object.getOwnPropertyDescriptor(Object.getPrototypeOf(u), "active") !== undefined };
+        if (d) { delete u.active; out.deleted = u.active ?? null; Object.defineProperty(u, "active", d); }
+        out.back = u.active;
+        return out;`);
+    check("a User's active is its own data property, as on v14 14.370: own, writable, true for a connected user, nothing on the prototype; a delete removes it and its descriptor puts it back",
+        J(activeRead) === J({ own: { value: true, writable: true, accessor: false }, onProto: false, deleted: null, back: true }), J(activeRead));
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;

@@ -595,8 +595,11 @@ async function withAnsweredWindows(answer, run) {
  * (`n` counts the windows from 0) and answers true to press the default button, whose callback reads
  * the drawn form as a click would, or false to close the window. A browser's form answers its
  * controls by name (`form.room`) and jsdom's does not (measured 11.10.2026: `form.name` is the
- * form's own name attribute there), so each named control is set on its form as that. Answers the
- * elements drawn, in order; Foundry's own `wait` is put back.
+ * form's own name attribute there), so each named control is set on its form as that - only where the
+ * form does not answer with it already: a browser refuses the property ("Failed to set a named property
+ * 'traceOrder' on 'HTMLFormElement': Named property setter is not supported", Chromium on the sandbox,
+ * 17.11.2026, three tests), and needs none. Answers the elements drawn, in order; Foundry's own `wait`
+ * is put back.
  */
 async function withFormAnswered(choose, run) {
     const D = foundry.applications.api.DialogV2;
@@ -608,7 +611,10 @@ async function withFormAnswered(choose, run) {
         else if (cfg?.content) element.append(cfg.content.cloneNode(true));
         for (const form of element.querySelectorAll("form")) {
             for (const control of form.querySelectorAll("[name]")) {
-                Object.defineProperty(form, control.getAttribute("name"), { value: control, configurable: true });
+                const name = control.getAttribute("name"), held = form[name];
+                // A browser answers a name with its control, or with a RadioNodeList where several share it.
+                if (held === control || (typeof globalThis.RadioNodeList === "function" && held instanceof globalThis.RadioNodeList)) continue;
+                Object.defineProperty(form, name, { value: control, configurable: true });
             }
         }
         drawn.push(element);
@@ -1445,15 +1451,18 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * (lib/dh-dice/applications/dialogs/d20RollDialog.mjs `play`), so headless none of them waited. `pressingRoll(run)` runs
  * `run` and, while it runs, presses Roll on each of Daggerheart's roll windows drawn on this browser, once, after the
  * renders it set off have settled - after the module's render hooks and the test's own, which were registered before.
- * A window that plays itself (the glue's `play`) is left to it. Answers what `run` answers.
+ * Since the owner's consent of the same day the glue window no longer presses Roll either, so headless the window waits
+ * as it waits at a table and this presses it there too, after the experience chips the glue clicks for a test
+ * (`picksClicked`, the glue's alone). Answers what `run` answers.
  */
 async function pressingRoll(run) {
     const Window = game.system.api?.dice?.DualityRoll?.DefaultDialog ?? null;
     const seen = new Set();
     const hook = Hooks.on("renderApplicationV2", app => {
-        if (!Window || !(app instanceof Window) || seen.has(app) || typeof app.play === "function") return;
+        if (!Window || !(app instanceof Window) || seen.has(app)) return;
         seen.add(app);
         (async () => {
+            if (app.picksClicked) await app.picksClicked;
             if (typeof app.settled === "function") await app.settled();
             await settle();
             if (app.rendered) app.element?.querySelector('button[data-action="submitRoll"]')?.click();
@@ -24705,9 +24714,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
            which the suite's GM draws: handed to `confirm` as before (tests-kit.mjs `kitQuestions`), which answers yes. */
         const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         D.wait = kitQuestions(D.wait);
+        /* Each kit's use asks its yes through `confirm` (`kitQuestions`), and at a table that window waits for a person: the
+           yes is queued before each of the three (E58 L1's test 357, which ran to the runner's limit on the sandbox; tests-kit
+           `answerDialogs` answers `confirm` from the queue there too). Headless the shim answered an empty queue's confirm
+           itself - read on claude/shim-118 at the merge of 93f14e01 (17.11.2026): confirm, wait, confirm, confirm, the wait
+           the odd thing's, answered below - so the queue is held to empty once the uses are done, and for this test's length
+           the shim answers nothing itself (`__dialogAuto` false: an unanswered confirm is dismissed), as a table answers
+           nothing: a use whose yes is missing is declined here as it would wait there. */
+        const yes = () => globalThis.__dialogAnswers.push(true);
+        const hadAuto = Object.hasOwn(globalThis, "__dialogAuto"), auto = globalThis.__dialogAuto;
+        globalThis.__dialogAuto = false;
+        let leftQueued = null;
         try {
             words = await wordsSent(async () => {
                 globalThis.__forceRoll = { hope: 11, fear: 5 };
+                yes();
                 await M.takeCrisisAction(victim, "useItem", { itemId: items.kit.id });
                 await settle();
                 if (!M.isTheirTurn(killer)) await M.passTurn();
@@ -24718,6 +24739,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await grantItemEffect(killer, items.odd, {}, { consumeItem: true });
                 await armCall(victim, { key: "support", kind: "hope", grants: "advantage", from: bystander.id });
                 await armCall(killer, { key: "obstacle", kind: "despair", grants: "disadvantage", from: "monokuma" });
+                yes();
                 await useItem(bystander, items.drink);
                 await breakOnDespair(bystander, items.snap, { withFear: true, isCritical: false });
                 await breakOnDespair(nobody, items.npc, { withFear: true, isCritical: false });
@@ -24733,10 +24755,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (maskStands(killer.id)) await endMask(killer.id, "suite");
             await settle();
             after = await wordsSent(async () => {
+                yes();
                 await useItem(bystander, items.later);
                 await settle();
             });
+            leftQueued = globalThis.__dialogAnswers.length;
         } finally {
+            globalThis.__dialogAnswers.length = 0;
+            if (hadAuto) globalThis.__dialogAuto = auto; else delete globalThis.__dialogAuto;
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
@@ -24744,6 +24770,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const a of [victim, killer]) await a.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             for (const [key, item] of Object.entries(items)) await owners[key].items.get(item?.id)?.delete();
         }
+        equal(leftQueued, 0, "a yes queued for a kit's use was left unanswered, or a window took it that was not that kit's (answers left in the queue after the three uses)");
         const names = [killer, victim, bystander, nobody].flatMap(a => [a.id, a.name]);
         const players = [killer, victim, bystander].map(a => player(a).id);
         const everybody = game.users.map(u => u.id);
@@ -49061,12 +49088,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                    as not connected for the Reveal's step. Their student is in the trial and gets the copy all the same - the
                    slot leaves the list, so nothing would hand it over later. Red at the fix's parent: no copy for them. */
                 const away = parts[1].user;
+                // v14 keeps `active` on the User itself (an own data property, read on the sandbox 17.11.2026), so it is put
+                // back as it was, not deleted: a `delete` left the player not connected for the rest of the session there.
+                const ownActive = Object.getOwnPropertyDescriptor(away, "active");
                 Object.defineProperty(away, "active", { get: () => false, configurable: true });
                 let done = null;
                 try {
                     done = await judged({ action: "trial.gm", requestId: "E70T11G", op: "reveal", slot: "17" }, game.user.id);
                 } finally {
-                    delete away.active;
+                    if (ownActive) Object.defineProperty(away, "active", ownActive);
+                    else delete away.active;
                 }
                 await sheetAuditIdle();
                 await settle();
@@ -49272,12 +49303,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(keyItem, "the presenter's Faint Key was not made");
             await settle();
             const nk = cards().length;
+            // Put back as it was, not deleted: v14 keeps `active` on the User itself (the note in the Reveal's test above).
+            const ownActive = Object.getOwnPropertyDescriptor(O.user, "active");
             Object.defineProperty(O.user, "active", { get: () => false, configurable: true });
             let keyAnswer = null;
             try {
                 keyAnswer = await judged({ action: "trial.present", requestId: "E70T12k", actorId: P.actor.id, itemId: keyItem.id, comment: "", bare: true }, P.user.id);
             } finally {
-                delete O.user.active;
+                if (ownActive) Object.defineProperty(O.user, "active", ownActive);
+                else delete O.user.active;
             }
             read.faintKey = [keyAnswer, cards().slice(nk).map(m => [/drpg-tb-badge faint/.test(m.content), m.content.includes("E70T12 the Key's reading")]),
                 others.map(o => o.actor.items.filter(i => T.isTruthBullet(i) && i.name === "E70T12 the Faint Key")
@@ -103824,6 +103858,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await message?.delete();
             await settle();
         }
+    }],
+
+    ["a test's queued dialog answer is the window's answer on this browser, at a table too", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision (b), relayed by the coordinator that day. `true` queued in
+         * `__dialogAnswers`, then a DialogV2 confirm opened on this GM: headless the harness's DialogV2 answers it from the
+         * queue; at a table the runner's (tests-kit.mjs `answerDialogs`), for this test's length. Until that seam, at a table
+         * there was no queue and the window waited for a person. Guarded by 5 s of the test's own, so a window nobody
+         * answers fails this test and does not hold the suite; any window it left open is closed after. Read: the answer.
+         */
+        const title = "E58 queued answer";
+        const guard = new Promise(resolve => setTimeout(() => resolve("no answer within 5 s"), 5000));
+        let answer = null;
+        try {
+            must(Array.isArray(globalThis.__dialogAnswers), "this page holds no __dialogAnswers to queue in - the answer cannot be named");
+            globalThis.__dialogAnswers.push(true);
+            answer = await Promise.race([foundry.applications.api.DialogV2.confirm({ window: { title }, content: "<p>E58</p>" }), guard]);
+        } finally {
+            for (const app of [...foundry.applications.instances.values()]) if (app.title === title || app.options?.window?.title === title) await app.close().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(answer), stableJson(true), "the queued answer did not answer the window");
     }],
 ];
 

@@ -56,7 +56,7 @@
 import { log, warn, esc, plural, dialogContent } from "./utils.mjs";
 import { studentActors } from "./monokuma.mjs";
 import {
-    layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, scriptDice, stageLedger, registerSuite, worldCensus
+    layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, scriptDice, answerDialogs, stageLedger, registerSuite, worldCensus
 } from "./tests-kit.mjs";
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
@@ -535,16 +535,21 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                 /* THE DICE REAL AT THE START, to be read again at the end (the kit's `scriptDice`; E58 L1, 17.11.2026). */
                 const DualityRoll = game.system.api?.dice?.DualityRoll ?? null;
                 const realDice = { evaluate: DualityRoll?.buildEvaluate ?? null, uniform: CONFIG.Dice.randomUniform, force: globalThis.__forceRoll };
+                /* THE DIALOGS REAL AT THE START, the same way (the kit's `answerDialogs`; E58 L1, 17.11.2026). */
+                const Dialog = foundry.applications?.api?.DialogV2 ?? null;
+                const realDialogs = { wait: Dialog?.wait, confirm: Dialog?.confirm, prompt: Dialog?.prompt, answers: globalThis.__dialogAnswers };
                 for (const entry of mine) {
                     running = entry[0];
                     // The test's named dice for its own length, taken off and its `__forceRoll` put back whatever it did -
                     // passed, threw or ran out of time (`scriptDice`'s note).
                     const unscript = scriptDice();
+                    const unanswer = answerDialogs();
                     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
                     let r;
                     try {
                         r = await runOne(entry, { tier: 2, ledger });
                     } finally {
+                        unanswer();
                         unscript();
                         if (hadForce) globalThis.__forceRoll = force;
                         else delete globalThis.__forceRoll;
@@ -589,6 +594,13 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                 ];
                 record({ tier: 2, name: "the dice are real again after tier 2", assertions: null,
                     ...(scriptedLeft.length ? { outcome: "fail", message: `THE DICE ARE NOT REAL: ${scriptedLeft.join("; ")}` } : { outcome: "pass" }) });
+                /* THE DIALOGS ARE REAL AGAIN (the owner's decision (b) of 17.11.2026, relayed by the coordinator, as for the dice). */
+                const answeredLeft = [
+                    ...(["wait", "confirm", "prompt"].filter(name => Dialog?.[name] !== realDialogs[name]).map(name => `DialogV2.${name} is still wrapped`)),
+                    ...(globalThis.__dialogAnswers !== realDialogs.answers ? ["a test's __dialogAnswers is not what the run began with"] : [])
+                ];
+                record({ tier: 2, name: "the dialogs are real again after tier 2", assertions: null,
+                    ...(answeredLeft.length ? { outcome: "fail", message: `THE DIALOGS ARE NOT REAL: ${answeredLeft.join("; ")}` } : { outcome: "pass" }) });
                 const late = dumpDiff(asFound, await worldDump()).filter(d => !reported.has(d.path));
                 record({ tier: 2, name: "tier 2 put the world back as it found it", assertions: null,
                     ...(late.length
