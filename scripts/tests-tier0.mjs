@@ -6047,7 +6047,7 @@ const REGRESSIONS = [
         /*
          * E58 L1, 17.11.2026; the coordinator's decision of that day (R7562's note). A test past its limit is still running
          * behind the runner, so no test may run after it. Read off tests.mjs `runSuite`, cut with the kit: every test it
-         * runs is run as `const r = await runOne(entry, { tier: N, ledger })` and none any other way, each of the three is
+         * runs is run as `const r = await runOne(entry, { tier: N, ledger })` (or `r = ...` inside a seam's `try`) and none any other way, each of the three is
          * followed in its loop by the stop (`stopsHere(r)`; tier 2's breaks after its restore), and tiers 1 and 2 start
          * only when nothing stopped. Read: how many `runOne` calls, how many of the named form, how many stops, the two
          * guards, tier 2's break.
@@ -6055,7 +6055,8 @@ const REGRESSIONS = [
         const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
         const suite = fnSource(src, "runSuite");
         const calls = (suite.match(/\brunOne\(/g) ?? []).length;
-        const named = (suite.match(/const r = await runOne\(entry, \{ tier: [012], ledger \}\);/g) ?? []).length;
+        // As a declaration or, where a seam's `finally` wraps it (tier 2, R7565, R7567), an assignment to the `r` declared before.
+        const named = (suite.match(/(?:const )?r = await runOne\(entry, \{ tier: [012], ledger \}\);/g) ?? []).length;
         const stops = (suite.match(/\bstopsHere\(r\)/g) ?? []).length;
         const guards = [/if \(tier >= 1 && first && !stoppedAt\)/.test(suite), /if \(tier >= 2 && !stoppedAt\)/.test(suite)];
         const tier2 = /const stop = stopsHere\(r\);[\s\S]*?if \(stop\) break;/.test(suite);
