@@ -522,6 +522,19 @@ function onClientMessage(who, entry, msg) {
                     embeddedName: msg.op.embeddedName ?? null, at: Date.now() });
                 for (const before of applied.first ?? []) broadcast(before);
                 broadcast(applied.broadcast);
+                /* A ROLE CHANGE LOGS THE USER OUT (D6, 17.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-05, read by
+                   E58 L1): on Foundry 14.370 the GM changed PlayerTwo's role while PlayerTwo's page was open, and the page went
+                   from /game to /join within 5 s. A User update whose role the world's copy took (the server's diff, D3: a write
+                   of the role already held changes nothing) ends that user's client as `disconnect` does - the others hear the
+                   user leave - unless the writer is that user: a user's change of their own role was not read (LIVE-E39-15),
+                   and stands as before. The scenario that wants the user back connects it again. */
+                const relogged = msg.op.coll === "User" && msg.op.action === "update" && applied.broadcast?.changes?.role !== undefined
+                    && msg.op.docId !== entry.userId ? msg.op.docId : null;
+                const out = relogged ? [...clients.entries()].find(([, c]) => c.userId === relogged && !c.gone)?.[0] ?? null : null;
+                if (out) setTimeout(() => disconnect(out).then(() => {
+                    const left = clients.get(out);
+                    if (left) left.goneWhy = "was logged out: its role changed";
+                }).catch(() => {}), 200);
             } catch (err) {
                 error = err.message;
                 permissionDenials.push({ who, op: `${msg.op.action} ${msg.op.coll}`, error });

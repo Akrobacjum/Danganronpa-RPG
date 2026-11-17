@@ -315,6 +315,28 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
     await gm.eval(`await game.scenes.get("${IDS.scene}").deleteEmbeddedDocuments("Token", ["${d3Made.token}"]); await ${actorAt}?.delete(); return true;`);
     await settle(300);
 
+    /* D6, A ROLE CHANGE LOGS THE USER OUT (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 1,
+       LIVE-E30-05, read by E58 L1): on Foundry 14.370 the GM changed PlayerTwo's role from 1 to 2 while PlayerTwo's page was
+       open, and the page went from /game to /join within 5 s - logged out. Here: the GM's write of p2's role, then whether
+       p2 is still connected and whether the GM heard `userConnected` with p2 and false; the role put back and p2 connected
+       again. A write of the role it already holds logs nobody out (D3: it is not sent). */
+    await gm.eval(`globalThis.__d6 = []; globalThis.__d6hook = Hooks.on("userConnected", (user, active) => { if (user?.id === "${IDS.p2}") globalThis.__d6.push(Boolean(active)); }); return true;`);
+    const d6Same = await gm.eval(`await game.users.get("${IDS.p2}").update({ role: game.users.get("${IDS.p2}").role }); return true;`);
+    await settle(800);
+    const d6Before = await p2.eval(`return true;`).catch(err => `gone: ${String(err?.message ?? err).slice(0, 60)}`);
+    await gm.eval(`await game.users.get("${IDS.p2}").update({ role: 2 }); return true;`);
+    let d6After = null;
+    for (let i = 0; i < 25 && d6After !== "gone"; i++) {
+        await settle(200);
+        d6After = await p2.eval(`return "here";`).then(() => "here").catch(() => "gone");
+    }
+    await gm.eval(`const end = Date.now() + 4000; while (!globalThis.__d6.length && Date.now() < end) await new Promise(r => setTimeout(r, 50)); return true;`);
+    const d6Heard = await gm.eval(`Hooks.off("userConnected", globalThis.__d6hook); const heard = globalThis.__d6; delete globalThis.__d6; delete globalThis.__d6hook; return heard;`);
+    await gm.eval(`await game.users.get("${IDS.p2}").update({ role: 1 }); return true;`);
+    if (d6After === "gone") await connect("p2");
+    check("D6: the GM's change of p2's role logs p2 out within 5 s and the GM hears userConnected(p2, false), as on v14 14.370; a write of the role p2 holds logs nobody out",
+        d6Same === true && d6Before === true && d6After === "gone" && J(d6Heard) === J([false]), J({ d6Before, d6After, d6Heard }));
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;
