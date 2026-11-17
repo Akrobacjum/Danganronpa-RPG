@@ -25546,6 +25546,65 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["a character another user has as theirs is framed on this GM's screen as soon as it is assigned, and Monokuma assigned stays bare (F118)", async () => {
+        /*
+         * F118, 17.11.2026; the owner's "na tokenie drugiego gma nie ma ramki" and their "Tak" to the rule R7790 reads on
+         * `frameFor`. Here on the scene's own tokens, through `diagnoseOwnRings` (own-ring.mjs), on this GM's screen: a
+         * living student no player owns stands bare, then a player account is given it as its character
+         * (`User.character`, as Foundry's user config writes it), then Monokuma instead, then its own character back.
+         * Nothing moves a token, so a frame that comes or goes can only be the repaint on another user's `character`
+         * change (`updateUser`). Read for the student's and Monokuma's tokens at each step: the frame answered and
+         * whether a frame is drawn. Until F118: the student stayed bare when assigned (frame null, no ring), and only
+         * this browser's own user's change repainted anything.
+         */
+        needs(world.atLeast("sceneOnScreen", 1), "the frames are read on the scene on screen");
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a student the GMs alone own, to be given to somebody");
+        needs(world.atLeast("monokumas", 1), "a Monokuma, to be given to somebody");
+        needs(world.atLeast("playerAccounts", 1), "an account to give them to");
+        const R = await import("./own-ring.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const onScreen = a => [...(canvas.scene?.tokens ?? [])].some(t => t.actorId === a?.id && !t.hidden);
+        const bare = livingStudents().find(a => !a.hasPlayerOwner && !isMonokuma(a) && onScreen(a)) ?? null;
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a) && onScreen(a)) ?? null;
+        const user = game.users.find(u => !u.isGM) ?? null;
+        must(bare && mono && user, "no GM-owned student or Monokuma stands on the scene on screen, or no player account - this measured nothing");
+        const had = user.character?.id ?? null;
+        const table = console.table;
+        const read = () => {
+            console.table = () => null;
+            try {
+                const rows = R.diagnoseOwnRings().tokens;
+                return [bare, mono].map(a => {
+                    const row = rows.find(r => r.actor === a.name) ?? null;
+                    return [row?.frame ?? null, Boolean(row?.ring && row?.showing)];
+                });
+            } finally {
+                console.table = table;
+            }
+        };
+        const steps = [];
+        try {
+            steps.push(["before", read()]);
+            await user.update({ character: bare.id });
+            await settle();
+            steps.push(["the student assigned", read()]);
+            await user.update({ character: mono.id });
+            await settle();
+            steps.push(["Monokuma assigned", read()]);
+        } finally {
+            await user.update({ character: had });
+            await settle();
+        }
+        steps.push(["put back", read()]);
+        equal(stableJson(steps.map(([, s]) => s)), stableJson([
+            [[null, false], [null, false]],
+            [["student", true], [null, false]],
+            [[null, false], [null, false]],
+            [[null, false], [null, false]]
+        ]), `a character another user has as theirs was not framed here when assigned, or Monokuma was, or a frame stayed after it was taken back ([step, [[student's frame, drawn], [Monokuma's frame, drawn]]]): ${stableJson(steps)}`);
+    }],
+
     ["the opening's invitation carries the GM's pick and the window rolls it", async () => {
         /*
          * E32+E07 C11c, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09). Both

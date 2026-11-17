@@ -2437,6 +2437,54 @@ const INVARIANTS = [
             "the drag rectangle still has Foundry's orange written into it");
     }],
 
+    ["R7790 - a character some user has as theirs is framed on every screen, a second GM's included, and Monokuma stays bare (F118)", async () => {
+        /*
+         * F118, 17.11.2026; the owner, with a screenshot from the first GM's screen: "Nowy blad - na tokenie drugiego gma
+         * nie ma ramki". own-ring.mjs framed a "student" only when `hasPlayerOwner` - some non-GM user owns it - so a
+         * character a second GM (or an Assistant) plays, owned by GMs alone, was bare on every other screen, as Monokuma
+         * is. The owner's answer ("Tak", 17.11.2026, to the coordinator's proposal): a character that is some user's
+         * assigned character (`User.character`), a GM's included, is "mine" on that user's screen and "student" on
+         * every other; Monokuma stays bare even when a GM has it assigned. Read on `frameFor` (own-ring.mjs), the rule
+         * `frameOf` asks for each token, with stand-in actors and users built here - nothing of the world is read or
+         * written. Each row: [the case, the frame answered]. Until F118 there was no `frameFor`, and `frameOf` answered
+         * null for the second GM's character on GM 1's and on a player's screen. Two GMs at a real table: LIVE-F118-02.
+         */
+        const R = await import("./own-ring.mjs");
+        ok(typeof R.frameFor === "function", "own-ring.mjs has no `frameFor`, the rule a token's frame is read by");
+        if (typeof R.frameFor !== "function") return;
+        const actor = (id, { players = false, gmOwned = true, monokuma = false, type = "character" } = {}) => ({
+            id, type, hasPlayerOwner: players, isOwner: gmOwned,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "monokuma" ? monokuma : undefined)
+        });
+        const kiri = actor("F118KIRI", { players: false });
+        const mono = actor("F118MONO", { monokuma: true });
+        const aiko = actor("F118AIKO", { players: true });
+        const bare = actor("F118BARE");
+        const npc = actor("F118NPC", { type: "npc" });
+        const gm1 = { id: "F118GM1", isGM: true, character: null };
+        const gm2 = { id: "F118GM2", isGM: true, character: kiri };
+        const gm3 = { id: "F118GM3", isGM: true, character: mono };
+        const p1 = { id: "F118P1", isGM: false, character: aiko };
+        const users = [gm1, gm2, gm3, p1];
+        // On a player's screen a GM-owned character is not the player's own (`isOwner` false); their own character is.
+        const asPlayer = a => R.frameFor({ ...a, isOwner: a === aiko }, p1, users);
+        const rows = [
+            ["the second GM's character on GM 1's screen", R.frameFor(kiri, gm1, users)],
+            ["the second GM's character on a player's screen", asPlayer(kiri)],
+            ["the second GM's character on the second GM's own screen", R.frameFor(kiri, gm2, users)],
+            ["Monokuma assigned to GM 3, on GM 1's screen", R.frameFor(mono, gm1, users)],
+            ["Monokuma assigned to GM 3, on a player's screen", asPlayer(mono)],
+            // Its own GM's screen keeps what `isMine` gave before F118: bone, so that GM finds the token they play (W-6).
+            ["Monokuma assigned to GM 3, on GM 3's own screen", R.frameFor(mono, gm3, users)],
+            ["a GM-owned character nobody has as theirs, on GM 1's screen", R.frameFor(bare, gm1, users)],
+            ["a player's character on GM 1's screen", R.frameFor(aiko, gm1, users)],
+            ["a player's character on its player's screen", asPlayer(aiko)],
+            ["an npc assigned to nobody", R.frameFor(npc, gm1, users)]
+        ];
+        equal(stableJson(rows.map(([, f]) => f)), stableJson(["student", "student", "mine", null, null, "mine", null, "student", "mine", null]),
+            `a token's frame is not the owner's rule of 17.11.2026 (case: frame): ${stableJson(rows)}`);
+    }],
+
     ["R107 - the visual round of 22.09 stays put", async () => {
         /*
          * Dawid's list before the README screenshots, 22.09. Each of these was measured on

@@ -4552,10 +4552,11 @@ const REGRESSIONS = [
             && /whose === "mine" \? read\("--drpg-bone", LEGACY_BONE_FALLBACK\)/.test(own) && /frameColour\(whose, glass\)/.test(own),
             "the viewer's own frame is not bone in both themes (and, since E23 fix L2, every other student's a dimmer bone under Monokuma Legacy: R1467)");
 
+        // F118 (17.11.2026): `isMine` asks `mineFor(actor, viewer)` for this browser's user, and `frameFor` asks it for any viewer.
         const mine = bodyOf(own, "function isMine", { until: "function hourColour" });
-        ok(/game\.user\?\.character/.test(mine),
+        ok(/mineFor\(token\?\.actor, game\.user\)/.test(mine) && /viewer\?\.character/.test(mine),
             "the ring no longer prefers the character the viewer is playing");
-        ok(/!game\.user\?\.isGM && actor\.isOwner/.test(mine),
+        ok(/!viewer\?\.isGM && actor\.isOwner/.test(mine),
             "a Gamemaster owns the whole cast, so ownership alone would ring every token "
             + "on their screen");
 
