@@ -46328,13 +46328,26 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * the end of this test. Awaiting the opener hangs the suite against its own
          * window (measured: fifteen minutes of silence, 19.09).
          */
+        /*
+         * ITS OWN WINDOW, NOT THE FIRST ONE (E58 L1, 17.11.2026). On the sandbox (Daggerheart 2.12.9) this test hung: it took
+         * the first open window matching the selector, which there was "Daggerheart is newer than the verified version",
+         * drawn at every GM load and first in `foundry.applications.instances`; it measured and closed that, and
+         * `await opening` waited for the settings window nobody closed. Any module window open before the test does the
+         * same, so one is opened here first (a planted DialogV2 of the module's look), and the window measured is the one
+         * the opener drew - not open before it. Every module window open is still measured below.
+         */
+        const planted = new foundry.applications.api.DialogV2({ window: { title: "W-9 planted" }, classes: ["drpg-window-w9-planted", "drpg-ui", "drpg-panel"],
+            content: "<p>planted</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
+        await planted.render({ force: true });
+        await settle();
+        const before = new Set(foundry.applications.instances.values());
         const opening = openLookDialog();
         try {
-            await until(() => [...foundry.applications.instances.values()]
-                .some(a => a.element?.matches?.('.application.dialog[class*="drpg-"]')));
+            const mine = () => [...foundry.applications.instances.values()]
+                .find(a => !before.has(a) && a.element?.matches?.('.application.dialog[class*="drpg-"]'));
+            await until(() => mine());
             await settle();
-            app = [...foundry.applications.instances.values()]
-                .find(a => a.element?.matches?.('.application.dialog[class*="drpg-"]'));
+            app = mine();
             ok(app, "the gear's settings window did not open, so nothing could be measured");
 
             for (const instance of foundry.applications.instances.values()) {
@@ -46353,6 +46366,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             try { await app?.close(); } catch { /* already gone */ }
             // And let the opener settle, so nothing is left pending behind the suite.
             try { await opening; } catch { /* closed rather than answered */ }
+            try { await planted.close(); } catch { /* already gone */ }
             await settle();
         }
     }],
