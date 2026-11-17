@@ -6053,12 +6053,15 @@ const REGRESSIONS = [
          * runs is run as `const r = await runOne(entry, { tier: N, ledger })` and none any other way, each of the three is
          * followed in its loop by the stop (`stopsHere(r)`; tier 2's breaks after its restore), and tiers 1 and 2 start
          * only when nothing stopped. Read: how many `runOne` calls, how many of the named form, how many stops, the two
-         * guards, tier 2's break.
+         * guards, tier 2's break. Tier 2's call is `r = await runOne(entry, { tier: 2, ledger })` inside the `try` whose
+         * `finally` takes the scripted dice off since L1's d5907e1b (`let r` above it), which this read as a fourth form
+         * and red until the merge of d5907e1b on claude/shim-118 (17.11.2026; tier 1: [3,2,3,[true,true],true]); the
+         * named form takes it with or without `const`, and every call must still be of it.
          */
         const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
         const suite = fnSource(src, "runSuite");
         const calls = (suite.match(/\brunOne\(/g) ?? []).length;
-        const named = (suite.match(/const r = await runOne\(entry, \{ tier: [012], ledger \}\);/g) ?? []).length;
+        const named = (suite.match(/(?:const )?\br = await runOne\(entry, \{ tier: [012], ledger \}\);/g) ?? []).length;
         const stops = (suite.match(/\bstopsHere\(r\)/g) ?? []).length;
         const guards = [/if \(tier >= 1 && first && !stoppedAt\)/.test(suite), /if \(tier >= 2 && !stoppedAt\)/.test(suite)];
         const tier2 = /const stop = stopsHere\(r\);[\s\S]*?if \(stop\) break;/.test(suite);
