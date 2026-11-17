@@ -66387,6 +66387,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const told = name => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(name));
             shed.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } });
             Hooks.callAll("updateRegion", shed, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } }, {}, player.id);
+            /* The player's untick reaches the world (D3, 17.11.2026): it was staged on this GM's copy alone (`updateSource`), and
+               the put-back then wrote the mark the world still held - on Foundry 14.370 a write that changes nothing in the
+               world's copy hands the hooks nothing of it (docs/dev/e39/CALIBRATION.md, LIVE-E30-03; the shim's D3), so this
+               copy kept the untick. A player's write cannot be made from this GM, so it is staged in three steps: the world's
+               copy unticked by a write of this GM's; this GM's memory of the mark set back to the GM's tick (a GM's write moves
+               it to the mark as it stands, movement.mjs `judgeRoomFlagChange`), by the tick on this copy and a GM's hook; and
+               the untick on this copy handed the hook with the player's id, as before. */
+            await kept.update({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } });
+            await settle();
+            kept.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } });
+            Hooks.callAll("updateRegion", kept, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } }, {}, game.user.id);
             kept.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } });
             Hooks.callAll("updateRegion", kept, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } }, {}, player.id);
             await until(() => told("SUITE E12 C1 Gym").length > 0);
