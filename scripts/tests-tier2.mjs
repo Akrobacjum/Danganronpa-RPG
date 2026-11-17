@@ -2419,9 +2419,12 @@ async function rollWindow(actor, config = {}) {
     /* The config 2.12.8's MoveContext hands the window (move-context.mjs :38-136): the character as `actor`, `hasRoll`, and
        roll data that carries the character's experiences (:131) and no `parent` - the window reads the actor off the
        config (d20RollDialog.mjs:43-45) and draws its roll's controls only under `hasRoll` (rollSelection.hbs:3). Until
-       13.11.2026 this built 2.10.5's: the character as the roll data's `parent`, which 2.12.8's window does not read. */
+       13.11.2026 this built 2.10.5's: the character as the roll data's `parent`, which 2.12.8's window does not read.
+       `costs` is MoveContext's own default (`data.costs ?? []`), which the window reads as `this.config.costs.length` while
+       it draws: without it Daggerheart 2.12.9's window throws "Cannot read properties of undefined (reading 'length')" and
+       stays open (measured on the sandbox, 17.11.2026, 23 of tier 2's failures). */
     const data = config.data ?? { ...actor.getRollData(), experiences: actor.system?.experiences ?? {} };
-    const cfg = { hasRoll: true, actor, ...config, roll: { advantage: 0, ...(config.roll ?? {}) }, source: { actor: actor.uuid, ...(config.source ?? {}) }, data };
+    const cfg = { hasRoll: true, actor, costs: [], ...config, roll: { advantage: 0, ...(config.roll ?? {}) }, source: { actor: actor.uuid, ...(config.source ?? {}) }, data };
     const app = new DR.DefaultDialog(DR.createRollInstance(cfg), cfg);
     let renders = 0;
     const counting = Hooks.on("renderApplicationV2", shown => { if (shown === app) renders += 1; });
