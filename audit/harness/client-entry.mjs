@@ -602,6 +602,45 @@ const uniformFor = (face, faces) => 1 - (face - 0.5) / faces;
  * GM's randomiser is the GM's. The roller's copy, played back from the GM's faces, reads no
  * `__forceRoll` of its own (`config.drpgDrawn`, action-pipeline.mjs `DRAWN_ROLL`).
  */
+/*
+ * THE PLAYER AT EACH BROWSER (E58 L1, 17.11.2026; the coordinator's decision that day, after the owner's consent "zgoda na
+ * dh-dice: okno przestaje samo klikać Roll"). Daggerheart's roll window waits for a person to press Roll; the harness's copy
+ * of it no longer presses by itself (lib/dh-dice/applications/dialogs/d20RollDialog.mjs). A scenario's clients stand for
+ * the people at the table, so here, on every client, a player presses Roll on each of Daggerheart's roll windows drawn
+ * there, once, after the experience chips a test scripted (`picksClicked`) and the renders it set off - as a person would.
+ * It stands aside while `runTests` runs on that client: the suite presses its own windows (tests-tier2.mjs `pressingRoll`),
+ * as it must at a table, where nobody else does. A scenario switches it off with `__harnessPlayer.on = false` (and back).
+ * `presses` counts what it pressed; cluster.mjs writes each client's count in the results (`harnessPlayer`).
+ */
+function installHarnessPlayer() {
+    const player = globalThis.__harnessPlayer = { on: true, presses: 0, suite: 0 };
+    const seen = new WeakSet();
+    globalThis.Hooks.on("renderApplicationV2", app => {
+        const Window = globalThis.game?.system?.api?.dice?.DualityRoll?.DefaultDialog;
+        if (!Window || !(app instanceof Window) || seen.has(app)) return;
+        seen.add(app);
+        if (!player.on || player.suite > 0) return;
+        (async () => {
+            if (app.picksClicked) await app.picksClicked;
+            if (typeof app.settled === "function") await app.settled();
+            await new Promise(r => setTimeout(r, 0));
+            if (!player.on || player.suite > 0 || !app.rendered) return;
+            const roll = app.element?.querySelector('[data-action="submitRoll"]');
+            if (!roll) return;
+            player.presses += 1;
+            roll.click();
+        })();
+    });
+    const drpg = globalThis.game?.drpg;
+    if (drpg && typeof drpg.runTests === "function") {
+        const runTests = drpg.runTests;
+        drpg.runTests = async function (...args) {
+            player.suite += 1;
+            try { return await runTests.apply(this, args); } finally { player.suite -= 1; }
+        };
+    }
+}
+
 const relayedFaces = new Map();
 const relayedFacesOf = roll => {
     const nonce = roll?.options?.drpgRollNonce;
@@ -2189,6 +2228,7 @@ async function boot() {
         hooks.callAll("canvasReady", canvas);
         // give not-awaited ready tasks a beat
         await new Promise(r => setTimeout(r, 250));
+        installHarnessPlayer();
         send({
             t: "ready",
             drpg: !!game.drpg,

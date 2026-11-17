@@ -1445,15 +1445,18 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * (lib/dh-dice/applications/dialogs/d20RollDialog.mjs `play`), so headless none of them waited. `pressingRoll(run)` runs
  * `run` and, while it runs, presses Roll on each of Daggerheart's roll windows drawn on this browser, once, after the
  * renders it set off have settled - after the module's render hooks and the test's own, which were registered before.
- * A window that plays itself (the glue's `play`) is left to it. Answers what `run` answers.
+ * Since the owner's consent of the same day the glue window no longer presses Roll either, so headless the window waits
+ * as it waits at a table and this presses it there too, after the experience chips the glue clicks for a test
+ * (`picksClicked`, the glue's alone). Answers what `run` answers.
  */
 async function pressingRoll(run) {
     const Window = game.system.api?.dice?.DualityRoll?.DefaultDialog ?? null;
     const seen = new Set();
     const hook = Hooks.on("renderApplicationV2", app => {
-        if (!Window || !(app instanceof Window) || seen.has(app) || typeof app.play === "function") return;
+        if (!Window || !(app instanceof Window) || seen.has(app)) return;
         seen.add(app);
         (async () => {
+            if (app.picksClicked) await app.picksClicked;
             if (typeof app.settled === "function") await app.settled();
             await settle();
             if (app.rendered) app.element?.querySelector('button[data-action="submitRoll"]')?.click();

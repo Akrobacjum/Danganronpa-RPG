@@ -1255,6 +1255,14 @@ async function main() {
        the hard stop for a client that does not. A probe's lines are records,
        not verdicts: it exits 1 only when it threw. */
     process.exitCode = probe ? (threw ? 1 : 0) : (failedCount > 0 ? 1 : 0);
+    /* THE PLAYER AT EACH BROWSER (client-entry.mjs `installHarnessPlayer`, 17.11.2026): how many times it pressed Roll on
+       each client, read before the clients close; null where a client did not answer. In the results as `harnessPlayer`. */
+    const harnessPlayer = {};
+    for (const [who, entry] of clients) {
+        if (entry.gone || bootInfo.get(who)?.t !== "ready") continue;
+        try { harnessPlayer[who] = await handleFor(who).eval("return globalThis.__harnessPlayer?.presses ?? null;", { timeout: 5000 }); }
+        catch { harnessPlayer[who] = null; }
+    }
     await closeClients(300);
     const resources = Object.fromEntries([...clients.keys()].map(who => [who, peakRSS.get(who) ?? null]));
     resources.cluster = process.resourceUsage().maxRSS;
@@ -1269,7 +1277,7 @@ async function main() {
         // What run() returned: a probe's record, or a scenario's own evidence when it keeps
         // some (01-runtests keeps the suite's results list, which suite-diff --json reads).
         canary: canaryResult ?? { planted: 0 },
-        results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}),
+        results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}), harnessPlayer,
         permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys, legacyReading: legacyReading(),
         opLog: opLog.slice(0, 500), settingLog: settingLog.slice(0, 500),
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, stylesheets: v.stylesheets ?? null, error: v.error?.slice?.(0, 800) }]))
