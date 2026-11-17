@@ -337,6 +337,23 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
     check("D6: the GM's change of p2's role logs p2 out within 5 s and the GM hears userConnected(p2, false), as on v14 14.370; a write of the role p2 holds logs nobody out",
         d6Same === true && d6Before === true && d6After === "gone" && J(d6Heard) === J([false]), J({ d6Before, d6After, d6Heard }));
 
+    /* D10, A GM IS HEARD BEFORE ITS WORLD HAS LOADED (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 3, AUDIT 9.2 item 52, read by E58 L1): on Foundry 14.370 a player's browser got `userConnected(gm, true)` when
+       the GM's socket connected, about 5.7 s before that GM's module sent `bridge.gmReady`. Here: the late GM `gmoff`, every
+       module on (its id sorts after the seed GM's, so the primary stays), connects; p1 writes down, in order, the
+       `userConnected` it hears for gmoff and gmoff's `bridge.gmReady` on the module's socket. Then gmoff leaves. */
+    await p1.eval(`globalThis.__d10 = []; globalThis.__d10hook = Hooks.on("userConnected", (user, active) => { if (user?.id === "USERGX0000000000") globalThis.__d10.push(active ? "connected" : "left"); });
+        globalThis.__d10socket = (payload, sender) => { if (payload?.action === "bridge.gmReady" && sender === "USERGX0000000000") globalThis.__d10.push("gmReady"); };
+        game.socket.on("module.danganronpa-rpg", globalThis.__d10socket); return true;`);
+    await connect("gmoff");
+    await p1.eval(`const end = Date.now() + 4000; while (globalThis.__d10.length < 2 && Date.now() < end) await new Promise(r => setTimeout(r, 50)); return true;`);
+    const d10Heard = await p1.eval(`Hooks.off("userConnected", globalThis.__d10hook); game.socket.off?.("module.danganronpa-rpg", globalThis.__d10socket);
+        const heard = globalThis.__d10; delete globalThis.__d10; delete globalThis.__d10hook; delete globalThis.__d10socket; return heard;`);
+    await disconnect("gmoff");
+    await settle(300);
+    check("D10: a player hears userConnected(gm, true) when a GM connects, before that GM's module says bridge.gmReady, as on v14 14.370",
+        J(d10Heard) === J(["connected", "gmReady"]), J(d10Heard));
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;

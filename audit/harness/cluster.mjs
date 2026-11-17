@@ -692,7 +692,7 @@ const lateAccounts = new Map();
  * `userConnected` with `true` - the order of those steps on v14 is LIVE-E04-12. With
  * `announceFirst` the others get `userActivity` before its client boots, so they hear
  * the user connect before its world has loaded and it says so (`bridge.gmReady`) - the
- * other order, which 61's O2 drives (E05 fix r1-G4, 27.09.2026). An account that has
+ * other order, which 61's O2 drives (E05 fix r1-G4, 27.09.2026), and since D10 a GM's by default (below). An account that has
  * disconnected may connect again, with the storage it left with (`storageOf`) or
  * another. The seeded four are spawned at start, and since E38 C1 may connect again
  * once they have left (`reload`, `makePrimary`).
@@ -705,7 +705,7 @@ const lateAccounts = new Map();
  * only warns there (lib/shim.mjs `Scene#view`). In Foundry the draw comes before `ready`; here it
  * comes after, as every client of the harness has always booted.
  */
-async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false, modulesOff = null, serverUptimeMs = null } = {}) {
+async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = null, holdLoading = false, modulesOff = null, serverUptimeMs = null } = {}) {
     /* The seeded four may connect again once they have left (E38 C1, 13.11.2026): `reload` and `makePrimary` take
        the seed GM off the table and bring it back, as any browser's F5 does. Until E38 only a late account could. */
     const account = lateAccounts.get(who) ?? (clients.get(who)?.gone && SEEDED[who] ? { who, id: SEEDED[who] } : null);
@@ -714,6 +714,12 @@ async function connect(who, { storage = null, world = null, clockSkewMs = null, 
     if (existing && !existing.gone) return false;
     const rec = userRec(account.id);
     if (rec) rec.active = true;
+    /* D10, A GM IS HEARD AS ITS SOCKET CONNECTS (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 3, AUDIT 9.2 item 52, read by E58 L1): on 14.370 a player's browser got `userConnected(gm, true)` when the
+       GM's socket connected, about 5.7 s before that GM's module sent `bridge.gmReady`. So a GM - role 3 and up, v14's
+       `isGM` - is announced before its client boots unless the caller says `announceFirst: false`; a player still once it
+       is ready, the order no one has read for a player (LIVE-E39-18). Red first: 00-boot's D10 read ["gmReady","connected"]. */
+    announceFirst ??= isGM(account.id);
     if (announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
     const entry = spawnClient(who, account.id, { world, storage, clockSkewMs, holdLoading, modulesOff, serverUptimeMs });
     entry.announceFirst = announceFirst;
