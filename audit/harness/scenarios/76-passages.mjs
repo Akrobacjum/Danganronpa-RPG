@@ -373,7 +373,9 @@ async function phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
         typeof made === "string" && typeof id === "string" && id.startsWith(`${IDS.scene}.`) && granted === true, J({ made, id, granted }));
 
     const copy1 = await known(p1, repoUrl);
-    const row = { sceneId: IDS.scene, shape: "wall", level: null, passageWallId: made,
+    /* Its floor the scene's one (passages-gm.mjs `floorNamed`, the line claude/shim-118, 17.11.2026): the console names none, and
+       since D5 the seeded scene holds `defaultLevel0000`, as every scene on Foundry 14.370 does; null until then. */
+    const row = { sceneId: IDS.scene, shape: "wall", level: "defaultLevel0000", passageWallId: made,
         passageSeg: { x1: MARK, y1: 400, x2: 1300.5, y2: 400 }, actorIds: [IDS.aiko] };
     check("A: p1's copy holds exactly the passage Aiko knows - its scene, shape, floor, wall, stretch and knower, and nothing else",
         J(copy1) === J({ [id]: row }), J(copy1));
@@ -1883,7 +1885,8 @@ async function phaseT({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
         const row = G.listPassages().find(p => p.id === id) ?? null;
         const granted = await game.drpg.passages.grant(id, ${J(IDS.aiko)});
         return { oneRoom, written, id, ends: row?.ends ?? null, rooms: row?.rooms ?? null, granted };`, { timeout: 30000 });
-    const ends = [{ x: 750, y: 750, level: null }, { x: 1950, y: 1750, level: null }];
+    // Each end on the scene's one floor, which the console's ends name none of (`floorNamed`; part A's note); null until D5.
+    const ends = [{ x: 750, y: 750, level: "defaultLevel0000" }, { x: 1950, y: 1750, level: "defaultLevel0000" }];
     check("T: the GM's console refuses a tunnel with both ends in Dorm A and writes nothing, makes one from Dorm A to the Gym at the middles of the squares clicked, and grants it to Aiko",
         made.oneRoom === null && made.written === 0 && typeof made.id === "string" && J(made.ends) === J(ends)
             && J(made.rooms) === J(["Dorm A", "Gym"]) && made.granted === true, J(made));
