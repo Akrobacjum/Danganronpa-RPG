@@ -595,8 +595,11 @@ async function withAnsweredWindows(answer, run) {
  * (`n` counts the windows from 0) and answers true to press the default button, whose callback reads
  * the drawn form as a click would, or false to close the window. A browser's form answers its
  * controls by name (`form.room`) and jsdom's does not (measured 11.10.2026: `form.name` is the
- * form's own name attribute there), so each named control is set on its form as that. Answers the
- * elements drawn, in order; Foundry's own `wait` is put back.
+ * form's own name attribute there), so each named control is set on its form as that - only where the
+ * form does not answer with it already: a browser refuses the property ("Failed to set a named property
+ * 'traceOrder' on 'HTMLFormElement': Named property setter is not supported", Chromium on the sandbox,
+ * 17.11.2026, three tests), and needs none. Answers the elements drawn, in order; Foundry's own `wait`
+ * is put back.
  */
 async function withFormAnswered(choose, run) {
     const D = foundry.applications.api.DialogV2;
@@ -608,7 +611,10 @@ async function withFormAnswered(choose, run) {
         else if (cfg?.content) element.append(cfg.content.cloneNode(true));
         for (const form of element.querySelectorAll("form")) {
             for (const control of form.querySelectorAll("[name]")) {
-                Object.defineProperty(form, control.getAttribute("name"), { value: control, configurable: true });
+                const name = control.getAttribute("name"), held = form[name];
+                // A browser answers a name with its control, or with a RadioNodeList where several share it.
+                if (held === control || (typeof globalThis.RadioNodeList === "function" && held instanceof globalThis.RadioNodeList)) continue;
+                Object.defineProperty(form, name, { value: control, configurable: true });
             }
         }
         drawn.push(element);
