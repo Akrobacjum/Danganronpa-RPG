@@ -7,6 +7,103 @@ The owner, 16.11.2026, while step 1 ran: "nie czekaj na mnie albo na moje odpowi
 domyslnych ... pracuj do samego konca". From here every question takes its default, written beside it, and the line
 goes on; what only the owner can give (a password, eyes on a screen) is written as not run with its reason.
 
+## Tier 2 on the sandbox (items 75, 153, 475; 16-17.11.2026, in progress)
+
+**Run 1** (16.11, 22:10 local): `runTests({ tier: 2, confirmed: game.world.id })` on the GM, the three players logged in,
+as audit/live/suite.mjs runs it. It wrote to the world until 22:42 and then nothing for three hours (the world's database
+files' times); stopped at 01:45. The restore put back what the test left half-done: Fear, Aiko's system, four actors'
+flags, one extra token, four tokens' places; its second pass `[]`.
+
+**Run 2** (17.11, 01:47 local), with the GM's console recorded and a watcher: it went quiet at 02:19:14 (the last lines
+"Aiko Hoshino has meddle armed (bonus)" twice, then "Murder closed (test)") and the watcher fired at 02:26:05, 6.8 min
+quiet. The console names no test (the runner prints its text at the end, tests.mjs:608). Open on each page (the watcher
+read the GM's windows; the players' from their screenshots): **GM** - Daggerheart's roll window "Eye Roll: Aiko Hoshino"
+waiting on Roll, "Daggerheart is newer than the verified version" (Understood), "The case on this browser" ("1 pre-session
+note is marked written, and this browser does not hold it" - PlayerOne's leftover flag, group 3 item 62; Continue, Restore
+from a file), toasts "1 death is still known only to the GMs ..." three times and "Parts of the character sheet failed to
+draw: tidyBiography. A newer Daggerheart may be why"; **PlayerOne** - "Stay hidden?" (Stay hidden, Reveal yourself) and the
+notice "A private card. Its words did not reach this browser."; **PlayerTwo** - none; **PlayerThree** - "Stay hidden?". The
+world "On hold" (paused) on all four. Which page was in front: none - each a headless page in its own browser context,
+no page in front, `visibilityState` not recorded. The restore after it: Fear, Aiko's system, four actors' flags, one extra
+token, four tokens; its second pass `[]`.
+
+**The hypotheses**: (a) fits so far - the GM's own roll window waits on a press; (b) does not - nothing open on the
+players waits on a reply the GM needs (their "Stay hidden?" windows belong to a mask that had already opened), so the
+background-throttling flags were not used.
+
+**The Meddle tests are not the hang.** "a Meddle's +1 taken back while its window is open ..." and "a Meddle's -1 is on the
+roll window's config ..." (positions about 981-982 of 1565) run alone on the sandbox **fail** in 2 s, "threw: Cannot read
+properties of undefined (reading 'length')": Daggerheart's `D20RollDialog` reads `this.config.costs.length` as it draws
+(build :7213 in 2.12.9), Daggerheart's own roads pass `costs` (MoveContext's `data.costs ?? []`), and the kit's
+`rollWindow` config had none. Headless both passed: the harness's glue window read `this.config.costs ?? []`. A test
+defect; the fix (`costs: []` in the kit's config) is measured green headless in a scratch worktree and waits for the
+sandbox to be free (it serves this tree); then its own commit and both tests by name on the sandbox.
+
+**The hang is test 130**, "a statistic clicked on a student's sheet goes through its window as a reaction", and test 131,
+"a Call a sheet roll's window applied is on its roll and spent by its close", holds the same way. Found by slices in
+`SCENARIOS`' order, each its own `runTests({ only })` watched for quiet: 0-150 hung (02:08 UTC), 75-150 hung, 75-112 ran
+through, 113-149 hung, 130 alone and 131 alone each hung (90 s quiet, the GM's "Eye Roll: Aiko Hoshino" open). Reached
+25-30 min into a run on this sandbox, as both full runs went quiet 32 min in. **The road** (a probe's stack at
+`configure` and at the window's first render, 02:38:30 UTC): the test's `who.rollTrait("instinct", {})` -> the module's
+action-pipeline.mjs `rollTrait` (:168) -> `throwDice` (:214) -> private-rolls.mjs `supersedingRoll` (:634) -> Daggerheart's
+`DhActor.rollTrait` -> `diceRoll` -> `DualityRoll.build`, which is the module's roll-draw.mjs `drawnBuild` (:211) ->
+`drawOrThrow` (:335) -> Daggerheart's `buildConfigure` -> `D20RollDialog.configure`. **What it waits on**: Daggerheart's
+`configure` (build :7359-7365) opens the window and resolves only when it closes - on a press of Roll. The harness's glue
+`configure` (lib/dh-dice/applications/dialogs/d20RollDialog.mjs :298-306) plays a player: it presses Roll itself once the
+window is drawn. Both tests' comments say so ("until C2b the harness's window was pressed at once"); neither presses Roll.
+On a real page nobody does, so each waits for ever. A test defect (the coordinator's rule 3): red is the hang itself, 2 of 2
+on the sandbox; the fix waits for the scope below.
+
+**The scope, being measured**: tier 2 again in slices of 150 with a probe on the GM's page that presses Roll on any of
+Daggerheart's roll windows left open for 30 s, each press logged with the window's title and a stack of 60 frames, so the
+test's line in tests-tier2.mjs is named. A press is a person's act and is reported as the probe's, never as a test passing
+by itself. The same run gives tier 2's failures on v14.
+
+**Failures already read** (tests 75-112, 17.11.2026 02:27-02:36 UTC; 33 passed, 11 failed - the runner's own checks
+included): "a second killer in the same Eclipse is told only that the attempt is refused" and "a killer allowed in the dark
+who stands alone is told so at the lights ..." threw "Cannot redefine property: TOKBOTAN00000000", and the first left
+Aiko's token in the Hall (restore failed); "a roll with a bonus the GMs do not hold is flagged ..."; "a drawn roll's copy on
+its roller's browser is the GM's roll ..." (15 measured where 13 expected); "a drawn statistic's card carries the GM's
+modifiers ..." (`[[],7]` against `[[0],13]`); "the GMs' card of a roll thrown with no GM says what it claimed ..." ("did not
+come to its dice and Agility"); "the trait the GM picked: another one is flagged" left Fear 0 -> 1; "a drawn roll is thrown
+on the GM's dice ..." (no Fear on a packet's critical); "a drawn roll is the kind its action makes it ..." (the GM's Fear 0
+where 1); "a drawn roll's options are the GM's own ...". Not triaged yet: some may follow from the unpressed windows'
+neighbours or from Daggerheart 2.12.9; each will be read alone once the scope run ends.
+
+**One test per call** (from 03:40 UTC, 17.11.2026): tier 2 again, one `runTests({ only: [name] })` per test in
+`SCENARIOS`' order, in chunks of 150, the world restored twice after each chunk (the second pass `[]` after chunks 0 and
+150), with the probe pressing Roll on the GM after 30 s. Each row: the test's time, its outcome and the probe's presses.
+Tests 0-299 so far: 215 passed, 85 failed. **The probe's presses** (a person's act at a table, not a pass): test 113 "a
+roll built from what the GMs hold raises no flag: ..." 14 presses (558 s), 114 two, 127, 128, 130, 131 and 229 one each.
+**The slowest test without a press**: 166 "a Frisk's rolls ride a Palm's one payment (A11-4) ..." 157 s, then 189 at 99 s
+(for the per-test limit; the whole list when the run ends).
+
+**45 of the 85 failures have one cause: Foundry v14 writes into the options object a token move is given.**
+client/documents/token.mjs:1742 `options._movement ??= {}` and :2009 `Object.defineProperty(options._movement, this.id,
+{ value: move, enumerable: true })` - not configurable - so one options object passed to two moves of the same token
+throws "Cannot redefine property: <token id>" on the second. tests-tier2.mjs keeps 61 shared move options (`const PLACE =
+{ teleport: true, movementAction: "displace", animate: false }` and the like) and passes one to a test's move out and to
+its `back()`; the throw skips the rest of the test and its own put-back, so the token stays where the test put it and
+every following test's restore reports it ("restore left: ... tokens.TOKAIKO000000000.x ..."): tests 166-189 in an
+unbroken row. The module's own token moves each pass a fresh object literal; none shares one. The harness's shim models a
+move's `movement` option alone (client-entry.mjs:1937), not `_movement`, so headless it never throws. A test defect
+(rule 3): red on the sandbox measured (45 failures, "Cannot redefine property: TOKAIKO000000000" 34, TOKCHIE 8, TOKBOTAN
+3); the headless red will be the shim writing `_movement` as v14 does, the fix a fresh options object per move, in its own
+commit once `npm test` and the chunks no longer read the files. Of the other failures so far: 8 the kit's missing `costs`
+(the Meddle fix), 4 "Cannot set properties of undefined (setting 'length')", the rest one each, read after the run.
+
+**The `npm test` that was to judge the stand-in did not.** It booted the module from a scratch worktree through
+`DRPG_REPO`, and against another tree the harness counts every expected-red and known-leak check as a plain one
+(cluster.mjs:52-57): 21-masked-killer red there, green in this tree with the strict stand-in (its Foundry-limit check
+expected red). That run (4 suite failures, 7 scenarios red) says nothing about the change; `npm test` in this tree, the
+stand-in strict and the kit unfixed, is running.
+
+**The stand-in.** The owner wrote "zgoda na dh-dice" in this session on 17.11.2026, about 02:40 local time (between this
+line's readings at 02:36 and 02:44). Under it the glue window reads `this.config.costs.length` as Daggerheart does
+(d20RollDialog.mjs :127-132); with it both Meddle tests fail headless as on the sandbox ("the window did not write the
+Meddle's +1 ..."; "the window draws no bonus input" - the shim's render keeps the throw to itself, so the message differs)
+and pass with the kit's fix. `npm test` against both is running; neither is committed yet.
+
 ## Questions for the coordinator and the owner (16.11.2026; each with the default this line takes)
 
 1. **E40's season wipe needs a copy world.** The owner makes one with Foundry's Duplicate World (an id with "copy" in it,
