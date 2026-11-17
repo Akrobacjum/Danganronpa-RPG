@@ -48984,12 +48984,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                    as not connected for the Reveal's step. Their student is in the trial and gets the copy all the same - the
                    slot leaves the list, so nothing would hand it over later. Red at the fix's parent: no copy for them. */
                 const away = parts[1].user;
+                // v14 keeps `active` on the User itself (an own data property, read on the sandbox 17.11.2026), so it is put
+                // back as it was, not deleted: a `delete` left the player not connected for the rest of the session there.
+                const ownActive = Object.getOwnPropertyDescriptor(away, "active");
                 Object.defineProperty(away, "active", { get: () => false, configurable: true });
                 let done = null;
                 try {
                     done = await judged({ action: "trial.gm", requestId: "E70T11G", op: "reveal", slot: "17" }, game.user.id);
                 } finally {
-                    delete away.active;
+                    if (ownActive) Object.defineProperty(away, "active", ownActive);
+                    else delete away.active;
                 }
                 await sheetAuditIdle();
                 await settle();
@@ -49195,12 +49199,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(keyItem, "the presenter's Faint Key was not made");
             await settle();
             const nk = cards().length;
+            // Put back as it was, not deleted: v14 keeps `active` on the User itself (the note in the Reveal's test above).
+            const ownActive = Object.getOwnPropertyDescriptor(O.user, "active");
             Object.defineProperty(O.user, "active", { get: () => false, configurable: true });
             let keyAnswer = null;
             try {
                 keyAnswer = await judged({ action: "trial.present", requestId: "E70T12k", actorId: P.actor.id, itemId: keyItem.id, comment: "", bare: true }, P.user.id);
             } finally {
-                delete O.user.active;
+                if (ownActive) Object.defineProperty(O.user, "active", ownActive);
+                else delete O.user.active;
             }
             read.faintKey = [keyAnswer, cards().slice(nk).map(m => [/drpg-tb-badge faint/.test(m.content), m.content.includes("E70T12 the Key's reading")]),
                 others.map(o => o.actor.items.filter(i => T.isTruthBullet(i) && i.name === "E70T12 the Faint Key")
