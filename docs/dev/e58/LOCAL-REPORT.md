@@ -179,6 +179,28 @@ it without a complaint; RED for the failures below), and the scenarios (51 of 52
 - The three failures of the withdrawn worktree run ("a Reroll of a successful erase removes the trace again", E42-T9,
   E60-T20) passed here, on a quiet machine: the load, not the change.
 
+**More fixes, each red first** (17.11.2026, pushed to ea8013e0):
+- 100c4018: E17-T2 and E17-T4 pass their `asPlayer` fresh too (red in shard 2/2: "Cannot redefine property"; green by name).
+- ecdad650: R7561's bound 30 ms, not 40 (a 40 ms timer read 39 ms once; three runs pass, each mutant fails three of three).
+- de8156d8: tier 2's `snapshot`/`restore` keep Daggerheart's Fear (red: a new test at the end of the list, "tier 2's restore puts
+  Daggerheart's Fear back as it found it", [0,1,1]; green [0,1,0]; the inverted-condition mutant fails it; "the trait the GM
+  picked: another one is flagged" green by name).
+- db8273fb: the window-width test measures the window its opener drew (red: the hang on the sandbox, twice; green on the sandbox
+  alone, 4.8 s, the version warning and "The case on this browser" open; headless the `env.layout` skip the baseline lists).
+- e6ffd08a: `pressingRoll`, the kit's press of Roll, around `drawnForPlayer`'s throw and the six tests' sheet rolls (red: 130 and
+  131 hanging on the sandbox; green on the sandbox with no probe press: the twelve ran through, none waited, 8 passed and 113,
+  128, 131 and 229 failed as they had with the probe's press - "Aiko Hoshino's system.rules.dualityRoll.defaultHopeDice could
+  not be set", the Call's experience not on the roll, the Support's die not put on, the Loaded Die not loaded - and one of
+  them left Botan's mask, which the restore put back; headless the twelve pass by name as before). The glue window still
+  presses Roll itself headless: making it stop is dh-dice, and waits for the owner's consent to that change.
+- ea8013e0: the limit on a test, fifteen minutes (headless the slowest 84.1 s; the sandbox 157.4 s without a press, 246.3 s for
+  test 113 with the kit pressing; 3.7 times). A test past it fails "timed out", `runSuite` writes the windows open on its own
+  browser and runs no later test or tier (R7562 red: no result within its 5 s guard; R7563 red on the runner before; six
+  mutants each fail). Not measured: the window list itself, written only when a real test runs out.
+- On the sandbox at the fixed tree, the two Meddle tests by name: **both pass** (6.5 s and 5.4 s), the world clean after.
+
+**Now**: tier 2 on the sandbox again at ea8013e0, one test per call, with no probe press (17.11.2026, from 10:58 UTC).
+
 **The stand-in.** The owner wrote "zgoda na dh-dice" in this session on 17.11.2026, about 02:40 local time (between this
 line's readings at 02:36 and 02:44). Under it the glue window reads `this.config.costs.length` as Daggerheart does
 (d20RollDialog.mjs :127-132); with it both Meddle tests fail headless as on the sandbox ("the window did not write the
