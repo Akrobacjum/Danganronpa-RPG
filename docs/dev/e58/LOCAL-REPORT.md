@@ -201,6 +201,50 @@ it without a complaint; RED for the failures below), and the scenarios (51 of 52
 
 **Now**: tier 2 on the sandbox again at ea8013e0, one test per call, with no probe press (17.11.2026, from 10:58 UTC).
 
+**The rerun at ea8013e0** (17.11.2026 10:58-14:47 UTC, one test per call, no probe press; the gap 1268-1349 at the end):
+**1286 passed, 259 failed, 20 skipped** of 1565 (the first run: 1183, 361, 19). Tests that left the world changed: 16 (179,
+180, 181, 184, 357, 604, 610, 689, 1052, 1071, 1212, 1213, 1288, 1453, 1486, 1495), the first run's about 200 rows. After every
+chunk the restore's second pass read `[]`. 123 tests pass that did not; 20 fail that passed - 707-731, the ownership below,
+and 97, 99, 1005, 1054, 1067, 1089, 1235, 1514, 1525, most of them with real dice at a table, not read one by one.
+- **The limit fired once, on a real page**: test 357 "a use in a fight is carded veiled whoever makes it, and names nobody",
+  "timed out: still running after 900 s ...", and the runner wrote "windows open on this browser when it stopped: Daggerheart
+  is newer than the verified version [Understood]; The case on this browser [Continue, Restore from a file]; Use "Suite kit
+  used in the fight" [Yes, Cancel, Cancel]" - the window list ea8013e0 had left unmeasured, measured. A confirm the harness
+  answers from `__dialogAnswers` (below).
+- **An owner is not removed by a deletion on v14** (measured, Aiko, 17.11.2026): `update({ "ownership.<user>":
+  ForcedDeletion })`, nested, and `ownership.-=<user>` each left the entry; a ForcedReplacement of the whole ownership removed
+  it; a module flag deleted the same way, dotted and nested, went. Tests 604 and 610 passed and left an owner; every test
+  after them in the session counted the players wrong (707-731). The module never deletes an owner. **Fixed in 867653ee**
+  (red: the shim's `keepOwners`; the eight put-backs write the ownership whole). For the coordinator: CLAUDE.md's "Delete a
+  key with `forcedDeletion()` or `unsetFlag`" holds for flags and not for an ownership entry on v14.
+- **The dice, d5907e1b** (the owner's decision quoted in the commit): red on the sandbox five runs of six ([4,1], [3,11],
+  [10,3], [4,3], [5,11]; once [7,3], one time in 144 for real dice, not explained), green three of three with "the dice are
+  real again after tier 2". The fourth safeguard (a roll thrown on a player's browser skipped by `needs()`) waits for the next
+  run, which will read which tests throw one.
+- **Scripted dialog answers** (`__dialogAnswers`, the harness's queue; lib/shim.mjs:1566-1720): 9 tests' own bodies and one
+  helper; at a table `__dialogAnswers.length = 0` throws "Cannot set properties of undefined" (the four open-Frisk tests that
+  left tokens, 179-184) and test 357 waits on its confirm. **For the coordinator**: (a) a probe and a `needs()` skip, or (b) a
+  kit seam like the dice's - for one test, DialogV2's waits on the GM answered from `__dialogAnswers`, memory only, taken off
+  in a finally. Default (b); not started.
+- **Test 1267 does not take the GM's page away - corrected.** I wrote so twice. Measured (17.11.2026): run alone, Playwright's
+  `evaluate` of `runTests` loses its context about 2 s in, but no navigation, crash or close is recorded, all four pages stay
+  at /game, and the GM page's `performance.timeOrigin` is the same before and after, `game.ready` true. Run detached (the
+  result read back from a page global), it had not finished after 600 s. So it waits or runs long, after something early in
+  its setup (it puts a made-up GM object into `game.users`, which v14 refuses, and replaces `game.socket.emit`); not read.
+- New groups not read yet: passages the fixtures cannot make on v14 (13, "the tunnel was not made"), a test helper setting a
+  named property on a form element, which a browser refuses ("Failed to set a named property 'traceOrder' on
+  'HTMLFormElement'", 3), the five Reroll tests whose message update Daggerheart 2.12.9 cannot read ("Failed data migration for
+  DhpChatMessage ... reading '0'").
+
+**The glue no longer pressing Roll** (the owner's consent, 17.11.2026 about 12:00: "zgoda na dh-dice: okno przestaje samo klikać
+Roll"): built and read, not committed. Headless tier 2 with the glue not pressing and `pressingRoll` pressing it too (a scratch
+worktree, 120 s limit, no stop): **3305 passed, 0 failed, none timed out** - in tier 2 only the twelve tests went through the
+window. The scenarios: **14 red** (10, 11, 12, 13, 15, 20, 21, 30, 33, 40, 61, 62, 72, 76), each a player's page rolling
+through the window ("eval timeout on p3" in 10-murder's clean-up; p1's Observe in 62). **For the coordinator**: a "player at
+each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it presses Roll after the scripted chips on a
+scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
+explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
+
 **The stand-in.** The owner wrote "zgoda na dh-dice" in this session on 17.11.2026, about 02:40 local time (between this
 line's readings at 02:36 and 02:44). Under it the glue window reads `this.config.costs.length` as Daggerheart does
 (d20RollDialog.mjs :127-132); with it both Meddle tests fail headless as on the sandbox ("the window did not write the
