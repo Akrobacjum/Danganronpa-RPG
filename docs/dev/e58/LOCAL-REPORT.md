@@ -73,10 +73,65 @@ neighbours or from Daggerheart 2.12.9; each will be read alone once the scope ru
 **One test per call** (from 03:40 UTC, 17.11.2026): tier 2 again, one `runTests({ only: [name] })` per test in
 `SCENARIOS`' order, in chunks of 150, the world restored twice after each chunk (the second pass `[]` after chunks 0 and
 150), with the probe pressing Roll on the GM after 30 s. Each row: the test's time, its outcome and the probe's presses.
-Tests 0-299 so far: 215 passed, 85 failed. **The probe's presses** (a person's act at a table, not a pass): test 113 "a
-roll built from what the GMs hold raises no flag: ..." 14 presses (558 s), 114 two, 127, 128, 130, 131 and 229 one each.
-**The slowest test without a press**: 166 "a Frisk's rolls ride a Palm's one payment (A11-4) ..." 157 s, then 189 at 99 s
-(for the per-test limit; the whole list when the run ends).
+Tests 0-299 at the first reading: 215 passed, 85 failed. (Corrected 17.11.2026: test 113 was named here as "a roll built
+from what the GMs hold raises no flag", which is test 112.) The whole run is below.
+
+**The whole run, read** (17.11.2026 03:40-07:10 UTC, at 3bfb45a8; 1565 tests, each its own call): **1183 passed, 361
+failed, 19 skipped**; test 701 hung and test 1267 took the GM's page away (below), 1564 rows. Tests 702-749 and 1268-1349
+were run after the loop, the chunks they belonged to having stopped at 701 and 1267. After every chunk the world was put back
+and the second pass read `[]`; no account's role or flags was ever among what it put back.
+
+**The probe's presses** (a person's act at a table, reported as the probe's, never as a pass) - twelve tests, each waiting on
+Daggerheart's roll window on the GM until a press: 113 "every legal modifier the GM lists is scored without an alarm" 14
+presses (failed), 114 "a Meddle's +1 the window writes is in the roll it sends ..." 2 (passed), 127 "a Support's advantage
+die is in the roll the harness throws ..." 1 (passed), 128 "an Experience a Call bought is in the formula the harness
+throws ..." 1 (failed), 130 "a statistic clicked on a student's sheet goes through its window as a reaction" 1 (passed), 131
+"a Call a sheet roll's window applied is on its roll and spent by its close" 1 (failed), 229 "E112 - an armed Loaded Die
+loads the murder's opening roll ..." 1 (failed), 343 "a statistic from the sheet thrown while a Work on Project ..." 1
+(passed), 799 "the configuration hook gets the unevaluated roll ..." 1 (passed), 980 "an advantage die at faces not the GM's
+on a drawn roll ..." 2 (passed), 1133 "a Find Passage or a Frisk thrown through the roll window ..." 3 (passed), 1134 "an
+opening or crisis throw holds its Reaction chip at action ..." 3 (passed). The stack of 2 of the presses named the test's
+line (130 and 131); the others' stacks end in the module's action-pipeline.mjs `rollTrait`, so they were named by running
+one test per call. This sizes the kit helper the coordinator decided (each of these twelve calls it).
+
+**Times** (for the limit on a test; the sandbox's Chromium draws in software, so a table's GPU is faster): the median test
+3.7 s, the 95th percentile 17.1 s; the slowest without a press or a hang 166 "a Frisk's rolls ride a Palm's one payment
+(A11-4) ..." 157.4 s, then 1530 104.0 s, 189 99.0 s, 1230 83.2 s, 167 62.2 s. Each press adds the probe's 30 s.
+
+**The failures by cause** (the message; what owns it):
+- 152 "Cannot redefine property: <token id>" - the tests' shared move options (below); **fixed** in a6b25c51.
+- 23 "Cannot read properties of undefined (reading 'length')" - the kit's roll window without `costs`; **fixed** in e50d3c47.
+- 10 "You may only push instances of User to the Users collection" - tests that put a made-up GM object into `game.users`;
+  v14's collection takes only a User (the tests'). Test 1267, "a pip's change never spills, and a step queued on a GM that
+  stopped being the primary goes to the new one (E17-T8) ...", does so too, and the GM's page then navigated away: read on its
+  own next.
+- 4 "Cannot set properties of undefined (setting 'length')", 2 "Cannot assign to read only property 'saveDataToFile'", 2
+  "Cannot assign to read only property 'format' of object '#<Localization>'" - tests writing over what v14 has made read-only
+  (the tests'); not read one by one yet.
+- At least 21 failures are tests that script their dice with `globalThis.__forceRoll`, which only the harness reads
+  (client-entry.mjs:596-640): at a table Daggerheart throws real dice and the test measures them. 10 of those fail for no
+  cause above (the fixture swings of tests 15, 17, 18, 20, 21 "was not a hit with Despair/Hope", 131, 229, 800, 1240, and
+  357, which threw "reading 'push'"); whether each is the dice is not read yet.
+  Counted from the tests' own bodies; a helper that scripts dice for a test (`drawnForPlayer` and the like) is not counted,
+  so this is a floor. A design question, proposed below.
+- Test 96, "the trait the GM picked: another one is flagged", **passed** and left Daggerheart's Fear 0 -> 2: its draws are
+  real dice at a table, and tier 2's `snapshot`/`restore` keep the module's settings and Despair pools but not
+  `daggerheart.ResourcesFear`, which the runner's dump watches. The runner's (tier 2's restore), not the test's: a fix with a
+  red of its own (snapshot, raise Fear, restore, read) is next.
+- Test 701, "no module window is wider than the cap, and they open on the centre", **hung**: it takes the first open window
+  matching `.application.dialog[class*="drpg-"]` as its own, and on this sandbox that is "Daggerheart is newer than the
+  verified version" (2.12.9 against 2.12.8), drawn at every GM load and first in `foundry.applications.instances`; it measures
+  and closes that one, and `await opening` waits for the settings window it opened, which nobody closes. Measured: both
+  windows match, the warning first; closing the settings window resolves its opener (null). My first reading - "The case on
+  this browser" - was wrong: the test hung with that window closed too. The test's (it should find the window its opener drew).
+- The rest, about 150, one or a few each: to be read again after the fixes, many being the leftovers of a test that threw
+  before its put-back.
+
+**Proposed, for the coordinator** (not built): scripted dice at a table. (a) a kit probe `env.scriptedDice()`, true only
+where `__forceRoll` is read, which those tests `needs()` - skipped at a table, so they lose the table, which is the point of
+the gate; or (b) the kit scripts the dice at a table as well, through the randomiser Foundry's dice draw from, for the length
+of one test - the table keeps them, at the price of a seam in Foundry's dice the module never touches. Default (b) if the
+seam can be read to hold on v14; not started.
 
 **45 of the 85 failures have one cause: Foundry v14 writes into the options object a token move is given.**
 client/documents/token.mjs:1742 `options._movement ??= {}` and :2009 `Object.defineProperty(options._movement, this.id,
@@ -100,6 +155,29 @@ suite failures are plain failures that rule does not explain ("a Reroll of a suc
 changed old store is reported, and taking it never overwrites what changed since the upgrade", E42-T9, E60-T20; the
 sandbox's browser was running beside it). `npm test` in this tree, the stand-in strict and the kit unfixed, is running: a
 result other than the two Meddle tests failing is the stand-in's or the load's, and will be said which.
+
+**The fixes, committed on this branch and read headless** (17.11.2026, the sandbox idle): a6b25c51 every token move its own
+options object, the shim writing the move into it as v14 does (red: "a second killer in the same Eclipse ..." and "a
+Frisk's rolls ride a Palm's one payment (A11-4) ..." throw "Cannot redefine property" headless as on the sandbox; green with
+`{ ...PLACE }`); e50d3c47 the kit's roll window `costs: []`; df3fe865 the harness's roll window reads `costs.length` (with the
+owner's words); 8881e72b `ms` on every result (R7561; red: `ms` undefined; mutants: 0, unrounded, 6000 ms over - each fails).
+Then `npm run quick` green, the suite in two shards (`DRPG_SUITE_SHARD=1/2` tiers 0-1 1161.8 s: 1748 passed, 0 failed, 16
+skipped; `2/2` tier 2 4231 s: 1555 passed, 2 failed, 11 skipped), `node suite-merge.mjs` over the pair (the list's hash agreed,
+each tier-2 test in its shard, the skips the baseline's: "3303 passed, 2 failed, 27 skipped, 0 red: RED" - the new `ms` read by
+it without a complaint; RED for the failures below), and the scenarios (51 of 52 green). What was red, and what it was:
+- E17-T2 "the GM puts back what the rules refuse ..." and E17-T4 "the Eclipse counts what the primary carried out itself
+  ...": "Cannot redefine property" - two `asPlayer` passed bare after a ternary's `:`, which a6b25c51's rewrite (`, asPlayer)`)
+  missed. Fixed in the next commit; both green by name.
+- 01-runtests' own A3 ("runTests() runs tiers 0 and 1 only ..."): one failure in tiers 0-1, which was R7561 - a 40 ms timer
+  read 39 ms. Its bound is 30 ms in the next commit; three runs pass, each mutant fails three of three.
+- 41-trial-scene m2 ("a fence token another module refuses stops each of the four carry tests ..."): the fourth carry test's
+  run also names "could not restore the world after "End the trial never leaves a living student w..."". **Not this branch's**:
+  the tree at 3bfb45a8 with the strict window - the control's exact code, run from its own harness - is red the same way now
+  (six runs of six since 10:00 UTC), and was green at 05:32 and 08:11 UTC, both runs beside the sandbox's browser at work. A
+  check that depends on timing, older than this work; what the restore left is not read (the scenario keeps the runner line's
+  name, not its message).
+- The three failures of the withdrawn worktree run ("a Reroll of a successful erase removes the trace again", E42-T9,
+  E60-T20) passed here, on a quiet machine: the load, not the change.
 
 **The stand-in.** The owner wrote "zgoda na dh-dice" in this session on 17.11.2026, about 02:40 local time (between this
 line's readings at 02:36 and 02:44). Under it the glue window reads `this.config.costs.length` as Daggerheart does
