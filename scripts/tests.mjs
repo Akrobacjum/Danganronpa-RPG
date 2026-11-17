@@ -56,7 +56,7 @@
 import { log, warn, esc, plural, dialogContent } from "./utils.mjs";
 import { studentActors } from "./monokuma.mjs";
 import {
-    layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, stageLedger, registerSuite, worldCensus
+    layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, scriptDice, stageLedger, registerSuite, worldCensus
 } from "./tests-kit.mjs";
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
@@ -532,9 +532,23 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                 const list = pick(SCENARIOS), mine = list.filter((_, k) => shardOfPosition(k, cut.count) === cut.index);
                 shard.list = list.map(([name]) => name);
                 shard.ran = mine.map(([name]) => name);
+                /* THE DICE REAL AT THE START, to be read again at the end (the kit's `scriptDice`; E58 L1, 17.11.2026). */
+                const DualityRoll = game.system.api?.dice?.DualityRoll ?? null;
+                const realDice = { evaluate: DualityRoll?.buildEvaluate ?? null, uniform: CONFIG.Dice.randomUniform, force: globalThis.__forceRoll };
                 for (const entry of mine) {
                     running = entry[0];
-                    const r = await runOne(entry, { tier: 2, ledger });
+                    // The test's named dice for its own length, taken off and its `__forceRoll` put back whatever it did -
+                    // passed, threw or ran out of time (`scriptDice`'s note).
+                    const unscript = scriptDice();
+                    const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+                    let r;
+                    try {
+                        r = await runOne(entry, { tier: 2, ledger });
+                    } finally {
+                        unscript();
+                        if (hadForce) globalThis.__forceRoll = force;
+                        else delete globalThis.__forceRoll;
+                    }
                     record(r);
                     running = null;
                     const stop = stopsHere(r);
@@ -566,6 +580,15 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                     if (stop) break;
                 }
                 await settle();
+                /* THE DICE ARE REAL AGAIN (the coordinator's safeguard, 17.11.2026): Daggerheart's `buildEvaluate` and
+                   Foundry's randomiser are what they were before the first test, or the run fails here, loudly. */
+                const scriptedLeft = [
+                    ...((DualityRoll?.buildEvaluate ?? null) !== realDice.evaluate ? ["Daggerheart's DualityRoll.buildEvaluate is still wrapped"] : []),
+                    ...(CONFIG.Dice.randomUniform !== realDice.uniform ? ["Foundry's CONFIG.Dice.randomUniform is not the one the run began with"] : []),
+                    ...(globalThis.__forceRoll !== realDice.force ? ["a test's __forceRoll is not what the run began with"] : [])
+                ];
+                record({ tier: 2, name: "the dice are real again after tier 2", assertions: null,
+                    ...(scriptedLeft.length ? { outcome: "fail", message: `THE DICE ARE NOT REAL: ${scriptedLeft.join("; ")}` } : { outcome: "pass" }) });
                 const late = dumpDiff(asFound, await worldDump()).filter(d => !reported.has(d.path));
                 record({ tier: 2, name: "tier 2 put the world back as it found it", assertions: null,
                     ...(late.length

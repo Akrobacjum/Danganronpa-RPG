@@ -405,8 +405,37 @@ export function honourLegacy(changes, onLegacyKey = null, at = "") {
  * the same _id - never a wholesale replacement. Everything else merges, through
  * `applyUpdate`; a legacy key's path is reported with the embedded entry's id in it.
  */
+/*
+ * AN OWNER IS NOT REMOVED BY A DELETION (E58 L1, 17.11.2026; measured on the sandbox, Foundry 14.370): on an actor,
+ * `update({ "ownership.<user>": ForcedDeletion })`, the same nested (`{ ownership: { <user>: ForcedDeletion } }`) and
+ * `ownership.-=<user>` each left the entry as it was, while a `ForcedReplacement` of the whole `ownership` removed it; a
+ * module flag deleted by the same `ForcedDeletion`, dotted or nested, went. So here a deletion under `ownership` is
+ * dropped from the write and the entry stays. Read on an actor only; the other documents' `ownership` is taken to be
+ * the same field and is not read. Until this the harness deleted the entry, and eight places in tier 2 that put an owner
+ * back that way passed headless and left the owner at a table ("restore left: Actor "Aiko Hoshino" ... ownership.<user>
+ * (none) -> 3", tests 604 and 610).
+ *
+ * ONE ROAD FOR THE SERVER'S DIFF AND ITS APPLY (claude/shim-118, the merge of d5907e1b, 17.11.2026). Exported: the cluster's
+ * update cases take the deletion out before the server's diff (D3, cluster.mjs), not only here, so a write that leaves an
+ * owner as it was hands no client's hook an `ownership` it did not change - until this every `updateActor` named
+ * `ownership.<user>` for it (00-boot "an owner is not removed by a deletion", red first). The old spelling
+ * `ownership.-=<user>`, which 14.370 left in place too, is taken out the same way, and still reported as an old key
+ * (`onLegacyKey`, the harness's `legacyKeys`, R152). Returns the expanded write; changes `expanded` in place.
+ */
+export function keepOwners(expanded, onLegacyKey = null) {
+    const own = expanded?.ownership;
+    if (!own || typeof own !== "object" || isOperator(own)) return expanded;
+    for (const [id, v] of Object.entries(own)) {
+        if (id.startsWith("-=")) onLegacyKey?.(`ownership.${id}`);
+        if ((isOperator(v) && kindOf(v) === "ForcedDeletion") || id.startsWith("-=")) delete own[id];
+    }
+    if (!Object.keys(own).length) delete expanded.ownership;
+    return expanded;
+}
+
 export function applyDocChanges(collName, raw, changes, { onLegacyKey = null } = {}) {
     const expanded = expandObject(deepClone(changes));
+    keepOwners(expanded);
     for (const key of EMBEDDED_ARRAYS[collName] ?? []) {
         if (!Array.isArray(expanded[key])) continue;
         const patches = expanded[key];

@@ -1720,6 +1720,8 @@ Next free: R7745. Reserved and unused: none.
 | R7561 | 0 | E39 | every result `runOne` gives carries the time its test took, in whole milliseconds |
 | R7562 | 0 | E39 | a test that runs past its limit comes back failed as timed out, and says so |
 | R7563 | 0 | E39 | the runner stops after a test past its limit: each tier's loop asks, and no later tier starts |
+| R7564 | 0 | E39 | the kit's dice script names a roll's faces for one evaluation and leaves the dice real behind it |
+| R7565 | 0 | E39 | tier 2 runs each test inside the dice script, takes it off whatever the test did, and reads the dice real at the end |
 | R7601 | 1 | E39 | two accused students living at the table are offered one tick each, each ticked unless a known Blackened; fewer than two living accused students leave the window's select as it was (scripts/verdict.mjs `accusedChoices`; E40, 16.11.2026, the line claude/e40-117; the owner's "gm wybiera czy chce zabic 1, czy 2 i ktora") |
 | R7602 | 1 | E39 | a wrong verdict over two accused executes exactly the ticked ones, both, either alone, and none refused (scripts/verdict.mjs `executedChoice`; E40, 16.11.2026, the line claude/e40-117) |
 | R7603 | 1 | E39 | only an answer the verdict window's `read` built is a verdict: Cancel, the window closed and a wrong verdict with none of two accused ticked give none (scripts/verdict.mjs `verdictAnswer`; E40, 16.11.2026, the line claude/e40-117) |

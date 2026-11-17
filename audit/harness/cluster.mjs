@@ -265,9 +265,11 @@ function applyOp(userId, op, onLegacyKey = null) {
                handed it `{_id}` alone. What reaches every client is the part of the write that changes the world's copy
                (futil.mjs `diffChanges`), the modification time with it where something changed. The write itself is
                applied whole, as before. Until D3 every client was handed the write as sent. */
-            const changed = U.diffChanges(doc, op.changes);
+            // An owner a deletion names stays (futil.mjs `keepOwners`, E58 L1's reading on 14.370): taken out before the diff too.
+            const write = U.keepOwners(U.expandObject(U.deepClone(op.changes ?? {})), path => onLegacyKey?.(path));
+            const changed = U.diffChanges(doc, write);
             if (Object.keys(changed).length) changed._stats = { ...(changed._stats ?? {}), modifiedTime: Date.now() };
-            U.applyDocChanges(collName, doc, op.changes, { onLegacyKey: path => onLegacyKey?.(path) });
+            U.applyDocChanges(collName, doc, write, { onLegacyKey: path => onLegacyKey?.(path) });
             if (changed._stats) doc._stats = { ...(doc._stats ?? {}), modifiedTime: changed._stats.modifiedTime };
             return { first: others.map(other => ({ t: "apply", action: "update", collName, docId: other._id, changes: { active: false }, userId, options: op.options })),
                 broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: changed, userId, options: op.options }, result: op.docId };
@@ -293,7 +295,8 @@ function applyOp(userId, op, onLegacyKey = null) {
             for (const u of op.payload) {
                 const raw = (doc[key] ?? []).find(d => d._id === u._id);
                 if (!raw) continue;
-                const { _id, ...changes } = u;
+                const { _id, ...asked } = u;
+                const changes = U.keepOwners(U.expandObject(U.deepClone(asked)), path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }));
                 handed.push({ ...U.diffChanges(raw, changes), _id });
                 /* An embedded document is a parent too (E29 fix r2-H8, 06.10.2026): an actor's item updated with its
                    `effects` merges them by id, as the actor's own list does (futil.mjs `applyDocChanges`). Applied

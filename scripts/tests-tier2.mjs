@@ -14731,9 +14731,10 @@ const SCENARIOS = [
         };
         const release = async () => { letGo?.(); letGo = null; await settle(); };
         const unowned = () => other.update({ ownership: Object.fromEntries(Object.keys(ownershipWas).map(id => [id, 0])) });
-        // The ownership as found: a user it did not name is taken out again (`forcedDeletion`), not left at 0.
-        const ownershipBack = () => other.update(Object.fromEntries(Object.keys(other.ownership)
-            .map(id => [`ownership.${id}`, id in ownershipWas ? ownershipWas[id] : forcedDeletion()])));
+        // The ownership as found, written whole (`replaced`): a user it did not name is taken out again, not left at 0. A
+        // deletion under `ownership` removes nothing on v14 (E58 L1, 17.11.2026: the sandbox, Foundry 14.370; lib/futil.mjs
+        // `keepOwners`), so the map is replaced, as a whole write is the one that takes an owner out there.
+        const ownershipBack = () => other.update({ ownership: replaced(ownershipWas) });
         const seen = {};
         const stood = await aloneTogether(theirs, other);
         await (await import("./remnants.mjs")).flushTraceDigest();
@@ -39454,7 +39455,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         needs(world.atLeast("playerAccounts", 2), "a second player to share the student");
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player");
-        const { isPrimaryGm, ownerOf, forcedDeletion } = await import("./utils.mjs");
+        const { isPrimaryGm, ownerOf } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, which posts the card - this would measure nothing");
         const G = await import("./bridge-guards.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
@@ -39498,7 +39499,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
             for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
-            if (granted) await student.update({ [`ownership.${second.id}`]: second.id in ownership ? ownership[second.id] : forcedDeletion() });
+            if (granted) await student.update({ ownership: replaced(ownership) });   // whole: a deletion under ownership removes nothing on v14
             await (await import("./sheet-audit.mjs")).sheetAuditIdle();
             await settle();
         }
@@ -39516,7 +39517,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         needs(world.atLeast("playerAccounts", 2), "a second player to share the student");
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player");
-        const { isPrimaryGm, ownerOf, forcedDeletion } = await import("./utils.mjs");
+        const { isPrimaryGm, ownerOf } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
         const { callGm } = await import("./gm-bridge.mjs");
         const { pressCard } = await import("./messenger-app.mjs");
@@ -39552,7 +39553,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             ui.notifications.info = info;
             for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
-            if (granted) await student.update({ [`ownership.${second.id}`]: second.id in ownership ? ownership[second.id] : forcedDeletion() });
+            if (granted) await student.update({ ownership: replaced(ownership) });   // whole: a deletion under ownership removes nothing on v14
             await (await import("./sheet-audit.mjs")).sheetAuditIdle();
             await settle();
         }
@@ -40069,7 +40070,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.push(sentSince(rZ, from));
         } finally {
             Hooks.off("createChatMessage", hook);
-            if (granted) await lent.update({ [`ownership.${player.id}`]: player.id in ownership ? ownership[player.id] : forcedDeletion() });
+            if (granted) await lent.update({ ownership: replaced(ownership) });   // whole: a deletion under ownership removes nothing on v14
             await sheetAuditIdle();
             for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
             for (const message of created) await message.delete().catch(() => {});
@@ -40174,7 +40175,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.push(kept(V2));
         } finally {
             Hooks.off("createChatMessage", hook);
-            if (granted) await lent.update({ [`ownership.${player.id}`]: player.id in ownership ? ownership[player.id] : forcedDeletion() });
+            if (granted) await lent.update({ ownership: replaced(ownership) });   // whole: a deletion under ownership removes nothing on v14
             await sheetAuditIdle();
             for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
             for (const message of created) await message.delete().catch(() => {});
@@ -45140,9 +45141,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             grants: actor.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 });
         const before = keep(O), beforeC = keep(cee);
         const ownership = foundry.utils.deepClone(cee.ownership ?? {});
-        // The map as it was: O's account's key taken out again when it had none (an update merges the map).
-        const ownershipBack = () => ({ [`ownership.${uO.id}`]: uO.id in ownership ? ownership[uO.id] : forcedDeletion(),
-            [`ownership.${uC.id}`]: uC.id in ownership ? ownership[uC.id] : forcedDeletion() });
+        // The map as it was, written whole: O's account's key taken out again when it had none (an update merges the map,
+        // and a deletion under ownership removes nothing on v14 - E58 L1, 17.11.2026, lib/futil.mjs `keepOwners`).
+        const ownershipBack = () => ({ ownership: replaced(ownership) });
         const seen = new Set(game.messages.map(m => m.id));
         const cub = cee.getFlag(MODULE_ID, FLAGS.monocub) ?? null;
         const made = [];
@@ -98731,7 +98732,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             must(game.user === realUser, "game.user was not put back");
             await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san,
-                [`ownership.${observer.id}`]: observer.id in was.own ? was.own[observer.id] : forcedDeletion() });
+                ownership: replaced(was.own) });   // whole: a deletion under ownership removes nothing on v14
             await settle();
         }
         const BD = [game.i18n.localize("DRPG.States.drpgBreakdown.name"), game.i18n.localize("DRPG.States.drpgBreakdown.description")];
@@ -103801,6 +103802,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(raised === before + 1, `Fear could not be raised from ${before} - this would measure nothing`);
         equal(stableJson([before, raised, after]), stableJson([before, before + 1, before]),
             "tier 2's restore did not put Daggerheart's Fear back (before, raised, after restore)");
+    }],
+
+    ["a test's named dice are the roll's on this browser, at a table too", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision that day ("Na czas jednego testu zestaw testowy ustawia kości także na
+         * prawdziwym Foundry"). A roll of a student thrown on this GM through the module's `rollTrait` (`neutralRoll`, no
+         * window) with `__forceRoll` { hope: 7, fear: 3 }: headless the harness's seam scripts it; at a table the runner's
+         * (tests-kit.mjs `scriptDice`), for this test's length. Until that seam, at a table the dice were real. Read: the
+         * Hope and Fear dice of the message's roll.
+         */
+        const [who] = cast(1);
+        let message = null;
+        try {
+            ({ message } = await neutralRoll(who, { faces: { hope: 7, fear: 3 } }));
+            const roll = message?.rolls?.[0] ?? null;
+            must(roll, "the roll wrote no message - this would measure nothing");
+            const hope = roll.dHope?.total ?? roll.dice?.[0]?.total ?? null, fear = roll.dFear?.total ?? roll.dice?.[1]?.total ?? null;
+            equal(stableJson([hope, fear]), stableJson([7, 3]), "the roll's Hope and Fear dice are not the faces the test named");
+        } finally {
+            await message?.delete();
+            await settle();
+        }
     }],
 ];
 

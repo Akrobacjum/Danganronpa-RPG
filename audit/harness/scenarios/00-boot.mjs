@@ -372,6 +372,34 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
     check("D10: a player hears userConnected(gm, true) when a GM connects, before that GM's module says bridge.gmReady, as on v14 14.370",
         J(d10Heard) === J(["connected", "gmReady"]), J(d10Heard));
 
+    /* AN OWNER IS NOT REMOVED BY A DELETION (E58 L1, 867653ee; docs/dev/e39/CALIBRATION.md; lib/futil.mjs `keepOwners`):
+       on Foundry 14.370, on an actor, `update({"ownership.<user>": ForcedDeletion})`, the same nested and
+       `ownership.-=<user>` each left the entry as it was; a ForcedReplacement of the whole `ownership` removed it; a module
+       flag deleted by the same ForcedDeletion went. Here, on a scratch actor p1 owns, the GM writes each in turn; p2
+       writes down which paths each `updateActor` it hears names. Read after each: p1's entry, and whether any hook's
+       changes named `ownership` for a write that left it as it was. */
+    const own = await gm.eval(`const a = await Actor.create({ name: "00 owners", type: "adversary", ownership: { default: 0, "${IDS.p1}": 3 }, flags: { world: { gone: 1 } } });
+        return a.id;`);
+    await settle(300);
+    await p2.eval(`globalThis.__own = []; globalThis.__ownhook = Hooks.on("updateActor", (doc, changes) => { if (doc.id === "${own}") globalThis.__own.push(Object.keys(foundry.utils.flattenObject(changes ?? {})).filter(k => k.startsWith("ownership"))); }); return true;`);
+    const ownStep = async code => {
+        await p2.eval(`globalThis.__own.length = 0; return true;`);
+        await gm.eval(`const a = game.actors.get("${own}"), O = foundry.data.operators; ${code} return true;`);
+        await settle(400);
+        return p2.eval(`const a = game.actors.get("${own}"); return { p1: a.ownership?.["${IDS.p1}"] ?? null, flag: a.getFlag("world", "gone") ?? null, heard: globalThis.__own.flat() };`);
+    };
+    const ownDot = await ownStep(`await a.update({ "ownership.${IDS.p1}": O.ForcedDeletion.create() });`);
+    const ownNest = await ownStep(`await a.update({ ownership: { "${IDS.p1}": O.ForcedDeletion.create() } });`);
+    const ownOld = await ownStep(`await a.update({ "ownership.-=${IDS.p1}": null });`);
+    const ownFlag = await ownStep(`await a.update({ "flags.world.gone": O.ForcedDeletion.create() });`);
+    const ownWhole = await ownStep(`await a.update({ ownership: O.ForcedReplacement.create({ default: 0 }) });`);
+    await p2.eval(`Hooks.off("updateActor", globalThis.__ownhook); delete globalThis.__own; delete globalThis.__ownhook; return true;`);
+    await gm.eval(`await game.actors.get("${own}")?.delete(); return true;`);
+    await settle(300);
+    check("an owner is not removed by a deletion, as on v14 14.370: a ForcedDeletion of p1's entry, dotted or nested, and ownership.-=<p1> leave it at 3 and no hook hears ownership; a module flag's ForcedDeletion takes the flag; a ForcedReplacement of the whole ownership takes p1's entry",
+        [ownDot, ownNest, ownOld].every(r => r.p1 === 3 && r.heard.length === 0) && ownFlag.flag === null && ownFlag.p1 === 3 && ownWhole.p1 === null,
+        J({ ownDot, ownNest, ownOld, ownFlag, ownWhole }));
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;
