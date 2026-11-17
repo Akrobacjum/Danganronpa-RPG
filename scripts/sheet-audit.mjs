@@ -3319,7 +3319,8 @@ export function onSheetWrite(kind, doc, changes, options, userId, { primary = is
  * relay, which writes on this browser for a player (relay-guard.mjs; dh-relay.mjs `document.update(data.data)`
  * after an `await`), calls `update` itself and never this, so no option and no hook could tell its write from
  * the GM's here - which is why this is not a `preUpdateActor` hook. On a player's browser, and on a GM's that is
- * not the primary, it does nothing (`game.user.isGM`, `isPrimaryGm`): the mark is the primary's. The audit's own
+ * not the primary, it does nothing (`isPrimaryGm`, which asks `game.user.isGM` itself - R1470 keeps a mode predicate
+ * out of this file): the mark is the primary's. The audit's own
  * put-back and a write set aside (`AUDIT_ASIDE`) write what the mark holds and are passed over, as `judgeNow`
  * passes them. A leaf under `items`, `effects`, `_id` or `_stats` is not read here: those are judged by
  * their own hooks. Nor is an operator (a forced deletion or replacement): the harness sends every one
@@ -3330,7 +3331,7 @@ export function onSheetWrite(kind, doc, changes, options, userId, { primary = is
  * or null when nothing was dropped.
  */
 export function noteOwnDropped(actor, changes, options = {}) {
-    if (actor?.documentName !== "Actor" || actor.type !== "character" || !game.user?.isGM || !isPrimaryGm()) return null;
+    if (actor?.documentName !== "Actor" || actor.type !== "character" || !isPrimaryGm()) return null;
     if (options?.[AUDIT_ASIDE] || options?.drpgWrite?.reason === "auditPutBack") return null;
     const src = actor._source ?? {}, dropped = {};
     const leaves = (value, at) => {
