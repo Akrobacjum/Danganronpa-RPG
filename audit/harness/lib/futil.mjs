@@ -37,6 +37,20 @@ export function tokenRegionIds(scene, token, spot = token) {
         && (!(region.levels ?? []).length || level === null || (region.levels ?? []).includes(level))).map(region => region._id).sort();
 }
 
+/*
+ * EVERY SCENE HAS A FLOOR (D5; the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 3, read by E58 L1
+ * on Foundry 14.370): `Scene#levels` is an embedded collection of `Level` documents, and a scene given none - every scene the
+ * harness seeds - holds `defaultLevel0000`, 0 to 20. Read: its id and its bottom and top. Not read: its name and its `base`
+ * (here "" and its bottom), and the level's other fields (background, foreground, fog, textures, visibility), left out.
+ * Answers `scene` itself, its `levels` filled in where it held none (cluster.mjs for the world, lib/shim.mjs for a client).
+ */
+export const DEFAULT_LEVEL_ID = "defaultLevel0000";
+export function withDefaultLevel(scene) {
+    if (!scene || typeof scene !== "object" || (Array.isArray(scene.levels) && scene.levels.length)) return scene;
+    scene.levels = [{ _id: DEFAULT_LEVEL_ID, name: "", elevation: { bottom: 0, top: 20, base: 0 }, sort: 0, flags: {} }];
+    return scene;
+}
+
 export function randomID(length = 16) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let out = "";

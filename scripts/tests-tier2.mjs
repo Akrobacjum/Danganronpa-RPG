@@ -72885,7 +72885,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         let scene = null, token = null, steps = null, refused = null;
         try {
             scene = await Scene.create({ name: "SUITE E80 floor jump", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
-                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+                levels: [{ _id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }] });
+                // D5 (16.11.2026): floors in Foundry 14.370's shape, `_id` and `{ bottom, top }` (CALIBRATION.md section 3); `{ id, elevation: n }` until D5.
             await scene.createEmbeddedDocuments("Region", [room(DORM, 0, L1), room("SUITE E80 floor Hall", 600, L1), room(ATTIC, 1200, L2)]);
             [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 200, y: 200, level: L1, width: 1, height: 1 }]);
             await settle();
@@ -72947,7 +72948,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * H81-01 (20.10.2026; the owner's 1.2.80 table smoke: "tunele/schody sa jednostronne"). R900 reads the verdict
          * and the landing on maps of its own, and A10-18 goes back on one floor; this drives the primary GM's own road
          * (`crossTunnel`) up a floor and back down, on a scene of the suite's own with two floors (heights 0 and 10, the
-         * harness's model of a level: lib/shim.mjs `LevelList`), a Dorm downstairs and an Attic upstairs far from it, and
+         * harness's model of a level: lib/shim.mjs `LevelImpl`, `{ bottom, top }` since D5), a Dorm downstairs and an Attic upstairs far from it, and
          * a tunnel between them made and given in a GM-store world of the suite's own, so no player's copy is sent. Read:
          * each answer, where the token stands - its spot, its floor and its height - and the actions left. Red at
          * f0ea429: the token stood upstairs at height 0, the write naming the floor alone. The harness's regions ask no
@@ -72972,7 +72973,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             if (!charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
             scene = await Scene.create({ name: "SUITE H81 stairs", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
-                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+                levels: [{ _id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }] });
+                // D5 (16.11.2026): floors in Foundry 14.370's shape, `_id` and `{ bottom, top }` (CALIBRATION.md section 3); `{ id, elevation: n }` until D5.
             await scene.createEmbeddedDocuments("Region", [room("SUITE H81 Dorm", 0, L1), room("SUITE H81 Attic", 1200, L2)]);
             [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 200, y: 200, level: L1,
                 elevation: 0, width: 1, height: 1 }]);
@@ -73036,7 +73038,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             if (!charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
             scene = await Scene.create({ name: "SUITE H81 C3 drag", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
-                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+                levels: [{ _id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }] });
+                // D5 (16.11.2026): floors in Foundry 14.370's shape, `_id` and `{ bottom, top }` (CALIBRATION.md section 3); `{ id, elevation: n }` until D5.
             await scene.createEmbeddedDocuments("Region", [room("SUITE H81 C3 Dorm", 0, L1), room("SUITE H81 C3 Attic", 1200, L2)]);
             [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 400, y: 200, level: L1,
                 elevation: 0, width: 1, height: 1 }]);
@@ -73320,6 +73323,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             scene = await Scene.create({ name: "SUITE E15 T12 a secret passage", width: 3000, height: 1400, grid: { size: 100 }, active: false, navigation: false });
             await scene.createEmbeddedDocuments("Region", [room(DORM, 0, 0), room(GYM, 600, 0), room(BATH, 0, 600), room(ATTIC, 2000, 0)]);
             await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 600] }, { c: [0, 600, 600, 600] }]);
+            /* THE SCENE'S ONE FLOOR (D5, 17.11.2026): on Foundry 14.370 every scene given none holds `defaultLevel0000` and every
+               token on it stands there (docs/dev/e39/CALIBRATION.md section 3), so the GM's own road asks the builder's place on
+               that floor (projects-ui.mjs, `gmPlaceOf`). Asked with no floor until D5, when the harness's scene had none. */
+            const FLOOR = scene.levels?.contents?.[0]?.id ?? null;
             const site = new Proxy(scene, { get: (target, key) => (key === "view" ? async () => true : Reflect.get(target, key, target)) });
             read = await E.withGmStoreWorld(`suite-e15-t12-${foundry.utils.randomID(8)}`, async () => {
                 const make = async (name, user) => {
@@ -73333,11 +73340,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await settle();
                 const out = {};
                 // The proposal's offer: the Dorm's two neighbours, the Attic none.
-                out.offer = [P.secretPassageOffer({ scene, room: DORM, level: null })?.neighbours ?? null, P.secretPassageOffer({ scene, room: ATTIC, level: null })];
+                out.offer = [P.secretPassageOffer({ scene, room: DORM, level: FLOOR })?.neighbours ?? null, P.secretPassageOffer({ scene, room: ATTIC, level: FLOOR })];
                 // The approval's pick, narrowed to the Dorm and the Gym: a click on the Bath's wall is refused, two on the Gym's make the stretch.
                 let board = null;
                 const said = [];
-                const picking = P.startPassagePick(site, { between: { rooms: [DORM, GYM], level: null }, preview: () => {}, notify: kind => said.push(kind),
+                const picking = P.startPassagePick(site, { between: { rooms: [DORM, GYM], level: FLOOR }, preview: () => {}, notify: kind => said.push(kind),
                     board: handlers => { board = handlers; return () => { board = null; }; },
                     prompt: () => ({ step: n => said.push(`step ${n}`), refuse: code => said.push(code), close: () => said.push("closed") }) });
                 for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5));
@@ -85160,7 +85167,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const [L1, L2] = ["suitee17f1", "suitee17f2"].map(k => `${k}${foundry.utils.randomID(6)}`.slice(0, 16));
             const floor = (name, level, flags) => ({ name, shapes: [{ type: "rectangle", x: 0, y: 0, width: 600, height: 600 }], levels: [level], flags, behaviors: [] });
             upstairs = await Scene.create({ name: "SUITE E17 T3 upstairs", width: 600, height: 600, grid: { size: 100 }, active: false, navigation: false,
-                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+                levels: [{ _id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }] });
+                // D5 (16.11.2026): floors in Foundry 14.370's shape, `_id` and `{ bottom, top }` (CALIBRATION.md section 3); `{ id, elevation: n }` until D5.
             await upstairs.createEmbeddedDocuments("Region", [floor("SUITE E17 T3 Dorm", L1, mark()), floor("SUITE E17 T3 Attic", L2, mark({ [M.ROOM_FLAGS.locked]: true }))]);
             const [climber] = await upstairs.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 100, y: 100, level: L1, width: 1, height: 1 }]);
             await settle();

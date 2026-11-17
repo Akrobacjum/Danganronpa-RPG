@@ -139,7 +139,7 @@ export class Collection extends Map {
 
 const EMBEDDED = {
     Actor: { Item: "items", ActiveEffect: "effects" },
-    Scene: { Token: "tokens", Region: "regions", Wall: "walls", AmbientLight: "lights", AmbientSound: "sounds", Note: "notes", Drawing: "drawings", MeasuredTemplate: "templates", Tile: "tiles" },
+    Scene: { Token: "tokens", Region: "regions", Level: "levels", Wall: "walls", AmbientLight: "lights", AmbientSound: "sounds", Note: "notes", Drawing: "drawings", MeasuredTemplate: "templates", Tile: "tiles" },
     RollTable: { TableResult: "results" },
     Playlist: { PlaylistSound: "sounds" },
     Item: { ActiveEffect: "effects" },
@@ -669,9 +669,11 @@ export function buildDocumentClasses(ctx) {
             return (this.parent?.regions?.contents ?? [])
                 .filter(region => region.pointInside(centre) && region.includedInLevel(spot.level ?? null)).map(region => region.id).sort();
         }
-        /* The floor the token stands on: a level's id on its scene (E12 C0), null where the token names none - every
-           token of the seed, so no scenario before 66 moves. See `LevelList` below. */
-        get level() { return this._source.level ?? null; }
+        /* The floor the token stands on: a level's id on its scene (E12 C0). A token that names none stands on its scene's
+           lowest floor (D5): on 14.370 a token on a scene without levels drawn read "defaultLevel0000", which every such
+           scene holds (CALIBRATION.md section 3); which floor a token given none stands on where a scene has several was
+           not read (LIVE-E39-13). Until D5 it was null for every token of the seed. */
+        get level() { return this._source.level ?? lowestLevel(this.parent)?.id ?? null; }
         /* E24 C1b (08.11.2026): Foundry's `TokenDocument#getBarAttribute`, which a token's bars and its HUD's inputs read,
            as recalled of v13 and not read in v14's source (E24's live row of the token bars, AUDIT 9.2): the attribute the bar
            names (or `alternative`), read off the actor's system data; a number answers `{ type: "value" }`, an object with
@@ -755,6 +757,7 @@ export function buildDocumentClasses(ctx) {
     }
 
     class SceneImpl extends BaseDocument {
+        constructor(data = {}, context = {}) { super(U.withDefaultLevel(U.deepClone(data ?? {})), context); }
         static get documentName() { return "Scene"; }
         get tokens() { return this._collections.tokens; }
         get regions() { return this._collections.regions; }
@@ -771,10 +774,10 @@ export function buildDocumentClasses(ctx) {
             const w = this._source.width ?? 4000, h = this._source.height ?? 3000, s = this.grid.size;
             return { width: w, height: h, size: s, sceneX: 0, sceneY: 0, sceneWidth: w, sceneHeight: h, rect: { x: 0, y: 0, width: w, height: h }, sceneRect: { x: 0, y: 0, width: w, height: h } };
         }
-        /* The scene's floors, `{ id, name, elevation }` each, in the order the source lists them (E12 C0). */
-        get levels() {
-            return LevelList.from((this._source.levels ?? []).map(l => ({ id: l.id ?? l._id ?? null, name: l.name ?? "", elevation: l.elevation ?? 0 })));
-        }
+        /* The scene's floors: an embedded collection of `Level` documents, `{ _id, name, elevation: { bottom, top, base }, ... }`,
+           `defaultLevel0000` where the scene was given none (D5; futil.mjs `withDefaultLevel`). Until D5 a list of
+           `{ id, name, elevation }` built from the source, empty on every seeded scene. */
+        get levels() { return this._collections.levels; }
         /* Until E12 C0 nothing defined `game._viewScene` (grep of audit/harness, plan-E12 1.x item 7), so either call
            threw; client-entry.mjs defines it now.
            A CANVAS STILL LOADING DOES NOT SWITCH (E13 C0, 11.10.2026; plan-E13 2.1 item 2, A5's reading of Foundry's
@@ -799,17 +802,24 @@ export function buildDocumentClasses(ctx) {
      * stands on one (`level`, a level's id), a region belongs to some (`levels`, a set of ids) and
      * `includedInLevel(id)` asks whether it is on that one - an empty set is every floor; the viewed floor is
      * `canvas.level` and the token's movement fields are `BaseToken.MOVEMENT_FIELDS` (client-entry.mjs). None of
-     * it was read in v14's source - there is none in this tree - so the shapes are the plan's: whether v14 hands
-     * an array or a collection, and what a new region's levels are, is LIVE-E12-02/03. The list answers both
-     * ways (an array, and `get`, `contents` and `size` as Foundry's collections do), so a reader written either
-     * way runs here. Region testing still ignores elevation and a token's `regions` are still centre-based: a
-     * floor is told apart by these fields alone. Nothing in the seed has a level; scenario 66 builds its own
-     * two-floor scene, so no other scenario's numbers move.
+     * it was read in v14's source - there is none in this tree - so the shapes were the plan's (LIVE-E12-02/03).
+     * Since D5 (16.11.2026) they are what Foundry 14.370 showed (docs/dev/e39/CALIBRATION.md section 3): `Scene#levels`
+     * an embedded collection of `Level` documents with `{ bottom, top, base }` elevations, `defaultLevel0000` on every
+     * scene given none - the seed's among them, so every seeded token stands on a floor now - a region's `levels` a Set
+     * and `includedInLevel` by id or document, and a token's level change leaving its elevation alone. Region testing
+     * still ignores elevation and a token's `regions` are still centre-based: a floor is told apart by these fields alone.
      */
-    class LevelList extends Array {
-        get(id) { return this.find(level => level.id === id); }
-        get contents() { return [...this]; }
-        get size() { return this.length; }
+    /* D5: a `Level` document, its fields on itself as every document's are (`_exposeSource`): `name`, `elevation`
+       (`{ bottom, top, base }`), `sort`, `flags`. Until D5 a scene's floors were plain `{ id, name, elevation }` rows of a
+       `LevelList` (E12 C0), with a number for the elevation. */
+    class LevelImpl extends BaseDocument {
+        static get documentName() { return "Level"; }
+        get scene() { return this.parent; }
+    }
+    /* A scene's lowest floor by its bottom (the order canvas.level opens on, client-entry.mjs), or null. */
+    function lowestLevel(scene) {
+        const bottom = level => Number(level?.elevation?.bottom ?? 0);
+        return [...(scene?.levels ?? [])].sort((a, b) => bottom(a) - bottom(b))[0] ?? null;
     }
 
     class RegionImpl extends BaseDocument {
@@ -1117,7 +1127,7 @@ export function buildDocumentClasses(ctx) {
         Region: RegionImpl, ChatMessage: ChatMessageImpl, User: UserImpl,
         RollTable: RollTableImpl, TableResult: TableResultImpl, Playlist: PlaylistImpl,
         PlaylistSound: PlaylistSoundImpl, Macro: MacroImpl, JournalEntry: JournalEntryImpl,
-        ActiveEffect: ActiveEffectImpl, RegionBehavior: RegionBehaviorImpl, Wall: WallImpl, Tile: TileImpl,
+        ActiveEffect: ActiveEffectImpl, RegionBehavior: RegionBehaviorImpl, Wall: WallImpl, Tile: TileImpl, Level: LevelImpl,
         Setting: SettingImpl, BaseDocument
     };
     ctx.classes = classes;

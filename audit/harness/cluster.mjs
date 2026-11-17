@@ -205,10 +205,10 @@ function canWrite(userId, op) {
 /* ------------------------------ apply ops --------------------------------- */
 
 const EMB_KEYS = {
-    Actor: ["items", "effects"], Item: ["effects"], Scene: ["tokens", "regions", "walls"],
+    Actor: ["items", "effects"], Item: ["effects"], Scene: ["tokens", "regions", "walls", "levels"],
     RollTable: ["results"], Playlist: ["sounds"], Region: ["behaviors"]
 };
-const EMB_CHILD = { items: "Item", effects: "ActiveEffect", tokens: "Token", regions: "Region", walls: "Wall", results: "TableResult", sounds: "PlaylistSound", behaviors: "RegionBehavior" };
+const EMB_CHILD = { items: "Item", effects: "ActiveEffect", tokens: "Token", regions: "Region", walls: "Wall", levels: "Level", results: "TableResult", sounds: "PlaylistSound", behaviors: "RegionBehavior" };
 
 /** Every embedded entry needs a server-assigned _id, recursively. */
 function ensureEmbeddedIds(collName, doc) {
@@ -234,6 +234,8 @@ function applyOp(userId, op, onLegacyKey = null) {
                made, unless the call passed `keepId` (shim.mjs `createData`, E08+E28 C1): the
                server keeps it, so the id a preCreate hook read is the one the document gets. */
             const docs = op.data.map(d => ({ ...U.deepClone(d), _id: d._id && !list.some(x => x._id === d._id) ? d._id : U.randomID() }));
+            // D5: a scene made with no floor holds `defaultLevel0000`, as Foundry 14.370's did (futil.mjs `withDefaultLevel`).
+            if (collName === "Scene") for (const d of docs) U.withDefaultLevel(d);
             /* A message's creation time, stamped here whatever the client sent (E33 fix r2-G1, 07.10.2026), as
                Foundry's server is taken to stamp `_stats.createdTime`; the client's `timestamp` is kept as sent.
                The module ages a message by the first (sheet-audit.mjs `traceForgedAtReady`). Neither has been
@@ -300,7 +302,7 @@ function applyOp(userId, op, onLegacyKey = null) {
 
 function embKey(collName, embeddedName) {
     // A region's behaviours (E12 fix r2-S2, 11.10.2026): scenario 66 X3 and X4 take one off and put one on, `via` the region.
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles", Level: "levels" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     const k = map[collName]?.[embeddedName];
     if (!k) throw new Error(`no embedded ${embeddedName} in ${collName}`);
     return k;
@@ -755,6 +757,8 @@ async function disconnect(who) {
 
 /* The four clients every run forks, by who: the accounts `connect` brings back after they left (E38 C1). */
 const SEEDED = { gm: IDS.gm, p1: IDS.p1, p2: IDS.p2, p3: IDS.p3 };
+// D5: every seeded scene holds its floor, `defaultLevel0000`, as Foundry 14.370's did (futil.mjs `withDefaultLevel`).
+for (const scene of world.collections.Scene ?? []) U.withDefaultLevel(scene);
 // D4: every seeded token holds the regions it stands in (`_regions`), as a token on Foundry 14.370 does (futil.mjs `tokenRegionIds`).
 for (const scene of world.collections.Scene ?? []) for (const token of scene.tokens ?? []) token._regions = U.tokenRegionIds(scene, token);
 

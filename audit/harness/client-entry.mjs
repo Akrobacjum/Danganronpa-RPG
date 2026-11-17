@@ -1437,8 +1437,9 @@ let viewedLevelId = null;
 Object.defineProperty(canvas, "level", {
     configurable: true, enumerable: true,
     get() {
-        const levels = canvas.scene?.levels ?? [];
-        return levels.find(level => level.id === viewedLevelId) ?? [...levels].sort((a, b) => a.elevation - b.elevation)[0] ?? null;
+        // D5: every scene holds a floor (`defaultLevel0000` where it was given none), each `Level`'s elevation `{ bottom, top, base }`.
+        const levels = [...(canvas.scene?.levels ?? [])], bottom = level => Number(level?.elevation?.bottom ?? 0);
+        return levels.find(level => level.id === viewedLevelId) ?? levels.sort((a, b) => bottom(a) - bottom(b))[0] ?? null;
     },
     set(level) { viewedLevelId = level?.id ?? level ?? null; }
 });
@@ -1801,7 +1802,7 @@ function applySnapshot(snap) {
 
 function findEmbKey(parentName, embName) {
     // A region's behaviours as cluster.mjs `embKey` has them (E12 fix r2-S2, 11.10.2026; scenario 66 X3 and X4).
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles", Level: "levels" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     return map[parentName]?.[embName];
 }
 
@@ -1964,7 +1965,7 @@ function applyRemote(msg) {
 }
 
 function rebuildEmbedded(doc) {
-    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
+    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles", Level: "levels" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
     if (!emb) return;
     for (const [docName, key] of Object.entries(emb)) {
         const raw = doc._source[key];

@@ -229,6 +229,52 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         await game.actors.get("${d4Made.actor}")?.delete(); return true;`);
     await settle(300);
 
+    /* D5, LEVELS AS FOUNDRY 14.370 HELD THEM (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 3,
+       read by E58 L1). `Scene#levels` is an embedded collection of `Level` documents, `{ _id, name, elevation: { bottom, top,
+       base }, ... }`, and every scene given none - the seeded ones too - holds `defaultLevel0000`, 0 to 20; a token on such a
+       scene stands on it. On a scratch scene with two floors, Ground 0-10 and Upper 10-20, a room on each over the same
+       square and one that names no floor beside them (whether L1's stood over the square was not written down, so it
+       stands apart here and `_regions` is read as L1 read it, the high room alone): `includedInLevel` by id and by the document (an empty set is every floor); p1's token moved
+       up in place (`move({ x, y, level })`) reaches `updateToken` with its level and the high room in `_regions`, and its
+       elevation stays 0. Everything made is deleted. */
+    const d5Seed = await p1.eval(`const scene = game.scenes.get("${IDS.scene}"), levels = scene.levels, first = levels?.contents?.[0] ?? null;
+        return { size: levels?.size ?? null, get: Boolean(levels?.get?.("defaultLevel0000")), doc: first?.documentName ?? null,
+            id: first?.id ?? null, elevation: first ? [first.elevation?.bottom ?? null, first.elevation?.top ?? null] : null,
+            token: scene.tokens.contents[0]?.level ?? null };`);
+    check("D5: every seeded scene holds defaultLevel0000 (0 to 20) in an embedded collection of Level documents, and a seeded token stands on it, as on v14 14.370",
+        J(d5Seed) === J({ size: 1, get: true, doc: "Level", id: "defaultLevel0000", elevation: [0, 20], token: "defaultLevel0000" }), J(d5Seed));
+    const D5 = { ground: "LEVEL00D5GROUND0", upper: "LEVEL00D5UPPER00", low: "REG00D5LOW000000", high: "REG00D5HIGH00000", none: "REG00D5NONE00000" };
+    const d5Made = await gm.eval(`const square = [{ type: "rectangle", x: 200, y: 200, width: 400, height: 400 }];
+        const scene = await Scene.create({ name: "00 D5 stair", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+            ownership: { default: 2 },
+            levels: [{ _id: "${D5.ground}", name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: "${D5.upper}", name: "Upper", elevation: { bottom: 10, top: 20 } }],
+            regions: [{ _id: "${D5.low}", name: "00 D5 low", shapes: square, levels: ["${D5.ground}"], behaviors: [] },
+                { _id: "${D5.high}", name: "00 D5 high", shapes: square, levels: ["${D5.upper}"], behaviors: [] },
+                { _id: "${D5.none}", name: "00 D5 none", shapes: [{ type: "rectangle", x: 1200, y: 200, width: 400, height: 400 }], levels: [], behaviors: [] }] }, { keepId: true });
+        const actor = await Actor.create({ name: "00 D5 climber", type: "adversary", ownership: { default: 0, "${IDS.p1}": 3 } });
+        const [t] = await scene.createEmbeddedDocuments("Token", [{ name: "00 D5 climber", actorId: actor.id, actorLink: true, x: 300, y: 300, level: "${D5.ground}" }]);
+        return { scene: scene.id, actor: actor.id, token: t?.id ?? null };`);
+    await settle(400);
+    const d5Floors = await p1.eval(`const scene = game.scenes.get("${d5Made.scene}");
+        const up = scene?.levels?.get("${D5.upper}"), ground = scene?.levels?.get("${D5.ground}");
+        const on = id => [scene.regions.get(id).includedInLevel("${D5.ground}"), scene.regions.get(id).includedInLevel(up)];
+        return { levels: [ground?.elevation?.bottom ?? null, ground?.elevation?.top ?? null, up?.elevation?.bottom ?? null, up?.elevation?.top ?? null],
+            low: on("${D5.low}"), high: on("${D5.high}"), none: on("${D5.none}") };`);
+    check("D5: a region is on its own floor by id or by the Level document, and one that names none is on every floor, as on v14 14.370",
+        J(d5Floors) === J({ levels: [0, 10, 10, 20], low: [true, false], high: [false, true], none: [true, true] }), J(d5Floors));
+    await gm.eval(`globalThis.__d5seen = null; globalThis.__d5hook = Hooks.on("updateToken", (doc, changes) => {
+        if (doc.id === "${d5Made.token}") globalThis.__d5seen = { level: changes.level ?? null, regions: changes._regions ?? null, elevation: doc.elevation };
+    }); return true;`);
+    await p1.eval(`const t = game.scenes.get("${d5Made.scene}").tokens.get("${d5Made.token}");
+        await t.move({ x: 300, y: 300, level: "${D5.upper}" }); return true;`);
+    await settle(500);
+    const d5Up = await gm.eval(`Hooks.off("updateToken", globalThis.__d5hook); const seen = globalThis.__d5seen;
+        delete globalThis.__d5hook; delete globalThis.__d5seen; return seen;`);
+    check("D5: a token moved up in place reaches updateToken with its new level and the high room in _regions, its elevation left at 0, as on v14 14.370",
+        J(d5Up) === J({ level: D5.upper, regions: [D5.high], elevation: 0 }), J(d5Up));
+    await gm.eval(`await game.scenes.get("${d5Made.scene}")?.delete(); await game.actors.get("${d5Made.actor}")?.delete(); return true;`);
+    await settle(300);
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;
