@@ -245,6 +245,46 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**17.11.2026, evening: the coordinator's decisions built, and the third run** (pushed to 2adc9fef):
+- **The glue no longer presses Roll** (f7effd79, 65554625; the owner's words quoted) and **a player at each harness browser**
+  (175d580d): every client presses Roll after the scripted chips, stands aside while `runTests` runs there, and its presses
+  are in each scenario's results (`harnessPlayer`). Headless before the push: the 14 scenarios that were red green one by one
+  (e.g. 30-security p1 32 presses, p2 19), tiers 0-2 3308 passed and 1 failed - R7563, a test of the runner my dice commit
+  d5907e1b had broken and which I pushed without running it by name; fixed in eceb1b25 - and every CI scenario green.
+- **The dialog answers at a table** (7881daee; the owner's decision (b), relayed by the coordinator, quoted): red on the
+  sandbox twice ("this page holds no __dialogAnswers"), green three of three with "the dialogs are real again after tier 2";
+  R7566, R7567, six mutants. With it, the four open-Frisk tests no longer throw nor leave tokens (180 and 181 then throw "You
+  may only push instances of User", 179 and 184 fail on their readings); 357 still runs to the limit: it queues no answer and
+  leans on the harness pressing an unanswered window's default button, which the seam does not model.
+- **`active` put back, not deleted** (76a582d4): v14 keeps a User's `active` as its own data property (read on the sandbox);
+  "Monokuma's Reveal ..." and "Present on the primary by "trial.present" ..." deleted it, and PlayerTwo then PlayerThree read
+  as not connected for the rest of the session (the runner now records the connected accounts after each test: they dropped
+  after these two, in the rerun and the third run). Green on the sandbox 731-749: all four connected throughout, both tests
+  pass, 742-749 pass where they were skipped. The harness's User reads `active` through a prototype getter, so it was green
+  headless; making the shim hold it as v14 does is proposed, not built.
+- **The form answers** (2adc9fef): a browser's form refuses a property named as one of its controls; six tests threw
+  "Failed to set a named property ... on 'HTMLFormElement'" (185, 1070, 1071, 1074, 1183, 1311). Red at the tree before, on the
+  sandbox; with the fix none throws it, four pass, 185 and 1183 fail on their readings.
+- **The fourth dice safeguard, measured**: a recorder on each player's page logged every duality roll evaluated there through
+  the whole third run: none. Checked that it works: with no GM online a player's own roll was caught (`1d12h + 1d12f + 0`).
+  With a GM connected the module draws a player's roll on the GM, so no tier-2 test's scripted roll is thrown on a player's
+  browser and no `needs()` skip is called for.
+- **The third run** (15:27-19:23 UTC, at d5907e1b with the ownership fix, before the dialog, `active` and form fixes): **1326
+  passed, 214 failed, 26 skipped** of 1566. Of the nine the coordinator named, 97, 99, 1005, 1235, 1514, 1525 now pass (real
+  dice before); 1054, 1067, 1089 fail (below). Test 1267 lost the runner's `evaluate` again (3 of 3); 357 ran to the limit.
+- **Passages (about 20 failures; the tests' and the harness's)**: the module refuses an end that names no floor whenever the
+  scene has floors (passages-gm.mjs `tunnelEndAt`: `floors.length ? !floors.some(f => f.id === floor) : floor !== null`), and on
+  v14 every scene has at least one (a new scene: `defaultLevel0000`, "Level", read on the sandbox). The fixtures make their own
+  scene and ask for ends with `level: null`, as a harness scene with no levels allows; at a table: "Secret passages: name one of
+  the scene's floors for each end (none on a scene with no floors)". The module's own tool sends the floor on screen, so a GM
+  drawing at a table is not refused. **Proposed**: the shim gives a new scene v14's default level (the red headless) and the
+  fixtures name a floor. For C1 only the message's "none on a scene with no floors", a case v14 does not have.
+- **Module defects found so far: none.** Everything read today was the tests', the harness's, or Foundry's own (the chat
+  notification's "Cannot set properties of null (setting 'hidden')" on players' pages, a card removed while it animates in).
+- Still to read: 1054 ("Botan Kage already keeps a stash in "Dorm A" - the scene of the suite's own could not add one"),
+  1067 and 1089 (rooms with a Teleport or a Gate), the made-up User objects (180, 181, 1267 and others), the five Reroll tests
+  ("Failed data migration for DhpChatMessage"), 357's default button, 735, 762, 185, 1183, 179, 184.
+
 **The stand-in.** The owner wrote "zgoda na dh-dice" in this session on 17.11.2026, about 02:40 local time (between this
 line's readings at 02:36 and 02:44). Under it the glue window reads `this.config.costs.length` as Daggerheart does
 (d20RollDialog.mjs :127-132); with it both Meddle tests fail headless as on the sandbox ("the window did not write the
