@@ -70,8 +70,9 @@ export const SEQUENCE_TIMES = Object.freeze({
        played (`playTrialExit` hands none). */
     trialExit: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 0, handIn: 500, hand: 400 }),
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
-       from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
-    dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
+       from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. F118
+       (18.11.2026): the school's mood at 1600, after the cast's first faces and before the morning line, as it stands. */
+    dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, mood: 1600, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
     /* E94 C3, the end-of-day board: the board rises at 200 ms over 500, the rows one by one 120 ms apart from 700, the
        school's mood at 2000 (no number since the owner's word of 12.11), held to 6000, gone in 420; still, 6 s. */
     dayEnd: Object.freeze({ board: 200, rise: 500, rows: 700, rowStep: 120, mood: 2000, hold: 6000, fade: 420, end: 6450, still: 6000, sound: 0 }),
@@ -913,13 +914,27 @@ export function replayCaseSummary(message, { on = true, sound = true } = {}) {
  * line when there is one (an empty line is not shown; the GM writes it in Edit campaign, and it reaches the clock at
  * the day's start, E94 C1). Pure but for the names
  * and pictures; `students` is the cast in its order.
+ *
+ * AND THE SCHOOL'S MOOD (F118, 18.11.2026; the owner: "zarowno ekran poczatku jak i startu sesji niech wyglada tak samo,
+ * czyli ekran zywych uczniow + nastroj szkoly ... Zbijamy to w 1 ekran"; to the coordinator's questions, the board keeps
+ * all it showed and the end board does not change): the clock's word (`mood`, written fresh by every write that plays
+ * this board - the roll-over, the Morning Eclipse's start, the chapter end's next morning), one of `MOOD_BANDS` or null,
+ * and then no row, as the end board shows none. The word alone, never a number. R7793.
  */
 export function dayStartBoard(clock, students = [], announcement = "") {
     const cast = students.map(a => ({ id: a.id, name: a.name, img: portraitOf(a), dead: isDeceased(a) }));
     return {
         day: Number(clock?.day) || 0, chapter: clock?.chapter ?? null, time: TIME_OF_DAY_LABELS[clock?.timeOfDay] ?? clock?.timeOfDay ?? "",
-        cast, alive: cast.filter(c => !c.dead).length, total: cast.length, announcement: String(announcement ?? "").trim()
+        cast, alive: cast.filter(c => !c.dead).length, total: cast.length, announcement: String(announcement ?? "").trim(),
+        mood: MOOD_BANDS.includes(clock?.mood) ? clock.mood : null
     };
+}
+
+/* The school's mood as both day boards show it (E94 C4; F118 for the start board): the label and the word, or "". */
+function moodHtml(mood) {
+    if (!mood) return "";
+    return `<div class="drpg-seq-mood" data-drpg-mood="${mood}"><small>${esc(game.i18n.localize("DRPG.Sequence.moodLabel"))}</small>${
+        esc(game.i18n.localize(`DRPG.Sequence.mood.${mood}`))}</div>`;
 }
 
 /** The start-of-day board as an element, still: what its frames move, and its whole still frame. */
@@ -933,6 +948,7 @@ export function dayStartElement(board) {
         <div class="drpg-seq-cast">${board.cast.map(c => `<div class="drpg-seq-who${c.dead ? " is-dead" : ""}">
             <div class="drpg-seq-face">${c.img ? `<img src="${esc(c.img)}" alt="">` : `<span>${esc((c.name ?? "?").slice(0, 1))}</span>`}</div>
             ${c.dead ? `<i>${esc(game.i18n.localize("DRPG.Sequence.weRemember"))}</i>` : ""}<b>${esc(c.name)}</b></div>`).join("")}</div>
+        ${moodHtml(board.mood)}
         ${board.announcement ? `<div class="drpg-seq-announce"><small>${esc(game.i18n.localize("DRPG.Sequence.morningLine"))}</small>${esc(board.announcement)}</div>` : ""}`;
     return el;
 }
@@ -944,6 +960,8 @@ function drawDayStart(ctx, board) {
     // the board stands centred by its own transform, so the rise carries it (an animation's transform replaces the rule's)
     anim(el, [{ opacity: 0, transform: "translate(-50%, -50%) translateY(40px)" }, { opacity: 1, transform: "translate(-50%, -50%)" }], { duration: T.rise, delay: T.board });
     el.querySelectorAll(".drpg-seq-who").forEach((w, i) => anim(w, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 400, delay: T.cast + i * T.castStep }));
+    // the school's mood as the end board brings it in (F118), under the cast and before the morning line
+    anim(el.querySelector(".drpg-seq-mood"), [{ opacity: 0, transform: "scale(1.08)" }, { opacity: 1, transform: "scale(1)" }], { duration: 420, delay: T.mood });
     anim(el.querySelector(".drpg-seq-announce"), [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: T.announce });
     anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
 }
@@ -1115,7 +1133,7 @@ export function dayEndElement(board) {
     const el = document.createElement("div");
     el.className = "drpg-seq-day drpg-seq-dayend";
     const sub = board.chapter != null ? game.i18n.format("DRPG.Sequence.dayEndSub", { chapter: board.chapter }) : "";
-    const mood = board.mood ? `<div class="drpg-seq-mood" data-drpg-mood="${board.mood}"><small>${esc(L("DRPG.Sequence.moodLabel"))}</small>${esc(L(`DRPG.Sequence.mood.${board.mood}`))}</div>` : "";
+    const mood = moodHtml(board.mood);
     if (board.watcher) {
         el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))}</h2>${mood}`;
         return el;

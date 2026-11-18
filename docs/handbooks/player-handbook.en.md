@@ -142,7 +142,7 @@ A few moments fill every screen for a few seconds. Esc skips one, and with reduc
 - **The verdict.** The sentenced student's portrait, the votes, and the stamp: **GUILTY** if the class got it right, **NOT GUILTY** if not.
 - **The clock's turns.** The curtain turns when the time of day changes. The Investigation opens with flashing panes; a body's announcement makes it flicker.
 - **The end-of-day board**, when Night falls or a chapter ends: what you did that day, what the school saw, and **the school's mood**: Calm, Uneasy, or Close to spilling. It stays in your notice history.
-- **The start-of-day board**, when a new day begins: the day, everyone in their place (the dead grayed, "we remember"), and the GM's **morning line**, if there is one.
+- **The start-of-day board**, when a new day begins: the day, everyone in their place (the dead grayed, "we remember"), the school's mood, and the GM's **morning line**, if there is one.
 
 If you join or reload within 10 minutes of the Class Trial's entry, the verdict, or the start-of-day board, the newest of them that you have not seen plays for you once. Any other moment you join after, you miss.
 

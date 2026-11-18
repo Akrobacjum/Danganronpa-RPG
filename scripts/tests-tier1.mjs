@@ -58174,6 +58174,48 @@ const INVARIANTS = [
             remember: [null, game.i18n.localize("DRPG.Sequence.weRemember"), null], alive: [2, 3], noLine: true, noStrike: true, centred: true
         }), "[the day's title; the cast in its order; who is drawn dead; their words; alive of total; no empty morning line; no rule strikes a name; the rise keeps the board centred]");
     }],
+    ["R7793 - the start-of-day board shows the school's mood as the end-of-day board does, and none when the clock holds none (F118, the owner's 18.11.2026: one screen, the living students and the school's mood)", async () => {
+        /*
+         * F118, 18.11.2026; the owner: "od teraz zarowno ekran poczatku jak i startu sesji niech wyglada tak samo, czyli
+         * ekran zywych uczniow + nastroj szkoly ... Zbijamy to w 1 ekran", and to the coordinator's two questions: the start
+         * board keeps all it shows (the day, the chapter line, the cast with the dead greyed, the morning line) and adds the
+         * mood; the end board does not change. Read, on stand-in clocks and students (nothing of the world): the board's
+         * `mood` for each band, for none, for a word not of `MOOD_BANDS` and for no field (a world from before E94); the mood's
+         * node against the end board's for the same word (one markup: `.drpg-seq-mood`, `data-drpg-mood`, the label and the
+         * word); its place, after the cast and before the morning line; the Morning Eclipse's clock (`dayStartClock`) keeping
+         * it; and in the source, the start board's draw giving it the end board's entry at the start board's own `mood` time,
+         * and the chapter end's next morning (chapter.mjs, the `morning` step) writing a fresh mood, which it did not - that
+         * board showed the word the clock last held. The board at a table: LIVE-F118-04. Red at e3772875: no mood on the
+         * start board, and none written by the chapter's morning.
+         */
+        const S = await import("./sequence.mjs");
+        const st = (id, name) => ({ id, name, img: null, getFlag: () => undefined });
+        const cast = [st("a", "Aiko Hoshino"), st("b", "Mio Tsukishiro")];
+        const at = mood => ({ day: 4, chapter: 2, timeOfDay: "morning", ...(mood === undefined ? {} : { mood }) });
+        const node = el => el.querySelector(".drpg-seq-mood")?.outerHTML ?? null;
+        const endNode = mood => node(S.dayEndElement(S.dayEndBoard({ clock: { day: 3 }, mood })));
+        const boards = ["calm", "uneasy", "spilling", null, "bogus", undefined].map(mood => S.dayStartBoard(at(mood), cast, "Breakfast at eight.").mood ?? null);
+        const same = S.MOOD_BANDS.map(mood => {
+            const own = node(S.dayStartElement(S.dayStartBoard(at(mood), cast, "")));
+            return Boolean(own) && own === endNode(mood);
+        });
+        const el = S.dayStartElement(S.dayStartBoard(at("uneasy"), cast, "Breakfast at eight."));
+        const kids = [...el.children].map(c => c.className.split(" ")[0]);
+        const eclipse = S.dayStartBoard(S.dayStartClock({ day: 3, session: 5, timeOfDay: "night", eclipse: true, mood: "spilling" }), cast, "").mood ?? null;
+        const none = [null, undefined].map(mood => !S.dayStartElement(S.dayStartBoard(at(mood), cast, "")).querySelector(".drpg-seq-mood"));
+        const sources = await moduleSources();
+        const seq = stripComments(sources.get("sequence.mjs") ?? "");
+        const draw = fnSource(seq, "drawDayStart");
+        const morning = bodyOf(stripComments(sources.get("chapter.mjs") ?? ""), 'key: "morning"', { until: 'key: "hold"' });
+        equal(stableJson({ boards, same, order: kids, eclipse, none,
+            animated: /\.drpg-seq-mood"\), \[\{ opacity: 0, transform: "scale\(1\.08\)" \}, \{ opacity: 1, transform: "scale\(1\)" \}\], \{ duration: 420, delay: T\.mood \}/.test(draw),
+            timed: Number.isFinite(S.SEQUENCE_TIMES.dayStart.mood) && S.SEQUENCE_TIMES.dayStart.mood < S.SEQUENCE_TIMES.dayStart.hold,
+            chapter: /moodBand\(await [A-Za-z]+\.moodInputs\(\)\)/.test(morning) && /\bmood\b[^\n]*also|also:[^\n]*\bmood\b/.test(morning) }),
+        stableJson({ boards: ["calm", "uneasy", "spilling", null, null, null], same: [true, true, true],
+            order: ["drpg-seq-day-title", "drpg-seq-day-sub", "drpg-seq-cast", "drpg-seq-mood", "drpg-seq-announce"], eclipse: "spilling", none: [true, true],
+            animated: true, timed: true, chapter: true }),
+            "{boards: the start board's mood per clock word; same: its node the end board's; order: the board's parts; eclipse: the Morning Eclipse's board; none: no mood row with no word; animated: the end board's entry; timed: its own time before the hold; chapter: the chapter's morning writes a fresh mood}");
+    }],
     ["R3715 - a new day plays its board once on every browser that hears it, and nowhere else (scripts/transitions.mjs `onClockHeard`, scripts/sequence.mjs `playDayStart`; E94 C2, MK-R2 #8): night to a new morning starts the board, still under reduced motion, nothing with the table's switch off; the same day heard again starts nothing; an hour that is not a new day plays no board; the board lets the table's clicks through; the Sound window has the row \"Start of the day\" in both languages; since 13.11.2026 no end-of-day board before it (the owner's rule of that day: that board is Night's start's)", async () => {
         /* E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no playDayStart.
            13.11.2026: the roll-over plays the start-of-day board alone (R5890). Red at ceb9e9c8: the end board first. */
