@@ -1,5 +1,5 @@
 {
- "about": "F118 (17.11.2026): the Facilities window as the harness drew it on p1 (Aiko in the Hall; her bedroom, the Cafeteria and two other students' bedrooms marked for rest; a GM's room action and a free project action), rendered by audit/style-harness.html in Chromium at deviceScaleFactor 2, both themes, en and pl, 1366x768 and 390x844 (the narrow window's width set by hand to the viewport less 64 px; the page clips its right edge, the module does not). Per row: the grey line's size, its effective opacity and its contrast on the window's ground. The selected row's reading under Stained Glass is on its brush, which this reader does not see, so its ratio here is not the one on screen.",
+ "about": "F118 (17.11.2026; taken again 18.11.2026 after the owner's word on the first set): the Facilities window as the harness drew it on p1 (Aiko in the Hall; her bedroom, the Cafeteria and two other students' bedrooms marked for rest; a GM's room action and a free project action), rendered by audit/style-harness.html in Chromium at deviceScaleFactor 2, both themes, en and pl, 1366x768 and 390x844 (the narrow window's width set by hand to the viewport less 64 px; the page clips its right edge, the module does not). Per row: the grey line's size, its effective opacity and its contrast on the window's ground. The selected row's reading under Stained Glass is on its brush, which this reader does not see, so its ratio here is not the one on screen.",
  "runs": [
   {
    "lang": "en",
@@ -10,7 +10,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom, Cafeteria",
+     "text": "Not here.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -20,7 +20,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom",
+     "text": "Not here.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -58,7 +58,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom, Cafeteria",
+     "text": "Not here.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -68,7 +68,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom",
+     "text": "Not here.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -106,7 +106,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom, Cafeteria",
+     "text": "Not here.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",
@@ -116,7 +116,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom",
+     "text": "Not here.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",
@@ -154,7 +154,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom, Cafeteria",
+     "text": "Not here.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",
@@ -164,7 +164,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Not here. Allowed in: your bedroom",
+     "text": "Not here.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",
@@ -202,7 +202,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia, Cafeteria",
+     "text": "Nie tutaj.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -212,7 +212,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia",
+     "text": "Nie tutaj.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -250,7 +250,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia, Cafeteria",
+     "text": "Nie tutaj.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -260,7 +260,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia",
+     "text": "Nie tutaj.",
      "px": 21,
      "opacity": 0.62,
      "color": "rgba(242, 238, 230, 0.62)",
@@ -298,7 +298,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia, Cafeteria",
+     "text": "Nie tutaj.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",
@@ -308,7 +308,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia",
+     "text": "Nie tutaj.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",
@@ -346,7 +346,7 @@
     {
      "row": "Short Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia, Cafeteria",
+     "text": "Nie tutaj.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",
@@ -356,7 +356,7 @@
     {
      "row": "Long Rest",
      "unavailable": true,
-     "text": "Nie tutaj. Dozwolony w pokojach: twoja sypialnia",
+     "text": "Nie tutaj.",
      "px": 11,
      "opacity": 1,
      "color": "rgb(138, 130, 150)",

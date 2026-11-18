@@ -612,11 +612,12 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     ...["DRPG.Assign.footnote", "DRPG.Season.hint.assignments"].map(key => [key, Object.freeze({ by: "E109", date: "14.11.2026",
         page: "DRPG-Q113 #27", card: "D-NIEZG", text: "Czy niezgody mozesz rozwiazac sam?" })]),
     // F118, 17.11.2026: the owner's report with a screenshot of the Facilities window - since E93 the window holds a GM's
-    // room action and a completed project's beside the two rests, and B01a's afters name only the rests. The new texts
-    // are the coordinator's default, which the owner reads on the screenshots before the release.
+    // room action and a completed project's beside the two rests, and B01a's afters name only the rests; 18.11.2026, the
+    // owner on F118's screenshots: the description claimed project actions have no roll. The texts are the coordinator's
+    // default of 18.11, which claims nothing about a roll.
     ...["DRPG.Config.ACTIONS.rest.hint", "DRPG.Config.ACTIONS.rest.description"].map(key => [key, Object.freeze({ by: "F118",
-        date: "17.11.2026", page: "F118 Facilities", card: "Facilities tile",
-        text: "Kafel facilities wymaga aktualizacji. Opis nie uwzglednia akcji pokoju gma i projektow." })])
+        date: "18.11.2026", page: "F118 Facilities shots", card: "Facilities tile",
+        text: "Opis facilities klamie, niektore akcje projektow wymagaja rzutu." })])
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

@@ -20654,7 +20654,8 @@ const INVARIANTS = [
          * a map with no rest room the sentence falls back to DRPG.Rest.noRooms with `kind: data?.kind ?? ""`. The refusal's
          * road (`performRest`, DRPG.Rest.wrongRoom) passes `kind` and was whole. Asked here with a scene of the test's own
          * (no region, so no rest room) and with the language's words standing in for `game.i18n` (lang/en.json and
-         * lang/pl.json, the module's own files), and restored. Red at 235c3210: the kind empty in both.
+         * lang/pl.json, the module's own files), and restored. Red at 235c3210: the kind empty in both. Since F118 (18.11.2026)
+         * the window's rows say DRPG.Rest.notHere and name no room; the refusal (`takeRest`) asks this sentence, its kind in data.
          */
         const R = await import("./rest.mjs");
         const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
@@ -20732,10 +20733,13 @@ const INVARIANTS = [
         };
         equal(stableJson(read), stableJson({ en: want("en"), pl: want("pl") }),
             "{en, pl: [the character's list, a stranger's, no character's, a stranger who knows only others' bedrooms]} - a rest room the character may not enter was named, or its own bedroom by name");
-        // Both of the window's roads hand the character: its rows (`restVariants`) and the refusal (`takeRest`).
+        // The refusal (`takeRest`) hands the character; the window's rows (`restVariants`) name no room since the owner's
+        // word of 18.11.2026 ("Nie chcemy tej listy pokojow w opisac restow. Wystarczy \"nie tutaj\"."): DRPG.Rest.notHere.
         const rest = stripComments(new Map(await otherSources()).get("rest.mjs") ?? "");
-        equal(stableJson(["restVariants", "takeRest"].map(fn => /restRoomsSentence\([^;]*roomsKnownToMe\(scene\), actor\)/.test(fnSource(rest, fn)))),
-            stableJson([true, true]), "[the Facilities rows, the refusal] - a road that names the rest rooms without its character");
+        const rows = fnSource(rest, "restVariants");
+        equal(stableJson([/restRoomsSentence\([^;]*roomsKnownToMe\(scene\), actor\)/.test(fnSource(rest, "takeRest")),
+            /restRoomsSentence\(/.test(rows), /DRPG\.Rest\.notHere/.test(rows)]),
+            stableJson([true, false, true]), "[the refusal hands the character, the Facilities rows list rooms, the rows say \"Not here.\"]");
     }],
 
     ["R7792 - a free room action reads \"Free\" in the Facilities window, not \"Costs 0 actions\" (F118, the owner's 17.11.2026)", async () => {

@@ -4346,6 +4346,7 @@
       "alreadyThisSessionShort": "już wykorzystany w tej sesji",
       "allowedHere": "Dozwolony tutaj ({room}).",
       "allowedIn": "Nie tutaj. Dozwolony w pokojach: {rooms}",
+      "notHere": "Nie tutaj.",
       "wrongRoom": "{kind} nie jest dozwolony w pokoju {room}. Pokoje, które na to pozwalają: {rooms}",
       "noRooms": "Żaden pokój na tej mapie nie pozwala na {kind}. Pokoje do odpoczynku wyznacza GM.",
       "noKnownRooms": "Żaden znany ci pokój na to nie pozwala.",
@@ -7628,8 +7629,8 @@
         },
         "rest": {
           "label": "Facilities",
-          "hint": "Co możesz zrobić w pokoju, w którym stoisz: odpocząć (Short Rest albo Long Rest, w pokojach, które GM na to oznaczył), użyć akcji, którą GM dał temu pokojowi (z rzutem), albo akcji ukończonego projektu (bez rzutu).",
-          "description": "Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji i daje więcej, raz na sesję. Akcja, którą GM dał temu pokojowi, kosztuje akcję i rzut na jej statystykę; akcja ukończonego projektu nie wymaga rzutu."
+          "hint": "Co możesz zrobić w pokoju, w którym stoisz: odpocząć (Short Rest albo Long Rest, w pokojach, które GM na to oznaczył), użyć akcji, którą GM dał temu pokojowi, albo akcji ukończonego projektu.",
+          "description": "Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji i daje więcej, raz na sesję. Przy każdej innej akcji pokoju jej linia mówi, ile kosztuje i na co się rzuca, jeśli w ogóle."
         },
         "listen": {
           "label": "Infiltrate",

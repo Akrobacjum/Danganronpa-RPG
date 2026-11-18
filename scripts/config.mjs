@@ -1710,13 +1710,14 @@ export const ACTIONS = {
         // the rooms' names live where they are checked: the dialog prices Short
         // against Long and names the rooms that allow each (`DRPG.Rest.allowedIn`).
         // F118 (17.11.2026; the owner: "Opis nie uwzglednia akcji pokoju gma i projektow"): the hint and the description
-        // name the window's three kinds since E93 - the rests, a GM's room action (Room Setup's Facilities tab, rolled) and
-        // a completed project's (no roll). What a rest restores is its pick window's to say (`choosePicks`).
+        // name the window's three kinds since E93 - the rests, a GM's room action (Room Setup's Facilities tab) and a
+        // completed project's. They claim nothing about a roll (the owner, 18.11.2026: "Opis facilities klamie, niektore
+        // akcje projektow wymagaja rzutu"; asked which, not yet answered): each row's line says its price and its roll.
+        // What a rest restores is its pick window's to say (`choosePicks`).
         hint: "What you can do in the room you stand in: rest (a Short or Long Rest, in rooms the GM marked for it), use "
-            + "an action the GM gave this room (with a roll), or use a completed project's action (no roll).",
+            + "an action the GM gave this room, or use a completed project's action.",
         description: "A Short Rest costs an action, once each time of day; a Long Rest costs more and recovers more, once "
-            + "each session. An action the GM gave this room costs an action and a roll on its statistic; a completed "
-            + "project's action needs no roll."
+            + "each session. Each of the room's other actions shows on its line what it costs and what it rolls, if anything."
     },
     /*
      * INFILTRATE, THE TILE THAT WAS LISTEN (E69 C1, 12.11.2026; DA27: the key `listen` stays, no migration; DA28 and DA48: one

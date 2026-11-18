@@ -4071,6 +4071,7 @@
       "alreadyThisSessionShort": "already taken this session",
       "allowedHere": "Allowed here ({room}).",
       "allowedIn": "Not here. Allowed in: {rooms}",
+      "notHere": "Not here.",
       "wrongRoom": "No {kind} in {room}. Rooms that allow it: {rooms}",
       "noRooms": "No room on this map allows a {kind} yet. The GM decides which rooms do.",
       "noKnownRooms": "No room you know of allows it.",

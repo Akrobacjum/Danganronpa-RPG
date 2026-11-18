@@ -258,11 +258,11 @@ export function restVariants(actor) {
            more than the purse. Tier 2 "1.2.113 the Rest window greys a rest ..." reads both rows over four purses. */
         const cost = REST[kind].actionCost;
         const unpaid = !canPayFor(actor, cost);
-        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
-        // character's scene, the school's for one with no token (E12 fix r1-G4).
-        // And only those it may rest in, its own bedroom as "your bedroom" (F118: `actor`).
-        const scene = place?.scene ?? sceneOfActor(actor);
-        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, scene, roomsKnownToMe(scene), actor);
+        /* "NOT HERE." AND NO ROOMS (F118, 18.11.2026; the owner on the Facilities screenshots: "Nie chcemy tej listy
+           pokojow w opisac restow. Wystarczy \"nie tutaj\"."). The row's line named the rest rooms (`restRoomsSentence`,
+           filtered to the found ones since E06 C11 and to the ones the character may rest in since F118); the owner's word
+           was about the rows. The refusal in `takeRest` keeps the filtered list: there a player asks "where, then". */
+        const elsewhere = game.i18n.localize("DRPG.Rest.notHere");
         return {
             value: kind,
             icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
