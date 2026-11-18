@@ -245,6 +245,14 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**18.11.2026: C1's probe for test 404 (the put-back), read on the sandbox.** On Aiko's token, the GM's copy set out of step
+(server and PlayerOne at (300,400), the GM's copy at (300,300)), a put-back to (400,300) by each of five roads - `update`
+with `diff: false`, with `recursive: false`, with both, `updateEmbeddedDocuments` with `diff: false`, and `move`: in every
+run `preUpdateToken` ran on the GM with `x`, `y` and the movement fields (`diff` false), and nothing was written - the GM's
+call answered undefined (an empty array, a Boolean for `move`), PlayerOne got no `updateToken` and still saw (300,400), the
+GM's copy stayed (300,300). Not sent without `y`: not sent at all. Whether v14's movement steps drop it or a module hook
+refuses it is not separated. The table is in docs/dev/e39/CALIBRATION.md section 6; the token was put back after.
+
 **18.11.2026: the fourth run, on the merged tree** (origin/claude/shim-118 at 179c2644 merged into this branch - a
 fast-forward, my tip being in it; tiers 0-1 headless 1764 passed, 0 failed, as C1's gate; pushed). Tier 2 on the sandbox one
 test per call, no probe press, 11:03-14:34 UTC; compared with the third run **by name** (C1's line added tests, so a

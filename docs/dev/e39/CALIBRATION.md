@@ -148,3 +148,26 @@ each floor over the same square, one region with no levels, and a token PlayerOn
 
 A mouse drag on the canvas, a region's teleport and change-level behaviours, walls and doors on a route, the senderId on
 `system.daggerheart` and the relay guard's state (AUDIT 9.2 items 18-20) - left to step 4's groups.
+
+## 6. A put-back from a copy out of step (C1's probe for test 404, 18.11.2026)
+
+Read on the sandbox (Foundry 14.370, Daggerheart 2.12.9, world drpg-qa-gate), on Aiko's token (TOKAIKO000000000, "Aiko",
+seen by PlayerOne), with the steps the coordinator sent from C1, as written: before each run the GM moves the token to
+(300,400) and then sets its own copy back to y 300 with `updateSource` (the server and PlayerOne keep 400), and the run asks
+for (400,300). PlayerOne's `updateToken` record was cut per run (the runs started one by one from the probe's runner, not
+in one console loop - the only change to C1's text). The token was put back after.
+
+| run | the GM's answer | `preUpdateToken` on the GM: the keys, the options | PlayerOne's `updateToken` | PlayerOne sees | the GM's copy |
+| --- | --- | --- | --- | --- | --- |
+| a_diffFalse | undefined | `x, y, _id, elevation, width, height, depth, shape, level` (diff false, recursive true) | none | [300, 400] | [300, 300] |
+| b_recursiveFalse | undefined | `x, y, _id, elevation, width, height, depth, shape, level` (diff false, recursive false) | none | [300, 400] | [300, 300] |
+| c_both | undefined | `x, y, _id, elevation, width, height, depth, shape, level` (diff false, recursive false) | none | [300, 400] | [300, 300] |
+| d_embedded | array(0) | `_id, x, y, elevation, width, height, depth, shape, level` (diff false, recursive true) | none | [300, 400] | [300, 300] |
+| e_move | Boolean | `_id, x, y, elevation, width, height, depth, shape, level` (diff false, recursive true) | none | [300, 400] | [300, 300] |
+
+In every run `preUpdateToken` ran on the GM with `x`, `y` and the other movement fields, `diff` false, and then nothing was
+written: no `updateToken` reached PlayerOne, PlayerOne and the server kept (300,400), and the GM's copy stayed at its own
+(300,300). So on 14.370 a put-back from a copy out of step is not sent without `y` alone - it is not sent at all, by any of
+the five roads (`diff: false`, `recursive: false`, both, `updateEmbeddedDocuments` with `diff: false`, `move`). Not
+separated: whether v14's movement steps drop it after `preUpdateToken` or a hook of the module refuses it; what `move`'s
+Boolean was (true or false). The calibration row is C1's to write.
