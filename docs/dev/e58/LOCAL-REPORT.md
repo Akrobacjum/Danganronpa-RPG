@@ -245,6 +245,47 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**18.11.2026: the fourth run, on the merged tree** (origin/claude/shim-118 at 179c2644 merged into this branch - a
+fast-forward, my tip being in it; tiers 0-1 headless 1764 passed, 0 failed, as C1's gate; pushed). Tier 2 on the sandbox one
+test per call, no probe press, 11:03-14:34 UTC; compared with the third run **by name** (C1's line added tests, so a
+position is not the same test across the two runs; my first comparison this morning went by position and was wrong).
+- **The whole run: 1372 passed, 187 failed, 18 skipped** of 1577 (the third: 1326, 214, 26 of 1566). After every chunk the
+  restore's second pass read `[]`; every account stayed connected after every test (the runner's record). No test ran to the
+  limit. Thirteen tests left the world changed (72, 73, 730, 731, 1056, 1075, 1133, 1219, 1220, 1297, 1462, 1504, 1524).
+- **Passages: 3 failures left of about 20** - 1037 ("the pass over a scene of four named regions, a Teleport, a nameless region
+  and a player's ..."), 1096 (Room Setup over a Hall, a Teleport Lift, a Gate and a Porch; 1089 in the old numbering) and 1108
+  (End the trial's copies on the chosen place). Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.
+- **Now passing** since the third run: the passage tests, 357 (its windows answered), the "Present on the primary" trial test
+  and 744-749 (the `active` fix), 888, 994, 1038, 1058 (1054 before: the world's two stray stashes, removed - below), 1071 (1067
+  before), 1467 and others.
+- **Three tests that passed in the third run failed here** - 524 "a project token sweep removes the orphans it is given ...",
+  1103 "entering the trial makes the cast's missing tokens ...", 1461 "E62 C3b the Monocub's token ...". Each run alone twice:
+  524 passed both times, 1461 passed then failed, 1103 failed then passed. Not a steady regression of the merge; they go either
+  way at a table on the same code, which reads as timing. Not read further.
+- **New in C1's line and failing at a table**: 404 "a put-back writes every coordinate it names, whatever the writer's copy of
+  the token holds": "a put-back to 300,300, written by a copy that held y 300 already, did not send y" - on v14 the client
+  still drops a coordinate its copy already holds. **For C1.**
+- **The coordinator's list**: 179 and 184 fail on their readings - the open Frisk's ask row never reaches "asking" at a table
+  (`asking: false`, `asked: null`; the test answers for the target itself, on the GM, so it is not a player's window); not read
+  further. 180 and 181 throw "You may only push instances of User" - the 28 places that put a plain object in `game.users`; on
+  the sandbox an unsaved `new CONFIG.User.documentClass({ _id, name, role })` with a valid 16-character id is accepted, its
+  `isGM` follows the role, `active` can be set, it is taken out again and nothing is saved; the tests' own ids
+  (`!E17T8primaryGM`) are refused ("must be a valid 16-character alphanumeric ID"). **Proposed**: a kit helper building such a
+  stand-in and the shim's Users refusing a non-User. 1054 and 1067 pass. 1089 (1096) fails as above. 1267 ("a pip's change never
+  spills ...", 1276 here) loses the runner's `evaluate` four runs of four; not a navigation (measured 17.11). The five Reroll
+  tests (35, 40-43) all still throw "Cannot read properties of undefined (reading 'length')"; test 35 run outside the runner,
+  directly in the page, waited all night without throwing (the probe stopped at 10:40; it had left the setting
+  `despairFromRolls` changed, which the restore put back) - not read.
+- **The 17 new skips are a test's leftover, not the environment**: 1297, "E101-T10 - one Season setup Save that links a new
+  trial hall and sets the phase to Class Trial ...", passed and left "state:viewedScene SCENEACADEMY0000 -> null": the GM's
+  canvas has no scene after it, and the 17 tests of the gap that need one skip ("this world has 0 scenes on screen"). Whose -
+  the test's put-back or the runner's restore of the scene on view, as for Fear - not read yet.
+- **1054 was the sandbox world's** (17.11, evening): Botan's and Chie's stashes in Dorm A, which the seed does not make, left by
+  my own earlier probes and outside what my restore watched (a stash is a room region's flag). Taken out with the module's
+  `setStash(room, actorId, { present: false })` (Dorm A's flags kept beside the probes), and my restore's baseline now holds
+  every region's module flags. Then 1054 passed.
+- **Module defects found: none.**
+
 **17.11.2026, evening: the coordinator's decisions built, and the third run** (pushed to 2adc9fef):
 - **The glue no longer presses Roll** (f7effd79, 65554625; the owner's words quoted) and **a player at each harness browser**
   (175d580d): every client presses Roll after the scripted chips, stands aside while `runTests` runs there, and its presses
