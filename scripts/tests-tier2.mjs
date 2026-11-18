@@ -1420,11 +1420,12 @@ async function neutralRoll(who, { remember = false, faces = null, title = null, 
  * `record` (E08+E28 C17) gives the roll the GMs' record of it as `player`'s (`recordFor`), with
  * those numbers: a crisis action's packet is scored on it, and `putBack` drops it.
  */
-async function playerRollBookmark(player, actor, actionKey, context = {}, { record = null } = {}) {
+async function playerRollBookmark(player, actor, actionKey, context = {}, { record = null, faces = { hope: 9, fear: 4 } } = {}) {
     const G = await import("./bridge-guards.mjs");
     const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
     const S = await import("./gm-stores.mjs");
-    const { message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } });
+    // `faces` (the merge of L1's Reroll reading, 18.11.2026): the throw's, so a Reroll of it names them as `first` by construction.
+    const { message } = await neutralRoll(actor, { faces });
     must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
     await message.update({ author: player.id });
     const sent = [];
@@ -1881,8 +1882,22 @@ function sabotageTraps(F, where, player) {
  * the faces `next`, once `onReroll` has run - a moment after the payment and before the
  * rewrite. The document is untouched; `putBack` takes the stand-in off. The class is fix
  * r1-G3's `SuiteRoll`, moved here when three tests came to need it.
+ *
+ * AT A TABLE, A REAL ROLL (E58 L1's reading on the sandbox, 18.11.2026, relayed by the coordinator; option (B) of that day).
+ * There the message holds Daggerheart's own `DualityRoll`, and the Reroll's rewrite of a `SuiteRoll` - whose `toJSON` has no
+ * `terms` - left the message with no rolls: Daggerheart 2.12.9's `DualityRoll.fromData` reads `data.terms[0]`, and the next
+ * chat message threw "reading 'length'" in `ChatMessage#isRoll` (tier 2's 35 and 40-43 on the sandbox). So where the message
+ * holds a real roll (`terms`, a `reroll`), it is kept: its faces are held to `first` (each caller throws its message with
+ * those faces, through `__forceRoll` and the runner's `scriptDice`, so they match by construction - a `must` says so where
+ * they do not), and the Reroll's rebuild of it (reroll.mjs `rollAsThrown`: `new original.constructor(...)`, then `reroll()`
+ * or `clone().evaluate()`) is of a subclass of its own class that throws `next` the same way and runs `onReroll` first,
+ * once. Its `toJSON` is Daggerheart's, so the rewrite reads back. Headless the message holds plain JSON (lib/shim.mjs
+ * `ChatMessage#rolls`), so the `SuiteRoll` road below is taken: the table road does not run headless - L1's next run is its
+ * measurement. Making the harness hold real rolls is a proposed D (docs/dev/e39/STATUS.md).
  */
 function rerollableRoll(message, { first, next, onReroll = null }) {
+    const real = message?.rolls?.[0];
+    if (real && Array.isArray(real.terms) && typeof real.reroll === "function") return rerollableRealRoll(message, real, { first, next, onReroll });
     class SuiteRoll {
         constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { ...first }; }
         get dHope() { return { total: this.faces.hope }; }
@@ -1900,6 +1915,28 @@ function rerollableRoll(message, { first, next, onReroll = null }) {
         toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
     }
     Object.defineProperty(message, "rolls", { configurable: true, get: () => [new SuiteRoll("1d12 + 1d12", {}, { roll: { trait: "instinct" } })] });
+    return { putBack: () => { delete message.rolls; } };
+}
+
+/** `rerollableRoll` at a table (its note): the message's own roll kept, its Reroll thrown with `next`. */
+function rerollableRealRoll(message, real, { first, next, onReroll }) {
+    const faces = { hope: real.dHope?.total ?? null, fear: real.dFear?.total ?? null };
+    must(faces.hope === first.hope && faces.fear === first.fear,
+        `the roll to take back was thrown with ${stableJson(faces)}, not the faces the test names (${stableJson(first)}) - its throw does not set them`);
+    let fired = false;
+    const withNext = async run => {
+        if (!fired) { fired = true; if (onReroll) await onReroll(); }
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        globalThis.__forceRoll = { ...next };
+        try { return await run(); } finally { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; }
+    };
+    const Real = real.constructor;
+    class TableReroll extends Real {
+        async reroll(...args) { return withNext(() => super.reroll(...args)); }
+        async evaluate(...args) { return this._evaluated ? super.evaluate(...args) : withNext(() => super.evaluate(...args)); }
+    }
+    const stood = Object.assign(Object.create(TableReroll.prototype), real);
+    Object.defineProperty(message, "rolls", { configurable: true, get: () => [stood] });
     return { putBack: () => { delete message.rolls; } };
 }
 
@@ -1946,7 +1983,10 @@ async function withDhAutomation(patch, run) {
  */
 async function thrownFresh(who, faces, state, { remember = false } = {}) {
     const before = stableJson(state());
-    const { message } = await neutralRoll(who, { remember, faces });
+    /* A remembered roll goes through Daggerheart's roll window where the suite's rolls do not skip it (outside the runner:
+       L1's test 35 waited there on the sandbox). That window is Daggerheart's own ApplicationV2 (`DualityRoll.DefaultDialog`,
+       `D20RollDialog`), not a DialogV2, so `answerDialogs` does not see it: `pressingRoll` presses its Roll. */
+    const { message } = await (remember ? pressingRoll(() => neutralRoll(who, { remember, faces })) : neutralRoll(who, { remember, faces }));
     must(message, `no roll of ${who.name} was thrown - this would measure nothing`);
     if (faces.fear > faces.hope && game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) await until(() => stableJson(state()) !== before, 6000);
     await settle();
@@ -15161,7 +15201,7 @@ const SCENARIOS = [
         // The hand kept as the player's roll and a cover's record, judged as the player's `action.friskUnseen`; `judge` false
         // keeps the roll with no Frisk judged on it (the control).
         const hand = async (key, handTotal, coverTotal, { judge = true } = {}) => {
-            const F = await playerRollBookmark(player, theirs, key, {}, { record: { total: handTotal } });
+            const F = await playerRollBookmark(player, theirs, key, {}, { record: { total: handTotal }, faces: LOW });
             held.push(F);
             const out = [];
             if (judge) {
@@ -15336,7 +15376,7 @@ const SCENARIOS = [
             return { made, sent, to: [...new Set(sent.flatMap(packet => packet.to.map(role)))].filter(r => r !== "gm").sort() };
         };
         const frisk = async (handTotal, next, coverTotal = 5) => {
-            const F = await playerRollBookmark(player, theirs, "rummage", {}, { record: { total: handTotal } });
+            const F = await playerRollBookmark(player, theirs, "rummage", {}, { record: { total: handTotal }, faces: LOW });
             held.push(F);
             const cover = await recordFor({ id: foundry.utils.randomID() }, player, theirs, "palm", { total: coverTotal });
             kept.push(cover);
@@ -72338,7 +72378,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: owners.map(o => ({ actorId: o.id, concealed: true })),
                 [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
             must(opened() === 0, "the character has found one of those stashes already - this would measure nothing");
-            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 12 } });
+            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 12 }, faces: { hope: 7, fear: 5 } });
             const asked = await F.ask({ action: "vault.findStash", requestId: `E80C4${foundry.utils.randomID(8)}`, actorId: actor.id,
                 total: 12, isCritical: false, rollId: F.message.id });
             await settle();
@@ -72407,7 +72447,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     "the door does not name the first owner alone - the thrower would act as the Mastermind and this would measure nothing");
                 const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
                 must(typeof id === "string", "the tunnel was not made - this would measure nothing");
-                F = await playerRollBookmark(thrower, botan, "analyze", {});
+                F = await playerRollBookmark(thrower, botan, "analyze", {}, { faces: { hope: 7, fear: 5 } });
                 must(F.row()?.by === thrower.id, `the roll is not kept as the thrower's - this would measure nothing: ${stableJson(F.row())}`);
                 const first = await P.resolvePassageSearch({ actorId: botan.id, total: 12, rollId: F.message.id },
                     { asker: thrower, whisper: async () => {}, toast: () => {} });
@@ -72501,7 +72541,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     await token.update(from, { ...PLACE });
                     await settle();
                     if (botan.system.resources.hope.value < 3) await trustedWrite(botan, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
-                    F = await playerRollBookmark(thrower, botan, "analyze", {});
+                    F = await playerRollBookmark(thrower, botan, "analyze", {}, { faces: { hope: 7, fear: 5 } });
                     must(F.row()?.by === thrower.id, `the roll is not kept as the thrower's - this would measure nothing: ${stableJson(F.row())}`);
                     const first = await P.resolvePassageSearch({ actorId: botan.id, total: 12, rollId: F.message.id },
                         { asker: thrower, whisper: async () => {}, toast: () => {} });
@@ -72614,7 +72654,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     await token.update(from, { ...PLACE });
                     await settle();
                     if (hana.system.resources.hope.value < 3) await trustedWrite(hana, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
-                    F = await playerRollBookmark(thrower, hana, "analyze", {}, { record: { total: 12 } });
+                    F = await playerRollBookmark(thrower, hana, "analyze", {}, { record: { total: 12 }, faces: { hope: 7, fear: 5 } });
                     const asked = await F.ask({ action: "vault.findStash", requestId: `E80G4${foundry.utils.randomID(8)}`, actorId: hana.id,
                         total: 12, isCritical: false, rollId: F.message.id });
                     await settle();
@@ -82191,7 +82231,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             plans.push(reroll?.id ?? null);
             must(reroll?.id && F.P.isIndirectMurder(reroll.id), "could not make the second indirect murder - this would measure nothing");
             await F.P.addProgress(reroll.id, 1);
-            const B = await playerRollBookmark(player, actor, "project", { bonus: 40 });
+            const B = await playerRollBookmark(player, actor, "project", { bonus: 40 }, { faces: { hope: 5, fear: 3 } });
             const stand = rerollableRoll(B.message, { first: { hope: 5, fear: 3 }, next: { hope: 2, fear: 1 } });
             try {
                 await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), projectId: reroll.id, progress: 1 } });
@@ -84091,7 +84131,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const toldHere = () => said.splice(0).some(text => text.includes(locked));
         try {
             await setClock({ phase: "investigation" });
-            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 12 } });
+            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 12 }, faces: { hope: 7, fear: 5 } });
             const first = await F.ask({ action: "vault.findStash", requestId: `E16T28${foundry.utils.randomID(8)}`, actorId: actor.id,
                 total: 12, isCritical: false, rollId: F.message.id });
             await settle();
@@ -101560,7 +101600,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         const noReplay = game.i18n.localize("DRPG.Reroll.noReplay");
         const reroll = async (actionKey, facts, next = { hope: 11, fear: 8 }) => {
-            const B2 = await playerRollBookmark(player, actor, actionKey, {});
+            const B2 = await playerRollBookmark(player, actor, actionKey, {}, { faces: { hope: 2, fear: 1 } });
             const stand = rerollableRoll(B2.message, { first: { hope: 2, fear: 1 }, next });
             try {
                 await S.rerollBookmarkStore.patch(actor.id, { facts: { ...(B2.row()?.facts ?? {}), ...facts } });
@@ -101655,7 +101695,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             } finally { await dash.putBack(); }
             await trustedWrite(actor, { "system.resources.hope.value": 2, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: was.grants }, { reason: "gmRuling" });
             await F.setRoomActions(where.scene, where.room, [{ id: "e74t7", label: "E74-T7 tea", trait: "eye", dc: 30, effects: [{ kind: "hope", n: 1 }] }]);
-            const use = await playerRollBookmark(player, actor, "facility", {}, { record: { total: 5 } });
+            const use = await playerRollBookmark(player, actor, "facility", {}, { record: { total: 5 }, faces: { hope: 3, fear: 2 } });
             const stand = rerollableRoll(use.message, { first: { hope: 3, fear: 2 }, next: { hope: 6, fear: 6 } });
             try {
                 await use.ask({ action: "facility.use", requestId: `E74T7${foundry.utils.randomID(6)}`, actorId: actor.id, actionId: "e74t7", total: 5, rollId: use.message.id });
