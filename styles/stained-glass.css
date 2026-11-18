@@ -1928,7 +1928,8 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
 /* ... but the GM's chip on its own dark ground keeps its red (E107, R5432): the ink above left it grey on dark. */
 body.drpg-theme-stained-glass .drpg-choice:has(input:checked) .drpg-action-gm { color: var(--drpg-eye-light); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) > i { color: var(--kind); }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) small { opacity: 0.75; }
+/* At full opacity since F118: the line is already the notes' dim bone, and 0.75 over it read 4.26:1 in Chromium (`sg-note`, 6.84:1). */
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) small { opacity: 1; }
 /* the row's control takes the row's kind (the one definition below reads `--drpg-sg-check`), and on a chosen row's
    brush the radio's ring and mark the ink, which reads on the kind's colour */
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) { --drpg-sg-check: var(--kind); }
@@ -1959,6 +1960,8 @@ body.drpg-theme-stained-glass .drpg-choice.unavailable {
 }
 body.drpg-theme-stained-glass .drpg-choice.unavailable::after { opacity: 0.2; }
 body.drpg-theme-stained-glass .drpg-choice.unavailable > i { color: var(--drpg-sg-bone-dim); }
+/* A shut row's reason at the notes' contrast (F118; danganronpa.css "THE REASON AT THE NOTES' CONTRAST"): `sg-note`. */
+body.drpg-theme-stained-glass .drpg-choice.unavailable .drpg-choice-text small { color: var(--drpg-sg-bone-dim); opacity: 1; }
 /* The project glyph picker's cells are choice rows in a grid, so the row
    margin the family carries is the grid's gap's job instead. */
 body.drpg-theme-stained-glass .drpg-glyph-grid > .drpg-choice { margin: 0; }

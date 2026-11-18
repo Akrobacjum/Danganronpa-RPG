@@ -610,7 +610,13 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // rozwiazac sam?"), who took the writer's edit of these two B01a texts (DISAGREEMENTS.json D13, D14, D16, D17): the
     // sentence the intro already says goes, and "every player's browser can read" becomes "any player can find out".
     ...["DRPG.Assign.footnote", "DRPG.Season.hint.assignments"].map(key => [key, Object.freeze({ by: "E109", date: "14.11.2026",
-        page: "DRPG-Q113 #27", card: "D-NIEZG", text: "Czy niezgody mozesz rozwiazac sam?" })])
+        page: "DRPG-Q113 #27", card: "D-NIEZG", text: "Czy niezgody mozesz rozwiazac sam?" })]),
+    // F118, 17.11.2026: the owner's report with a screenshot of the Facilities window - since E93 the window holds a GM's
+    // room action and a completed project's beside the two rests, and B01a's afters name only the rests. The new texts
+    // are the coordinator's default, which the owner reads on the screenshots before the release.
+    ...["DRPG.Config.ACTIONS.rest.hint", "DRPG.Config.ACTIONS.rest.description"].map(key => [key, Object.freeze({ by: "F118",
+        date: "17.11.2026", page: "F118 Facilities", card: "Facilities tile",
+        text: "Kafel facilities wymaga aktualizacji. Opis nie uwzglednia akcji pokoju gma i projektow." })])
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

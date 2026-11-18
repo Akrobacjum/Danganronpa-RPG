@@ -20679,6 +20679,88 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ en: want("en"), pl: want("pl") }),
             "{en, pl: [the Short Rest's sentence, the Long Rest's]} - a sentence with no rest's name in it");
     }],
+    ["R7791 - the Facilities window names only the rest rooms its character may rest in, its own bedroom as \"your bedroom\" (F118, the owner's 17.11.2026)", async () => {
+        /*
+         * F118, 17.11.2026; the owner, with a screenshot of the Facilities window: "Szary druk pod poszczegolnymi akcjami,
+         * zwlaszcza restow wymaga poprawy." A rest not allowed here was greyed with rest.mjs `restRoomsSentence`'s list of
+         * every marked room the viewer had found - other students' bedrooms among them, which the character cannot
+         * enter. Now, for a character (`actor`), the list keeps the rooms the move itself lets it into (movement.mjs
+         * `bedroomShut`, the door's rule: its own bedroom, a room that is nobody's, another's only with the key in hand),
+         * and its own bedroom reads "your bedroom" (DRPG.Rest.yourBedroom) rather than its name. Asked on a scene and a
+         * character of the test's own (stand-ins: nothing of the world is read or written), with lang/en.json's and
+         * lang/pl.json's words standing in for `game.i18n` as R3980 does, and restored. Read: the Short Rest's sentence
+         * for the character, for a character that may enter none of the rooms it knows, and with no character (the old
+         * reading, which tier 2's "names no rest room the viewer has not found" holds). Red at 64f6da99: the character's
+         * list named its own bedroom by name and the two bedrooms it holds no key to. The window at a table: LIVE-F118-03.
+         */
+        const R = await import("./rest.mjs");
+        const { ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const files = { en: await lang("en"), pl: await lang("pl") };
+        const region = (name, flags = {}) => ({ id: `R7791-${name}`, name, levels: new Set(), behaviors: [], shapes: [],
+            getFlag: (scope, key) => (scope === MODULE_ID ? { room: true, [R.REST_FLAGS.short]: true, ...flags }[key] : undefined) });
+        const scene = { id: "R7791SCENE", name: "R7791", regions: new Set([
+            region("Aiko's Room", { [ROOM_OWNER_FLAG]: "R7791ME" }), region("Botan's Room", { [ROOM_OWNER_FLAG]: "R7791B" }),
+            region("Chie's Room", { [ROOM_OWNER_FLAG]: "R7791C" }), region("Daichi's Room", { [ROOM_OWNER_FLAG]: "R7791D" }),
+            region("Cafeteria"), region("Attic")]) };
+        const key = room => ({ getFlag: (scope, k) => (scope === MODULE_ID && k === BEDROOM_KEY_FLAG ? room : undefined) });
+        const me = { id: "R7791ME", name: "R7791 Aiko", items: [key("Daichi's Room")] };
+        const stranger = { id: "R7791X", name: "R7791 Stranger", items: [] };
+        const known = new Set(["Aiko's Room", "Botan's Room", "Chie's Room", "Daichi's Room", "Cafeteria"]);
+        const at = (obj, k) => k.split(".").reduce((o, p) => o?.[p], obj);
+        const own = game.i18n.localize, fmt = game.i18n.format;
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                const word = k => at(files[code], k) ?? k;
+                game.i18n.localize = k => word(k);
+                game.i18n.format = (k, data = {}) => String(word(k)).replace(/\{(\w+)\}/g, (m, f) => (f in data ? String(data[f]) : m));
+                const say = actor => R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, known, actor);
+                read[code] = [say(me), say({ ...stranger, items: [] }), say(null)];
+                const knownOnly = new Set(["Botan's Room", "Chie's Room"]);
+                read[code].push(R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, knownOnly, stranger));
+            }
+        } finally {
+            game.i18n.localize = own;
+            game.i18n.format = fmt;
+        }
+        const want = code => {
+            const w = k => at(files[code], k) ?? `<no ${k}>`;
+            const list = rooms => String(w("DRPG.Rest.allowedIn")).replace("{rooms}", rooms.join(", "));
+            return [list([w("DRPG.Rest.yourBedroom"), "Cafeteria", "Daichi's Room"]), list(["Cafeteria"]),
+                list(["Aiko's Room", "Botan's Room", "Cafeteria", "Chie's Room", "Daichi's Room"]), w("DRPG.Rest.noOpenRooms")];
+        };
+        equal(stableJson(read), stableJson({ en: want("en"), pl: want("pl") }),
+            "{en, pl: [the character's list, a stranger's, no character's, a stranger who knows only others' bedrooms]} - a rest room the character may not enter was named, or its own bedroom by name");
+        // Both of the window's roads hand the character: its rows (`restVariants`) and the refusal (`takeRest`).
+        const rest = stripComments(new Map(await otherSources()).get("rest.mjs") ?? "");
+        equal(stableJson(["restVariants", "takeRest"].map(fn => /restRoomsSentence\([^;]*roomsKnownToMe\(scene\), actor\)/.test(fnSource(rest, fn)))),
+            stableJson([true, true]), "[the Facilities rows, the refusal] - a road that names the rest rooms without its character");
+    }],
+
+    ["R7792 - a free room action reads \"Free\" in the Facilities window, not \"Costs 0 actions\" (F118, the owner's 17.11.2026)", async () => {
+        /*
+         * F118, 17.11.2026; the owner's report of the Facilities window (R7791's). A completed project's action that costs
+         * nothing read "Costs 0 actions. You have 1." (action-facilities.mjs `priced`, DRPG.Action.willCost). Now the
+         * window's price line is `priceLine(cost, left)`: DRPG.Action.costsNothing for a cost of 0, the willCost family
+         * otherwise. Read for a cost of 0, 1 and 2 with 1 and 2 left, and in the source: the room actions' rows ask it.
+         * Red at 64f6da99: no `priceLine`.
+         */
+        const F = await import("./action-facilities.mjs");
+        ok(typeof F.priceLine === "function", "action-facilities.mjs has no `priceLine`, the Facilities window's price line");
+        if (typeof F.priceLine !== "function") return;
+        const { plural } = await import("./utils.mjs");
+        equal(stableJson([F.priceLine(0, 1), F.priceLine(1, 2), F.priceLine(2, 1)]),
+            stableJson([game.i18n.localize("DRPG.Action.costsNothing"), plural("DRPG.Action.willCost", { n: 1, left: 2 }),
+                plural("DRPG.Action.willCost", { n: 2, left: 1 })]),
+            "[a free action's line, one costing 1 of 2, one costing 2 of 1]");
+        ok(game.i18n.has("DRPG.Action.costsNothing"), "DRPG.Action.costsNothing is not in this language's file");
+        const sources = new Map(await otherSources());
+        const rows = fnSource(stripComments(sources.get("action-facilities.mjs") ?? ""), "facilityRows");
+        ok(/priceLine\(cost, left\)/.test(rows) && !/DRPG\.Action\.willCost/.test(rows),
+            "the room actions' rows build their own price line instead of asking `priceLine`");
+    }],
+
     ["R3981 - game.drpg.a11y() lists a nameless control while it is on the page and not after its window is gone (gaps, 12.11.2026; the E99 line's full tier-2 run): a11y.mjs `a11yReport` names a nameless control of a module window standing in the page, and once that window is removed counts its kind on the line of kinds met only in windows since closed, and no longer as a control that carries no name", async () => {
         /*
          * Gaps, 12.11.2026 (the coordinator: tier 2's "every control in the module's own chrome has a name" failed after
