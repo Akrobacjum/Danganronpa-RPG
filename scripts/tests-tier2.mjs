@@ -1935,9 +1935,15 @@ function rerollableRealRoll(message, real, { first, next, onReroll }) {
         async reroll(...args) { return withNext(() => super.reroll(...args)); }
         async evaluate(...args) { return this._evaluated ? super.evaluate(...args) : withNext(() => super.evaluate(...args)); }
     }
-    const stood = Object.assign(Object.create(TableReroll.prototype), real);
-    Object.defineProperty(message, "rolls", { configurable: true, get: () => [stood] });
-    return { putBack: () => { delete message.rolls; } };
+    /* The real roll itself, its prototype pointed at the subclass while the stand-in stands (the coordinator's check of
+       18.11.2026): a copy (`Object.assign(Object.create(...), real)`) takes own enumerable fields alone, and would lose a
+       `#private` field or state the constructor set otherwise - Daggerheart 2.12.9's dice hold none (lib/dh-dice/dice, read),
+       Foundry v14's `Roll` is not read here - and `fromData` picks its class by `data.class`'s name, not this subclass. A
+       private field belongs to the object, so the inherited methods still reach it. `putBack` points it back. */
+    const was = Object.getPrototypeOf(real);
+    Object.setPrototypeOf(real, TableReroll.prototype);
+    Object.defineProperty(message, "rolls", { configurable: true, get: () => [real] });
+    return { putBack: () => { delete message.rolls; Object.setPrototypeOf(real, was); } };
 }
 
 /** Hope writes on `actor` and roll rewrites of `messageId`, with the user Foundry names for each, until `stop()`. */
