@@ -245,6 +245,29 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**18.11.2026, afternoon: the Reroll tests and 1297, read on the sandbox.**
+- **The five Reroll tests (35, 40-43) - the tests', not the module's.** A stack taken inside the runner (test 35's entry in
+  `SCENARIOS` wrapped in the page, its throw logged, then rethrown): "Cannot read properties of undefined (reading 'length')"
+  at Foundry's `ChatMessage#isRoll` (`this.rolls.length`) in `visible`, walked by the chat log's `_getVisibleTreeContents` as a
+  new message is created (Daggerheart's `DualityRoll.toMessage`, build :9814, on the module's `throwDice` -> `supersedingRoll`
+  road). One message in the log had no `rolls`: an earlier one, which the Reroll had rewritten -
+  `message.update({ rolls: [rerolledSource(rerolled, message)] })` (reroll.mjs:637) wrote a roll of only `class`, `formula`,
+  `total` and `evaluated`, no `terms`, and Daggerheart 2.12.9's `DualityRoll.fromData` reads `data.terms[0]` ("Failed data
+  migration for DhpChatMessage ... reading '0'"), so that message was left with no rolls. The roll without terms is the
+  test's own stand-in: `rerollableRoll` (tests-tier2.mjs) puts in a `SuiteRoll` whose `toJSON()` is exactly `{ class:
+  "DualityRoll", formula, total, evaluated: true }`, written for the harness, where a roll message holds plain JSON. On a real
+  roll the module writes a whole one (Daggerheart's `reroll` answers `DualityRoll.fromData(...)`; the roll `toMessage` gets
+  is a `DualityRoll` of 5 terms, read). I said for a moment in the chat that it was the module's; it is not. **Proposed**: at
+  a table the tests reroll a real roll with the faces they name (the dice seam is there now), or `SuiteRoll.toJSON` writes a
+  roll v14 and Daggerheart read back. Run directly, outside the runner, test 35 waited instead: its first roll is thrown with
+  `remember: true` through the roll window, which nobody pressed there.
+- **1297 (E101-T10), the scene on view left empty - timing, not settled.** Through my per-test runner it left
+  "state:viewedScene SCENEACADEMY0000 -> null" 3 runs of 4 without a change and 4 of 4 with one I tried (viewing the scene
+  again before the halls are deleted) - so that change does nothing and is not kept; through a plain `runTests` call it
+  passed and left nothing. My runner adds a press timer and the players' roll recorders to the pages; whether that is why is
+  not read. The 17 skips after it in the fourth run come from it.
+- **Module defects found: none.**
+
 **18.11.2026: C1's probe for test 404 (the put-back), read on the sandbox.** On Aiko's token, the GM's copy set out of step
 (server and PlayerOne at (300,400), the GM's copy at (300,300)), a put-back to (400,300) by each of five roads - `update`
 with `diff: false`, with `recursive: false`, with both, `updateEmbeddedDocuments` with `diff: false`, and `move`: in every
