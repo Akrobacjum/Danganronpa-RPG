@@ -91146,6 +91146,77 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "card]; card: the Next summary's title, lede (the morning, a GM's), rows and totals (three actions, one find, one trace); end: "
             + "[an Eclipse after its end, the time of day, popups after it]}");
     }],
+    ["F118-T1 - the Evening's own summary reaches the screen when Night begins, with the table's sequences on: the day's board shows no rows of the day since the owner's word of 18.11.2026, so nothing folds into it (scripts/day-summary.mjs `sumUp`)", async () => {
+        /*
+         * F118, 18.11.2026; the owner: "I ten ekran ma byc identyczny zarowno na start jak i na koniec dnia" - one board at
+         * both ends of the day, the living students and the school's mood, and the end board's rows of the day gone. Until
+         * then the Evening's summary was not put up when Night began with the switch on (day-summary.mjs
+         * `eveningFoldsIntoBoard`: the end board held the day's rows); with the rows gone from the board they would be shown
+         * nowhere. Driven on this GM as E37-T4 drives the morning: the clock at the Evening stamped now, the table's
+         * sequences on, three cards whispered to the GMs with their facts, Next time of day (`advanceTimeOfDay`, the
+         * Evening to Night, which stamps the board), then the summary popups that name the cards read off the page (tier 2
+         * holds notices in memory, R473). Put back: the clock, every character's actions, the switch; the cards deleted,
+         * the popups dismissed, the board cut. Red at 66a0c9b4: no summary popup at Night.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        const C = await import("./clock.mjs");
+        const U = await import("./utils.mjs");
+        const D = await import("./day-summary.mjs");
+        const Q = await import("./sequence.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const [who] = cast(1);
+        must(!murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const switchWas = game.settings.get(MODULE_ID, SETTINGS.sequences);
+        const actionsWas = game.actors.filter(a => a.type === "character")
+            .map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const MARK = "F118T1 room";
+        const evening = TIMES_OF_DAY[TIMES_OF_DAY.length - 2], night = TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+        const summaries = () => [...document.querySelectorAll(".drpg-popup")]
+            .filter(card => card.querySelector(".drpg-day-summary") && card.textContent.includes(MARK));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (card.querySelector(".drpg-day-summary")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const cards = [];
+        const read = {};
+        try {
+            if (switchWas === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            const T0 = Date.now();
+            await setClock({ phase: "dailyLife", timeOfDay: evening, timeOfDayStartedAt: T0, refilledFor: null, nightBoard: null });
+            await settle();
+            for (let n = 0; n < 3; n++) {
+                cards.push(await U.whisperToGms(`<p>F118T1 card ${n}</p>`, { summary: { actorId: who.id, action: `F118T1 action ${n}`,
+                    room: MARK, total: 10 + n, critical: false, item: null, tier: null, leftTrace: false, at: Date.now() } }));
+            }
+            await until(() => D.entriesSince(T0).filter(e => e.room === MARK).length === 3, 8000);
+            must(D.entriesSince(T0).filter(e => e.room === MARK).length === 3, "the three cards' facts are not in this browser's store - this would measure nothing");
+            dismiss();
+            await settle();
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await until(() => summaries().length > 0, 9000);
+            await settle();
+            const card = summaries()[0];
+            read.night = [getClock().timeOfDay, Number(getClock().nightBoard) === Number(getClock().day), Q.sequencesOn(), summaries().length,
+                card ? card.querySelectorAll(".drpg-sum-row").length : 0];
+        } finally {
+            Q.endSequence?.("cut");
+            dismiss();
+            for (const card of cards) await card?.delete?.();
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            if (switchWas === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, false);
+            await settle();
+            dismiss();
+        }
+        equal(stableJson(read), stableJson({ night: [night, true, true, 1, 3] }),
+            "{night: [the time of day after Next, the board's stamp on its day, the table's sequences on, summary popups naming the cards, its rows]} - the Evening's rows reached no screen");
+    }],
     ["E37-T10 - no summary on a bystander's screen while the incident hides the clock (E37 fix FG2; the end review's S-M1): with an incident running, day-summary.mjs's listener of `drpgTimeOfDayChanged` handed a move of the clock forward shows the GM the summary of the time of day that ended, and on a browser that is a bystander of the incident it shows none", async () => {
         /*
          * E37 fix FG2, 02.11.2026; the end review's S-M1 (security lens). While an incident runs before its end the clock

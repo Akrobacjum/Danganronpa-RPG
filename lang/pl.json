@@ -247,13 +247,6 @@
       "weRemember": "pamiętamy",
       "morningLine": "OGŁOSZENIE PORANNE",
       "dayEndTitle": "Koniec dnia {day}",
-      "dayEndSub": "Rozdział {chapter}",
-      "yourDay": "TWÓJ DZIEŃ",
-      "tableDay": "DZIEŃ STOŁU",
-      "foundSomething": "znalezione",
-      "dayTally": "Akcje: {actions} · Znaleziska: {found}",
-      "quietDay": "Spokojny dzień.",
-      "publicEvents": "CO WIDZIAŁA SZKOŁA",
       "moodLabel": "NASTRÓJ SZKOŁY",
       "mood": {
         "calm": "Spokój",

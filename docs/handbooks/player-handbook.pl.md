@@ -141,8 +141,8 @@ Kilka chwil wypełnia na kilka sekund każdy ekran. Esc pomija taką chwilę, a 
 - **Koniec Class Trial.** Ekran zasłania się napisem **KONIEC ROZPRAWY** i odsłania szkołę.
 - **Werdykt.** Portret skazanego ucznia, głosy i pieczątka: **WINNY**, gdy klasa trafiła, **NIEWINNY**, gdy się pomyliła.
 - **Obroty zegara.** Kurtyna obraca się, gdy zmienia się pora dnia. Investigation zaczyna się błyskami szyb, a ogłoszenie ciała sprawia, że kurtyna migocze.
-- **Koniec dnia.** Plansza końca dnia pojawia się, gdy zapada Noc albo kończy się rozdział. Pokazuje, co zrobiłeś tego dnia, co widziała szkoła i nastrój szkoły: Spokój, Niepokój albo Na krawędzi. Zostaje w twojej historii powiadomień.
-- **Początek dnia.** Plansza początku dnia pojawia się, gdy zaczyna się nowy dzień, i pokazuje dzień, wszystkich na swoich miejscach i nastrój szkoły; zmarli są wyszarzeni, z podpisem „pamiętamy”. Jeśli GM napisał zdanie na poranek, plansza je pokazuje.
+- **Koniec dnia.** Plansza dnia z tytułem „Koniec dnia N” pojawia się, gdy zapada Noc albo kończy się rozdział. Pokazuje wszystkich na swoich miejscach (zmarli są wyszarzeni, z podpisem „pamiętamy”) i nastrój szkoły: Spokój, Niepokój albo Na krawędzi. Zostaje w twojej historii powiadomień.
+- **Początek dnia.** Ta sama plansza z tytułem „Dzień N” pojawia się, gdy zaczyna się nowy dzień, i pokazuje wszystkich na swoich miejscach i nastrój szkoły. Jeśli GM napisał zdanie na poranek, plansza je pokazuje.
 
 Jeśli dołączysz albo odświeżysz stronę w ciągu 10 minut od wejścia do Class Trial, werdyktu albo planszy początku dnia, najnowsza z tych chwil, której jeszcze nie widziałeś, zagra dla ciebie raz. Pozostałe chwile, które minęły przed twoim dołączeniem, cię omijają.
 

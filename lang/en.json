@@ -247,13 +247,6 @@
       "weRemember": "we remember",
       "morningLine": "MORNING ANNOUNCEMENT",
       "dayEndTitle": "End of day {day}",
-      "dayEndSub": "Chapter {chapter}",
-      "yourDay": "YOUR DAY",
-      "tableDay": "THE TABLE'S DAY",
-      "foundSomething": "found",
-      "dayTally": "Actions: {actions} · Found: {found}",
-      "quietDay": "A quiet day.",
-      "publicEvents": "WHAT THE SCHOOL SAW",
       "moodLabel": "THE SCHOOL'S MOOD",
       "mood": {
         "calm": "Calm",
