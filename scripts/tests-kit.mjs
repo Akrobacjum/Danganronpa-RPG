@@ -370,6 +370,27 @@ function scriptDice(target = globalThis.game?.system?.api?.dice?.DualityRoll) {
 }
 
 /*
+ * A USER NOT SAVED, AS v14 TAKES ONE INTO `game.users` (E58 L1's reading on 14.370, 18.11.2026, relayed by the coordinator):
+ * v14 refused a plain object set into the users' collection ("You may only push instances of User") and the tests' own ids
+ * ("!E17T8primaryGM"), and took an unsaved User with a valid 16-character id, whose `isGM` follows its role and whose `active`
+ * can be set. A tier-2 test that stands a second GM or a player in for a while builds it here and sets it into `game.users`
+ * itself, then deletes it by its id. `sorts` keeps what the old ids were for: "first" an id that sorts before every user's
+ * now (the primary GM is the full GM with the smallest id, utils.mjs `primaryGmId`), "last" one that sorts after every
+ * user's, null any; a test that needs to know the user again reads its name, never its id. Nothing is written.
+ */
+function standInUser({ name, role = CONST.USER_ROLES.PLAYER, active = true, sorts = null, ...data } = {}) {
+    const ids = [...(game.users?.keys?.() ?? [])].map(String);
+    const make = () => sorts === "first" ? `0000${foundry.utils.randomID(12)}` : sorts === "last" ? `zzzz${foundry.utils.randomID(12)}` : foundry.utils.randomID(16);
+    const fits = id => !ids.includes(id) && (sorts !== "first" || ids.every(other => id < other)) && (sorts !== "last" || ids.every(other => id > other));
+    let id = make();
+    for (let i = 0; i < 50 && !fits(id); i++) id = make();
+    if (!fits(id)) throw new Error(`no id for the stand-in user "${name}" sorts ${sorts} among the users here`);
+    const user = new CONFIG.User.documentClass({ _id: id, name, role, ...data });
+    user.active = Boolean(active);
+    return user;
+}
+
+/*
  * THE ANSWERS A TEST NAMES FOR ITS DIALOGS, AT A TABLE TOO (E58 L1, 17.11.2026; the owner's decision (b), relayed by the
  * coordinator that day: "__dialogAnswers na prawdziwym Foundry: decyzja właściciela (b) - seam w zestawie testowym jak przy
  * kościach"). A test queues answers in `globalThis.__dialogAnswers` (a value, or a function called with the window's config
@@ -3070,7 +3091,7 @@ export {
     dhSettingsMarkup, dhSettingsStandIn, dhTraitsStandIn,
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
-    runOne, scriptDice, answerDialogs, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
+    runOne, scriptDice, answerDialogs, standInUser, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,

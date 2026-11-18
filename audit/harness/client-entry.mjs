@@ -558,10 +558,28 @@ function coerce(def, raw) {
    readers in the test kit destructured, and which broke on the real server). */
 const worldColls = new Collection();
 
+/*
+ * ONLY A USER GOES INTO `game.users` (E58 L1's reading on 14.370, 18.11.2026, relayed by the coordinator): v14 refused a plain
+ * object set into the users' collection - "You may only push instances of User" - and the tests' own ids ("!E17T8primaryGM")
+ * were refused too, while an unsaved User with a valid 16-character id was taken. Which step refuses an id is not read: here
+ * the set holds the id to v14's shape, 16 letters and digits, the document's own. Read on the User collection only; the
+ * others take what they are given, as before. Until this every tier-2 test's stand-in GM, a plain object, went in here.
+ */
+const USER_ID = /^[A-Za-z0-9]{16}$/;
+function holdToUsers(c) {
+    c.set = function set(key, value) {
+        const User = globalThis.CONFIG?.User?.documentClass;
+        if (User && !(value instanceof User)) throw new Error("You may only push instances of User");
+        if (!USER_ID.test(String(key)) || value?.id !== key) throw new Error(`"${key}" is not a valid id for a User: 16 letters and digits, the User's own`);
+        return Map.prototype.set.call(this, key, value);
+    };
+}
+
 function coll(name) {
     if (!worldColls.has(name)) {
         const c = new Collection();
         c._documentName = name;
+        if (name === "User") holdToUsers(c);
         worldColls.set(name, c);
     }
     return worldColls.get(name);

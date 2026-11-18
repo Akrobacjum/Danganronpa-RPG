@@ -413,6 +413,21 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
     check("a User's active is its own data property, as on v14 14.370: own, writable, true for a connected user, nothing on the prototype; a delete removes it and its descriptor puts it back",
         J(activeRead) === J({ own: { value: true, writable: true, accessor: false }, onProto: false, deleted: null, back: true }), J(activeRead));
 
+    /* ONLY A USER GOES INTO game.users (E58 L1's reading on 14.370, 18.11.2026; client-entry.mjs `holdToUsers`): v14 refused a
+       plain object set into the users' collection ("You may only push instances of User") and the tests' own ids, and took an
+       unsaved User with a valid 16-character id. Here, on the GM: a plain object; a User with the id "!E17T8primaryGM"; an
+       unsaved User with a valid id (`foundry.utils.randomID()`), set, read and deleted. */
+    const usersSet = await gm.eval(`const User = CONFIG.User.documentClass, out = {};
+        const tryIt = (key, value) => { try { game.users.set(key, value); game.users.delete(key); return "taken"; } catch (e) { return "refused: " + e.message; } };
+        out.plain = tryIt("abcdefghijklmnop", { id: "abcdefghijklmnop", name: "00 plain", role: 4, isGM: true, active: true });
+        out.badId = tryIt("!E17T8primaryGM", new User({ _id: "!E17T8primaryGM", name: "00 bad id", role: 4 }));
+        const good = new User({ _id: foundry.utils.randomID(), name: "00 stand-in", role: 3 }); good.active = true;
+        out.good = tryIt(good.id, good);
+        out.goodRead = [good.isGM, good.active];
+        return out;`);
+    check("only a User goes into game.users, as on v14 14.370: a plain object refused with \"You may only push instances of User\", a User with a test's own id refused, an unsaved User with a valid id taken, its isGM by its role and its active set",
+        usersSet.plain === "refused: You may only push instances of User" && String(usersSet.badId).startsWith("refused:") && usersSet.good === "taken" && J(usersSet.goodRead) === J([true, true]), J(usersSet));
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;

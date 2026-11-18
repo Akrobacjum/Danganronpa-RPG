@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText,
-    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch
+    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch, standInUser
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -13658,7 +13658,7 @@ const SCENARIOS = [
             read();
             // C3-6: another GM is the primary when this GM's timer sweeps.
             const r6 = await ask();
-            const primary = { id: "!E80G1otherGM", name: "E80 G1 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+            const primary = standInUser({ name: "E80 G1 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
             game.users.set(primary.id, primary);
             try {
                 await F.sweepFriskAsks(Date.now() + TIMING.friskAnswerMs + (TIMING.friskGraceMs ?? 0) + 1000);
@@ -13686,7 +13686,8 @@ const SCENARIOS = [
         } finally {
             Hooks.off("createChatMessage", hook);
             if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
-            game.users.delete("!E80G1otherGM");
+            // By its name (the stand-in is out of scope here; tests-kit `standInUser`): its id is random.
+            for (const u of game.users.filter(u => u.name === "E80 G1 primary GM")) game.users.delete(u.id);
             F.forgetFriskAsks?.();
             for (const R of held.reverse()) await R.putBack();
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
@@ -14078,7 +14079,7 @@ const SCENARIOS = [
             // nothing, as the new primary would); the player's force drawn, then the follow naming no roll.
             const dropped = await refusedAsk();
             read();
-            const primary = { id: "!E80R2otherGM", name: "E80 r2 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+            const primary = standInUser({ name: "E80 r2 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
             game.users.set(primary.id, primary);
             let swept = null;
             try {
@@ -14127,7 +14128,8 @@ const SCENARIOS = [
             ui.notifications.info = info;
             if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
             globalThis.__dialogAnswers.length = 0;
-            game.users.delete("!E80R2otherGM");
+            // By its name (the stand-in is out of scope here; tests-kit `standInUser`): its id is random.
+            for (const u of game.users.filter(u => u.name === "E80 r2 primary GM")) game.users.delete(u.id);
             F.forgetFriskAsks?.();
             for (const R of held.reverse()) await R.putBack();
             await C.consumeCalls(theirs);
@@ -14234,7 +14236,7 @@ const SCENARIOS = [
             ["toTarget letGo", "DRPG.Frisk.letGo", { who: theirs.name }]];
         const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? `other: ${words.slice(0, 80)}`;
         // The second GM, primary while it is in the users' list (its id sorts first).
-        const A = { id: "!E80R3primaryGM", name: "E80 r2g3 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const A = standInUser({ name: "E80 r2g3 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const arrive = () => game.users.set(A.id, A);
         const depart = () => game.users.delete(A.id);
         let inPlay = false, playing = 0;
@@ -14637,7 +14639,7 @@ const SCENARIOS = [
             && scene?.tokens?.some(t => t.actorId === a.id) && ownerIdsOf(a).some(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active)) ?? null;
         must(third, "no third student with a connected player of their own has a token on the scene on screen - this would measure nothing");
         const thirdUser = ownerIdsOf(third).find(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active);
-        const SECOND = { id: "zE80G4secondGM00", name: "E80 G4 second GM", role: CONST.USER_ROLES.ASSISTANT, isGM: true, active: true };
+        const SECOND = standInUser({ name: "E80 G4 second GM", role: CONST.USER_ROLES.ASSISTANT, active: true, sorts: "last" });
         const role = id => (id === player.id ? "searcher" : id === answerer ? "target" : id === thirdUser ? "third" : id === game.user.id ? "gm"
             : id === SECOND.id ? "gm2" : game.users.get(id)?.isGM ? "a GM" : `other ${id}`);
         const ACT = "system.resources.actions.value";
@@ -27877,7 +27879,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
         const title = game.i18n.localize("DRPG.Vote.verdictTitle");
         const from = new Set(game.messages.map(m => m.id));
-        const other = { id: "!E10G1otherGM", name: "E10 G1 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const other = standInUser({ name: "E10 G1 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const warned = [], warn = ui.notifications.warn;
         await withVerdictOpen(async () => {
             await V.setTrialProgress({ verdictApplied: true, verdict: { stage: "applying", correct: true, executedIds: [], by: "a GM who left",
@@ -27933,8 +27935,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { manageClassTrial } = await import("./trial-floor-ui.mjs");
         must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
         const me = game.user.id;
-        const gm = (id, name) => ({ id, name, role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true });
-        const primary = gm("!E10G2primaryGM", "E10 G2 primary GM"), other = gm("~E10G2otherGM", "E10 G2 other GM");
+        const gm = (sorts, name) => standInUser({ name, role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts });
+        const primary = gm("first", "E10 G2 primary GM"), other = gm("last", "E10 G2 other GM");
         must(primary.id < me && me < other.id, "this GM's id does not sort between the two put in - this would measure nothing");
         const title = game.i18n.localize("DRPG.Vote.verdictTitle");
         const from = new Set(game.messages.map(m => m.id));
@@ -28498,7 +28500,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const title = game.i18n.localize("DRPG.Vote.openTitle");
         const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
-        const other = { id: "!E10G3otherGM", name: "E10 G3 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const other = standInUser({ name: "E10 G3 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const round = V.trialProgress().vote.round + 100;
         const said = async (openedAt, openAtLoad) => {
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, voteClosed: false,
@@ -54354,7 +54356,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const G = await import("./migrate.mjs");
         const { moduleVersion } = await import("./config.mjs");
         const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
-        const FIRST = { id: "!suiteFirstGm", name: "SUITE first GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const FIRST = standInUser({ name: "SUITE first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const putBack = () => {
             if (users.filter === realFilter && Object.hasOwn(users, "filter") === ownFilter) return;
             if (ownFilter) users.filter = realFilter;
@@ -64701,7 +64703,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
-        const other = { id: "!E11G2otherGM", name: "E11 G2 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const other = standInUser({ name: "E11 G2 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
         const rows = () => bodiesFoundIn(getClock().chapter, seasonEpoch());
         // Every token on the scene: a discovery's gather moves the cast.
@@ -67049,7 +67051,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const F = V.VAULT_FLAGS;
         const letter = id => ({ [a.id]: "A", [b.id]: "B", [c.id]: "C" })[id] ?? id;
         const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
-        const FIRST = { id: "!suiteE89T2Gm", name: "SUITE E89 T2 first GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const FIRST = standInUser({ name: "SUITE E89 T2 first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const putBack = () => {
             if (users.filter === realFilter && Object.hasOwn(users, "filter") === ownFilter) return;
             if (ownFilter) users.filter = realFilter;
@@ -67153,7 +67155,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const F = V.VAULT_FLAGS;
         const letter = id => ({ [a.id]: "A", [b.id]: "B", [c.id]: "C" })[id] ?? id;
         const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
-        const FIRST = { id: "!suiteE89FG2Gm", name: "SUITE E89 FG2 first GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const FIRST = standInUser({ name: "SUITE E89 FG2 first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const putBack = () => {
             if (users.filter === realFilter && Object.hasOwn(users, "filter") === ownFilter) return;
             if (ownFilter) users.filter = realFilter;
@@ -80709,7 +80711,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const player = game.users.find(u => !u.isGM && u.active);
         const entry = typeof P.applyProjectChange === "function";
         const change = (id, delta, by = null) => (entry ? P.applyProjectChange(id, { delta }, by ? { by } : {}) : P.addProgress(id, delta));
-        const SECOND = { id: "zE36T2secondGM00", name: "E36 T2 second GM", role: CONST.USER_ROLES.ASSISTANT, isGM: true, active: true };
+        const SECOND = standInUser({ name: "E36 T2 second GM", role: CONST.USER_ROLES.ASSISTANT, active: true, sorts: "last" });
         const meta = foundry.utils.deepClone(P.projectMeta());
         const rows = Array.isArray(P.COMPLETION_EFFECTS) ? P.COMPLETION_EFFECTS : [];
         const planted = [], made = [], sent = [];
@@ -81642,7 +81644,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const stores = [projectSecretStore, trapPlantStore, trapLedgerStore];
         const storesWas = stores.map(store => foundry.utils.deepClone(store.entries() ?? {}));
         const tokensOf = id => M.projectTokensOn(game.scenes).filter(t => t.projectId === id).length;
-        const FIRST = { id: "0E36T8firstGM000", name: "E36 T8 first GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const FIRST = standInUser({ name: "E36 T8 first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const seen = {};
         let release = () => {};
         try {
@@ -81723,7 +81725,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this GM is not the primary - run the suite on the primary GM");
         const rows = Array.isArray(P.COMPLETION_EFFECTS) ? P.COMPLETION_EFFECTS : [];
-        const FIRST = { id: "0E36T9firstGM000", name: "E36 T9 first GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const FIRST = standInUser({ name: "E36 T9 first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const meta = foundry.utils.deepClone(P.projectMeta());
         const before = new Set(game.messages.map(m => m.id));
         const current = id => P.allProjects().find(p => p.id === id)?.current ?? null;
@@ -82041,7 +82043,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const scene = canvas.scene;
         const [room, elsewhere] = [...new Set((scene.regions?.contents ?? []).map(region => region.name).filter(Boolean))];
         must(room && elsewhere, "the scene on screen has no two named regions - this would measure nothing");
-        const SECOND = { id: "zE36T6secondGM00", name: "E36 T6 second GM", role: CONST.USER_ROLES.ASSISTANT, isGM: true, active: true };
+        const SECOND = standInUser({ name: "E36 T6 second GM", role: CONST.USER_ROLES.ASSISTANT, active: true, sorts: "last" });
         const meta = foundry.utils.deepClone(P.projectMeta());
         const tokensOf = id => M.projectTokensOn(game.scenes).filter(t => t.projectId === id).length;
         const standsIn = id => { const token = M.projectTokenOf(id); return token ? roomOfToken(token) : null; };
@@ -86314,7 +86316,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const player = game.users.find(u => !u.isGM);
         must(player, "the world has no player, whose ask is judged");
         const EVENT = `module.${MODULE_ID}`, GONE = "zE17T8goneUser0";
-        const A = { id: "!E17T8primaryGM", name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const A = standInUser({ name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const arrive = () => game.users.set(A.id, A);
         const depart = () => game.users.delete(A.id);
         const saved = { pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}),
@@ -86441,7 +86443,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const player = game.users.find(u => !u.isGM);
         must(player, "the world has no player, whose ask is judged");
         const EVENT = `module.${MODULE_ID}`;
-        const A = { id: "!H8406primaryGM", name: "H84-06 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const A = standInUser({ name: "H84-06 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const arrive = () => game.users.set(A.id, A);
         const depart = () => game.users.delete(A.id);
         const saved = { overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
@@ -86561,7 +86563,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const player = game.users.find(u => !u.isGM);
         must(player, "the world has no player, whose spend is run");
         const EVENT = `module.${MODULE_ID}`, GONE = "zE17T8goneUser1", ROOM = "SUITE E17 T8 room", SCENE = "zE17T8noScene00";
-        const A = { id: "!E17T8primaryGM", name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const A = standInUser({ name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const arrive = () => game.users.set(A.id, A);
         const depart = () => game.users.delete(A.id);
         const saved = { pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}), tokens: foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {}),
@@ -90687,8 +90689,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
         const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound"]
             .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
-        const NOBODY = { id: "!E37T3nobody0000", name: "E37 T3 nobody", role: CONST.USER_ROLES.PLAYER, isGM: false, active: true };
-        const GONE = { id: "zE37T3goneGm0000", name: "E37 T3 gone GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: false };
+        const NOBODY = standInUser({ name: "E37 T3 nobody", role: CONST.USER_ROLES.PLAYER, active: true, sorts: "first" });
+        const GONE = standInUser({ name: "E37 T3 gone GM", role: CONST.USER_ROLES.GAMEMASTER, active: false, sorts: "last" });
         const P = await import("./gm-panel.mjs");
         const waitOwn = Object.getOwnPropertyDescriptor(D, "wait"), wait0 = D.wait, info0 = ui.notifications.info;
         let panels = 0, pressPanel = false;
@@ -91838,8 +91840,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const player = game.users.find(u => !u.isGM);
         must(player, "the world has no player, whose asks are judged");
         const EVENT = `module.${MODULE_ID}`, ROWS = ["despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"];
-        const A = { id: "!E37T8primaryGM", name: "E37 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
-        const ASSIST = { id: "zE37T8assistant0", name: "E37 T8 Assistant GM", role: CONST.USER_ROLES.ASSISTANT, isGM: true, active: false };
+        const A = standInUser({ name: "E37 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const ASSIST = standInUser({ name: "E37 T8 Assistant GM", role: CONST.USER_ROLES.ASSISTANT, active: false, sorts: "last" });
         must(!game.users.get(ASSIST.id) && !game.users.get(A.id), "the suite's own users are already in the list - this would measure nothing");
         const arrive = () => game.users.set(A.id, A);
         const depart = () => game.users.delete(A.id);
@@ -92143,7 +92145,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                    and taken out once the two reads are made. A Final verdict has a Finish since E42 C1c, offered where
                    the verdict's GM is gone or its page reloaded under it (`verdictStopped`), as the ordinary one's: the
                    record's own `by` here read as this browser's own reload. */
-                const first = { id: "zzzzE42T2firstGM", name: "E42 the first verdict's GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+                const first = standInUser({ name: "E42 the first verdict's GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
                 await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...seen, verdict: { ...seen.verdict, by: first.id } });
                 await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), finalTrial: true });
                 await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
@@ -92729,7 +92731,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const warnNote = ui.notifications.warn, errorNote = ui.notifications.error, quiet = console.error;
         const D = foundry.applications.api.DialogV2;
         const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
-        const FIRST = { id: "0E42T5firstGM000", name: "E42 T5 first GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const FIRST = standInUser({ name: "E42 T5 first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const warns = [], windows = [];
         let runs = 0, answer = "cancel";
         const putBack = () => {
@@ -93153,7 +93155,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(D.monokumas().some(u => u.id === me), "this GM holds no Despair pool - this would measure nothing");
         must(max > 1, `a pool holds ${max} - a fill from 1 would measure nothing`);
         const EVENT = `module.${MODULE_ID}`;
-        const A = { id: "!E42T10primaryGM", name: "E42 T10 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const A = standInUser({ name: "E42 T10 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         must(!game.users.get(A.id), "the suite's own user is already in the list - this would measure nothing");
         const arrive = () => game.users.set(A.id, A);
         const depart = () => game.users.delete(A.id);
@@ -93399,8 +93401,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const run = faint.run;
         const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set"), set = game.settings.set;
         const errorNote = ui.notifications.error, quiet = console.error;
-        const A = { id: "!E42T12primaryGM", name: "E42 T12 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
-        const LAST = { id: "zzzzE42T12oldGM", name: "E42 T12 old GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const A = standInUser({ name: "E42 T12 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const LAST = standInUser({ name: "E42 T12 old GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
         must(!game.users.get(A.id) && !game.users.get(LAST.id), "the suite's own users are already in the list - this would measure nothing");
         const choices = { reveal: false, sweep: false, faint: true, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true };
         const errors = [];
