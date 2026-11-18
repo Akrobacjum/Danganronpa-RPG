@@ -12907,13 +12907,14 @@ const SCENARIOS = [
             await settle();
             // The target's player away: nobody asked, 'does not answer' at once.
             F.forgetFriskAsks?.();
+            /* A User's `active` is its own data property on 14.370 (E58 L1's reading; lib/shim.mjs `UserImpl` since the merge of 93f14e01 on claude/shim-118): a write of `_source.active` alone no longer makes a user away, so the property is written with it. */
             const away = game.users.get(answerer);
-            away._source.active = false;
+            away.active = away._source.active = false;
             try {
                 const a6 = await ask();
                 seen.away = { ...a6, ...read() };
             } finally {
-                away._source.active = true;
+                away.active = away._source.active = true;
             }
             // No player: the GMs answer, on this GM's own window (the shim presses 'Let them look').
             F.forgetFriskAsks?.();
@@ -14723,12 +14724,13 @@ const SCENARIOS = [
         };
         const answer = (askId, allow, from = answerer) => judged("action.friskAnswer", { askId, allow }, from);
         const away = async run => {
+            /* A User's `active` is its own data property on 14.370 (E58 L1's reading; lib/shim.mjs `UserImpl` since the merge of 93f14e01 on claude/shim-118): a write of `_source.active` alone no longer makes a user away, so the property is written with it. */
             const user = game.users.get(answerer);
-            user._source.active = false;
+            user.active = user._source.active = false;
             try {
                 return await run();
             } finally {
-                user._source.active = true;
+                user.active = user._source.active = true;
             }
         };
         const sweepAnswer = () => F.sweepFriskAsks(Date.now() + TIMING.friskAnswerMs + TIMING.friskGraceMs + 1000);
