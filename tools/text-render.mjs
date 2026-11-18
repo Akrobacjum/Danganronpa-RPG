@@ -613,11 +613,10 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
         page: "DRPG-Q113 #27", card: "D-NIEZG", text: "Czy niezgody mozesz rozwiazac sam?" })]),
     // F118, 17.11.2026: the owner's report with a screenshot of the Facilities window - since E93 the window holds a GM's
     // room action and a completed project's beside the two rests, and B01a's afters name only the rests; 18.11.2026, the
-    // owner on F118's screenshots: the description claimed project actions have no roll. The texts are the coordinator's
-    // default of 18.11, which claims nothing about a roll.
+    // owner, having checked that a project's action has no roll, kept the texts that say so.
     ...["DRPG.Config.ACTIONS.rest.hint", "DRPG.Config.ACTIONS.rest.description"].map(key => [key, Object.freeze({ by: "F118",
         date: "18.11.2026", page: "F118 Facilities shots", card: "Facilities tile",
-        text: "Opis facilities klamie, niektore akcje projektow wymagaja rzutu." })])
+        text: "Zostawmy jak jest w takim razie. I uwzglednijmy to w opisie kafla facilities" })])
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */
