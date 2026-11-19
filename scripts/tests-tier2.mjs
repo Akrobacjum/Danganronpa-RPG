@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText,
-    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch, standInUser
+    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch, standInUser, standIn
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -1914,8 +1914,9 @@ function rerollableRoll(message, { first, next, onReroll = null }) {
         }
         toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
     }
+    const own = Object.getOwnPropertyDescriptor(message, "rolls");
     Object.defineProperty(message, "rolls", { configurable: true, get: () => [new SuiteRoll("1d12 + 1d12", {}, { roll: { trait: "instinct" } })] });
-    return { putBack: () => { delete message.rolls; } };
+    return { putBack: () => putBackRolls(message, own) };
 }
 
 /** `rerollableRoll` at a table (its note): the message's own roll kept, its Reroll thrown with `next`. */
@@ -1931,10 +1932,26 @@ function rerollableRealRoll(message, real, { first, next, onReroll }) {
         try { return await run(); } finally { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; }
     };
     const Real = real.constructor;
+    /* At a table (E58 L1, 19.11.2026; the sandbox, Foundry 14.370, Daggerheart 2.12.9): Foundry's `Roll#reroll` builds the new
+       roll of this class and Daggerheart's `DualityRoll#reroll` then rebuilds it with `fromData(toJSON())`, which finds a class
+       by the name `toJSON` wrote - "Unable to recreate TableReroll instance from provided data", 10 of those 13 once `rolls` stood -
+       so the subclass carries the real class's name. And nothing at a table reads `__forceRoll` but the kit's wrapper of
+       `buildEvaluate`, which a Reroll does not pass through: the new roll's own evaluation draws `CONFIG.Dice.randomUniform`
+       from `next`, as `scriptDice` does (tests-kit.mjs), then the randomiser again. */
     class TableReroll extends Real {
         async reroll(...args) { return withNext(() => super.reroll(...args)); }
-        async evaluate(...args) { return this._evaluated ? super.evaluate(...args) : withNext(() => super.evaluate(...args)); }
+        async evaluate(...args) {
+            if (this._evaluated) return super.evaluate(...args);
+            return withNext(async () => {
+                const D = CONFIG.Dice, random = D.randomUniform;
+                const script = [next.hope, next.fear, next.advantage]
+                    .map((face, i) => (typeof face === "number" ? 1 - (face - 0.5) / (this.dice?.[i]?.faces ?? 12) : null));
+                D.randomUniform = () => script.shift() ?? random();
+                try { return await super.evaluate(...args); } finally { D.randomUniform = random; }
+            });
+        }
     }
+    Object.defineProperty(TableReroll, "name", { value: Real.name });
     /* The real roll itself, its prototype pointed at the subclass while the stand-in stands (the coordinator's check of
        18.11.2026): a copy (`Object.assign(Object.create(...), real)`) takes own enumerable fields alone, and would lose a
        `#private` field or state the constructor set otherwise - Daggerheart 2.12.9's dice hold none (lib/dh-dice/dice, read),
@@ -1942,8 +1959,32 @@ function rerollableRealRoll(message, real, { first, next, onReroll }) {
        private field belongs to the object, so the inherited methods still reach it. `putBack` points it back. */
     const was = Object.getPrototypeOf(real);
     Object.setPrototypeOf(real, TableReroll.prototype);
+    const own = Object.getOwnPropertyDescriptor(message, "rolls");
     Object.defineProperty(message, "rolls", { configurable: true, get: () => [real] });
-    return { putBack: () => { delete message.rolls; Object.setPrototypeOf(real, was); } };
+    return { putBack: () => { putBackRolls(message, own); Object.setPrototypeOf(real, was); } };
+}
+
+/*
+ * A USER MADE AWAY OR BACK (E58 L1, 19.11.2026). `active` is the user's own data property on v14 and in the shim since
+ * claude/shim-118; the harness's world record also keeps it in `_source`, which v14's User does not hold (no such key there,
+ * and `_source` is sealed: "Cannot add property active, object is not extensible", read on the sandbox, 14.370). So `_source`
+ * is written only where it holds the key.
+ */
+function setActive(user, active) {
+    user.active = active;
+    if (Object.hasOwn(user._source ?? {}, "active")) user._source.active = active;
+}
+
+/*
+ * A MESSAGE'S `rolls` PUT BACK AS IT WAS, NOT DELETED (E58 L1, 19.11.2026). On v14 a ChatMessage keeps `rolls` as its own data
+ * property (read on the sandbox, Foundry 14.370: own, writable, configurable, an array), so the stand-ins' `delete message.rolls`
+ * left it undefined: the next chat message anyone created threw "Cannot read properties of undefined (reading 'length')" in
+ * Foundry's `ChatMessage#isRoll`, walked by the chat log as it drew the new one - 13 of tier 2's Reroll tests on the sandbox
+ * (the loop's round 0, 19.11.2026). The harness's message reads `rolls` through a getter, so there `delete` gave it back.
+ */
+function putBackRolls(message, own) {
+    if (own) Object.defineProperty(message, "rolls", own);
+    else delete message.rolls;
 }
 
 /** Hope writes on `actor` and roll rewrites of `messageId`, with the user Foundry names for each, until `stop()`. */
@@ -13002,12 +13043,12 @@ const SCENARIOS = [
             F.forgetFriskAsks?.();
             /* A User's `active` is its own data property on 14.370 (E58 L1's reading; lib/shim.mjs `UserImpl` since the merge of 93f14e01 on claude/shim-118): a write of `_source.active` alone no longer makes a user away, so the property is written with it. */
             const away = game.users.get(answerer);
-            away.active = away._source.active = false;
+            setActive(away, false);
             try {
                 const a6 = await ask();
                 seen.away = { ...a6, ...read() };
             } finally {
-                away.active = away._source.active = true;
+                setActive(away, true);
             }
             // No player: the GMs answer, on this GM's own window (the shim presses 'Let them look').
             F.forgetFriskAsks?.();
@@ -14821,11 +14862,11 @@ const SCENARIOS = [
         const away = async run => {
             /* A User's `active` is its own data property on 14.370 (E58 L1's reading; lib/shim.mjs `UserImpl` since the merge of 93f14e01 on claude/shim-118): a write of `_source.active` alone no longer makes a user away, so the property is written with it. */
             const user = game.users.get(answerer);
-            user.active = user._source.active = false;
+            setActive(user, false);
             try {
                 return await run();
             } finally {
-                user.active = user._source.active = true;
+                setActive(user, true);
             }
         };
         const sweepAnswer = () => F.sweepFriskAsks(Date.now() + TIMING.friskAnswerMs + TIMING.friskGraceMs + 1000);
@@ -23574,15 +23615,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             });
             must(refused === 1, `the stub refused ${refused} veiled cards, not the reshape's one - this would measure nothing`);
             const thrown = await half("SUITE E09 C10 an erase whose card threw", async run => {
-                const own = Object.getOwnPropertyDescriptor(game.i18n, "format");
                 const format = game.i18n.format;
-                game.i18n.format = function (key, ...rest) {
+                // standIn: v14's `format` is Localization.prototype's, read-only there (tests-kit.mjs).
+                const putBack = standIn(game.i18n, "format", function (key, ...rest) {
                     if (key === "DRPG.Cleanup.reshapeRulingWas") throw new Error("SUITE E09 C10 the card's GM half threw");
                     return format.call(this, key, ...rest);
-                };
+                });
                 try { return await run(); } finally {
-                    if (own) Object.defineProperty(game.i18n, "format", own);
-                    else delete game.i18n.format;
+                    putBack();
                 }
             });
             equal(stableJson([unsent, thrown]), stableJson([[true, false], [true, false]]),
@@ -28981,10 +29021,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const told = [];
         const spend = offer => G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10G1${foundry.utils.randomID(8)}`, actorId: holder.id,
             picks: [{ option: "trait", trait: "strength" }], offerId: offer?.id ?? null }, owner, { send: () => {} });
-        i18n.format = function (key, ...rest) {
+        // standIn: v14's `format` is Localization.prototype's, read-only there (tests-kit.mjs).
+        const formatBack = standIn(i18n, "format", function (key, ...rest) {
             if (key === "DRPG.Advance.chatTitle") throw new Error("the Level Up's card is refused for this test");
             return format.call(this, key, ...rest);
-        };
+        });
         notes.error = (message, ...rest) => {
             told.push(["error", String(message)]);
             return error.call(notes, message, ...rest);
@@ -29022,7 +29063,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 told.filter(([, line]) => line === failed).length]), stableJson([[1, 0, 0], 2, 1, true, 0]),
                 "a spend whose card threw left its offer or was told as failed, or one whose withdrawal threw was told as failed and not as an offer that still stands (first spend: advances, offers, failures; then advances, offers, warned, failures)");
         } finally {
-            i18n.format = format;
+            formatBack();
             notes.error = error;
             notes.warn = warn;
             S.offerStore.drop = drop;
@@ -57633,6 +57674,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         ok(!unfixtured.length, `these stores are backed up and this test has no fixture for them: ${unfixtured.join(", ")}`);
         const unsaved = Object.keys(FIXTURES).filter(name => !stores.some(h => h.name === name));
         ok(!unsaved.length, `this test has a fixture for a store the backup leaves out: ${unsaved.join(", ")}`);
+        // v14's `foundry.utils` is frozen (read on the sandbox, 14.370): nothing stands in for its `saveDataToFile` there.
+        needs(env.replaceable(foundry.utils, "saveDataToFile", "`foundry.utils.saveDataToFile`"));
         const saveDataToFile = foundry.utils.saveDataToFile;
         const noteFlags = noteFlagsNow();
         let saved = null;
@@ -95542,6 +95585,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const where = locateActor(student);
         const room = where.room, at = { x: where.tokenDoc.x, y: where.tokenDoc.y };
         const chapter = getClock().chapter;
+        // v14's `foundry.utils` is frozen (read on the sandbox, 14.370): nothing stands in for its `saveDataToFile` there.
+        needs(env.replaceable(foundry.utils, "saveDataToFile", "`foundry.utils.saveDataToFile`"));
         const saveDataToFile = foundry.utils.saveDataToFile;
         const placed = [];
         let reading = null;
@@ -99004,6 +99049,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(await until(() => drawn(cls)[0]?.element?.querySelector(`button[data-action="${action}"]`), 6000), `no ${cls} window with a ${action} button`);
             drawn(cls)[0].element.querySelector(`button[data-action="${action}"]`).click();
         };
+        // v14's `foundry.utils` is frozen (read on the sandbox, 14.370): nothing stands in for its `saveDataToFile` there.
+        needs(env.replaceable(foundry.utils, "saveDataToFile", "`foundry.utils.saveDataToFile`"));
         const saveDataToFile = foundry.utils.saveDataToFile, readTextFromFile = foundry.utils.readTextFromFile;
         const click = globalThis.HTMLInputElement.prototype.click;
         let saved = null;

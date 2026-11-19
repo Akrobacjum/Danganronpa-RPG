@@ -21,7 +21,7 @@ import { detectPageTinting, stylesheetVersion } from "./diagnostics.mjs";
 import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
-    ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
+    ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE, standIn,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
     worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssOverriddenDeclarations, cssDeadAttributes, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy, glassText, glassFetch, glassBy,
     blankComments, blankLiterals, callArgs, TEXT_DETECTORS
@@ -21081,17 +21081,17 @@ const INVARIANTS = [
         const scene = { id: "R3980SCENE", regions: [] };
         const at = (obj, key) => key.split(".").reduce((o, p) => o?.[p], obj);
         const read = {};
-        const own = game.i18n.localize, fmt = game.i18n.format;
+        // standIn: v14's `format` is Localization.prototype's, read-only there (tests-kit.mjs); each put back once, in reverse.
+        let word = key => key;
+        const back = [standIn(game.i18n, "localize", key => word(key)),
+            standIn(game.i18n, "format", (key, data = {}) => String(word(key)).replace(/\{(\w+)\}/g, (m, k) => (k in data ? String(data[k]) : m)))];
         try {
             for (const code of ["en", "pl"]) {
-                const word = key => at(files[code], key) ?? key;
-                game.i18n.localize = key => word(key);
-                game.i18n.format = (key, data = {}) => String(word(key)).replace(/\{(\w+)\}/g, (m, k) => (k in data ? String(data[k]) : m));
+                word = key => at(files[code], key) ?? key;
                 read[code] = ["short", "long"].map(kind => R.restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, scene, null));
             }
         } finally {
-            game.i18n.localize = own;
-            game.i18n.format = fmt;
+            for (const putBack of back.reverse()) putBack();
         }
         must(read.en?.length === 2 && read.pl?.length === 2, "restRoomsSentence answered nothing - this would measure nothing");
         const want = code => ["short", "long"].map(kind => String(at(files[code], "DRPG.Rest.noRooms")).replace("{kind}", at(files[code], `DRPG.Rest.${kind}`)));
@@ -26074,6 +26074,9 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const ID = "proximity-voice-chat", av = game.modules.get("avclient-livekit"), avWas = av?.active;
         const had = game.modules.get(ID), wasActive = had?.active;
+        // v14 holds a Module's `active` as its own property, neither writable nor configurable (read on the sandbox, 14.370).
+        if (av) needs(env.replaceable(av, "active", "avclient-livekit's `active`"));
+        if (had) needs(env.replaceable(had, "active", "Proximity Voice Chat's `active`"));
         const first = lines => (Array.isArray(lines) ? lines : String(lines ?? "").split("\n")).find(line => line.trim()) ?? null;
         // A throw is an answer here: the harness's `game.modules` is a Map with no `filter`, and until C2 the plan threw on it.
         const said = run => {
@@ -56939,6 +56942,8 @@ const INVARIANTS = [
         ok(typeof I.textureFor === "function" && typeof I.forgetTextures === "function", "remnant-icons.mjs exports neither - a texture gone with its scene is handed out");
         if (typeof I.textureFor !== "function" || typeof I.forgetTextures !== "function") return;
         const home = foundry.canvas && "loadTexture" in foundry.canvas ? foundry.canvas : globalThis;
+        // v14's `foundry.canvas` is frozen (read on the sandbox, 14.370): no loader of the test's can stand in there.
+        needs(env.replaceable(home, "loadTexture", "Foundry's `loadTexture`"));
         const own = Object.getOwnPropertyDescriptor(home, "loadTexture");
         const made = [];
         const load = async path => { const t = { path, destroyed: false, valid: true, baseTexture: { destroyed: false } }; made.push(t); return t; };

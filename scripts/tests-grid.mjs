@@ -998,6 +998,9 @@ async function rerollFromRecord(run, actor, key, result, { raise = 0 } = {}) {
     } finally {
         dice.randomUniform = real;
     }
+    // Put back as it was, not deleted (E58 L1, 19.11.2026): v14 keeps a ChatMessage's `rolls` as its own data property, and a
+    // `delete` left it undefined - the next message's chat log walk threw "reading 'length'" (DM20-DM22 on the sandbox).
+    const ownRolls = Object.getOwnPropertyDescriptor(message, "rolls");
     Object.defineProperty(message, "rolls", { configurable: true, get: () => [original] });
     const faces = DRAWN_FACES[result];
     const script = [[faces.hope, 12], [faces.fear, 12], [faces.advantage, 6]].map(([face, sides]) => uniform(face, sides));
@@ -1011,7 +1014,7 @@ async function rerollFromRecord(run, actor, key, result, { raise = 0 } = {}) {
         out = await rerollOnGm(actor, d.player);
     } finally {
         dice.randomUniform = real;
-        delete message.rolls;
+        if (ownRolls) Object.defineProperty(message, "rolls", ownRolls); else delete message.rolls;
         if (raise) await trustedWrite(actor, { [path]: stood }, { reason: "gmRuling" });
     }
     await settle();

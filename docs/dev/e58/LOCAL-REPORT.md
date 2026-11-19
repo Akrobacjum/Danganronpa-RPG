@@ -245,6 +245,44 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**19.11.2026: the fix loop, round 0 and batch 1.** Round 0 (01:58-02:46 UTC, Stained Glass, by name, the world clean before):
+the fifth run's 200 failures in Stained Glass and the 48 tests that take a roll back (`rerollableRoll`) - 238 names, **206
+failed, 32 passed**; the restore after it found three actors' flags and its second pass nothing.
+
+**A finding that changes the readings of runs 4, 5 and round 0: an incident's cast stood in the GM stores the whole time.**
+Chie Mori the killer, Aiko Hoshino the victim, opened 16.11 at 20:36 UTC - a probe of this line's (g4-incident.mjs,
+the sheet in an incident) whose `endMurder` did not run. Its world half was clear (`murderState()` null), so neither the restore nor any check saw
+it; but frisk.mjs and allowed-now.mjs read the sides from the cast (`incidentParticipants`), and every person action of Aiko's or
+Chie's was refused, "the character is a side of the running incident" (the GM's log, batch 1's three Frisk tests). It outlived
+every fresh browser because of E111's copy of the case on the server (case-copy.mjs, `worlds/drpg-qa-gate/drpg-case/`): a GM's
+browser opens with empty storage and merges the copy in. Cleared through the module (`endMurder`, no card made), with the page
+kept open 30 s, past `SEAL_QUIET_MS` (15 s): the copy was written again at 04:58:55 UTC, and a fresh GM reads no cast. A first
+clear that closed the page after 10.5 s came back on the next load - the copy had not been written yet. Not a module defect: the
+copy does what E111 says. For the gate: the world check (`worldDump`, and this line's `restore.mjs`) does not read the GM stores,
+and through the copy they persist like the world does. The restore here now also reports a standing cast and compares the copy's
+stores with a baseline taken clean (`case-baseline.json`, 44 stores, one seeded trace). **Proposed, not built:** the suite's world
+check reads the GM stores' shape too. So round 0's list is measured again before the rest of it is read.
+
+**Batch 1** (19.11, tests and kit only; on the sandbox by name, Stained Glass): the tests that threw on what v14 holds read-only.
+- **A message's `rolls` put back as it was, not deleted** (tests-tier2.mjs `putBackRolls`, tests-grid.mjs): v14 keeps `rolls`
+  as the message's own data property (read: own, writable, configurable), so `delete message.rolls` left it undefined and the
+  next message anyone created threw "reading 'length'" in `ChatMessage#isRoll` - 13 tests. Then the rest of the Reroll tests:
+  `rerollableRealRoll`'s subclass wrote its own name in the roll's data, and Daggerheart's `DualityRoll#reroll` rebuilds by
+  that name ("Unable to recreate TableReroll instance") - it now carries the real class's name; and its new roll's dice are
+  drawn from the test's faces (nothing at a table reads `__forceRoll` but the kit's `buildEvaluate`, which a Reroll skips).
+- **`game.i18n.format`** is Localization.prototype's, neither writable nor configurable: the kit's `standIn` shadows it with an
+  own property and puts back what stood (R2077, R3980, two tier-2 tests). **A Module's `active`** (own, fixed), **the frozen
+  `foundry.utils` and `foundry.canvas`**: nothing can stand in for them, so `env.replaceable` says so and the test skips -
+  R814, R3436, "Back up the case, then Restore", E47-T4, E60-T19 (the backup's `saveDataToFile`, the icons' `loadTexture`).
+- **A User's `_source`** is sealed on v14 and holds no `active`: `setActive` writes it only where it holds the key (the two
+  Frisk tests that threw "Cannot add property active").
+- New: R7745 (the kit's `standIn` and `env.replaceable` on four planted shapes); three mutants of the kit each turn it red.
+- Read: batch 1's 23 tests on the sandbox, first run 7 green, 3 skip, 13 red; after the Reroll fix and E47-T4's probe
+  **16 green, 4 skip (env.replaceable), 3 red** - the three Frisk tests, all refused as "a side of the running incident" (the
+  cast above), so they are read again in round 0b. Headless: tiers 0-1 **1765 passed, 0 failed, 16 skipped**; round 0's 238
+  names in tier 2 **238 passed, 0 failed, 6 skipped** (env.layout 5, env.cascade 1, as the baseline).
+- MODULE DEFECT: none in this batch.
+
 **17.11.2026, evening: the coordinator's decisions built, and the third run** (pushed to 2adc9fef):
 - **The glue no longer presses Roll** (f7effd79, 65554625; the owner's words quoted) and **a player at each harness browser**
   (175d580d): every client presses Roll after the scripted chips, stands aside while `runTests` runs there, and its presses
