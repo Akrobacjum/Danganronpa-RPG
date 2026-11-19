@@ -245,6 +245,36 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**19.11.2026: the fifth run** (01b845d7, the merge of claude/shim-118 at 5eadb04c - only a User in `game.users`, the stand-in
+users - read before the push: 5 files, 27 `standInUser` calls, no plain object left going into `game.users`; tiers 0-1
+headless 1764 passed, 0 failed). Tier 2 on the sandbox through a plain `game.drpg.runTests({ tier: 2, confirmed })`, as the
+gate's live part runs it - not my per-test runner - once per theme, the GM's page reloaded after the theme was set, the run
+started in the page and its result read back from a page global. The world checked before each theme (`[]`) and after (my
+restore's second pass `[]` after both; its first pass put back Countdowns, four actors' flags, two portraits, a token).
+- **Totals (tiers 0-2, as `runTests({ tier: 2 })` runs them)**: Stained Glass 3091 passed, 206 failed, 72 skipped, 227 min;
+  Monokuma Legacy 3084 passed, 207 failed, 82 skipped, 140 min.
+- **Tiers 0-1 at a table, read for the first time** (my runs before were tier 2 alone): Stained Glass 36 failed, 5 skipped;
+  Monokuma Legacy 31 failed, 15 skipped. Headless the same tiers read 0 failed. Not read yet; in the loop below.
+- **Tier 2 against the fourth run, by name**: Stained Glass 1347 passed, 164 failed, 67 skipped of 1578 (the fourth: 1372, 187,
+  18 of 1577); Monokuma Legacy 1345, 166, 67. Red to green 31 (SG) and 29 (ML); green to red 18 each; 49 new skips, all
+  "a scene on screen" probes (`world.studentTokensOnScreen` 24, `world.namedRooms` 14, `world.sceneOnScreen` 7,
+  `world.playerCharactersInRooms` 3) and one `env.canvas`.
+- **The new skips come from E101-T10** ("one Season setup Save that links a new trial hall ..."): through plain `runTests` it
+  left "state:viewedScene SCENEACADEMY0000 -> t9ubGbkJF1w99tbX" (SG; `ib5UhXUDGxahq5tj` in ML) - the GM viewing the new hall the
+  test deleted - in both themes. So yesterday's "only through my runner" was wrong: through my runner it left `null`, through
+  `runTests` the deleted hall's id; either way the tests after it find no scene. The test's; in the loop.
+- **The stand-in users** (24 tests using `standInUser`): 19 pass, 5 fail - "an open Frisk's action comes back only where its
+  card says so", "an open Frisk's ask keeps its clocks ...", "an open Frisk's force on a GM that is not the primary ...", "a
+  project's token follows its project (E36-T6)" on their readings, and "an open Frisk's ask ends as the design words each road"
+  throwing "Cannot add property active, object is not extensible" - new; in the loop.
+- **Left the world changed**: 6 tests in Stained Glass, 10 in Monokuma Legacy - E101-T10's scene on view; "the dead are muted
+  for the trial ..." (Chie's armour resource appeared); "a countdown made in Daggerheart's own window ..." (a token appeared);
+  "a Trap plant ruled with another scene on screen ..." (a Daggerheart countdown); "E15-T15 ... Seal the passage" (Daggerheart's
+  ActiveParty moved); "the Legacy sheet's factor is the slider alone ..." (the GM's Daggerheart window width); in ML also two
+  masks left on Botan's and Aiko's portraits, a token, and a GM discovery record.
+- **Next, the owner's new way of working** (the coordinator, 18.11 evening): the failing tests alone, by name, in Stained
+  Glass, causes in tests and harness fixed here, causes in the module reported under "MODULE DEFECT".
+
 **18.11.2026, afternoon: the Reroll tests and 1297, read on the sandbox.**
 - **The five Reroll tests (35, 40-43) - the tests', not the module's.** A stack taken inside the runner (test 35's entry in
   `SCENARIOS` wrapped in the page, its throw logged, then rethrown): "Cannot read properties of undefined (reading 'length')"
