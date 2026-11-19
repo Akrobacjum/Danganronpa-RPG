@@ -1782,7 +1782,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         if (!room || !away) return { err: "no empty room", rooms };
         globalThis.__f40Frisk = { was: toks.map(t => [t.id, { x: t.x, y: t.y }]), actions: game.drpg.actionsLeft(actors[0]),
             hope: actors[0].system.resources.hope.value, force: game.settings.get("${MOD}", "friskForce"), item: null };
-        for (const t of toks) await t.update(M.positionIn(room, t), PLACE);
+        for (const t of toks) await t.update(M.positionIn(room, t), { ...PLACE });
         const item = await INV.grantItem(actors[1], { name: "Scenario 40 frisk comb", category: "usable", tier: 1, override: true, quiet: true });
         globalThis.__f40Frisk.item = item?.id ?? null;
         await game.settings.set("${MOD}", "friskForce", true);
@@ -1860,10 +1860,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         friskSeen.walkedOut = await friskAt({ answer: "hold", during: async () => {
             const asking = await untilAsking();
             const moved = await gm.eval(`${FRISK_ROOM} const bt = tokenOf("${ids.botan}");
-                await bt.update(M.positionIn(${JSON.stringify(friskSet.away)}, bt), PLACE); return M.locateActor(game.actors.get("${ids.botan}"))?.room ?? null;`);
+                await bt.update(M.positionIn(${JSON.stringify(friskSet.away)}, bt), { ...PLACE }); return M.locateActor(game.actors.get("${ids.botan}"))?.room ?? null;`);
             return { asking, moved };
         } });
-        await gm.eval(`${FRISK_ROOM} const bt = tokenOf("${ids.botan}"); await bt.update(M.positionIn(${JSON.stringify(friskSet.room)}, bt), PLACE);
+        await gm.eval(`${FRISK_ROOM} const bt = tokenOf("${ids.botan}"); await bt.update(M.positionIn(${JSON.stringify(friskSet.room)}, bt), { ...PLACE });
             const C = await import("${REPO}/scripts/chapter.mjs"), Mc = await import("${REPO}/scripts/monocub.mjs");
             const chie = game.actors.get("${ids.chie}");
             await C.markDeceased(chie);
@@ -1882,7 +1882,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         if (set.cub) await Mc.setMonocub(chie, false);
         if (C.isDeadForGm(chie)) await C.reviveCharacter(chie, { quiet: true });
         for (const i of botan.items.filter(i => i.name === "Scenario 40 frisk comb")) await i.delete();
-        for (const [id, was] of set.was) await canvas.scene.tokens.get(id)?.update(was, PLACE);
+        for (const [id, was] of set.was) await canvas.scene.tokens.get(id)?.update(was, { ...PLACE });
         if (game.drpg.actionsLeft(aiko) !== set.actions) await game.drpg.setActions(aiko, set.actions);
         if (aiko.system.resources.hope.value !== set.hope) await aiko.update({ "system.resources.hope.value": set.hope });
         if (game.settings.get("${MOD}", "friskForce") !== set.force) await game.settings.set("${MOD}", "friskForce", set.force);

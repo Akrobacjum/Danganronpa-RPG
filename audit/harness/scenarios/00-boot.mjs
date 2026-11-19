@@ -157,6 +157,277 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         pre === true && JSON.stringify(preOnGm) === JSON.stringify({ e30keep: 1 }), JSON.stringify(preOnGm));
     await write(p1, IDS.aiko, `{ "flags.world": _del }`);
 
+    /* D4, MOVEMENT AS FOUNDRY 14.370 MOVED A TOKEN (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 3, LIVE-E39-01, read by E58 L1 on the owner's sandbox). p1 moved Aiko from Dorm A through v14's own
+       `TokenDocument#move([{x: 1500, y: 400}, {x: 2300, y: 500}])` into the Hall; read on the mover, the GM and p2. Here a
+       scratch token of a scratch actor p1 owns stands at Dorm A's 300,300 and takes the same route, so no student's
+       action is spent: one update; `preMoveToken` and `preUpdateToken` once on the mover, the request in `options.movement`
+       and every movement field in the changes; `updateToken` and `moveToken` once on the GM and p2, the move in
+       `options._movement[id]` - every grid step of the route in `passed.waypoints` (20: grid steps intermediate, the asked
+       waypoint not, the end a checkpoint), nothing pending, method "api", completed - no `options.movement`, `_regions` in
+       the changes (the Hall) and `_priorRegions` in the options, and `TokenDocument#movement` the same move. Then v14's
+       own displacement back, `move({x: 300, y: 300, action: "displace"})`: `teleport` true in `updateToken` (LIVE-H81-03).
+       The token and the actor deleted. Where a diagonal step falls, the hooks' order and `_priorRegions`' shape are not
+       read (lib/shim.mjs `TOKEN MOVEMENT`). */
+    const J = JSON.stringify;
+    const D4_FIELDS = ["x", "y", "elevation", "width", "height", "depth", "shape", "level"];
+    const d4Made = await gm.eval(`const actor = await Actor.create({ name: "00 D4 mover", type: "adversary", ownership: { default: 0, "${IDS.p1}": 3 } });
+        const scene = game.scenes.get("${IDS.scene}");
+        const [t] = await scene.createEmbeddedDocuments("Token", [{ name: "00 D4 mover", actorId: actor.id, actorLink: true, x: 300, y: 300 }]);
+        globalThis.__d4 = { actor: actor.id, token: t?.id ?? null };
+        return globalThis.__d4;`);
+    await settle(400);
+    const d4Watch = c => c.eval(`globalThis.__d4seen = [];
+        for (const name of ["preMoveToken", "preUpdateToken", "updateToken", "moveToken"]) {
+            const id = Hooks.on(name, (doc, a, b) => {
+                if (doc?.id !== "${d4Made.token}") return;
+                const options = b;
+                const changes = name === "preUpdateToken" || name === "updateToken" ? a : null;
+                globalThis.__d4seen.push({ name, changes: changes ? Object.keys(changes).sort() : null, regions: changes?._regions ?? null,
+                    request: Boolean(options?.movement?.["${d4Made.token}"]), moved: foundry.utils.deepClone(options?._movement?.["${d4Made.token}"] ?? null),
+                    prior: options?._priorRegions === undefined ? "none" : "some", teleport: options?.teleport ?? null });
+            });
+            (globalThis.__d4ids ??= []).push([name, id]);
+        }
+        return true;`);
+    for (const c of [gm, p1, p2]) await d4Watch(c);
+    const d4Move = await p1.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}");
+        if (typeof t?.move !== "function") return "no move";
+        await t.move([{ x: 1500, y: 400 }, { x: 2300, y: 500 }]); return true;`);
+    await settle(600);
+    const d4Read = c => c.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}");
+        const seen = globalThis.__d4seen; globalThis.__d4seen = [];
+        return { seen, at: [t?.x, t?.y], movement: foundry.utils.deepClone(t?.movement ?? null) };`);
+    const d4 = { p1: await d4Read(p1), gm: await d4Read(gm), p2: await d4Read(p2) };
+    const steps = m => m?.passed?.waypoints ?? [];
+    const routeOk = m => steps(m).length === 20 && steps(m).filter(w => w.intermediate === true).length === 18
+        && steps(m).filter(w => w.intermediate === false).map(w => [w.x, w.y]).join(";") === "1500,400;2300,500"
+        && steps(m).filter(w => w.checkpoint === true).length === 1 && steps(m).at(-1)?.checkpoint === true
+        && steps(m).every(w => w.action === "walk" && w.x % 100 === 0 && w.y % 100 === 0)
+        && (m?.pending?.waypoints ?? null)?.length === 0 && m?.method === "api" && m?.state === "completed";
+    const names = side => side.seen.map(s => s.name);
+    const mover = d4.p1.seen.find(s => s.name === "preUpdateToken");
+    const heard = side => side.seen.find(s => s.name === "updateToken");
+    check("D4: a token's move is one update as on v14 14.370 - preMoveToken and preUpdateToken once on the mover, the request in options.movement and every movement field in the changes; updateToken and moveToken once on the GM and p2, every grid step of the route in options._movement[id].passed.waypoints, no options.movement, _regions in the changes and _priorRegions in the options, and TokenDocument#movement the same move",
+        d4Move === true && J(d4.p1.at) === J([2300, 500])
+        && J(names(d4.p1).filter(n => n.startsWith("pre"))) === J(["preMoveToken", "preUpdateToken"])
+        && mover?.request === true && D4_FIELDS.every(f => mover.changes.includes(f))
+        && [d4.gm, d4.p2].every(side => J(names(side)) === J(["updateToken", "moveToken"]) && routeOk(heard(side)?.moved)
+            && heard(side).request === false && J(heard(side).regions) === J(["REGHALL000000000"]) && heard(side).prior === "some"
+            && routeOk(side.movement)),
+        J(d4));
+    await gm.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}");
+        await t.move({ x: 300, y: 300, action: "displace" }); return true;`);
+    await settle(600);
+    const d4Back = { gm: await d4Read(gm), p2: await d4Read(p2) };
+    check("D4: v14's own displacement, move({x, y, action: \"displace\"}), reaches updateToken with teleport true on every client, as on 14.370 (LIVE-H81-03)",
+        [d4Back.gm, d4Back.p2].every(side => J(side.at) === J([300, 300]) && heard(side)?.teleport === true
+            && steps(heard(side)?.moved).at(-1)?.action === "displace"),
+        J(d4Back));
+    /* THE MOVE IN THE CALLER'S OPTIONS (E58 L1, a6b25c51; reconciled with D4 at the merge of 0e70bfe3; lib/shim.mjs
+       `TokenDocument#_runPreUpdate`): on Foundry 14.370 `_preUpdate` defines the move on the options object the caller
+       passed, not configurable, so a second move of the same token with that object throws "Cannot redefine property:
+       <id>" (152 tier-2 failures on the sandbox). Here, as the GM: a move with an options object `o`; the same `o` for a
+       second move; then a move back with fresh options. Read: what each answered or threw, and whether `o._movement[id]`
+       is the move's own record (its passed waypoints) and not configurable. */
+    const d11 = await gm.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("${d4Made.token}"), o = {}, out = {};
+        out.first = await t.update({ x: 400 }, o).then(r => r ? "moved" : String(r), e => "threw: " + e.message);
+        const held = Object.getOwnPropertyDescriptor(o._movement ?? {}, t.id);
+        out.record = held ? { configurable: held.configurable, enumerable: held.enumerable, steps: held.value?.passed?.waypoints?.length ?? null } : null;
+        out.second = await t.update({ x: 500 }, o).then(r => r ? "moved" : String(r), e => "threw: " + e.message);
+        out.fresh = await t.update({ x: 300 }, {}).then(r => r ? "moved" : String(r), e => "threw: " + e.message);
+        out.at = [t.x, t.y];
+        return out;`);
+    await settle(300);
+    check("D11: a token's move defines its record on the caller's own options, not configurable, so a second move with the same object throws \"Cannot redefine property\" and a fresh object moves it, as on v14 14.370",
+        d11.first === "moved" && d11.record?.configurable === false && d11.record?.enumerable === true && d11.record?.steps > 0
+        && d11.second === `threw: Cannot redefine property: ${d4Made.token}` && d11.fresh === "moved" && J(d11.at) === J([300, 300]), J(d11));
+    for (const c of [gm, p1, p2]) await c.eval(`for (const [name, id] of globalThis.__d4ids ?? []) Hooks.off(name, id); delete globalThis.__d4ids; return true;`);
+    await gm.eval(`await game.scenes.get("${IDS.scene}").deleteEmbeddedDocuments("Token", ["${d4Made.token}"]);
+        await game.actors.get("${d4Made.actor}")?.delete(); return true;`);
+    await settle(300);
+
+    /* D5, LEVELS AS FOUNDRY 14.370 HELD THEM (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 3,
+       read by E58 L1). `Scene#levels` is an embedded collection of `Level` documents, `{ _id, name, elevation: { bottom, top,
+       base }, ... }`, and every scene given none - the seeded ones too - holds `defaultLevel0000`, 0 to 20; a token on such a
+       scene stands on it. On a scratch scene with two floors, Ground 0-10 and Upper 10-20, a room on each over the same
+       square and one that names no floor beside them (whether L1's stood over the square was not written down, so it
+       stands apart here and `_regions` is read as L1 read it, the high room alone): `includedInLevel` by id and by the document (an empty set is every floor); p1's token moved
+       up in place (`move({ x, y, level })`) reaches `updateToken` with its level and the high room in `_regions`, and its
+       elevation stays 0. Everything made is deleted. */
+    const d5Seed = await p1.eval(`const scene = game.scenes.get("${IDS.scene}"), levels = scene.levels, first = levels?.contents?.[0] ?? null;
+        return { size: levels?.size ?? null, get: Boolean(levels?.get?.("defaultLevel0000")), doc: first?.documentName ?? null,
+            id: first?.id ?? null, elevation: first ? [first.elevation?.bottom ?? null, first.elevation?.top ?? null] : null,
+            token: scene.tokens.contents[0]?.level ?? null };`);
+    check("D5: every seeded scene holds defaultLevel0000 (0 to 20) in an embedded collection of Level documents, and a seeded token stands on it, as on v14 14.370",
+        J(d5Seed) === J({ size: 1, get: true, doc: "Level", id: "defaultLevel0000", elevation: [0, 20], token: "defaultLevel0000" }), J(d5Seed));
+    const D5 = { ground: "LEVEL00D5GROUND0", upper: "LEVEL00D5UPPER00", low: "REG00D5LOW000000", high: "REG00D5HIGH00000", none: "REG00D5NONE00000" };
+    const d5Made = await gm.eval(`const square = [{ type: "rectangle", x: 200, y: 200, width: 400, height: 400 }];
+        const scene = await Scene.create({ name: "00 D5 stair", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+            ownership: { default: 2 },
+            levels: [{ _id: "${D5.ground}", name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: "${D5.upper}", name: "Upper", elevation: { bottom: 10, top: 20 } }],
+            regions: [{ _id: "${D5.low}", name: "00 D5 low", shapes: square, levels: ["${D5.ground}"], behaviors: [] },
+                { _id: "${D5.high}", name: "00 D5 high", shapes: square, levels: ["${D5.upper}"], behaviors: [] },
+                { _id: "${D5.none}", name: "00 D5 none", shapes: [{ type: "rectangle", x: 1200, y: 200, width: 400, height: 400 }], levels: [], behaviors: [] }] }, { keepId: true });
+        const actor = await Actor.create({ name: "00 D5 climber", type: "adversary", ownership: { default: 0, "${IDS.p1}": 3 } });
+        const [t] = await scene.createEmbeddedDocuments("Token", [{ name: "00 D5 climber", actorId: actor.id, actorLink: true, x: 300, y: 300, level: "${D5.ground}" }]);
+        return { scene: scene.id, actor: actor.id, token: t?.id ?? null };`);
+    await settle(400);
+    const d5Floors = await p1.eval(`const scene = game.scenes.get("${d5Made.scene}");
+        const up = scene?.levels?.get("${D5.upper}"), ground = scene?.levels?.get("${D5.ground}");
+        const on = id => [scene.regions.get(id).includedInLevel("${D5.ground}"), scene.regions.get(id).includedInLevel(up)];
+        return { levels: [ground?.elevation?.bottom ?? null, ground?.elevation?.top ?? null, up?.elevation?.bottom ?? null, up?.elevation?.top ?? null],
+            low: on("${D5.low}"), high: on("${D5.high}"), none: on("${D5.none}") };`);
+    check("D5: a region is on its own floor by id or by the Level document, and one that names none is on every floor, as on v14 14.370",
+        J(d5Floors) === J({ levels: [0, 10, 10, 20], low: [true, false], high: [false, true], none: [true, true] }), J(d5Floors));
+    await gm.eval(`globalThis.__d5seen = null; globalThis.__d5hook = Hooks.on("updateToken", (doc, changes) => {
+        if (doc.id === "${d5Made.token}") globalThis.__d5seen = { level: changes.level ?? null, regions: changes._regions ?? null, elevation: doc.elevation };
+    }); return true;`);
+    await p1.eval(`const t = game.scenes.get("${d5Made.scene}").tokens.get("${d5Made.token}");
+        await t.move({ x: 300, y: 300, level: "${D5.upper}" }); return true;`);
+    await settle(500);
+    const d5Up = await gm.eval(`Hooks.off("updateToken", globalThis.__d5hook); const seen = globalThis.__d5seen;
+        delete globalThis.__d5hook; delete globalThis.__d5seen; return seen;`);
+    check("D5: a token moved up in place reaches updateToken with its new level and the high room in _regions, its elevation left at 0, as on v14 14.370",
+        J(d5Up) === J({ level: D5.upper, regions: [D5.high], elevation: 0 }), J(d5Up));
+    await gm.eval(`await game.scenes.get("${d5Made.scene}")?.delete(); await game.actors.get("${d5Made.actor}")?.delete(); return true;`);
+    await settle(300);
+
+    /* D3, THE UPDATE DIFF AS FOUNDRY 14.370 MADE IT (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 1, LIVE-E30-03, read by E58 L1). On a scratch actor every browser observes and a scratch token, each written by
+       the GM and read on the GM and on p1: a write of a value already there runs `preUpdateActor` and then nothing - no
+       `updateActor` anywhere, `update()` answering undefined; an update with one key unchanged and one new hands `updateActor`
+       the new key alone with `_stats` and `_id`; with `{ diff: false }` a write that changes nothing is sent and its hook gets
+       `{_id}` alone; a token's no-op on its name is not sent, a mixed update's hook gets the changed key alone, and an update
+       naming a movement field where the token stands is sent with `{_id}` alone. Both deleted after. */
+    const d3Made = await gm.eval(`const actor = await Actor.create({ name: "00 D3 diff", type: "adversary", ownership: { default: 2 }, flags: { world: { d3: { keep: 1 } } } });
+        const [t] = await game.scenes.get("${IDS.scene}").createEmbeddedDocuments("Token", [{ name: "00 D3 token", x: 1300, y: 1300 }]);
+        return { actor: actor.id, token: t?.id ?? null };`);
+    await settle(400);
+    const d3Watch = c => c.eval(`globalThis.__d3 = [];
+        globalThis.__d3ids = ["preUpdateActor", "updateActor", "updateToken"].map(name => [name, Hooks.on(name, (doc, changes) => {
+            if (doc.id === "${d3Made.actor}" || doc.id === "${d3Made.token}") globalThis.__d3.push([name, Object.keys(changes).sort(), JSON.stringify(changes.flags ?? null)]);
+        })]); return true;`);
+    for (const c of [gm, p1]) await d3Watch(c);
+    const d3Take = c => c.eval(`const seen = globalThis.__d3; globalThis.__d3 = []; return seen;`);
+    const d3Step = async write => { const answer = await gm.eval(write); await settle(400); return { answer, gm: await d3Take(gm), p1: await d3Take(p1) }; };
+    const actorAt = `game.actors.get("${d3Made.actor}")`, tokenAt = `game.scenes.get("${IDS.scene}").tokens.get("${d3Made.token}")`;
+    const d3Same = await d3Step(`const r = await ${actorAt}.update({ "flags.world.d3.keep": 1 }); return r === undefined ? "undefined" : typeof r;`);
+    const mixed = await d3Step(`const r = await ${actorAt}.update({ "flags.world.d3.keep": 1, "flags.world.d3.fresh": 2 }); return r === undefined ? "undefined" : typeof r;`);
+    const whole = await d3Step(`const r = await ${actorAt}.update({ "flags.world.d3.keep": 1 }, { diff: false }); return r === undefined ? "undefined" : typeof r;`);
+    const tName = await d3Step(`const r = await ${tokenAt}.update({ name: "00 D3 token" }); return r === undefined ? "undefined" : typeof r;`);
+    const tMixed = await d3Step(`const r = await ${tokenAt}.update({ name: "00 D3 token", hidden: true }); return r === undefined ? "undefined" : typeof r;`);
+    const tStill = await d3Step(`const r = await ${tokenAt}.update({ x: 1300 }); return r === undefined ? "undefined" : typeof r;`);
+    const updates = side => side.filter(([name]) => name !== "preUpdateActor");
+    check("D3: a write of a value already there runs preUpdateActor and then nothing - no updateActor on the GM or p1, update() answering undefined - as on v14 14.370",
+        d3Same.answer === "undefined" && J(d3Same.gm.map(r => r[0])) === J(["preUpdateActor"]) && J(d3Same.p1) === "[]", J(d3Same));
+    check("D3: an update with one key unchanged and one new hands updateActor the new key alone, with _stats and _id, on the GM and p1, as on v14 14.370",
+        [mixed.gm, mixed.p1].every(side => J(updates(side)) === J([["updateActor", ["_id", "_stats", "flags"], J({ world: { d3: { fresh: 2 } } })]])), J(mixed));
+    check("D3: with { diff: false } a write that changes nothing is sent and updateActor gets {_id} alone, on the GM and p1, as on v14 14.370",
+        whole.answer === "object" && [whole.gm, whole.p1].every(side => J(updates(side)) === J([["updateActor", ["_id"], "null"]])), J(whole));
+    check("D3: a token's no-op on its name is not sent, a mixed update's hook gets the changed key alone, and an update naming a movement field where it stands is sent with {_id} alone, as on v14 14.370",
+        tName.answer === "undefined" && J(tName.gm) === "[]" && J(tName.p1) === "[]"
+        && [tMixed.gm, tMixed.p1].every(side => J(side) === J([["updateToken", ["_id", "hidden"], "null"]]))
+        && [tStill.gm, tStill.p1].every(side => J(side) === J([["updateToken", ["_id"], "null"]])), J({ tName, tMixed, tStill }));
+    for (const c of [gm, p1]) await c.eval(`for (const [name, id] of globalThis.__d3ids ?? []) Hooks.off(name, id); delete globalThis.__d3ids; delete globalThis.__d3; return true;`);
+    await gm.eval(`await game.scenes.get("${IDS.scene}").deleteEmbeddedDocuments("Token", ["${d3Made.token}"]); await ${actorAt}?.delete(); return true;`);
+    await settle(300);
+
+    /* D6, A ROLE CHANGE LOGS THE USER OUT (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 1,
+       LIVE-E30-05, read by E58 L1): on Foundry 14.370 the GM changed PlayerTwo's role from 1 to 2 while PlayerTwo's page was
+       open, and the page went from /game to /join within 5 s - logged out. Here: the GM's write of p2's role, then whether
+       p2 is still connected and whether the GM heard `userConnected` with p2 and false; the role put back and p2 connected
+       again. A write of the role it already holds logs nobody out (D3: it is not sent). */
+    await gm.eval(`globalThis.__d6 = []; globalThis.__d6hook = Hooks.on("userConnected", (user, active) => { if (user?.id === "${IDS.p2}") globalThis.__d6.push(Boolean(active)); }); return true;`);
+    const d6Same = await gm.eval(`await game.users.get("${IDS.p2}").update({ role: game.users.get("${IDS.p2}").role }); return true;`);
+    await settle(800);
+    const d6Before = await p2.eval(`return true;`).catch(err => `gone: ${String(err?.message ?? err).slice(0, 60)}`);
+    await gm.eval(`await game.users.get("${IDS.p2}").update({ role: 2 }); return true;`);
+    let d6After = null;
+    for (let i = 0; i < 25 && d6After !== "gone"; i++) {
+        await settle(200);
+        d6After = await p2.eval(`return "here";`).then(() => "here").catch(() => "gone");
+    }
+    await gm.eval(`const end = Date.now() + 4000; while (!globalThis.__d6.length && Date.now() < end) await new Promise(r => setTimeout(r, 50)); return true;`);
+    const d6Heard = await gm.eval(`Hooks.off("userConnected", globalThis.__d6hook); const heard = globalThis.__d6; delete globalThis.__d6; delete globalThis.__d6hook; return heard;`);
+    await gm.eval(`await game.users.get("${IDS.p2}").update({ role: 1 }); return true;`);
+    if (d6After === "gone") await connect("p2");
+    check("D6: the GM's change of p2's role logs p2 out within 5 s and the GM hears userConnected(p2, false), as on v14 14.370; a write of the role p2 holds logs nobody out",
+        d6Same === true && d6Before === true && d6After === "gone" && J(d6Heard) === J([false]), J({ d6Before, d6After, d6Heard }));
+
+    /* D10, A GM IS HEARD BEFORE ITS WORLD HAS LOADED (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 3, AUDIT 9.2 item 52, read by E58 L1): on Foundry 14.370 a player's browser got `userConnected(gm, true)` when
+       the GM's socket connected, about 5.7 s before that GM's module sent `bridge.gmReady`. Here: the late GM `gmoff`, every
+       module on (its id sorts after the seed GM's, so the primary stays), connects; p1 writes down, in order, the
+       `userConnected` it hears for gmoff and gmoff's `bridge.gmReady` on the module's socket. Then gmoff leaves. */
+    await p1.eval(`globalThis.__d10 = []; globalThis.__d10hook = Hooks.on("userConnected", (user, active) => { if (user?.id === "USERGX0000000000") globalThis.__d10.push(active ? "connected" : "left"); });
+        globalThis.__d10socket = (payload, sender) => { if (payload?.action === "bridge.gmReady" && sender === "USERGX0000000000") globalThis.__d10.push("gmReady"); };
+        game.socket.on("module.danganronpa-rpg", globalThis.__d10socket); return true;`);
+    await connect("gmoff");
+    await p1.eval(`const end = Date.now() + 4000; while (globalThis.__d10.length < 2 && Date.now() < end) await new Promise(r => setTimeout(r, 50)); return true;`);
+    const d10Heard = await p1.eval(`Hooks.off("userConnected", globalThis.__d10hook); game.socket.off?.("module.danganronpa-rpg", globalThis.__d10socket);
+        const heard = globalThis.__d10; delete globalThis.__d10; delete globalThis.__d10hook; delete globalThis.__d10socket; return heard;`);
+    await disconnect("gmoff");
+    await settle(300);
+    check("D10: a player hears userConnected(gm, true) when a GM connects, before that GM's module says bridge.gmReady, as on v14 14.370",
+        J(d10Heard) === J(["connected", "gmReady"]), J(d10Heard));
+
+    /* AN OWNER IS NOT REMOVED BY A DELETION (E58 L1, 867653ee; docs/dev/e39/CALIBRATION.md; lib/futil.mjs `keepOwners`):
+       on Foundry 14.370, on an actor, `update({"ownership.<user>": ForcedDeletion})`, the same nested and
+       `ownership.-=<user>` each left the entry as it was; a ForcedReplacement of the whole `ownership` removed it; a module
+       flag deleted by the same ForcedDeletion went. Here, on a scratch actor p1 owns, the GM writes each in turn; p2
+       writes down which paths each `updateActor` it hears names. Read after each: p1's entry, and whether any hook's
+       changes named `ownership` for a write that left it as it was. */
+    const own = await gm.eval(`const a = await Actor.create({ name: "00 owners", type: "adversary", ownership: { default: 0, "${IDS.p1}": 3 }, flags: { world: { gone: 1 } } });
+        return a.id;`);
+    await settle(300);
+    await p2.eval(`globalThis.__own = []; globalThis.__ownhook = Hooks.on("updateActor", (doc, changes) => { if (doc.id === "${own}") globalThis.__own.push(Object.keys(foundry.utils.flattenObject(changes ?? {})).filter(k => k.startsWith("ownership"))); }); return true;`);
+    const ownStep = async code => {
+        await p2.eval(`globalThis.__own.length = 0; return true;`);
+        await gm.eval(`const a = game.actors.get("${own}"), O = foundry.data.operators; ${code} return true;`);
+        await settle(400);
+        return p2.eval(`const a = game.actors.get("${own}"); return { p1: a.ownership?.["${IDS.p1}"] ?? null, flag: a.getFlag("world", "gone") ?? null, heard: globalThis.__own.flat() };`);
+    };
+    const ownDot = await ownStep(`await a.update({ "ownership.${IDS.p1}": O.ForcedDeletion.create() });`);
+    const ownNest = await ownStep(`await a.update({ ownership: { "${IDS.p1}": O.ForcedDeletion.create() } });`);
+    const ownOld = await ownStep(`await a.update({ "ownership.-=${IDS.p1}": null });`);
+    const ownFlag = await ownStep(`await a.update({ "flags.world.gone": O.ForcedDeletion.create() });`);
+    const ownWhole = await ownStep(`await a.update({ ownership: O.ForcedReplacement.create({ default: 0 }) });`);
+    await p2.eval(`Hooks.off("updateActor", globalThis.__ownhook); delete globalThis.__own; delete globalThis.__ownhook; return true;`);
+    await gm.eval(`await game.actors.get("${own}")?.delete(); return true;`);
+    await settle(300);
+    check("an owner is not removed by a deletion, as on v14 14.370: a ForcedDeletion of p1's entry, dotted or nested, and ownership.-=<p1> leave it at 3 and no hook hears ownership; a module flag's ForcedDeletion takes the flag; a ForcedReplacement of the whole ownership takes p1's entry",
+        [ownDot, ownNest, ownOld].every(r => r.p1 === 3 && r.heard.length === 0) && ownFlag.flag === null && ownFlag.p1 === 3 && ownWhole.p1 === null,
+        J({ ownDot, ownNest, ownOld, ownFlag, ownWhole }));
+
+    /* A USER'S `active` IS ITS OWN DATA PROPERTY (E58 L1's reading on 14.370, 17.11.2026, relayed by the coordinator;
+       lib/shim.mjs `UserImpl`): a User's `active` was an own, writable data property, true for a connected user, with
+       nothing on the prototype, so `delete user.active` removed it there. Here, on the GM, p1's User: the descriptor,
+       whether the prototype holds one, `active` after a delete, and after the descriptor is put back. */
+    const activeRead = await gm.eval(`const u = game.users.get("${IDS.p1}"), d = Object.getOwnPropertyDescriptor(u, "active");
+        const out = { own: d ? { value: d.value ?? null, writable: d.writable ?? null, accessor: Boolean(d.get) } : null,
+            onProto: Object.getOwnPropertyDescriptor(Object.getPrototypeOf(u), "active") !== undefined };
+        if (d) { delete u.active; out.deleted = u.active ?? null; Object.defineProperty(u, "active", d); }
+        out.back = u.active;
+        return out;`);
+    check("a User's active is its own data property, as on v14 14.370: own, writable, true for a connected user, nothing on the prototype; a delete removes it and its descriptor puts it back",
+        J(activeRead) === J({ own: { value: true, writable: true, accessor: false }, onProto: false, deleted: null, back: true }), J(activeRead));
+
+    /* ONLY A USER GOES INTO game.users (E58 L1's reading on 14.370, 18.11.2026; client-entry.mjs `holdToUsers`): v14 refused a
+       plain object set into the users' collection ("You may only push instances of User") and the tests' own ids, and took an
+       unsaved User with a valid 16-character id. Here, on the GM: a plain object; a User with the id "!E17T8primaryGM"; an
+       unsaved User with a valid id (`foundry.utils.randomID()`), set, read and deleted. */
+    const usersSet = await gm.eval(`const User = CONFIG.User.documentClass, out = {};
+        const tryIt = (key, value) => { try { game.users.set(key, value); game.users.delete(key); return "taken"; } catch (e) { return "refused: " + e.message; } };
+        out.plain = tryIt("abcdefghijklmnop", { id: "abcdefghijklmnop", name: "00 plain", role: 4, isGM: true, active: true });
+        out.badId = tryIt("!E17T8primaryGM", new User({ _id: "!E17T8primaryGM", name: "00 bad id", role: 4 }));
+        const good = new User({ _id: foundry.utils.randomID(), name: "00 stand-in", role: 3 }); good.active = true;
+        out.good = tryIt(good.id, good);
+        out.goodRead = [good.isGM, good.active];
+        return out;`);
+    check("only a User goes into game.users, as on v14 14.370: a plain object refused with \"You may only push instances of User\", a User with a test's own id refused, an unsaved User with a valid id taken, its isGM by its role and its active set",
+        usersSet.plain === "refused: You may only push instances of User" && String(usersSet.badId).startsWith("refused:") && usersSet.good === "taken" && J(usersSet.goodRead) === J([true, true]), J(usersSet));
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;

@@ -255,7 +255,7 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
             const PLACE = { teleport: true, movementAction: "displace", animate: false };
             const bt = canvas.scene.tokens.find(t => t.actorId === "${IDS.botan}"), botan = game.actors.get("${IDS.botan}");
             globalThis.__s99frisk = { at: bt ? { id: bt.id, x: bt.x, y: bt.y } : null, force: game.settings.get("danganronpa-rpg", "friskForce") };
-            if (bt) await bt.update(M.positionIn("Dorm A", bt), PLACE);
+            if (bt) await bt.update(M.positionIn("Dorm A", bt), { ...PLACE });
             const item = await INV.grantItem(botan, { name: ${J(FRISK_COMB)}, category: "usable", tier: 1, override: true, quiet: true });
             globalThis.__s99frisk.item = item?.id ?? null;
             await game.settings.set("danganronpa-rpg", "friskForce", true);

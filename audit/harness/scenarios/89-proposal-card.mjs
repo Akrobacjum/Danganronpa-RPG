@@ -213,10 +213,11 @@ export async function run({ gm, gm2, p1, p2, p3, check, note, phase, settle, rep
         const T = await import("${repoUrl}/scripts/trait-ruling.mjs");
         const gone = game.users.filter(u => u.isGM && u.active);
         const toasts = (globalThis.__notifications ?? []).length, cards = game.messages.size;
-        for (const u of gone) u._source.active = false;
+        // A User's active is its own data property on 14.370 (E58 L1; lib/shim.mjs UserImpl since the merge of 93f14e01): written with _source.active.
+        for (const u of gone) u.active = u._source.active = false;
         let value;
         try { value = await T.traitFor(game.actors.get("${ids.aiko}"), { kind: "action", key: "search" }, { proposed: "head", note: "" }); }
-        finally { for (const u of gone) u._source.active = true; }
+        finally { for (const u of gone) u.active = u._source.active = true; }
         await new Promise(r => setTimeout(r, 400));
         const said = (globalThis.__notifications ?? []).slice(toasts).map(n => String(n.msg ?? n.message ?? n));
         return { gone: gone.length, value: value ?? null, cards: game.messages.size - cards, noGm: said.some(s => s.includes("No GM is connected.")), said };`);

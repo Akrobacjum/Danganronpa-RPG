@@ -200,7 +200,7 @@ export async function run(api) {
         if (!room) return { err: "no empty room" };
         globalThis.__e38Frisk = { was: toks.map(t => [t.id, { x: t.x, y: t.y }]), actions: game.drpg.actionsLeft(actors[0]),
             force: game.settings.get("${MOD}", "friskForce") };
-        for (const t of toks) await t.update(M.positionIn(room, t), PLACE);
+        for (const t of toks) await t.update(M.positionIn(room, t), { ...PLACE });
         if (game.settings.get("${MOD}", "friskForce") !== false) await game.settings.set("${MOD}", "friskForce", false);
         F.forgetFriskAsks();
         await game.drpg.setActions(actors[0], 2);
@@ -241,7 +241,7 @@ export async function run(api) {
     await p1.eval(`globalThis.__dialogAnswers.length = 0; delete globalThis.__e38Thrown; return true;`);
     await gm.eval(`${FR} const set = globalThis.__e38Frisk; delete globalThis.__e38Frisk; F.forgetFriskAsks();
         if (set) {
-            for (const [id, was] of set.was) await canvas.scene.tokens.get(id)?.update(was, PLACE);
+            for (const [id, was] of set.was) await canvas.scene.tokens.get(id)?.update(was, { ...PLACE });
             const aiko = game.actors.get("${IDS.aiko}");
             if (game.drpg.actionsLeft(aiko) !== set.actions) await game.drpg.setActions(aiko, set.actions);
             if (game.settings.get("${MOD}", "friskForce") !== set.force) await game.settings.set("${MOD}", "friskForce", set.force);

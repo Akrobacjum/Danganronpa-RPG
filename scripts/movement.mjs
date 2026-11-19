@@ -1426,7 +1426,7 @@ export async function refundLastCrossing(actorId) {
             const to = { x: Number(row.back.x), y: Number(row.back.y), elevation: Number(row.back.elevation) || 0 };
             if (row.back.level !== null && row.back.level !== undefined) to.level = row.back.level;
             try {
-                await token.update(to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });
+                await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });
                 back = true;
             } catch (err) {
                 error(`Could not stand "${token.name}" where it was before the crossing given back`, err);
@@ -1592,15 +1592,28 @@ function onPreUpdateToken(tokenDoc, changes, options) {
             there
         );
 
-        if (from === to) return;                       // same room: always free, a stairwell's floors too
+        // Same room: always free, a stairwell's floors too - unless a route of one update leaves it on the way (`routeLegs`).
+        if (from === to && !(options?.movement?.[tokenDoc.id]?.waypoints?.length > 1)) return;
         if (!from && !to) return;                      // no regions here
 
-        // Whether the step goes through a secret passage this character knows (E79 C3): the token's centre now
-        // and where it is going, as one straight line. A route of several waypoints is read on that line,
-        // which can miss a passage the waypoints went through; then the bedroom beyond is shut, as a door's.
-        const via = crossingVia(centresOf(tokenDoc, tokenDoc, { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y }),
-            actor, tokenDoc.parent?.id, here);
-        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there }, { via, elevation: ownElevation(tokenDoc) });
+        /* EACH LEG OF A ROUTE OF ONE UPDATE (E40 on the line claude/shim-118, 17.11.2026; the coordinator's brief after L1's
+           LIVE-E05-13). Foundry 14.370 sends a route with waypoints as one update (docs/dev/e39/CALIBRATION.md section 3), its
+           waypoints in the mover's request (`options.movement[id].waypoints`, seen in this hook alone), so the veto judged
+           the room the route set out from against the room it ends in: a route through a neighbour into a room beyond it was
+           refused whole, though each step is lawful (scenario 70 "route", red at 9a8e4f0c: "E39 C is not connected to E39
+           A"). Each leg - from room to room through the room of each waypoint of the request but the last, in order (`roomsAlong`) - is judged now, as the drags of
+           a route of several updates were; the budget as it stands before the route is charged, so a leg past it is stopped
+           by the charge (`chargeRoute`, MAP-11). A route with no waypoints in its request is judged end to end, as before.
+           The request's shape on 14.370 is read here as a list of waypoints - not read on 14.370 (LIVE-E39-10). */
+        const legs = routeLegs(tokenDoc, options, { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y }, from, to, here, there);
+        let allowed = true;
+        for (const [a, b] of legs) {
+            // Whether the step goes through a secret passage this character knows (E79 C3): the leg as one straight line,
+            // which can miss a passage the waypoints went through; then the bedroom beyond is shut, as a door's.
+            const via = crossingVia(centresOf(tokenDoc, a.spot, b.spot), actor, tokenDoc.parent?.id, a.level);
+            allowed = crossingVerdict(actor, a.room, b.room, tokenDoc.parent, { from: a.level, to: b.level }, { via, elevation: ownElevation(tokenDoc) });
+            if (allowed !== true) break;
+        }
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
@@ -3038,7 +3051,10 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // Every boundary this drag actually crossed, in the order it crossed
     // them. Ending where you started is no longer the same as going
     // nowhere: the route is what is charged for.
-    const crossings = crossingsAlong({ room: before, level: previous?.level ?? null }, path,
+    /* A route of one update is read off its passed waypoints (`passedPath`, E40 on the line claude/shim-118; L1's
+       LIVE-E05-13), where no drag noted its rooms; `path` itself still says whether the route had steps pending. */
+    const steps = path.length || atRest ? path : passedPath(tokenDoc);
+    const crossings = crossingsAlong({ room: before, level: previous?.level ?? null }, steps,
         { room: after, level: levelOf(tokenDoc), spot: landed });
 
     // Nothing crossed - a move inside one room, or a scene with no regions
@@ -3204,6 +3220,56 @@ function crossingsAlong(before, path, after) {
             route[i].spot ?? null]);
     }
     return crossings;
+}
+
+/**
+ * THE ROOMS A ROUTE OF ONE UPDATE PASSED (E40 on the line claude/shim-118, 17.11.2026; the coordinator's brief after L1's
+ * LIVE-E05-13). Foundry 14.370 sends a route as one update and puts every grid step of it in the move's passed waypoints
+ * (`TokenDocument#movement.passed.waypoints`, docs/dev/e39/CALIBRATION.md section 3), where this file noted the rooms of a
+ * route from the updates of a drag still in flight (`notePathRoom`) and so read one update's route as its two ends: in an
+ * Eclipse a route from Dorm A through the Cafeteria and the Hall into the Storage was recorded as Dorm A and the Storage,
+ * the Cafeteria never counted, and the token stood a room past the allowance (L1's reading on the owner's sandbox, 16.11.2026; scenario 70 "eclipse route", red at 9a8e4f0c).
+ * Pure: `points` the waypoints in order (`{ x, y, level? }`, top-left corners; the rest skipped), `roomOf(point)` the
+ * room a point stands in, or null. Answers the path `notePathRoom` keeps - `{ room, level, spot }` each, a room where the
+ * route went on from another, its newest spot there, a point in no room left out. Tier 1 R7740.
+ */
+export function roomsAlong(points, roomOf) {
+    const out = [];
+    for (const point of Array.isArray(points) ? points : []) {
+        if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) continue;
+        const room = roomOf(point);
+        if (!room) continue;
+        const level = point.level ?? null;
+        const spot = level === null ? { x: point.x, y: point.y } : { x: point.x, y: point.y, level };
+        const last = out.at(-1);
+        if (last && last.room === room) last.spot = spot;
+        else out.push({ room, level, spot });
+    }
+    return out;
+}
+
+/** The rooms of this token's move that this browser heard (`roomsAlong` over `movement.passed.waypoints`), or []. */
+function passedPath(tokenDoc) {
+    const passed = tokenDoc?.movement?.passed?.waypoints;
+    if (!Array.isArray(passed) || !passed.length) return [];
+    return roomsAlong(passed, point => roomAtSpot(tokenDoc, { x: point.x, y: point.y, level: point.level ?? levelOf(tokenDoc) }));
+}
+
+/**
+ * The legs the mover's veto judges (`onPreUpdateToken`), as `[from, to]` pairs of `{ room, level, spot }`: from where the
+ * token stands through the room of each waypoint of the request (`options.movement[id].waypoints`) but the last, to where
+ * the update ends, each leg one room to another; a request of one waypoint or none is the one leg `from` to `to`.
+ */
+function routeLegs(tokenDoc, options, end, from, to, here, there) {
+    const start = { room: from, level: here, spot: { x: tokenDoc.x, y: tokenDoc.y } };
+    const finish = { room: to, level: there, spot: end };
+    const asked = options?.movement?.[tokenDoc.id]?.waypoints;
+    const middle = Array.isArray(asked) && asked.length > 1
+        ? roomsAlong(asked.slice(0, -1), point => roomAt(point.x, point.y, tokenDoc, point.level ?? here)) : [];
+    const stops = [start, ...middle, finish];
+    const legs = [];
+    for (let i = 1; i < stops.length; i++) if (stops[i].room !== stops[i - 1].room) legs.push([stops[i - 1], stops[i]]);
+    return legs.length || start.room === finish.room ? legs : [[start, finish]];
 }
 
 /**
@@ -3413,6 +3479,22 @@ export async function announceCrossingOnGm(actor, from, to, tokenDoc, cost) {
 }
 
 /**
+ * A PUT-BACK WRITES THE WHOLE SPOT (the line claude/shim-118, 17.11.2026; the coordinator's answer of that day on scenario
+ * 76 D). Foundry's client is taken to diff an update against its own copy before it sends it - an update that changes
+ * nothing is not sent, and 14.370 sent one only when asked with `{ diff: false }` (docs/dev/e39/CALIBRATION.md,
+ * LIVE-E30-03); where v14 diffs was not read (LIVE-E39-12). A put-back written while a newer move of the token is still on
+ * its way reads the old spot in the writer's copy: the coordinate the copy already holds is dropped, the other is written
+ * after the move lands, and the token stands where it never stood - 76 D read Botan at 1250,450, the put-back's x with the
+ * move's y, on the D4 shim, two runs in three. So every put-back of a token's spot - `sendBack`, `refundLastCrossing` and the
+ * bridge's send-back (bridge-runs-records.mjs `handleSendback`) - writes through here, with `diff: false`, every coordinate
+ * it names sent whatever the copy holds. The options are the caller's otherwise. Tier 2 "a put-back writes every coordinate
+ * it names"; tier 0 R7741 holds the three to this road.
+ */
+export function putBackWrite(tokenDoc, to, options = {}) {
+    return tokenDoc.update(to, { ...options, diff: false });
+}
+
+/**
  * Put a token back where it came from.
  *
  * Called from inside the `updateToken` hook, so the write is deferred a tick -
@@ -3444,7 +3526,7 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null,
             // elevation and level, the owner's 13.10).
             const to = previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y };
             if (elevation && Number.isFinite(Number(previous.elevation))) to.elevation = Number(previous.elevation);
-            await tokenDoc.update(to,
+            await putBackWrite(tokenDoc, to,
                 { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } }
             );
             wrote = true;

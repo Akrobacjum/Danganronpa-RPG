@@ -318,13 +318,138 @@ function untilProblem(rule, ledger) {
  * The running-test slot is saved and put back, so the kit's self-tests can run a
  * test inside a test.
  */
-async function runOne([name, fn, red = null], { tier, ledger = null } = {}) {
+/* `ms`, the test's own time in whole milliseconds, from its start to its end or its throw (R7561; E58 L1, 17.11.2026):
+   added beside the fields the readers already take, which none of them changes. */
+/*
+ * ONE LIMIT PER TEST (R7562; E58 L1, 17.11.2026, the coordinator's decision of that day). Tier 2 on the sandbox (Foundry
+ * 14.370) hung three hours on one test waiting on a roll window nobody pressed, and nothing said which. A test still
+ * running at `limitMs` comes back failed, "timed out", with `timedOut: true`, and the runner stops the run there
+ * (tests.mjs `runSuite`): the test is still running behind it, and a next test would be measured on top of it. The limit
+ * is the slowest test measured with a wide margin: headless (17.11.2026, the suite in two shards, 3325 results with
+ * `ms`) the slowest 84.1 s, "every legal modifier the GM lists is scored without an alarm"; on the sandbox, one test per
+ * call, the slowest without a press 157.4 s ("a Frisk's rolls ride a Palm's one payment (A11-4) ..."), and the same
+ * first test 246.3 s with the kit pressing its windows. Fifteen minutes is 3.7 times the slowest.
+ */
+/*
+ * THE DICE A TEST NAMES, AT A TABLE TOO (E58 L1, 17.11.2026; the owner's decision that day: "Na czas jednego testu zestaw
+ * testowy ustawia kości także na prawdziwym Foundry" - for the length of one test the suite sets the dice on a real
+ * Foundry as well; the coordinator's safeguards of the same day). A test names its faces in `globalThis.__forceRoll`
+ * (`{ hope, fear, advantage }`); only the harness read it (client-entry.mjs `harnessEvaluate`), so at a table the dice
+ * were real and every such test measured them: on the sandbox (Foundry 14.370, Daggerheart 2.12.9) at least 21 of tier
+ * 2's failures. `scriptDice(target)` wraps `target.buildEvaluate` (Daggerheart's `DualityRoll`) so that one evaluation
+ * draws `CONFIG.Dice.randomUniform` from those faces, in the order the dice ask, then the randomiser again - as the
+ * harness does; v14 maps a draw u to a face as `minValue - 1 + ceil((1 - u) * faces)` (client/dice/terms/dice.mjs
+ * `mapRandomFace`), and `1 - (face - 0.5) / faces` is the draw that gives `face`. A roll the GM plays back from its own
+ * faces (`config.drpgDrawn`) reads no script, as in the harness. Answers the function that takes the wrapper off; where
+ * the harness's own seam stands (`scriptsDice === "harness"`) nothing is wrapped. The safeguards: the script is this
+ * page's memory alone, the world holds nothing of it, and a reload clears it; the runner takes it off in a `finally`
+ * around every test, timed out or thrown (tests.mjs `runSuite`), and reads the dice real again at the end of the run.
+ */
+function scriptDice(target = globalThis.game?.system?.api?.dice?.DualityRoll) {
+    if (!target || typeof target.buildEvaluate !== "function" || target.buildEvaluate.scriptsDice) return () => {};
+    const own = target.buildEvaluate, hadOwn = Object.hasOwn(target, "buildEvaluate");
+    const kit = async function buildEvaluate(roll, config = {}, message = {}) {
+        const forced = config?.drpgDrawn ? null : globalThis.__forceRoll;
+        const D = globalThis.CONFIG.Dice, real = D.randomUniform;
+        const script = forced ? [forced.hope, forced.fear, forced.advantage]
+            .map((face, i) => typeof face === "number" ? 1 - (face - 0.5) / (roll?.dice?.[i]?.faces ?? 12) : null) : null;
+        if (script) D.randomUniform = () => script.shift() ?? real();
+        try {
+            return await own.call(this, roll, config, message);
+        } finally {
+            if (script) D.randomUniform = real;
+        }
+    };
+    kit.scriptsDice = "kit";
+    target.buildEvaluate = kit;
+    return () => {
+        if (target.buildEvaluate !== kit) return;
+        if (hadOwn) target.buildEvaluate = own;
+        else delete target.buildEvaluate;
+    };
+}
+
+/*
+ * A USER NOT SAVED, AS v14 TAKES ONE INTO `game.users` (E58 L1's reading on 14.370, 18.11.2026, relayed by the coordinator):
+ * v14 refused a plain object set into the users' collection ("You may only push instances of User") and the tests' own ids
+ * ("!E17T8primaryGM"), and took an unsaved User with a valid 16-character id, whose `isGM` follows its role and whose `active`
+ * can be set. A tier-2 test that stands a second GM or a player in for a while builds it here and sets it into `game.users`
+ * itself, then deletes it by its id. `sorts` keeps what the old ids were for: "first" an id that sorts before every user's
+ * now (the primary GM is the full GM with the smallest id, utils.mjs `primaryGmId`), "last" one that sorts after every
+ * user's, null any; a test that needs to know the user again reads its name, never its id. Nothing is written.
+ */
+function standInUser({ name, role = CONST.USER_ROLES.PLAYER, active = true, sorts = null, ...data } = {}) {
+    const ids = [...(game.users?.keys?.() ?? [])].map(String);
+    const make = () => sorts === "first" ? `0000${foundry.utils.randomID(12)}` : sorts === "last" ? `zzzz${foundry.utils.randomID(12)}` : foundry.utils.randomID(16);
+    const fits = id => !ids.includes(id) && (sorts !== "first" || ids.every(other => id < other)) && (sorts !== "last" || ids.every(other => id > other));
+    let id = make();
+    for (let i = 0; i < 50 && !fits(id); i++) id = make();
+    if (!fits(id)) throw new Error(`no id for the stand-in user "${name}" sorts ${sorts} among the users here`);
+    const user = new CONFIG.User.documentClass({ _id: id, name, role, ...data });
+    user.active = Boolean(active);
+    return user;
+}
+
+/*
+ * THE ANSWERS A TEST NAMES FOR ITS DIALOGS, AT A TABLE TOO (E58 L1, 17.11.2026; the owner's decision (b), relayed by the
+ * coordinator that day: "__dialogAnswers na prawdziwym Foundry: decyzja właściciela (b) - seam w zestawie testowym jak przy
+ * kościach"). A test queues answers in `globalThis.__dialogAnswers` (a value, or a function called with the window's config
+ * and answering for it); only the harness's DialogV2 read them (lib/shim.mjs `wait`, `confirm`, `prompt`), so at a table the
+ * queue did not exist - "Cannot set properties of undefined (setting 'length')" on the sandbox in the open-Frisk tests, and
+ * test 357 waiting on its confirm until the runner's limit. `answerDialogs(Dialog)` makes the queue where there is none and
+ * wraps `Dialog.wait`, `confirm` and `prompt`: while an answer is queued a call takes the next and draws no window; with
+ * none it opens the real window, which waits for a person, as at a table. Answers the function that takes it off: the three
+ * put back, and the queue taken away if this made it. Where the harness's DialogV2 reads the queue itself
+ * (`answersQueue === "harness"`) nothing is wrapped. The safeguards are the dice's (`scriptDice`): this page's memory alone,
+ * nothing in the world, off in a `finally` around every tier-2 test, and read real again at the end of the run. Not
+ * modelled: the harness's own answer when the queue is empty (it presses the default button headless); at a table that window
+ * waits, and a test leaning on it waits too.
+ */
+function answerDialogs(Dialog = globalThis.foundry?.applications?.api?.DialogV2) {
+    if (!Dialog || Dialog.answersQueue === "harness") return () => {};
+    const made = !Array.isArray(globalThis.__dialogAnswers);
+    if (made) globalThis.__dialogAnswers = [];
+    const queue = globalThis.__dialogAnswers;
+    const own = Object.fromEntries(["wait", "confirm", "prompt"].map(name => [name, Object.getOwnPropertyDescriptor(Dialog, name)]));
+    const kit = {};
+    for (const name of ["wait", "confirm", "prompt"]) {
+        const real = Dialog[name];
+        if (typeof real !== "function") continue;
+        kit[name] = async function (config = {}, ...rest) {
+            if (queue.length) {
+                const next = queue.shift();
+                return typeof next === "function" ? next(config) : next;
+            }
+            return real.call(this, config, ...rest);
+        };
+        kit[name].answersQueue = "kit";
+        Dialog[name] = kit[name];
+    }
+    return () => {
+        for (const [name, fn] of Object.entries(kit)) {
+            if (Dialog[name] !== fn) continue;
+            if (own[name]) Object.defineProperty(Dialog, name, own[name]);
+            else delete Dialog[name];
+        }
+        if (made && globalThis.__dialogAnswers === queue) delete globalThis.__dialogAnswers;
+    };
+}
+
+const TEST_LIMIT_MS = 15 * 60 * 1000;
+async function runOne([name, fn, red = null], { tier, ledger = null, limitMs = TEST_LIMIT_MS } = {}) {
     const ctx = { name, tier, assertions: 0, failures: [], probes: [], wrote: null };
     const outer = current;
     current = ctx;
-    let err = null;
-    try { await fn(); } catch (e) { err = e; } finally { current = outer; }
-    return { tier, name, assertions: ctx.assertions, ...judge(ctx, err, red, ledger) };
+    let err = null, timer = null, timedOut = false;
+    const started = performance.now();
+    const limit = new Promise(resolve => { timer = setTimeout(() => { timedOut = true; resolve(); }, limitMs); });
+    try { await Promise.race([Promise.resolve().then(fn), limit]); } catch (e) { err = e; } finally { clearTimeout(timer); current = outer; }
+    const ms = Math.round(performance.now() - started);
+    if (timedOut) {
+        return { tier, name, assertions: ctx.assertions, ms, outcome: "fail", timedOut: true,
+            message: `timed out: still running after ${Math.round(limitMs / 1000)} s, the limit on one test; the run stops here` };
+    }
+    return { tier, name, assertions: ctx.assertions, ms, ...judge(ctx, err, red, ledger) };
 }
 
 /* THE ORDER MATTERS. A stale or malformed marker fails whatever the test did; a
@@ -2967,7 +3092,7 @@ export {
     dhSettingsMarkup, dhSettingsStandIn, dhTraitsStandIn,
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
-    runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
+    runOne, scriptDice, answerDialogs, standInUser, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,

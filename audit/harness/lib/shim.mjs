@@ -139,7 +139,7 @@ export class Collection extends Map {
 
 const EMBEDDED = {
     Actor: { Item: "items", ActiveEffect: "effects" },
-    Scene: { Token: "tokens", Region: "regions", Wall: "walls", AmbientLight: "lights", AmbientSound: "sounds", Note: "notes", Drawing: "drawings", MeasuredTemplate: "templates", Tile: "tiles" },
+    Scene: { Token: "tokens", Region: "regions", Level: "levels", Wall: "walls", AmbientLight: "lights", AmbientSound: "sounds", Note: "notes", Drawing: "drawings", MeasuredTemplate: "templates", Tile: "tiles" },
     RollTable: { TableResult: "results" },
     Playlist: { PlaylistSound: "sounds" },
     Item: { ActiveEffect: "effects" },
@@ -370,11 +370,20 @@ export function buildDocumentClasses(ctx) {
             // reading that proves less. Configure Ownership saves this way, and
             // anonymity.mjs guards it after the fact.
             const options = opts(context);
-            if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) return this;
+            if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook), caller: context }))) return this;
+            /* THE WRITER'S DIFF (D3, 17.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-03). On Foundry 14.370 a write
+               of a value the document already held ran the `pre` hook and then nothing: not sent, no update hook on any
+               client, and `update()` answered undefined; with `{ diff: false }` it was sent. Until D3 the shim sent every
+               update the pre steps left. What is left after them is diffed against this client's own copy (futil.mjs
+               `diffChanges`); a token's move is sent even when nothing of it changes (`TOKEN MOVEMENT`, D4). The server's diff,
+               for the hooks, is cluster.mjs's. */
+            const sent = context?.diff === false ? update : { ...U.diffChanges(this._source, update), _id: this.id };
+            const moving = this.documentName === "Token" && Boolean(options._movement?.[this.id]);
+            if (!moving && !Object.keys(sent).some(key => key !== "_id")) return undefined;
             if (this.parent) {
-                await this.parent._embeddedOp("update", this.documentName, [update], context, options);
+                await this.parent._embeddedOp("update", this.documentName, [sent], context, options);
             } else {
-                const { _id, ...written } = update;
+                const { _id, ...written } = sent;
                 await ctx.bus.op({ action: "update", coll: this.documentName, docId: this.id, changes: written, options });
             }
             return this;
@@ -414,8 +423,12 @@ export function buildDocumentClasses(ctx) {
             for (const entry of updates) {
                 const update = revive(U.expandObject(sanitize(entry)));
                 const doc = this._collections[collKey]?.get(update._id);
-                if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) continue;
-                kept.push(update);
+                if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook), caller: context }))) continue;
+                // The writer's diff, entry by entry (`update`'s note, D3).
+                const sent = !doc || context?.diff === false ? update : { ...U.diffChanges(doc._source, update), _id: update._id };
+                const moving = embeddedName === "Token" && Boolean(options._movement?.[update._id]);
+                if (doc && !moving && !Object.keys(sent).some(key => key !== "_id")) continue;
+                kept.push(sent);
             }
             if (kept.length) await this._embeddedOp("update", embeddedName, kept, context, options);
             return kept.map(u => this._collections[collKey]?.get(u._id)).filter(Boolean);
@@ -585,10 +598,113 @@ export function buildDocumentClasses(ctx) {
         get texture() { return this._source.texture ?? {}; }
         get disposition() { return this._source.disposition ?? 0; }
         // E89 C0: v14's `TokenDocument#movement`, on the model (client-entry.mjs `applyRemote` writes it; LIVE-E89-03).
+        // Since D4 it is the move this client heard in `options._movement[id]` (`TOKEN MOVEMENT`, below).
         get movement() { return this._drpgMovement ?? null; }
-        /* The floor the token stands on: a level's id on its scene (E12 C0), null where the token names none - every
-           token of the seed, so no scenario before 66 moves. See `LevelList` below. */
-        get level() { return this._source.level ?? null; }
+
+        /*
+         * TOKEN MOVEMENT, AS FOUNDRY 14.370 MOVED A TOKEN (D4; the coordinator's brief of 16.11.2026;
+         * docs/dev/e39/CALIBRATION.md section 3, LIVE-E39-01, read by E58 L1 on the owner's sandbox). An update that
+         * names a movement field (`MOVEMENT_FIELDS`) is a move, and one route is one update. Read on 14.370:
+         * - `preMoveToken` and `preUpdateToken` fire once on the mover, the request in `options.movement[id]` and every
+         *   movement field filled in in the changes;
+         * - `updateToken` and `moveToken` fire once on every client, the move in `options._movement[id]`: every grid
+         *   step of the route in `passed.waypoints`, each `{ x, y, action, checkpoint, intermediate, level }` - a grid
+         *   step `intermediate`, an asked waypoint not, the end a checkpoint - `pending.waypoints` empty for a route the
+         *   API asked, `method` "api", `state` "completed"; `options.movement` no longer there;
+         * - `updateToken`'s changes carry `_regions`, the regions the token stands in at the end, and its options
+         *   `_priorRegions`;
+         * - v14's own displacement (`move({ x, y, action: "displace" })`) reaches `updateToken` with `teleport` true, a
+         *   walk with `teleport` false; the module's own placing write keeps the options it gives (LIVE-H81-03).
+         * Before D4 the shim set nothing of this: `movement` was whatever a test handed in `options.movement[id]`.
+         *
+         * NOT READ ON 14.370, AND MODELLED HERE AS THE COORDINATOR WAS TOLD (16.11.2026): where a diagonal step falls
+         * (the count is read, 20 for L1's route; each segment here is cut into max(|dx|, |dy|) / grid steps along the
+         * straight line, rounded to the grid); the order of `preMoveToken` against `preUpdateToken` (here first, as a
+         * document's `_preUpdate` runs before its `pre` hook, LIVE-E30-03) and of `moveToken` against `updateToken`
+         * (here after); a false from `preMoveToken` (here it cancels, as a `pre` hook's does); `_priorRegions`' shape
+         * (here `{ [id]: [ids] }`; no module code reads it or `_regions`); a displacement's steps (here its waypoint
+         * alone); a plain `update({ x, y })` (here a route of one waypoint, method "api", as `move()`'s); the record's
+         * other fourteen keys (left out, not filled with guesses); and a drag by mouse (`method: "dragging"`, where
+         * `pending` may hold the rest of a route) - not read, so not modelled: a test that needs a drag in flight
+         * stands it on the document's `movement` itself.
+         *
+         * THE MOVE IS WRITTEN INTO THE CALLER'S OPTIONS TOO (E58 L1, a6b25c51, 17.11.2026; reconciled with D4 on this line
+         * at the merge of 0e70bfe3). v14's `TokenDocument#_preUpdate` runs `options._movement ??= {}` (client/documents/
+         * token.mjs:1742) and, for an update that moves the token, `Object.defineProperty(options._movement, this.id,
+         * { value: move, enumerable: true })` (:2009) - on the object the caller passed, not a copy, and not configurable.
+         * So one options object handed to two moves of the same token throws "Cannot redefine property: <the token's id>"
+         * on the second: measured on the sandbox (Foundry 14.370), 152 tier-2 failures whose tests kept one `PLACE` for a
+         * token's move out and its move back. L1 modelled the throw alone, with `{}` as the value; here it is the one
+         * record, defined on the caller's object where v14's `_preUpdate` stands (before the `pre` hooks, so a move a hook
+         * then refuses has defined it too) and filled with the move once the pre steps have run, the same object
+         * `options._movement[id]` carries to the hooks. A move is a change to one of the movement fields whose value
+         * differs from the token's (L1's rule; an update naming a field where the token stands defines nothing). Whether
+         * `move()` passes its options on to the update the same way was not read (LIVE-E39-19): here it builds its own.
+         */
+        async _runPreUpdate(update, options, { noHook = false, caller = null } = {}) {
+            if (!TOKEN_MOVEMENT_FIELDS.some(field => field in update)) return super._runPreUpdate(update, options, { noHook });
+            const id = this.id, hooks = ctx.hooks();
+            const named = new Set(Object.keys(update));
+            const origin = tokenSpot(this._source, this);
+            const record = {};
+            if (caller && typeof caller === "object" && TOKEN_MOVEMENT_FIELDS.some(field => field in update && !sameValue(update[field], origin[field]))) {
+                caller._movement ??= {};
+                Object.defineProperty(caller._movement, id, { value: record, enumerable: true });
+            }
+            for (const field of TOKEN_MOVEMENT_FIELDS) if (!(field in update)) update[field] = origin[field];
+            const asked = options.movement?.[id] ?? null;
+            options.movement = { ...(options.movement ?? {}), [id]: { ...(asked ?? {}), waypoints: asked?.waypoints ?? [pickSpot(update)], method: asked?.method ?? "api" } };
+            if (await this._preUpdate?.(update, options, ctx.gameRef().user) === false) return false;
+            if (!noHook && hooks.call("preMoveToken", this, tokenMove(this, origin, update, options), options) === false) return false;
+            if (!noHook && hooks.call("preUpdateToken", this, update, options, ctx.userId()) === false) return false;
+            // What the pre steps left is the move: its end is the update's, whatever a hook changed. Filled into the object the caller's options hold.
+            Object.assign(record, tokenMove(this, origin, update, options));
+            // The regions before: the token's own `_regions` where it holds them (every seeded token, cluster.mjs), else read here.
+            const held = this._source._regions;
+            const prior = Array.isArray(held) ? [...held].sort() : this.regionIdsAt(origin), after = this.regionIdsAt(tokenSpot(update, this));
+            delete options.movement[id];
+            if (!Object.keys(options.movement).length) delete options.movement;
+            options._movement = { ...(options._movement ?? {}), [id]: record };
+            options._priorRegions = { ...(options._priorRegions ?? {}), [id]: prior };
+            if (options.teleport === undefined || options.teleport === null) options.teleport = record.passed.waypoints.every(w => w.action === "displace");
+            /* What is unchanged is not sent, but with `diff: false` a field the caller named is: Foundry 14.370 sent a token update
+               that changed nothing when it was asked with `{ diff: false }` (CALIBRATION.md, LIVE-E30-03). Where v14 diffs - on
+               the writer's client against its own copy, or on the server - was not read (LIVE-E39-12); the shim diffs on the
+               writer's client, so a put-back written while a newer move is in flight drops an x or a y its copy already holds
+               (scenario 76 D, movement.mjs `putBackWrite`). The movement fields only this hook filled in are dropped either way. */
+            for (const field of TOKEN_MOVEMENT_FIELDS) {
+                if (sameValue(update[field], origin[field]) && !(options.diff === false && named.has(field))) delete update[field];
+            }
+            if (prior.join() !== after.join()) update._regions = after;
+            // Sent even when it changes nothing: v14 sent an update naming a movement field where the token stood (LIVE-E30-03).
+            return true;
+        }
+
+        /* v14's `TokenDocument#move(waypoints, options)`: one update to the route's end, the route as the request (D4). Its
+           answer on 14.370 was not read; true once the update is asked. */
+        async move(waypoints, options = {}) {
+            const route = (Array.isArray(waypoints) ? waypoints : [waypoints]).filter(Boolean).map(w => ({ ...w }));
+            if (!route.length) return false;
+            const end = pickSpot(route.at(-1));
+            if (!Object.keys(end).length) return false;
+            const movement = { ...(options.movement ?? {}), [this.id]: { waypoints: route, method: options.method ?? "api" } };
+            const { method, ...rest } = options;
+            await this.update(end, { ...rest, movement });
+            return true;
+        }
+
+        /* The ids of the regions of this token's scene it stands in at `spot` - its centre inside, on its floor. */
+        regionIdsAt(spot) {
+            const size = this.parent?.grid?.size ?? 100;
+            const centre = { x: Number(spot.x) + (Number(spot.width ?? 1) * size) / 2, y: Number(spot.y) + (Number(spot.height ?? 1) * size) / 2 };
+            return (this.parent?.regions?.contents ?? [])
+                .filter(region => region.pointInside(centre) && region.includedInLevel(spot.level ?? null)).map(region => region.id).sort();
+        }
+        /* The floor the token stands on: a level's id on its scene (E12 C0). A token that names none stands on its scene's
+           lowest floor (D5): on 14.370 a token on a scene without levels drawn read "defaultLevel0000", which every such
+           scene holds (CALIBRATION.md section 3); which floor a token given none stands on where a scene has several was
+           not read (LIVE-E39-13). Until D5 it was null for every token of the seed. */
+        get level() { return this._source.level ?? lowestLevel(this.parent)?.id ?? null; }
         /* E24 C1b (08.11.2026): Foundry's `TokenDocument#getBarAttribute`, which a token's bars and its HUD's inputs read,
            as recalled of v13 and not read in v14's source (E24's live row of the token bars, AUDIT 9.2): the attribute the bar
            names (or `alternative`), read off the actor's system data; a number answers `{ type: "value" }`, an object with
@@ -631,7 +747,48 @@ export function buildDocumentClasses(ctx) {
         getFlag(scope, key) { return U.getProperty(this._source.flags, `${scope}.${key}`); }
     }
 
+    /* D4's helpers (`TOKEN MOVEMENT`, above). v14's `BaseToken.MOVEMENT_FIELDS`, read on 14.370 as client-entry.mjs states it. */
+    const TOKEN_MOVEMENT_FIELDS = Object.freeze(["x", "y", "elevation", "width", "height", "depth", "shape", "level"]);
+    /* A token's movement fields as `source` holds them, each it lacks as the document answers it (`doc`), else null. */
+    function tokenSpot(source, doc) {
+        const out = {};
+        for (const field of TOKEN_MOVEMENT_FIELDS) out[field] = U.deepClone(source?.[field] ?? doc?._source?.[field] ?? doc?.[field] ?? null);
+        return out;
+    }
+    /* The movement fields a waypoint or an update names, and nothing else (an action, a checkpoint). */
+    function pickSpot(from) {
+        const out = {};
+        for (const field of TOKEN_MOVEMENT_FIELDS) if (from?.[field] !== undefined) out[field] = U.deepClone(from[field]);
+        return out;
+    }
+    const sameValue = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    /* The move, as `options._movement[id]` carries it: the route from `origin` through the request's waypoints to the
+       update's end, every grid step a waypoint (`TOKEN MOVEMENT`). */
+    function tokenMove(doc, origin, update, options) {
+        const id = doc.id, size = doc.parent?.grid?.size ?? 100;
+        const asked = options.movement?.[id]?.waypoints ?? [];
+        const end = tokenSpot(update, doc);
+        const stops = [...asked.slice(0, -1).map(w => ({ ...origin, ...pickSpot(w), action: w.action })), { ...end, action: asked.at(-1)?.action }];
+        const snap = v => Math.round(v / size) * size;
+        const passed = [];
+        let at = origin;
+        for (const stop of stops) {
+            const action = stop.action ?? options.movementAction ?? "walk";
+            const level = stop.level ?? at.level ?? null;
+            const n = action === "displace" ? 0 : Math.round(Math.max(Math.abs(stop.x - at.x), Math.abs(stop.y - at.y)) / size);
+            for (let k = 1; k < n; k++) {
+                passed.push({ x: snap(at.x + ((stop.x - at.x) * k) / n), y: snap(at.y + ((stop.y - at.y) * k) / n), action, checkpoint: false, intermediate: true, level: at.level ?? null });
+            }
+            passed.push({ x: stop.x, y: stop.y, action, checkpoint: false, intermediate: false, level });
+            at = stop;
+        }
+        if (passed.length) passed.at(-1).checkpoint = true;
+        return { id, origin: { ...origin }, destination: { ...end }, passed: { waypoints: passed }, pending: { waypoints: [] },
+            method: options.movement?.[id]?.method ?? "api", state: "completed", user: ctx.userId() };
+    }
+
     class SceneImpl extends BaseDocument {
+        constructor(data = {}, context = {}) { super(U.withDefaultLevel(U.deepClone(data ?? {})), context); }
         static get documentName() { return "Scene"; }
         get tokens() { return this._collections.tokens; }
         get regions() { return this._collections.regions; }
@@ -648,10 +805,10 @@ export function buildDocumentClasses(ctx) {
             const w = this._source.width ?? 4000, h = this._source.height ?? 3000, s = this.grid.size;
             return { width: w, height: h, size: s, sceneX: 0, sceneY: 0, sceneWidth: w, sceneHeight: h, rect: { x: 0, y: 0, width: w, height: h }, sceneRect: { x: 0, y: 0, width: w, height: h } };
         }
-        /* The scene's floors, `{ id, name, elevation }` each, in the order the source lists them (E12 C0). */
-        get levels() {
-            return LevelList.from((this._source.levels ?? []).map(l => ({ id: l.id ?? l._id ?? null, name: l.name ?? "", elevation: l.elevation ?? 0 })));
-        }
+        /* The scene's floors: an embedded collection of `Level` documents, `{ _id, name, elevation: { bottom, top, base }, ... }`,
+           `defaultLevel0000` where the scene was given none (D5; futil.mjs `withDefaultLevel`). Until D5 a list of
+           `{ id, name, elevation }` built from the source, empty on every seeded scene. */
+        get levels() { return this._collections.levels; }
         /* Until E12 C0 nothing defined `game._viewScene` (grep of audit/harness, plan-E12 1.x item 7), so either call
            threw; client-entry.mjs defines it now.
            A CANVAS STILL LOADING DOES NOT SWITCH (E13 C0, 11.10.2026; plan-E13 2.1 item 2, A5's reading of Foundry's
@@ -676,17 +833,24 @@ export function buildDocumentClasses(ctx) {
      * stands on one (`level`, a level's id), a region belongs to some (`levels`, a set of ids) and
      * `includedInLevel(id)` asks whether it is on that one - an empty set is every floor; the viewed floor is
      * `canvas.level` and the token's movement fields are `BaseToken.MOVEMENT_FIELDS` (client-entry.mjs). None of
-     * it was read in v14's source - there is none in this tree - so the shapes are the plan's: whether v14 hands
-     * an array or a collection, and what a new region's levels are, is LIVE-E12-02/03. The list answers both
-     * ways (an array, and `get`, `contents` and `size` as Foundry's collections do), so a reader written either
-     * way runs here. Region testing still ignores elevation and a token's `regions` are still centre-based: a
-     * floor is told apart by these fields alone. Nothing in the seed has a level; scenario 66 builds its own
-     * two-floor scene, so no other scenario's numbers move.
+     * it was read in v14's source - there is none in this tree - so the shapes were the plan's (LIVE-E12-02/03).
+     * Since D5 (16.11.2026) they are what Foundry 14.370 showed (docs/dev/e39/CALIBRATION.md section 3): `Scene#levels`
+     * an embedded collection of `Level` documents with `{ bottom, top, base }` elevations, `defaultLevel0000` on every
+     * scene given none - the seed's among them, so every seeded token stands on a floor now - a region's `levels` a Set
+     * and `includedInLevel` by id or document, and a token's level change leaving its elevation alone. Region testing
+     * still ignores elevation and a token's `regions` are still centre-based: a floor is told apart by these fields alone.
      */
-    class LevelList extends Array {
-        get(id) { return this.find(level => level.id === id); }
-        get contents() { return [...this]; }
-        get size() { return this.length; }
+    /* D5: a `Level` document, its fields on itself as every document's are (`_exposeSource`): `name`, `elevation`
+       (`{ bottom, top, base }`), `sort`, `flags`. Until D5 a scene's floors were plain `{ id, name, elevation }` rows of a
+       `LevelList` (E12 C0), with a number for the elevation. */
+    class LevelImpl extends BaseDocument {
+        static get documentName() { return "Level"; }
+        get scene() { return this.parent; }
+    }
+    /* A scene's lowest floor by its bottom (the order canvas.level opens on, client-entry.mjs), or null. */
+    function lowestLevel(scene) {
+        const bottom = level => Number(level?.elevation?.bottom ?? 0);
+        return [...(scene?.levels ?? [])].sort((a, b) => bottom(a) - bottom(b))[0] ?? null;
     }
 
     class RegionImpl extends BaseDocument {
@@ -852,9 +1016,17 @@ export function buildDocumentClasses(ctx) {
      * still a GM's.
      */
     class UserImpl extends BaseDocument {
+        /* A USER'S `active` IS ITS OWN DATA PROPERTY (E58 L1's reading on 14.370, 17.11.2026, relayed by the coordinator):
+           own, writable, true for a connected user, nothing on the prototype, so `delete user.active` removes it at a
+           table. Until the merge of 93f14e01 on claude/shim-118 the shim read it through a getter here, where a delete took
+           nothing and the getter answered again (00-boot, red first). Set at construction from the world's record, and by
+           client-entry.mjs's `userActivity` as a user comes and goes. */
+        constructor(data = {}, context = {}) {
+            super(data, context);
+            Object.defineProperty(this, "active", { value: Boolean(this._source.active), writable: true, enumerable: true, configurable: true });
+        }
         static get documentName() { return "User"; }
         get isGM() { return this.hasRole("ASSISTANT"); }
-        get active() { return !!this._source.active; }
         get role() { return this._source.role ?? 1; }
         get character() { return ctx.gameRef().actors.get(this._source.character) ?? null; }
         get color() { return U.Color.from(this._source.color ?? 0x888888); }
@@ -994,7 +1166,7 @@ export function buildDocumentClasses(ctx) {
         Region: RegionImpl, ChatMessage: ChatMessageImpl, User: UserImpl,
         RollTable: RollTableImpl, TableResult: TableResultImpl, Playlist: PlaylistImpl,
         PlaylistSound: PlaylistSoundImpl, Macro: MacroImpl, JournalEntry: JournalEntryImpl,
-        ActiveEffect: ActiveEffectImpl, RegionBehavior: RegionBehaviorImpl, Wall: WallImpl, Tile: TileImpl,
+        ActiveEffect: ActiveEffectImpl, RegionBehavior: RegionBehaviorImpl, Wall: WallImpl, Tile: TileImpl, Level: LevelImpl,
         Setting: SettingImpl, BaseDocument
     };
     ctx.classes = classes;
@@ -1558,6 +1730,8 @@ export function buildApplications(ctx) {
     const autoAnswered = new Map();
     class DialogV2 extends ApplicationV2 {
         static DEFAULT_OPTIONS = { classes: ["dialog"], tag: "dialog", window: { minimizable: false }, position: { width: 400 }, form: { closeOnSubmit: true } };
+        /* This DialogV2 reads `__dialogAnswers` itself, so the suite's kit leaves it unwrapped (tests-kit.mjs `answerDialogs`). */
+        static answersQueue = "harness";
         /* The instance form, as Foundry's: a form holding the content and a footer of buttons. */
         async _renderHTML() {
             const doc = globalThis.document;

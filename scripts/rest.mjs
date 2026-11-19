@@ -14,6 +14,7 @@
  */
 
 import { MODULE_ID, FLAGS, REST, STARTING, ROOM_OWNER_FLAG } from "./config.mjs";
+import { noteOwnWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { locateActor, roomsKnownToMe, sceneOfActor, bedroomShut } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
@@ -200,6 +201,7 @@ export async function migrateRestStamps({ actors = game.actors, clock = getClock
         const gone = forcedDeletion();
         const path = `flags.${MODULE_ID}.${FLAGS.restsTaken}`;
         if (gone) {
+            noteOwnWrite(actor, Object.fromEntries(Object.entries(set).map(([k, v]) => [`${path}.${k}`, v])));
             await actor.update({ ...Object.fromEntries(Object.entries(set).map(([k, v]) => [`${path}.${k}`, v])),
                 ...Object.fromEntries(drop.map(k => [`${path}.${k}`, gone])) });
         } else {

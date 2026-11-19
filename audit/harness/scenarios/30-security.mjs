@@ -4151,31 +4151,32 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * A bullet with no record is not called "put back". The GM's copy is dropped
      * by hand here - the state a bullet is in on a browser that never saw a GM
      * write it - and the GM must be told the edit stayed, not that it was undone.
-     * Then the text is put right by the GM, so nothing after this reads a
-     * rewritten bullet.
+     * ON A BULLET OF ITS OWN (D3, 17.11.2026): the copy was dropped on the bullet the checks below share and made whole
+     * again by a GM's write of every field it held, "the harness hands a hook every field a write names, as it stood or
+     * not"; on Foundry 14.370 a write hands its hooks only what it changed, and a value already there is not sent
+     * (docs/dev/e39/CALIBRATION.md, LIVE-E30-03; the shim's D3), so that write recorded the text alone and every check
+     * below that puts back another field read no record of it. So the copy is dropped on a scratch bullet of Botan's,
+     * made by the GM (which records it whole, as a GM's creation does), edited by p2, read, and deleted; the shared
+     * bullet's copy is never dropped.
      */
-    const copyForgotten = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
-        const b = game.actors.get("${ids.botan}").items.get("${bullet}"), copy = T.bulletGuardStatus(b.uuid).copy ?? null;
-        T.forgetBulletGuard(b.uuid); return copy;`);
+    const scratch = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const made = await T.createTruthBullet(game.actors.get("${ids.botan}"), { name: "SEC unrecorded bullet", realType: "neutral", visibility: "obvious" });
+        if (made?.uuid) T.forgetBulletGuard(made.uuid); return made?.id ?? null;`, { timeout: 30000 });
+    await settle(800);
     const whispersBefore = await gm.eval(`return game.messages.size;`);
-    await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }, { drpgAutomated: true }); return true;`);
+    await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${scratch}");
+        await b?.update({ "flags.${MOD}.playerText": "SEC unrecorded" }, { drpgAutomated: true }); return true;`);
     await settle(1500);
     // A GM whisper is a private card: the words live in the store, not on the message (secret.mjs).
-    const unrecorded = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+    const unrecorded = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${scratch}");
         const S = await import("${repoUrl}/scripts/secret.mjs");
         const said = game.messages.contents.slice(${whispersBefore}).map(m => S.contentOf(m) || m.content || "").join(" ");
         return { text: b?.getFlag("${MOD}", "playerText") ?? null,
             unrestored: said.includes(game.i18n.format("DRPG.TruthBullet.editUnrestored", { player: "", bullet: "" }).slice(-40)),
             reverted: said.includes(game.i18n.format("DRPG.TruthBullet.editReverted", { player: "", bullet: "" }).slice(-40)) };`);
     check("SECURITY: an edit with no record to restore it from is reported as staying, not as put back",
-        unrecorded.text === "SEC unrecorded" && unrecorded.unrestored && !unrecorded.reverted, JSON.stringify(unrecorded));
-    /* Put right with every guarded field the forgotten copy held (E29 fix r2-H16): a GM's write records only the fields
-       it touched (truth-bullets.mjs `refreshGuard`), so the text alone would leave a copy of the text alone, and the checks
-       below that put back another field - `analyzed`, the name - would read no record of it (by reading). The harness
-       hands a hook every field a write names, as it stood or not, so the copy is whole again. */
-    await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await b.update({ ...${JSON.stringify(copyForgotten ?? {})}, "flags.${MOD}.playerText": ${JSON.stringify(bulletBefore.text)} }); return true;`);
+        Boolean(scratch) && unrecorded.text === "SEC unrecorded" && unrecorded.unrestored && !unrecorded.reverted, JSON.stringify({ scratch, unrecorded }));
+    await gm.eval(`await game.actors.get("${ids.botan}").items.get("${scratch}")?.delete(); return true;`);
     await settle(800);
 
     /*
@@ -4579,8 +4580,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
                 () => p2.eval(`await game.actors.get("${ids.botan}").update({ items: [{ _id: "${behindWas.tool}", flags: { "${MOD}": { roles: ${JSON.stringify(crimeRole)} } } }] },
                     { drpgAutomated: true }); return true;`),
                 behindHeardHolding("actor", "player", { 2: "SEC H15 renamed through Botan", 3: crimeRole })),
+            /* The name written back is sent whole (D3, 17.11.2026): it names the name p2's copy holds while the first write is on
+               its way, and on Foundry 14.370 a write of a value already there is not sent - with `{ diff: false }` it is
+               (docs/dev/e39/CALIBRATION.md, LIVE-E30-03) - so a console that writes it back asks for that. Until D3 the shim sent it. */
             effect: await behindPair(behindBefore, "effects", () => p2.eval(`const e = ${behindPenalty};
-                    await Promise.all([e.update(${JSON.stringify({ name: "SEC H15 boosted", ...behindFive })}), e.update({ name: "SEC H15 penalty" })]); return true;`),
+                    await Promise.all([e.update(${JSON.stringify({ name: "SEC H15 boosted", ...behindFive })}), e.update({ name: "SEC H15 penalty" }, { diff: false })]); return true;`),
                 () => p2.eval(`await ${behindPenalty}.update(${JSON.stringify(behindFive)}); return true;`),
                 behindHeardHolding("effect", "player", { 5: "SEC H15 penalty", 6: 5 })),
             gm: await behindPair(behindRenamed("SEC H15 renamed by the GM"), "roles", async () => {

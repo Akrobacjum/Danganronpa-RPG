@@ -171,6 +171,8 @@ export const accounts = [
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 /* The two floors of G's scene, by id; the ids are this file's, any 16 characters would do. */
+/* D5 (16.11.2026): every floor below is built as Foundry 14.370 holds one - `_id` and an elevation `{ bottom, top }`
+   (docs/dev/e39/CALIBRATION.md section 3); until D5 as `{ id, elevation: n }`, which v14 would give an id of its own. */
 const L1 = "LEVELGROUND00000", L2 = "LEVELUPPER000000";
 /* The two floors G's stack adds above L1 (E12 C11). */
 const F2 = "LEVELMIDDLE00000", F3 = "LEVELROOF0000000";
@@ -207,7 +209,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     const shim = await gm.eval(`await (await import("${repoUrl}/scripts/migrate.mjs")).migrationOnLoad();
         ${SCENES}
         const tower = await Scene.create({ name: "66 Tower", width: 4000, height: 3000, grid: { size: 100 }, active: false,
-            levels: [{ id: "${L1}", name: "Ground", elevation: 0 }, { id: "${L2}", name: "Upper", elevation: 10 }] });
+            levels: [{ _id: "${L1}", name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: "${L2}", name: "Upper", elevation: { bottom: 10, top: 20 } }] });
         // Marked rooms, as Room Setup draws a region the load's pass never decided (E12 C1): since C2a the rules read
         // rooms only, and G read none of the five unmarked (G1's lab and corridor null, 11.10.2026).
         await tower.createEmbeddedDocuments("Region", [
@@ -234,9 +236,12 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     const towerId = shim.tower;
     check("S1: a region with no levels is on every floor, one with a level on that floor alone (asked by id or by the level)",
         J(shim.stairwell) === J([true, true]) && J(shim.lab) === J([true, false, true]) && J(shim.levels) === J([L1, L2]), J(shim));
-    check("S2: Scene#view puts the scene on the canvas on the floor it names and fires canvasReady; the seeded scene has no floor",
+    /* THE SEEDED SCENE'S FLOOR (D5, 16.11.2026): on Foundry 14.370 every scene given no floor holds `defaultLevel0000`, 0 to 20
+       (docs/dev/e39/CALIBRATION.md section 3), and the shim seeds it since D5; until then the seeded scene had none and this
+       read null. Which floor v14 opens such a scene on - this one, its only - is the shim's lowest-first rule, not read. */
+    check("S2: Scene#view puts the scene on the canvas on the floor it names and fires canvasReady; the seeded scene opens on its one floor, defaultLevel0000",
         shim.threw === null && shim.fired === 2 && J(shim.onTower) === J({ scene: towerId, level: L2 })
-            && J(shim.back) === J({ scene: IDS.scene, level: null }) && Array.isArray(shim.fields) && shim.fields.includes("level"), J(shim));
+            && J(shim.back) === J({ scene: IDS.scene, level: "defaultLevel0000" }) && Array.isArray(shim.fields) && shim.fields.includes("level"), J(shim));
 
     /* ------------------------------ A. the project manager ------------------------------ */
     phase("A: a project's manager saved while the GM looks at the Annex", { flow: "projects" });
@@ -598,7 +603,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
        when p1's console puts it on screen anyway. */
     const setS = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
         const stack = await Scene.create({ name: "66 Stack", width: 4000, height: 3000, grid: { size: 100 }, active: false,
-            levels: [{ id: "${F3}", name: "Roof", elevation: 20 }, { id: "${L1}", name: "Ground", elevation: 0 }, { id: "${F2}", name: "", elevation: 10 }] });
+            levels: [{ _id: "${F3}", name: "Roof", elevation: { bottom: 20, top: 30 } }, { _id: "${L1}", name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: "${F2}", name: "", elevation: { bottom: 10, top: 20 } }] });
         await stack.createEmbeddedDocuments("Region", [
             { name: "Ward", shapes: ${rect(200, 200)}, levels: ["${L1}"], flags: { "${MOD}": { room: true } }, behaviors: [] },
             { name: "Study", shapes: ${rect(200, 200)}, levels: ["${F2}"], flags: { "${MOD}": { room: true } }, behaviors: [] },
@@ -863,12 +868,12 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         const t = canvas.scene.tokens.get("TOKAIKO000000000"), aiko = game.actors.get("${IDS.aiko}");
         const PLACE = { drpgRevert: true, teleport: true, movementAction: "displace", animate: false };
         const centre = M.positionIn("Storage", t), hallAt = M.positionIn("Hall", t);
-        await t.update(hallAt, PLACE);
+        await t.update(hallAt, { ...PLACE });
         await new Promise(r => setTimeout(r, 1000));
         const hall = M.roomOfToken(t);
         const flag = aiko.setFlag("${MOD}", "monokuma", true);
         ${LANDED}
-        await t.update({ x: centre.x + 50, y: centre.y }, PLACE);
+        await t.update({ x: centre.x + 50, y: centre.y }, { ...PLACE });
         await flag;
         const atReturn = M.roomOfToken(t);
         return { hall, hallAt: { x: hallAt.x, y: hallAt.y }, room: landedRoom(), atReturn };`, { timeout: 30000 });
@@ -1135,7 +1140,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     /* ------------------------------ O. a floor with no room, the switcher at teardown, a send-back with no floor ------------------------------ */
     phase("O: a scene of two floors with no room upstairs: p1's fog there, p1's floor switcher at the scene's teardown, a send-back naming no floor");
     const setO = await gm.eval(`const floors = await Scene.create({ name: "66 Floors", width: 4000, height: 3000, grid: { size: 100 }, active: false,
-            levels: [{ id: "${L1}", name: "Ground", elevation: 0 }, { id: "${L2}", name: "Upper", elevation: 10 }] });
+            levels: [{ _id: "${L1}", name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: "${L2}", name: "Upper", elevation: { bottom: 10, top: 20 } }] });
         await floors.createEmbeddedDocuments("Region", [{ name: "Cellar", shapes: ${rect(200, 200)}, levels: ["${L1}"], flags: { "${MOD}": { room: true } }, behaviors: [] }]);
         const [aiko] = await floors.createEmbeddedDocuments("Token", [{ name: "Aiko", actorId: "${IDS.aiko}", actorLink: true, x: 300, y: 300,
             width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1, level: "${L1}" }]);
@@ -2022,14 +2027,21 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         return true;`, { timeout: 60000 });
     await settle(1200);
     const goHall = await gm.eval(GO_VIEW);
-    // (a) and (b): the correctness review's probe, phase for phase.
+    /* (a) and (b): the correctness review's probe, phase for phase. THE HELD MOVE STANDS ON THE DOCUMENT (D4, 16.11.2026):
+       until D4 it was handed in the update's own `movement` option, which the shim delivered as the token's `movement`;
+       on Foundry 14.370 that option is the mover's request, seen in its `preUpdateToken` alone, and the move every client
+       hears is `options._movement[id]`, with nothing pending for a route the API asks (docs/dev/e39/CALIBRATION.md
+       section 3). A move held for its waypoints is a drag in flight, not read on 14.370, so it stands on the GM's token
+       document as part N stands it, until the route's last update. */
     await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000");
-        await t.update({ x: 1500, y: 300 }, { ...${GO_MOVE}, movement: { [t.id]: { pending: { waypoints: [{ x: 1600, y: 300 }] } } } }); return true;`);
+        Object.defineProperty(t, "movement", { value: { pending: { waypoints: [{ x: 1600, y: 300 }] } }, configurable: true });
+        await t.update({ x: 1500, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(150);
     await gm.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 400 }, ${GO_MOVE}); return true;`);
     await settle(600);
     const goMidA = await gm.eval(GO_VIEW);
-    await gm.eval(`${SCENES} await academy.tokens.get("TOKMONOKUMA00000").update({ x: 1600, y: 300 }, ${GO_MOVE}); return true;`);
+    await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000"); delete t.movement;
+        await t.update({ x: 1600, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(3000);
     const goAfterA = await gm.eval(GO_VIEW);
     check("GO1: the Monokuma's move into the Cafeteria held for its waypoint while Aiko steps inside Dorm A - the GM's outline is never Dorm A, "
@@ -2037,14 +2049,16 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     goStart === true && goHall === "Hall" && goMidA !== "Dorm A" && goAfterA === "Cafeteria", J({ goHall, goMidA, goAfterA }));
 
     await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000");
-        await t.update({ x: 2300, y: 300 }, { ...${GO_MOVE}, movement: { [t.id]: { pending: { waypoints: [{ x: 2400, y: 300 }] } } } }); return true;`);
+        Object.defineProperty(t, "movement", { value: { pending: { waypoints: [{ x: 2400, y: 300 }] } }, configurable: true });
+        await t.update({ x: 2300, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(150);
     const goTrace = await gm.eval(`${SCENES} const { placeRemnant } = await import("${repoUrl}/scripts/remnants.mjs");
         const t = await placeRemnant({ type: "prep", visibility: "evident", x: 1500, y: 1500, scene: academy, note: "66 GO trace" });
         globalThis.__s66go.trace = t?.id ?? null; return t?.id ?? null;`, { timeout: 60000 });
     await settle(600);
     const goMidB = await gm.eval(GO_VIEW);
-    await gm.eval(`${SCENES} await academy.tokens.get("TOKMONOKUMA00000").update({ x: 2400, y: 300 }, ${GO_MOVE}); return true;`);
+    await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000"); delete t.movement;
+        await t.update({ x: 2400, y: 300 }, ${GO_MOVE}); return true;`);
     await settle(3000);
     const goAfterB = await gm.eval(GO_VIEW);
     check("GO2: the Monokuma's move back into the Hall held for its waypoint while a trace is placed in the Gym - the GM's outline is never the "
@@ -2113,7 +2127,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     const ROOM = `{ "${MOD}": { room: true } }`;
     const towerX = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"), academy = game.scenes.get("${IDS.scene}");
         const tower = await Scene.create({ name: "66 X Tower", width: 2000, height: 1500, grid: { size: 100 }, active: false,
-            levels: [{ id: "${XG}", name: "Ground", elevation: 0 }, { id: "${XU}", name: "Upper", elevation: 10 }] });
+            levels: [{ _id: "${XG}", name: "Ground", elevation: { bottom: 0, top: 10 } }, { _id: "${XU}", name: "Upper", elevation: { bottom: 10, top: 20 } }] });
         await tower.createEmbeddedDocuments("Region", [
             { name: "Lab X", shapes: ${rect(200, 200)}, levels: ["${XG}"], flags: ${ROOM}, behaviors: [] },
             { name: "Loft X", shapes: ${rect(200, 200)}, levels: ["${XU}"], flags: ${ROOM}, behaviors: [] },

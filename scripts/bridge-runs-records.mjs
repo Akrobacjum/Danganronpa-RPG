@@ -447,7 +447,8 @@ export async function handleSendback(payload, sender, ctx, prepared) {
     // the place is a spot of the GMs' record or the centre of a room the token stood in within the
     // minute (`guardSendbackPlace`), and a wall between the two must not stop the way back
     // (movement.mjs `sendBack`'s note); a centre across a wall is the audit's to judge.
-    await token.update(to, { animate: false, [prepared.REVERT]: true, [prepared.SENT_BACK]: sender.isGM ? false : sender.id, constrainOptions: { ignoreWalls: true } });
+    // The whole spot, whatever this GM's copy holds (movement.mjs `putBackWrite`; scenario 76 D).
+    await prepared.putBackWrite(token, to, { animate: false, [prepared.REVERT]: true, [prepared.SENT_BACK]: sender.isGM ? false : sender.id, constrainOptions: { ignoreWalls: true } });
 }
 
 export async function handleLoot(payload, sender, ctx) {

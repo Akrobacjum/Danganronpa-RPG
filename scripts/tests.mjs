@@ -56,7 +56,7 @@
 import { log, warn, esc, plural, dialogContent } from "./utils.mjs";
 import { studentActors } from "./monokuma.mjs";
 import {
-    layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, stageLedger, registerSuite, worldCensus
+    layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, scriptDice, answerDialogs, stageLedger, registerSuite, worldCensus
 } from "./tests-kit.mjs";
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
@@ -315,6 +315,31 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
     };
 
     /*
+     * A TEST PAST ITS LIMIT STOPS THE RUN (R7562, R7563; E58 L1, 17.11.2026, the coordinator's decision of that day).
+     * `runOne` gives up on a test still running at its limit and marks it `timedOut`; the test goes on running behind it,
+     * so no later test runs - it would be measured on top of the one still going - and no later tier. The windows open
+     * on this browser at that moment go in the report under the test, title and buttons, since a test that never ends
+     * is most often waiting on one (tier 2 on the sandbox: Daggerheart's roll window, nobody to press Roll). Another
+     * browser's windows cannot be read from here: the live runner (audit/live) reads each page's itself.
+     */
+    let stoppedAt = null;
+    const openWindows = () => [...foundry.applications.instances.values()]
+        .filter(a => a.rendered && a.element?.querySelector?.(".window-header"))
+        .map(a => {
+            const title = a.title || a.element.querySelector(".window-title")?.textContent?.trim() || a.constructor.name;
+            const buttons = [...a.element.querySelectorAll("button")].map(b => b.textContent.trim()).filter(Boolean).slice(0, 8);
+            return `${title}${buttons.length ? ` [${buttons.join(", ")}]` : ""}`;
+        });
+    const stopsHere = r => {
+        if (!r?.timedOut) return false;
+        stoppedAt = r.name;
+        const open = openWindows();
+        lines.push(`        windows open on this browser when it stopped: ${open.length ? open.join("; ") : "none"}`,
+            "        the run stops here: no later test or tier ran");
+        return true;
+    };
+
+    /*
      * AN `only` THAT RAN NOTHING IS NOT A GREEN RUN (E30 review, 25.09.2026). A name
      * that matched no test in the tiers asked for printed "1 passed, 0 failed" - the
      * purity line alone - and so did `runTests({ only: "legacy trace" })` once the
@@ -368,17 +393,21 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
         if (first) lines.push("TIER 0 - module-wide regression (source is read, not called)");
         for (const entry of first ? pick(REGRESSIONS) : []) {
             running = entry[0];
-            record(await runOne(entry, { tier: 0, ledger }));
+            const r = await runOne(entry, { tier: 0, ledger });
+            record(r);
             running = null;
+            if (stopsHere(r)) break;
         }
 
-        if (tier >= 1 && first) {
+        if (tier >= 1 && first && !stoppedAt) {
             lines.push("");
             lines.push("TIER 1 - invariants (the world is not touched)");
             for (const entry of pick(INVARIANTS)) {
                 running = entry[0];
-                record(await runOne(entry, { tier: 1, ledger }));
+                const r = await runOne(entry, { tier: 1, ledger });
+                record(r);
                 running = null;
+                if (stopsHere(r)) break;
             }
         }
 
@@ -425,7 +454,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
             tier = 1;
         }
 
-        if (tier >= 2) {
+        if (tier >= 2 && !stoppedAt) {
             lines.push("");
             lines.push("TIER 2 - scenarios (fixtures built and put back)");
             /* What the world is made of, in one line, before anything is built in it
@@ -503,10 +532,31 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                 const list = pick(SCENARIOS), mine = list.filter((_, k) => shardOfPosition(k, cut.count) === cut.index);
                 shard.list = list.map(([name]) => name);
                 shard.ran = mine.map(([name]) => name);
+                /* THE DICE REAL AT THE START, to be read again at the end (the kit's `scriptDice`; E58 L1, 17.11.2026). */
+                const DualityRoll = game.system.api?.dice?.DualityRoll ?? null;
+                const realDice = { evaluate: DualityRoll?.buildEvaluate ?? null, uniform: CONFIG.Dice.randomUniform, force: globalThis.__forceRoll };
+                /* THE DIALOGS REAL AT THE START, the same way (the kit's `answerDialogs`; E58 L1, 17.11.2026). */
+                const Dialog = foundry.applications?.api?.DialogV2 ?? null;
+                const realDialogs = { wait: Dialog?.wait, confirm: Dialog?.confirm, prompt: Dialog?.prompt, answers: globalThis.__dialogAnswers };
                 for (const entry of mine) {
                     running = entry[0];
-                    record(await runOne(entry, { tier: 2, ledger }));
+                    // The test's named dice for its own length, taken off and its `__forceRoll` put back whatever it did -
+                    // passed, threw or ran out of time (`scriptDice`'s note).
+                    const unscript = scriptDice();
+                    const unanswer = answerDialogs();
+                    const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+                    let r;
+                    try {
+                        r = await runOne(entry, { tier: 2, ledger });
+                    } finally {
+                        unanswer();
+                        unscript();
+                        if (hadForce) globalThis.__forceRoll = force;
+                        else delete globalThis.__forceRoll;
+                    }
+                    record(r);
                     running = null;
+                    const stop = stopsHere(r);
                     // After EVERY scenario, not once at the end: a scenario that
                     // fails half way leaves an incident open, and the next one
                     // would then be testing the wreckage of the last.
@@ -530,8 +580,27 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                             ].join("\n") });
                         left.forEach(d => reported.add(d.path));
                     }
+                    // Its restore was still tried above, once: the world put back as far as it can be with the test
+                    // still waiting behind it.
+                    if (stop) break;
                 }
                 await settle();
+                /* THE DICE ARE REAL AGAIN (the coordinator's safeguard, 17.11.2026): Daggerheart's `buildEvaluate` and
+                   Foundry's randomiser are what they were before the first test, or the run fails here, loudly. */
+                const scriptedLeft = [
+                    ...((DualityRoll?.buildEvaluate ?? null) !== realDice.evaluate ? ["Daggerheart's DualityRoll.buildEvaluate is still wrapped"] : []),
+                    ...(CONFIG.Dice.randomUniform !== realDice.uniform ? ["Foundry's CONFIG.Dice.randomUniform is not the one the run began with"] : []),
+                    ...(globalThis.__forceRoll !== realDice.force ? ["a test's __forceRoll is not what the run began with"] : [])
+                ];
+                record({ tier: 2, name: "the dice are real again after tier 2", assertions: null,
+                    ...(scriptedLeft.length ? { outcome: "fail", message: `THE DICE ARE NOT REAL: ${scriptedLeft.join("; ")}` } : { outcome: "pass" }) });
+                /* THE DIALOGS ARE REAL AGAIN (the owner's decision (b) of 17.11.2026, relayed by the coordinator, as for the dice). */
+                const answeredLeft = [
+                    ...(["wait", "confirm", "prompt"].filter(name => Dialog?.[name] !== realDialogs[name]).map(name => `DialogV2.${name} is still wrapped`)),
+                    ...(globalThis.__dialogAnswers !== realDialogs.answers ? ["a test's __dialogAnswers is not what the run began with"] : [])
+                ];
+                record({ tier: 2, name: "the dialogs are real again after tier 2", assertions: null,
+                    ...(answeredLeft.length ? { outcome: "fail", message: `THE DIALOGS ARE NOT REAL: ${answeredLeft.join("; ")}` } : { outcome: "pass" }) });
                 const late = dumpDiff(asFound, await worldDump()).filter(d => !reported.has(d.path));
                 record({ tier: 2, name: "tier 2 put the world back as it found it", assertions: null,
                     ...(late.length
