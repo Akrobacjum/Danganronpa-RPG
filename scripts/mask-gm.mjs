@@ -368,11 +368,20 @@ async function retell() {
  *     (eclipse.mjs `endEclipse`, `veilAtTheLights`): a row of `why: "lights"` for every killer the lights will judge,
  *     kept while they judge and taken over by the incident that opens, or lifted if none does. The declaration itself
  *     is in the dark: an Eclipse hides every player's token from every other (visibility.mjs `tokenShownTo`).
- *   - HOW: the primary GM sets Foundry's `hidden` on each of the character's tokens on every scene, with one flag,
- *     `veiled`, which names nobody and lets visibility.mjs show the token to its owner and to the killers' side
- *     (`tokenShownTo`); the token's own `hidden` before is kept in the GMs' store `veils` (gm-stores.mjs `veilStore`) and
- *     written back exactly. The microphone is C6's block with one more reason (voice.mjs `settleTrialVoices`,
- *     `veilMutedIds`); unlike the mask's, no silent room: the killer hears the room.
+ *   - HOW: the primary GM writes one flag, `veiled`, on each of the character's tokens on every scene; it names nobody,
+ *     and visibility.mjs hides the token on every browser but its owner's, the killers' side's and the GMs'
+ *     (`tokenShownTo`), as the rooms hide a token. The tokens are listed on the GMs' store `veils` (gm-stores.mjs
+ *     `veilStore`). The microphone is C6's block with one more reason (voice.mjs `settleTrialVoices`, `veilMutedIds`);
+ *     unlike the mask's, no silent room: the killer hears the room.
+ *   - NOT FOUNDRY'S `hidden` (E112v, 16.11.2026; the owner's decision, road (b)). Until E112v the veil was Foundry's
+ *     `hidden` beside the flag, each token's own `hidden` kept on the row and written back. The owner's local run L1 on
+ *     Foundry 14.370 read the defect (LIVE-E112-01): a hidden token is drawn for its owner but is no vision source for
+ *     them (its vision-source test answers false), so with every player an observer of every character Foundry gave the killer's
+ *     browser the sight of an observed token - the victim's. So the veil writes no `hidden` (`veilPatch`): Foundry's
+ *     vision rules stay as they are for the killer's own token, and a `hidden` on a veiled token is a GM's (utils.mjs
+ *     `hiddenByGm`). A row written by 1.2.116-1.2.117 (no `hides`) still holds each token's own `hidden`: the primary's
+ *     settle writes it back and keeps the flag (`convertVeil`), and its lift writes it back (R7700, tier 2 "E112v - a
+ *     veil written by 1.2.116 ...").
  *   - WHEN IT ENDS: on every road out of the opening, read off the incident by one rule (`settleVeils`): the opening
  *     scored (the stage moves on), failed or closed (the incident ends), a re-opened incident (another `openedAt`). The
  *     primary settles at its ready and when a primary leaves, so a GM gone or reloaded mid opening is swept. A success
@@ -380,9 +389,10 @@ async function retell() {
  *     then this): no browser draws the real face for a frame. A closed roll window is no road out: the opening is not
  *     optional and is offered again (`throwOpeningRoll`), and the veil stands until it is thrown or the murder ends.
  *
- * WHAT IT CANNOT HIDE (Foundry's limit, the known leak `foundry-hidden-tokens`): a token's `hidden` reaches every browser,
- * so a console reads that a token is hidden, and by its `actorId` whose. And a hidden token is drawn on its owner's
- * browser by this module, not by Foundry: whether Foundry still gives it vision there is LIVE-E112-01.
+ * WHAT IT CANNOT HIDE (Foundry's limit, the known leak `foundry-veiled-token-actor`): a token's flags reach every browser,
+ * and every browser that hides the token has to know which one to hide, so a console lists the token carrying the flag
+ * and reads by its `actorId` whose it is (docs/dev/e112v/DESIGN.md section 3). The killer's vision on a real canvas is
+ * LIVE-E112V-01.
  */
 
 /** The token flag that marks a token the opening veils. It says the token is veiled, never whose it is. */
@@ -410,12 +420,20 @@ export function veilMutedIds() {
     return ids;
 }
 
-/** The patch that veils a token, and the one that gives it its own `hidden` back. Pure (R7405). */
+/** The patch that veils a token - the one flag, no `hidden` (E112v) - and the one that lifts it (`gone`, a deletion). Pure (R7405, R7700). */
 export function veilPatch() {
-    return { hidden: true, [`flags.${MODULE_ID}.${VEIL_FLAG}`]: true };
+    return { [`flags.${MODULE_ID}.${VEIL_FLAG}`]: true };
 }
-export function unveilPatch(hidden, gone = null) {
-    return { hidden: Boolean(hidden), [`flags.${MODULE_ID}.${VEIL_FLAG}`]: gone ?? false };
+export function unveilPatch(gone = null) {
+    return { [`flags.${MODULE_ID}.${VEIL_FLAG}`]: gone ?? false };
+}
+
+/** How a row of E112v's hides its tokens: by the module, its tokens' own `hidden` untouched. A row without it is 1.2.116-1.2.117's. */
+const HIDES = "module";
+
+/** Whether `row` was written before E112v: its tokens carry the veil's `hidden`, each token's own kept on the row. */
+function writtenWithHidden(row) {
+    return Boolean(row) && row.hides !== HIDES;
 }
 
 /** While an Eclipse's lights judge its declarations (`veilAtTheLights`), their rows of "lights" stand. */
@@ -426,8 +444,8 @@ async function veilActor(actorId, { why, openedAt = null, tell = true }) {
     if (!game.user?.isGM) return false;
     const actor = game.actors.get(actorId ?? "");
     if (!actor || veilStore.get(actor.id)) return false;
-    const tokens = tokensOf(actor).map(({ scene, token }) => ({ sceneId: scene.id, tokenId: token.id, hidden: Boolean(token._source?.hidden ?? token.hidden) }));
-    await veilStore.patch(actor.id, { actorId: actor.id, userIds: ownersOf(actor), why, openedAt, tokens, at: Date.now() });
+    const tokens = tokensOf(actor).map(({ scene, token }) => ({ sceneId: scene.id, tokenId: token.id }));
+    await veilStore.patch(actor.id, { actorId: actor.id, userIds: ownersOf(actor), why, openedAt, hides: HIDES, tokens, at: Date.now() });
     // The microphone first, then the face, as the mask does: nobody hears the killer from a token nobody sees.
     await settleBlock();
     for (const { token } of tokensOf(actor)) await token.update(veilPatch()).catch(err => error(`Could not veil a token of ${actor.name}`, err));
@@ -444,19 +462,38 @@ async function tellVeiled(actor) {
     await whisperToOwnerOnly(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Veil.card"))}</p>` }, { veiled: true });
 }
 
-/** Lift `actorId`'s veil (`why` for the log): every token's own `hidden` written back, the block lifted. */
+/** Lift `actorId`'s veil (`why` for the log): the flag off every token (and a 1.2.116 row's kept `hidden` back), the block lifted. */
 async function liftVeil(actorId, why = "end") {
     if (!game.user?.isGM) return false;
     const row = veilStore.get(actorId);
     if (!row) return false;
     await veilStore.drop(actorId);
+    const legacy = writtenWithHidden(row);
     for (const { sceneId, tokenId, hidden } of row.tokens ?? []) {
         const token = game.scenes.get(sceneId)?.tokens?.find(t => t.id === tokenId);
         if (!token) continue;
-        await token.update(unveilPatch(hidden, forcedDeletion())).catch(err => error("Could not lift a token's veil", err));
+        const patch = legacy ? { hidden: Boolean(hidden), ...unveilPatch(forcedDeletion()) } : unveilPatch(forcedDeletion());
+        await token.update(patch).catch(err => error("Could not lift a token's veil", err));
     }
     await settleBlock();
     log(`${game.actors.get(actorId)?.name ?? actorId} is no longer veiled (${why}).`);
+    return true;
+}
+
+/**
+ * A row of 1.2.116-1.2.117 the opening still holds (E112v): each token's own `hidden` written back, the flag kept, the row
+ * marked as hiding by the module - so a world updated while an opening waits gives the killer their vision back at the
+ * primary's first settle. Answers whether it wrote.
+ */
+async function convertVeil(actorId, row) {
+    if (!game.user?.isGM || !writtenWithHidden(row)) return false;
+    for (const { sceneId, tokenId, hidden } of row.tokens ?? []) {
+        const token = game.scenes.get(sceneId)?.tokens?.find(t => t.id === tokenId);
+        if (!token) continue;
+        await token.update({ hidden: Boolean(hidden), ...veilPatch() }).catch(err => error("Could not give a veiled token its own hidden back", err));
+    }
+    await veilStore.patch(actorId, { hides: HIDES, tokens: (row.tokens ?? []).map(({ sceneId, tokenId }) => ({ sceneId, tokenId })) });
+    log(`${game.actors.get(actorId)?.name ?? actorId}'s veil hides by the module now, not by Foundry's hidden.`);
     return true;
 }
 
@@ -485,13 +522,20 @@ async function settleVeilsNow() {
     const out = { lifted: [], veiled: [] };
     for (const [actorId, row] of Object.entries(veilStore.entries() ?? {})) {
         if (wanted.has(actorId) && row?.why === "lights") {
+            await convertVeil(actorId, row);
             await veilStore.patch(actorId, { why: "opening", openedAt });
             const actor = game.actors.get(actorId);
             if (actor) await tellVeiled(actor);
             continue;
         }
-        if (wanted.has(actorId) && row?.openedAt === openedAt) continue;
-        if (row?.why === "lights" && lightsJudging) continue;
+        if (wanted.has(actorId) && row?.openedAt === openedAt) {
+            await convertVeil(actorId, row);
+            continue;
+        }
+        if (row?.why === "lights" && lightsJudging) {
+            await convertVeil(actorId, row);
+            continue;
+        }
         if (await liftVeil(actorId, wanted.has(actorId) ? "another incident" : "the opening is over")) out.lifted.push(actorId);
     }
     for (const actorId of wanted) if (await veilActor(actorId, { why: "opening", openedAt })) out.veiled.push(actorId);
@@ -528,6 +572,8 @@ export async function lightsJudged() {
  * at a table: whether this is the owner's map of 15.11 waits on their answers. So the primary adopts every token of such
  * a character as it is created: the row gains it - the look, or the `hidden`, of the token it was carried from where the
  * carry's mark names one, else its own as made - and it is masked or veiled if it is not already. Answers what it did.
+ * Since E112v a veil keeps no `hidden` (`veilPatch`): the new token joins the row and takes the flag, its own `hidden` as
+ * made.
  */
 const CARRY_MARK = "carriedFrom";
 
@@ -559,14 +605,19 @@ export async function adoptToken(tokenDoc) {
         if (!isMaskedToken(tokenDoc)) await tokenDoc.update(maskPatch()).catch(err => maskFailed(game.actors.get(actorId), err));
         out.masked = true;
     }
-    const veil = veilStore.get(actorId);
+    let veil = veilStore.get(actorId);
     if (veil && !(veil.tokens ?? []).some(row => row.tokenId === tokenDoc.id)) {
-        const rows = veil.tokens ?? [];
-        const own = Boolean(tokenDoc._source?.hidden ?? tokenDoc.hidden);
-        const kept = from ? rows.find(row => row.tokenId === from)?.hidden : undefined;
-        const hidden = kept ?? (isVeiledToken(tokenDoc) ? Boolean(rows[0]?.hidden) : own);
-        await veilStore.patch(actorId, { tokens: [...rows, { sceneId, tokenId: tokenDoc.id, hidden }] });
-        if (!isVeiledToken(tokenDoc) || !own) await tokenDoc.update(veilPatch()).catch(err => error("Could not veil a token made behind a veil", err));
+        // A 1.2.116 row (E112): converted first (`convertVeil`); a copy carried from one of its tokens took the veil's
+        // `hidden` with it, and gets the `hidden` that row kept for the token it was carried from.
+        const kept = writtenWithHidden(veil) && from ? (veil.tokens ?? []).find(row => row.tokenId === from)?.hidden : undefined;
+        if (writtenWithHidden(veil)) {
+            await convertVeil(actorId, veil);
+            veil = veilStore.get(actorId) ?? veil;
+        }
+        await veilStore.patch(actorId, { tokens: [...(veil.tokens ?? []), { sceneId, tokenId: tokenDoc.id }] });
+        const patch = { ...(typeof kept === "boolean" && Boolean(tokenDoc._source?.hidden ?? tokenDoc.hidden) !== kept ? { hidden: kept } : {}),
+            ...(isVeiledToken(tokenDoc) ? {} : veilPatch()) };
+        if (Object.keys(patch).length) await tokenDoc.update(patch).catch(err => error("Could not veil a token made behind a veil", err));
         out.veiled = true;
     }
     return out;

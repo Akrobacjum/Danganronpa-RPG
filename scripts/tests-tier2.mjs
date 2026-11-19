@@ -17542,7 +17542,8 @@ const SCENARIOS = [
          * players. The mask (an opening on Hope): a token made from the prototype and a copy of the killer's token made
          * as `carryAcross` makes it; read each one's picture and flag, then after `endMask` each one's look against what
          * it should get back - the prototype's own, the carried token's. The veil (a murder opened): a token made from
-         * the prototype; read its `hidden` and flag, then after the close its own `hidden`. Red on e9f4a791: the new
+         * the prototype; read its flag and its own `hidden`, untouched since E112v's road (b), then after the close its
+         * own `hidden`. Red on e9f4a791: the new
          * token wears the real art, the copy stays "?" after the end.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
@@ -17576,10 +17577,10 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await K.settleVeils();
             const veiled = await fromPrototype();
-            read.veil = [veiled?._source?.hidden === true, flags(veiled).veiled === true];
+            read.veil = [Boolean(veiled?._source?.hidden) === false, flags(veiled).veiled === true];
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
-            read.veilBack = [veiled?._source?.hidden === false, flags(veiled).veiled ?? null];
+            read.veilBack = [Boolean(veiled?._source?.hidden) === false, flags(veiled).veiled ?? null];
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await settle();
@@ -17607,7 +17608,7 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson({ veil: [true, true], veilBack: [true, null], mask: [true, true], maskBack: [true, true] }),
-            "a token made while a veil or a mask stood did not join it, or did not get its own back at the end (veil: hidden, flagged; after: own hidden, flag; mask: the prototype's token, the carried copy; after: each one's own look)");
+            "a token made while a veil or a mask stood did not join it, or did not get its own back at the end (veil: its own hidden untouched, flagged; after: own hidden, flag; mask: the prototype's token, the carried copy; after: each one's own look)");
     }],
 
     ["E112 - the start-of-day board shows a victim nobody has found as alive and the masked killer as they are, at the Morning Eclipse's start and at a roll-over; a found body as dead", async () => {
@@ -17782,20 +17783,22 @@ const SCENARIOS = [
             + "(the copy's name and picture after the mask, against the killer's own; in the trial: a mask stands, the token as it was, the portrait not the mask's; the exit's removals)");
     }],
 
-    ["E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly: a success that opens a mask shows the token after the mask, a failure gives it its own hidden back, a trap and a self-inflicted death veil nothing, a row no opening holds is swept, and the lights' rows are taken over or lifted", async () => {
+    ["E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly: a success that opens a mask shows the token after the mask, the tokens keep their own hidden throughout (E112v, road (b)), a trap and a self-inflicted death veil nothing, a row no opening holds is swept, and the lights' rows are taken over or lifted", async () => {
         /*
          * E112 item 1, 15.11.2026; the owner: "gdy morderca rzuca, dopoki nie rzuci otwarcia, jego token powinien byc
          * niewidzialny dla ofiary, a sam morderca wyciszony. Dopiero po rzucie odslaniamy token". A direct murder between
-         * two students with players, its invitation held (`heldInvitations`). Read, on the killer's tokens: Foundry's
-         * `hidden` and the `veiled` flag while the opening waits, the GMs' row (each token's own `hidden` before), the
+         * two students with players, its invitation held (`heldInvitations`). Read, on the killer's tokens: the `veiled`
+         * flag while the opening waits and each token's own `hidden` untouched (E112v, road (b), the owner's decision of
+         * 16.11.2026: the veil is the module's per-browser hiding, never Foundry's `hidden`), the GMs' row (its tokens, and
+         * `hides: "module"`), the
          * killer's player among the blocked (`veilMutedIds`, the trial's mute row written); then, road by road, the
          * tokens as they were and no row: (A) an opening on Hope, whose mask goes on first - the first write that
          * shows a token again finds it masked already (`updateToken`, in the order the writes land); (B) a failed
-         * opening with one of the killer's tokens hidden by the GM beforehand, which stays hidden; (C) a trap and (D) a
+         * opening with one of the killer's tokens hidden by the GM beforehand, which stays hidden throughout; (C) a trap and (D) a
          * self-inflicted death, no row; (E) a row with no opening behind it, as a reload leaves it, swept by the
          * primary's settle; (F) the lights: a row of "lights" stands while they judge, is taken over by the opening
          * that follows with no second write to the tokens, and one no opening takes is lifted when they have judged.
-         * Red on e9f4a791: mask-gm.mjs has no veil.
+         * Red on e9f4a791: mask-gm.mjs has no veil. Red again on a1d294ef (E112v): the veil wrote `hidden`.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -17811,8 +17814,10 @@ const SCENARIOS = [
         const looks = () => tokens().map(t => [t.id, Boolean(t._source.hidden), t._source.flags?.[MODULE_ID]?.veiled ?? null]);
         const before = looks();
         const flagOf = t => t._source.flags?.[MODULE_ID] ?? {};
-        const veiledNow = () => [tokens().every(t => t._source.hidden === true && flagOf(t).veiled === true),
-            stableJson((S.veilStore.get(killer.id)?.tokens ?? []).map(r => [r.tokenId, r.hidden])) === stableJson(before.map(([id, hidden]) => [id, hidden])),
+        const ownHidden = expected => stableJson(tokens().map(t => [t.id, Boolean(t._source.hidden)])) === stableJson((expected ?? before).map(([id, hidden]) => [id, hidden]));
+        const veiledNow = () => [tokens().every(t => flagOf(t).veiled === true) && ownHidden(),
+            stableJson((S.veilStore.get(killer.id)?.tokens ?? []).map(r => [r.tokenId, "hidden" in r])) === stableJson(before.map(([id]) => [id, false]))
+                && S.veilStore.get(killer.id)?.hides === "module",
             K.veilMutedIds().has(kp.id), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
         const cleared = expected => [stableJson(looks()) === stableJson(expected ?? before), S.veilStore.has(killer.id), K.veilMutedIds().has(kp.id)];
         const open = extra => heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", ...extra }));
@@ -17826,8 +17831,10 @@ const SCENARIOS = [
             await K.settleVeils();
             read.veiled = veiledNow();
             const writes = [];
+            // The write that shows a token again is the flag's removal now (E112v): read the mask on the token as it lands.
             const hook = Hooks.on("updateToken", (doc, changes) => {
-                if (doc.actorId === killer.id && changes.hidden === false) writes.push(Boolean(doc._source.flags?.[MODULE_ID]?.masked));
+                const f = changes?.flags?.[MODULE_ID] ?? {};
+                if (doc.actorId === killer.id && ("veiled" in f || "-=veiled" in f) && !doc._source.flags?.[MODULE_ID]?.veiled) writes.push(Boolean(doc._source.flags?.[MODULE_ID]?.masked));
             });
             try {
                 await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
@@ -17845,7 +17852,7 @@ const SCENARIOS = [
             const hiddenLooks = looks();
             await open();
             await K.settleVeils();
-            read.failVeiled = [tokens().every(t => t._source.hidden === true), (S.veilStore.get(killer.id)?.tokens ?? []).find(r => r.tokenId === hiddenBefore.id)?.hidden ?? null];
+            read.failVeiled = [tokens().every(t => flagOf(t).veiled === true), ownHidden(hiddenLooks), hiddenBefore._source.hidden === true];
             await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
             read.failed = [M.murderState()?.active ?? null, ...cleared(hiddenLooks), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
@@ -17860,14 +17867,20 @@ const SCENARIOS = [
             read.self = S.veilStore.has(killer.id);
             await close();
             // (E) A row with no opening behind it, as a GM's reload mid opening leaves it: swept.
-            await S.veilStore.patch(killer.id, { actorId: killer.id, userIds: [kp.id], why: "opening", openedAt: 1,
-                tokens: before.map(([tokenId, hidden]) => ({ sceneId: tokens().find(t => t.id === tokenId)?.parent?.id ?? null, tokenId, hidden })), at: Date.now() });
+            await S.veilStore.patch(killer.id, { actorId: killer.id, userIds: [kp.id], why: "opening", openedAt: 1, hides: "module",
+                tokens: before.map(([tokenId]) => ({ sceneId: tokens().find(t => t.id === tokenId)?.parent?.id ?? null, tokenId })), at: Date.now() });
             for (const t of tokens()) await t.update(K.veilPatch());
             const swept = await K.settleVeils();
             read.swept = [swept?.lifted ?? null, ...cleared()];
             // (F) The lights: taken over by the opening that follows, with no second write to the tokens; else lifted.
+            // Every write of the veil's to a token: its flag set or removed, and any `hidden` (none on road (b), E112v).
             const hides = [];
-            const watch = Hooks.on("updateToken", (doc, changes) => { if (doc.actorId === killer.id && "hidden" in changes) hides.push(changes.hidden); });
+            const watch = Hooks.on("updateToken", (doc, changes) => {
+                const f = changes?.flags?.[MODULE_ID] ?? {};
+                if (doc.actorId !== killer.id) return;
+                if ("hidden" in changes) hides.push(`hidden:${changes.hidden}`);
+                if ("veiled" in f || "-=veiled" in f) hides.push(doc._source.flags?.[MODULE_ID]?.veiled ? "veiled" : "lifted");
+            });
             try {
                 await K.veilAtTheLights([killer.id]);
                 const lit = [S.veilStore.get(killer.id)?.why ?? null, (await K.settleVeils())?.lifted ?? null];
@@ -17888,22 +17901,88 @@ const SCENARIOS = [
             if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
             for (const [id, hidden] of before) {
                 const t = tokens().find(x => x.id === id);
-                if (t && (Boolean(t._source.hidden) !== hidden || flagOf(t).veiled !== undefined)) await t.update(K.unveilPatch(hidden, (await import("./utils.mjs")).forcedDeletion()));
+                if (t && (Boolean(t._source.hidden) !== hidden || flagOf(t).veiled !== undefined)) await t.update({ hidden, ...K.unveilPatch((await import("./utils.mjs")).forcedDeletion()) });
             }
             await settle();
         }
         equal(stableJson(read), stableJson({
             veiled: [true, true, true, true],
             hope: [true, true, false, true], afterHope: [true, false, false],
-            failVeiled: [true, true], failed: [null, true, false, false, false],
+            failVeiled: [true, true, true], failed: [null, true, false, false, false],
             trap: false, self: false,
             swept: [[killer.id], true, false, false],
-            lights: ["lights", [], "opening", true], lightsHides: [true, false], unjudged: [true, false, false]
+            lights: ["lights", [], "opening", true], lightsHides: tokens().flatMap(() => ["veiled"]).concat(tokens().flatMap(() => ["lifted"])), unjudged: [true, false, false]
         }), "the opening's veil did not hide the killer, did not lift on a road out, lifted before the mask, did not put back the token's own hidden, veiled a trap or a self-inflicted death, left a row no opening held, or wrote the lights' tokens twice "
-            + "(veiled: hidden and flagged, the row's hidden before, the player blocked, the mute row; hope: shown after the mask, the mask stands, a row left, hidden as before; after: looks as before, a row, blocked; "
-            + "failVeiled: all hidden, the GM's hidden kept on the row; failed: the incident, looks, row, blocked, the mute row; trap; self; swept: lifted, looks, row, blocked; lights: why, lifted while judging, why after the open, its openedAt; the hidden writes; unjudged: looks, row, blocked)");
+            + "(veiled: flagged with each own hidden untouched, the row's tokens with no hidden and hides module, the player blocked, the mute row; hope: shown after the mask, the mask stands, a row left, hidden as before; after: looks as before, a row, blocked; "
+            + "failVeiled: all flagged, each own hidden untouched, the GM's hidden token still hidden; failed: the incident, looks, row, blocked, the mute row; trap; self; swept: lifted, looks, row, blocked; lights: why, lifted while judging, why after the open, its openedAt; the veil's writes to the tokens, in order (no hidden); unjudged: looks, row, blocked)");
     }],
 
+    ["E112v - a veil written by 1.2.116 or 1.2.117 loses its hidden at the primary's settle: a row the opening still holds is converted (each token's own hidden back, the flag kept, the row hiding by the module), and one no opening holds is lifted with each token's own hidden back", async () => {
+        /*
+         * E112v, 16.11.2026 (road (b), the owner's decision). Until this line the veil wrote Foundry's `hidden` on the
+         * killer's tokens and kept each token's own on the GMs' row (`tokens[].hidden`, no `hides`); a world updated while
+         * an opening waits holds such a row, and its tokens hidden. Read: (A) with the opening still waiting, the primary's
+         * settle gives each token its own `hidden` back, keeps the flag and marks the row `hides: "module"`, and the close
+         * lifts the flag alone; (B) a row of that shape with no opening behind it is lifted, each token's own `hidden`
+         * back. Red on a1d294ef: the settle keeps a held row as it is, tokens hidden.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const kp = owner(killer);
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        const flagOf = t => t._source.flags?.[MODULE_ID] ?? {};
+        const before = tokens().map(t => [t.id, Boolean(t._source.hidden)]);
+        const looks = () => tokens().map(t => [t.id, Boolean(t._source.hidden), flagOf(t).veiled ?? null]);
+        const legacy = openedAt => ({ actorId: killer.id, userIds: [kp.id], why: "opening", openedAt, at: Date.now(),
+            tokens: before.map(([tokenId, hidden]) => ({ sceneId: tokens().find(t => t.id === tokenId)?.parent?.id ?? null, tokenId, hidden })) });
+        const asLegacy = async openedAt => {
+            await S.veilStore.drop(killer.id);
+            await S.veilStore.patch(killer.id, legacy(openedAt));
+            for (const t of tokens()) await t.update({ hidden: true, [`flags.${MODULE_ID}.veiled`]: true });
+        };
+        const close = async () => { if (M.murderState()) await M.endMurder({ reason: "test", followUp: false }); };
+        const read = {};
+        try {
+            await S.veilStore.whenHydrated();
+            // (A) The opening still waits: converted.
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await K.settleVeils();
+            await asLegacy(M.murderState()?.openedAt ?? null);
+            const held = looks();
+            await K.settleVeils();
+            await settle();
+            const row = S.veilStore.get(killer.id);
+            read.converted = [held.every(([, hidden, veiled]) => hidden === true && veiled === true),
+                stableJson(looks()) === stableJson(before.map(([id, hidden]) => [id, hidden, true])),
+                row?.hides ?? null, (row?.tokens ?? []).some(r => "hidden" in r), K.veilMutedIds().has(kp.id)];
+            await close();
+            await settle();
+            read.closed = [stableJson(looks()) === stableJson(before.map(([id, hidden]) => [id, hidden, null])), S.veilStore.has(killer.id)];
+            // (B) No opening behind it: lifted, each token's own hidden back.
+            await asLegacy(1);
+            const swept = await K.settleVeils();
+            await settle();
+            read.swept = [swept?.lifted ?? null, stableJson(looks()) === stableJson(before.map(([id, hidden]) => [id, hidden, null])), S.veilStore.has(killer.id)];
+        } finally {
+            await close();
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            for (const [id, hidden] of before) {
+                const t = tokens().find(x => x.id === id);
+                if (t && (Boolean(t._source.hidden) !== hidden || flagOf(t).veiled !== undefined)) await t.update({ hidden, [`flags.${MODULE_ID}.veiled`]: forcedDeletion() });
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ converted: [true, true, "module", false, true], closed: [true, false], swept: [[killer.id], true, false] }),
+            "a 1.2.116 veil kept its hidden at the settle, or was not lifted to the tokens' own (converted: hidden and flagged before, own hidden and flagged after, hides, a hidden on the row, the player blocked; closed: looks, a row; swept: lifted, looks, a row)");
+    }],
     ["E112 - an armed Loaded Die loads the murder's opening roll and is spent on it, drawn for a player and thrown by the GM for one not connected", async () => {
         /*
          * E112 item 3, 15.11.2026; the owner: "loaded die nie zuzywa sie na otwarcie morderstwa (dziala, ale hope call

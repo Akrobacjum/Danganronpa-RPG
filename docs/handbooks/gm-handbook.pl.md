@@ -2421,6 +2421,7 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `countdown-update` | Daggerheart przesuwa swoje odliczania poza kolejką projektów, a zmiana projektu zrobiona w tej samej chwili może przepaść |
 | `door-controls` | każdy znacznik drzwi jest pokazywany tak, jak pokazuje go Foundry |
 | `token-ruler` | linijka ruchu żetonu zostaje w kolorze, który daje jej Foundry albo inny moduł |
+| `token-sight` | przy włączonej wizji tokenów gracz, który nie kontroluje żadnego tokenu ze wzrokiem, widzi oczami każdej postaci, którą obserwuje, także tej, którą moduł przed nim ukrywa |
 | `actions-resource` | postać nie ma zasobu Akcji |
 | `sidebar-calls` | własne wywołania Foundry ani nie pokazują, ani nie ustawiają okna narzędzi Foundry |
 | `relay-guard` | prośby z Daggerheart gracza, których moduł nie przejrzał, są odrzucane w przeglądarce GM-a, a GM-owie dostają o tym wiadomość raz na wersję; gdzie strażnik nie może stanąć wcale, przekaźnik nie jest strzeżony, a GM-owie są o tym informowani przy każdym wczytaniu |

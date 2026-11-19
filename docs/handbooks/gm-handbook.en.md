@@ -2421,6 +2421,7 @@ What the table gets instead, by row. A setting or flag the module holds has a ro
 | `countdown-update` | Daggerheart's own tick of the countdowns runs outside the projects' queue, and a project's change made in the same moment can be lost |
 | `door-controls` | every door control is shown as Foundry shows it |
 | `token-ruler` | a token's ruler keeps the color that Foundry or another module gives it |
+| `token-sight` | with token vision on, a player who controls no token with sight sees from every character they observe, including one the module hides from them |
 | `actions-resource` | a character has no Actions resource |
 | `sidebar-calls` | Foundry's own calls neither show nor place the Foundry tools window |
 | `relay-guard` | requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load |
