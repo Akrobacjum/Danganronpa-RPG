@@ -26164,8 +26164,9 @@ const REGRESSIONS = [
 
     ["R7741 - every put-back of a token's spot writes through movement.mjs `putBackWrite`, which sends it with diff: false (the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
         /* TEXT GUARD: a put-back written while a newer move is in flight lost a coordinate to the writer's diff (76 D on the
-           D4 shim); `putBackWrite` sends every coordinate it names, and tier 2 "a put-back writes every coordinate it names"
-           drives it. Read here: the helper sends `diff: false` after the caller's options, and no module write that marks
+           D4 shim); `putBackWrite` sends every coordinate it names, and since 19.11.2026 waits for the move in flight where the
+           copy already holds them (r5), which tier 2 "a put-back written while the token's newer move is on its way lands after
+           it" drives. Read here: the helper sends `diff: false` after the caller's options, and no module write that marks
            itself a put-back (`REVERT`) through a token's own `update` is left in movement.mjs or bridge-runs-records.mjs - the
            gather's displacement in call-world.mjs, which moves the cast rather than putting one token back, is not one. */
         const src = new Map(await otherSources());

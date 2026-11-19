@@ -22,7 +22,7 @@
  */
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
-    ROOM_OWNER_FLAG, ACTIONS_RESOURCE } from "./config.mjs";
+    ROOM_OWNER_FLAG, ACTIONS_RESOURCE, TIMING } from "./config.mjs";
 import {
     SETTINGS, iAmTheMastermind, incidentParticipants, incidentCast, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
     isDeceased, getClock, eclipseId, eclipseCountOf, isMutedDead
@@ -1426,8 +1426,7 @@ export async function refundLastCrossing(actorId) {
             const to = { x: Number(row.back.x), y: Number(row.back.y), elevation: Number(row.back.elevation) || 0 };
             if (row.back.level !== null && row.back.level !== undefined) to.level = row.back.level;
             try {
-                await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });
-                back = true;
+                back = (await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } })).landed;
             } catch (err) {
                 error(`Could not stand "${token.name}" where it was before the crossing given back`, err);
             }
@@ -3486,12 +3485,58 @@ export async function announceCrossingOnGm(actor, from, to, tokenDoc, cost) {
  * its way reads the old spot in the writer's copy: the coordinate the copy already holds is dropped, the other is written
  * after the move lands, and the token stands where it never stood - 76 D read Botan at 1250,450, the put-back's x with the
  * move's y, on the D4 shim, two runs in three. So every put-back of a token's spot - `sendBack`, `refundLastCrossing` and the
- * bridge's send-back (bridge-runs-records.mjs `handleSendback`) - writes through here, with `diff: false`, every coordinate
- * it names sent whatever the copy holds. The options are the caller's otherwise. Tier 2 "a put-back writes every coordinate
- * it names"; tier 0 R7741 holds the three to this road.
+ * bridge's send-back (bridge-runs-records.mjs `handleSendback`) - writes through here, with `diff: false`. The options are
+ * the caller's otherwise; tier 0 R7741 holds the three to this road.
+ *
+ * A PUT-BACK KNOWS WHETHER IT LANDED (the line claude/shim-118, 19.11.2026; the coordinator's go-ahead of that day). On
+ * Foundry 14.370 `diff: false` does not send a token's coordinates its copy holds: the third probe's r5 (CALIBRATION.md
+ * section 6, read by E58 L1) set the GM's copy to the square it then asked for, with `diff: false` - not written, answer
+ * undefined, the server where it was. That is the race's own shape: the copy still holds the spot the put-back aims at, the
+ * token's old place, while the player's newer move is on the server already. The put-back was lost, and its callers said it
+ * had landed - a refused crossing stood, a refund was paid with the token left where it was. So where the copy holds every
+ * coordinate of `to`, the put-back waits for the token's next move heard here (`TIMING.putBackWaitMs`, unmeasured,
+ * LIVE-E39-20) - the move in flight - and writes then, its copy no longer holding `to`; if none comes, the token stands at
+ * `to` as far as this browser can know (a copy wrong with nothing in flight is not read and not covered). Answers
+ * `{ sent, landed }`: `landed` when the write was answered and the copy holds `to` after it (a write stopped at a wall
+ * did not land; the walls are passed with `constrainOptions`, which 14.370 honours here: r3), or when nothing needed
+ * sending. The callers read `landed`, never the bare call: `sendBack`'s `landed`, `refundLastCrossing`'s `back`, the
+ * bridge's send-back's answer. Tier 2 "a put-back written while the token's newer move is on its way lands after it".
  */
-export function putBackWrite(tokenDoc, to, options = {}) {
-    return tokenDoc.update(to, { ...options, diff: false });
+export async function putBackWrite(tokenDoc, to, options = {}) {
+    if (spotHeld(tokenDoc, to)) {
+        const moved = await nextMoveOf(tokenDoc, TIMING.putBackWaitMs);
+        // Nothing arrived within the window, or what arrived left the copy at `to`: reported as landed with nothing sent -
+        // the copy holds the spot, and nothing this browser heard says the server differs (LIVE-E39-20).
+        if (!moved || spotHeld(tokenDoc, to)) return { sent: false, landed: true };
+    }
+    const answer = await tokenDoc.update(to, { ...options, diff: false });
+    return { sent: answer !== undefined, landed: answer !== undefined && spotHeld(tokenDoc, to) };
+}
+
+/** Whether this browser's copy of the token holds every coordinate `to` names (`putBackWrite`). */
+function spotHeld(tokenDoc, to) {
+    const src = tokenDoc?._source ?? tokenDoc ?? {};
+    return Object.entries(to ?? {}).every(([key, value]) => key === "level"
+        ? String(src.level ?? tokenDoc?.level?.id ?? "") === String(value?.id ?? value ?? "")
+        : Number(src[key]) === Number(value));
+}
+
+/** The token's next move heard here (a coordinate or its floor in an `updateToken`), or false after `ms`. */
+function nextMoveOf(tokenDoc, ms) {
+    return new Promise(resolve => {
+        let done = false, hook = null, timer = null;
+        const finish = moved => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            Hooks.off("updateToken", hook);
+            resolve(moved);
+        };
+        hook = Hooks.on("updateToken", (doc, changes) => {
+            if (doc?.id === tokenDoc?.id && ["x", "y", "elevation", "level"].some(key => key in (changes ?? {}))) finish(true);
+        });
+        timer = setTimeout(() => finish(false), ms);
+    });
 }
 
 /**
@@ -3526,10 +3571,9 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null,
             // elevation and level, the owner's 13.10).
             const to = previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y };
             if (elevation && Number.isFinite(Number(previous.elevation))) to.elevation = Number(previous.elevation);
-            await putBackWrite(tokenDoc, to,
+            wrote = (await putBackWrite(tokenDoc, to,
                 { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } }
-            );
-            wrote = true;
+            )).landed;
         } catch (err) {
             /*
              * A player may not own the token; ask the GM to do it.

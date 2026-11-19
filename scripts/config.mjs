@@ -364,6 +364,14 @@ export const CHAPTERS_PER_SEASON = 6;
 export const TIMING = {
     /** A GM's "got it" for a bridge request; past this, no GM is listening. */
     ackMs: 8000,
+    /**
+     * How long a put-back whose spot the writer's copy already holds waits for the move in flight before it writes
+     * (movement.mjs `putBackWrite`; the line claude/shim-118, 19.11.2026). Foundry 14.370 sends no update of a token whose
+     * named coordinates its copy holds, even with `diff: false` (docs/dev/e39/CALIBRATION.md section 6, the third probe,
+     * r5), and a move already on the server reaches this browser a moment later. Not measured at a table: chosen as a few
+     * of the round trips a move takes, LIVE-E39-20.
+     */
+    putBackWaitMs: 1500,
     /** A GM's ruling on a request (a Dynamic threshold, an Observe target, a sabotage's result). */
     rulingMs: 180000,
     /**
