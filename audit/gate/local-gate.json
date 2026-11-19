@@ -3,16 +3,16 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.117"
+    "version": "1.2.118"
   },
-  "commit": "59ad23a8dd28b0cd563fc3319940a9ca59711f71",
+  "commit": "ec1478d5583990ac28b6eb8dd9755e6a579c1f95",
   "bound": {
-    "scripts": "528a43e22782cd692ab7bf97ac14dc3ae4266314",
-    "styles": "22ea8fb1ffb8af8724ac436561efc5dd5f1bbffa",
-    "lang": "28e8a6ba31ce04caaa9d94b5399d59f095291e37",
+    "scripts": "d29f40b8dc22a28085bb27830d098bc5eff0ee2a",
+    "styles": "62a1b893978c68f0a3bcc63cadfcf67c43c7302a",
+    "lang": "9dde915a2c332ac5893bd70860ea062cbf5d6755",
     "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
     "icons": "64f9a85e9e41505b75f0c63707660a382b6d1504",
-    "module.json": "e0dfad3223c66d973668a8851f3e41bf08434132",
+    "module.json": "d6a6e554d7d2787252f78046e66c70ebe41b3552",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "4c31bef421cc6337a06a6cd8304dc799aae1b7d9",
     "audit/live": "b2efd94136a6dbcaac935ab45c1a3490b8004fa8",
@@ -20,11 +20,11 @@
     "audit/harness/scenarios/14-quiet.mjs": "ab210846f646d88f51951f6c65288a16bfb39144",
     "audit/harness/scenarios/60-ledger.mjs": "62ae55bdb85a1708f04045dffa44971cdb1af282",
     "audit/harness/scenarios/81-render-budget.mjs": "4f0c592c86e2f988c7f49aad46f838e9966b37dc",
-    "audit/harness/scenarios/83-roll-integrity.mjs": "e1d25496fa9026972ba5da5ec4afd49c2c134cce",
+    "audit/harness/scenarios/83-roll-integrity.mjs": "6b1d39b093212800cd5feb840fa92ca4b6e9697f",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-16T22:18:23.767Z",
-  "finishedAt": "2026-11-16T22:18:23.890Z",
+  "startedAt": "2026-11-19T04:28:59.242Z",
+  "finishedAt": "2026-11-19T04:28:59.355Z",
   "host": {
     "node": "v22.22.0",
     "platform": "linux-x64",
@@ -125,6 +125,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:fbd393f7661ef20ec221649c384864e9267dd898efaa38127785873230426af7",
+  "digest": "sha256:638da8778d09cd998310b24027e3591a637181ef6ed9ccbee6e696a40ef53798",
   "hmac": null
 }
