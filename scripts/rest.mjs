@@ -13,9 +13,9 @@
  * no rest at all.
  */
 
-import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
+import { MODULE_ID, FLAGS, REST, STARTING, ROOM_OWNER_FLAG } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
-import { locateActor, roomsKnownToMe, sceneOfActor } from "./movement.mjs";
+import { locateActor, roomsKnownToMe, sceneOfActor, bedroomShut } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
 import { whisperToOwner, log, error, plural, cardHead, forcedDeletion, isPrimaryGm } from "./utils.mjs";
 // One room map for the whole module (audit C3): rooms.mjs, rooms only and on the scene it is
@@ -69,11 +69,25 @@ export function restRooms(kind, scene) {
  * THE REST'S NAME FROM `kind`, NOT ONLY FROM `data` (gaps, the owner's 12.11.2026): the Rest window's hints ask with no
  * `kind` in `data` (`restVariants`, whose "allowedIn" has none), and on a map with no rest room the fallback said "marked
  * for a  yet" / "oznaczony pod ." - now it names the rest by `kindLabel`, as the refusal's road does. R3980.
+ *
+ * ONLY THE ROOMS THIS CHARACTER MAY REST IN (F118, 17.11.2026; the owner, with a screenshot of the Facilities window:
+ * "Szary druk pod poszczegolnymi akcjami, zwlaszcza restow wymaga poprawy"). Handed the character (`actor`), the list
+ * keeps the found rooms whose door the move itself lets it through (movement.mjs `bedroomShut`, the rule a crossing is
+ * refused by: its own bedroom, a room that is nobody's, another's only with the key in hand, a breached one, a dead
+ * owner's in the Investigation), so it is no longer every bedroom on the floor; its own bedroom comes first and reads
+ * "your bedroom" (DRPG.Rest.yourBedroom), not its name. Found rooms of which it may enter none say so
+ * (DRPG.Rest.noOpenRooms). With no character the list is as it was (tier 2's "names no rest room the viewer has not
+ * found"). R7791.
  */
-export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe(scene)) {
+export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe(scene), actor = null) {
     const rooms = restRooms(kind, scene);
-    const shown = known ? rooms.filter(room => known.has(room)) : rooms;
+    const found = known ? rooms.filter(room => known.has(room)) : rooms;
+    const open = actor ? found.filter(room => !bedroomShut(actor, scene, room)) : found;
+    const mine = actor ? open.filter(room => roomFlag(scene, room, ROOM_OWNER_FLAG) === actor.id) : [];
+    const shown = mine.length
+        ? [game.i18n.localize("DRPG.Rest.yourBedroom"), ...open.filter(room => !mine.includes(room))] : open;
     if (shown.length) return game.i18n.format(key, { ...data, rooms: shown.join(", ") });
+    if (found.length) return game.i18n.localize("DRPG.Rest.noOpenRooms");
     return rooms.length
         ? game.i18n.localize("DRPG.Rest.noKnownRooms")
         : game.i18n.format("DRPG.Rest.noRooms", { kind: data?.kind ?? kindLabel(kind) });
@@ -244,9 +258,11 @@ export function restVariants(actor) {
            more than the purse. Tier 2 "1.2.113 the Rest window greys a rest ..." reads both rows over four purses. */
         const cost = REST[kind].actionCost;
         const unpaid = !canPayFor(actor, cost);
-        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
-        // character's scene, the school's for one with no token (E12 fix r1-G4).
-        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
+        /* "NOT HERE." AND NO ROOMS (F118, 18.11.2026; the owner on the Facilities screenshots: "Nie chcemy tej listy
+           pokojow w opisac restow. Wystarczy \"nie tutaj\"."). The row's line named the rest rooms (`restRoomsSentence`,
+           filtered to the found ones since E06 C11 and to the ones the character may rest in since F118); the owner's word
+           was about the rows. The refusal in `takeRest` keeps the filtered list: there a player asks "where, then". */
+        const elsewhere = game.i18n.localize("DRPG.Rest.notHere");
         return {
             value: kind,
             icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
@@ -311,8 +327,9 @@ export async function takeRest(actor, kind = "short", {
         const place = locateActor(actor);
         const room = place?.room ?? null;
         if (!ignoreRoom && !roomAllows(room, kind, place?.scene)) {
+            const scene = place?.scene ?? sceneOfActor(actor);
             ui.notifications.warn(restRoomsSentence(kind, "DRPG.Rest.wrongRoom",
-                { kind: kindLabel(kind), room: room ?? "-" }, place?.scene ?? sceneOfActor(actor)));
+                { kind: kindLabel(kind), room: room ?? "-" }, scene, roomsKnownToMe(scene), actor));
             return null;
         }
 

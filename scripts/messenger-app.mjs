@@ -772,6 +772,9 @@ export function wireCallActions(body, message = null) {
                     await settleCall(message, outcome.settled, outcome.ruling ?? null);
                     return; // The card redraws itself; these buttons are gone.
                 }
+                // Answered already, on the other copy of this card (F118: a GM's log and messenger both wire a thread's
+                // card) or by another GM: the claim was refused and said why, and these buttons stay held.
+                if (message && cardFlag(message, MESSENGER_FLAGS.settled)) return;
             } catch (err) {
                 error("Could not act on the ruling card", err);
             } finally {

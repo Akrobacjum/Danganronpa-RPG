@@ -20,9 +20,20 @@
  *
  * WHICH TOKENS. A character a player owns (`hasPlayerOwner`), on every screen,
  * the GM's included: a frame that only the owner could see would tell the GM
- * nothing when they look for a student. Monokuma and any other character the GM
- * alone owns stay bare. A mastermind is a player's character like any other, and
- * is framed like one - a missing frame would be the tell.
+ * nothing when they look for a student. A mastermind is a player's character like
+ * any other, and is framed like one - a missing frame would be the tell.
+ *
+ * AND A CHARACTER SOME USER HAS AS THEIRS, A GM'S INCLUDED (F118, 17.11.2026; the owner,
+ * with a screenshot from the first GM's screen: "Nowy blad - na tokenie drugiego gma nie ma
+ * ramki", and "Tak" to the rule below). A character a second GM or an Assistant plays is
+ * owned by GMs alone, so `hasPlayerOwner` is false and it stood bare on every other screen,
+ * like Monokuma. A character that is some user's assigned character (`User.character`) is
+ * framed now: bone on that user's screen, the others' frame on every other. Monokuma stays
+ * bare even when a GM has it assigned (`isMonokuma`), and so does any other character the GMs
+ * alone own that nobody has as theirs. `User.character` is a field of the User documents
+ * every browser holds, so this tells a player nothing their browser did not have
+ * (world-secrets.mjs rules flags and a message's fields; no rule names it). `frameFor` is
+ * the rule, `frameOf` asks it for a token, R7790 reads it.
  *
  * THE OTHERS IN THE COLOUR OF THE TIME OF DAY, like the curtain's own seams. The
  * hour is already the loudest thing on this interface - it colours the room borders,
@@ -74,6 +85,9 @@
  */
 
 import { debug, cssColour, forgetCssColours } from "./utils.mjs";
+/* Monokuma is told apart by its flag (monokuma.mjs `isMonokuma`), as every other reader of it does: a GM may have it as
+   their character, and it stays bare on every other screen all the same (F118). */
+import { isMonokuma } from "./monokuma.mjs";
 /* Stained Glass on: motion.mjs `glassOn`, the setting first, then the class (the class lands at ready, and tokens are
    drawn before that). own-ring.mjs held a copy of it, the same text, until E56 C9. */
 import { glassOn } from "./motion.mjs";
@@ -165,9 +179,15 @@ export function registerOwnRing() {
             if (token.actor?.id === actor.id) paint(token);
         }
     });
+    /* ANY USER'S CHARACTER, AND ANY USER'S ROLE (F118). Whose character a token is decides its frame on every
+       screen now, not only on its user's, so a change of any user's `character` repaints the scene everywhere; a
+       change of role does too, as `hasPlayerOwner` turns on whether its owners are GMs. A user added or removed
+       changes both answers. Rare writes all four, and a repaint is the scene's tokens once. */
     Hooks.on("updateUser", (user, changes) => {
-        if (user.id === game.user.id && "character" in changes) repaintAll();
+        if ("character" in (changes ?? {}) || "role" in (changes ?? {})) repaintAll();
     });
+    Hooks.on("createUser", () => repaintAll());
+    Hooks.on("deleteUser", () => repaintAll());
 }
 
 /** Every token on the scene, repainted. */
@@ -183,11 +203,15 @@ function repaintAll() {
  * GM owns the whole cast, so every token would be bone and none would say anything.
  */
 function isMine(token) {
-    const actor = token?.actor;
+    return mineFor(token?.actor, game.user);
+}
+
+/** `isMine` for an actor and a viewer: their assigned character, or, off a GM's screen, anything they own. */
+function mineFor(actor, viewer) {
     if (!actor) return false;
-    const mine = game.user?.character;
+    const mine = viewer?.character;
     if (mine && actor.id === mine.id) return true;
-    return !game.user?.isGM && actor.isOwner === true;
+    return !viewer?.isGM && actor.isOwner === true;
 }
 
 /**
@@ -198,10 +222,23 @@ function isMine(token) {
  * people they are not.
  */
 function frameOf(token) {
-    const actor = token?.actor;
+    return frameFor(token?.actor, game.user, game.users);
+}
+
+/**
+ * The frame an actor's token wears on `viewer`'s screen, with `users` the world's users: "mine" (bone), "student"
+ * (the others' frame) or null (F118). A character a player owns, or one that is some user's assigned character - a
+ * GM's included - but never Monokuma by assignment alone. `actor.isOwner` is the viewer's own ownership, as Foundry
+ * answers it on the viewer's browser, so a caller asking for another viewer hands an actor that answers for them
+ * (R7790's stand-ins). Pure of the canvas: R7790 calls it with no token.
+ */
+export function frameFor(actor, viewer, users = []) {
     if (!actor || actor.type !== "character") return null;
-    if (isMine(token)) return "mine";
-    return actor.hasPlayerOwner ? "student" : null;
+    if (mineFor(actor, viewer)) return "mine";
+    if (actor.hasPlayerOwner) return "student";
+    if (isMonokuma(actor)) return null;
+    // `some` is Foundry's Collection's and an array's alike; a spread of a Map would hand its entries instead.
+    return (typeof users?.some === "function" ? users : []).some(u => u?.character?.id === actor.id) ? "student" : null;
 }
 
 /**

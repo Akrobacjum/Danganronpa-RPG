@@ -25514,6 +25514,177 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["the chat log's copy of a thread's ruling card rules it on a GM: Approve in the log is the messenger's Approve", async () => {
+        /*
+         * F118, 16.11.2026; AUDIT 9.2 S7-2, measured by the owner's local run L1 on Foundry 14.370: a player's statistic
+         * ruling ask that belongs to a messenger thread reached the GM's chat log with enabled buttons that did
+         * nothing - a real click changed nothing in 20 s, with no error - because gm-bridge.mjs wired the log's copy
+         * only for a card carrying `callCard`, which only a card with no thread has. The killer's player asks for
+         * a weapon swing (`judge`, as the test above); the card's copy is drawn as the log draws it
+         * (`renderHTML`: at a table Foundry's own, on the harness client-entry.mjs's, both calling
+         * `renderChatMessageHTML`) and its Leg button clicked. Read: whether the card lives in a thread and carries no
+         * `callCard`, the answers sent and to whom, whether the card was settled and what it keeps. Until F118: the
+         * click ran nothing - no answer, the card unsettled, no record. A real mouse on v14's log is LIVE-F118-01.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const done = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && packet.requestId === "suite-f118-log") done.push([options?.recipients ?? [], packet.value ?? null]);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-f118-log", actorId: killer.id, kind: "crisis",
+                key: "weaponAttack", variant: null }, mine.id, { send: () => null });
+            await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            const card = game.messages.contents.find(m => !had.has(m.id));
+            must(String(contentOf(card) ?? "").includes('data-drpg-call="pickTrait"'), "no statistic card was posted for the fixture's request");
+            const shape = [Boolean(card.getFlag(MODULE_ID, "thread") ?? cardFlag(card, "thread")), Boolean(cardFlag(card, "callCard"))];
+            const li = await card.renderHTML();
+            await settle();
+            const button = [...li.querySelectorAll('[data-drpg-call="pickTrait"]')].find(b => b.dataset.trait === "leg") ?? null;
+            must(button, "the log's copy of the card drew no Leg button - this measured nothing");
+            button.click();
+            await until(() => cardFlag(card, "settled"));
+            await settle();
+            const record = { type: "trait", actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null, trait: "leg", how: "picked" };
+            equal(stableJson([shape, done, Boolean(cardFlag(card, "settled")), cardFlag(card, "ruling") ?? null]),
+                stableJson([[true, false], [[[mine.id], "leg"]], true, record]),
+                "the log's copy of a thread's ruling card did not rule it (the card's thread and callCard, the answers, settled, the record)");
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+        }
+    }],
+
+    ["a thread's ruling card answered in the messenger first is not ruled again from the log, and the log's buttons end disabled", async () => {
+        /*
+         * F118, 16.11.2026; AUDIT 9.2 S7-2. Since F118 both copies of a thread's ruling card are wired on a GM - the
+         * messenger's bubble and the chat log's - so one card has two sets of live buttons, and the claim on the
+         * primary (bridge-asks.mjs `claimCard`) is what keeps it to one ruling. The log's copy is drawn while the card
+         * is open (`renderHTML`), the card is answered Leg in the messenger (`wireCallActions` on a bubble's body), and
+         * then the open log copy's Hand is clicked. Read: the answers sent, the record the card keeps, whether every
+         * button of that log copy is disabled afterwards, and how many buttons a fresh draw of the log's copy holds.
+         * Until F118 the log copy was not wired at all, so its buttons stayed enabled on a card already ruled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const done = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && packet.requestId === "suite-f118-once") done.push([options?.recipients ?? [], packet.value ?? null]);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-f118-once", actorId: killer.id, kind: "crisis",
+                key: "weaponAttack", variant: null }, mine.id, { send: () => null });
+            await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            const card = game.messages.contents.find(m => !had.has(m.id));
+            must(String(contentOf(card) ?? "").includes('data-drpg-call="pickTrait"'), "no statistic card was posted for the fixture's request");
+            const li = await card.renderHTML();
+            await settle();
+            const logButtons = [...li.querySelectorAll("[data-drpg-call]")];
+            must(logButtons.length > 0, "the log's copy of the card drew no buttons - this measured nothing");
+            const bubble = document.createElement("div");
+            bubble.innerHTML = contentOf(card);
+            wireCallActions(bubble, card);
+            [...bubble.querySelectorAll('[data-drpg-call="pickTrait"]')].find(b => b.dataset.trait === "leg")?.click();
+            await until(() => cardFlag(card, "settled"));
+            await settle();
+            logButtons.find(b => b.dataset.trait === "hand")?.click();
+            await settle();
+            await settle();
+            const fresh = await card.renderHTML();
+            await settle();
+            equal(stableJson([done, cardFlag(card, "ruling")?.trait ?? null, logButtons.every(b => b.disabled),
+                fresh.querySelectorAll("[data-drpg-call]:not([disabled])").length]),
+                stableJson([[[[mine.id], "leg"]], "leg", true, 0]),
+                "a thread's card answered in the messenger was ruled again from the log, or the log's buttons were left live (answers, the record's statistic, the open log copy's buttons all disabled, live buttons on a fresh draw)");
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+        }
+    }],
+
+    ["a character another user has as theirs is framed on this GM's screen as soon as it is assigned, and Monokuma assigned stays bare (F118)", async () => {
+        /*
+         * F118, 17.11.2026; the owner's "na tokenie drugiego gma nie ma ramki" and their "Tak" to the rule R7790 reads on
+         * `frameFor`. Here on the scene's own tokens, through `diagnoseOwnRings` (own-ring.mjs), on this GM's screen: a
+         * living student no player owns stands bare, then a player account is given it as its character
+         * (`User.character`, as Foundry's user config writes it), then Monokuma instead, then its own character back.
+         * Nothing moves a token, so a frame that comes or goes can only be the repaint on another user's `character`
+         * change (`updateUser`). Read for the student's and Monokuma's tokens at each step: the frame answered and
+         * whether a frame is drawn. Until F118: the student stayed bare when assigned (frame null, no ring), and only
+         * this browser's own user's change repainted anything.
+         */
+        needs(world.atLeast("sceneOnScreen", 1), "the frames are read on the scene on screen");
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a student the GMs alone own, to be given to somebody");
+        needs(world.atLeast("monokumas", 1), "a Monokuma, to be given to somebody");
+        needs(world.atLeast("playerAccounts", 1), "an account to give them to");
+        const R = await import("./own-ring.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const onScreen = a => [...(canvas.scene?.tokens ?? [])].some(t => t.actorId === a?.id && !t.hidden);
+        const bare = livingStudents().find(a => !a.hasPlayerOwner && !isMonokuma(a) && onScreen(a)) ?? null;
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a) && onScreen(a)) ?? null;
+        const user = game.users.find(u => !u.isGM) ?? null;
+        must(bare && mono && user, "no GM-owned student or Monokuma stands on the scene on screen, or no player account - this measured nothing");
+        const had = user.character?.id ?? null;
+        const table = console.table;
+        const read = () => {
+            console.table = () => null;
+            try {
+                const rows = R.diagnoseOwnRings().tokens;
+                return [bare, mono].map(a => {
+                    const row = rows.find(r => r.actor === a.name) ?? null;
+                    return [row?.frame ?? null, Boolean(row?.ring && row?.showing)];
+                });
+            } finally {
+                console.table = table;
+            }
+        };
+        const steps = [];
+        try {
+            steps.push(["before", read()]);
+            await user.update({ character: bare.id });
+            await settle();
+            steps.push(["the student assigned", read()]);
+            await user.update({ character: mono.id });
+            await settle();
+            steps.push(["Monokuma assigned", read()]);
+        } finally {
+            await user.update({ character: had });
+            await settle();
+        }
+        steps.push(["put back", read()]);
+        equal(stableJson(steps.map(([, s]) => s)), stableJson([
+            [[null, false], [null, false]],
+            [["student", true], [null, false]],
+            [[null, false], [null, false]],
+            [[null, false], [null, false]]
+        ]), `a character another user has as theirs was not framed here when assigned, or Monokuma was, or a frame stayed after it was taken back ([step, [[student's frame, drawn], [Monokuma's frame, drawn]]]): ${stableJson(steps)}`);
+    }],
+
     ["the opening's invitation carries the GM's pick and the window rolls it", async () => {
         /*
          * E32+E07 C11c, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09). Both
@@ -91055,6 +91226,77 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "hour ahead of this browser's; same: [the Next summary's rows, the Eclipse's summary the same "
             + "card]; card: the Next summary's title, lede (the morning, a GM's), rows and totals (three actions, one find, one trace); end: "
             + "[an Eclipse after its end, the time of day, popups after it]}");
+    }],
+    ["F118-T1 - the Evening's own summary reaches the screen when Night begins, with the table's sequences on: the day's board shows no rows of the day since the owner's word of 18.11.2026, so nothing folds into it (scripts/day-summary.mjs `sumUp`)", async () => {
+        /*
+         * F118, 18.11.2026; the owner: "I ten ekran ma byc identyczny zarowno na start jak i na koniec dnia" - one board at
+         * both ends of the day, the living students and the school's mood, and the end board's rows of the day gone. Until
+         * then the Evening's summary was not put up when Night began with the switch on (day-summary.mjs
+         * `eveningFoldsIntoBoard`: the end board held the day's rows); with the rows gone from the board they would be shown
+         * nowhere. Driven on this GM as E37-T4 drives the morning: the clock at the Evening stamped now, the table's
+         * sequences on, three cards whispered to the GMs with their facts, Next time of day (`advanceTimeOfDay`, the
+         * Evening to Night, which stamps the board), then the summary popups that name the cards read off the page (tier 2
+         * holds notices in memory, R473). Put back: the clock, every character's actions, the switch; the cards deleted,
+         * the popups dismissed, the board cut. Red at 66a0c9b4: no summary popup at Night.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        const C = await import("./clock.mjs");
+        const U = await import("./utils.mjs");
+        const D = await import("./day-summary.mjs");
+        const Q = await import("./sequence.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const [who] = cast(1);
+        must(!murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const switchWas = game.settings.get(MODULE_ID, SETTINGS.sequences);
+        const actionsWas = game.actors.filter(a => a.type === "character")
+            .map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const MARK = "F118T1 room";
+        const evening = TIMES_OF_DAY[TIMES_OF_DAY.length - 2], night = TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+        const summaries = () => [...document.querySelectorAll(".drpg-popup")]
+            .filter(card => card.querySelector(".drpg-day-summary") && card.textContent.includes(MARK));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (card.querySelector(".drpg-day-summary")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const cards = [];
+        const read = {};
+        try {
+            if (switchWas === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            const T0 = Date.now();
+            await setClock({ phase: "dailyLife", timeOfDay: evening, timeOfDayStartedAt: T0, refilledFor: null, nightBoard: null });
+            await settle();
+            for (let n = 0; n < 3; n++) {
+                cards.push(await U.whisperToGms(`<p>F118T1 card ${n}</p>`, { summary: { actorId: who.id, action: `F118T1 action ${n}`,
+                    room: MARK, total: 10 + n, critical: false, item: null, tier: null, leftTrace: false, at: Date.now() } }));
+            }
+            await until(() => D.entriesSince(T0).filter(e => e.room === MARK).length === 3, 8000);
+            must(D.entriesSince(T0).filter(e => e.room === MARK).length === 3, "the three cards' facts are not in this browser's store - this would measure nothing");
+            dismiss();
+            await settle();
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await until(() => summaries().length > 0, 9000);
+            await settle();
+            const card = summaries()[0];
+            read.night = [getClock().timeOfDay, Number(getClock().nightBoard) === Number(getClock().day), Q.sequencesOn(), summaries().length,
+                card ? card.querySelectorAll(".drpg-sum-row").length : 0];
+        } finally {
+            Q.endSequence?.("cut");
+            dismiss();
+            for (const card of cards) await card?.delete?.();
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            if (switchWas === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, false);
+            await settle();
+            dismiss();
+        }
+        equal(stableJson(read), stableJson({ night: [night, true, true, 1, 3] }),
+            "{night: [the time of day after Next, the board's stamp on its day, the table's sequences on, summary popups naming the cards, its rows]} - the Evening's rows reached no screen");
     }],
     ["E37-T10 - no summary on a bystander's screen while the incident hides the clock (E37 fix FG2; the end review's S-M1): with an incident running, day-summary.mjs's listener of `drpgTimeOfDayChanged` handed a move of the clock forward shows the GM the summary of the time of day that ended, and on a browser that is a bystander of the incident it shows none", async () => {
         /*

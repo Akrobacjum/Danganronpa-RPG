@@ -5276,9 +5276,12 @@ body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, 
     min-width: 0;
 }
 
+/* The 11 px readability floor (F118, 17.11.2026; the owner: "Szary druk pod poszczegolnymi akcjami ... wymaga poprawy"):
+   0.82em of a Legacy row read 10.66 px in Chromium (audit/style-harness.html, the Facilities window at 1366x768). The
+   floor is the rung `--drpg-text-xs`, which follows the Interface scale (R60). */
 .drpg-choice-text small {
     opacity: 0.7;
-    font-size: 0.82em;
+    font-size: max(var(--drpg-text-xs), 0.82em);
 }
 
 /* What a row unfolds into once picked (E32+E07 C15, 03.10.2026; audit S02-32): the
@@ -13101,9 +13104,18 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 /* An option that cannot be taken stays on the list, struck through, with the
    reason where the hint was. Seeing what you cannot do is half of what the
    menu is for - see `chooseVariant` in action-rolls.mjs. */
+/* THE REASON AT THE NOTES' CONTRAST (F118, 17.11.2026; the owner's report of the Facilities window, "zwlaszcza restow").
+   The whole row was at 0.55 and its line at 0.7 on top, so the reason read 3.02:1 under Legacy (and 2.08:1 under the
+   glass, its 0.62 bone dimmed twice) in Chromium, where the module holds a shut row's note to `lg-note` (--drpg-dim on
+   ink, 4.68:1) and `sg-note` (6.84:1; tools/contrast-pairs.json). The row's own parts are dimmed now and the reason is
+   drawn in the notes' colour at full opacity. */
 .drpg-choice.unavailable {
-    opacity: 0.55;
     cursor: not-allowed;
+}
+
+.drpg-choice.unavailable > :is(input, i),
+.drpg-choice.unavailable .drpg-choice-text strong {
+    opacity: 0.55;
 }
 
 .drpg-choice.unavailable .drpg-choice-text strong {
@@ -13112,6 +13124,8 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 
 .drpg-choice.unavailable .drpg-choice-text small {
     font-style: italic;
+    opacity: 1;
+    color: var(--drpg-dim);
 }
 
 /* A crisis row the incident took away (`deniedToVictim`; E51 C1, audit S02-51 (g)): struck like any shut row, and
@@ -18315,7 +18329,7 @@ body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g4) :is(#drpg-vo
     text-transform: var(--drpg-seq-case);
     color: var(--drpg-seq-light);
 }
-#drpg-sequence .drpg-seq-day-sub { font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.1em; text-transform: uppercase; }
+#drpg-sequence .drpg-seq-day-sub { font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: calc(22 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-cast { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(16 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-who { display: grid; justify-items: center; gap: calc(4 * var(--drpg-seq-u)); width: calc(150 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-face {
@@ -18335,13 +18349,11 @@ body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g4) :is(#drpg-vo
 #drpg-sequence .drpg-seq-who.is-dead b { opacity: 0.6; }
 #drpg-sequence .drpg-seq-announce { display: grid; gap: calc(4 * var(--drpg-seq-u)); font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); }
 #drpg-sequence .drpg-seq-announce small { font-size: 0.7em; letter-spacing: 0.12em; opacity: 0.8; }
-/* E94 C3, C4: the end-of-day board - the day's rows (this browser's own), what the school saw, Hope and Despair counted up,
-   and the school's mood as a word; the same frame as the start-of-day board's */
-/* The owner on the end board (12.11): more room between the chapter line and the rest - 22 units on the grid's 14 */
-#drpg-sequence .drpg-seq-dayend .drpg-seq-day-sub { margin-bottom: calc(22 * var(--drpg-seq-u)); }
+/* E94 C3, C4: the end-of-day board, since F118 (18.11.2026; the owner: "I ten ekran ma byc identyczny zarowno na start jak
+   i na koniec dnia") the day's board at both ends (sequence.mjs `dayBoardElement`): the columns, rows and tally below are
+   the case summary's now, which took the day board's frame. The owner on the end board (12.11): more room between the
+   chapter line and the rest - 22 units on the grid's 14, on the one board since F118 (`.drpg-seq-day-sub`, above). */
 #drpg-sequence .drpg-seq-dayend-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(320 * var(--drpg-seq-u)), 1fr)); gap: calc(24 * var(--drpg-seq-u)); text-align: left; }
-#drpg-sequence .drpg-seq-dayend h3 { margin: 0 0 calc(8 * var(--drpg-seq-u)); border: 0; font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.12em; opacity: 0.8; color: var(--drpg-seq-light); }
-#drpg-sequence .drpg-seq-dayend ol { margin: 0; padding: 0; list-style: none; display: grid; gap: calc(6 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-row { font: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)) / 1.25 var(--drpg-seq-font); overflow-wrap: break-word; }
 #drpg-sequence .drpg-seq-row span { opacity: 0.7; }
 #drpg-sequence .drpg-seq-row em { font-style: normal; border: calc(1 * var(--drpg-seq-u)) solid currentColor; padding: 0 calc(4 * var(--drpg-seq-u)); }

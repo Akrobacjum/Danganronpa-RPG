@@ -247,13 +247,6 @@
       "weRemember": "pamiętamy",
       "morningLine": "OGŁOSZENIE PORANNE",
       "dayEndTitle": "Koniec dnia {day}",
-      "dayEndSub": "Rozdział {chapter}",
-      "yourDay": "TWÓJ DZIEŃ",
-      "tableDay": "DZIEŃ STOŁU",
-      "foundSomething": "znalezione",
-      "dayTally": "Akcje: {actions} · Znaleziska: {found}",
-      "quietDay": "Spokojny dzień.",
-      "publicEvents": "CO WIDZIAŁA SZKOŁA",
       "moodLabel": "NASTRÓJ SZKOŁY",
       "mood": {
         "calm": "Spokój",
@@ -1048,6 +1041,7 @@
       "next": "Dalej",
       "restNow": "Odpocznij",
       "askThem": "Poproś",
+      "costsNothing": "Za darmo.",
       "willCost": {
         "one": "Koszt: {n} akcja. Masz {left}.",
         "few": "Koszt: {n} akcje. Masz {left}.",
@@ -4345,9 +4339,12 @@
       "alreadyThisSessionShort": "już wykorzystany w tej sesji",
       "allowedHere": "Dozwolony tutaj ({room}).",
       "allowedIn": "Nie tutaj. Dozwolony w pokojach: {rooms}",
+      "notHere": "Nie tutaj.",
       "wrongRoom": "{kind} nie jest dozwolony w pokoju {room}. Pokoje, które na to pozwalają: {rooms}",
       "noRooms": "Żaden pokój na tej mapie nie pozwala na {kind}. Pokoje do odpoczynku wyznacza GM.",
       "noKnownRooms": "Żaden znany ci pokój na to nie pozwala.",
+      "noOpenRooms": "Żaden znany ci pokój, do którego możesz wejść, na to nie pozwala.",
+      "yourBedroom": "twoja sypialnia",
       "manageIntro": "W których pokojach wolno zrobić Short Rest, a w których Long Rest.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
@@ -7625,8 +7622,8 @@
         },
         "rest": {
           "label": "Facilities",
-          "hint": "Odzyskaj Health, Sanity albo Hope w pokoju, w którym GM pozwala odpoczywać. Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji, raz na sesję, i daje więcej.",
-          "description": "Do wyboru masz Sleep (Health), Meal (Sanity) i Breath (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
+          "hint": "Co możesz zrobić w pokoju, w którym stoisz: odpocząć (Short Rest albo Long Rest, w pokojach, które GM na to oznaczył), użyć akcji, którą GM dał temu pokojowi (z rzutem), albo akcji ukończonego projektu (bez rzutu).",
+          "description": "Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji i daje więcej, raz na sesję. Akcja, którą GM dał temu pokojowi, kosztuje akcję i rzut na jej statystykę; akcja ukończonego projektu nie wymaga rzutu."
         },
         "listen": {
           "label": "Infiltrate",

@@ -141,10 +141,22 @@ export function registerGmBridge() {
                 .catch(err => debug("Could not wire a held Key fee's card", err));
         });
         Hooks.on("renderChatMessageHTML", (message, element) => {
-            // From the words' meta (E06 C7a): the card is drawn again when they land.
-            if (!cardFlag(message, "callCard")) return;
+            /*
+             * EVERY RULING CARD IN THE LOG, NOT ONLY ONE WITH NO THREAD (F118, 16.11.2026; AUDIT 9.2 S7-2, the owner's
+             * local run L1 on Foundry 14.370). This wired only a card carrying `callCard` (from the words' meta, E06
+             * C7a: the card is drawn again when they land), which only a card with no thread has. A thread's card
+             * reached the GM's log as well, with enabled Approve, Change to and Refuse buttons that did nothing: a real
+             * click changed nothing in 20 s, with no error. Any card whose drawn copy holds a `[data-drpg-call]` button
+             * is wired now as the messenger wires its bubble; the claim on the primary (`claimCard`) keeps the two
+             * copies to one ruling. Read after the import, a microtask: the secret swap draws the words in this same
+             * hook dispatch, and a card with words to come holds no button before it.
+             */
             import("./messenger-app.mjs")
-                .then(m => m.wireCallActions(element.querySelector(".message-content") ?? element, message))
+                .then(m => {
+                    const body = element?.querySelector?.(".message-content") ?? element;
+                    if (!cardFlag(message, "callCard") && !body?.querySelector?.("[data-drpg-call]")) return;
+                    m.wireCallActions(body, message);
+                })
                 .catch(err => debug("Could not wire a ruling card in the log", err));
         });
     }

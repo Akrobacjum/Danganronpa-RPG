@@ -2437,6 +2437,54 @@ const INVARIANTS = [
             "the drag rectangle still has Foundry's orange written into it");
     }],
 
+    ["R7790 - a character some user has as theirs is framed on every screen, a second GM's included, and Monokuma stays bare (F118)", async () => {
+        /*
+         * F118, 17.11.2026; the owner, with a screenshot from the first GM's screen: "Nowy blad - na tokenie drugiego gma
+         * nie ma ramki". own-ring.mjs framed a "student" only when `hasPlayerOwner` - some non-GM user owns it - so a
+         * character a second GM (or an Assistant) plays, owned by GMs alone, was bare on every other screen, as Monokuma
+         * is. The owner's answer ("Tak", 17.11.2026, to the coordinator's proposal): a character that is some user's
+         * assigned character (`User.character`), a GM's included, is "mine" on that user's screen and "student" on
+         * every other; Monokuma stays bare even when a GM has it assigned. Read on `frameFor` (own-ring.mjs), the rule
+         * `frameOf` asks for each token, with stand-in actors and users built here - nothing of the world is read or
+         * written. Each row: [the case, the frame answered]. Until F118 there was no `frameFor`, and `frameOf` answered
+         * null for the second GM's character on GM 1's and on a player's screen. Two GMs at a real table: LIVE-F118-02.
+         */
+        const R = await import("./own-ring.mjs");
+        ok(typeof R.frameFor === "function", "own-ring.mjs has no `frameFor`, the rule a token's frame is read by");
+        if (typeof R.frameFor !== "function") return;
+        const actor = (id, { players = false, gmOwned = true, monokuma = false, type = "character" } = {}) => ({
+            id, type, hasPlayerOwner: players, isOwner: gmOwned,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "monokuma" ? monokuma : undefined)
+        });
+        const kiri = actor("F118KIRI", { players: false });
+        const mono = actor("F118MONO", { monokuma: true });
+        const aiko = actor("F118AIKO", { players: true });
+        const bare = actor("F118BARE");
+        const npc = actor("F118NPC", { type: "npc" });
+        const gm1 = { id: "F118GM1", isGM: true, character: null };
+        const gm2 = { id: "F118GM2", isGM: true, character: kiri };
+        const gm3 = { id: "F118GM3", isGM: true, character: mono };
+        const p1 = { id: "F118P1", isGM: false, character: aiko };
+        const users = [gm1, gm2, gm3, p1];
+        // On a player's screen a GM-owned character is not the player's own (`isOwner` false); their own character is.
+        const asPlayer = a => R.frameFor({ ...a, isOwner: a === aiko }, p1, users);
+        const rows = [
+            ["the second GM's character on GM 1's screen", R.frameFor(kiri, gm1, users)],
+            ["the second GM's character on a player's screen", asPlayer(kiri)],
+            ["the second GM's character on the second GM's own screen", R.frameFor(kiri, gm2, users)],
+            ["Monokuma assigned to GM 3, on GM 1's screen", R.frameFor(mono, gm1, users)],
+            ["Monokuma assigned to GM 3, on a player's screen", asPlayer(mono)],
+            // Its own GM's screen keeps what `isMine` gave before F118: bone, so that GM finds the token they play (W-6).
+            ["Monokuma assigned to GM 3, on GM 3's own screen", R.frameFor(mono, gm3, users)],
+            ["a GM-owned character nobody has as theirs, on GM 1's screen", R.frameFor(bare, gm1, users)],
+            ["a player's character on GM 1's screen", R.frameFor(aiko, gm1, users)],
+            ["a player's character on its player's screen", asPlayer(aiko)],
+            ["an npc assigned to nobody", R.frameFor(npc, gm1, users)]
+        ];
+        equal(stableJson(rows.map(([, f]) => f)), stableJson(["student", "student", "mine", null, null, "mine", null, "student", "mine", null]),
+            `a token's frame is not the owner's rule of 17.11.2026 (case: frame): ${stableJson(rows)}`);
+    }],
+
     ["R107 - the visual round of 22.09 stays put", async () => {
         /*
          * Dawid's list before the README screenshots, 22.09. Each of these was measured on
@@ -20606,7 +20654,8 @@ const INVARIANTS = [
          * a map with no rest room the sentence falls back to DRPG.Rest.noRooms with `kind: data?.kind ?? ""`. The refusal's
          * road (`performRest`, DRPG.Rest.wrongRoom) passes `kind` and was whole. Asked here with a scene of the test's own
          * (no region, so no rest room) and with the language's words standing in for `game.i18n` (lang/en.json and
-         * lang/pl.json, the module's own files), and restored. Red at 235c3210: the kind empty in both.
+         * lang/pl.json, the module's own files), and restored. Red at 235c3210: the kind empty in both. Since F118 (18.11.2026)
+         * the window's rows say DRPG.Rest.notHere and name no room; the refusal (`takeRest`) asks this sentence, its kind in data.
          */
         const R = await import("./rest.mjs");
         const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
@@ -20631,6 +20680,91 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ en: want("en"), pl: want("pl") }),
             "{en, pl: [the Short Rest's sentence, the Long Rest's]} - a sentence with no rest's name in it");
     }],
+    ["R7791 - the Facilities window names only the rest rooms its character may rest in, its own bedroom as \"your bedroom\" (F118, the owner's 17.11.2026)", async () => {
+        /*
+         * F118, 17.11.2026; the owner, with a screenshot of the Facilities window: "Szary druk pod poszczegolnymi akcjami,
+         * zwlaszcza restow wymaga poprawy." A rest not allowed here was greyed with rest.mjs `restRoomsSentence`'s list of
+         * every marked room the viewer had found - other students' bedrooms among them, which the character cannot
+         * enter. Now, for a character (`actor`), the list keeps the rooms the move itself lets it into (movement.mjs
+         * `bedroomShut`, the door's rule: its own bedroom, a room that is nobody's, another's only with the key in hand),
+         * and its own bedroom reads "your bedroom" (DRPG.Rest.yourBedroom) rather than its name. Asked on a scene and a
+         * character of the test's own (stand-ins: nothing of the world is read or written), with lang/en.json's and
+         * lang/pl.json's words standing in for `game.i18n` as R3980 does, and restored. Read: the Short Rest's sentence
+         * for the character, for a character that may enter none of the rooms it knows, and with no character (the old
+         * reading, which tier 2's "names no rest room the viewer has not found" holds). Red at 64f6da99: the character's
+         * list named its own bedroom by name and the two bedrooms it holds no key to. The window at a table: LIVE-F118-03.
+         */
+        const R = await import("./rest.mjs");
+        const { ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const files = { en: await lang("en"), pl: await lang("pl") };
+        const region = (name, flags = {}) => ({ id: `R7791-${name}`, name, levels: new Set(), behaviors: [], shapes: [],
+            getFlag: (scope, key) => (scope === MODULE_ID ? { room: true, [R.REST_FLAGS.short]: true, ...flags }[key] : undefined) });
+        const scene = { id: "R7791SCENE", name: "R7791", regions: new Set([
+            region("Aiko's Room", { [ROOM_OWNER_FLAG]: "R7791ME" }), region("Botan's Room", { [ROOM_OWNER_FLAG]: "R7791B" }),
+            region("Chie's Room", { [ROOM_OWNER_FLAG]: "R7791C" }), region("Daichi's Room", { [ROOM_OWNER_FLAG]: "R7791D" }),
+            region("Cafeteria"), region("Attic")]) };
+        const key = room => ({ getFlag: (scope, k) => (scope === MODULE_ID && k === BEDROOM_KEY_FLAG ? room : undefined) });
+        const me = { id: "R7791ME", name: "R7791 Aiko", items: [key("Daichi's Room")] };
+        const stranger = { id: "R7791X", name: "R7791 Stranger", items: [] };
+        const known = new Set(["Aiko's Room", "Botan's Room", "Chie's Room", "Daichi's Room", "Cafeteria"]);
+        const at = (obj, k) => k.split(".").reduce((o, p) => o?.[p], obj);
+        const own = game.i18n.localize, fmt = game.i18n.format;
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                const word = k => at(files[code], k) ?? k;
+                game.i18n.localize = k => word(k);
+                game.i18n.format = (k, data = {}) => String(word(k)).replace(/\{(\w+)\}/g, (m, f) => (f in data ? String(data[f]) : m));
+                const say = actor => R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, known, actor);
+                read[code] = [say(me), say({ ...stranger, items: [] }), say(null)];
+                const knownOnly = new Set(["Botan's Room", "Chie's Room"]);
+                read[code].push(R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, knownOnly, stranger));
+            }
+        } finally {
+            game.i18n.localize = own;
+            game.i18n.format = fmt;
+        }
+        const want = code => {
+            const w = k => at(files[code], k) ?? `<no ${k}>`;
+            const list = rooms => String(w("DRPG.Rest.allowedIn")).replace("{rooms}", rooms.join(", "));
+            return [list([w("DRPG.Rest.yourBedroom"), "Cafeteria", "Daichi's Room"]), list(["Cafeteria"]),
+                list(["Aiko's Room", "Botan's Room", "Cafeteria", "Chie's Room", "Daichi's Room"]), w("DRPG.Rest.noOpenRooms")];
+        };
+        equal(stableJson(read), stableJson({ en: want("en"), pl: want("pl") }),
+            "{en, pl: [the character's list, a stranger's, no character's, a stranger who knows only others' bedrooms]} - a rest room the character may not enter was named, or its own bedroom by name");
+        // The refusal (`takeRest`) hands the character; the window's rows (`restVariants`) name no room since the owner's
+        // word of 18.11.2026 ("Nie chcemy tej listy pokojow w opisac restow. Wystarczy \"nie tutaj\"."): DRPG.Rest.notHere.
+        const rest = stripComments(new Map(await otherSources()).get("rest.mjs") ?? "");
+        const rows = fnSource(rest, "restVariants");
+        equal(stableJson([/restRoomsSentence\([^;]*roomsKnownToMe\(scene\), actor\)/.test(fnSource(rest, "takeRest")),
+            /restRoomsSentence\(/.test(rows), /DRPG\.Rest\.notHere/.test(rows)]),
+            stableJson([true, false, true]), "[the refusal hands the character, the Facilities rows list rooms, the rows say \"Not here.\"]");
+    }],
+
+    ["R7792 - a free room action reads \"Free\" in the Facilities window, not \"Costs 0 actions\" (F118, the owner's 17.11.2026)", async () => {
+        /*
+         * F118, 17.11.2026; the owner's report of the Facilities window (R7791's). A completed project's action that costs
+         * nothing read "Costs 0 actions. You have 1." (action-facilities.mjs `priced`, DRPG.Action.willCost). Now the
+         * window's price line is `priceLine(cost, left)`: DRPG.Action.costsNothing for a cost of 0, the willCost family
+         * otherwise. Read for a cost of 0, 1 and 2 with 1 and 2 left, and in the source: the room actions' rows ask it.
+         * Red at 64f6da99: no `priceLine`.
+         */
+        const F = await import("./action-facilities.mjs");
+        ok(typeof F.priceLine === "function", "action-facilities.mjs has no `priceLine`, the Facilities window's price line");
+        if (typeof F.priceLine !== "function") return;
+        const { plural } = await import("./utils.mjs");
+        equal(stableJson([F.priceLine(0, 1), F.priceLine(1, 2), F.priceLine(2, 1)]),
+            stableJson([game.i18n.localize("DRPG.Action.costsNothing"), plural("DRPG.Action.willCost", { n: 1, left: 2 }),
+                plural("DRPG.Action.willCost", { n: 2, left: 1 })]),
+            "[a free action's line, one costing 1 of 2, one costing 2 of 1]");
+        ok(game.i18n.has("DRPG.Action.costsNothing"), "DRPG.Action.costsNothing is not in this language's file");
+        const sources = new Map(await otherSources());
+        const rows = fnSource(stripComments(sources.get("action-facilities.mjs") ?? ""), "facilityRows");
+        ok(/priceLine\(cost, left\)/.test(rows) && !/DRPG\.Action\.willCost/.test(rows),
+            "the room actions' rows build their own price line instead of asking `priceLine`");
+    }],
+
     ["R3981 - game.drpg.a11y() lists a nameless control while it is on the page and not after its window is gone (gaps, 12.11.2026; the E99 line's full tier-2 run): a11y.mjs `a11yReport` names a nameless control of a module window standing in the page, and once that window is removed counts its kind on the line of kinds met only in windows since closed, and no longer as a control that carries no name", async () => {
         /*
          * Gaps, 12.11.2026 (the coordinator: tier 2's "every control in the module's own chrome has a name" failed after
@@ -57277,38 +57411,18 @@ const INVARIANTS = [
             field: true, advance: true, shown: [true, false]
         }), "[the line trimmed, empty, cut; the roll-over's patch; a later move's patch, with and without a line; the field; the advance's one write and the draft emptied; shown, and hidden when empty]");
     }],
-    ["R3721 - the end-of-day board holds only what this browser may know (scripts/sequence.mjs `dayRowsFor`, `publicCardsOf`; E94 C3, C0's privacy red): a player's rows are its own student's (and those of no student), never another player's; a GM's rows are the table's; the public cards are the module's own messages of the day nobody is whispered and no roll is blind - a whisper, a blind roll, a card from before the day and a message not the module's are not among them", async () => {
-        /* E94 C3, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no dayRowsFor or publicCardsOf. */
-        const S = await import("./sequence.mjs");
-        if (typeof S.dayRowsFor !== "function" || typeof S.publicCardsOf !== "function") { ok(false, "sequence.mjs has no dayRowsFor or publicCardsOf"); return; }
-        const entries = [{ actorId: "mine", action: "Search" }, { actorId: "theirs", action: "Sabotage" }, { actorId: null, action: "Listen" }];
-        const owns = id => id === "mine";
-        const flags = { [MODULE_ID]: { any: true } };
-        const msgs = [
-            { timestamp: 100, flavor: "A body was found", flags },
-            { timestamp: 110, flavor: "Whispered to the GM", flags, whisper: ["gm"] },
-            { timestamp: 120, flavor: "Blind roll", flags, blind: true },
-            { timestamp: 50, flavor: "Yesterday's card", flags },
-            { timestamp: 130, flavor: "Somebody's own chat" },
-            { timestamp: 140, content: "<h3>The project is done</h3><p>details</p>", flags },
-            { timestamp: 300, flavor: "Tomorrow's card", flags }
-        ];
-        equal(stableJson({
-            player: S.dayRowsFor(entries, { gm: false, owns }).map(e => e.action),
-            gm: S.dayRowsFor(entries, { gm: true, owns }).map(e => e.action),
-            cards: S.publicCardsOf(msgs, 100, 300)
-        }), stableJson({ player: ["Search", "Listen"], gm: ["Search", "Sabotage", "Listen"], cards: ["A body was found", "The project is done"] }),
-            "[a player's rows; a GM's rows; the day's public cards]");
-    }],
-    ["R3722 - the end-of-day board shows the day, its rows, what the school saw and the mood - no Hope, no Despair (the owner, 12.11) - and hands on to the start-of-day board (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `playDayEnd`, `playSequence` `then`; scripts/transitions.mjs `onClockHeard`; E94 C3, the plan's C3 and Q-E94-5): the board names the day and chapter, lists at most six rows and counts all, lists at most four public cards, draws no number of Hope or Despair and keeps neither on the board, and shows the mood as its word only; a quiet day says so; `then` runs once the sequence ends on its own or is skipped, never when another cuts it, and at once with the switch off; a new day plays the end board before the start board", async () => {
+    ["R3722 - the end-of-day board is the day's board: its title names the day's end, and under it the chapter line, the cast and the school's mood as at the day's start - no rows of the day, no tally, nothing the school saw, no Hope or Despair (the owner, 12.11 and 18.11) - and it hands on to the start-of-day board (scripts/sequence.mjs `dayEndBoard`, `dayBoardElement`, `playDayEnd`, `playSequence` `then`; scripts/transitions.mjs `onClockHeard`)", async () => {
         /* E94 C3, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no end-of-day board, and playSequence no `then`. The owner's
            word of 12.11 on the review page ("Chowamy hope i despair w podsumowaniu; pokazujemy tylko nastroj szkoly"): the
-           board shows no number of Hope or Despair, even when handed one; red at b07dec9, which drew both. */
+           board shows no number of Hope or Despair. F118, 18.11.2026 (the owner: "I ten ekran ma byc identyczny zarowno na
+           start jak i na koniec dnia"): the board is the start board's - the rows of the day, the tally and what the school
+           saw are gone, whatever it is handed. Red at 66a0c9b4: the end board drew its rows, its tally and the school's cards. */
         const S = await import("./sequence.mjs");
-        if (typeof S.dayEndBoard !== "function") { ok(false, "sequence.mjs has no dayEndBoard"); return; }
+        const st = (id, name) => ({ id, name, img: null, getFlag: () => undefined });
+        const cast = [st("a", "Aiko Hoshino"), st("b", "Mio Tsukishiro")];
         const rows = Array.from({ length: 8 }, (_, i) => ({ action: `A${i}`, room: i % 2 ? "Gym" : "", item: i === 7 ? "a key" : null }));
-        const b = S.dayEndBoard({ clock: { day: 4, chapter: 2 }, rows, publicCards: ["c1", "c2", "c3", "c4", "c5"], hope: { value: 3, max: 6 }, despair: { value: 5, max: 12 }, mood: "uneasy" });
-        const el = S.dayEndElement(b), quiet = S.dayEndElement(S.dayEndBoard({ clock: { day: 4 }, mood: 9 }));
+        const b = S.dayEndBoard({ clock: { day: 4, chapter: 2 }, students: cast, timeOfDay: "night", rows, publicCards: ["c1", "c2"], hope: { value: 3, max: 6 }, despair: { value: 5, max: 12 }, mood: "uneasy" });
+        const el = S.dayEndElement(b), quiet = S.dayEndElement(S.dayEndBoard({ clock: { day: 4 }, students: cast, mood: 9 }));
         const thens = [];
         const kick = (key, why) => { S.playSequence("dayEnd", `R3722:${key}:${Math.random()}`, () => null, { on: true, then: w => thens.push([key, w]) }); S.endSequence(why); };
         kick("ended", "ended"); kick("skipped", "skipped"); kick("cut", "cut");
@@ -57317,18 +57431,20 @@ const INVARIANTS = [
         const sources = await moduleSources();
         const heard = fnSource(stripComments(sources.get("transitions.mjs") ?? ""), "onClockHeard");
         equal(stableJson({
-            title: el.querySelector(".drpg-seq-day-title")?.textContent.includes("4") ?? false,
-            rows: [el.querySelectorAll(".drpg-seq-yours .drpg-seq-row").length, el.querySelector(".drpg-seq-tally")?.textContent.includes("8") ?? false],
-            events: el.querySelectorAll(".drpg-seq-events .drpg-seq-row").length,
-            nums: [...el.querySelectorAll(".drpg-seq-num, .drpg-seq-nums")].length, hopeKeys: ["hope", "despair"].filter(k => k in b),
+            title: el.querySelector(".drpg-seq-day-title")?.textContent === game.i18n.format("DRPG.Sequence.dayEndTitle", { day: 4 }),
+            parts: [...el.children].map(c => c.className.split(" ")[0]),
+            cast: [...el.querySelectorAll(".drpg-seq-who b")].map(n => n.textContent),
+            gone: el.querySelectorAll(".drpg-seq-row, .drpg-seq-tally, .drpg-seq-yours, .drpg-seq-events").length,
+            nums: [...el.querySelectorAll(".drpg-seq-num, .drpg-seq-nums")].length, keys: ["hope", "despair", "rows", "events", "count"].filter(k => k in b),
             mood: [el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null, /\d/.test(el.querySelector(".drpg-seq-mood")?.textContent ?? "")],
-            quiet: [Boolean(quiet.querySelector(".drpg-seq-yours ol")), Boolean(quiet.querySelector(".drpg-seq-mood"))],
+            quiet: Boolean(quiet.querySelector(".drpg-seq-mood")),
             thens,
             order: /playDayEnd\(before, clock, \{ on,(?: keep,)? then: \(\) => playDayStart\(clock/.test(heard)
         }), stableJson({
-            title: true, rows: [6, true], events: 4, nums: 0, hopeKeys: [], mood: ["uneasy", false], quiet: [false, false],
+            title: true, parts: ["drpg-seq-day-title", "drpg-seq-day-sub", "drpg-seq-cast", "drpg-seq-mood"], cast: ["Aiko Hoshino", "Mio Tsukishiro"],
+            gone: 0, nums: 0, keys: [], mood: ["uneasy", false], quiet: false,
             thens: [["ended", "ended"], ["skipped", "skipped"], ["off", "off"]], order: true
-        }), "[the title's day; six rows named and eight counted; four public cards; no Hope or Despair drawn, nor kept on the board; the mood's word and no number; a quiet day without rows or mood; then's calls; the end board before the start board]");
+        }), "[the title's day's end; the board's parts; the cast; no row, tally or school's card; no Hope or Despair drawn or kept; the mood's word and no number; no mood row for a word not a band; then's calls; the end board before the start board]");
     }],
     ["R3723 - the school's mood weighs the living students' Hope against the Monocubs' Hope, the Monokumas' Despair and the Overflow, and is a word, never a number (scripts/sequence.mjs `moodBand`, `moodInputs`, `MOOD_BANDS`, `dayStartPatch`; scripts/config.mjs `MOOD_SHARES`; scripts/clock.mjs `advanceTimeOfDay`; E94 C4, the owner's word of 12.11): the students' share of the whole maps to calm from MOOD_SHARES.calm, uneasy from MOOD_SHARES.uneasy, close to spilling below; nothing dark is calm; a number is never kept as the mood; the advance reads the four inputs on the GM and writes the word; the inputs read the published death alone", async () => {
         /*
@@ -57368,30 +57484,15 @@ const INVARIANTS = [
             inputs: ["despair", "hope", "monocubHope", "overflow", true], published: true, read: true
         }), "[the bars; the bands for each set of inputs; bars handed in; the three words; a number refused, a word kept; the GM's four inputs; the inputs read the one cast by the published death, the Monocubs and the count; the advance reads them and writes the word]");
     }],
-    ["R3724 - the Evening's own summary folds into the end-of-day board, which plays when Night begins (scripts/day-summary.mjs `eveningFoldsIntoBoard`, `sumUp`; E94 C3, the plan's Q-E94-5 default; the owner's rule of 13.11.2026): with the table's switch on, the summary of the Evening closed by the move into Night stamped for the board (`nightBoard`) or by the Night Eclipse opened at Evening is not put up - the board holds the day up to Night and keeps a card of it; with the switch off, at any other Eclipse's start, at an Evening to Night moved by hand, and for the Night and any other time of day it is put up", async () => {
-        /* E94 C3, 12.11.2026. Red at 7bbbd3c: day-summary.mjs had no nightFoldsIntoBoard.
-           THE ECLIPSE'S ROAD AND THE STAMP (12.11.2026, the owner's report on 1.2.109): the Night's summary folded at the
-           Morning Eclipse's start, and a Night to Morning moved by hand kept its summary. Red at 1ff4bc77 on both.
-           NIGHT'S START (13.11.2026; the owner's rule of that day: the end-of-day board "after the Night Eclipse (that is,
-           at the start of Night)"): the board moved from the roll-over to Night's start, so the summary it holds is the
-           Evening's, and the Night's is put up at the Morning Eclipse's start or the roll-over. Red at ceb9e9c8: no
-           eveningFoldsIntoBoard. */
-        const D = await import("./day-summary.mjs"), { TIMES_OF_DAY } = await import("./config.mjs");
-        if (typeof D.eveningFoldsIntoBoard !== "function") { ok(false, "day-summary.mjs has no eveningFoldsIntoBoard"); return; }
-        const last = TIMES_OF_DAY[TIMES_OF_DAY.length - 1], evening = TIMES_OF_DAY[TIMES_OF_DAY.length - 2], first = TIMES_OF_DAY[0];
-        const sources = await moduleSources();
-        const sum = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "sumUp");
-        equal(stableJson([
-            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: 4 }, true),
-            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: 4 }, false),
-            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: evening, eclipse: true }, true),
-            D.eveningFoldsIntoBoard({ timeOfDay: first }, { timeOfDay: TIMES_OF_DAY[1] }, true),
-            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: null }, true),
-            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: 3 }, true),
-            D.eveningFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: last, eclipse: true }, true),
-            D.eveningFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 5, dayBoard: 5 }, true),
-            /eveningFoldsIntoBoard\(window, clock\)\) return/.test(sum)
-        ]), stableJson([true, false, true, false, false, false, false, false, true]), "[Evening to Night with the board's stamp, switch on; switch off; the Night Eclipse's start at Evening; another time of day; Evening to Night by hand (no stamp); a stamp from an older day; the Night at the Morning Eclipse's start; the Night at the roll-over; sumUp asks it]");
+    ["R3724 - the Evening's own summary is put up when Night begins, as every time of day's: the end-of-day board holds no row of the day since F118 (scripts/day-summary.mjs `sumUp`; E94 C3, the plan's Q-E94-5 default until the owner's word of 18.11.2026)", async () => {
+        /* E94 C3, 12.11.2026 until F118: the Evening's summary folded into the end-of-day board (`eveningFoldsIntoBoard`),
+           which held the day's rows. F118, 18.11.2026 (the owner: "I ten ekran ma byc identyczny zarowno na start jak i na
+           koniec dnia"): the board shows the living students and the mood alone, so nothing folds into it; tier 2's F118-T1
+           drives the road. Read here: no fold left, and `sumUp` puts up the window it read. Red at 66a0c9b4: the fold stood. */
+        const D = await import("./day-summary.mjs");
+        const sum = fnSource(stripComments((await moduleSources()).get("day-summary.mjs") ?? ""), "sumUp");
+        equal(stableJson(["eveningFoldsIntoBoard" in D ? "function" : "undefined", /FoldsIntoBoard/.test(sum), /showDaySummary\(window\)/.test(sum)]),
+            stableJson(["undefined", false, true]), "[a fold function exported, sumUp asks a fold, sumUp puts the window up]");
     }],
     ["R3725 - the clock stamps when the day began (scripts/clock.mjs `setClock`; E94 C3): a write that moves the day sets `dayStartedAt` to the new time of day's own stamp, or the server's clock, unless the write sets it itself; the end-of-day board reads its rows from it", async () => {
         /* E94 C3, 12.11.2026. Red at 7bbbd3c: setClock writes no dayStartedAt. The write itself is tier 2's (tiers 0-1 write no setting). */
@@ -57401,8 +57502,9 @@ const INVARIANTS = [
         must(set.length > 500, "setClock was not read - this reads nothing");
         equal(stableJson({
             stamp: /patch\.day !== undefined && Number\(patch\.day\) !== Number\(before\.day\) && patch\.dayStartedAt === undefined/.test(set) && /next\.dayStartedAt = next\.timeOfDayStartedAt \?\? serverNow\(\)/.test(set),
-            read: /before\?\.dayStartedAt/.test(fnSource(seq, "dayEndReads"))
-        }), stableJson({ stamp: true, read: true }), "[setClock stamps dayStartedAt on a new day; the board reads it]");
+            // the end board read it for the day's rows until F118 (18.11.2026); the late joiner's start board reads it
+            read: /clock\.dayStartedAt/.test(fnSource(seq, "lateSequence"))
+        }), stableJson({ stamp: true, read: true }), "[setClock stamps dayStartedAt on a new day; a late browser reads it]");
     }],
     ["R4400 - the Morning Eclipse's end on the curtain clock is the Eclipse's turn and names the new day, and plays no board: its start-of-day board played at its start (scripts/transitions.mjs `transitionFor`, `boardsOf`; the owner's report at a real table on 1.2.109 and their rules of 12.11 and 13.11.2026): an Eclipse that ends at Night into the next Morning, day 3 to day 4, is the Eclipse's turn and names the new day, an Eclipse that ends on the same day names none, Next from Night is a new day; the Morning Eclipse's end with the stamp plays no board, Next from Night with it the start-of-day board, and without it - Edit campaign's correction, a stamp from an older day - nothing", async () => {
         /* 12.11.2026. Red at 1ff4bc77: `transitionFor` answered the Eclipse's end before it read the day, so the curtain
@@ -58040,9 +58142,10 @@ const INVARIANTS = [
          */
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         equal(stableJson({
-            end: /#drpg-sequence \.drpg-seq-dayend \.drpg-seq-day-sub \{[^}]*margin-bottom: calc\(22 \* var\(--drpg-seq-u\)\)/.test(css),
-            start: /#drpg-sequence \.drpg-seq-day-sub \{[^}]*margin/.test(css)
-        }), stableJson({ end: true, start: false }), "[the end board's chapter line has its own space below; the shared rule adds none]");
+            // F118 (18.11.2026): one board at both ends of the day, so the space is the shared rule's, and no end board's own
+            end: /#drpg-sequence \.drpg-seq-dayend \.drpg-seq-day-sub \{/.test(css),
+            start: /#drpg-sequence \.drpg-seq-day-sub \{[^}]*margin-bottom: calc\(22 \* var\(--drpg-seq-u\)\)/.test(css)
+        }), stableJson({ end: false, start: true }), "[an end board's own rule for the chapter line; the shared rule's space below it]");
     }],
     ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
         /*
@@ -58070,6 +58173,51 @@ const INVARIANTS = [
             title: true, order: ["Aiko Hoshino", "Mio Tsukishiro", "Ren Kisaragi"], dead: [false, true, false],
             remember: [null, game.i18n.localize("DRPG.Sequence.weRemember"), null], alive: [2, 3], noLine: true, noStrike: true, centred: true
         }), "[the day's title; the cast in its order; who is drawn dead; their words; alive of total; no empty morning line; no rule strikes a name; the rise keeps the board centred]");
+    }],
+    ["R7793 - the start-of-day board shows the school's mood as the end-of-day board does, and none when the clock holds none (F118, the owner's 18.11.2026: one screen, the living students and the school's mood)", async () => {
+        /*
+         * F118, 18.11.2026; the owner: "od teraz zarowno ekran poczatku jak i startu sesji niech wyglada tak samo, czyli
+         * ekran zywych uczniow + nastroj szkoly ... Zbijamy to w 1 ekran", and to the coordinator's two questions: the start
+         * board keeps all it shows (the day, the chapter line, the cast with the dead greyed, the morning line) and adds the
+         * mood; the end board does not change. Read, on stand-in clocks and students (nothing of the world): the board's
+         * `mood` for each band, for none, for a word not of `MOOD_BANDS` and for no field (a world from before E94); the mood's
+         * node against the end board's for the same word (one markup: `.drpg-seq-mood`, `data-drpg-mood`, the label and the
+         * word); its place, after the cast and before the morning line; the Morning Eclipse's clock (`dayStartClock`) keeping
+         * it; and in the source, the start board's draw giving it the end board's entry at the start board's own `mood` time,
+         * and the chapter end's next morning (chapter.mjs, the `morning` step) writing a fresh mood, which it did not - that
+         * board showed the word the clock last held. The board at a table: LIVE-F118-04. Red at e3772875: no mood on the
+         * start board, and none written by the chapter's morning.
+         */
+        const S = await import("./sequence.mjs");
+        const st = (id, name) => ({ id, name, img: null, getFlag: () => undefined });
+        const cast = [st("a", "Aiko Hoshino"), st("b", "Mio Tsukishiro")];
+        const at = mood => ({ day: 4, chapter: 2, timeOfDay: "morning", ...(mood === undefined ? {} : { mood }) });
+        const node = el => el.querySelector(".drpg-seq-mood")?.outerHTML ?? null;
+        const endNode = mood => node(S.dayEndElement(S.dayEndBoard({ clock: { day: 3 }, students: cast, mood })));
+        const boards = ["calm", "uneasy", "spilling", null, "bogus", undefined].map(mood => S.dayStartBoard(at(mood), cast, "Breakfast at eight.").mood ?? null);
+        const same = S.MOOD_BANDS.map(mood => {
+            const own = node(S.dayStartElement(S.dayStartBoard(at(mood), cast, "")));
+            return Boolean(own) && own === endNode(mood);
+        });
+        const el = S.dayStartElement(S.dayStartBoard(at("uneasy"), cast, "Breakfast at eight."));
+        const kids = [...el.children].map(c => c.className.split(" ")[0]);
+        const eclipse = S.dayStartBoard(S.dayStartClock({ day: 3, session: 5, timeOfDay: "night", eclipse: true, mood: "spilling" }), cast, "").mood ?? null;
+        const none = [null, undefined].map(mood => !S.dayStartElement(S.dayStartBoard(at(mood), cast, "")).querySelector(".drpg-seq-mood"));
+        const sources = await moduleSources();
+        const seq = stripComments(sources.get("sequence.mjs") ?? "");
+        const draw = fnSource(seq, "drawDayBoard");
+        // one board at both ends of the day (the owner's 18.11 amendment): the end board under its title is the start board
+        const under = el2 => [...el2.children].slice(1).map(c => c.outerHTML).join("");
+        const both = under(S.dayStartElement(S.dayStartBoard({ ...at("calm"), timeOfDay: "night" }, cast, ""))) === under(S.dayEndElement(S.dayEndBoard({ clock: { day: 4, chapter: 2 }, students: cast, timeOfDay: "night", mood: "calm" })));
+        const morning = bodyOf(stripComments(sources.get("chapter.mjs") ?? ""), 'key: "morning"', { until: 'key: "hold"' });
+        equal(stableJson({ boards, same, order: kids, eclipse, none, both,
+            animated: /\.drpg-seq-mood"\), \[\{ opacity: 0, transform: "scale\(1\.08\)" \}, \{ opacity: 1, transform: "scale\(1\)" \}\], \{ duration: 420, delay: T\.mood \}/.test(draw),
+            timed: Number.isFinite(S.SEQUENCE_TIMES.dayStart.mood) && S.SEQUENCE_TIMES.dayStart.mood < S.SEQUENCE_TIMES.dayStart.hold,
+            chapter: /moodBand\(await [A-Za-z]+\.moodInputs\(\)\)/.test(morning) && /\bmood\b[^\n]*also|also:[^\n]*\bmood\b/.test(morning) }),
+        stableJson({ boards: ["calm", "uneasy", "spilling", null, null, null], same: [true, true, true],
+            order: ["drpg-seq-day-title", "drpg-seq-day-sub", "drpg-seq-cast", "drpg-seq-mood", "drpg-seq-announce"], eclipse: "spilling", none: [true, true],
+            both: true, animated: true, timed: true, chapter: true }),
+            "{boards: the start board's mood per clock word; same: its node the end board's; order: the board's parts; eclipse: the Morning Eclipse's board; none: no mood row with no word; animated: the end board's entry; timed: its own time before the hold; chapter: the chapter's morning writes a fresh mood}");
     }],
     ["R3715 - a new day plays its board once on every browser that hears it, and nowhere else (scripts/transitions.mjs `onClockHeard`, scripts/sequence.mjs `playDayStart`; E94 C2, MK-R2 #8): night to a new morning starts the board, still under reduced motion, nothing with the table's switch off; the same day heard again starts nothing; an hour that is not a new day plays no board; the board lets the table's clicks through; the Sound window has the row \"Start of the day\" in both languages; since 13.11.2026 no end-of-day board before it (the owner's rule of that day: that board is Night's start's)", async () => {
         /* E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no playDayStart.
@@ -58511,43 +58659,41 @@ const INVARIANTS = [
             stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: S.OBSERVER, gms: false, accounts: ["R3867a"] }),
             "[the map's entry for a viewer, a Spectator and another player; a GM in it; the accounts that play a Spectator]");
     }],
-    ["R3868 - a Spectator's end-of-day board holds the day's heading and the school's mood, and nothing else (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `dayEndBoardFor`, `playDayEnd`; scripts/spectator.mjs `spectatorViewer`; E92 with E94, the owner's word of 12.11.2026: \"Dostaje tylko koniec dnia i nastroj szkoly\"): on a Spectator's browser the board names the day that ends and the mood's word, and holds no row, no tally or quiet day, no public card and no chapter line, and the day's rows and cards handed to it are not used; a player's board, handed the same, is as before - its chapter, its rows, its cards and its mood", async () => {
+    ["R3868 - a Spectator's end-of-day board holds the day's heading and the school's mood, and nothing else; a player's is the day's board (scripts/sequence.mjs `dayEndBoard`, `dayBoardElement`, `dayEndBoardFor`, `playDayEnd`; scripts/spectator.mjs `spectatorViewer`; E92 with E94, the owner's 12.11.2026; F118, 18.11.2026)", async () => {
         /*
-         * E92 with E94, 12.11.2026, on the 1.2.109 line. Red at 7872146d: `dayEndBoard` had no Spectator's case, so a
-         * Spectator's browser drew a player's board with no rows of its own ("A quiet day.") and the school's public
-         * cards, and `dayEndBoardFor` did not exist. The viewer is `spectatorViewer` on documents handed here (a user and
-         * one character, flagged and not), so the suite's GM is nobody's Spectator; scenario 93's part "board" reads the
-         * same on p3's and p1's own browsers.
+         * E92 with E94, 12.11.2026, on the 1.2.109 line. Red at 7872146d: `dayEndBoard` had no Spectator's case. The viewer
+         * is `spectatorViewer` on documents handed here (a user and one character, flagged and not), so the suite's GM is
+         * nobody's Spectator; scenario 93's part "board" reads the same on p3's and p1's own browsers. F118 (18.11.2026; the
+         * owner: "I ten ekran ma byc identyczny zarowno na start jak i na koniec dnia"): a player's end board is the day's
+         * board - the chapter line, the cast and the mood, as at the day's start - and a Spectator's stays the heading and the
+         * mood alone, as the owner's 12.11 gave it ("Dostaje tylko koniec dnia i nastroj szkoly"). Red at 66a0c9b4: a
+         * player's end board had the day's rows and no cast.
          */
         const S = await import("./sequence.mjs"), SP = await import("./spectator.mjs");
-        const rows = [{ action: "Search", room: "Gym", item: "a key" }, { action: "Listen", room: "" }];
-        const cards = ["A body was found", "The project is done"];
+        const st = (id, name) => ({ id, name, img: null, getFlag: () => undefined });
+        const cast = [st("a", "Aiko Hoshino"), st("b", "Mio Tsukishiro")];
         const clock = { day: 3, chapter: 2 };
         const user = { id: "R3868u", isGM: false };
         const actor = flag => ({ id: "R3868a", type: "character", testUserPermission: () => true,
             getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? flag : undefined) });
         const watching = SP.spectatorViewer(user, [actor(true)]), playing = SP.spectatorViewer(user, [actor(false)]);
-        const read = el => ({ title: el.querySelector(".drpg-seq-day-title")?.textContent ?? null, sub: Boolean(el.querySelector(".drpg-seq-day-sub")),
-            yours: Boolean(el.querySelector(".drpg-seq-yours")), rows: el.querySelectorAll(".drpg-seq-row").length,
-            events: Boolean(el.querySelector(".drpg-seq-events")), mood: el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null, parts: el.children.length });
-        const handed = watcher => S.dayEndBoard({ clock, rows, publicCards: cards, mood: "uneasy", watcher });
-        const plain = S.dayEndBoard({ clock, rows, publicCards: cards, mood: "uneasy" });
-        // the road playDayEnd takes, with the day's reads handed: a Spectator's and a player's
+        const read = el => ({ title: el.querySelector(".drpg-seq-day-title")?.textContent ?? null, parts: [...el.children].map(c => c.className.split(" ")[0]),
+            cast: el.querySelectorAll(".drpg-seq-who").length, mood: el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null });
+        const handed = watcher => S.dayEndBoard({ clock, students: cast, mood: "uneasy", timeOfDay: "night", watcher });
         let road = "sequence.mjs has no dayEndBoardFor";
         if (typeof S.dayEndBoardFor === "function") {
-            const before = { ...clock, dayStartedAt: 1 }, after = { day: 4, chapter: 2, mood: "uneasy", timeOfDayStartedAt: 2 };
-            const w = await S.dayEndBoardFor(before, after, { watcher: true, reads: { rows, publicCards: cards } });
-            const p = await S.dayEndBoardFor(before, after, { watcher: false, reads: { rows, publicCards: cards } });
-            road = { watcher: [w.day, w.count, w.events.length, w.mood], player: [p.day, p.count, p.events.length, p.mood] };
+            const after = { day: 4, chapter: 2, timeOfDay: "night", mood: "uneasy" };
+            const w = await S.dayEndBoardFor(clock, after, { watcher: true, students: cast });
+            const p = await S.dayEndBoardFor(clock, after, { watcher: false, students: cast });
+            road = { watcher: [w.day, w.cast.length, w.mood], player: [p.day, p.cast.length, p.mood] };
         }
         const title = game.i18n.format("DRPG.Sequence.dayEndTitle", { day: 3 });
-        equal(stableJson({ watching, playing, watcher: read(S.dayEndElement(handed(watching))), player: read(S.dayEndElement(handed(playing))),
-            unchanged: stableJson(handed(playing)) === stableJson(plain), road }),
+        equal(stableJson({ watching, playing, watcher: read(S.dayEndElement(handed(watching))), player: read(S.dayEndElement(handed(playing))), road }),
         stableJson({ watching: true, playing: false,
-            watcher: { title, sub: false, yours: false, rows: 0, events: false, mood: "uneasy", parts: 2 },
-            player: { title, sub: true, yours: true, rows: 4, events: true, mood: "uneasy", parts: 4 },
-            unchanged: true, road: { watcher: [3, 0, 0, "uneasy"], player: [3, 2, 2, "uneasy"] } }),
-        "[the viewer read on a Spectator's documents and a student's; a Spectator's board drawn; a player's drawn; a player's board as without the case; the road playDayEnd takes, for each]");
+            watcher: { title, parts: ["drpg-seq-day-title", "drpg-seq-mood"], cast: 0, mood: "uneasy" },
+            player: { title, parts: ["drpg-seq-day-title", "drpg-seq-day-sub", "drpg-seq-cast", "drpg-seq-mood"], cast: 2, mood: "uneasy" },
+            road: { watcher: [3, 0, "uneasy"], player: [3, 2, "uneasy"] } }),
+        "[the viewer read on a Spectator's documents and a student's; a Spectator's board drawn; a player's drawn; the road playDayEnd takes, for each]");
     }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*

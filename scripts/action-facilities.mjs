@@ -38,6 +38,15 @@ import { restVariants } from "./rest.mjs";
 /** The refusals after which nothing was carried out, so a GM's action's price comes back (`useFacility`). */
 const NOTHING_DONE = new Set(["alreadyDone", "actionBlocked", "notThere"]);
 
+/**
+ * The price line of a room action's row: "Free." for one that costs nothing (DRPG.Action.costsNothing), else "Costs {n}
+ * actions. You have {left}." (F118, 17.11.2026; the owner's report of the Facilities window: a completed project's free
+ * action read "Costs 0 actions. You have 1."). R7792.
+ */
+export function priceLine(cost, left) {
+    return cost > 0 ? plural("DRPG.Action.willCost", { n: cost, left }) : game.i18n.localize("DRPG.Action.costsNothing");
+}
+
 /** The Overflow's word on room actions, read where it lives. */
 function overflowNow() {
     return { states: overflowFacilityStates(), toll: overflowFacilityToll() };
@@ -57,7 +66,7 @@ export function facilityRows(actor) {
     const closed = closedNow();
     const left = actionsLeft(actor);
     const rows = [];
-    const priced = (cost, hint) => `${plural("DRPG.Action.willCost", { n: cost, left })} · ${hint}`;
+    const priced = (cost, hint) => `${priceLine(cost, left)} · ${hint}`;
     for (const action of roomActions(place.scene, place.room)) {
         const cost = facilityCost("gm", null, toll);
         const shut = facilityShut("gm", states);

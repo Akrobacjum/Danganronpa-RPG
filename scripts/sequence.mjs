@@ -70,11 +70,13 @@ export const SEQUENCE_TIMES = Object.freeze({
        played (`playTrialExit` hands none). */
     trialExit: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 0, handIn: 500, hand: 400 }),
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
-       from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
-    dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
-    /* E94 C3, the end-of-day board: the board rises at 200 ms over 500, the rows one by one 120 ms apart from 700, the
-       school's mood at 2000 (no number since the owner's word of 12.11), held to 6000, gone in 420; still, 6 s. */
-    dayEnd: Object.freeze({ board: 200, rise: 500, rows: 700, rowStep: 120, mood: 2000, hold: 6000, fade: 420, end: 6450, still: 6000, sound: 0 }),
+       from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. F118
+       (18.11.2026): the school's mood at 1600, after the cast's first faces and before the morning line, as it stands. */
+    dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, mood: 1600, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
+    /* E94 C3, the end-of-day board; since F118 (18.11.2026; the owner: "I ten ekran ma byc identyczny zarowno na start jak
+       i na koniec dnia") the start board's frames, held as long as before: the board at 300 over 600, the cast 140 ms apart
+       from 600, the mood at 1600, the morning line at 1800, held to 6000, gone in 420; still, 6 s. */
+    dayEnd: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, mood: 1600, announce: 1800, hold: 6000, fade: 420, end: 6450, still: 6000, sound: 0 }),
     /* The case summary's board (fix-113p, 13.11.2026; the owner's item 451 of 09.11: "like the verdict board"): the start-
        of-day board's frame and rise, the rows one by one 140 ms apart from 700 (each column's rows after the one before
        it, at most 24 steps, so a long case does not keep the last row waiting past the hold), the note on a wrong vote at
@@ -907,43 +909,85 @@ export function replayCaseSummary(message, { on = true, sound = true } = {}) {
  * ========================================================================== */
 
 /**
- * What the start-of-day board shows (E94 C2; MK-R2 #4, #8, #9, #10): the day, the chapter, the time of day, and the
- * cast as the table knows it - the dead by the table's own fact (`isDeceased`, the published flag; never a death the
- * GMs keep, E05), greyed in their place with their name and "we remember", never crossed out - and the GM's morning
- * line when there is one (an empty line is not shown; the GM writes it in Edit campaign, and it reaches the clock at
- * the day's start, E94 C1). Pure but for the names
- * and pictures; `students` is the cast in its order.
+ * THE DAY'S BOARD, AT BOTH ENDS OF THE DAY (F118, 18.11.2026; the owner: "od teraz zarowno ekran poczatku jak i startu
+ * sesji niech wyglada tak samo, czyli ekran zywych uczniow + nastroj szkoly ... Zbijamy to w 1 ekran", and "I ten ekran ma
+ * byc identyczny zarowno na start jak i na koniec dnia"). One board, built here and drawn by `dayBoardElement` and
+ * `drawDayBoard`, which the start (`playDayStart`) and the end (`playDayEnd`) both call: the title names the end of the
+ * day it is ("Day N" or "End of day N"); under it, for both, the chapter, the time of day and how many are alive, the
+ * cast as the table knows it - the dead by the table's own fact (`isDeceased`, the published flag; never a death the GMs
+ * keep, E05), greyed in their place with their name and "we remember", never crossed out (E94 C2; MK-R2 #4, #9, #10) -
+ * the school's mood (the word alone, one of `MOOD_BANDS`, or no row; E94 C4), and the GM's morning line when the clock
+ * carries one (only in the morning in practice: the next move clears it). The end board's own rows of the day, its tally
+ * and what the school saw (E94 C3) are gone; the Evening's summary is put up again (day-summary.mjs `sumUp`). A
+ * Spectator's end board stays the heading and the mood alone (`watcher`; E92 with E94, the owner's 12.11: "Dostaje tylko
+ * koniec dnia i nastroj szkoly"); its start board is everybody's (Q-E61-9). Pure but for the names and pictures; `students`
+ * is the cast in its order. R3714, R3722, R3868, R7793.
  */
-export function dayStartBoard(clock, students = [], announcement = "") {
+function dayBoardOf({ day = 0, chapter = null, timeOfDay = "", students = [], announcement = "", mood = null, end = false, watcher = false } = {}) {
+    const word = MOOD_BANDS.includes(mood) ? mood : null;
+    if (watcher) return { end, day: Number(day) || 0, chapter: null, time: "", cast: [], alive: 0, total: 0, announcement: "", mood: word, watcher: true };
     const cast = students.map(a => ({ id: a.id, name: a.name, img: portraitOf(a), dead: isDeceased(a) }));
     return {
-        day: Number(clock?.day) || 0, chapter: clock?.chapter ?? null, time: TIME_OF_DAY_LABELS[clock?.timeOfDay] ?? clock?.timeOfDay ?? "",
-        cast, alive: cast.filter(c => !c.dead).length, total: cast.length, announcement: String(announcement ?? "").trim()
+        end, day: Number(day) || 0, chapter: chapter ?? null, time: TIME_OF_DAY_LABELS[timeOfDay] ?? timeOfDay ?? "",
+        cast, alive: cast.filter(c => !c.dead).length, total: cast.length, announcement: String(announcement ?? "").trim(), mood: word
     };
 }
 
-/** The start-of-day board as an element, still: what its frames move, and its whole still frame. */
-export function dayStartElement(board) {
+/** The board at the day's start: `clock` the day that begins (its day, chapter, time of day and mood). */
+export function dayStartBoard(clock, students = [], announcement = "") {
+    return dayBoardOf({ day: clock?.day, chapter: clock?.chapter, timeOfDay: clock?.timeOfDay, students, announcement, mood: clock?.mood });
+}
+
+/**
+ * The board at the day's end: `clock` the day that ends (its day and chapter), `timeOfDay` and `mood` the clock it is
+ * heard with (Night, and the mood `nightFalls` wrote; clock.mjs `advanceTimeOfDay`), `watcher` a Spectator's.
+ */
+export function dayEndBoard({ clock = {}, students = [], mood = null, timeOfDay = null, announcement = "", watcher = false } = {}) {
+    return dayBoardOf({ day: clock?.day, chapter: clock?.chapter, timeOfDay: timeOfDay ?? clock?.timeOfDay, students, announcement, mood, end: true, watcher });
+}
+
+/* The school's mood as the board shows it (E94 C4): the label and the word, or "". */
+function moodHtml(mood) {
+    if (!mood) return "";
+    return `<div class="drpg-seq-mood" data-drpg-mood="${mood}"><small>${esc(game.i18n.localize("DRPG.Sequence.moodLabel"))}</small>${
+        esc(game.i18n.localize(`DRPG.Sequence.mood.${mood}`))}</div>`;
+}
+
+/** The day's board as an element, still: what its frames move, its whole still frame, and the end's notice card. */
+export function dayBoardElement(board) {
     const el = document.createElement("div");
-    el.className = "drpg-seq-day";
+    el.className = board.end ? "drpg-seq-day drpg-seq-dayend" : "drpg-seq-day";
+    const title = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format(board.end ? "DRPG.Sequence.dayEndTitle" : "DRPG.Sequence.dayTitle", { day: board.day }))}</h2>`;
+    if (board.watcher) {
+        el.innerHTML = `${title}${moodHtml(board.mood)}`;
+        return el;
+    }
     const sub = game.i18n.format(board.chapter != null ? "DRPG.Sequence.daySub" : "DRPG.Sequence.daySubNoChapter",
         { chapter: board.chapter ?? "", time: board.time, alive: board.alive, total: board.total });
-    el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayTitle", { day: board.day }))}</h2>
+    el.innerHTML = `${title}
         <div class="drpg-seq-day-sub">${esc(sub)}</div>
         <div class="drpg-seq-cast">${board.cast.map(c => `<div class="drpg-seq-who${c.dead ? " is-dead" : ""}">
             <div class="drpg-seq-face">${c.img ? `<img src="${esc(c.img)}" alt="">` : `<span>${esc((c.name ?? "?").slice(0, 1))}</span>`}</div>
             ${c.dead ? `<i>${esc(game.i18n.localize("DRPG.Sequence.weRemember"))}</i>` : ""}<b>${esc(c.name)}</b></div>`).join("")}</div>
+        ${moodHtml(board.mood)}
         ${board.announcement ? `<div class="drpg-seq-announce"><small>${esc(game.i18n.localize("DRPG.Sequence.morningLine"))}</small>${esc(board.announcement)}</div>` : ""}`;
     return el;
 }
 
-function drawDayStart(ctx, board) {
+/** The start-of-day board as an element (E94 C2): the day's board. */
+export const dayStartElement = dayBoardElement;
+/** The end-of-day board as an element (E94 C3): the day's board. */
+export const dayEndElement = dayBoardElement;
+
+function drawDayBoard(ctx, board) {
     const { host, times: T, anim } = ctx;
-    const el = dayStartElement(board);
+    const el = dayBoardElement(board);
     host.append(el);
     // the board stands centred by its own transform, so the rise carries it (an animation's transform replaces the rule's)
     anim(el, [{ opacity: 0, transform: "translate(-50%, -50%) translateY(40px)" }, { opacity: 1, transform: "translate(-50%, -50%)" }], { duration: T.rise, delay: T.board });
     el.querySelectorAll(".drpg-seq-who").forEach((w, i) => anim(w, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 400, delay: T.cast + i * T.castStep }));
+    // the school's mood, under the cast and before the morning line (F118)
+    anim(el.querySelector(".drpg-seq-mood"), [{ opacity: 0, transform: "scale(1.08)" }, { opacity: 1, transform: "scale(1)" }], { duration: 420, delay: T.mood });
     anim(el.querySelector(".drpg-seq-announce"), [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: T.announce });
     anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
 }
@@ -988,7 +1032,7 @@ export async function playDayStart(clock = getClock(), { students = null, on = s
     const shown = dayStartClock(clock);
     const cast = students ?? (await import("./monokuma.mjs")).studentActors();
     const board = dayStartBoard(shown, cast, shown.morningLine ?? "");
-    return playSequence("dayStart", dayStartKey(shown), ctx => drawDayStart(ctx, board),
+    return playSequence("dayStart", dayStartKey(shown), ctx => drawDayBoard(ctx, board),
         { sound: () => playSound("dayStart"), on });
 }
 
@@ -1086,107 +1130,15 @@ export async function moodInputs() {
 }
 
 /**
- * What the end-of-day board shows this browser (E94 C3; the plan's C3, MK-R2 #5): the day and the chapter; this browser's
- * own rows of the day (its private-card store, secret.mjs `secretSummaries` - a player's own actor's, a GM's the table's),
- * counted and the last few named; the day's public cards (no whisper, no blind roll: the chat's own audience test); the
- * school's mood as the GM published it. No number of Hope or Despair (the owner's word of 12.11.2026: "Chowamy hope i
- * despair w podsumowaniu"), no other player's row, no secret event, no Overflow count. Pure but for the reads it is
- * handed.
- *
- * A SPECTATOR'S BOARD (E92 with E94; the owner's word of 12.11.2026: "Dostaje tylko koniec dnia i nastroj szkoly"):
- * `watcher` true, the board is the day that ends and the mood's word alone - no chapter, no rows, no tally or quiet day,
- * no public card, whatever it is handed (R3868).
+ * The end-of-day board this browser shows for the day that ended (`before`) at the clock it is heard with (`clock`): the
+ * day's board (`dayEndBoard`), its cast `students` (monokuma.mjs `studentActors` by default), its time of day, mood and
+ * morning line the new clock's; a Spectator's (scripts/spectator.mjs `spectatorViewer`) the heading and the mood alone.
  */
-export function dayEndBoard({ clock = {}, rows = [], publicCards = [], mood = null, watcher = false } = {}) {
-    const day = Number(clock?.day) || 0;
-    if (watcher) return { day, chapter: null, rows: [], count: 0, found: 0, events: [], mood: MOOD_BANDS.includes(mood) ? mood : null, watcher: true };
-    return {
-        day, chapter: clock?.chapter ?? null,
-        rows: rows.slice(-6).map(r => ({ action: String(r.action ?? ""), room: r.room ? String(r.room) : "", found: Boolean(r.item) })),
-        count: rows.length, found: rows.filter(r => r.item).length,
-        events: publicCards.slice(-4).map(c => String(c ?? "")).filter(Boolean),
-        mood: MOOD_BANDS.includes(mood) ? mood : null
-    };
-}
-
-/** The end-of-day board as an element, still: its whole last frame, and what its notice card keeps. */
-export function dayEndElement(board) {
-    const L = key => game.i18n.localize(key);
-    const el = document.createElement("div");
-    el.className = "drpg-seq-day drpg-seq-dayend";
-    const sub = board.chapter != null ? game.i18n.format("DRPG.Sequence.dayEndSub", { chapter: board.chapter }) : "";
-    const mood = board.mood ? `<div class="drpg-seq-mood" data-drpg-mood="${board.mood}"><small>${esc(L("DRPG.Sequence.moodLabel"))}</small>${esc(L(`DRPG.Sequence.mood.${board.mood}`))}</div>` : "";
-    if (board.watcher) {
-        el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))}</h2>${mood}`;
-        return el;
-    }
-    el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))}</h2>
-        ${sub ? `<div class="drpg-seq-day-sub">${esc(sub)}</div>` : ""}
-        <div class="drpg-seq-dayend-cols">
-            <section class="drpg-seq-yours"><h3>${esc(L(game.user?.isGM ? "DRPG.Sequence.tableDay" : "DRPG.Sequence.yourDay"))}</h3>
-                ${board.count ? `<ol>${board.rows.map(r => `<li class="drpg-seq-row">${esc(r.action)}${r.room ? ` <span>${esc(r.room)}</span>` : ""}${r.found ? ` <em>${esc(L("DRPG.Sequence.foundSomething"))}</em>` : ""}</li>`).join("")}</ol>
-                <p class="drpg-seq-tally">${esc(game.i18n.format("DRPG.Sequence.dayTally", { actions: board.count, found: board.found }))}</p>`
-                : `<p class="drpg-seq-tally">${esc(L("DRPG.Sequence.quietDay"))}</p>`}</section>
-            ${board.events.length ? `<section class="drpg-seq-events"><h3>${esc(L("DRPG.Sequence.publicEvents"))}</h3><ol>${board.events.map(e => `<li class="drpg-seq-row">${esc(e)}</li>`).join("")}</ol></section>` : ""}
-        </div>
-        ${mood}`;
-    return el;
-}
-
-function drawDayEnd(ctx, board) {
-    const { host, times: T, anim } = ctx;
-    const el = dayEndElement(board);
-    host.append(el);
-    anim(el, [{ opacity: 0, transform: "translate(-50%, -50%) translateY(40px)" }, { opacity: 1, transform: "translate(-50%, -50%)" }], { duration: T.rise, delay: T.board });
-    el.querySelectorAll(".drpg-seq-row").forEach((r, i) => anim(r, [{ opacity: 0, transform: "translateX(-24px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 360, delay: T.rows + i * T.rowStep }));
-    anim(el.querySelector(".drpg-seq-mood"), [{ opacity: 0, transform: "scale(1.08)" }, { opacity: 1, transform: "scale(1)" }], { duration: 420, delay: T.mood });
-    anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
-}
-
-/** The rows of the day a browser may show (E94 C3): a GM's, all of them; a player's, those of a student it owns or of no student. Pure but for `owns`. */
-export function dayRowsFor(entries, { gm = false, owns = id => Boolean(game.actors.get(id)?.isOwner) } = {}) {
-    return gm ? entries.slice() : entries.filter(e => !e.actorId || owns(e.actorId));
-}
-
-/** The day's public cards (E94 C3): the module's own messages over [since, until) that nobody is whispered and no roll is blind - what every browser at the table was shown. Their words, cut to 80 characters. Pure. */
-export function publicCardsOf(messages, since, until = null) {
-    const words = m => {
-        const flavor = String(m.flavor || "").trim();
-        if (flavor) return flavor;
-        const d = document.createElement("div");
-        d.innerHTML = String(m.content ?? "");
-        return (d.querySelector("h1, h2, h3, h4, strong, b")?.textContent ?? d.textContent ?? "").trim();
-    };
-    return (messages ?? []).filter(m => {
-        const at = Number(m.timestamp);
-        return Number.isFinite(at) && at >= since && (until === null || !Number.isFinite(until) || at < until)
-            && m.flags?.[MODULE_ID] && !(m.whisper?.length) && !m.blind;
-    }).map(m => words(m).replace(/\s+/g, " ").slice(0, 80)).filter(Boolean);
-}
-
-/* What this browser knows of the day that ended: its own rows from its private-card store over [the day's start, the
-   new day's start) and the public cards of the chat over the same span. */
-async function dayEndReads(before, clock) {
-    const since = Number(before?.dayStartedAt), until = Number(clock?.timeOfDayStartedAt);
-    const known = Number.isFinite(since) && since > 0;
-    let rows = [];
-    if (known) {
-        const { entriesSince } = await import("./day-summary.mjs");
-        rows = dayRowsFor(entriesSince(since, Number.isFinite(until) ? until : null), { gm: game.user.isGM });
-    }
-    const publicCards = known ? publicCardsOf(game.messages?.contents ?? [], since, Number.isFinite(until) ? until : null) : [];
-    return { rows, publicCards };
-}
-
-/**
- * The end-of-day board this browser shows for the day that ended (`before`) at the new clock (`clock`): a Spectator's
- * (scripts/spectator.mjs `spectatorViewer`) the heading and the mood alone, with the day's reads never made; anybody
- * else's from its own reads (`reads`, the suite's to hand, or `dayEndReads`). The mood is the new clock's word.
- */
-export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(), reads = null } = {}) {
+export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(), students = null } = {}) {
     if (watcher) return dayEndBoard({ clock: before, mood: clock?.mood ?? null, watcher: true });
-    const got = reads ?? await dayEndReads(before, clock);
-    return dayEndBoard({ clock: before, rows: got.rows, publicCards: got.publicCards, mood: clock?.mood ?? null });
+    const cast = students ?? (await import("./monokuma.mjs")).studentActors();
+    return dayEndBoard({ clock: before, students: cast, mood: clock?.mood ?? null, timeOfDay: clock?.timeOfDay ?? null,
+        announcement: clock?.morningLine ?? "" });
 }
 
 /**
@@ -1194,20 +1146,21 @@ export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(
  * Eclipse's end, or Evening to Night with none) and at a chapter's end with the next morning, before the start-of-day
  * board, which it then hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off,
  * nothing plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays
- * until closed (the plan's C3), and stands in for the Evening's own summary (Q-E94-5's default; day-summary.mjs
- * `eveningFoldsIntoBoard`). `before` is the clock of the day that ends, `clock` the new one; a Spectator's browser shows the heading and the mood alone
- * (`dayEndBoardFor`). `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and
- * the notice history is a setting). Answers what `playSequence` answered.
+ * until closed (the plan's C3). Since F118 (18.11.2026) it is the day's board (`drawDayBoard`), and the Evening's own
+ * summary is put up beside it (day-summary.mjs `sumUp`). `before` is the clock of the day that ends, `clock` the new one;
+ * a Spectator's browser shows the heading and the mood alone (`dayEndBoardFor`); `students` the cast, the suite's to hand.
+ * `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and the notice history is a setting). Answers what
+ * `playSequence` answered.
  */
-export async function playDayEnd(before, clock = getClock(), { on = sequencesOn(), then = null, reads = null, keep = true } = {}) {
+export async function playDayEnd(before, clock = getClock(), { on = sequencesOn(), then = null, students = null, keep = true } = {}) {
     if (!before || !clock || !ready) { then?.("none"); return null; }
-    const board = await dayEndBoardFor(before, clock, { reads });
-    const played = playSequence("dayEnd", `dayEnd:${before.season ?? ""}:${board.day}:${before.session ?? ""}`, ctx => drawDayEnd(ctx, board),
+    const board = await dayEndBoardFor(before, clock, { students });
+    const played = playSequence("dayEnd", `dayEnd:${before.season ?? ""}:${board.day}:${before.session ?? ""}`, ctx => drawDayBoard(ctx, board),
         { sound: () => playSound("dayEnd"), on, then });
     if (played === null) then?.("none");
     if (played && on && keep) {
         // the card is day-summary.mjs's, beside the summary it stands in for: this file puts up no notice (A7, the header)
-        import("./day-summary.mjs").then(m => m.keepDayEndCard(dayEndElement(board).outerHTML, game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))).catch(() => null);
+        import("./day-summary.mjs").then(m => m.keepDayEndCard(dayBoardElement(board).outerHTML, game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))).catch(() => null);
     }
     return played;
 }

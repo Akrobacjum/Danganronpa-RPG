@@ -1,0 +1,389 @@
+{
+ "about": "F118 (17.11.2026; taken again 18.11.2026 after the owner's word on the first set): the Facilities window as the harness drew it on p1 (Aiko in the Hall; her bedroom, the Cafeteria and two other students' bedrooms marked for rest; a GM's room action and a free project action), rendered by audit/style-harness.html in Chromium at deviceScaleFactor 2, both themes, en and pl, 1366x768 and 390x844 (the narrow window's width set by hand to the viewport less 64 px; the page clips its right edge, the module does not). Per row: the grey line's size, its effective opacity and its contrast on the window's ground. The selected row's reading under Stained Glass is on its brush, which this reader does not see, so its ratio here is not the one on screen.",
+ "runs": [
+  {
+   "lang": "en",
+   "theme": "glass",
+   "size": "1366x768",
+   "file": "facilities-en-glass-desk.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Costs 1 action. You have 3. \u00b7 Eye, beat 13",
+     "px": 21,
+     "opacity": 1,
+     "color": "rgb(7, 7, 10)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 1.03
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Free. \u00b7 From the project Coffee corner \u00b7 3 times of day left",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    }
+   ]
+  },
+  {
+   "lang": "en",
+   "theme": "glass",
+   "size": "390x844",
+   "file": "facilities-en-glass-narrow.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Costs 1 action. You have 3. \u00b7 Eye, beat 13",
+     "px": 21,
+     "opacity": 1,
+     "color": "rgb(7, 7, 10)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 1.03
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Free. \u00b7 From the project Coffee corner \u00b7 3 times of day left",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    }
+   ]
+  },
+  {
+   "lang": "en",
+   "theme": "legacy",
+   "size": "1366x768",
+   "file": "facilities-en-legacy-desk.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Costs 1 action. You have 3. \u00b7 Eye, beat 13",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(52, 49, 54)",
+     "contrast": 5.54
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Free. \u00b7 From the project Coffee corner \u00b7 3 times of day left",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 6.91
+    }
+   ]
+  },
+  {
+   "lang": "en",
+   "theme": "legacy",
+   "size": "390x844",
+   "file": "facilities-en-legacy-narrow.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Not here.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Costs 1 action. You have 3. \u00b7 Eye, beat 13",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(52, 49, 54)",
+     "contrast": 5.54
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Free. \u00b7 From the project Coffee corner \u00b7 3 times of day left",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 6.91
+    }
+   ]
+  },
+  {
+   "lang": "pl",
+   "theme": "glass",
+   "size": "1366x768",
+   "file": "facilities-pl-glass-desk.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Koszt: 1 akcja. Masz 3. \u00b7 Eye, pr\u00f3g 13",
+     "px": 21,
+     "opacity": 1,
+     "color": "rgb(7, 7, 10)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 1.03
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Za darmo. \u00b7 Z projektu Coffee corner \u00b7 jeszcze 3 pory dnia",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    }
+   ]
+  },
+  {
+   "lang": "pl",
+   "theme": "glass",
+   "size": "390x844",
+   "file": "facilities-pl-glass-narrow.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Koszt: 1 akcja. Masz 3. \u00b7 Eye, pr\u00f3g 13",
+     "px": 21,
+     "opacity": 1,
+     "color": "rgb(7, 7, 10)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 1.03
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Za darmo. \u00b7 Z projektu Coffee corner \u00b7 jeszcze 3 pory dnia",
+     "px": 21,
+     "opacity": 0.62,
+     "color": "rgba(242, 238, 230, 0.62)",
+     "ground": "rgb(13, 12, 17)",
+     "contrast": 6.79
+    }
+   ]
+  },
+  {
+   "lang": "pl",
+   "theme": "legacy",
+   "size": "1366x768",
+   "file": "facilities-pl-legacy-desk.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Koszt: 1 akcja. Masz 3. \u00b7 Eye, pr\u00f3g 13",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(52, 49, 54)",
+     "contrast": 5.54
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Za darmo. \u00b7 Z projektu Coffee corner \u00b7 jeszcze 3 pory dnia",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 6.91
+    }
+   ]
+  },
+  {
+   "lang": "pl",
+   "theme": "legacy",
+   "size": "390x844",
+   "file": "facilities-pl-legacy-narrow.png",
+   "rows": [
+    {
+     "row": "Short Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Long Rest",
+     "unavailable": true,
+     "text": "Nie tutaj.",
+     "px": 11,
+     "opacity": 1,
+     "color": "rgb(138, 130, 150)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 4.68
+    },
+    {
+     "row": "Practice at the piano",
+     "unavailable": false,
+     "text": "Koszt: 1 akcja. Masz 3. \u00b7 Eye, pr\u00f3g 13",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(52, 49, 54)",
+     "contrast": 5.54
+    },
+    {
+     "row": "Make a coffee",
+     "unavailable": false,
+     "text": "Za darmo. \u00b7 Z projektu Coffee corner \u00b7 jeszcze 3 pory dnia",
+     "px": 11,
+     "opacity": 0.7,
+     "color": "rgb(228, 222, 216)",
+     "ground": "rgb(29, 26, 33)",
+     "contrast": 6.91
+    }
+   ]
+  }
+ ]
+}
