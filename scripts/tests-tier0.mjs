@@ -13,7 +13,7 @@ import { atReadableFloor } from "./tests-css.mjs";
 import {
     ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
-    markerProblem, runOne, scriptDice, answerDialogs, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
+    markerProblem, runOne, scriptDice, answerDialogs, standIn, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
@@ -6181,6 +6181,32 @@ const REGRESSIONS = [
             && /__dialogAnswers !== realDialogs\.answers/.test(suite);
         equal(JSON.stringify([wrapped, atEnd]), JSON.stringify([true, true]),
             "tier 2 runs a test outside the dialog answers, does not take them off in a finally, or does not read the dialogs real at the end (wrapped, read at the end)");
+    }],
+    ["R7745 - a test's stand-in for what Foundry holds read-only is its own property, put back as found, and one it cannot make is a probe", async () => {
+        /*
+         * E58 L1, 19.11.2026: on the sandbox (Foundry 14.370) `game.i18n.format` is Localization.prototype's, neither writable nor
+         * configurable, so a test's `game.i18n.format = fn` threw (R2077, R3980 and two tier-2 tests); a Module's `active` is its
+         * own, fixed; `foundry.utils` and `foundry.canvas` are frozen. tests-kit.mjs `standIn` shadows an inherited read-only
+         * property with an own one and puts back what stood; `replaceable` (env.replaceable) says where nothing can stand in.
+         * Planted here: each of the four shapes, on objects of the test's own. Red before the kit had either (no export).
+         */
+        const K = await import("./tests-kit.mjs");
+        must(typeof K.standIn === "function" && typeof K.env.replaceable === "function", "the kit has no standIn or env.replaceable");
+        const proto = {}; Object.defineProperty(proto, "say", { value: () => "real", writable: false, configurable: false });
+        const inherited = Object.create(proto);
+        const back = K.standIn(inherited, "say", () => "stand-in");
+        const during = [inherited.say(), Object.hasOwn(inherited, "say")];
+        back();
+        const after = [inherited.say(), Object.hasOwn(inherited, "say")];
+        const owned = { say: () => "own" }, ownBack = K.standIn(owned, "say", () => "stand-in");
+        const ownDuring = owned.say();
+        ownBack();
+        const fixed = {}; Object.defineProperty(fixed, "active", { value: true, writable: false, configurable: false });
+        const holds = (obj, key) => K.env.replaceable(obj, key, "R7745").holds;
+        equal(JSON.stringify([during, after, ownDuring, owned.say(), Object.getOwnPropertyDescriptor(owned, "say").writable,
+            holds(inherited, "say"), holds(owned, "say"), holds(fixed, "active"), holds(Object.freeze({ f: 1 }), "f"), holds(Object.freeze({}), "g")]),
+        JSON.stringify([["stand-in", true], ["real", false], "stand-in", "own", true, true, true, false, false, false]),
+        "a stand-in was not an own property, was not put back as found, or a read-only one was called replaceable");
     }],
 
     ["R155 - every expectedRed names a stage that has not shipped", async () => {
@@ -23137,7 +23163,7 @@ const REGRESSIONS = [
         must(typeof UI.projectManagerBody === "function", "projects-ui.mjs has no projectManagerBody - the manager's body cannot be drawn here, so its order would not be read");
         const actor = studentActors()[0] ?? null;
         must(actor, "no student to draw the proposal for - its order would not be read");
-        const I = game.i18n, own = { localize: I.localize, format: I.format };
+        const I = game.i18n, back = [];
         const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const runs = (list, i) => list.filter((k, n) => k !== list[n - 1]);
         const read = (html, buttons = []) => ({
@@ -23148,8 +23174,8 @@ const REGRESSIONS = [
         const got = {};
         let seen = null;
         try {
-            I.localize = key => `[[k:${key}]]`;
-            I.format = key => `[[k:${key}]]`;
+            // standIn: v14's `format` is Localization.prototype's, read-only there (tests-kit.mjs).
+            back.push(standIn(I, "localize", key => `[[k:${key}]]`), standIn(I, "format", key => `[[k:${key}]]`));
             D.wait = async cfg => { seen = cfg; return null; };
             const drawn = () => read(typeof seen?.content === "string" ? seen.content : seen?.content?.outerHTML ?? "", seen?.buttons ?? []);
             const projects = ["R2077PROJECTA", "R2077PROJECTB"].map((id, n) => ({ id, name: `R2077 project ${n}`, current: n, start: 4, img: "" }));
@@ -23164,7 +23190,7 @@ const REGRESSIONS = [
             await AP.startProject(actor);
             got.propose = drawn();
         } finally {
-            Object.assign(I, own);
+            for (const putBack of back.reverse()) putBack();
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
         }
         // A preset's rows (the world's walls and items, not the window's order) out of the proposal before the compare.
