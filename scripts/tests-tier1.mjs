@@ -20733,7 +20733,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ en: want("en"), pl: want("pl") }),
             "{en, pl: [the Short Rest's sentence, the Long Rest's]} - a sentence with no rest's name in it");
     }],
-    ["R7791 - the Facilities window names only the rest rooms its character may rest in, its own bedroom as \"your bedroom\" (F118, the owner's 17.11.2026)", async () => {
+    ["R7791 - a rest's room list names only the rooms its character may rest in, its own bedroom as \"your bedroom\", and only the refusal carries it: the Facilities rows say \"Not here.\" (F118, the owner's 17.11.2026 and 18.11.2026)", async () => {
         /*
          * F118, 17.11.2026; the owner, with a screenshot of the Facilities window: "Szary druk pod poszczegolnymi akcjami,
          * zwlaszcza restow wymaga poprawy." A rest not allowed here was greyed with rest.mjs `restRoomsSentence`'s list of
