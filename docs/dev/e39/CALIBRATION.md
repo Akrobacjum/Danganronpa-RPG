@@ -172,3 +172,23 @@ written: no `updateToken` reached PlayerOne, PlayerOne and the server kept (300,
 the five roads (`diff: false`, `recursive: false`, both, `updateEmbeddedDocuments` with `diff: false`, `move`). Not
 separated: whether v14's movement steps drop it after `preUpdateToken` or a hook of the module refuses it; what `move`'s
 Boolean was (true or false). The calibration row is C1's to write.
+
+### The second probe (C1's, 18.11.2026; read 19.11.2026)
+
+The same sandbox, world and token, PlayerOne's page fresh. The GM's `preUpdateToken` and `preMoveToken` hooks wrapped and
+recorded, `game.socket.emit` recorded, errors and notifications caught, then a "stale" run (the GM's copy set back to y 300
+with `updateSource`) and a "fresh" one (the copy in step), each a put-back to (400,300) with `diff: false`; then `move` on a
+stale copy. As C1 wrote it, but the hooks, the socket and the notifications put back in a `finally` (C1's text says to reload
+the GM's page if the probe stops halfway; this does the same without the reload).
+
+| run | the GM's answer | the hooks for the token | what the GM's socket emitted for it | errors, notifications | the GM's copy |
+| --- | --- | --- | --- | --- | --- |
+| stale | undefined | `preUpdateToken` `noteStepStart` returned undefined; `preUpdateToken` `onPreUpdateToken` returned undefined | `["modifyDocument",{"type":"Token","action":"update","operation":{"diff":false,"pack":null,"updates":[{"x":400,"y":300,"_id":"TOKAIKO000000000","elevation":0,"width":1,"height":1,"depth":1,"shape":4,"level":"defaultLevel0000","_reg` | none | [300, 300] |
+| fresh | undefined | `preUpdateToken` `noteStepStart` returned undefined; `preUpdateToken` `onPreUpdateToken` returned undefined | `["modifyDocument",{"type":"Token","action":"update","operation":{"diff":false,"pack":null,"updates":[{"x":400,"y":300,"_id":"TOKAIKO000000000","elevation":0,"width":1,"height":1,"depth":1,"shape":4,"level":"defaultLevel0000","_reg` | none | [300, 300] |
+
+- `move([{ x: 400, y: 300 }])` on a stale copy: **`false`** (a boolean).
+- PlayerOne's `updateToken` record over the whole probe: `[{"keys":["y","_id"],"at":[300,300]}]` - one write, of `y` alone, none of `x`.
+- Read: no hook returned false (not (b)); the GM sent `modifyDocument` with `x: 400, y: 300` in both runs (not (a)); PlayerOne got
+  no write of `x` in either (so (c), by C1's guide) - and **the "fresh" control did not reach PlayerOne either**, so a copy out of
+  step is not what stops it: the token does not go to (400,300) from where it stands, by `update` or `move`. Not read: why the
+  server does not apply it. A guess, not a reading: (400,300) is past a wall of Dorm A, and v14 refuses a plain move through it.

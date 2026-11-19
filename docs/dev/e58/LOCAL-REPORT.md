@@ -245,6 +245,12 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**19.11.2026: C1's second probe for test 404.** No hook vetoed (`noteStepStart` and `onPreUpdateToken` returned undefined); the
+GM sent `modifyDocument` with `x: 400, y: 300` in both runs; PlayerOne got no write of `x`; `move` on a stale copy answered
+`false`. And the "fresh" control failed as well: the token does not go to (400,300) from Dorm A at all, stale copy or not. Why the
+server does not apply it is not read (a wall past Dorm A is a guess). The table is CALIBRATION.md section 6, "The second probe";
+the token was put back after.
+
 **19.11.2026: the fifth run** (01b845d7, the merge of claude/shim-118 at 5eadb04c - only a User in `game.users`, the stand-in
 users - read before the push: 5 files, 27 `standInUser` calls, no plain object left going into `game.users`; tiers 0-1
 headless 1764 passed, 0 failed). Tier 2 on the sandbox through a plain `game.drpg.runTests({ tier: 2, confirmed })`, as the
