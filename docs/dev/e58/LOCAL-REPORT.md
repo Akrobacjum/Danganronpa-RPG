@@ -245,6 +245,12 @@ each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it 
 scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
 explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
 
+**19.11.2026: C1's third probe for test 404 (walls).** The test world has no wall (the seed's `walls: []`), so one was made for the
+probe and deleted after. With `constrainOptions: { ignoreWalls: true }` on top of the update's options - where the module's
+put-back puts it - the token went through the wall (r3); under `movement[id]` too (r4), and `move()` with it (r6, `true`); plainly
+it stopped at the wall (r2, at 349). By C1's guide the module's option works: 404's red is the test's. Apart: a stale copy asked for
+a free square with `diff: false` was not written (r5). The table is CALIBRATION.md section 6, "The third probe".
+
 **19.11.2026: C1's second probe for test 404.** No hook vetoed (`noteStepStart` and `onPreUpdateToken` returned undefined); the
 GM sent `modifyDocument` with `x: 400, y: 300` in both runs; PlayerOne got no write of `x`; `move` on a stale copy answered
 `false`. And the "fresh" control failed as well: the token does not go to (400,300) from Dorm A at all, stale copy or not. Why the

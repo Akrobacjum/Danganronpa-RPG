@@ -192,3 +192,32 @@ the GM's page if the probe stops halfway; this does the same without the reload)
   no write of `x` in either (so (c), by C1's guide) - and **the "fresh" control did not reach PlayerOne either**, so a copy out of
   step is not what stops it: the token does not go to (400,300) from where it stands, by `update` or `move`. Not read: why the
   server does not apply it. A guess, not a reading: (400,300) is past a wall of Dorm A, and v14 refuses a plain move through it.
+
+### The third probe (C1's, walls; read 19.11.2026)
+
+The same sandbox and token, PlayerOne's page fresh with the same `__p`. C1's text as written, but the runs started one by one so
+PlayerOne's view - the server's truth - is read after each run and before `back()`. **The test world holds no wall** (the seed
+makes its scenes with `walls: []`): the probe as written found `wall: null`, and a search of the whole Academy grid for a square
+with a walled neighbour found none. So one wall was made for the probe's length, `c: [400, 300, 400, 400]` (east of Aiko's square,
+id ESydManFNmpO9cqs), and deleted after (gone: True); the restore after found nothing to put back.
+
+home {'x': 300, 'y': 300}, free {'x': 200, 'y': 300}, wall {'x': 400, 'y': 300}.
+
+| run | the GM's answer | the GM's copy | PlayerOne sees (the server) | after `back()` |
+| --- | --- | --- | --- | --- |
+| r1 free | DhTokenDocument | [200, 300] | [200, 300] | GM [300, 300], PlayerOne [300, 300] |
+| r2 wall | DhTokenDocument | [349, 300] | [349, 300] | GM [300, 300], PlayerOne [300, 300] |
+| r3 wall, constrainOptions at the top | DhTokenDocument | [400, 300] | [400, 300] | GM [300, 300], PlayerOne [300, 300] |
+| r4 wall, constrainOptions in movement | DhTokenDocument | [400, 300] | [400, 300] | GM [300, 300], PlayerOne [300, 300] |
+| r6 move() wall, with the option | true | [400, 300] | [400, 300] | GM [300, 300], PlayerOne [300, 300] |
+| r5 stale copy to free, diff false | undefined | [200, 300] | [300, 300] | GM [200, 300], PlayerOne [300, 300] |
+
+PlayerOne's `updateToken` record: `[{"keys":["x","_id"],"at":[300,300]},{"keys":["x","_id"],"at":[200,300]},{"keys":["x","_id"],"at":[300,300]},{"keys":["x","_id"],"at":[349,300]},{"keys":["x","_id"],"at":[300,300]},{"keys":["x","_id"],"at":[400,300]},{"keys":["x","_id"],"at":[300,300]},{"keys":["x","_id"],"at":[400,300]},{"keys":["x","_id"],"at":[300,300]},{"keys":["x","_id"],"at":[400,300]}]`.
+
+- r1 to a free square: written. r2 plainly to the square past the wall: written, and **stopped at the wall** (349, 300).
+- **r3 with `constrainOptions: { ignoreWalls: true }` on top of the update's options - the module's put-back (movement.mjs
+  `putBackWrite`): went through the wall to (400, 300).** r4 (the option under `movement[id]`) and r6 (`move()` with it, `true`)
+  went through too.
+- r5, a stale copy (the GM's copy set to the free square) asked for the free square with `diff: false`: not written (answer
+  undefined), PlayerOne kept (300, 300), and the GM's copy stayed wrong after `back()` until the restore.
+- `back()` brought the token home after every run.
