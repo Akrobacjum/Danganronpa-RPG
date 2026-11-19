@@ -62,6 +62,17 @@ commit, each red first in 00-boot; AUDIT 9.2 rows 640-657 (LIVE-E39-02 to -19).
 | d84481ee | the merge of L1's 0e70bfe3: the move defined on the caller's options (D11), one implementation with D4 |
 | d57f754a | the merge of L1's d5907e1b: an owner kept against a deletion (`keepOwners`) before the server's diff, one implementation with D3; scripted dice |
 
+**Proposed, not built: a D for a chat message's rolls** (18.11.2026; the coordinator's word on the Reroll tests: "write (A)
+up as a proposed D in STATUS, not built"). Headless a message's `rolls` is plain JSON with no `terms` (lib/shim.mjs
+`ChatMessage#rolls` parses `_source.rolls`), and the module's own throw hands the harness the same; on v14 it is Daggerheart's
+`DualityRoll`, rebuilt by its class (L1 read a roll of 5 terms). So a test can reroll a real roll only at a table, and tier 2's
+`rerollableRoll` keeps two roads: the message's real roll at a table, the suite's `SuiteRoll` headless. **The D**: the
+harness stores the roll Daggerheart's own `toJSON` gives, and `ChatMessage#rolls` answers Roll instances by their class
+(`CONFIG.Dice.rolls`, `fromData`), as v14 does; then `rerollableRoll` keeps one road, and `SuiteRoll` goes. **Its reach**:
+every module road that reads a roll headless meets a real Roll where it read JSON - reroll.mjs `rollAsThrown` and its JSON
+road, private-rolls.mjs, roll-draw.mjs, the despair award - so it is its own D, red first in 00-boot, with every scenario and
+the eight shards, as D3-D6 were.
+
 **Before every push that touches `scripts/`, tier 1 runs whole** (`node run-tests.mjs --tier 1` in audit/harness), not
 only the tests by name - the coordinator's rule of 17.11.2026. Why: a90a0dc4's `noteOwnDropped` read a mode predicate
 R1470 keeps out of sheet-audit.mjs, and tier 1 stood red from a90a0dc4 to d84481ee, pushed, because that fix's runs were
