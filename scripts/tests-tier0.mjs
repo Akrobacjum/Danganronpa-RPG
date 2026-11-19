@@ -26182,6 +26182,17 @@ const REGRESSIONS = [
         equal(JSON.stringify(direct), "[]", "a put-back writes through a token's own update, not putBackWrite");
         const through = [...move.matchAll(/\bputBackWrite\(/g)].length + [...runs.matchAll(/\bprepared\.putBackWrite\(/g)].length;
         equal(through, 4, "the put-backs through putBackWrite are not sendBack's, refundLastCrossing's and the bridge's send-back (with the helper's own name, four)");
+        /* And the mover's own charge marks its put-backs seen here (19.11.2026, the coordinator's decision after 70-movement's
+           measured wait): `chargeRoute`'s Eclipse put-back and `chargeForCrossing`'s out of budget judge a move this browser
+           has just seen land, so `putBackWrite` does not wait for one (tier 2 "a put-back that judges a move this browser saw
+           land does not wait"). `sendBack` hands the mark on; no other road sets it - the GMs' audit and the bridge judge a
+           move another browser made. */
+        const marked = [fnSource(move, "chargeRoute"), fnSource(move, "chargeForCrossing")].map(body =>
+            [...body.matchAll(/\bsendBack\(([^;]*)\)/g)].map(m => /seenHere:\s*true/.test(m[1])));
+        const handed = /putBackWrite\([^;]*\{\s*seenHere\s*\}\s*\)/.test(fnSource(move, "sendBack"));
+        const elsewhere = [...move.matchAll(/seenHere:\s*true/g)].length;
+        equal(JSON.stringify([marked, handed, elsewhere]), JSON.stringify([[[true], [true]], true, 2]),
+            "chargeRoute's and chargeForCrossing's put-backs are not marked seen here, sendBack does not hand the mark to putBackWrite, or another road marks one (each put-back's mark, sendBack's hand-on, the marks in movement.mjs)");
     }],
     ["R7744 - every bare write of a student's guarded flag tells the GMs' audit first (resource-guard.mjs `noteOwnWrite`), or names why it cannot be dropped (the line claude/shim-118, 17.11.2026; the coordinator's choice A on E16-T29)", async () => {
         /*
