@@ -46,7 +46,7 @@ import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS, DESPAIR_CALLS 
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { trustedWrite } from "./resource-guard.mjs";
+import { trustedWrite, noteOwnWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
@@ -166,6 +166,7 @@ export async function setMonocub(actor, value = true, { quiet = false, watcher =
         // The purse too (E72 C14): a purse left from an earlier time as a Monocub is not this one's.
         if (purseOf(actor)) await patchCubRow(actor.id, { purse: null });
     }
+    noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.monocub]: Boolean(value) } } });
     await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
 
     /* THE BODY (E63 C0, 11.11.2026; the owner on E95 Q3: "Nie gdy zostaje Monocubem"): becoming a Monocub lays nothing.

@@ -7,6 +7,290 @@ The owner, 16.11.2026, while step 1 ran: "nie czekaj na mnie albo na moje odpowi
 domyslnych ... pracuj do samego konca". From here every question takes its default, written beside it, and the line
 goes on; what only the owner can give (a password, eyes on a screen) is written as not run with its reason.
 
+## Tier 2 on the sandbox (items 75, 153, 475; 16-17.11.2026, in progress)
+
+**Run 1** (16.11, 22:10 local): `runTests({ tier: 2, confirmed: game.world.id })` on the GM, the three players logged in,
+as audit/live/suite.mjs runs it. It wrote to the world until 22:42 and then nothing for three hours (the world's database
+files' times); stopped at 01:45. The restore put back what the test left half-done: Fear, Aiko's system, four actors'
+flags, one extra token, four tokens' places; its second pass `[]`.
+
+**Run 2** (17.11, 01:47 local), with the GM's console recorded and a watcher: it went quiet at 02:19:14 (the last lines
+"Aiko Hoshino has meddle armed (bonus)" twice, then "Murder closed (test)") and the watcher fired at 02:26:05, 6.8 min
+quiet. The console names no test (the runner prints its text at the end, tests.mjs:608). Open on each page (the watcher
+read the GM's windows; the players' from their screenshots): **GM** - Daggerheart's roll window "Eye Roll: Aiko Hoshino"
+waiting on Roll, "Daggerheart is newer than the verified version" (Understood), "The case on this browser" ("1 pre-session
+note is marked written, and this browser does not hold it" - PlayerOne's leftover flag, group 3 item 62; Continue, Restore
+from a file), toasts "1 death is still known only to the GMs ..." three times and "Parts of the character sheet failed to
+draw: tidyBiography. A newer Daggerheart may be why"; **PlayerOne** - "Stay hidden?" (Stay hidden, Reveal yourself) and the
+notice "A private card. Its words did not reach this browser."; **PlayerTwo** - none; **PlayerThree** - "Stay hidden?". The
+world "On hold" (paused) on all four. Which page was in front: none - each a headless page in its own browser context,
+no page in front, `visibilityState` not recorded. The restore after it: Fear, Aiko's system, four actors' flags, one extra
+token, four tokens; its second pass `[]`.
+
+**The hypotheses**: (a) fits so far - the GM's own roll window waits on a press; (b) does not - nothing open on the
+players waits on a reply the GM needs (their "Stay hidden?" windows belong to a mask that had already opened), so the
+background-throttling flags were not used.
+
+**The Meddle tests are not the hang.** "a Meddle's +1 taken back while its window is open ..." and "a Meddle's -1 is on the
+roll window's config ..." (positions about 981-982 of 1565) run alone on the sandbox **fail** in 2 s, "threw: Cannot read
+properties of undefined (reading 'length')": Daggerheart's `D20RollDialog` reads `this.config.costs.length` as it draws
+(build :7213 in 2.12.9), Daggerheart's own roads pass `costs` (MoveContext's `data.costs ?? []`), and the kit's
+`rollWindow` config had none. Headless both passed: the harness's glue window read `this.config.costs ?? []`. A test
+defect; the fix (`costs: []` in the kit's config) is measured green headless in a scratch worktree and waits for the
+sandbox to be free (it serves this tree); then its own commit and both tests by name on the sandbox.
+
+**The hang is test 130**, "a statistic clicked on a student's sheet goes through its window as a reaction", and test 131,
+"a Call a sheet roll's window applied is on its roll and spent by its close", holds the same way. Found by slices in
+`SCENARIOS`' order, each its own `runTests({ only })` watched for quiet: 0-150 hung (02:08 UTC), 75-150 hung, 75-112 ran
+through, 113-149 hung, 130 alone and 131 alone each hung (90 s quiet, the GM's "Eye Roll: Aiko Hoshino" open). Reached
+25-30 min into a run on this sandbox, as both full runs went quiet 32 min in. **The road** (a probe's stack at
+`configure` and at the window's first render, 02:38:30 UTC): the test's `who.rollTrait("instinct", {})` -> the module's
+action-pipeline.mjs `rollTrait` (:168) -> `throwDice` (:214) -> private-rolls.mjs `supersedingRoll` (:634) -> Daggerheart's
+`DhActor.rollTrait` -> `diceRoll` -> `DualityRoll.build`, which is the module's roll-draw.mjs `drawnBuild` (:211) ->
+`drawOrThrow` (:335) -> Daggerheart's `buildConfigure` -> `D20RollDialog.configure`. **What it waits on**: Daggerheart's
+`configure` (build :7359-7365) opens the window and resolves only when it closes - on a press of Roll. The harness's glue
+`configure` (lib/dh-dice/applications/dialogs/d20RollDialog.mjs :298-306) plays a player: it presses Roll itself once the
+window is drawn. Both tests' comments say so ("until C2b the harness's window was pressed at once"); neither presses Roll.
+On a real page nobody does, so each waits for ever. A test defect (the coordinator's rule 3): red is the hang itself, 2 of 2
+on the sandbox; the fix waits for the scope below.
+
+**The scope, being measured**: tier 2 again in slices of 150 with a probe on the GM's page that presses Roll on any of
+Daggerheart's roll windows left open for 30 s, each press logged with the window's title and a stack of 60 frames, so the
+test's line in tests-tier2.mjs is named. A press is a person's act and is reported as the probe's, never as a test passing
+by itself. The same run gives tier 2's failures on v14.
+
+**Failures already read** (tests 75-112, 17.11.2026 02:27-02:36 UTC; 33 passed, 11 failed - the runner's own checks
+included): "a second killer in the same Eclipse is told only that the attempt is refused" and "a killer allowed in the dark
+who stands alone is told so at the lights ..." threw "Cannot redefine property: TOKBOTAN00000000", and the first left
+Aiko's token in the Hall (restore failed); "a roll with a bonus the GMs do not hold is flagged ..."; "a drawn roll's copy on
+its roller's browser is the GM's roll ..." (15 measured where 13 expected); "a drawn statistic's card carries the GM's
+modifiers ..." (`[[],7]` against `[[0],13]`); "the GMs' card of a roll thrown with no GM says what it claimed ..." ("did not
+come to its dice and Agility"); "the trait the GM picked: another one is flagged" left Fear 0 -> 1; "a drawn roll is thrown
+on the GM's dice ..." (no Fear on a packet's critical); "a drawn roll is the kind its action makes it ..." (the GM's Fear 0
+where 1); "a drawn roll's options are the GM's own ...". Not triaged yet: some may follow from the unpressed windows'
+neighbours or from Daggerheart 2.12.9; each will be read alone once the scope run ends.
+
+**One test per call** (from 03:40 UTC, 17.11.2026): tier 2 again, one `runTests({ only: [name] })` per test in
+`SCENARIOS`' order, in chunks of 150, the world restored twice after each chunk (the second pass `[]` after chunks 0 and
+150), with the probe pressing Roll on the GM after 30 s. Each row: the test's time, its outcome and the probe's presses.
+Tests 0-299 at the first reading: 215 passed, 85 failed. (Corrected 17.11.2026: test 113 was named here as "a roll built
+from what the GMs hold raises no flag", which is test 112.) The whole run is below.
+
+**The whole run, read** (17.11.2026 03:40-07:10 UTC, at 3bfb45a8; 1565 tests, each its own call): **1183 passed, 361
+failed, 19 skipped**; test 701 hung and test 1267 took the GM's page away (below), 1564 rows. Tests 702-749 and 1268-1349
+were run after the loop, the chunks they belonged to having stopped at 701 and 1267. After every chunk the world was put back
+and the second pass read `[]`; no account's role or flags was ever among what it put back.
+
+**The probe's presses** (a person's act at a table, reported as the probe's, never as a pass) - twelve tests, each waiting on
+Daggerheart's roll window on the GM until a press: 113 "every legal modifier the GM lists is scored without an alarm" 14
+presses (failed), 114 "a Meddle's +1 the window writes is in the roll it sends ..." 2 (passed), 127 "a Support's advantage
+die is in the roll the harness throws ..." 1 (passed), 128 "an Experience a Call bought is in the formula the harness
+throws ..." 1 (failed), 130 "a statistic clicked on a student's sheet goes through its window as a reaction" 1 (passed), 131
+"a Call a sheet roll's window applied is on its roll and spent by its close" 1 (failed), 229 "E112 - an armed Loaded Die
+loads the murder's opening roll ..." 1 (failed), 343 "a statistic from the sheet thrown while a Work on Project ..." 1
+(passed), 799 "the configuration hook gets the unevaluated roll ..." 1 (passed), 980 "an advantage die at faces not the GM's
+on a drawn roll ..." 2 (passed), 1133 "a Find Passage or a Frisk thrown through the roll window ..." 3 (passed), 1134 "an
+opening or crisis throw holds its Reaction chip at action ..." 3 (passed). The stack of 2 of the presses named the test's
+line (130 and 131); the others' stacks end in the module's action-pipeline.mjs `rollTrait`, so they were named by running
+one test per call. This sizes the kit helper the coordinator decided (each of these twelve calls it).
+
+**Times** (for the limit on a test; the sandbox's Chromium draws in software, so a table's GPU is faster): the median test
+3.7 s, the 95th percentile 17.1 s; the slowest without a press or a hang 166 "a Frisk's rolls ride a Palm's one payment
+(A11-4) ..." 157.4 s, then 1530 104.0 s, 189 99.0 s, 1230 83.2 s, 167 62.2 s. Each press adds the probe's 30 s.
+
+**The failures by cause** (the message; what owns it):
+- 152 "Cannot redefine property: <token id>" - the tests' shared move options (below); **fixed** in a6b25c51.
+- 23 "Cannot read properties of undefined (reading 'length')" - the kit's roll window without `costs`; **fixed** in e50d3c47.
+- 10 "You may only push instances of User to the Users collection" - tests that put a made-up GM object into `game.users`;
+  v14's collection takes only a User (the tests'). Test 1267, "a pip's change never spills, and a step queued on a GM that
+  stopped being the primary goes to the new one (E17-T8) ...", does so too, and the GM's page then navigated away: read on its
+  own next.
+- 4 "Cannot set properties of undefined (setting 'length')", 2 "Cannot assign to read only property 'saveDataToFile'", 2
+  "Cannot assign to read only property 'format' of object '#<Localization>'" - tests writing over what v14 has made read-only
+  (the tests'); not read one by one yet.
+- At least 21 failures are tests that script their dice with `globalThis.__forceRoll`, which only the harness reads
+  (client-entry.mjs:596-640): at a table Daggerheart throws real dice and the test measures them. 10 of those fail for no
+  cause above (the fixture swings of tests 15, 17, 18, 20, 21 "was not a hit with Despair/Hope", 131, 229, 800, 1240, and
+  357, which threw "reading 'push'"); whether each is the dice is not read yet.
+  Counted from the tests' own bodies; a helper that scripts dice for a test (`drawnForPlayer` and the like) is not counted,
+  so this is a floor. A design question, proposed below.
+- Test 96, "the trait the GM picked: another one is flagged", **passed** and left Daggerheart's Fear 0 -> 2: its draws are
+  real dice at a table, and tier 2's `snapshot`/`restore` keep the module's settings and Despair pools but not
+  `daggerheart.ResourcesFear`, which the runner's dump watches. The runner's (tier 2's restore), not the test's: a fix with a
+  red of its own (snapshot, raise Fear, restore, read) is next.
+- Test 701, "no module window is wider than the cap, and they open on the centre", **hung**: it takes the first open window
+  matching `.application.dialog[class*="drpg-"]` as its own, and on this sandbox that is "Daggerheart is newer than the
+  verified version" (2.12.9 against 2.12.8), drawn at every GM load and first in `foundry.applications.instances`; it measures
+  and closes that one, and `await opening` waits for the settings window it opened, which nobody closes. Measured: both
+  windows match, the warning first; closing the settings window resolves its opener (null). My first reading - "The case on
+  this browser" - was wrong: the test hung with that window closed too. The test's (it should find the window its opener drew).
+- The rest, about 150, one or a few each: to be read again after the fixes, many being the leftovers of a test that threw
+  before its put-back.
+
+**Proposed, for the coordinator** (not built): scripted dice at a table. (a) a kit probe `env.scriptedDice()`, true only
+where `__forceRoll` is read, which those tests `needs()` - skipped at a table, so they lose the table, which is the point of
+the gate; or (b) the kit scripts the dice at a table as well, through the randomiser Foundry's dice draw from, for the length
+of one test - the table keeps them, at the price of a seam in Foundry's dice the module never touches. Default (b) if the
+seam can be read to hold on v14; not started.
+
+**45 of the 85 failures have one cause: Foundry v14 writes into the options object a token move is given.**
+client/documents/token.mjs:1742 `options._movement ??= {}` and :2009 `Object.defineProperty(options._movement, this.id,
+{ value: move, enumerable: true })` - not configurable - so one options object passed to two moves of the same token
+throws "Cannot redefine property: <token id>" on the second. tests-tier2.mjs keeps 61 shared move options (`const PLACE =
+{ teleport: true, movementAction: "displace", animate: false }` and the like) and passes one to a test's move out and to
+its `back()`; the throw skips the rest of the test and its own put-back, so the token stays where the test put it and
+every following test's restore reports it ("restore left: ... tokens.TOKAIKO000000000.x ..."): tests 166-189 in an
+unbroken row. The module's own token moves each pass a fresh object literal; none shares one. The harness's shim models a
+move's `movement` option alone (client-entry.mjs:1937), not `_movement`, so headless it never throws. A test defect
+(rule 3): red on the sandbox measured (45 failures, "Cannot redefine property: TOKAIKO000000000" 34, TOKCHIE 8, TOKBOTAN
+3); the headless red will be the shim writing `_movement` as v14 does, the fix a fresh options object per move, in its own
+commit once `npm test` and the chunks no longer read the files. Of the other failures so far: 8 the kit's missing `costs`
+(the Meddle fix), 4 "Cannot set properties of undefined (setting 'length')", the rest one each, read after the run.
+
+**The `npm test` that was to judge the stand-in did not.** It booted the module from a scratch worktree through
+`DRPG_REPO`, and against another tree the harness counts every expected-red and known-leak check as a plain one
+(cluster.mjs:52-57): 21-masked-killer red there, green in this tree with the strict stand-in (its Foundry-limit check
+expected red). So that run's 7 red scenarios are not a reading of the change until each is checked in this tree, and its 4
+suite failures are plain failures that rule does not explain ("a Reroll of a successful erase removes the trace again", "a
+changed old store is reported, and taking it never overwrites what changed since the upgrade", E42-T9, E60-T20; the
+sandbox's browser was running beside it). `npm test` in this tree, the stand-in strict and the kit unfixed, is running: a
+result other than the two Meddle tests failing is the stand-in's or the load's, and will be said which.
+
+**The fixes, committed on this branch and read headless** (17.11.2026, the sandbox idle): a6b25c51 every token move its own
+options object, the shim writing the move into it as v14 does (red: "a second killer in the same Eclipse ..." and "a
+Frisk's rolls ride a Palm's one payment (A11-4) ..." throw "Cannot redefine property" headless as on the sandbox; green with
+`{ ...PLACE }`); e50d3c47 the kit's roll window `costs: []`; df3fe865 the harness's roll window reads `costs.length` (with the
+owner's words); 8881e72b `ms` on every result (R7561; red: `ms` undefined; mutants: 0, unrounded, 6000 ms over - each fails).
+Then `npm run quick` green, the suite in two shards (`DRPG_SUITE_SHARD=1/2` tiers 0-1 1161.8 s: 1748 passed, 0 failed, 16
+skipped; `2/2` tier 2 4231 s: 1555 passed, 2 failed, 11 skipped), `node suite-merge.mjs` over the pair (the list's hash agreed,
+each tier-2 test in its shard, the skips the baseline's: "3303 passed, 2 failed, 27 skipped, 0 red: RED" - the new `ms` read by
+it without a complaint; RED for the failures below), and the scenarios (51 of 52 green). What was red, and what it was:
+- E17-T2 "the GM puts back what the rules refuse ..." and E17-T4 "the Eclipse counts what the primary carried out itself
+  ...": "Cannot redefine property" - two `asPlayer` passed bare after a ternary's `:`, which a6b25c51's rewrite (`, asPlayer)`)
+  missed. Fixed in the next commit; both green by name.
+- 01-runtests' own A3 ("runTests() runs tiers 0 and 1 only ..."): one failure in tiers 0-1, which was R7561 - a 40 ms timer
+  read 39 ms. Its bound is 30 ms in the next commit; three runs pass, each mutant fails three of three.
+- 41-trial-scene m2 ("a fence token another module refuses stops each of the four carry tests ..."): the fourth carry test's
+  run also names "could not restore the world after "End the trial never leaves a living student w..."". **Not this branch's**:
+  the tree at 3bfb45a8 with the strict window - the control's exact code, run from its own harness - is red the same way now
+  (six runs of six since 10:00 UTC), and was green at 05:32 and 08:11 UTC, both runs beside the sandbox's browser at work. A
+  check that depends on timing, older than this work; what the restore left is not read (the scenario keeps the runner line's
+  name, not its message).
+- The three failures of the withdrawn worktree run ("a Reroll of a successful erase removes the trace again", E42-T9,
+  E60-T20) passed here, on a quiet machine: the load, not the change.
+
+**More fixes, each red first** (17.11.2026, pushed to ea8013e0):
+- 100c4018: E17-T2 and E17-T4 pass their `asPlayer` fresh too (red in shard 2/2: "Cannot redefine property"; green by name).
+- ecdad650: R7561's bound 30 ms, not 40 (a 40 ms timer read 39 ms once; three runs pass, each mutant fails three of three).
+- de8156d8: tier 2's `snapshot`/`restore` keep Daggerheart's Fear (red: a new test at the end of the list, "tier 2's restore puts
+  Daggerheart's Fear back as it found it", [0,1,1]; green [0,1,0]; the inverted-condition mutant fails it; "the trait the GM
+  picked: another one is flagged" green by name).
+- db8273fb: the window-width test measures the window its opener drew (red: the hang on the sandbox, twice; green on the sandbox
+  alone, 4.8 s, the version warning and "The case on this browser" open; headless the `env.layout` skip the baseline lists).
+- e6ffd08a: `pressingRoll`, the kit's press of Roll, around `drawnForPlayer`'s throw and the six tests' sheet rolls (red: 130 and
+  131 hanging on the sandbox; green on the sandbox with no probe press: the twelve ran through, none waited, 8 passed and 113,
+  128, 131 and 229 failed as they had with the probe's press - "Aiko Hoshino's system.rules.dualityRoll.defaultHopeDice could
+  not be set", the Call's experience not on the roll, the Support's die not put on, the Loaded Die not loaded - and one of
+  them left Botan's mask, which the restore put back; headless the twelve pass by name as before). The glue window still
+  presses Roll itself headless: making it stop is dh-dice, and waits for the owner's consent to that change.
+- ea8013e0: the limit on a test, fifteen minutes (headless the slowest 84.1 s; the sandbox 157.4 s without a press, 246.3 s for
+  test 113 with the kit pressing; 3.7 times). A test past it fails "timed out", `runSuite` writes the windows open on its own
+  browser and runs no later test or tier (R7562 red: no result within its 5 s guard; R7563 red on the runner before; six
+  mutants each fail). Not measured: the window list itself, written only when a real test runs out.
+- On the sandbox at the fixed tree, the two Meddle tests by name: **both pass** (6.5 s and 5.4 s), the world clean after.
+
+**Now**: tier 2 on the sandbox again at ea8013e0, one test per call, with no probe press (17.11.2026, from 10:58 UTC).
+
+**The rerun at ea8013e0** (17.11.2026 10:58-14:47 UTC, one test per call, no probe press; the gap 1268-1349 at the end):
+**1286 passed, 259 failed, 20 skipped** of 1565 (the first run: 1183, 361, 19). Tests that left the world changed: 16 (179,
+180, 181, 184, 357, 604, 610, 689, 1052, 1071, 1212, 1213, 1288, 1453, 1486, 1495), the first run's about 200 rows. After every
+chunk the restore's second pass read `[]`. 123 tests pass that did not; 20 fail that passed - 707-731, the ownership below,
+and 97, 99, 1005, 1054, 1067, 1089, 1235, 1514, 1525, most of them with real dice at a table, not read one by one.
+- **The limit fired once, on a real page**: test 357 "a use in a fight is carded veiled whoever makes it, and names nobody",
+  "timed out: still running after 900 s ...", and the runner wrote "windows open on this browser when it stopped: Daggerheart
+  is newer than the verified version [Understood]; The case on this browser [Continue, Restore from a file]; Use "Suite kit
+  used in the fight" [Yes, Cancel, Cancel]" - the window list ea8013e0 had left unmeasured, measured. A confirm the harness
+  answers from `__dialogAnswers` (below).
+- **An owner is not removed by a deletion on v14** (measured, Aiko, 17.11.2026): `update({ "ownership.<user>":
+  ForcedDeletion })`, nested, and `ownership.-=<user>` each left the entry; a ForcedReplacement of the whole ownership removed
+  it; a module flag deleted the same way, dotted and nested, went. Tests 604 and 610 passed and left an owner; every test
+  after them in the session counted the players wrong (707-731). The module never deletes an owner. **Fixed in 867653ee**
+  (red: the shim's `keepOwners`; the eight put-backs write the ownership whole). For the coordinator: CLAUDE.md's "Delete a
+  key with `forcedDeletion()` or `unsetFlag`" holds for flags and not for an ownership entry on v14.
+- **The dice, d5907e1b** (the owner's decision quoted in the commit): red on the sandbox five runs of six ([4,1], [3,11],
+  [10,3], [4,3], [5,11]; once [7,3], one time in 144 for real dice, not explained), green three of three with "the dice are
+  real again after tier 2". The fourth safeguard (a roll thrown on a player's browser skipped by `needs()`) waits for the next
+  run, which will read which tests throw one.
+- **Scripted dialog answers** (`__dialogAnswers`, the harness's queue; lib/shim.mjs:1566-1720): 9 tests' own bodies and one
+  helper; at a table `__dialogAnswers.length = 0` throws "Cannot set properties of undefined" (the four open-Frisk tests that
+  left tokens, 179-184) and test 357 waits on its confirm. **For the coordinator**: (a) a probe and a `needs()` skip, or (b) a
+  kit seam like the dice's - for one test, DialogV2's waits on the GM answered from `__dialogAnswers`, memory only, taken off
+  in a finally. Default (b); not started.
+- **Test 1267 does not take the GM's page away - corrected.** I wrote so twice. Measured (17.11.2026): run alone, Playwright's
+  `evaluate` of `runTests` loses its context about 2 s in, but no navigation, crash or close is recorded, all four pages stay
+  at /game, and the GM page's `performance.timeOrigin` is the same before and after, `game.ready` true. Run detached (the
+  result read back from a page global), it had not finished after 600 s. So it waits or runs long, after something early in
+  its setup (it puts a made-up GM object into `game.users`, which v14 refuses, and replaces `game.socket.emit`); not read.
+- New groups not read yet: passages the fixtures cannot make on v14 (13, "the tunnel was not made"), a test helper setting a
+  named property on a form element, which a browser refuses ("Failed to set a named property 'traceOrder' on
+  'HTMLFormElement'", 3), the five Reroll tests whose message update Daggerheart 2.12.9 cannot read ("Failed data migration for
+  DhpChatMessage ... reading '0'").
+
+**The glue no longer pressing Roll** (the owner's consent, 17.11.2026 about 12:00: "zgoda na dh-dice: okno przestaje samo klikać
+Roll"): built and read, not committed. Headless tier 2 with the glue not pressing and `pressingRoll` pressing it too (a scratch
+worktree, 120 s limit, no stop): **3305 passed, 0 failed, none timed out** - in tier 2 only the twelve tests went through the
+window. The scenarios: **14 red** (10, 11, 12, 13, 15, 20, 21, 30, 33, 40, 61, 62, 72, 76), each a player's page rolling
+through the window ("eval timeout on p3" in 10-murder's clean-up; p1's Observe in 62). **For the coordinator**: a "player at
+each browser" for scenarios in the harness (client-entry.mjs, not dh-dice) - it presses Roll after the scripted chips on a
+scenario's client, off on the GM while `runTests` runs so the suite presses its own, and a scenario may switch it off; or an
+explicit press at every place a scenario's player rolls. The two changes are kept as a patch until then; the tree is at HEAD.
+
+**17.11.2026, evening: the coordinator's decisions built, and the third run** (pushed to 2adc9fef):
+- **The glue no longer presses Roll** (f7effd79, 65554625; the owner's words quoted) and **a player at each harness browser**
+  (175d580d): every client presses Roll after the scripted chips, stands aside while `runTests` runs there, and its presses
+  are in each scenario's results (`harnessPlayer`). Headless before the push: the 14 scenarios that were red green one by one
+  (e.g. 30-security p1 32 presses, p2 19), tiers 0-2 3308 passed and 1 failed - R7563, a test of the runner my dice commit
+  d5907e1b had broken and which I pushed without running it by name; fixed in eceb1b25 - and every CI scenario green.
+- **The dialog answers at a table** (7881daee; the owner's decision (b), relayed by the coordinator, quoted): red on the
+  sandbox twice ("this page holds no __dialogAnswers"), green three of three with "the dialogs are real again after tier 2";
+  R7566, R7567, six mutants. With it, the four open-Frisk tests no longer throw nor leave tokens (180 and 181 then throw "You
+  may only push instances of User", 179 and 184 fail on their readings); 357 still runs to the limit: it queues no answer and
+  leans on the harness pressing an unanswered window's default button, which the seam does not model.
+- **`active` put back, not deleted** (76a582d4): v14 keeps a User's `active` as its own data property (read on the sandbox);
+  "Monokuma's Reveal ..." and "Present on the primary by "trial.present" ..." deleted it, and PlayerTwo then PlayerThree read
+  as not connected for the rest of the session (the runner now records the connected accounts after each test: they dropped
+  after these two, in the rerun and the third run). Green on the sandbox 731-749: all four connected throughout, both tests
+  pass, 742-749 pass where they were skipped. The harness's User reads `active` through a prototype getter, so it was green
+  headless; making the shim hold it as v14 does is proposed, not built.
+- **The form answers** (2adc9fef): a browser's form refuses a property named as one of its controls; six tests threw
+  "Failed to set a named property ... on 'HTMLFormElement'" (185, 1070, 1071, 1074, 1183, 1311). Red at the tree before, on the
+  sandbox; with the fix none throws it, four pass, 185 and 1183 fail on their readings.
+- **The fourth dice safeguard, measured**: a recorder on each player's page logged every duality roll evaluated there through
+  the whole third run: none. Checked that it works: with no GM online a player's own roll was caught (`1d12h + 1d12f + 0`).
+  With a GM connected the module draws a player's roll on the GM, so no tier-2 test's scripted roll is thrown on a player's
+  browser and no `needs()` skip is called for.
+- **The third run** (15:27-19:23 UTC, at d5907e1b with the ownership fix, before the dialog, `active` and form fixes): **1326
+  passed, 214 failed, 26 skipped** of 1566. Of the nine the coordinator named, 97, 99, 1005, 1235, 1514, 1525 now pass (real
+  dice before); 1054, 1067, 1089 fail (below). Test 1267 lost the runner's `evaluate` again (3 of 3); 357 ran to the limit.
+- **Passages (about 20 failures; the tests' and the harness's)**: the module refuses an end that names no floor whenever the
+  scene has floors (passages-gm.mjs `tunnelEndAt`: `floors.length ? !floors.some(f => f.id === floor) : floor !== null`), and on
+  v14 every scene has at least one (a new scene: `defaultLevel0000`, "Level", read on the sandbox). The fixtures make their own
+  scene and ask for ends with `level: null`, as a harness scene with no levels allows; at a table: "Secret passages: name one of
+  the scene's floors for each end (none on a scene with no floors)". The module's own tool sends the floor on screen, so a GM
+  drawing at a table is not refused. **Proposed**: the shim gives a new scene v14's default level (the red headless) and the
+  fixtures name a floor. For C1 only the message's "none on a scene with no floors", a case v14 does not have.
+- **Module defects found so far: none.** Everything read today was the tests', the harness's, or Foundry's own (the chat
+  notification's "Cannot set properties of null (setting 'hidden')" on players' pages, a card removed while it animates in).
+- Still to read: 1054 ("Botan Kage already keeps a stash in "Dorm A" - the scene of the suite's own could not add one"),
+  1067 and 1089 (rooms with a Teleport or a Gate), the made-up User objects (180, 181, 1267 and others), the five Reroll tests
+  ("Failed data migration for DhpChatMessage"), 357's default button, 735, 762, 185, 1183, 179, 184.
+
+**The stand-in.** The owner wrote "zgoda na dh-dice" in this session on 17.11.2026, about 02:40 local time (between this
+line's readings at 02:36 and 02:44). Under it the glue window reads `this.config.costs.length` as Daggerheart does
+(d20RollDialog.mjs :127-132); with it both Meddle tests fail headless as on the sandbox ("the window did not write the
+Meddle's +1 ..."; "the window draws no bonus input" - the shim's render keeps the throw to itself, so the message differs)
+and pass with the kit's fix (both by name, through the suite's runner). Neither is committed yet.
+
 ## Questions for the coordinator and the owner (16.11.2026; each with the default this line takes)
 
 1. **E40's season wipe needs a copy world.** The owner makes one with Foundry's Duplicate World (an id with "copy" in it,
@@ -34,21 +318,22 @@ goes on; what only the owner can give (a password, eyes on a screen) is written 
 11. **The voice module's default**: voice.mjs says the first GM to connect gives the world `serverType: "custom"`; this
     world kept `{}` after several GM logins (A/V off). Default: the comment unchanged until read with A/V on.
 
-## Where step 4 stands (16.11.2026, evening)
+## Where step 4 stands (16.11.2026, late evening; pass 2 under way)
 
 Counted over the 565 rows of docs/dev/e58/TRIAGE-9.2.md (section 7's 14 and 9.2's 551 numbered items):
 
 | Result | Rows | Which |
 | --- | --- | --- |
-| measured | 33 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, 477 LIVE-E76-03, 512 LIVE-E39-01) and 22; then S7-4, S7-5, S7-7, 15, 17, 18, 19, 20, 23, 44, 51, 52, 61, 62, 63, 64, 67, 68, 534, 535, 536, 556 (556 its v14 half; the Forge half not checkable) |
+| measured | 46 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, 477 LIVE-E76-03, 512 LIVE-E39-01) and 22; then S7-4, S7-5, S7-7, 15, 17, 18, 19, 20, 23, 44, 51, 52, 61, 62, 63, 64, 67, 68, 534, 535, 536, 556 (556 its v14 half; the Forge half not checkable); pass 2: S7-1, S7-2, S7-3, S7-8, S7-9, 31, 37, 39, 40, 48, 65, 70, 71 |
 | a defect found, open | 1 | 553 (LIVE-E112-01: the veiled killer has no vision of their own on v14) |
 | not checkable at this sandbox | 113 | the 98 the readers marked T less 553 and 556, which were read here (96), and 47 (Setup > Duplicate World) - each needs real people, a real LiveKit, The Forge, a second machine, a real GPU at a table, a phone or the owner's own install; and the 16 marked F, each a fixture world (DRPG_FIXTURES unset on purpose; 537 among them, a world played through a chapter). The T and F reasons are the readers' (TRIAGE-9.2.md), not re-read item by item here |
 | closed by its own text | 8 | S7-14, 21, 41, 213, 448, 449, 450, 451 |
-| left | 410 | everything else: K and S rows not yet driven or shot |
+| left | 397 | everything else: K and S rows not yet driven or shot |
 
 Defects found outside 9.2's rows, each red first and fixed: the tier-2 reader of `game.collections` (step 3, defect 1),
 the four registrations at init (step 3, defect 3), scenario 83's L9 race (step 3, item 4). Found and not fixed: the
-fuzz's put-back race in lib/fuzz.mjs (group 3, item 62), E112-01's vision (above).
+fuzz's put-back race in lib/fuzz.mjs (group 3, item 62), E112-01's vision (above), the dead ruling buttons in a GM's
+chat log (group 1, S7-2), the Eclipse's limit passed by a multi-room move (group 3, 65; for the D4 line).
 
 ## Step 5 - E53's measurements (16.11.2026)
 
@@ -139,10 +424,22 @@ M 10 (step 3). A class is how an item can be settled here, not a result; each re
 | 22 | measured (M) | LIVE-E39-01's move (CALIBRATION.md section 3) |
 | 23 | measured | v14's toasts are not escaped but sanitised: `<b>`, `<img>`, `<a>` kept as elements; `onerror`, `javascript:` and `<script>` removed (a failing image's handler did not run). A name PlayerOne gave its own character with markup in it was stored as typed and drawn as markup in a GM toast (`DRPG.Anonymity.blocked`), its handler stripped. Not a defect by this reading; an `<img>` in a name makes a GM's browser fetch its address - a question for the coordinator |
 | S7-14, 21 | closed by their own text | "To nie błąd, ale warto wiedzieć"; "Nieaktualne od 1.2.67" |
-| S7-1, S7-2, S7-3, S7-6, S7-8, S7-9, S7-10, S7-11, 16 | left | flows not yet driven (a Search the GM leaves, the roll window's statistic, Self Roll and Despair, a trap, the safeword's second press - whose 1.2.43 text has changed since -, the HUD's minute counter, the overflow hat, two GMs' Despair, sticky trial cards) |
-| S7-12, S7-13, 24 | left | shots not yet taken |
+| S7-1 (Search, no GM answer) | measured (pass 2, 16.11 evening) | today's road: a Search proposing Hand (Eye is approved by itself in Daily Life, E32) posts the GM a ruling card, "Open until" five minutes on; the action is not spent while it waits; left unanswered past that time, PlayerOne was told "'The GM's pick of a statistic' was not carried out. The GM did not answer in time. You keep your act[ion]", actions 3, the room's tokens untouched, the search ended. Seen: 3.6 min past its time PlayerOne's notice copy of the card still read "Awaiting a ruling. Open until 09:27 PM." Two earlier runs pressed the window's default (Eye), which approves itself and left the roll window waiting - they measured nothing of an unanswered GM, and are not counted |
+| S7-2 (ROLL-06) | measured; **a defect found** | proposing Hand, approved on the GM: PlayerOne's Daggerheart window "Search · beat 8 / 12 / 18: Aiko Hoshino" holds the statistic locked (`trait` finesse, Daggerheart's Hand, disabled); the private result card "Search · Dorm A · 25 · needed 8 / 12 / 18 · Tier 3 · 25 critical 12+12+Hand +1". **The defect**: the ruling card of a player's thread reaches the GM's chat log ("Foundry tools") with enabled "Approve: Hand (+1)", "Change to: ...", "Refuse" buttons that do nothing - a real mouse click on the GM's visible copy changed nothing in 20 s (no error); gm-bridge.mjs wires the log's copy only for a card carrying `callCard`, which only a card with no thread has; a thread's card is answered in the messenger (`messenger-app.mjs` wires every bubble), which the GM's icon badges "1". The ruling itself worked through `pressCard` with the button's own data. Proposal, not built: on a GM's browser wire every card holding `[data-drpg-call]` in the log as the messenger does (`claimCard` already refuses a second ruling), or take the log copy's buttons off |
+| S7-3 (ROLL-14) | measured | v14's chat-bar mode is `core.messageMode` (not `core.rollMode`); set to "self" on PlayerOne, the roll window takes "self" and locks it; a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM: the GM's Despair pool `{}` to `{GM: 1}` and Daggerheart's Fear with it. Three earlier rolls had no Fear (3/3, 12/1, 12/5) |
+| S7-8 (CORE-13) | measured | PlayerOne pressed the safeword twice (`game.drpg.safeword()`, "Stop the scene" each time): one public card "THE SCENE IS STOPPED / Somebody used the safeword. Play stops here. A GM will pick this up, and the scene resumes from a point everyone agrees on."; the second press a "+1" on PlayerOne's notice, no second card; the game paused. The 1.2.43 "already had a safeword" text is gone. Not read: how the GMs are told who (no GM-only card appeared) |
+| S7-9 (CORE-06) | measured | an incident open (a drawn opening), PlayerTwo a bystander: its stopwatch "not started"; the GM moved the hour (`advanceTimeOfDay`, morning to noon, the setting noon on PlayerTwo too): the stopwatch stayed as it was 4 s and 16 s after - the display clock frozen on the last public hour for an outsider (hud-elapsed.mjs `paintElapsed`, clock `clockForDisplay`), as the CORE-06 fix intends |
+| S7-6, S7-10, S7-11, 16 | left | not yet driven: a trap that fires (an indirect murder's trigger), the overflow hat with a Monocub, two GMs' Despair writes in a race, a trial's sticky cards |
+| S7-12, S7-13, 24 | left | shots not yet taken (S rows, after the K rows) |
 
-Group 1: 9 measured, 0 not checkable, 2 closed, 0 defects, 12 left.
+Group 1 (24 rows): 15 measured, 0 not checkable, 2 closed, 1 defect found (S7-2's dead buttons; S7-2 itself measured), 7 left.
+
+The world after each run (pass 2): ~/drpg/l1-probes/restore.mjs puts back, against a baseline captured from the world as
+seeded and cleaned: all 64 world settings of the module (but the seven that write themselves at a load), Daggerheart's Fear
+and Countdowns, the messages, the actors (system, flags, picture, ownership, items), the tokens (place, hidden, picture,
+name, module flags), the scenes' extra tokens, tiles, walls, notes and drawings, the users' roles and module flags, the
+pause. A slip of its first run, mended: it took the module flags off the seed's trace token (`{isRemnant: true}`), the
+baseline then holding no token flags - put back by hand, the baseline now holds them and the restore compares them.
 
 ### Group 2: items 25-50
 
@@ -157,9 +454,15 @@ Group 1: 9 measured, 0 not checkable, 2 closed, 0 defects, 12 left.
 | 47 (E04-07) | not checkable here | a second world and Setup > Duplicate World: the setup screen, which this line does not open |
 | 49 (E04-09) | left | the reset's refusal on an Assistant and a second Gamemaster: a refused reset is safe, an accepted one wipes the sandbox's only world; left for a copy world |
 | 51 (E04-11) | see group 3 | |
-| 31 (E30-06), 35, 37-40 (E31-01, -03..-06), 48 (E04-08) | left | flows not yet driven (17-assistant's B and C on real pages; a GM-side Reroll per action; a GM leaving mid-request; a late planted item; reduced motion; a Polish player's refusal; a GM changing browsers mid-murder). Seen on the way for 48: a fresh GM browser without the seed's storage opened "The case on this browser" ("1 Remnant on the map (of 1) has no answer key on this browser") - the health check's warning, not yet its Restore |
+| 31 (LIVE-E30-06) | measured (pass 2) | scenario 17's B1, C2 and C3 replayed with a scratch Assistant account (role 3, deleted after; the world's GM stayed the primary): B1 - PlayerOne's Hope through Daggerheart's relay (`DhGMUpdate`, Aiko 2 to 1) written once, by the GM, and read 1 on both GMs; C2 - the Assistant's relay request for role 4 left it at 3, the GM's log alone "Refused a Daggerheart "DhGMUpdateDocument" from CALIB Assistant: a change to a User."; C3 - its relay request for a new User made none (5 before and after), the GM's alone "... "DhGMCreate" from CALIB Assistant: a new User." |
+| 37 (LIVE-E31-03) | measured, its first half (pass 2) | PlayerOne's statistic ask (Search, Hand) reached the GM (the card made, acknowledged) and the GM's page closed 2 s later: one notice at 183 s - `TIMING.rulingMs` (180 s) after the ask - "'The GM's pick of a statistic' was not carried out. The GM did not answer in time. You keep your action and your Hope."; the search settled, the action kept. Not read: a GM back before that clock and the ask sent again once with the same id |
+| 39 (LIVE-E31-05) | measured (pass 2) | live.mjs `handOff` on a DialogV2, three times each way: the work ran 14-19 ms after the hand-off with motion on and 16-20 ms with the module's `reducedMotion` on, the window gone each time; the same window closed plainly took 624 ms with motion on and 18 ms with it reduced. The hand-off does not wait for the closing transition |
+| 40 (LIVE-E31-06) | measured (pass 2) | PlayerOne's module language Polish (the GM's English): its `requestGiveItem` of Botan's comb answered `{refused, reason: notYours}`; PlayerOne's toast "Prośba „Przekazanie przedmiotu" nie została wykonana. Dotyczy postaci, którą nie grasz."; the GM's log in English "Refused a "handover.item" request over the socket from PlayerOne: sender does not own the character giving it away." |
+| 48 (LIVE-E04-08) | measured, in part (pass 2) | an incident open (a drawn opening), the GM's browser closed and a fresh one logged in without any of the seed's storage: no "The case on this browser" window - `gmStoreHealth()` missing 0, a row `caseCopy` "11/16/2026, 9:54:43 PM, GM, 1": E111's copy of the case on the server filled the new browser's 67 module stores by itself; the stage `incident` carried. Since E111 the road the item describes (a warning, Restore) is not reached on a browser change. Seen: the new browser's cast differed in one field from the old one's (`deniedToVictim` [] against ["roleReversal"]), consistent with the copy being older than the incident's last writes. Not driven: finishing the incident there. (This morning's warning on a fresh GM was before any copy existed.) |
+| 35 (E31-01), 38 (E31-04) | left | a GM-side Reroll of each listed action; a plant whose answer comes late |
+| 49 (E04-09) | left, waits for the copy world | a refused reset is safe, an accepted one wipes the only world |
 
-Group 2 (26 items): 7 measured (M) + 1 measured, 9 not checkable, 1 closed, 0 defects, 8 left.
+Group 2 (26 rows): 7 measured (M) + 6 measured, 9 not checkable, 1 closed, 0 defects, 3 left.
 
 ### Group 3: items 51-75 (in progress)
 
@@ -172,6 +475,9 @@ Group 2 (26 items): 7 measured (M) + 1 measured, 9 not checkable, 1 closed, 0 de
 | 63 (LIVE-E05-11) | measured | avclient-livekit 0.6.8 registers `liveKitConnectionSettings` at world scope (a player's browser reads it), `config: false`, default `{}`; its server types `custom` and `tavern`; voice.mjs `liveKitSecretWarning` warns for custom with a secret and not for Tavern with one. The module's note that the first GM to connect gives the world `serverType: "custom"` was not seen: the value stays `{}` here after several GM logins (A/V off in this world). Nothing written |
 | 64 (LIVE-E05-12) | measured | a scratch unlinked token of Aiko on the Annex: `lastAction` written through its synthetic actor landed in the token's delta, the base actor untouched; `dropRollBookmarks()` `{ dropped: 1 }`, the delta's module flags `{}` after, the synthetic actor without it. A deletion on the delta's path works on 14.370 |
 | 68 (LIVE-E06-02) | measured, in part | the GM's drawn roll of the killer's opening (a Hope opening, Daggerheart 2.12.9) as PlayerTwo's (a bystander's) console holds it: no id, name or uuid of the killer's actor anywhere in its JSON; speaker `{ actor: null, alias: "Monokuma" }`; title "Duality Roll"; no `trait` in the roll's options, no effects, bonus effects or experiences, no modifier labels. Not read: the Reroll half (Hope and Sanity settled again, the same trait and experiences), whether `options.data` is empty, Daggerheart 2.6.5 |
+| 65 (LIVE-E05-13) | measured; **a defect found, open** (pass 2) | an Eclipse started (`startEclipse`, Noon, 2 crossings each) and PlayerOne moving Aiko through `TokenDocument#move` with waypoints: Dorm A to the Hall by a waypoint in the Cafeteria - one `updateToken` on the GM; the primary's route record (`roomsVisited`) `["Hall", "Dorm A"]`, start and end; Aiko's card "Noon Eclipse · Hall / You are now in Hall, with 1 crossing left during this Eclipse." - the room named is the scene's (as the item asks), and the drag through two rooms cost one crossing. Then Dorm A to the Storage by waypoints in the Cafeteria and the Hall: the token ended in the Storage (on the GM), a third room on an allowance of two; the cards "Noon Eclipse · Hall / ... with 0 crossings left" and "Noon Eclipse · Storage / ..." - the Cafeteria never counted; the route record `["Storage", "Dorm A"]`. **The Eclipse's limit is passed by one room** when a single move's first leg crosses a room. Consistent with CALIBRATION.md D4 (a route is one update, its passed waypoints under `options._movement`), which the coordinator has on claude/shim-118: for that line, with this reading, not fixed here. A mouse drag not driven (the API's move). In Daily Life the same two-room route cost two (step 3: the free Move and an action) |
+| 70 (LIVE-E06-04) | measured, in part (pass 2) | on PlayerTwo, a bystander, while PlayerOne's Search ran: the veiled ruling card (placed for everybody, visible) and Foundry's stub of the GM's drawn roll each reached `ui.chat.notify`; the private result card (not visible to PlayerTwo) did not. No `AudioHelper.play` on PlayerTwo, and no dot element found by the probe's selector in v14's sidebar: the dot and the sound themselves not read. The roller without Dice So Nice not driven |
+| 71 (LIVE-E06-05) | measured (pass 2) | the card drawn (`renderHTML`, the module's render hook run) under Daggerheart's template: with a GM listening the GM's card reached PlayerOne in 53-61 ms, one card, its header the GM's ("GM 5s ago", the GM's avatar - by the module's design, which names the GM, never the caller); with no GM online PlayerOne's browser made its own card in 54-59 ms, class `drpg-safeword-unsigned`, its header hidden (no name, no avatar showing). Not driven: a GM's F5 mid-press |
 | 67 (LIVE-E06-01) | measured, with a question | the victim's browser (PlayerOne) through the opening: while the killer throws, no `drpg-incident-here`, no event panel, no sound; after a failed opening (Chie's Body -20), the same - but its chat shows three veiled cards placed for everybody ("To: GM, PlayerOne, PlayerThree, PlayerTwo", the placeholder `-`, no words reached it) and Foundry's stub of the GM's draw of the opening, "Duality Roll · GM privately rolled some dice", at that moment (private-rolls.mjs writes `blind: false`). After a Hope opening: `drpg-incident-here`, one event card "Face to face / Aiko Hoshino / your turn", the words "Someone is moving on you ..."; no "Chie" anywhere on the page or in its store. One earlier run's card read "Face to face Chie Mori against ..." on the victim: events.mjs names the pair only when that browser's cast holds the killer, which a success with Fear leaves (the mask opens on Hope or a critical); that run's dice were not recorded, and two runs since did not repeat it. Sounds: none captured - the seed has no murder playlist. Shots e06-01-victim-after-*.png |
 
 

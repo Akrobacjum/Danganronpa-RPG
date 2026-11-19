@@ -23,7 +23,7 @@
 
 import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, LIMIT_GROUPS } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, capacityLabel, readyForShape } from "./inventory.mjs";
-import { trustedWrite } from "./resource-guard.mjs";
+import { trustedWrite, noteOwnWrite } from "./resource-guard.mjs";
 import { flagsAsHeld } from "./sheet-audit.mjs";
 import { locateActor, sceneOfActor } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
@@ -755,6 +755,8 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
 
     const found = stashesFoundBy(held);
     found.push(foundKey(where.room, target.owner.id, where.scene));
+    // The GMs' find moves their mark even where a player's own note of it already stands on the sheet (`noteOwnWrite`; E16-T29).
+    noteOwnWrite(actor, { flags: { [MODULE_ID]: { [VAULT_FLAGS.found]: found } } });
     await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, found);
 
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Analyze.stashFound", {

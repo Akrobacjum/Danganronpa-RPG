@@ -45,6 +45,40 @@ Mutants of this line (each on a copy of the tree, `DRPG_REPO`, the scenario run 
 | `friskPerson`: the cover's `>=` to `>` | 99 frisk | KILLED (cover/hand-1, cover/hand) |
 | frisk.mjs the force's `>=` (`ACTIONS.palm.frisk.threshold`) to `>` | 99 frisk | KILLED (openly, forced at 12) |
 
+### The line claude/shim-118 (17.11.2026, base a1d294ef merged with claude/e58-local 9c917495, R block R7740-R7779)
+
+The shim brought to what Foundry 14.370 did, as E58 L1 read it on the owner's sandbox (`CALIBRATION.md`), one D a
+commit, each red first in 00-boot; AUDIT 9.2 rows 640-657 (LIVE-E39-02 to -19).
+
+| Commit | What |
+| --- | --- |
+| 9a8e4f0c | D4, a token's move: one update per route, its grid steps in `options._movement[id]`, `_regions` and `_priorRegions` |
+| 67d525f6, 224f99a2 | movement.mjs: a route judged leg by leg and charged room by room; every put-back through `putBackWrite` with `diff: false` |
+| c803e68a, 909dc019 | D5, Levels as an embedded collection with `defaultLevel0000`; passages-gm.mjs `floorNamed` |
+| 5b9269ba | D3, the update diff: on the writer against its copy, on the server for the hooks |
+| b17b9867 | D6, a role change logs the user out |
+| a90a0dc4, 1c3a7b3a, 8a6fcd33, 20746544 | the mark fix (choice A): a GM's own write the diff drops moves the GMs' mark (`noteOwnWrite`, `noteOwnDropped`), R7744's census of the bare roads |
+| 4c407e78 | D10, a GM announced as its socket connects |
+| d84481ee | the merge of L1's 0e70bfe3: the move defined on the caller's options (D11), one implementation with D4 |
+| d57f754a | the merge of L1's d5907e1b: an owner kept against a deletion (`keepOwners`) before the server's diff, one implementation with D3; scripted dice |
+
+**Proposed, not built: a D for a chat message's rolls** (18.11.2026; the coordinator's word on the Reroll tests: "write (A)
+up as a proposed D in STATUS, not built"). Headless a message's `rolls` is plain JSON with no `terms` (lib/shim.mjs
+`ChatMessage#rolls` parses `_source.rolls`), and the module's own throw hands the harness the same; on v14 it is Daggerheart's
+`DualityRoll`, rebuilt by its class (L1 read a roll of 5 terms). So a test can reroll a real roll only at a table, and tier 2's
+`rerollableRoll` keeps two roads: the message's real roll at a table, the suite's `SuiteRoll` headless. **The D**: the
+harness stores the roll Daggerheart's own `toJSON` gives, and `ChatMessage#rolls` answers Roll instances by their class
+(`CONFIG.Dice.rolls`, `fromData`), as v14 does; then `rerollableRoll` keeps one road, and `SuiteRoll` goes. **Its reach**:
+every module road that reads a roll headless meets a real Roll where it read JSON - reroll.mjs `rollAsThrown` and its JSON
+road, private-rolls.mjs, roll-draw.mjs, the despair award - so it is its own D, red first in 00-boot, with every scenario and
+the eight shards, as D3-D6 were.
+
+**Before every push that touches `scripts/`, tier 1 runs whole** (`node run-tests.mjs --tier 1` in audit/harness), not
+only the tests by name - the coordinator's rule of 17.11.2026. Why: a90a0dc4's `noteOwnDropped` read a mode predicate
+R1470 keeps out of sheet-audit.mjs, and tier 1 stood red from a90a0dc4 to d84481ee, pushed, because that fix's runs were
+the tests by name, `npm run quick` and scenarios 30, 61 and 83; the final gate's tier 1 found it (1759 passed, 1 failed),
+fixed in 20746544.
+
 ## In progress
 
 - Nothing open in code. C5 (the mutants, the plan's item 5) is the table below; the stage's ledger is this file.

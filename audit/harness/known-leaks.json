@@ -134,14 +134,14 @@
     },
     {
       "id": "foundry-veiled-token-actor",
-      "findings": ["A113-C5-2"],
+      "findings": ["A113-C5-2", "LIVE-E112-01"],
       "class": "metadata",
       "severity": "info",
-      "what": "While a direct murder's opening waits, the killer's tokens (and a third's on the killers' side) carry the veil's flag and Foundry's hidden on every scene, so a player's browser console lists the flagged or hidden character tokens and resolves them by actorId to the opening's killer; the interface shows nothing, and the GMs' store of the veil does not reach a player.",
-      "foundryLimit": "Foundry v14 sends every Token document to every connected client, hidden included, with its flags and its actorId: hiding a token from players is only Foundry's hidden, which every browser holds, and the killer's own browser reads the veil's flag on its own tokens to hold its microphone.",
-      "detectedBy": [{"scenario": "21-masked-killer", "check": "a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag, and the characters' tokens turned hidden, resolve to the opening's killer"}],
+      "what": "While a direct murder's opening waits, the killer's tokens (and a third's on the killers' side) carry the veil's flag on every scene, so a player's browser console lists the flagged character tokens and resolves them by actorId to the opening's killer; since E112v the veil writes no Foundry hidden, so no character token turns hidden for it. The interface shows nothing, and the GMs' store of the veil does not reach a player.",
+      "foundryLimit": "Foundry v14 sends every Token document to every connected client, with its flags and its actorId, and the veil is the module's per-browser hiding: every browser that must not draw the killer's token has to be told which token it is, so what it reads a console reads (in the token's flags, a player's own cast copy or a packet alike; docs/dev/e112v/DESIGN.md section 3), and the killer's own browser reads the same flag to hold its microphone.",
+      "detectedBy": [{"scenario": "21-masked-killer", "check": "a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag resolve to the opening's killer"}],
       "readme": "leak:foundry-veiled-token-actor",
-      "measuredAt": "E112, 16.11.2026, on ed57d862 with this row's commit: in 21-masked-killer, phase 'road', while Chie's direct murder's opening waited, p1 (the victim) and p2 (a bystander) each listed one token with flags.danganronpa-rpg.veiled and one hidden character token, and game.actors.get(token.actorId).name read 'Chie Mori' on both; the veil store held 0 rows on p1 and p2 and 1 on the GM. A third on the killers' side was not in this scenario (its tokens take the same patch, mask-gm.mjs veilPatch)"
+      "measuredAt": "E112, 16.11.2026, on ed57d862: p1 (the victim) and p2 (a bystander) each listed one token with flags.danganronpa-rpg.veiled and one hidden character token, both resolving to 'Chie Mori'. Again at E112v, 16.11.2026, on dd9a56ed (road (b)): in 21-masked-killer, phase 'road', while Chie's opening waited, p1 and p2 each listed one token with flags.danganronpa-rpg.veiled resolving to 'Chie Mori' and no hidden character token (the check 'road: no character token turns hidden for the veil' green); the veil store held 0 rows on p1 and p2 and 1 on the GM. A third on the killers' side was not in this scenario (its tokens take the same patch, mask-gm.mjs veilPatch)"
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik GM
 
-*Dla modułu „Danganronpa RPG” do Foundry VTT v14, wersja 1.2.117, zbudowanego na systemie Daggerheart.*
+*Dla modułu „Danganronpa RPG” do Foundry VTT v14, wersja 1.2.118, zbudowanego na systemie Daggerheart.*
 
 To podręcznik dla osób prowadzących killing game. Rozdziały idą w kolejności, w jakiej przygotowuje się i rozgrywa sezon: instalacja, ustawienie, prowadzenie dnia, morderstwa, Investigation i Class Trial, koniec rozdziału i start od nowa. Tam, gdzie decyzja należy do GM-a, a nie do modułu, tekst mówi to wprost.
 
@@ -338,9 +338,9 @@ Pasek stanu GM-a pokazuje licznik *Zostały akcje*, a podczas Eclipse *Jeszcze s
 
 **Obroty zegara i plansze dnia.** Każda zmiana pory dnia obraca kurtynę: godzina naprzód od góry, nowy dzień albo cofnięcie od dołu, a Eclipse od środka. Investigation zaczyna się błyskami szyb, a ogłoszenie ciała sprawia, że kurtyna migocze.
 
-Gdy zaczyna się Noc, na końcu nocnego Eclipse albo przy **Pomiń Eclipse** z Wieczoru, jeśli nie prowadzisz nocnego Eclipse, każdy widzi **planszę końca dnia**: co zrobił tego dnia, co widziała szkoła i **nastrój szkoły**. Ty widzisz na planszy cały stół. Nastrój szkoły to Spokój, Niepokój albo Na krawędzi i zależy od tego, jak Hope uczniów wypada wobec Hope Monocubów, Despair Monokumy i Overflow; gracze widzą tylko słowo nastroju.
+Gdy zaczyna się Noc, na końcu nocnego Eclipse albo przy **Pomiń Eclipse** z Wieczoru, jeśli nie prowadzisz nocnego Eclipse, każdy widzi **planszę dnia** z tytułem „Koniec dnia N”: rozdział, porę dnia i liczbę żyjących, obsadę (zmarli są wyszarzeni, z podpisem „pamiętamy”) i **nastrój szkoły**. Nastrój szkoły to Spokój, Niepokój albo Na krawędzi i zależy od tego, jak Hope uczniów wypada wobec Hope Monocubów, Despair Monokumy i Overflow; gracze widzą tylko słowo nastroju. To, co zrobiono Wieczorem, przychodzi we własnym podsumowaniu, jak przy każdej porze dnia. Plansza Widza na początku Nocy ma tylko tytuł i nastrój.
 
-Gdy zaczyna się następny dzień, na początku porannego Eclipse albo przy **Pomiń Eclipse** z Nocy, jeśli nie prowadzisz porannego Eclipse, każdy widzi **planszę początku dnia**: nowy dzień, obsadę i twoje zdanie na poranek z pola **Zdanie na następny poranek** w Edytuj kampanię. Puste zdanie niczego nie pokazuje, a przy dwóch GM-ach to zdanie GM-a, który przesuwa zegar. Koniec porannego Eclipse nie pokazuje żadnej planszy, choć numer dnia i sesja wciąż zmieniają się na jego końcu, a **Zakończ bez przesuwania zegara** przy porannym Eclipse oddaje twoje zdanie z powrotem do pola. Przy następnym poranku z ekranu Końca rozdziału pojawiają się obie plansze, po wyjściu z rozprawy. Edytuj kampanię nie pokazuje żadnej. Esc pomija planszę, a przełącznik **Sekwencje na cały ekran** wyłącza to wszystko (sekcja 15.3).
+Gdy zaczyna się następny dzień, na początku porannego Eclipse albo przy **Pomiń Eclipse** z Nocy, jeśli nie prowadzisz porannego Eclipse, każdy widzi tę samą planszę z tytułem „Dzień N”, z nastrojem nowego dnia, a pod nim twoje zdanie na poranek z pola **Zdanie na następny poranek** w Edytuj kampanię. Puste zdanie niczego nie pokazuje, a przy dwóch GM-ach to zdanie GM-a, który przesuwa zegar. Koniec porannego Eclipse nie pokazuje żadnej planszy, choć numer dnia i sesja wciąż zmieniają się na jego końcu, a **Zakończ bez przesuwania zegara** przy porannym Eclipse oddaje twoje zdanie z powrotem do pola. Przy następnym poranku z ekranu Końca rozdziału pojawiają się obie plansze, po wyjściu z rozprawy. Edytuj kampanię nie pokazuje żadnej. Esc pomija planszę, a przełącznik **Sekwencje na cały ekran** wyłącza to wszystko (sekcja 15.3).
 
 ---
 
@@ -2421,6 +2421,7 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `countdown-update` | Daggerheart przesuwa swoje odliczania poza kolejką projektów, a zmiana projektu zrobiona w tej samej chwili może przepaść |
 | `door-controls` | każdy znacznik drzwi jest pokazywany tak, jak pokazuje go Foundry |
 | `token-ruler` | linijka ruchu żetonu zostaje w kolorze, który daje jej Foundry albo inny moduł |
+| `token-sight` | przy włączonej wizji tokenów gracz, który nie kontroluje żadnego tokenu ze wzrokiem, widzi oczami każdej postaci, którą obserwuje, także tej, którą moduł przed nim ukrywa |
 | `actions-resource` | postać nie ma zasobu Akcji |
 | `sidebar-calls` | własne wywołania Foundry ani nie pokazują, ani nie ustawiają okna narzędzi Foundry |
 | `relay-guard` | prośby z Daggerheart gracza, których moduł nie przejrzał, są odrzucane w przeglądarce GM-a, a GM-owie dostają o tym wiadomość raz na wersję; gdzie strażnik nie może stanąć wcale, przekaźnik nie jest strzeżony, a GM-owie są o tym informowani przy każdym wczytaniu |

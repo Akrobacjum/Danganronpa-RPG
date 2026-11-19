@@ -403,8 +403,9 @@ export function placeRoomNames() {
  * its footprint, so a token on the ground floor under the attic stood in the attic, and every
  * listener that waits for a move asked whether x or y had changed - a token that only changed
  * floor had not moved at all, into a locked room or anywhere else. These names are the plan's
- * reading of v14 and the harness's model of it (audit/harness/lib/shim.mjs `LevelList`); what
- * v14 holds there is LIVE-E12-02/03, not read off a table.
+ * reading of v14 and the harness's model of it (audit/harness/lib/shim.mjs `LevelImpl`, an embedded `Level` collection
+ * since the line claude/shim-118's D5, as Foundry 14.370 held it: docs/dev/e39/CALIBRATION.md section 3); what else
+ * v14 holds there is LIVE-E12-02/03.
  */
 
 /**
@@ -524,7 +525,7 @@ export function standInLevelFailure(value) {
 /**
  * A scene's floors, lowest first - by `elevation`, the order the owner's item 5 of 09.10 gives
  * them - or none on a scene that names no floor (every scene before v14). `elevation` as a
- * number is the harness's model of a level (lib/shim.mjs `LevelList`); the v14 typings
+ * number was the harness's model of a level until the line claude/shim-118's D5 (lib/shim.mjs `LevelImpl` since); the v14 typings
  * (`onLevel`'s note) give a level `elevation: {bottom, top}`, and an object subtracted gave NaN
  * and left the floors in the scene's own order (E12 fix r2-H1; early review EARLY-C10-4). So the
  * bottom when there is one, else the number; what v14 holds at a table is LIVE-E12-02.

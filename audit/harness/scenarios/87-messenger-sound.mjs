@@ -532,7 +532,8 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const APPLIES = `const C = await import("${repoUrl}/scripts/perf-counters.mjs"); return C.snapshot()["music.apply"] ?? 0;`;
     // gm stood in as gone on gm's page and gm2's (as client-entry.mjs marks a user who left), so gm2 is the primary on
     // both: the music's one test of who drives is `isPrimaryGm()`, read when a timer fires.
-    const GM_HERE = here => `const u = game.users.get(${J(gm.userId)}); u._source.active = ${here};
+    // A User's `active` is its own data property on 14.370 (E58 L1's reading; lib/shim.mjs `UserImpl` since the merge of 93f14e01 on claude/shim-118): a write of `_source.active` alone no longer makes a user away, so the property is written with it.
+    const GM_HERE = here => `const u = game.users.get(${J(gm.userId)}); u.active = u._source.active = ${here};
         const U = await import("${repoUrl}/scripts/utils.mjs"); return U.isPrimaryGm();`;
     /* C2'S OWN FOLLOW FIRST. gm's last write in C2 (its row taken back) arms gm's settle timer as every musicMap write
        does: MAP_SETTLE_MS (1500) and the settle after it (400) later, gm, the primary, runs its apply. C2's settle(1500)
@@ -695,9 +696,9 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         return { field: area.value === words ? "kept" : area.value, disabled: area.disabled, toasts: globalThis.__s87Says.slice(from) };`;
     const d4Long = await p1.eval(D4_SEND(`S87 D4 ${"x".repeat(33 * 1024)}`), { timeout: 60000 });
     const d4NoGm = await p1.eval(`const gone = game.users.filter(u => u.isGM && u.active);
-        for (const u of gone) u._source.active = false;
+        for (const u of gone) u.active = u._source.active = false;
         try { return { gone: gone.length, ...(await (async () => { ${D4_SEND(D4_WORDS)} })()) }; }
-        finally { for (const u of gone) u._source.active = true; }`, { timeout: 60000 });
+        finally { for (const u of gone) u.active = u._source.active = true; }`, { timeout: 60000 });
     // Every card.post packet gm is sent, held until released: the answer misses p1's clock (TIMING.ackMs), the post does not.
     await gm.eval(`const list = game.socket._handlers.get("module.${MOD}") ?? []; const real = [...list];
         globalThis.__s87Card = { real, held: [], packets: 0 };
@@ -865,14 +866,14 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const e2Loots = await loots();
     // gm and gm2 stood in as gone on p1's page alone (as client-entry.mjs marks a user who left), and put back after.
     const e2 = await p1.eval(`const gone = game.users.filter(u => u.isGM && u.active);
-        for (const u of gone) u._source.active = false;
+        for (const u of gone) u.active = u._source.active = false;
         let out = null;
         try {
             await (async () => { ${PRESS} })();
             out = await (async () => { ${AFTER} })();
             await new Promise(r => setTimeout(r, 300));
             out.toasts = globalThis.__s87Toasts.slice(globalThis.__s87From);
-        } finally { for (const u of gone) u._source.active = true; }
+        } finally { for (const u of gone) u.active = u._source.active = true; }
         return { gone: gone.length, ...out, look: await (async () => { ${LOOK} })() };`, { timeout: 60000 });
     const e2Gm = { loots: (await loots()) - e2Loots, onBody: await gm.eval(`return game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});`) };
     check("E2: a Take with no GM to answer it shows no \"took\" toast, says no GM is connected once, and takes nothing; nothing reached the primary, and the window opened again reads the gate open (E50-32; A113-C5-7)",

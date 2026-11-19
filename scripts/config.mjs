@@ -1709,11 +1709,16 @@ export const ACTIONS = {
         // Long Rest more, and each needs a room the GM marked. The numbers and
         // the rooms' names live where they are checked: the dialog prices Short
         // against Long and names the rooms that allow each (`DRPG.Rest.allowedIn`).
-        hint: "Recover Health, Sanity, or Hope. A Short Rest costs an action, once each time of day; a Long Rest costs "
-            + "more actions and recovers more, once each session. Each needs a room the GM has marked for it.",
-        description: "Choose from Sleep (Health), a Meal (Sanity), and a Breath (Hope). A Long Rest lets you pick more "
-            + "of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much "
-            + "and grants less Hope."
+        // F118 (17.11.2026; the owner: "Opis nie uwzglednia akcji pokoju gma i projektow"): the hint and the description
+        // name the window's three kinds since E93 - the rests, a GM's room action (Room Setup's Facilities tab) and a
+        // completed project's, a GM's rolled and a project's not (the owner, 18.11.2026, having checked that a project's
+        // action has no roll - its editor's only switch is "Costs an action": "Zostawmy jak jest w takim razie. I
+        // uwzglednijmy to w opisie kafla facilities"). What a rest restores is its pick window's to say (`choosePicks`).
+        hint: "What you can do in the room you stand in: rest (a Short or Long Rest, in rooms the GM marked for it), use "
+            + "an action the GM gave this room (with a roll), or use a completed project's action (no roll).",
+        description: "A Short Rest costs an action, once each time of day; a Long Rest costs more and recovers more, once "
+            + "each session. An action the GM gave this room costs an action and a roll on its statistic; a completed "
+            + "project's action needs no roll."
     },
     /*
      * INFILTRATE, THE TILE THAT WAS LISTEN (E69 C1, 12.11.2026; DA27: the key `listen` stays, no migration; DA28 and DA48: one

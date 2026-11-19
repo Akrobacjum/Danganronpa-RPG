@@ -434,13 +434,15 @@ export function serverNow() {
 }
 
 /**
- * WHETHER A GM HID A TOKEN (E112, 15.11.2026): Foundry's `hidden`, but not the opening's veil (mask-gm.mjs `VEIL_FLAG`),
- * which hides a killer's token from the other players and leaves them in the room - a witness, a target, a finder, as
- * before. Every reading of "a token the GM has hidden is not in the scene" asks this. Pure.
+ * WHETHER A GM HID A TOKEN (E112, 15.11.2026): Foundry's `hidden`. Every reading of "a token the GM has hidden is not in
+ * the scene" asks this. The opening's veil hides a killer's token from the other players and leaves them in the room - a
+ * witness, a target, a finder, as before; until E112v it was Foundry's `hidden` as well, and this read past the flag
+ * (mask-gm.mjs `VEIL_FLAG`). Since E112v's road (b) the veil writes no `hidden`, so a `hidden` on a veiled token is a
+ * GM's, and counts as any other (R7705). Pure.
  */
 export function hiddenByGm(tokenDoc) {
     const doc = tokenDoc?.document ?? tokenDoc;
-    return Boolean(doc?.hidden) && !(doc?.flags ?? doc?._source?.flags)?.[MODULE_ID]?.veiled;
+    return Boolean(doc?.hidden);
 }
 
 /**

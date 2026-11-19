@@ -46,6 +46,8 @@ import { debug } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 
 export function registerVisibility() {
+    // A token this browser hides gives it no sight (E112v): the token class's vision-source test asks `tokenShownTo` too.
+    Hooks.once("ready", () => installSightRule());
     // A hidden token's ruler (owner-116): the ruler class asks this file's rule for each write of its `visible`.
     import("./fog-doorways.mjs").then(m => { doorways = m; m.setRulerShown(rulerHere); })
         .catch(err => debug("Visibility: the token ruler's rule could not be set", err));
@@ -301,6 +303,9 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     // makes, and it is the one moment a Remnant's visibility actually needs
     // recomputing for everyone who is not the finder.
     if (changes?.hidden !== undefined) return "all";
+    // The opening's veil set or lifted (E112v, road (b)): its one flag is all that changes, and every browser's verdict on
+    // the token turns on it - "all", as `hidden`, since a third on the killers' side reads the cast as well (R7704).
+    if (veilFlagChanged(changes)) return "all";
     // E89 fix FG2 (SEC-1; R1054): which characters are the viewer's, changed on the token itself with no move - another
     // actor on it, its link to one, an unlinked token's owners (v14's delta carrying `ownership` is not read here).
     if (changes?.actorId !== undefined || changes?.actorLink !== undefined || changes?.delta?.ownership !== undefined) return "all";
@@ -311,6 +316,12 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     const sameLair = (viewer.lairBefore ?? null) === (viewer.lairAfter ?? null);
     if (sameRooms && sameLair) return "one";
     return viewer.roomsBefore != null ? "rooms" : "all";
+}
+
+/** Whether `changes` sets or removes the opening's veil flag (either spelling of a removal). Pure. */
+function veilFlagChanged(changes) {
+    const flags = changes?.flags?.[MODULE_ID];
+    return Boolean(flags) && typeof flags === "object" && ("veiled" in flags || "-=veiled" in flags);
 }
 
 /**
@@ -420,7 +431,7 @@ function recheckAtRest(doc) {
  */
 export function passForTokenUpdate(doc, changes) {
     // Foundry's own hide flipped (owner-116): the token's ruler asked again at once, so one standing goes with the token
-    if (changes?.hidden !== undefined) doorways?.reRuler?.(doc?.object);
+    if (changes?.hidden !== undefined || veilFlagChanged(changes)) doorways?.reRuler?.(doc?.object);
     // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
     const gm = Boolean(game.user?.isGM);
     const ownedMove = Boolean(doc?.isOwner) && isMoveChange(changes);
@@ -530,6 +541,25 @@ export function tokenShownTo(tokenDoc, viewer) {
        (the plan's risk R3). AND A SPECTATOR SEES EVERY CHARACTER (goal (4)): its browser leaves each token to Foundry,
        whatever the room, in an Eclipse too (Q-E92-6's default) - Foundry's own `hidden` still hides a GM's hidden token. */
     if (flaggedSpectator(tokenDoc.actor)) return viewer.owns(tokenDoc) ? "show" : "hide";
+    /* THE OPENING'S VEIL (E112, mask-gm.mjs): a killer's token waiting on the opening. Its owner sees it - they have to
+       be able to see themselves - and so does the killers' side, where the room rule would show it (the accomplice beside
+       the killer); nobody else, whatever the setting, an Eclipse's darkness above it. Read off the one flag (`veiled`:
+       with the token's actorId a console reads it as the killer's, known leak foundry-veiled-token-actor) and this
+       browser's own copy of the cast, which holds the killers for the killers' side alone (incident-store.mjs
+       `castCopyFor`).
+       THE MODULE'S HIDING, NOT FOUNDRY'S (E112v, 16.11.2026; the owner's decision, road (b)): until E112v the veil was
+       Foundry's `hidden` too, which on v14 took the killer's own vision (LIVE-E112-01); now nothing but this verdict
+       hides the token, so it is asked above a Spectator's browser, which leaves every other token to Foundry: a Spectator
+       does not see the killer while the veil stands (LIVE-E112-01 (g)'s default; R7702). Below the GM and a Spectator's
+       own token, both of which answer for themselves. */
+    if (veiledToken(tokenDoc)) {
+        if (viewer.owns(tokenDoc)) return "show";
+        if (viewer.eclipse || !viewer.killersSide?.has(tokenDoc.actorId)) return "hide";
+        if (!viewer.enforcing) return "show";
+        const at = roomOfToken(tokenDoc);
+        return at && viewer.rooms.has(at) ? "show" : "hide";
+    }
+
     if (viewer.spectator) return null;
 
     /* THE ECLIPSE SITS ABOVE `roomVisibility`, NOT BEHIND IT.
@@ -548,20 +578,6 @@ export function tokenShownTo(tokenDoc, viewer) {
        out for one player and on for another. Your own token still shows,
        for the same reason it does below: you have to be able to move it. */
     if (viewer.eclipse) return viewer.owns(tokenDoc) ? "show" : "hide";
-
-    /* THE OPENING'S VEIL (E112, mask-gm.mjs): a killer's token waiting on the opening is Foundry's `hidden` on every
-       browser, so Foundry draws it for no player. Its owner sees it - they have to be able to see themselves - and so
-       does the killers' side, where the room rule would show it (the accomplice beside the killer); nobody else, whatever
-       the setting. Read off the one flag (`veiled`: with the token's actorId a console reads it as the killer's, known leak
-       foundry-veiled-token-actor) and this browser's own copy of the cast, which
-       holds the killers for the killers' side alone (incident-store.mjs `castCopyFor`). */
-    if (veiledToken(tokenDoc)) {
-        if (viewer.owns(tokenDoc)) return "show";
-        if (!viewer.killersSide?.has(tokenDoc.actorId)) return "hide";
-        if (!viewer.enforcing) return "show";
-        const at = roomOfToken(tokenDoc);
-        return at && viewer.rooms.has(at) ? "show" : "hide";
-    }
 
     // Everything below is the room rule, which is what the setting governs.
     if (!viewer.enforcing) return null;
@@ -877,8 +893,8 @@ function hide(token) {
  * hidden from its owner too, which is what that control is for.
  */
 function show(token) {
-    // A token the opening veils is `hidden` on purpose (E112): its owner and the killers' side see it all the same.
-    if (token.document?.hidden && !veiledToken(token.document)) return;
+    // A token the opening veils carries no `hidden` of the veil's since E112v (road (b)): a `hidden` on it is a GM's, kept.
+    if (token.document?.hidden) return;
     hiddenByUs.delete(token);
     token.visible = true;
     if (token.mesh) token.mesh.visible = true;
@@ -928,6 +944,62 @@ export function rulerShownTo(doc, viewer) {
     if (viewer?.owns?.(doc)) return true;
     if (doc.hidden) return false;
     return tokenShownTo(doc, viewer) !== "hide";
+}
+
+/*
+ * A TOKEN THIS BROWSER HIDES GIVES IT NO SIGHT (E112v, 16.11.2026; the coordinator's answer to Q2, docs/dev/e112v/DESIGN.md
+ * section 5). Foundry's vision-source test (`Token#_isVisionSource`, wrapped below; its source not read on this line) makes
+ * a token with sight a source on a player's browser when it is controlled or, while that player controls no token with
+ * sight, for every token the player can observe - and every player observes every character here (the module's ownership
+ * default 2). Until E112v the opening's veil was Foundry's `hidden`, which kept the killer's token out of that fallback;
+ * on road (b) a victim's or a bystander's browser would have taken sight from the veiled killer's token, the token itself
+ * hidden but its sight lighting the map around where the killer stands. And the same fallback gave every player the sight
+ * of a token in another room, hidden by the room rule, on a scene with token vision on (the room fog off: with it on, a
+ * scene with rooms has token vision off, fog.mjs `applySceneVisionMode`). So a token this browser does not draw by the
+ * module's own rules - `tokenShownTo`'s "hide", the verdict `applyToToken` hides by, or one this file hid by its other
+ * rules (`hiddenByUs`: a Remnant, a project) - is no vision source here; any other is Foundry's to answer, unchanged. A GM's
+ * browser is never asked. The killer's own token answers "show" on their browser, so it stays their vision source while
+ * veiled (R7701, R7707): that was the defect. Read headless on the predicate and on a stand-in class (R7706, R7707);
+ * a real canvas is LIVE-E112V-01.
+ */
+const SIGHT_RULE = Symbol.for("drpgSightHere");
+
+/** Whether `doc` gives `viewer` no sight: the module hides it from them (`tokenShownTo` "hide"); never on a GM's. Pure (R7706). */
+export function givesNoSight(doc, viewer) {
+    if (!doc || viewer?.gm) return false;
+    return tokenShownTo(doc, viewer) === "hide";
+}
+
+/** This browser's answer for a placeable: a Remnant or a project by this file's other rules (`hiddenByUs`), as `applyToToken` hides them; a character by `givesNoSight`. */
+function noSightHere(token) {
+    if (!token || game.user?.isGM) return false;
+    const doc = token.document;
+    if (doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant) || projectIdOf(doc)) return hiddenByUs.has(token);
+    return givesNoSight(doc, viewerHere(() => Boolean(token.isOwner)));
+}
+
+/**
+ * Wrap the vision-source test of `TokenClass` (the configured token class by default) where its chain first owns one, so a
+ * token `noSight` answers true for is no source on this browser and every other keeps Foundry's answer. Answers whether it
+ * is in place. The suite hands a stand-in class and its own `noSight` (R7707); a class with no such method is left alone.
+ */
+export function installSightRule(TokenClass = globalThis.CONFIG?.Token?.objectClass, noSight = noSightHere) {
+    let proto = TokenClass?.prototype ?? null;
+    while (proto && proto !== Object.prototype && !Object.hasOwn(proto, "_isVisionSource")) proto = Object.getPrototypeOf(proto);
+    const core = proto && proto !== Object.prototype ? proto._isVisionSource : null;
+    if (typeof core !== "function") {
+        debug("Visibility: the token class has no vision-source test here, so a hidden token's sight is Foundry's alone");
+        return false;
+    }
+    if (core[SIGHT_RULE]) return true;
+    const drpgSightHere = function (...args) {
+        if (noSight(this)) return false;
+        return core.apply(this, args);
+    };
+    drpgSightHere[SIGHT_RULE] = true;
+    drpgSightHere.wrapped = core;
+    proto._isVisionSource = drpgSightHere;
+    return true;
 }
 
 /** This browser's answer for a token's ruler (the ruler class's predicate). */

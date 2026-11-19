@@ -437,10 +437,10 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
         const floor = game.scenes.get("${tieSet.scene}"), PLACE = { teleport: true, movementAction: "displace", animate: false };
         const tok = id => floor.tokens.find(t => t.actorId === id);
         const bodyRoom = M.roomOfActor(game.actors.get("${ids.daichi}")), away = R.roomNames(floor).find(r => r !== bodyRoom);
-        const walk = async (id, room) => { await tok(id).update(M.positionIn(room, tok(id)), PLACE); await new Promise(r => setTimeout(r, 700)); };
+        const walk = async (id, room) => { await tok(id).update(M.positionIn(room, tok(id)), { ...PLACE }); await new Promise(r => setTimeout(r, 700)); };
         const state = () => ({ pending: (C.pendingBodyDiscoveries?.() ?? []).map(r => [r.room, r.victimId]), held: game.drpg.bodyDiscovery?.()?.room ?? null,
             dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")) });`;
-    await gm.eval(`${FIND_GM} await floor.updateEmbeddedDocuments("Token", ["${ids.aiko}", "${ids.chie}"].map(id => ({ _id: tok(id).id, ...M.positionIn(away, tok(id)) })).concat([{ _id: tok("${ids.botan}").id, ...M.positionIn(away, tok("${ids.botan}")) }]), PLACE);
+    await gm.eval(`${FIND_GM} await floor.updateEmbeddedDocuments("Token", ["${ids.aiko}", "${ids.chie}"].map(id => ({ _id: tok(id).id, ...M.positionIn(away, tok(id)) })).concat([{ _id: tok("${ids.botan}").id, ...M.positionIn(away, tok("${ids.botan}")) }]), { ...PLACE });
         await new Promise(r => setTimeout(r, 900)); return true;`, { timeout: 60000 });
     await settle(500);
     const f1Before = await findRead();
@@ -516,11 +516,11 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
         const out0 = {};
         try {
             await C.killCharacter(botan, { secret: true, keepBullets: true });
-            await tok(botan).update(M.positionIn(room, tok(botan)), PLACE);
+            await tok(botan).update(M.positionIn(room, tok(botan)), { ...PLACE });
             await floor.updateEmbeddedDocuments("Token", ["${ids.aiko}", "${ids.chie}"].map(id => {
                 const t = floor.tokens.find(x => x.actorId === id);
                 return { _id: t.id, ...M.positionIn(room, t) };
-            }), PLACE);
+            }), { ...PLACE });
             // The GM's word (1.2.113): the walk-ins leave the discovery pending, and "Announce" in the prompt runs it.
             await new Promise(r => setTimeout(r, 900));
             out0.pendingBefore = (C.pendingBodyDiscoveries?.() ?? []).map(r => [r.room, r.victimId]);

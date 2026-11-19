@@ -205,10 +205,10 @@ function canWrite(userId, op) {
 /* ------------------------------ apply ops --------------------------------- */
 
 const EMB_KEYS = {
-    Actor: ["items", "effects"], Item: ["effects"], Scene: ["tokens", "regions", "walls"],
+    Actor: ["items", "effects"], Item: ["effects"], Scene: ["tokens", "regions", "walls", "levels"],
     RollTable: ["results"], Playlist: ["sounds"], Region: ["behaviors"]
 };
-const EMB_CHILD = { items: "Item", effects: "ActiveEffect", tokens: "Token", regions: "Region", walls: "Wall", results: "TableResult", sounds: "PlaylistSound", behaviors: "RegionBehavior" };
+const EMB_CHILD = { items: "Item", effects: "ActiveEffect", tokens: "Token", regions: "Region", walls: "Wall", levels: "Level", results: "TableResult", sounds: "PlaylistSound", behaviors: "RegionBehavior" };
 
 /** Every embedded entry needs a server-assigned _id, recursively. */
 function ensureEmbeddedIds(collName, doc) {
@@ -234,6 +234,8 @@ function applyOp(userId, op, onLegacyKey = null) {
                made, unless the call passed `keepId` (shim.mjs `createData`, E08+E28 C1): the
                server keeps it, so the id a preCreate hook read is the one the document gets. */
             const docs = op.data.map(d => ({ ...U.deepClone(d), _id: d._id && !list.some(x => x._id === d._id) ? d._id : U.randomID() }));
+            // D5: a scene made with no floor holds `defaultLevel0000`, as Foundry 14.370's did (futil.mjs `withDefaultLevel`).
+            if (collName === "Scene") for (const d of docs) U.withDefaultLevel(d);
             /* A message's creation time, stamped here whatever the client sent (E33 fix r2-G1, 07.10.2026), as
                Foundry's server is taken to stamp `_stats.createdTime`; the client's `timestamp` is kept as sent.
                The module ages a message by the first (sheet-audit.mjs `traceForgedAtReady`). Neither has been
@@ -257,9 +259,20 @@ function applyOp(userId, op, onLegacyKey = null) {
             const others = collName === "Scene" && op.changes?.active === true
                 ? list.filter(d => d._id !== op.docId && d.active) : [];
             for (const other of others) other.active = false;
-            U.applyDocChanges(collName, doc, op.changes, { onLegacyKey: path => onLegacyKey?.(path) });
+            /* THE SERVER'S DIFF, FOR THE HOOKS (D3, 17.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-03): on Foundry
+               14.370 an update with one key unchanged and one new handed `updateActor` the new key alone, with
+               `_stats.modifiedTime` and `_id`, on every client; an update sent with `{ diff: false }` that changed nothing
+               handed it `{_id}` alone. What reaches every client is the part of the write that changes the world's copy
+               (futil.mjs `diffChanges`), the modification time with it where something changed. The write itself is
+               applied whole, as before. Until D3 every client was handed the write as sent. */
+            // An owner a deletion names stays (futil.mjs `keepOwners`, E58 L1's reading on 14.370): taken out before the diff too.
+            const write = U.keepOwners(U.expandObject(U.deepClone(op.changes ?? {})), path => onLegacyKey?.(path));
+            const changed = U.diffChanges(doc, write);
+            if (Object.keys(changed).length) changed._stats = { ...(changed._stats ?? {}), modifiedTime: Date.now() };
+            U.applyDocChanges(collName, doc, write, { onLegacyKey: path => onLegacyKey?.(path) });
+            if (changed._stats) doc._stats = { ...(doc._stats ?? {}), modifiedTime: changed._stats.modifiedTime };
             return { first: others.map(other => ({ t: "apply", action: "update", collName, docId: other._id, changes: { active: false }, userId, options: op.options })),
-                broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: op.changes, userId, options: op.options }, result: op.docId };
+                broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: changed, userId, options: op.options }, result: op.docId };
         }
         case "delete": {
             const i = list.findIndex(d => d._id === op.docId);
@@ -277,17 +290,21 @@ function applyOp(userId, op, onLegacyKey = null) {
         }
         case "embedded-update": {
             const { doc, key, via } = embeddedHost(list, collName, op);
+            // The server's diff, entry by entry (the "update" case's note, D3): a token's hook got only its changed key on 14.370.
+            const handed = [];
             for (const u of op.payload) {
                 const raw = (doc[key] ?? []).find(d => d._id === u._id);
                 if (!raw) continue;
-                const { _id, ...changes } = u;
+                const { _id, ...asked } = u;
+                const changes = U.keepOwners(U.expandObject(U.deepClone(asked)), path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }));
+                handed.push({ ...U.diffChanges(raw, changes), _id });
                 /* An embedded document is a parent too (E29 fix r2-H8, 06.10.2026): an actor's item updated with its
                    `effects` merges them by id, as the actor's own list does (futil.mjs `applyDocChanges`). Applied
                    as a plain update the list was replaced by the patch - measured by the fix's probe at 0d86603, a
                    Tool's effect changed through the Tool's update lost its name. */
                 U.applyDocChanges(op.embeddedName, raw, changes, { onLegacyKey: path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }) });
             }
-            return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, updates: op.payload, userId, options: op.options }, result: op.payload.map(u => u._id) };
+            return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, updates: handed, userId, options: op.options }, result: op.payload.map(u => u._id) };
         }
         case "embedded-delete": {
             const { doc, key, via } = embeddedHost(list, collName, op);
@@ -300,7 +317,7 @@ function applyOp(userId, op, onLegacyKey = null) {
 
 function embKey(collName, embeddedName) {
     // A region's behaviours (E12 fix r2-S2, 11.10.2026): scenario 66 X3 and X4 take one off and put one on, `via` the region.
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles", Level: "levels" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     const k = map[collName]?.[embeddedName];
     if (!k) throw new Error(`no embedded ${embeddedName} in ${collName}`);
     return k;
@@ -508,6 +525,19 @@ function onClientMessage(who, entry, msg) {
                     embeddedName: msg.op.embeddedName ?? null, at: Date.now() });
                 for (const before of applied.first ?? []) broadcast(before);
                 broadcast(applied.broadcast);
+                /* A ROLE CHANGE LOGS THE USER OUT (D6, 17.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-05, read by
+                   E58 L1): on Foundry 14.370 the GM changed PlayerTwo's role while PlayerTwo's page was open, and the page went
+                   from /game to /join within 5 s. A User update whose role the world's copy took (the server's diff, D3: a write
+                   of the role already held changes nothing) ends that user's client as `disconnect` does - the others hear the
+                   user leave - unless the writer is that user: a user's change of their own role was not read (LIVE-E39-15),
+                   and stands as before. The scenario that wants the user back connects it again. */
+                const relogged = msg.op.coll === "User" && msg.op.action === "update" && applied.broadcast?.changes?.role !== undefined
+                    && msg.op.docId !== entry.userId ? msg.op.docId : null;
+                const out = relogged ? [...clients.entries()].find(([, c]) => c.userId === relogged && !c.gone)?.[0] ?? null : null;
+                if (out) setTimeout(() => disconnect(out).then(() => {
+                    const left = clients.get(out);
+                    if (left) left.goneWhy = "was logged out: its role changed";
+                }).catch(() => {}), 200);
             } catch (err) {
                 error = err.message;
                 permissionDenials.push({ who, op: `${msg.op.action} ${msg.op.coll}`, error });
@@ -665,7 +695,7 @@ const lateAccounts = new Map();
  * `userConnected` with `true` - the order of those steps on v14 is LIVE-E04-12. With
  * `announceFirst` the others get `userActivity` before its client boots, so they hear
  * the user connect before its world has loaded and it says so (`bridge.gmReady`) - the
- * other order, which 61's O2 drives (E05 fix r1-G4, 27.09.2026). An account that has
+ * other order, which 61's O2 drives (E05 fix r1-G4, 27.09.2026), and since D10 a GM's by default (below). An account that has
  * disconnected may connect again, with the storage it left with (`storageOf`) or
  * another. The seeded four are spawned at start, and since E38 C1 may connect again
  * once they have left (`reload`, `makePrimary`).
@@ -678,7 +708,7 @@ const lateAccounts = new Map();
  * only warns there (lib/shim.mjs `Scene#view`). In Foundry the draw comes before `ready`; here it
  * comes after, as every client of the harness has always booted.
  */
-async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false, modulesOff = null, serverUptimeMs = null } = {}) {
+async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = null, holdLoading = false, modulesOff = null, serverUptimeMs = null } = {}) {
     /* The seeded four may connect again once they have left (E38 C1, 13.11.2026): `reload` and `makePrimary` take
        the seed GM off the table and bring it back, as any browser's F5 does. Until E38 only a late account could. */
     const account = lateAccounts.get(who) ?? (clients.get(who)?.gone && SEEDED[who] ? { who, id: SEEDED[who] } : null);
@@ -687,6 +717,12 @@ async function connect(who, { storage = null, world = null, clockSkewMs = null, 
     if (existing && !existing.gone) return false;
     const rec = userRec(account.id);
     if (rec) rec.active = true;
+    /* D10, A GM IS HEARD AS ITS SOCKET CONNECTS (the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md
+       section 3, AUDIT 9.2 item 52, read by E58 L1): on 14.370 a player's browser got `userConnected(gm, true)` when the
+       GM's socket connected, about 5.7 s before that GM's module sent `bridge.gmReady`. So a GM - role 3 and up, v14's
+       `isGM` - is announced before its client boots unless the caller says `announceFirst: false`; a player still once it
+       is ready, the order no one has read for a player (LIVE-E39-18). Red first: 00-boot's D10 read ["gmReady","connected"]. */
+    announceFirst ??= isGM(account.id);
     if (announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
     const entry = spawnClient(who, account.id, { world, storage, clockSkewMs, holdLoading, modulesOff, serverUptimeMs });
     entry.announceFirst = announceFirst;
@@ -755,6 +791,10 @@ async function disconnect(who) {
 
 /* The four clients every run forks, by who: the accounts `connect` brings back after they left (E38 C1). */
 const SEEDED = { gm: IDS.gm, p1: IDS.p1, p2: IDS.p2, p3: IDS.p3 };
+// D5: every seeded scene holds its floor, `defaultLevel0000`, as Foundry 14.370's did (futil.mjs `withDefaultLevel`).
+for (const scene of world.collections.Scene ?? []) U.withDefaultLevel(scene);
+// D4: every seeded token holds the regions it stands in (`_regions`), as a token on Foundry 14.370 does (futil.mjs `tokenRegionIds`).
+for (const scene of world.collections.Scene ?? []) for (const token of scene.tokens ?? []) token._regions = U.tokenRegionIds(scene, token);
 
 /**
  * A BROWSER'S RELOAD, FOR ANY CLIENT (E38 C1, 13.11.2026; plan E38 3.1). Until E38 a scenario could not reload a
@@ -1255,6 +1295,14 @@ async function main() {
        the hard stop for a client that does not. A probe's lines are records,
        not verdicts: it exits 1 only when it threw. */
     process.exitCode = probe ? (threw ? 1 : 0) : (failedCount > 0 ? 1 : 0);
+    /* THE PLAYER AT EACH BROWSER (client-entry.mjs `installHarnessPlayer`, 17.11.2026): how many times it pressed Roll on
+       each client, read before the clients close; null where a client did not answer. In the results as `harnessPlayer`. */
+    const harnessPlayer = {};
+    for (const [who, entry] of clients) {
+        if (entry.gone || bootInfo.get(who)?.t !== "ready") continue;
+        try { harnessPlayer[who] = await handleFor(who).eval("return globalThis.__harnessPlayer?.presses ?? null;", { timeout: 5000 }); }
+        catch { harnessPlayer[who] = null; }
+    }
     await closeClients(300);
     const resources = Object.fromEntries([...clients.keys()].map(who => [who, peakRSS.get(who) ?? null]));
     resources.cluster = process.resourceUsage().maxRSS;
@@ -1269,7 +1317,7 @@ async function main() {
         // What run() returned: a probe's record, or a scenario's own evidence when it keeps
         // some (01-runtests keeps the suite's results list, which suite-diff --json reads).
         canary: canaryResult ?? { planted: 0 },
-        results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}),
+        results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}), harnessPlayer,
         permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys, legacyReading: legacyReading(),
         opLog: opLog.slice(0, 500), settingLog: settingLog.slice(0, 500),
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, stylesheets: v.stylesheets ?? null, error: v.error?.slice?.(0, 800) }]))

@@ -13,7 +13,7 @@ import { atReadableFloor } from "./tests-css.mjs";
 import {
     ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
-    markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
+    markerProblem, runOne, scriptDice, answerDialogs, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
@@ -4552,10 +4552,11 @@ const REGRESSIONS = [
             && /whose === "mine" \? read\("--drpg-bone", LEGACY_BONE_FALLBACK\)/.test(own) && /frameColour\(whose, glass\)/.test(own),
             "the viewer's own frame is not bone in both themes (and, since E23 fix L2, every other student's a dimmer bone under Monokuma Legacy: R1467)");
 
+        // F118 (17.11.2026): `isMine` asks `mineFor(actor, viewer)` for this browser's user, and `frameFor` asks it for any viewer.
         const mine = bodyOf(own, "function isMine", { until: "function hourColour" });
-        ok(/game\.user\?\.character/.test(mine),
+        ok(/mineFor\(token\?\.actor, game\.user\)/.test(mine) && /viewer\?\.character/.test(mine),
             "the ring no longer prefers the character the viewer is playing");
-        ok(/!game\.user\?\.isGM && actor\.isOwner/.test(mine),
+        ok(/!viewer\?\.isGM && actor\.isOwner/.test(mine),
             "a Gamemaster owns the whole cast, so ownership alone would ring every token "
             + "on their screen");
 
@@ -6009,6 +6010,178 @@ const REGRESSIONS = [
             ok(String(r.message ?? "").includes(c.says), `the contract's case "${c.entry[0]}" says "${r.message}", not "${c.says}"`);
         }
         equal([...outcomes].sort().join(" "), "fail pass red skip", "the self-tests do not reach all four outcomes");
+    }],
+
+    ["R7561 - every result `runOne` gives carries the time its test took, in whole milliseconds", async () => {
+        /*
+         * E58 L1, 17.11.2026 (the coordinator's order: the time of each test first, then a limit taken from the slowest).
+         * Tier 2 on the sandbox (Foundry 14.370) was read one `runTests({ only })` per test to learn each test's time,
+         * because no result said it; a limit on a test needs that number from every run, headless and at a table. Two
+         * of the kit's own shapes run through the same `runOne` the suite uses: one that waits 40 ms and passes, one that
+         * waits 40 ms and fails. Read: each result's `ms`, a whole number of at least 30 and under 5000, and the outcome
+         * unchanged by it. At least 30, not 40: a 40 ms timer read 39 ms once by `performance.now()` (tiers 0-1 headless,
+         * 17.11.2026), a timer firing a fraction early and the rounding taking it under.
+         */
+        const pause = ms => new Promise(r => setTimeout(r, ms));
+        const passing = await runOne(["R7561 fixture: waits and passes", async () => { await pause(40); equal(2 + 2, 4, "two and two"); }], { tier: 0 });
+        const failing = await runOne(["R7561 fixture: waits and fails", async () => { await pause(40); ok(false, "planted"); }], { tier: 0 });
+        const read = r => [r.outcome, Number.isInteger(r.ms) && r.ms >= 30 && r.ms < 5000];
+        equal(JSON.stringify([read(passing), read(failing)]), JSON.stringify([["pass", true], ["fail", true]]),
+            `a result carries no time, a time out of 30-5000 ms, or another outcome (outcome, ms in range; the passing fixture's ms ${passing.ms}, the failing one's ${failing.ms})`);
+    }],
+
+    ["R7562 - a test that runs past its limit comes back failed as timed out, and says so", async () => {
+        /*
+         * E58 L1, 17.11.2026; the coordinator's decision of that day: one limit per test in `runOne`; on expiry the test
+         * fails as "timed out", the runner lists every open window on its page, and the run stops. Tier 2 on the sandbox
+         * hung for three hours on one test waiting on a window nobody pressed, and the runner said nothing until it was
+         * killed. One of the kit's own shapes that never ends, run through `runOne` with a limit of 300 ms, guarded here by
+         * 5 s of the test's own so that a runner without a limit fails this test instead of holding the suite. Read: whether
+         * `runOne` came back within the guard, its outcome, `timedOut`, and whether its message says "timed out".
+         */
+        const never = ["R7562 fixture: never ends", () => new Promise(() => {})];
+        const guard = new Promise(resolve => setTimeout(() => resolve(null), 5000));
+        const r = await Promise.race([runOne(never, { tier: 0, limitMs: 300 }), guard]);
+        equal(JSON.stringify([r !== null, r?.outcome ?? null, r?.timedOut ?? null, /timed out/.test(r?.message ?? "")]),
+            JSON.stringify([true, "fail", true, true]),
+            `a test past its limit did not come back within 5 s, or came back other than failed as timed out (returned, outcome, timedOut, says so): ${r?.message ?? "no result"}`);
+    }],
+
+    ["R7563 - the runner stops after a test past its limit: each tier's loop asks, and no later tier starts", async () => {
+        /*
+         * E58 L1, 17.11.2026; the coordinator's decision of that day (R7562's note). A test past its limit is still running
+         * behind the runner, so no test may run after it. Read off tests.mjs `runSuite`, cut with the kit: every test it
+         * runs is run as `const r = await runOne(entry, { tier: N, ledger })` (or `r = ...` inside a seam's `try`) and none any other way, each of the three is
+         * followed in its loop by the stop (`stopsHere(r)`; tier 2's breaks after its restore), and tiers 1 and 2 start
+         * only when nothing stopped. Read: how many `runOne` calls, how many of the named form, how many stops, the two
+         * guards, tier 2's break. Tier 2's call is `r = await runOne(entry, { tier: 2, ledger })` inside the `try` whose
+         * `finally` takes the scripted dice off since L1's d5907e1b (`let r` above it), which this read as a fourth form
+         * and red until the merge of d5907e1b on claude/shim-118 (17.11.2026; tier 1: [3,2,3,[true,true],true]); the
+         * named form takes it with or without `const`, and every call must still be of it.
+         */
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const suite = fnSource(src, "runSuite");
+        const calls = (suite.match(/\brunOne\(/g) ?? []).length;
+        // As a declaration or, where a seam's `finally` wraps it (tier 2, R7565, R7567), an assignment to the `r` declared before.
+        const named = (suite.match(/(?:const )?\br = await runOne\(entry, \{ tier: [012], ledger \}\);/g) ?? []).length;
+        const stops = (suite.match(/\bstopsHere\(r\)/g) ?? []).length;
+        const guards = [/if \(tier >= 1 && first && !stoppedAt\)/.test(suite), /if \(tier >= 2 && !stoppedAt\)/.test(suite)];
+        const tier2 = /const stop = stopsHere\(r\);[\s\S]*?if \(stop\) break;/.test(suite);
+        equal(JSON.stringify([calls, named, stops, guards, tier2]), JSON.stringify([3, 3, 3, [true, true], true]),
+            "runSuite runs a test that is not followed by the stop, or starts a tier after a stop (runOne calls, of the named form, stops, the tier 1 and 2 guards, tier 2's break)");
+    }],
+
+    ["R7564 - the kit's dice script names a roll's faces for one evaluation and leaves the dice real behind it", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision that day ("Na czas jednego testu zestaw testowy ustawia kości także na
+         * prawdziwym Foundry") and the coordinator's safeguards. `scriptDice` on a stand-in class whose `buildEvaluate` draws
+         * two faces from `CONFIG.Dice.randomUniform` as v14 maps them, the randomiser itself held at 0.999 (a 1 on every die)
+         * for the length of this test, so every face read is known. Read: the faces with `__forceRoll` { hope: 7, fear: 3 }; the
+         * faces of a roll the GM plays back (`drpgDrawn`), which reads no script; whether the randomiser is the stub again
+         * after an evaluation that throws; whether the class's own `buildEvaluate` and the randomiser are back once the
+         * script is taken off; and whether a class the harness already scripts (`scriptsDice`) is left unwrapped.
+         */
+        const D = CONFIG.Dice, real = D.randomUniform, stub = () => 0.999;
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const face = (u, faces) => Math.ceil((1 - u) * faces);
+        const roll = { dice: [{ faces: 12 }, { faces: 12 }] };
+        class Stand { static async buildEvaluate(r, config = {}) { return r.dice.map(d => face(D.randomUniform(), d.faces)); } }
+        class Thrower { static async buildEvaluate() { D.randomUniform(); throw new Error("planted"); } }
+        const harnessOwn = Object.assign(async () => null, { scriptsDice: "harness" });
+        class Harness { static buildEvaluate = harnessOwn; }
+        const own = Stand.buildEvaluate;
+        const read = {};
+        D.randomUniform = stub;
+        try {
+            globalThis.__forceRoll = { hope: 7, fear: 3 };
+            const off = scriptDice(Stand);
+            read.named = await Stand.buildEvaluate(roll, {});
+            read.drawn = await Stand.buildEvaluate(roll, { drpgDrawn: true });
+            const offThrower = scriptDice(Thrower);
+            try { await Thrower.buildEvaluate(roll, {}); } catch { /* planted */ }
+            read.afterThrow = D.randomUniform === stub;
+            offThrower();
+            off();
+            read.putBack = [Stand.buildEvaluate === own, D.randomUniform === stub];
+            const offHarness = scriptDice(Harness);
+            read.harnessLeft = Harness.buildEvaluate === harnessOwn;
+            offHarness();
+        } finally {
+            D.randomUniform = real;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+        }
+        equal(JSON.stringify(read), JSON.stringify({ named: [7, 3], drawn: [1, 1], afterThrow: true, putBack: [true, true], harnessLeft: true }),
+            "the kit's dice script did not name the faces, scripted a played-back roll, left the randomiser after a throw, stayed on after it was taken off, or wrapped the harness's own");
+    }],
+
+    ["R7565 - tier 2 runs each test inside the dice script, takes it off whatever the test did, and reads the dice real at the end", async () => {
+        /*
+         * E58 L1, 17.11.2026 (R7564's note; the coordinator's safeguards: "always removed in a finally, also when the test
+         * throws or times out", "at the end of every run, the runner checks that the dice are real again"). Read off tests.mjs
+         * `runSuite`, cut with the kit: tier 2's test is run between `scriptDice()` and a `finally` that calls what it answered
+         * and puts `__forceRoll` back; and a record "the dice are real again after tier 2" compares Daggerheart's
+         * `buildEvaluate`, Foundry's randomiser and `__forceRoll` with what they were before the first test.
+         */
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const suite = fnSource(src, "runSuite");
+        // Other seams' removals may come first in the same `finally` (the dialog answers', R7567).
+        const wrapped = /const unscript = scriptDice\(\);[\s\S]{0,400}?try \{\s*r = await runOne\(entry, \{ tier: 2, ledger \}\);\s*\} finally \{(?:\s*\w+\(\);)*?\s*unscript\(\);/.test(suite);
+        const putBack = /finally \{(?:\s*\w+\(\);)*?\s*unscript\(\);\s*if \(hadForce\) globalThis\.__forceRoll = force;\s*else delete globalThis\.__forceRoll;/.test(suite);
+        const atEnd = /name: "the dice are real again after tier 2"/.test(suite)
+            && /buildEvaluate \?\? null\) !== realDice\.evaluate/.test(suite) && /randomUniform !== realDice\.uniform/.test(suite)
+            && /__forceRoll !== realDice\.force/.test(suite);
+        equal(JSON.stringify([wrapped, putBack, atEnd]), JSON.stringify([true, true, true]),
+            "tier 2 runs a test outside the dice script, does not take it off in a finally, or does not read the dice real at the end (wrapped, put back, read at the end)");
+    }],
+
+    ["R7566 - the kit's dialog answers answer a window from the queue, open the real one when it is empty, and leave no trace", async () => {
+        /*
+         * E58 L1, 17.11.2026; the owner's decision (b), relayed by the coordinator that day ("__dialogAnswers na prawdziwym
+         * Foundry: decyzja właściciela (b) - seam w zestawie testowym jak przy kościach"). `answerDialogs` on a stand-in
+         * class whose `wait`, `confirm` and `prompt` answer "real" (the window a person would answer), with no queue on the
+         * page before. Read: `confirm` with `true` queued; `wait` with a function queued, called with the window's config;
+         * `prompt` with nothing queued; then, taken off, whether the three are the class's own again and the queue is gone;
+         * and whether a class the harness marks (`answersQueue`) is left unwrapped.
+         */
+        const had = Object.hasOwn(globalThis, "__dialogAnswers"), was = globalThis.__dialogAnswers;
+        class Stand { static async wait() { return "real"; } static async confirm() { return "real"; } static async prompt() { return "real"; } }
+        const own = [Stand.wait, Stand.confirm, Stand.prompt];
+        class Harness { static answersQueue = "harness"; static async confirm() { return "harness"; } }
+        const harnessConfirm = Harness.confirm;
+        const read = {};
+        try {
+            delete globalThis.__dialogAnswers;
+            const off = answerDialogs(Stand);
+            globalThis.__dialogAnswers.push(true, config => `answered ${config.window?.title}`);
+            read.answered = [await Stand.confirm({}), await Stand.wait({ window: { title: "W" } }), await Stand.prompt({})];
+            off();
+            read.putBack = [Stand.wait === own[0], Stand.confirm === own[1], Stand.prompt === own[2], !Object.hasOwn(globalThis, "__dialogAnswers")];
+            const offHarness = answerDialogs(Harness);
+            read.harnessLeft = Harness.confirm === harnessConfirm;
+            offHarness();
+        } finally {
+            if (had) globalThis.__dialogAnswers = was;
+            else delete globalThis.__dialogAnswers;
+        }
+        equal(JSON.stringify(read), JSON.stringify({ answered: [true, "answered W", "real"], putBack: [true, true, true, true], harnessLeft: true }),
+            "the kit's dialog answers did not answer from the queue, answered with nothing queued, stayed on after they were taken off, left the queue, or wrapped the harness's own");
+    }],
+
+    ["R7567 - tier 2 runs each test inside the dialog answers, takes them off whatever the test did, and reads the dialogs real at the end", async () => {
+        /*
+         * E58 L1, 17.11.2026 (R7566's note; the dice's safeguards, R7565). Read off tests.mjs `runSuite`, cut with the kit: tier
+         * 2's test is run between `answerDialogs()` and a `finally` that calls what it answered; and a record "the dialogs are
+         * real again after tier 2" compares DialogV2's `wait`, `confirm`, `prompt` and `__dialogAnswers` with what they were
+         * before the first test.
+         */
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const suite = fnSource(src, "runSuite");
+        const wrapped = /const unanswer = answerDialogs\(\);[\s\S]{0,400}?try \{\s*r = await runOne\(entry, \{ tier: 2, ledger \}\);\s*\} finally \{(?:\s*\w+\(\);)*?\s*unanswer\(\);/.test(suite);
+        const atEnd = /name: "the dialogs are real again after tier 2"/.test(suite) && /Dialog\?\.\[name\] !== realDialogs\[name\]/.test(suite)
+            && /__dialogAnswers !== realDialogs\.answers/.test(suite);
+        equal(JSON.stringify([wrapped, atEnd]), JSON.stringify([true, true]),
+            "tier 2 runs a test outside the dialog answers, does not take them off in a finally, or does not read the dialogs real at the end (wrapped, read at the end)");
     }],
 
     ["R155 - every expectedRed names a stage that has not shipped", async () => {
@@ -8719,13 +8892,14 @@ const REGRESSIONS = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
-            ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
             // E92 C6: the player's own User document, its "Spectator talk" switch.
             ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
-            ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
+            // The line claude/shim-118 (17.11.2026): every put-back of a token's spot writes here - `sendBack`'s, `refundLastCrossing`'s
+            // and the bridge's send-back (`handleSendback`), whose own rows these were - with diff: false (R7741; scenario 76 D).
+            ["movement.mjs", "putBackWrite", "tokenDoc", "a token put back where it stood: a refused move, a crossing given back, a send-back out of a locked room"],
             ["murder-rules.mjs", "undoLastCrisis", "remnantById().document", "the trace token the crisis action left (its ref's token since E60 C1b)"],
             ["murder-rules.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
             // E41 C9a (1.2.97): the music's engine moved to music-play.mjs, the Sound window to sound-panel.mjs.
@@ -25987,6 +26161,91 @@ const REGRESSIONS = [
         const rule = bodyOf(place, "for (const [userId, row] of byUser) {\n        if (", { length: 160 });
         ok(/spectatorTalks\(/.test(rule), `the Spectators' room rule was not found where it stood: ${rule}`);
         ok(/\beclipse\b/.test(rule), `the Spectators' room rule does not ask the Eclipse: ${rule}`);
+    }],
+
+    ["R7741 - every put-back of a token's spot writes through movement.mjs `putBackWrite`, which sends it with diff: false (the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
+        /* TEXT GUARD: a put-back written while a newer move is in flight lost a coordinate to the writer's diff (76 D on the
+           D4 shim); `putBackWrite` sends every coordinate it names, and tier 2 "a put-back writes every coordinate it names"
+           drives it. Read here: the helper sends `diff: false` after the caller's options, and no module write that marks
+           itself a put-back (`REVERT`) through a token's own `update` is left in movement.mjs or bridge-runs-records.mjs - the
+           gather's displacement in call-world.mjs, which moves the cast rather than putting one token back, is not one. */
+        const src = new Map(await otherSources());
+        const move = stripComments(src.get("movement.mjs") ?? ""), runs = stripComments(src.get("bridge-runs-records.mjs") ?? "");
+        must(move.length > 1000 && runs.length > 1000, "movement.mjs or bridge-runs-records.mjs read as nothing - this would measure nothing");
+        const helper = fnSource(move, "putBackWrite");
+        ok(/tokenDoc\.update\(to,\s*\{\s*\.\.\.options,\s*diff:\s*false\s*\}\)/.test(helper), `putBackWrite does not send the caller's options with diff: false after them: ${helper}`);
+        const direct = [["movement.mjs", move], ["bridge-runs-records.mjs", runs]].flatMap(([file, text]) =>
+            [...text.matchAll(/\b\w+\.update\([^;]*REVERT\]:\s*true[^;]*\)/g)].map(m => `${file}: ${m[0].slice(0, 90)}`));
+        equal(JSON.stringify(direct), "[]", "a put-back writes through a token's own update, not putBackWrite");
+        const through = [...move.matchAll(/\bputBackWrite\(/g)].length + [...runs.matchAll(/\bprepared\.putBackWrite\(/g)].length;
+        equal(through, 4, "the put-backs through putBackWrite are not sendBack's, refundLastCrossing's and the bridge's send-back (with the helper's own name, four)");
+    }],
+    ["R7744 - every bare write of a student's guarded flag tells the GMs' audit first (resource-guard.mjs `noteOwnWrite`), or names why it cannot be dropped (the line claude/shim-118, 17.11.2026; the coordinator's choice A on E16-T29)", async () => {
+        /*
+         * THE CENSUS OF THE DROPPED WRITE. A GM's write of a guarded field to a value its own copy already holds is not sent
+         * on 14.370 and no hook hears it, so the GMs' mark moves only if the write was told to sheet-audit.mjs
+         * `noteOwnDropped` before it left (tier 2: E16-T29, and "a GM's own write of a student's GM-only flag ..."). Every
+         * module road through `trustedWrite` is told there; this reads the rest. Every `setFlag` or `update` outside the
+         * suite and resource-guard.mjs whose arguments name a flag the mark holds - the names read off sheet-audit.mjs's own
+         * `GM_FLAGS`, `MARKED_FLAGS` and `LEDGER_FLAGS`, so a flag added there is held here, and vault-store.mjs's
+         * `VAULT_FLAGS.found` - or a `system.` root of the mark, must have a `noteOwnWrite(` of its own: after the write
+         * before it in the same top-level declaration, or that declaration's start. Otherwise a NOT_NOTED row names it and
+         * why its value is never the one the sheet holds. An `unsetFlag` is set aside, counted: whether 14.370 drops a
+         * deletion of a key already gone is not measured (LIVE-E39-17). Fail-closed by construction: a new bare road of a
+         * guarded flag with no note is red here. What it cannot read: a flag handed in by a name built elsewhere (a
+         * variable `flag`), as R220 cannot; a write's receiver, so a guarded flag's name on a document that is not a
+         * student counts as one. The reader runs first on a planted file.
+         */
+        const census = (src, rows) => {
+            const audit = stripComments(src.get("sheet-audit.mjs") ?? "");
+            const gm = audit.match(/const GM_FLAGS = \[\.\.\.\[([^\]]*)\]/)?.[1] ?? "";
+            const lists = ["MARKED_FLAGS", "LEDGER_FLAGS"].map(name => audit.match(new RegExp(`const ${name} = \\[([^\\]]*)\\]`))?.[1] ?? "");
+            const names = [...new Set([...gm.matchAll(/"(\w+)"/g), ...lists.flatMap(text => [...text.matchAll(/FLAGS\.(\w+)/g)])].map(m => m[1]))];
+            const guarded = new RegExp(`\\b(?:FLAGS\\.(?:${names.join("|")})|VAULT_FLAGS\\.found)\\b|["'\`.]system\\.(?:traits|experiences|resources|rules|bonuses|levelData|scars)\\b`);
+            const sites = [], bare = [], deletions = [];
+            for (const [file, raw] of src) {
+                if (/^tests/.test(file) || file === "resource-guard.mjs") continue;
+                const code = stripComments(raw);
+                const tops = [...code.matchAll(/^(?:export\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));
+                let last = { top: null, at: 0 };
+                for (const m of code.matchAll(/\.\s*(setFlag|unsetFlag|update)\s*\(/g)) {
+                    let depth = 0, end = m.index + m[0].length - 1;
+                    for (; end < code.length; end++) if (code[end] === "(") depth++; else if (code[end] === ")" && --depth === 0) break;
+                    const top = tops.filter(t => t.at <= m.index).pop() ?? { at: 0, name: "(top level)" };
+                    const from = last.top === top ? last.at : top.at;
+                    last = { top, at: m.index };
+                    if (!guarded.test(code.slice(m.index + m[0].length, end))) continue;
+                    const site = `${file} ${top.name} ${m[1]}`;
+                    sites.push(site);
+                    if (m[1] === "unsetFlag") deletions.push(site);
+                    else if (!/\bnoteOwnWrite\(/.test(code.slice(from, m.index))) bare.push(site);
+                }
+            }
+            const named = new Set(rows.map(([file, fn, kind]) => `${file} ${fn} ${kind}`));
+            return { names, sites, deletions, unnoted: bare.filter(site => !named.has(site)), stale: [...named].filter(site => !bare.includes(site)) };
+        };
+        const PLANTED = new Map([["sheet-audit.mjs", 'const GM_FLAGS = [...["notInClass"].map(key => FLAGS[key]), "drpgStashesFound"];\nconst LEDGER_FLAGS = [FLAGS.freeMoveGrants];\nconst MARKED_FLAGS = [...GM_FLAGS, FLAGS.pendingCall, ...LEDGER_FLAGS];'],
+            ["planted.mjs", [
+                "export async function bare(actor) { await actor.setFlag(MODULE_ID, FLAGS.notInClass, true); }",
+                "export async function told(actor) { noteOwnWrite(actor, {}); await actor.setFlag(MODULE_ID, FLAGS.pendingCall, []); }",
+                "export async function twice(actor) { noteOwnWrite(actor, {}); await actor.setFlag(MODULE_ID, FLAGS.pendingCall, []); await actor.update({ \"system.traits.agility.value\": 2 }); }",
+                "export async function gone(actor) { await actor.unsetFlag(MODULE_ID, FLAGS.notInClass); }",
+                "export async function other(actor) { await actor.setFlag(MODULE_ID, FLAGS.cubToken, 1); /* actor.setFlag(MODULE_ID, FLAGS.notInClass, 1) */ }",
+                "export async function rowed(actor) { await actor.setFlag(MODULE_ID, FLAGS.freeMoveGrants, Date.now()); }"].join("\n")]]);
+        const planted = census(PLANTED, [["planted.mjs", "rowed", "setFlag", "planted"], ["planted.mjs", "told", "setFlag", "planted, and noted"]]);
+        equal(JSON.stringify([planted.sites.length, planted.deletions, planted.unnoted, planted.stale]),
+            JSON.stringify([6, ["planted.mjs gone unsetFlag"], ["planted.mjs bare setFlag", "planted.mjs twice update"], ["planted.mjs told setFlag"]]),
+            "the census does not read the planted file as it is - a bare write, a noted one, a second write behind one note, a deletion, a flag the mark does not hold and a comment, a row, a stale row");
+        const NOT_NOTED = [
+            ["character.mjs", "stampStartingSheet", "setFlag", "the starting sheet's stamp carries `at: Date.now()`: never the value the sheet holds"],
+            ["death.mjs", "markDeceased", "setFlag", "the death's record carries a fresh `deathId` (foundry.utils.randomID): never the value the sheet holds"],
+            ["rest.mjs", "migrateRestStamps", "setFlag", "written right after its own `unsetFlag` of the same flag, so the key is gone and the write is never dropped"]
+        ];
+        const read = census(new Map(await otherSources()), NOT_NOTED);
+        must(read.names.length >= 19 && read.sites.length >= 20,
+            `the census read ${read.names.length} guarded flag(s) and ${read.sites.length} write(s) of one - fewer than 19 and 20 on 17.11.2026, so it would measure nothing`);
+        log(`R7744: ${read.names.length} guarded flags; ${read.sites.length} bare write(s) of one, ${read.deletions.length} deletion(s) aside (LIVE-E39-17), ${NOT_NOTED.length} row(s)`);
+        equal(JSON.stringify([read.unnoted, read.stale]), "[[],[]]", "a bare write of a student's guarded flag does not tell the GMs' audit first, or a NOT_NOTED row names nothing [unnoted, stale]");
     }],
 ];
 

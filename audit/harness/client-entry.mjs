@@ -558,10 +558,28 @@ function coerce(def, raw) {
    readers in the test kit destructured, and which broke on the real server). */
 const worldColls = new Collection();
 
+/*
+ * ONLY A USER GOES INTO `game.users` (E58 L1's reading on 14.370, 18.11.2026, relayed by the coordinator): v14 refused a plain
+ * object set into the users' collection - "You may only push instances of User" - and the tests' own ids ("!E17T8primaryGM")
+ * were refused too, while an unsaved User with a valid 16-character id was taken. Which step refuses an id is not read: here
+ * the set holds the id to v14's shape, 16 letters and digits, the document's own. Read on the User collection only; the
+ * others take what they are given, as before. Until this every tier-2 test's stand-in GM, a plain object, went in here.
+ */
+const USER_ID = /^[A-Za-z0-9]{16}$/;
+function holdToUsers(c) {
+    c.set = function set(key, value) {
+        const User = globalThis.CONFIG?.User?.documentClass;
+        if (User && !(value instanceof User)) throw new Error("You may only push instances of User");
+        if (!USER_ID.test(String(key)) || value?.id !== key) throw new Error(`"${key}" is not a valid id for a User: 16 letters and digits, the User's own`);
+        return Map.prototype.set.call(this, key, value);
+    };
+}
+
 function coll(name) {
     if (!worldColls.has(name)) {
         const c = new Collection();
         c._documentName = name;
+        if (name === "User") holdToUsers(c);
         worldColls.set(name, c);
     }
     return worldColls.get(name);
@@ -602,6 +620,45 @@ const uniformFor = (face, faces) => 1 - (face - 0.5) / faces;
  * GM's randomiser is the GM's. The roller's copy, played back from the GM's faces, reads no
  * `__forceRoll` of its own (`config.drpgDrawn`, action-pipeline.mjs `DRAWN_ROLL`).
  */
+/*
+ * THE PLAYER AT EACH BROWSER (E58 L1, 17.11.2026; the coordinator's decision that day, after the owner's consent "zgoda na
+ * dh-dice: okno przestaje samo klikać Roll"). Daggerheart's roll window waits for a person to press Roll; the harness's copy
+ * of it no longer presses by itself (lib/dh-dice/applications/dialogs/d20RollDialog.mjs). A scenario's clients stand for
+ * the people at the table, so here, on every client, a player presses Roll on each of Daggerheart's roll windows drawn
+ * there, once, after the experience chips a test scripted (`picksClicked`) and the renders it set off - as a person would.
+ * It stands aside while `runTests` runs on that client: the suite presses its own windows (tests-tier2.mjs `pressingRoll`),
+ * as it must at a table, where nobody else does. A scenario switches it off with `__harnessPlayer.on = false` (and back).
+ * `presses` counts what it pressed; cluster.mjs writes each client's count in the results (`harnessPlayer`).
+ */
+function installHarnessPlayer() {
+    const player = globalThis.__harnessPlayer = { on: true, presses: 0, suite: 0 };
+    const seen = new WeakSet();
+    globalThis.Hooks.on("renderApplicationV2", app => {
+        const Window = globalThis.game?.system?.api?.dice?.DualityRoll?.DefaultDialog;
+        if (!Window || !(app instanceof Window) || seen.has(app)) return;
+        seen.add(app);
+        if (!player.on || player.suite > 0) return;
+        (async () => {
+            if (app.picksClicked) await app.picksClicked;
+            if (typeof app.settled === "function") await app.settled();
+            await new Promise(r => setTimeout(r, 0));
+            if (!player.on || player.suite > 0 || !app.rendered) return;
+            const roll = app.element?.querySelector('[data-action="submitRoll"]');
+            if (!roll) return;
+            player.presses += 1;
+            roll.click();
+        })();
+    });
+    const drpg = globalThis.game?.drpg;
+    if (drpg && typeof drpg.runTests === "function") {
+        const runTests = drpg.runTests;
+        drpg.runTests = async function (...args) {
+            player.suite += 1;
+            try { return await runTests.apply(this, args); } finally { player.suite -= 1; }
+        };
+    }
+}
+
 const relayedFaces = new Map();
 const relayedFacesOf = roll => {
     const nonce = roll?.options?.drpgRollNonce;
@@ -1437,8 +1494,9 @@ let viewedLevelId = null;
 Object.defineProperty(canvas, "level", {
     configurable: true, enumerable: true,
     get() {
-        const levels = canvas.scene?.levels ?? [];
-        return levels.find(level => level.id === viewedLevelId) ?? [...levels].sort((a, b) => a.elevation - b.elevation)[0] ?? null;
+        // D5: every scene holds a floor (`defaultLevel0000` where it was given none), each `Level`'s elevation `{ bottom, top, base }`.
+        const levels = [...(canvas.scene?.levels ?? [])], bottom = level => Number(level?.elevation?.bottom ?? 0);
+        return levels.find(level => level.id === viewedLevelId) ?? levels.sort((a, b) => bottom(a) - bottom(b))[0] ?? null;
     },
     set(level) { viewedLevelId = level?.id ?? level ?? null; }
 });
@@ -1801,7 +1859,7 @@ function applySnapshot(snap) {
 
 function findEmbKey(parentName, embName) {
     // A region's behaviours as cluster.mjs `embKey` has them (E12 fix r2-S2, 11.10.2026; scenario 66 X3 and X4).
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles", Level: "levels" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     return map[parentName]?.[embName];
 }
 
@@ -1874,7 +1932,8 @@ function applyRemote(msg) {
         doc._exposeSource?.();
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
-        const changed = revive(U.expandObject(U.deepClone(msg.changes)));
+        // With the document's `_id`, as Foundry 14.370 handed `updateActor` its changes (D3; CALIBRATION.md, LIVE-E30-03).
+        const changed = { ...revive(U.expandObject(U.deepClone(msg.changes))), _id: doc.id };
         if (!options.noHook) hooks.callAll(`update${collName}`, doc, changed, options, userId);
         if (open && JSON.stringify(doc._source) !== was) renderApps(doc, `update${collName}`, changed, options);
         /* A SCENE MADE ACTIVE IS VIEWED BY EVERY CLIENT (E13 C0, 11.10.2026; plan-E13 2.1 item 1, A5's reading
@@ -1930,19 +1989,24 @@ function applyRemote(msg) {
                 if (!raws.length || !doc) continue;
                 const { _id, ...changes } = u;
                 const childWas = hasOpenApps(doc) ? JSON.stringify(doc._source) : null;
-                /* E89 C0 (30.10.2026; LIVE-E89-03): a token's `movement`, on the model - what the update's own `movement`
-                   option names for it (`{ pending: { waypoints } }`), the request and v14's record of the move not told
-                   apart; null for an update that names none. One dragged path is N updates, every one but the last with
-                   waypoints still pending: how many v14 delivers is LIVE-E89-03. */
-                if (msg.embeddedName === "Token") doc._drpgMovement = options.movement?.[u._id] ?? null;
+                /* A token's `movement`, on the model: the move this update carries in `options._movement[id]`, as Foundry
+                   14.370 delivered it to every client (D4, 16.11.2026; docs/dev/e39/CALIBRATION.md section 3, LIVE-E39-01;
+                   lib/shim.mjs `TOKEN MOVEMENT` builds it on the mover); null for an update that moves nothing, which was
+                   not read. Until D4 (E89 C0, 30.10.2026) it was whatever the update's own `movement` option named - on
+                   v14 the mover's request, seen in its `preUpdateToken` alone - and a dragged path was modelled as N
+                   updates; 14.370 sent one route as one update. */
+                if (msg.embeddedName === "Token") doc._drpgMovement = options._movement?.[u._id] ?? null;
                 // An item's own `effects` merge by id, and its collection follows them, as an actor's do (fix r2-H8; cluster.mjs).
                 for (const raw of raws) U.applyDocChanges(msg.embeddedName, raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
                 if (!raws.includes(doc._source)) U.applyDocChanges(msg.embeddedName, doc._source, changes);
                 doc._exposeSource?.();   // the field the update brought, as for a world document above
                 rebuildEmbedded(doc);
-                const changed = revive(U.expandObject(U.deepClone(changes)));
+                // With its `_id`, as 14.370 handed `updateToken` a move that changed nothing `{_id}` (D3; CALIBRATION.md, LIVE-E30-03).
+                const changed = { ...revive(U.expandObject(U.deepClone(changes))), _id };
                 hooks.callAll(`update${msg.embeddedName}`, doc, changed, options, userId);
+                // D4: `moveToken` once on every client for a move, after `updateToken` (the order not read on 14.370).
+                if (msg.embeddedName === "Token" && options._movement?.[u._id]) hooks.callAll("moveToken", doc, options._movement[u._id], options, userId);
                 if (childWas !== null && JSON.stringify(doc._source) !== childWas) renderApps(doc, `update${msg.embeddedName}`, changed, options);
                 handed.push({ _id, ...changed });
             }
@@ -1960,7 +2024,7 @@ function applyRemote(msg) {
 }
 
 function rebuildEmbedded(doc) {
-    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
+    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles", Level: "levels" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
     if (!emb) return;
     for (const [docName, key] of Object.entries(emb)) {
         const raw = doc._source[key];
@@ -2052,6 +2116,10 @@ process.on("message", async msg => {
                 const user = game.users.get(msg.userId);
                 if (user) {
                     user._source.active = Boolean(msg.active);
+                    /* `active` is the User's own data property (lib/shim.mjs `UserImpl`). A test that stood a getter of its own
+                       there for a while (tier 2 puts it back by its descriptor) keeps it: an assignment would throw. */
+                    const own = Object.getOwnPropertyDescriptor(user, "active");
+                    if (!own || own.writable) user.active = Boolean(msg.active);
                     hooks.callAll("userConnected", user, Boolean(msg.active));
                 }
                 break;
@@ -2189,6 +2257,7 @@ async function boot() {
         hooks.callAll("canvasReady", canvas);
         // give not-awaited ready tasks a beat
         await new Promise(r => setTimeout(r, 250));
+        installHarnessPlayer();
         send({
             t: "ready",
             drpg: !!game.drpg,

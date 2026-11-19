@@ -1193,7 +1193,7 @@ async function placeIn(run, actor, room, positionIn) {
     const token = tokenOf(actor);
     must(token, `${actor.name} has no token on the scene on screen`);
     if (!run.places.has(token.id)) run.places.set(token.id, { token, x: token.x, y: token.y });
-    await token.update(positionIn(room, token), PLACE);
+    await token.update(positionIn(room, token), { ...PLACE });
 }
 
 /* ==========================================================================
@@ -1630,7 +1630,7 @@ async function runCase(id) {
             }
         }
         if (run.clockBefore) await setClock(run.clockBefore);
-        for (const { token, x, y } of run.places.values()) if (token.parent?.tokens?.has(token.id)) await token.update({ x, y }, PLACE);
+        for (const { token, x, y } of run.places.values()) if (token.parent?.tokens?.has(token.id)) await token.update({ x, y }, { ...PLACE });
         for (const item of run.items.values()) if (item.parent?.items?.has(item.id)) await item.delete();
         const { isDeadForGm } = await import("./chapter.mjs");
         for (const actor of Object.values(who)) if (actor && isDeadForGm(actor)) await reviveCharacter(actor, { quiet: true });

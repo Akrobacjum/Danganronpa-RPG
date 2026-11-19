@@ -207,7 +207,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
            the end-of-day board as transitions.mjs does at a new day (`playDayEnd`, no card kept), over a day that began at
            the epoch, so whatever the world's chat holds counts; the drawn board is read from the page, then cut. p3's
            holds the heading and the mood's word alone; p1's keeps its own day and its chapter. Red at 7872146d, whose
-           Spectator's board was a player's with "A quiet day." and the school's cards. */
+           Spectator's board was a player's with "A quiet day." and the school's cards. F118 (18.11.2026; the owner: "I ten
+           ekran ma byc identyczny zarowno na start jak i na koniec dnia"): p1's is the day's board, its chapter line and the
+           cast, no rows of the day. */
         const boardOf = c => c.eval(`const S = ${imp("sequence.mjs")}, C = ${imp("settings.mjs")};
             const was = C.getClock(), day = 9000 + Math.floor(Math.random() * 999);
             const before = { ...was, day, chapter: was.chapter ?? 1, dayStartedAt: 1 }, after = { ...was, day: day + 1, mood: "uneasy", timeOfDayStartedAt: Date.now() };
@@ -215,16 +217,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             const el = document.querySelector("#" + S.SEQUENCE_HOST_ID + " .drpg-seq-dayend");
             const read = el ? { title: el.querySelector(".drpg-seq-day-title")?.textContent ?? null, want: game.i18n.format("DRPG.Sequence.dayEndTitle", { day }),
                 sub: Boolean(el.querySelector(".drpg-seq-day-sub")), yours: Boolean(el.querySelector(".drpg-seq-yours")),
+                cast: el.querySelectorAll(".drpg-seq-who").length,
                 rows: el.querySelectorAll(".drpg-seq-row").length, mood: el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null,
                 parts: [...el.children].map(x => x.className) } : null;
             S.endSequence("cut");
             return { played, read };`);
         const boardP3 = await boardOf(p3), boardP1 = await boardOf(p1);
         const w = boardP3?.read, pl = boardP1?.read;
-        check("board: p3's end-of-day board holds the day's heading and the school's mood and nothing else; p1's keeps its own day and its chapter",
+        check("board: p3's end-of-day board holds the day's heading and the school's mood and nothing else; p1's is the day's board - its chapter line, the cast and the mood",
             Boolean(w) && w.title === w.want && w.sub === false && w.yours === false && w.rows === 0 && w.mood === "uneasy"
             && JSON.stringify(w.parts) === JSON.stringify(["drpg-seq-day-title", "drpg-seq-mood"])
-            && Boolean(pl) && pl.title === pl.want && pl.sub === true && pl.yours === true && pl.mood === "uneasy",
+            && Boolean(pl) && pl.title === pl.want && pl.sub === true && pl.yours === false && pl.cast > 0 && w.cast === 0 && pl.mood === "uneasy",
             JSON.stringify({ boardP3, boardP1 }));
 
         phase("road");

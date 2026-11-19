@@ -55,7 +55,7 @@ what the list above says.
 | --- | --- |
 | every token, hidden or not, its name, position and flags, its moves; the Remnants' places seen, a Remnant's note and subject not | known-leaks `foundry-hidden-tokens`, `S17-64`, `foundry-passage-crossing`, `foundry-passage-tunnel`; `foundry-veiled-token-actor` for the flags |
 | a killer behind a "?": the module's "?" picture, the token still the killer's character | known-leaks `foundry-masked-token-actor`; E112 (1.2.116): mask-gm.mjs `MASK_IMG`, icons/mask-unknown.svg, on the token, its ring and the portrait (the 1.2.116 notes, "The mask's own "?"") |
-| the veiled opening: the killer's tokens hidden and flagged, resolved by a console | known-leaks `foundry-veiled-token-actor` (E112, 1.2.116; scenario 21) |
+| the veiled opening: the killer's tokens flagged (hidden as well until E112v), resolved by a console | known-leaks `foundry-veiled-token-actor` (E112, 1.2.116; scenario 21; E112v: no `hidden`, the flag alone) |
 | regions, walls, flags; a room only a passage reaches; Foundry's secret doors seen and opened, shut again by the GM's browser; the module's passages and their knowers not | known-leaks `foundry-passage-only-room`, `foundry-secret-door-type`; README.md's Privacy paragraph |
 | every character's sheet: traits, Hope, resources, items with their names | known-leaks `foundry-actor-items`; `foundry-cub-purse`'s foundryLimit ("every Actor document, its resources among them") |
 | a Monocub's purse: the move seen, the payer and the purse not | known-leaks `foundry-cub-purse` (scenario 33 A21b) |

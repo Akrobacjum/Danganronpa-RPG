@@ -43,9 +43,14 @@
  *
  * THE PLAYER (harness, not Daggerheart). Nobody sits at the harness's window: once its renders have settled, it clicks
  * the experience chips a test named - `__forceExperiences`, which client-entry.mjs `diceRoll` hands to MoveContext as
- * the config's experiences - and then Roll. Those are a player's clicks, not a caller's choice, so `configure` takes
- * them off the config before the window is built and clicks them (a chip the module locked refuses the click, as at a
- * table): the one place this differs from 2.12.8's `configure`, marked there. A caller's experiences reach 2.12.8's
+ * the config's experiences. Those are a player's clicks, not a caller's choice, so `configure` takes them off the config
+ * before the window is built and clicks them (a chip the module locked refuses the click, as at a table): the one place
+ * this differs from 2.12.8's `configure`, marked there. `picksClicked` settles when they are clicked.
+ * IT NO LONGER PRESSES ROLL (E58 L1, 17.11.2026; the owner's consent that day: "zgoda na dh-dice: okno przestaje samo
+ * klikać Roll"). Until then the player pressed Roll too, so headless no test waited on a window, and at a table, where
+ * Daggerheart's window waits for a person, tier 2 hung on the first test that did (the sandbox, Foundry 14.370). Now
+ * the window waits here as it waits there, and Roll is pressed by the suite's test (tests-tier2.mjs `pressingRoll`) or, in
+ * a scenario, by the player at that browser (client-entry.mjs `installHarnessPlayer`). A caller's experiences reach 2.12.8's
  * window selected; none of the module's callers sends any to a window today (scripts/: the GM's draw sends them with
  * the window skipped).
  */
@@ -124,8 +129,12 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
         context.selectedMessageMode = this.config.selectedMessageMode ?? game.settings.get('core', 'messageMode');   // :72
         context.hasSelectedEffects = Boolean(this.selectedEffects && Object.keys(this.selectedEffects).length);   // :79
         context.selectedEffects = this.selectedEffects;
-        // :82-104 not run (the header): the costs as the config holds them, so the cost rows' markup has its inputs.
-        context.costs = this.config.costs ?? [];
+        // :82 read as 2.12.8 and 2.12.9 read it, `this.config.costs.length`, so a config with no `costs` throws here as it
+        // throws at a table (measured on the sandbox, 17.11.2026, Daggerheart 2.12.9: "Cannot read properties of undefined
+        // (reading 'length')" in 23 tier-2 tests). Until then `costs ?? []` here, under which seven tests passed headless
+        // that fail with this reading (the owner's "zgoda na dh-dice", 17.11.2026). :83-104 not run (the header): the
+        // costs as the config holds them, so the cost rows' markup has its inputs.
+        if (this.config.costs.length) context.costs = this.config.costs;
         if (this.roll) {
             context.roll = this.roll;
             context.rollType = this.roll?.constructor.name;
@@ -298,27 +307,17 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
         return new Promise(resolve => {
             const app = new this(roll, config, options);
             app.addEventListener('close', () => resolve(app.config), { once: true });
-            app.render({ force: true }).then(() => app.play(picks));
+            app.picksClicked = app.render({ force: true }).then(() => app.clickPicks(picks));
         });
     }
 
-    /*
-     * The harness's player: the experience chips named, then Roll, each once the renders before it have
-     * settled. A Roll that did not close the window - nothing the module does refuses it today - would
-     * leave the roll waiting for ever, as a window left open does; it is said on the console and the
-     * window closed unsubmitted instead, so the roll is abandoned where a test can see it.
-     */
-    async play(picks) {
+    /* The harness's player: the experience chips named, each once the renders before it have settled. Not Roll (the header). */
+    async clickPicks(picks) {
         await this.settled();
         for (const key of picks) {
+            if (!this.rendered) return;
             [...this.element.querySelectorAll('[data-action="selectExperience"]')].find(chip => chip.dataset.key === key)?.click();
             await this.settled();
-        }
-        this.element.querySelector('[data-action="submitRoll"]')?.click();
-        await new Promise(resolve => setTimeout(resolve, 0));
-        if (this.rendered) {
-            console.error('[harness] the roll window\'s Roll did not close it; closed unsubmitted');
-            await this.close();
         }
     }
 }

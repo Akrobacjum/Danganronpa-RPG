@@ -8,6 +8,49 @@ import { isOperator, kindOf, replacementOf, LEGACY, WIRE, legacyReading } from "
 /** An object to walk into: not null, not an array, not an operator in either form (lib/operators.mjs). */
 const walkable = v => v !== null && typeof v === "object" && !Array.isArray(v) && !isOperator(v);
 
+/*
+ * THE REGIONS A TOKEN STANDS IN, AS ITS SOURCE HOLDS THEM (D4; the coordinator's brief of 16.11.2026). Foundry 14.370 keeps
+ * `_regions` on a token, its server's list of the regions the token is in, and hands a change of it in `updateToken`'s
+ * changes (docs/dev/e39/CALIBRATION.md section 3). The shim's mover computes it on a move (lib/shim.mjs `TOKEN MOVEMENT`), and
+ * the cluster writes it on every seeded token at its start, so a token moved and put back reads what it read before the
+ * move (the suite's restore compares it). The same test as the shim's: the token's centre inside a rectangle or polygon of
+ * the region, on its floor (a region naming no floor is on every one). What v14 writes at a token's creation, and after a
+ * region is reshaped under a token, was not read; a token made later carries none until it moves.
+ */
+export function tokenRegionIds(scene, token, spot = token) {
+    const size = scene?.grid?.size ?? 100;
+    const x = Number(spot?.x ?? 0) + (Number(spot?.width ?? token?.width ?? 1) * size) / 2;
+    const y = Number(spot?.y ?? 0) + (Number(spot?.height ?? token?.height ?? 1) * size) / 2;
+    const level = spot?.level ?? token?.level ?? null;
+    const inside = shape => {
+        if (shape?.type === "rectangle") return x >= shape.x && x <= shape.x + shape.width && y >= shape.y && y <= shape.y + shape.height;
+        if (shape?.type !== "polygon" || !Array.isArray(shape.points)) return false;
+        let hit = false;
+        for (let i = 0, j = shape.points.length - 2; i < shape.points.length; i += 2) {
+            const [xi, yi, xj, yj] = [shape.points[i], shape.points[i + 1], shape.points[j], shape.points[j + 1]];
+            if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) hit = !hit;
+            j = i;
+        }
+        return hit;
+    };
+    return (scene?.regions ?? []).filter(region => (region.shapes ?? []).some(inside)
+        && (!(region.levels ?? []).length || level === null || (region.levels ?? []).includes(level))).map(region => region._id).sort();
+}
+
+/*
+ * EVERY SCENE HAS A FLOOR (D5; the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 3, read by E58 L1
+ * on Foundry 14.370): `Scene#levels` is an embedded collection of `Level` documents, and a scene given none - every scene the
+ * harness seeds - holds `defaultLevel0000`, 0 to 20. Read: its id and its bottom and top. Not read: its name and its `base`
+ * (here "" and its bottom), and the level's other fields (background, foreground, fog, textures, visibility), left out.
+ * Answers `scene` itself, its `levels` filled in where it held none (cluster.mjs for the world, lib/shim.mjs for a client).
+ */
+export const DEFAULT_LEVEL_ID = "defaultLevel0000";
+export function withDefaultLevel(scene) {
+    if (!scene || typeof scene !== "object" || (Array.isArray(scene.levels) && scene.levels.length)) return scene;
+    scene.levels = [{ _id: DEFAULT_LEVEL_ID, name: "", elevation: { bottom: 0, top: 20, base: 0 }, sort: 0, flags: {} }];
+    return scene;
+}
+
 export function randomID(length = 16) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let out = "";
@@ -276,6 +319,31 @@ export const EMBEDDED_ARRAYS = {
  * operators before it judges and sends it (`honourLegacy`), so this branch is reached by a
  * client's local writes (the shim's updateSource and clone) alone.
  */
+/*
+ * WHAT AN UPDATE CHANGES (D3; the coordinator's brief of 16.11.2026; docs/dev/e39/CALIBRATION.md section 1, LIVE-E30-03, read
+ * by E58 L1 on Foundry 14.370): a write of a value a document already holds is not sent, an update with one key unchanged and
+ * one new hands its hooks the new key alone, and with `{ diff: false }` an update is sent as given. `changes` (expanded or
+ * flat) against `source`: the part of it that changes something - a plain object walked key by key, an operator, an old key
+ * (`-=`, `==`) and a value of another type kept, anything else kept only where it differs from what `source` holds there
+ * (arrays and values compared whole). Answers a new expanded object, empty when nothing changes. lib/shim.mjs diffs on the
+ * writer's client against its own copy, cluster.mjs on the server against the world's, for the hooks; which of the two v14
+ * does for each is LIVE-E39-12.
+ */
+export function diffChanges(source, changes) {
+    const out = {};
+    for (const [key, value] of Object.entries(expandObject(changes ?? {}))) {
+        const held = source?.[key];
+        if (LEGACY.test(key) || isOperator(value)) { out[key] = value; continue; }
+        if (walkable(value) && walkable(held)) {
+            const inner = diffChanges(held, value);
+            if (Object.keys(inner).length) out[key] = inner;
+            continue;
+        }
+        if (JSON.stringify(value ?? null) !== JSON.stringify(held ?? null) || (value === undefined) !== (held === undefined)) out[key] = value;
+    }
+    return out;
+}
+
 export function applyUpdate(target, changes, { onLegacyKey = null } = {}) {
     return applyExpanded(target, expandObject(changes), onLegacyKey, "");
 }
@@ -337,8 +405,37 @@ export function honourLegacy(changes, onLegacyKey = null, at = "") {
  * the same _id - never a wholesale replacement. Everything else merges, through
  * `applyUpdate`; a legacy key's path is reported with the embedded entry's id in it.
  */
+/*
+ * AN OWNER IS NOT REMOVED BY A DELETION (E58 L1, 17.11.2026; measured on the sandbox, Foundry 14.370): on an actor,
+ * `update({ "ownership.<user>": ForcedDeletion })`, the same nested (`{ ownership: { <user>: ForcedDeletion } }`) and
+ * `ownership.-=<user>` each left the entry as it was, while a `ForcedReplacement` of the whole `ownership` removed it; a
+ * module flag deleted by the same `ForcedDeletion`, dotted or nested, went. So here a deletion under `ownership` is
+ * dropped from the write and the entry stays. Read on an actor only; the other documents' `ownership` is taken to be
+ * the same field and is not read. Until this the harness deleted the entry, and eight places in tier 2 that put an owner
+ * back that way passed headless and left the owner at a table ("restore left: Actor "Aiko Hoshino" ... ownership.<user>
+ * (none) -> 3", tests 604 and 610).
+ *
+ * ONE ROAD FOR THE SERVER'S DIFF AND ITS APPLY (claude/shim-118, the merge of d5907e1b, 17.11.2026). Exported: the cluster's
+ * update cases take the deletion out before the server's diff (D3, cluster.mjs), not only here, so a write that leaves an
+ * owner as it was hands no client's hook an `ownership` it did not change - until this every `updateActor` named
+ * `ownership.<user>` for it (00-boot "an owner is not removed by a deletion", red first). The old spelling
+ * `ownership.-=<user>`, which 14.370 left in place too, is taken out the same way, and still reported as an old key
+ * (`onLegacyKey`, the harness's `legacyKeys`, R152). Returns the expanded write; changes `expanded` in place.
+ */
+export function keepOwners(expanded, onLegacyKey = null) {
+    const own = expanded?.ownership;
+    if (!own || typeof own !== "object" || isOperator(own)) return expanded;
+    for (const [id, v] of Object.entries(own)) {
+        if (id.startsWith("-=")) onLegacyKey?.(`ownership.${id}`);
+        if ((isOperator(v) && kindOf(v) === "ForcedDeletion") || id.startsWith("-=")) delete own[id];
+    }
+    if (!Object.keys(own).length) delete expanded.ownership;
+    return expanded;
+}
+
 export function applyDocChanges(collName, raw, changes, { onLegacyKey = null } = {}) {
     const expanded = expandObject(deepClone(changes));
+    keepOwners(expanded);
     for (const key of EMBEDDED_ARRAYS[collName] ?? []) {
         if (!Array.isArray(expanded[key])) continue;
         const patches = expanded[key];

@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.117. If a later version and a handbook ever disagree,
+They describe version 1.2.118. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -299,8 +299,9 @@ holds that list while the trial runs. <!-- leak:TR30 --> A killer behind a "?"
 after a murder's opening keeps their token's actor, so a player's browser
 console can still tell whose token it is; the interface does not.
 <!-- leak:foundry-masked-token-actor --> While that opening waits, the
-killer's tokens are hidden and marked as veiled on every browser, so a console
-can tell which tokens they are and whose. <!-- leak:foundry-veiled-token-actor -->
+killer's tokens carry the veil's mark on every browser (the veil no longer
+sets Foundry's own hidden), so a console can tell which tokens they are and
+whose. <!-- leak:foundry-veiled-token-actor -->
 It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
@@ -313,7 +314,7 @@ draws. For a GM who has not met this module before, that is:
   secret passage's wall or goes through a tunnel, are seen; each Remnant's note
   and what it really is are not. A killer behind a "?" wears the module's "?"
   picture, but their token still points to their character, and while a direct
-  murder's opening waits the killer's tokens are hidden and carry the veil's
+  murder's opening waits the killer's tokens carry the veil's
   mark, so a console can tell whose they are;
 - every scene's regions, walls and their flags. So a room whose only way in is a
   secret passage is seen, and so are Foundry's own secret doors, which a console

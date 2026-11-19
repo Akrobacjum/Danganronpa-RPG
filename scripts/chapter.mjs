@@ -755,6 +755,13 @@ export const CHAPTER_END_STEPS = [
         const { morning } = endMoves(ending, choices, getClock());
         if (!morning) return null;
         const { setTimeOfDay } = await import("./clock.mjs");
+        /* A FRESH MOOD FOR THE MORNING'S BOARDS (F118, 18.11.2026). The start-of-day board shows the school's mood since
+           the owner's word of that day, and both boards here read it off this write's clock; this road wrote none, so they
+           showed the word the clock last held (the last Night's or morning's). Worked out here as the roll-over works it
+           out (clock.mjs `morningInputs`: sequence.mjs `moodInputs`, `moodBand`), the word alone. R7793. */
+        const seq = await import("./sequence.mjs");
+        let mood = null;
+        try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; }
         // One write for the day and the hour: each write is a full redraw on every client (CORE-12). Stamped for the
         // day's boards (`dayBoard`; the owner's answer of 12.11.2026: the boards play after the trial's exit here) - both
         // of them since 13.11.2026, when the end-of-day board moved to Night's start: the trial held the Night, so the day
@@ -762,7 +769,7 @@ export const CHAPTER_END_STEPS = [
         // `boardsOf`). Usually heard after the trial's close as a write of its own, so the stamp rides this one.
         await setTimeOfDay("morning", {
             resetActions: true, resetSearchTokens: true, announce: true,
-            also: { day: morning.day, dayBoard: morning.day, nightBoard: morning.day - 1 }
+            also: { day: morning.day, dayBoard: morning.day, nightBoard: morning.day - 1, mood: seq.MOOD_BANDS.includes(mood) ? mood : null }
         });
         return game.i18n.format("DRPG.Chapter.doneNextMorning", { day: getClock().day });
     } },

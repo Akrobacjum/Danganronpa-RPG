@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.117, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.118, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -338,9 +338,9 @@ The **Event panel** under the Despair Pools carries the standing events as cards
 
 **The clock's turns and the day's boards.** Each change of the time of day turns the curtain: an hour forward from the top, a new day or a rewind from the bottom, the Eclipse from the center. The Investigation opens with pane flashes, and a body's announcement makes the curtain flicker.
 
-When Night begins (at the end of the Night Eclipse, or at **Skip the Eclipse** from Evening when you hold no Night Eclipse), everyone sees an **end-of-day board**: what they did that day (you see the whole table), what the school saw, and **the school's mood**: Calm, Uneasy or Close to spilling. The mood weighs the students' Hope against the Monocubs' Hope, Monokuma's Despair and the Overflow; players see only the word.
+When Night begins (at the end of the Night Eclipse, or at **Skip the Eclipse** from Evening when you hold no Night Eclipse), everyone sees the **day's board**, titled "End of day N": the chapter, the time of day and how many are alive, the cast (the dead grayed, "we remember"), and **the school's mood**: Calm, Uneasy or Close to spilling. The mood weighs the students' Hope against the Monocubs' Hope, Monokuma's Despair and the Overflow; players see only the word. What was done in the Evening comes in its own summary, as every time of day's does. A Spectator's board at Night holds only its title and the mood.
 
-When the next day begins (at the start of the Morning Eclipse, or at **Skip the Eclipse** from Night when you hold no Morning Eclipse), everyone sees the **start-of-day board**: the new day, the cast, and your morning line from Edit campaign's **Next morning's line** (empty shows nothing; with two GMs, the line of the GM who moves the clock). The Morning Eclipse's end plays no board, and the day's number and the session still move there. **End without advancing** on a Morning Eclipse gives your line back to the field. At the End of chapter screen's next morning both boards play, after the trial's exit. Edit campaign plays neither. Esc skips a board; the **Full-screen sequences** switch turns all of this off (section 15.3).
+When the next day begins (at the start of the Morning Eclipse, or at **Skip the Eclipse** from Night when you hold no Morning Eclipse), everyone sees the same board, titled "Day N", with the new day's mood and, under it, your morning line from Edit campaign's **Next morning's line** (empty shows nothing; with two GMs, the line of the GM who moves the clock). The Morning Eclipse's end plays no board, and the day's number and the session still move there. **End without advancing** on a Morning Eclipse gives your line back to the field. At the End of chapter screen's next morning both boards play, after the trial's exit. Edit campaign plays neither. Esc skips a board; the **Full-screen sequences** switch turns all of this off (section 15.3).
 
 ---
 
@@ -2421,6 +2421,7 @@ What the table gets instead, by row. A setting or flag the module holds has a ro
 | `countdown-update` | Daggerheart's own tick of the countdowns runs outside the projects' queue, and a project's change made in the same moment can be lost |
 | `door-controls` | every door control is shown as Foundry shows it |
 | `token-ruler` | a token's ruler keeps the color that Foundry or another module gives it |
+| `token-sight` | with token vision on, a player who controls no token with sight sees from every character they observe, including one the module hides from them |
 | `actions-resource` | a character has no Actions resource |
 | `sidebar-calls` | Foundry's own calls neither show nor place the Foundry tools window |
 | `relay-guard` | requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load |

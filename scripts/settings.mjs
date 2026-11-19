@@ -1256,8 +1256,8 @@ export const DEFAULT_CLOCK = {
     timeOfDayStartedAt: null,
     /**
      * WHEN THIS DAY BEGAN, as `serverNow()` (E94 C3), or null until the day first moves: clock.mjs `setClock` stamps it
-     * on any change of `day`, and the end-of-day board reads the day's own rows from it (sequence.mjs `dayEndReads`,
-     * which reads null as not known). Named here with the two below (E94 fix ci-1, 12.11.2026; CI run 43287328954 on
+     * on any change of `day`; the end-of-day board read the day's own rows from it until F118 (18.11.2026), and the
+     * late joiner's start board reads it (sequence.mjs `lateSequence`). Named here with the two below (E94 fix ci-1, 12.11.2026; CI run 43287328954 on
      * b30f9444, suites 2/8, 3/8, 4/8, 7/8, 8/8) because a field this object does not name is one no write of a whole
      * clock can take away: `setClock` spreads its patch over the clock it read, and tier 2's restore hands it the clock
      * `getClock` recorded - these defaults under what was stored - so a field absent from both stayed. Five tests that

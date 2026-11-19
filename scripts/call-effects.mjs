@@ -23,7 +23,7 @@
  */
 
 import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
-import { trustedWrite } from "./resource-guard.mjs";
+import { trustedWrite, noteOwnWrite } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 // The darkening's own reader, and a leaf: static so `refusalBeforePaying` can
 // stay synchronous for the sheet, which asks it between two windows.
@@ -392,6 +392,7 @@ export async function unsignArmedCalls() {
         const list = (Array.isArray(stored) ? stored : [stored])
             .map(entry => entry && typeof entry === "object" ? unsigned(entry) : entry);
         try {
+            if (!onToken) noteOwnWrite(doc, { flags: { [MODULE_ID]: { [FLAGS.pendingCall]: list } } });
             await doc.update({ [`${onToken ? "delta." : ""}flags.${MODULE_ID}.${FLAGS.pendingCall}`]: list });
         } catch (err) {
             error(`Could not unsign the armed Calls of ${doc.name}`, err);
@@ -430,7 +431,9 @@ export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
     // reads the list; read before it, this write would leave the Call off in the GMs' mark.
     const { judgedFor } = await import("./sheet-audit.mjs");
     await judgedFor(actor.id);
-    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), entry].map(unsigned));
+    const armed = [...pendingCallsRaw(actor), entry].map(unsigned);
+    noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.pendingCall]: armed } } });
+    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, armed);
     // A room action's stronger next Ultimate (E93, the owner's answer to Q-E93-3): a second die beside the Ultimate armed.
     if (entry.key === "ultimate") {
         try {
@@ -839,6 +842,7 @@ export async function liftArmedConfusions() {
         if (!confusionStore.persisted(actor.id)) continue;
         const rest = pendingCallsRaw(actor).filter(entry => entry.key !== CONFUSION);
         try {
+            if (rest.length) noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.pendingCall]: rest.map(unsigned) } } });
             if (rest.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, rest.map(unsigned));
             else await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
         } catch (err) {

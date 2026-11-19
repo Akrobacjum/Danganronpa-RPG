@@ -247,7 +247,7 @@ export const FLOWS = Object.freeze([
     // E12 C16 (11.10.2026): still partial. Since C12 the primary judges every player's arrival again by the veto's
     // rules, the stairs included (movement.mjs `judgeArrival`), and 66 I drives that judge on one floor only - no check
     // drives a floor change past it; what a crossing costs is judged on the mover's browser until E39 (layer two); and
-    // G measures the harness's model of levels (lib/shim.mjs `LevelList`), not v14's (LIVE-E12-02, LIVE-E12-03).
+    // G measures the harness's model of levels (lib/shim.mjs `LevelImpl`, 14.370's shape since D5), not v14 itself (LIVE-E12-02, LIVE-E12-03).
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: ["66-rooms"], status: "partial", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
