@@ -40,7 +40,10 @@
  * (tests-kit.mjs `worldDump`) still shows different after the last window is written in the evidence, not assumed away.
  *
  * Options: DRPG_PRESS_ONLY=id,id (only those windows of WINDOWS, their tabs with them);
- *          DRPG_PRESS_OUT=<file> (the evidence also written there as JSON, resolved from audit/harness).
+ *          DRPG_PRESS_OUT=<file> (the evidence also written there as JSON, resolved from audit/harness, after every
+ *          window, so a run whose client dies still leaves what it read). Each window is caught on its own: one that
+ *          throws is written `notWalked` with the error and the next one runs. Every `nothing` press is named in its
+ *          window's note and listed in the evidence's `nothing`.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -311,27 +314,47 @@ export async function run({ gm, p1, note, settle, repoUrl, opLog, settingLog, so
         row.reachedTheServer = reached;
         windows.push(row);
         const count = v => row.pressed.filter(p => p.verdict === v).length;
-        note(w.id, `"${row.title}": ${first.controls.length} control(s), ${row.pressed.length} pressed - ${count("acted")} acted, ${count("nothing")} nothing, ${count("threw")} threw; ${row.notPressed.length} not pressed`);
+        const quiet = row.pressed.filter(p => p.verdict === "nothing").map(p => `"${p.label}"${p.action ? ` [${p.action}]` : ""} (${p.where})`);
+        note(w.id, `"${row.title}": ${first.controls.length} control(s), ${row.pressed.length} pressed - ${count("acted")} acted, ${count("nothing")} nothing, ${count("threw")} threw; ${row.notPressed.length} not pressed${quiet.length ? `; nothing: ${quiet.join(", ")}` : ""}`);
         return { row, tabs: first.tabs ?? [] };
     };
 
+    /* Each window is caught on its own and the evidence is written after every window (DRPG_PRESS_OUT), so a client
+       that dies part way (the run of 20.11.2026 23:03Z lost its GM to the kernel's out-of-memory kill and with it the
+       whole evidence block) still leaves every row it read, with the windows it could not walk named and why. */
+    const evidenceOf = (changed, ended) => ({ about: "probe 42 (audit/harness/probes/42-press-controls.mjs): each control of each window of probe 08's list pressed once on a fresh draw, and what the press showed. A reading, not a verdict: `nothing` is a candidate to read in the source.",
+        only: ONLY, ended, totals, worldChanged: changed, windows,
+        nothing: windows.flatMap(r => (r.pressed ?? []).filter(p => p.verdict === "nothing").map(p => ({ window: r.id, title: r.title ?? null, label: p.label, action: p.action, where: p.where, tag: p.tag, data: p.data }))) });
+    const save = (changed, ended) => {
+        if (!OUT) return;
+        try { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, `${JSON.stringify(evidenceOf(changed, ended), null, 1)}\n`); } catch { /* the notes still hold the rows */ }
+    };
     for (const w of base) {
-        const pressedOutside = new Set();
-        const { row, tabs } = await walk(w, pressedOutside);
-        if (!row.opened || w.perTab === false || w.open) continue;
-        for (const t of tabs.filter(t => !t.on && t.key)) {
-            const id = `${w.id}--${t.key}`;
-            if (WINDOWS.some(x => x.id === id)) continue;
-            await walk({ ...w, id, open: t.key }, pressedOutside);
+        try {
+            const pressedOutside = new Set();
+            const { row, tabs } = await walk(w, pressedOutside);
+            if (row.opened && w.perTab !== false && !w.open) {
+                for (const t of tabs.filter(t => !t.on && t.key)) {
+                    const id = `${w.id}--${t.key}`;
+                    if (WINDOWS.some(x => x.id === id)) continue;
+                    try { await walk({ ...w, id, open: t.key }, pressedOutside); }
+                    catch (err) { windows.push({ id, opened: false, notWalked: String(err?.message ?? err).slice(0, 300) }); note(id, `not walked (${String(err?.message ?? err).slice(0, 160)})`); }
+                }
+            }
+        } catch (err) {
+            windows.push({ id: w.id, opened: false, notWalked: String(err?.message ?? err).slice(0, 300) });
+            note(w.id, `not walked (${String(err?.message ?? err).slice(0, 160)})`);
         }
+        save(null, "in progress");
     }
 
     try { await putBack(); } catch (err) { note("the last restore", `threw: ${String(err?.message ?? err).slice(0, 200)}`); }
-    const changed = await gm.eval(`${dump} const diff = K.dumpDiff(globalThis.__probe42dump, d).map(x => x.unit); delete globalThis.__probe42dump; delete globalThis.__probe42snap; return diff;`, { timeout: 60000 });
-    note("the world", changed.length ? `${changed.length} unit(s) differ after the last restore: ${changed.slice(0, 10).join(", ")}` : "the world dump is equal before and after");
+    let changed = null;
+    try {
+        changed = await gm.eval(`${dump} const diff = K.dumpDiff(globalThis.__probe42dump, d).map(x => x.unit); delete globalThis.__probe42dump; delete globalThis.__probe42snap; return diff;`, { timeout: 60000 });
+        note("the world", changed.length ? `${changed.length} unit(s) differ after the last restore: ${changed.slice(0, 10).join(", ")}` : "the world dump is equal before and after");
+    } catch (err) { note("the world", `not compared: ${String(err?.message ?? err).slice(0, 200)}`); }
     note("totals", JSON.stringify(totals));
-    const evidence = { about: "probe 42 (audit/harness/probes/42-press-controls.mjs): each control of each window of probe 08's list pressed once on a fresh draw, and what the press showed. A reading, not a verdict: `nothing` is a candidate to read in the source.",
-        only: ONLY, totals, worldChanged: changed, windows };
-    if (OUT) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, `${JSON.stringify(evidence, null, 1)}\n`); }
-    return evidence;
+    save(changed, "done");
+    return evidenceOf(changed, "done");
 }
