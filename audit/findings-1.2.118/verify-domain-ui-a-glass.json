@@ -1,0 +1,104 @@
+{
+ "refuter": "verify-domain-ui-a-glass",
+ "of": "domain-ui-a-glass",
+ "checked": [
+  {
+   "ref": "domain-ui-a-glass-1",
+   "claim": "startEclipse whispers each acting student the table's allowance, not eclipseAllowanceFor(actor), so a character holding an eclipseCrossing row is told too few crossings.",
+   "verdict": "stands",
+   "why": "The whisper loop reads the one `allowance` taken from eclipseAllowance() before the loop; eclipseAllowanceFor adds timedCrossingsOf(actor.id), and every other reader of a character's number (movesLeft 119, the placement table 1055-1056, the judge 1096, the crossing's count 1218) asks eclipseAllowanceFor. The row is still standing when the whisper is sent: eclipseCrossing's only until is 'eclipse'; endAtEclipseStart ends only rows pastItsEnd, and pastItsEnd answers false for any until other than timeOfDay and day; eclipse rows end only in endEclipseEffects on drpgEclipseChanged false. In any case broadcastEclipse(true), which fires drpgEclipseChanged, runs after the whispers. A row cannot be given inside the Eclipse (actions locked), so it is always one bought before it, i.e. present at the whisper. startEclipse runs on a GM, where timedCrossingsOf reads the GMs' store, so the right number was at hand. No test names DRPG.Eclipse.yourMoves (grep of scripts/). Minor holds: the number is wrong only for a character with the room action's row, and the sheet and the placement table show the right one beside it.",
+   "evidence": [
+    "scripts/eclipse.mjs:356     const allowance = eclipseAllowance();",
+    "scripts/eclipse.mjs:382             : plural(\"DRPG.Eclipse.yourMoves\", { n: allowance, room }, \"n\")",
+    "scripts/eclipse.mjs:87      return base === null ? null : base + (actor?.id ? timedCrossingsOf(actor.id) : 0);",
+    "scripts/eclipse.mjs:119     const allowance = eclipseAllowanceFor(actor, clock);",
+    "scripts/timed-effects.mjs:215-218 function pastItsEnd(row, clock) { if (row?.until === \"timeOfDay\") ...; if (row?.until === \"day\") ...; return false; }",
+    "scripts/timed-effects.mjs:403  if (active === false && isPrimaryGm()) endEclipseEffects()...",
+    "scripts/config.mjs:2275        eclipseCrossing: Object.freeze({ amount: 2, untils: Object.freeze([\"eclipse\"]) }),",
+    "scripts/eclipse.mjs:387     await broadcastEclipse(true);  (after the whisper loop)"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-ui-a-glass-2",
+   "claim": "The Eclipse's whisper says sealed rooms still stop the player right after startEclipse cleared every seal, and no seal can be set during the Eclipse.",
+   "verdict": "stands",
+   "why": "Confirmed, with one correction to the reader's evidence: putBackSeals is not 'the only other writer' of SETTINGS.sealedRooms. call-world.mjs also writes it in sealRoom (65-68), liftSeal (78-82) and carrySealedRoom (101-109). None of them puts a seal up during an Eclipse: sealRoom is reached from sealRoomEffect (call-effects.mjs 1270-1277, the Despair Call behindClosedDoors), which calls.mjs refuses while an Eclipse runs (424-428), and from the breach's undo (passages-gm.mjs 796), which reseals only in the same sealPeriod as the lift, a period that includes the Eclipse's start (call-world.mjs 89-92), and no seal stands in the Eclipse to be lifted; liftSeal only removes and carrySealedRoom only moves a seal that stands. So after a successful clearSeals the list is empty for the whole Eclipse, and the whisper's 'sealed rooms still stop you' names nothing. Nit holds (text).",
+   "evidence": [
+    "scripts/eclipse.mjs:342-343  const { clearSeals } = await import(\"./call-effects.mjs\"); await clearSeals();",
+    "scripts/call-world.mjs:154    await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);",
+    "scripts/call-world.mjs:65-68  export async function sealRoom(room) { ... return Boolean(await writeWorld(SETTINGS.sealedRooms, Array.from(current))); }",
+    "scripts/calls.mjs:424-428     const now = allowedNow(actor, key, { road: \"callDespair\" }); if (now.why === WHY.eclipse) { ui.notifications.warn(...actionsLocked); return null; }",
+    "scripts/passages-gm.mjs:796  const resealed = Boolean(reseal && forced.unsealed && forced.unsealed === W.sealPeriod() && ...",
+    "lang/en.json:4368  \"... Drag your token into a connected room; locked doors and sealed rooms still stop you.\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-ui-a-glass-3",
+   "claim": "A curtain the 4 s / 9 s watchdog mounts before document.fonts.ready never gets observe(): no MutationObserver, ResizeObservers or watchTrayFold.",
+   "verdict": "stands",
+   "why": "observe() has one caller, go() inside refreshGlass, and go() mounts and observes only when no curtain stands. The watchdog calls mount() alone; mount() pushes the curtain and starts the loop and rebuild() but connects nothing. Once a curtain stands, refreshGlass takes the rebuild() branch and never reaches go() again, so the observers come only after an unmount and a fresh mount (a theme switch, the screen leaving glassRoom). registerGlass's own resize listener, visibilitychange, canvasReady, AV lift and drpgLayoutHeight still schedule recuts, as the reader says. Whether fonts.ready can take over 4 s at a real table is not measured, which the reader already says; nit fits.",
+   "evidence": [
+    "scripts/glass.mjs:3810  const go = () => { if (glassRoom() && !curtains.length) { mount(); observe(); } };",
+    "scripts/glass.mjs:3804  if (curtains.length) { rebuild(); return; }",
+    "scripts/glass.mjs:3845  if (!j || !j.painted || ...) { log(\"curtain watchdog: rebuilding\", glassReport()); if (j) j.placed = false; mount(); }",
+    "scripts/glass.mjs:2266-2276  function mount() { ... if (!curtains.length) curtains.push({ el, seed: 44 }); if (!raf) raf = requestAnimationFrame(loop); rebuild(); }",
+    "scripts/glass.mjs:3676-3700  function observe() { ... const mo = new MutationObserver(schedule); ... watchTrayFold(); }"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-ui-a-glass-4",
+   "claim": "UI-06's notes still stand in glass.mjs: placeTiles can never answer true, and comments describe a capped padding push, rails as blocks and a notice tile that grows.",
+   "verdict": "stands",
+   "why": "The only inline writes of paddingTop on #scene-controls or #sidebar clear it (glass.mjs 1208, 2292, 3431, 3433); inline styles do not survive a reload, so nothing is left for placeTiles to clear and it returns false, which leaves j.placed and the watchdog's j.placed = false without effect. The comments read as quoted: 3415-3418 (the 160 px cap and padding), 3367 ('placeTiles writes padding onto Foundry's rails'), 3423 ('ONCE THE RAILS ARE BLOCKS') against 93 ('RAILS ARE NOT BLOCKS'), 103-107 ('a taller stack of cards is measured and the tile grows') against 71 ('THE NOTICE TILE IS NOT MEASURED'). The status 'partly' agrees with old-1.2.42-tasks.json's settling of UI-06. Nit, hygiene.",
+   "evidence": [
+    "scripts/glass.mjs:3428-3435  function placeTiles() { let moved = false; ... if (side && side.style.paddingTop) { side.style.paddingTop = \"\"; moved = true; } ... return moved; }",
+    "scripts/glass.mjs:1208       railTop.style.paddingTop = \"\";",
+    "scripts/glass.mjs:3415-3416  /* the scene controls and the sidebar tabs start below the corner panes ... The shift is capped: ... 160 px is as much of it as the glass may take.",
+    "audit/findings-1.2.118/old-1.2.42-tasks.json:1399  \"UI-06 partly (first-session/old-1.2.42-ui.json)\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-ui-a-glass-5",
+   "claim": "Two exported convexOverlap functions (a polygon or null in glass.mjs, a boolean in glass-close.mjs) and two centroid definitions are a trap; an import from the wrong file would clip the frost to path('M...true').",
+   "verdict": "weakened",
+   "why": "The two same-named exports with different answers, and the two centroids (bounding-box middle in glass-geometry.mjs, the corners' mean in glass-close.mjs), are as stated, and no caller uses the wrong one today. The failure scenario does not follow from the code: glassTurn's only caller filters the answers with `p && p.length >= 3`, and a boolean true has no length, so a swapped import would drop the moving panes' shared part from the frost's clip (it would stand unfrosted for the move) - not write 'true' into a path, and not take the blur off the panes that stand, which are clipped from plan.stay regardless. R3985 (tests-tier1.mjs 46986) reads that clip to the moving panes' shared part, so such a swap would be caught by the suite rather than ship. The hygiene observation stands; the scenario is overstated. Nit stays.",
+   "evidence": [
+    "scripts/glass.mjs:3005-3006  const stay = frost ? [...plan.stay.map(i => to[i]?.poly), ...plan.moves.map(m => (... ? convexOverlap(from[m.from].poly, to[m.to].poly) : null))].filter(p => p && p.length >= 3) : [];",
+    "scripts/glass-close.mjs:54   export function convexOverlap(A, B) { ... return true; }",
+    "scripts/glass.mjs:2708       export function convexOverlap(a, b) { ... return out.length >= 3 && Math.abs(area(out)) > 0.5 ? out : null;",
+    "scripts/tests-tier1.mjs:46986  \"R3985 - the panes that stand keep their frost through a turn ... clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`convexOverlap`)\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-ui-a-glass-6",
+   "claim": "COLUMN_PAD = 12 restates PAD_SIDE with a comment E54 made untrue (PAD_SIDE is an export now), and pinRightColumn types 12 twice more.",
+   "verdict": "stands",
+   "why": "PAD_SIDE is a top-level export of glass-geometry.mjs (112, since the E54 split f66b7243); glass.mjs's import line (31) takes PAD_FAR and not PAD_SIDE; COLUMN_PAD's comment still says the two are in different scopes; 1061 and 1064 use a bare 2 * 12. The values agree today, so nothing is drawn wrong. Nit, hygiene.",
+   "evidence": [
+    "scripts/glass.mjs:968-970  /* `PAD_SIDE` from the partition, which lives inside `curtainShapes`. One number, stated twice because the two are in different scopes; ... */ const COLUMN_PAD = 12;",
+    "scripts/glass-geometry.mjs:112  export   const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;",
+    "scripts/glass.mjs:31  import { PAD_FAR, bboxOf, ... } from \"./glass-geometry.mjs\";",
+    "scripts/glass.mjs:1061  const fitW = dspR != null ? Math.floor(innerWidth - dspR - 2 * 12 - (base + slack) - gap) : wideW;"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 6,
+  "stands": 5,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Scope: the reader's file has one finding of severity minor or above (1) and five nits (2-6); all six were re-checked. It is a domain file with no control verdicts, and its hints_for_other_passes.dead_controls lists none; the two stale_windows hints are written there as suspected and were not re-checked.",
+  "D-A1 (keepLive's wait-for-focus): grep of the seven files finds keepLive named only in a comment (chrome.mjs:150); none of them registers a live region, so no surface of this reader is on rule 1 and no major REFR finding follows from D-A1 here. The Eclipse's askAtTheLights (eclipse.mjs 1010-1040) is a modal not redrawn, a hint the reader marked by design; not re-weighed.",
+  "Finding 3's trigger (document.fonts.ready later than 4000 ms at load) is not measured: new live check - a player's browser with throttled network loads a Stained Glass world; read whether glassLifecycle reports the curtain's observers after the 4 s watchdog. Settles: observers 0 with a curtain up -> stands as measured; observers present -> refuted.",
+  "Finding 1's reading is static: no harness run reads the whisper's number; new live check - give a student the eclipseCrossing room action (+2), start a two-crossing Eclipse, read the whisper beside the sheet's budget line. Settles: whisper 2 and sheet 4 -> stands; both 4 -> refuted.",
+  "U9: the reader's count (7 files, 8727 lines) matches wc -l on today's files (3870 + 1307 + 483 + 88 + 200 + 1502 + 1277 = 8727)."
+ ]
+}

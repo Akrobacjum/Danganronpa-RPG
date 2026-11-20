@@ -1,0 +1,136 @@
+{
+ "refuter": "verify-domain-text-a-config",
+ "of": "domain-text-a-config",
+ "checked": [
+  {
+   "ref": "domain-text-a-config-1",
+   "claim": "The Cleaning Tool hint and the player handbook promise its tier off a Misleading Trail's 15; the GM scores the trail at 15 whatever the tool.",
+   "verdict": "stands",
+   "why": "resolveStageSix scores both Stage 6 actions; its relief reads only the row's own toolBonusPerTier, which moveBody alone carries (grep of scripts/ outside the tests: config.mjs:4800 is the field's one definition, cleanup.mjs:1791 its one reader). The tool's tier off a number on any other road is cleanupDc (cleanup.mjs:376), read by the erase and reshape ladder only. The client side arms advantage for every key but moveBody (cleanup.mjs:1671) and sends the roll with dc: def.threshold, 15; the briefing prints CLEANUP.actions.misleadingTrail.threshold plain (action-briefing.mjs:350) and pins it so (tests-tier0.mjs:4904). The player handbook's clean-up section counts the trail as a clean-up (player-handbook.en.md:804) and points to Holding ready for the tool (815), whose line gives the tier off for every clean-up but Move the Body (623); the item hint says the same (config.mjs:691). The GM handbook (1222) names the tier for Move the Body only, agreeing with the code. No test found that scores a trail with a tool in hand. The severity holds: a player's arithmetic is wrong in a particular situation, the GM's card is right.",
+   "evidence": [
+    "scripts/config.mjs:691  hint: \"Readied, it makes cleaning up easier: advantage on every clean-up roll but Move the Body, and its tier off the number to beat, never below the minimum. ...\"",
+    "scripts/cleanup.mjs:1671  if (CLEANUP.toolAdvantage && tool && key !== \"moveBody\") calls.armSituational(1);",
+    "scripts/cleanup.mjs:1791  const relief = def.toolBonusPerTier ? cleaningTier(held) * def.toolBonusPerTier : 0;",
+    "scripts/config.mjs:4766-4773  misleadingTrail: { label: \"Misleading Trail\", ..., threshold: 15, ... refundStress: { critical: 1 } }  (no toolBonusPerTier)",
+    "scripts/config.mjs:4800  toolBonusPerTier: 1   (moveBody)",
+    "scripts/action-briefing.mjs:350  { text: game.i18n.format(\"DRPG.Action.dcFrame\", { n: CLEANUP.actions.misleadingTrail.threshold }), when: \"frame\" }",
+    "docs/handbooks/player-handbook.en.md:623  A Cleaning Tool in hand does the same for a clean-up, except Move the Body, where it takes its tier off the threshold and gives no advantage.",
+    "docs/handbooks/player-handbook.en.md:804  Erasing, reshaping, and the Misleading Trail roll Shadow, and nobody is asked."
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-text-a-config-2",
+   "claim": "The improvised weapon is written into the killer's sheet in the primary GM's page language (name from swapped config prose, description from game.i18n), not the world's document language.",
+   "verdict": "stands",
+   "why": "grantImprovisedWeapon passes def.unarmedImprovises.name, which i18n.mjs localizeConfig swaps in place on a Polish page (CRISIS_ACTIONS is in CONFIG_TABLES, `name` is in PROSE_KEYS, and lang/pl.json:8145-8146 holds \"Improwizowana bron\"), and a description from game.i18n.localize, the page's language. grantItem writes the name as passed and uses the world-language tierDescription only when no description was given (inventory.mjs:867-868), which this caller never leaves empty. worldLocalize's own header says the switch-over of E57 C3 covered the tier line only (utils.mjs:158-160). The caller is resolveCrisisAction on the GM that runs the bridge (bridge-runs-acts.mjs:799-805) or a GM's local run (bridge-asks.mjs:971), so a GM's page language decides. No hook rewrites the item on a change of documentLanguage (grep of documentLanguage in scripts/: i18n.mjs, settings.mjs, settings-window.mjs, utils.mjs, world-secrets.mjs only). R6603's row names config prose written into a world document as the rule. Minor holds: only a table with a GM and the world in different languages sees it.",
+   "evidence": [
+    "scripts/murder-rules.mjs:1532  name: def.unarmedImprovises.name,",
+    "scripts/murder-rules.mjs:1538  description: `<p>${game.i18n.localize(\"DRPG.Murder.improvisedNote\")}</p>`",
+    "scripts/inventory.mjs:868  const fallbackDescription = !description && hasTier ? await tierDescription({ category, kind, tier }) : \"\";",
+    "scripts/config.mjs:4132  unarmedImprovises: { hope: 2, despair: 1, critical: 2, name: \"Improvised weapon\" },",
+    "lang/pl.json:8145-8146  \"unarmedImprovises\": { \"name\": \"Improwizowana bron\" }  (with the Polish mark on n)",
+    "scripts/utils.mjs:158-160  E57 C3 ... switched the documents over: an item's tier line (inventory.mjs `tierDescription`, which `grantItem` and the tier 3 rewrite write)."
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-text-a-config-3",
+   "claim": "Palm's description, the take hint and the briefing line say only the victim learns of a noticed Palm; since 1.2.113 the room is told too, and no Palm window says so.",
+   "verdict": "stands",
+   "why": "Both the theft and the plant call frisk.mjs tellOnlookers after the victim's card when seen (palm.mjs:752-754, 921-924). Every player-facing text of the Palm window read says nothing of onlookers: ACTIONS.palm.hint and description (config.mjs:1774-1778), DRPG.Steal.takeHint (\"if they notice, they learn it was you\"), plantHint, whichWay, chooseIntro, and DRPG.Action.dcPalm; a script over every en.json key under Palm, Steal, Frisk and dcPalm with room, see, watch or everyone finds only the Frisk's open mode and force texts. The player handbook does say it (player-handbook.en.md:460). Severity lowered: the texts say nothing false, they leave out one consequence the handbook states - the same shape the reader graded nit in finding 4 (a Call's effect that is short, not wrong). The failure scenario is a surprise, not a wrong number or a broken rule.",
+   "evidence": [
+    "scripts/config.mjs:1776-1778  description: \"When you take or leave something, Shadow decides whether they notice, and Hand decides whether it works. If they catch you taking, they also learn what you took. ...\"",
+    "scripts/palm.mjs:752-753  const { tellOnlookers } = await import(\"./frisk.mjs\"); await tellOnlookers(thief, victim, ...",
+    "scripts/palm.mjs:922-923  const { tellOnlookers } = await import(\"./frisk.mjs\"); await tellOnlookers(planter, victim, ...",
+    "lang/en.json DRPG.Steal.takeHint  \"Lift one random thing from their pockets, or pick it on a critical; if they notice, they learn it was you.\"",
+    "docs/handbooks/player-handbook.en.md:460  When they notice, they learn whose hand it was and what you took or left, and everybody else in the room sees it too"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-a-config-4",
+   "claim": "Behind Closed Doors' effect says only Pick the Lock gets in; Force the Door lifts the seal.",
+   "verdict": "stands",
+   "why": "whatHolds reads isSealed(room) from call-world.mjs, and a forced door lifts it with liftSeal; the effect line names Pick the Lock alone. Nit holds.",
+   "evidence": [
+    "scripts/config.mjs:2725  effect: \"Seals a room until the time of day ends; a successful Pick the Lock still gets a student in, and those inside stay.\"",
+    "scripts/doors-gm.mjs:124  seal: isSealed(room) };",
+    "scripts/doors-gm.mjs:176  if (holds.seal) await (await import(\"./call-world.mjs\")).liftSeal(room);"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-a-config-5",
+   "claim": "Both handbooks' Call tables say Contraband destroys any one item; the picker skips Truth Bullets.",
+   "verdict": "stands",
+   "why": "gm-handbook.en.md:499 and player-handbook.en.md:565 say any one item; call-pickers.mjs:545 skips the truthBullet category and its comment says never. Nit holds.",
+   "evidence": [
+    "docs/handbooks/gm-handbook.en.md:499  | Contraband | 4 | Destroy any one item |",
+    "docs/handbooks/player-handbook.en.md:565  | Contraband | 4 | Destroys any one item. |",
+    "scripts/call-pickers.mjs:545  if (!category || category === \"truthBullet\") continue;"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-a-config-6",
+   "claim": "Config prose nobody reads (analyze.hintFailure, Listen's threshold results, Palm's unseen label and failure) is translated all the same.",
+   "verdict": "stands",
+   "why": "git grep of hintFailure outside the tests finds config.mjs:1610 and the PROSE_KEYS list only; performListen reads the threshold row's min and branches on it, never its result (action-listen.mjs:206-244). Palm's unseen label and failure were not re-grepped here. Nit holds.",
+   "evidence": [
+    "scripts/config.mjs:1610  hintFailure: \"No help.\",",
+    "scripts/action-listen.mjs:215  const hit = resolveThreshold(roll.total, def.thresholds);",
+    "scripts/action-listen.mjs:235  } else if (hit && hit.min >= namedFrom) {"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-a-config-7",
+   "claim": "Three rule numbers live in code and are typed again into config prose.",
+   "verdict": "stands",
+   "why": "The three constants are where the finding says, and the config sentences type the same digits. Nit holds.",
+   "evidence": [
+    "scripts/action-project.mjs:649  const CONCEALED_WITH_DESPAIR = 1;",
+    "scripts/rest.mjs:527  const gain = full ? 2 : 1;",
+    "scripts/monocub.mjs:1416  key: \"meddle\", grants: \"bonus\", amount: help ? 1 : -1, ...",
+    "scripts/config.mjs:2166  breath: { label: \"Breath\", long: \"Grants 2 Hope\", short: \"Grants 1 Hope\" }"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-a-config-8",
+   "claim": "Search's description says Roll Eye and cleaning tool in lower case; search tokens lower case; Tamper stage; sanity relief lower case.",
+   "verdict": "stands",
+   "why": "The four strings read as quoted; Search's traits list six statistics (config.mjs:1517). Whether the text lint reports the lower-case Search Token was not read. Nit holds.",
+   "evidence": [
+    "scripts/config.mjs:1517  traits: [\"eye\", \"head\", \"body\", \"hand\", \"leg\", \"shadow\"],",
+    "scripts/config.mjs:1525  description: \"Roll Eye: the higher the total, the better the find, ...",
+    "scripts/config.mjs:761  1: \"Restores 1 Health (healing) or 1 Sanity (sanity relief), by its kind.\","
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-a-config-9",
+   "claim": "Six comment pointers name a file or function the code moved away from.",
+   "verdict": "stands",
+   "why": "paintFloorClock is defined nowhere in scripts/ (a tier-1 test even holds it absent from the HUD, tests-tier1.mjs:2501); handleFacilityUse is bridge-runs-acts.mjs:106's; tables.mjs holds no tableDescription. One detail of the finding is off: CAST_FIELDS is defined in gm-stores.mjs and imported by incident-store.mjs:83, not defined in incident-store.mjs; the pointer at config.mjs:90 is wrong either way. config.mjs:846 is written in the past tense (\"read\"), so it may be a history note rather than a pointer. Nit holds.",
+   "evidence": [
+    "scripts/config.mjs:4299  * stop - see `paintFloorClock` in hud.mjs, which is where the red mark is put",
+    "scripts/tests-tier1.mjs:2501  ok(!/paintFloorClock|is-trial-clock/.test(stripComments(hudText(sources))),",
+    "scripts/incident-store.mjs:83  import { castStore, ..., CAST_FIELDS, ... } from \"./gm-stores.mjs\";"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 9,
+  "stands": 9,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Scope: the reader's file has nine findings (three minor: 1-3; six nit: 4-9) and no controls, so no control verdict was checked; D-A1 does not apply to this file (no surface or redraw claim). The three minors were traced whole; the six nits were checked at their cited lines only, not re-read in full (Palm's unseen label and failure in finding 6 not re-grepped).",
+  "Finding 1: whether the owner means the Cleaning Tool's tier to come off the trail (the guide's \"+(1*tier narzedzia)\" is quoted on moveBody alone, config.mjs:4799) was not asked; whichever way it is, the hint and the player handbook disagree with the code. No harness result read (base-run.json not consulted).",
+  "Finding 2: not measured at a table with a GM and a world in different languages; new live check: an English world, the primary GM's page in Polish, an unarmed weapon blow that lands - read the item's name and description on an English player's sheet."
+ ]
+}

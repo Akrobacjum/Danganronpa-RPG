@@ -1,0 +1,65 @@
+{
+ "refuter": "verify-domain-map-a-fog",
+ "of": "domain-map-a-fog",
+ "checkout": "claude/audit-119 at 1babb751; scripts/ as on b5a29e73 (1.2.118)",
+ "scope_note": "The reader's file holds 13 findings: 4 minor (1, 2, 3, 12), 9 nit, none above minor. Every minor is checked below. The file names no control (a domain file), so none is dead, throws, mislabeled or wrong_audience. One stale-window claim of hints_for_other_passes (the standing outline after a key or the hour) is checked as well; finding 8 (nit, the other stale-window hint) was read only as far as fog.mjs:379 (updateScene -> regionsReplaced) and is not counted.",
+ "checked": [
+  {
+   "ref": "domain-map-a-fog-1",
+   "claim": "A body moved into a room (Stage 6's Move the body, a GM's drag, a seed) is written into the ledger as the dead student's discovery, so the room lights on every Monocub's and Spectator's joined map and in the GMs' ledgerRooms.",
+   "verdict": "stands",
+   "why": "The whole road is as written: onUpdateToken -> reactToMove on the primary asks only actor.type and the room, recordDiscovery skips the Mastermind, a Monokuma and a Spectator flag, and a dead student carries none of these (its Spectator is a separate actor made with FLAGS.spectator, spectator-dead.mjs:186-190). seedCells has no corpse skip either. cubFogSection and spectatorFogSection join every row but the Mastermind's, and ledgerRooms the same, so the GM's 'a room the class found' opening (fogSets, fog.mjs:2810-2816) fires for it. Stage 6 teleports the victim's own token (cleanup.mjs:1970, 1985). No test pins a corpse skip on the ledger: R3854 reads only that recordDiscovery names isSpectator. One correction to the reader's text: isMine (fog.mjs:1906-1908) skips only a Monocub's corpse (isMonocubCorpse), not a dead student's body, so the victim's own player's local fog clears the body's new room through ownArrival whatever the ledger holds; that part of the failure scenario is not the ledger's doing. The Monocub and Spectator half, and the GM's reveal, stand. Minor is right: it says a room was found, not by whom or why.",
+   "evidence": "fog.mjs:4334-4339 `const actor = tokenDoc.actor; if (!actor || actor.type !== \"character\") return; ... const room = roomOfToken(tokenDoc); ... await recordDiscovery(scene, actor, room);`; fog.mjs:1597, 1615, 1619 `if (isMastermind(actor)) return false;` / `if (isMonokuma(actor)) return false;` / `if (isSpectator(actor)) return false;`; movement.mjs:1635-1637 `export function isCorpseToken(tokenDoc) { ... return Boolean(actor && isCorpse(actor)) || isMonocubCorpse(tokenDoc);` (not imported or asked by fog.mjs: its only corpse read is isMonocubCorpse, fog.mjs:73, 1908); gm-stores.mjs:1881 `if (!sceneId || !actorId || actorId === mastermindId || ...) continue;` (cubFogSection) (line 1881) and 1916 (spectatorFogSection, the same skip); fog.mjs:1516 `if (mastermindId && actorId === mastermindId) continue;` (ledgerRooms); cleanup.mjs:1985 `await whilePlacing([tokenDoc], () => region.teleportTokens([tokenDoc], ...))`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-map-a-fog-2",
+   "claim": "seedCells skips the Mastermind and a Monokuma but not a Spectator, so a Spectator's token standing in a room is seeded into its row at the primary's canvasReady or any createToken, and then into every joined map.",
+   "verdict": "stands",
+   "why": "seedCells' own comment says 'Same skips as recordDiscovery', and the code has two of recordDiscovery's three: no isSpectator. seedDiscovery runs on canvasReady (no scene: every scene with rooms) and on every createToken (the token's scene), primary only. writeCells and the store's patchMany read no flag; cubFogSection, spectatorFogSection and ledgerRooms leave out only the Mastermind's row. forgetSpectatorMap keeps the actor's own row (`own`) and unticks only what the fold added, so a seeded room stays the student's when the flag comes off. The only test that names the Spectator's discovery skip (R3854) reads the cut of recordDiscovery alone; the tier-2 seed tests (37867, 66893) use an ordinary student. Scenario 93's ghost phase reads discoveredFor after a drag with no canvasReady or createToken between, as the reader says (not re-read here).",
+   "evidence": "fog.mjs:1696-1703 `// Same skips as \\`recordDiscovery\\`, for the same reasons ... if (isMastermind(actor)) continue; if (isMonokuma(actor)) continue;`; fog.mjs:1617-1619 `/* NOR A SPECTATOR (E92 C3 ...) */ if (isSpectator(actor)) return false;`; fog.mjs:315 `step(\"seedDiscovery\", () => seedDiscovery());` (canvasReady); fog.mjs:329 `step(\"seedDiscovery\", () => seedDiscovery(tokenDoc?.parent ?? null));` (createToken); fog.mjs:1386-1390 `const own = new Set(rows?.[actor.id] ?? []); ... for (const room of rooms ?? []) if (!own.has(room)) row[room] = false;`; tests-tier1.mjs:58427 R3854 title: 'fog.mjs `recordDiscovery` writes nothing for it' (the check at 58445 reads cut(\"fog.mjs\", \"recordDiscovery\") only)",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-map-a-fog-3",
+   "claim": "The room outline's landing hop (landOutline, 520 ms, 0.9 of a square) plays under Reduced motion and with fogAnimations(false); only quiet redraws skip it.",
+   "verdict": "stands",
+   "why": "fog-reveal.mjs imports BEAT, glassOn and SEAM_GLOW from motion.mjs and no reducedMotion; flashOutline's only switch for the hop is `quiet`, which only the redraw callers set (fog-reveal.mjs:1608, fog.mjs:4593 road). The reduced-motion road of the reveal (fog.mjs:4688-4690) calls flashOutline without quiet, so the hop runs exactly when motionOff() is true. Nothing elsewhere stops CanvasAnimation globally under the module's setting (the only other CanvasAnimation use is fog.mjs:2016's animate wrapper). The old item MAP-08 records the same standing part (old-1.2.42-map.json MAP-08, status partly).",
+   "evidence": "fog-reveal.mjs:45 `import { BEAT, glassOn, SEAM_GLOW } from \"./motion.mjs\";`; fog-reveal.mjs:1235-1239 `function landOutline(group, grid) { const jump = grid * 0.9; ... CanvasAnimation.animate([...], { duration: BOUNCE_MS,`; fog-reveal.mjs:1407 `if (!quiet) landOutline(group, grid);`; fog-reveal.mjs:1461-1462 `if (quiet) return; landOutline(group, grid);`; fog.mjs:2110-2111 `function motionOff() { return !animationsOn || reducedMotion(); }`; fog.mjs:4688-4689 `if (!bounds || !renderer || motionOff()) { flashOutline(fx, region, rect, level, { actor: ..., elevation: ..., standing });`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-map-a-fog-12",
+   "claim": "A move with no pending waypoints runs reactToMove twice on the primary (at the update and at rest), and tellFoundOnEntry, which posts before it drops the held row, can post a held 'passage finished' card twice when the first post is slow.",
+   "verdict": "weakened",
+   "why": "The double read is confirmed and recorded on purpose (scenario 86, 'Recorded, not bounded'), and tellFoundOnEntry has no in-flight guard: it awaits postFoundDone (announce, a ChatMessage create) before foundDoneStore.drop. But the second read starts only after whenAtRest: the slide's movementAnimationPromise on the primary's canvas, then polls of 100 ms, then 250 ms more; and the first read's own recordDiscovery write comes before its post. For the card to post twice the first create has to outlast the whole slide plus 250 ms. Nothing in the repository measures a create's time at a table, and the reader marks it suspected itself. By the brief, a suspected road is a question for not_established, not a finding; the failure itself (one duplicated whisper) is closer to nit than to minor.",
+   "evidence": "fog.mjs:4314 `whenAtRest(tokenDoc).then(() => reactToMove(tokenDoc))...`; fog.mjs:4320-4322 `if (tokenDoc.movement?.pending?.waypoints?.length) return; await reactToMove(tokenDoc);`; projects-seen.mjs:368-369 `await postFoundDone(userId, row.name ?? \"\"); await foundDoneStore.drop(key);`; projects-seen.mjs:321-323 `async function postFoundDone(userId, name) { await announce({ ... whisper: ... }); }`; movement.mjs:254-264 `while (tokenDoc && stillMoving(tokenDoc) && Date.now() < until) { ... await Promise.race([Promise.resolve(animation)...]); await pause(AT_REST_POLL_MS); } await pause(AT_REST_GRACE_MS);`; movement.mjs:238-240 AT_REST_MAX_MS 3000, AT_REST_POLL_MS 100, AT_REST_GRACE_MS 250; 86-frame-work.mjs:255-257 'the fog's reading of a move (fog.mjs `reactToMove`, at the update and again at rest ...) are counted ... Recorded, not bounded.'",
+   "severity_after": "nit (suspected; belongs under not_established until a create's time is read at a table)"
+  },
+  {
+   "ref": "hints_for_other_passes.stale_windows[0] / the standing room outline",
+   "claim": "The standing outline is not redrawn when the character gains a key or the hour turns, both of which change which doors the veto opens; the gap or wall shown is the last arrival's.",
+   "verdict": "stands",
+   "why": "The source says so itself: standingTouched's header lists what is heard (walls made, changed, deleted; a region's flag; seals and chains through outlineAfterVeto) and ends 'Still not heard: a key gained and the time of day'. The hour reaches the outline only through the accent MutationObserver (fog.mjs:433-437), which calls recolourRoomOutline: the recolour closure re-strokes the colour from the edges captured at the arrival and does not measure the doorways again (fog-reveal.mjs:1428). Every Hooks.on in fog.mjs was listed (292-460, 1398, 1478): redrawOutline is reached from drpgPassagesChanged, a region's change, a wall's, and outlineAfterVeto, which returns unless the setting is sealedRooms or restrictions (fog.mjs:691-694); the updateActor hook at 1398-1400 asks only the Spectator flag, and no file outside fog.mjs calls redrawOutline. It is a canvas overlay, not a window, so D-A1's major rule for windows does not apply as written; the reader gave no severity.",
+   "evidence": "fog.mjs:661-663 `A seal and a chain set (\\`sealedRooms\\`, \\`restrictions\\`; \\`outlineAfterVeto\\`). Still not heard: a key gained and the time of day - each changes the veto's answer and is drawn at the next arrival.`; fog.mjs:1398-1400 `Hooks.on(\"updateActor\", (actor, changes) => { const flags = changes?.flags?.[MODULE_ID]; if (flags && Object.keys(flags).some(key => key.includes(FLAGS.spectator))) retellOwnersOf(actor);`; fog-reveal.mjs:1428 'RE-STROKE IN A NEW SEAM COLOUR WITHOUT MEASURING THE ROOM AGAIN.'; fog.mjs:693 `if (key !== `${MODULE_ID}.${SETTINGS.sealedRooms}` && key !== `${MODULE_ID}.${SETTINGS.restrictions}`) return false;`; fog.mjs:437 `try { recolourRoomOutline(); }`",
+   "severity_after": "nit (unrated hint; a recorded gap on the canvas, not a window)"
+  }
+ ],
+ "counts": {
+  "checked": 5,
+  "stands": 4,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "severity_changes": [
+  "domain-map-a-fog-12 minor -> nit: the double post needs a ChatMessage create longer than the slide plus 250 ms, unmeasured; suspected, so a question for not_established"
+ ],
+ "corrections_to_text": [
+  "domain-map-a-fog-1: 'the viewer's half skips a corpse at 1906-1908 (isMine)' holds only for a Monocub's corpse; a dead student's body token still counts for its owner's local fog (isMine asks isMonocubCorpse, not movement.mjs isCorpseToken), so the victim's player's own fog clears the body's new room on their browser whatever the ledger says."
+ ],
+ "not_established": [
+  "domain-map-a-fog-1 and -2: what v14's Region#teleportTokens fires on the same scene (updateToken with x/y, as the harness models it) was not read here; the reader's live check stands.",
+  "domain-map-a-fog-12: how long announce's ChatMessage create takes on a real server against the at-rest wait (slide time + 250 ms). New live check: one GM, one player whose finished Secret Passage card is held; the player drops the token into the passage's room on a loaded server; count the 'finished' cards the player and GMs get.",
+  "Whether a dead student's own player should see the body's new room on their own fog (isMine counts the body) is a rules question not settled by any decision found; not checked as a finding."
+ ]
+}

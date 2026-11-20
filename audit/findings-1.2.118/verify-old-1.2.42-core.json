@@ -1,0 +1,360 @@
+{
+ "refuter": "verify-old-1.2.42-core",
+ "of": "old-1.2.42-core",
+ "scope_note": "Every item of status fixed, partly or obsolete (24 of 25) and the one open item (CORE-LC5; the file has only one open item, so the sample of 5 is 1); the 4 new_observations, all nit, checked as well. Static reading of today's source (code identical to b5a29e73); nothing run; audit/findings-1.2.118/base-run.json absent when read, so no test or scenario result is cited.",
+ "checked": [
+  {
+   "ref": "CORE-01",
+   "claim": "fixed: with everyone done the Next line offers the Eclipse, and the panel has a one-press advance that runs the whole boundary",
+   "verdict": "stands",
+   "why": "Read the Next line, the Advance button and its run: 'eclipse' goes to boundary.mjs toggleEclipse, 'advance' to nextTimeOfDay -> advanceTimeOfDay({ resetActions: true }), whose applyTimeOfDayChange runs the overflow check, refill, restock, seals, Bribes/Bounties, motive tick and SYNC.clock. No other line action points at Edit campaign. Note: R28 is a source-text regex, not a driven test; R1194 and tier 2 E37-T2 are the driven pins (results not read: no base-run.json).",
+   "evidence": [
+    "scripts/gm-panel.mjs:999 `: { text: game.i18n.localize(\"DRPG.Panel.nextAllDone\"), action: \"eclipse\" };`",
+    "scripts/gm-panel.mjs:404 `eclipse: { key: \"eclipse\", run: () => import(\"./boundary.mjs\").then(m => m.toggleEclipse()) },`",
+    "scripts/boundary.mjs:143 `return advanceTimeOfDay({ resetActions: true });`",
+    "scripts/clock.mjs:814-815 `if (resetActions) summary.actions = await resetAllActions(); if (resetSearchTokens) summary.searchTokensReset = await SearchTokens.reset({ notify: false });`",
+    "scripts/tests-tier0.mjs:2454 R28 `ok(/\"DRPG\\.Panel\\.nextAllDone\"\\)\\s*,\\s*action:\\s*\"eclipse\"/.test(panel)` (text only)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-02",
+   "claim": "fixed: the season reset clears pendingGather before the clock is written back",
+   "verdict": "stands",
+   "why": "clearSeasonAssembly writes {}; pendingGather() returns null for an object with no room; RESET_STEPS puts 'assembly' before 'clock'. The module is loaded at boot (events.mjs imports pendingGather through call-effects.mjs), so the registry entry exists before any reset. The reader's note that no test reads pendingGather empty after a whole reset holds: 65-season.mjs:441 reads it after an Edit campaign move, not a reset.",
+   "evidence": [
+    "scripts/call-world.mjs:175-177 `async function clearSeasonAssembly() { await game.settings.set(MODULE_ID, SETTINGS.pendingGather, {}); }`",
+    "scripts/call-world.mjs:233 `return stored.room ? stored : null;`",
+    "scripts/season-wipe.mjs:409 `\"keyPlan\", \"eclipseMoves\", \"motive\", \"rules\", \"assembly\",` ... :413 `\"clock\"`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-03",
+   "claim": "fixed: the reset clears killingGameRules and lists the group by name",
+   "verdict": "stands",
+   "why": "clearSeasonRules writes [] under its own group, ticked through season-exceptions.mjs, and the group has an English label. Nothing else stores the rules.",
+   "evidence": [
+    "scripts/rules.mjs:329-334 `await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, []);` ... `registerSeasonState({ group: \"rules\", clear: clearSeasonRules, settings: [SETTINGS.killingGameRules] });`",
+    "scripts/season-exceptions.mjs:84 `{ key: \"rules\", section: \"board\" },`",
+    "lang/en.json:6446 `\"rules\": \"Monokuma's standing rules\",`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-04",
+   "claim": "fixed: the reset's actions part unsets restsTaken and the old betrayalWindow flag on each student",
+   "verdict": "stands",
+   "why": "Read the part and its caller; also looked for a road that would put a stamp back: sheet-audit.mjs puts back a restsTaken stamp only in a player's write, and the mark follows a GM's write by the paths it named (refreshMark), so the GM's unset is not undone.",
+   "evidence": [
+    "scripts/season-wipe.mjs:488-491 `actions: async () => { for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) { if (actor.getFlag(MODULE_ID, flag) !== undefined) await actor.unsetFlag(MODULE_ID, flag);`",
+    "scripts/actions.mjs:491-493 `await resetAllActions(); await ctx.everyStudent(\"actions\");`",
+    "scripts/sheet-audit.mjs:1197-1198 `After a GM's write, by the paths it named, as its hook saw them; after a player's, by what of it stood`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-05",
+   "claim": "fixed: End the chapter has a door without a verdict (Edit campaign and Season setup), asking first",
+   "verdict": "stands",
+   "why": "Season setup's campaign block draws endChapterPart, its button closes the window and runs endTheChapter -> openChapterEndDialog; that function asks only GM, primacy, a stopped end and an open incident, nothing about a verdict.",
+   "evidence": [
+    "scripts/season-setup.mjs:828 `${endChapterPart()}`",
+    "scripts/season-setup.mjs:1213 `if (endAsked) return endTheChapter(() => import(\"./chapter.mjs\").then(m => m.openChapterEndDialog()));`",
+    "scripts/chapter.mjs:386-391 `if (!game.user.isGM) { ... } if (!chapterEndHere()) return null;`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-06",
+   "claim": "fixed: an outsider's minutes line reads the display clock, not the true one",
+   "verdict": "stands",
+   "why": "paintElapsed reads clockForDisplay(getClock()); clockForDisplay returns the page's last public copy while hidden, or clockAtOpen after a reload. A recorded Foundry reading agrees (E58 S7-9). The pause gap the reader adds as an observation is real (checked below) but is a different defect.",
+   "evidence": [
+    "scripts/hud-elapsed.mjs:301 `const clock = clockForDisplay(getClock());`",
+    "scripts/hud-elapsed.mjs:166-169 `if (!hide) return clock; if (last) return last; return clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : clock;`",
+    "docs/dev/e58/LOCAL-REPORT.md:431 `the stopwatch stayed as it was 4 s and 16 s after - the display clock frozen on the last public hour for an outsider`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-07",
+   "claim": "fixed: the endNote sentence is gone and the irreversible options are marked",
+   "verdict": "stands",
+   "why": "grep of both language files for endNote/tidyNote/'Nothing else here deletes' gives 0; the form builder draws optPermanent on the four deleting options; no other sentence in the form claims nothing is deleted (endIntro, revealKeeps read).",
+   "evidence": [
+    "grep -c 'endNote\\|tidyNote\\|Nothing else here deletes' lang/en.json lang/pl.json -> 0, 0",
+    "scripts/chapter.mjs:335 `${words}${permanent ? ` <span class=\"notes\">${game.i18n.localize(\"DRPG.Chapter.optPermanent\")}</span>` : \"\"}</label>`",
+    "lang/en.json DRPG.Chapter.optPermanent `(cannot be undone)`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-08",
+   "claim": "fixed: the day summary's lede is built from timeOfDayLabel",
+   "verdict": "stands",
+   "why": "The only caller of summaryLede passes timeOfDayLabel(timeOfDay), escaped.",
+   "evidence": [
+    "scripts/day-summary.mjs:269 `<p class=\"drpg-sum-lede\">${summaryLede(esc(timeOfDayLabel(timeOfDay)), game.user.isGM)}</p>`",
+    "scripts/day-summary.mjs:25 `import { getClock, timeOfDayLabel, boundaryStamp } from \"./clock.mjs\";`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-09",
+   "claim": "fixed: no string still says moving the hour resolves a found body",
+   "verdict": "stands",
+   "why": "Scripted search of every en.json and pl.json value for a body word next to a clock/hour/time-of-day word: only the music hint and a Daily Life explainer, neither about dismissing a discovery. The three named strings read as the reader quotes; the code clears the record on a phase change only.",
+   "evidence": [
+    "lang/en.json:5161 `A body has been found. Start the Investigation when the room is ready.`",
+    "lang/en.json:3313 `The phase stays as it is until you start the Investigation.`",
+    "scripts/clock.mjs:306 `if (patch.phase !== undefined && patch.phase !== before.phase) { await clearBodyDiscovery();`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-10",
+   "claim": "fixed: the chapter stepper never stops below the clock's chapter, Apply reads under the same top, and the last chapter leaves next-chapter unticked with a warning",
+   "verdict": "stands",
+   "why": "campaignRows' stepper max is Math.max(CHAPTERS_PER_SEASON, now) and the kit's stepper writes max on the input; readClockForm reads form.chapter.max; Season setup's readSeasonForm spreads readClockForm. chapterEndForm leaves nextChapter unchecked when lastChapter.",
+   "evidence": [
+    "scripts/gm-campaign.mjs:172 `stepper({ name: \"chapter\", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), ...`",
+    "scripts/gm-campaign.mjs:84 `const top = Math.max(CHAPTERS_PER_SEASON, Math.round(Number(form.chapter.max)) || 0);`",
+    "scripts/season-setup.mjs:976 `...readClockForm(d),`",
+    "scripts/chapter.mjs:356 `<input type=\"checkbox\" name=\"nextChapter\"${lastChapter ? \"\" : \" checked\"}`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-11",
+   "claim": "fixed: the four report lines are plural() families",
+   "verdict": "stands",
+   "why": "Each line goes through plural(); en.json holds one/other and pl.json one/few/many/other for all four. The only '(s)' left in chapter.mjs is in log() lines (console).",
+   "evidence": [
+    "scripts/chapter.mjs:655 `? plural(\"DRPG.Chapter.doneReveal\", { n: await revealAllBulletTypes() }) : null },`",
+    "lang/pl.json DRPG.Chapter.doneKeys `{one, few, many, other}`",
+    "scripts/chapter.mjs:288 `log(`Took ${cleared} Key Remnant(s) off the map ...`)` (console only)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-12",
+   "claim": "fixed: one clock write draws the HUD once a browser; a chapter's end writes the clock at most three times",
+   "verdict": "stands",
+   "why": "SYNC.clock's row names 'hud' once; refreshSheets and refreshEclipse no longer draw the HUD; hud.mjs's updateSetting hook skips synced settings; renderHud's only other callers are sync.mjs and voice-tile.mjs (trial only). setClock is the single writer of SETTINGS.clock (clock.mjs:287), and in chapter.mjs only lines 694 and 770 write it, plus trial-floor-ui.mjs:674 for the trial's close. Static, not measured: scenario 81's result not read (no base-run.json), and no count over a whole chapter's end exists (CORE-LC5).",
+   "evidence": [
+    "scripts/sync.mjs:474 `[SYNC.clock]: Object.freeze([\"assembly\", \"bar\", \"hud\", \"sheets\", \"eclipse\", ...`",
+    "scripts/hud.mjs:232-235 `if (isSyncedSetting(key.slice(MODULE_ID.length + 1))) return; renderHud();`",
+    "scripts/eclipse.mjs:1491 `document.body.classList.toggle(\"drpg-eclipse\", isEclipse());`",
+    "scripts/clock.mjs:287 `await game.settings.set(MODULE_ID, SETTINGS.clock, next);` (the only write)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-13",
+   "claim": "fixed: an unstamped world not in play gets no safeword and no whisper",
+   "verdict": "stands",
+   "why": "keepOldSafeword returns null for !from && !wasInPlay; wasInPlay is read synchronously at the top of runMigrationOnLoad, inside the ready hook, before any clause awaits. Ready-hook callbacks run in sequence, so no server answer to an earlier write can land between them.",
+   "evidence": [
+    "scripts/migrate.mjs:1586 `if (!from && !wasInPlay) return null;`",
+    "scripts/migrate.mjs:1761-1762 `const wasInPlay = worldWasInPlay(worldAsFound()); onLoad = migrate1_2_0({ quiet: true, wasInPlay })`",
+    "scripts/module.mjs:444 `safely(\"the data migration\", runMigrationOnLoad);`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-14",
+   "claim": "fixed: the Eclipse warning fires only when time, day or chapter moved, and names the chevron",
+   "verdict": "stands",
+   "why": "applyCampaignForm compares against getClock() read before the write and warns only on a move. A small edge seen: `chapter !== before.chapter` is a strict compare, so a world holding the chapter as a string (the GMP-03 case) would warn on a no-change Apply during an Eclipse; not a road the module writes, so it does not change the status.",
+   "evidence": [
+    "scripts/gm-campaign.mjs:287 `const before = getClock();`",
+    "scripts/gm-campaign.mjs:363-368 `const moved = result.timeOfDay !== before.timeOfDay || result.day !== (before.day ?? 1) || chapter !== before.chapter; if (before.eclipse && moved) {`",
+    "lang/en.json:5111 `End it from the clock's chevron; until then no incident can open.`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-15",
+   "claim": "partly: three of the four stale comments are true now; api.mjs:379 and hud.mjs's header still put the GM launcher in the left rail",
+   "verdict": "stands",
+   "why": "Confirmed both halves. api.mjs:371-372 and 382 are true; hud.mjs's header has no gear. api.mjs:379 says 'also the launcher in the left rail' and hud.mjs:6 and 413-414 say the clock sits 'above the GM launcher', while injectLauncher appends the launcher to document.body with cluster: true (E77 C6).",
+   "evidence": [
+    "scripts/api.mjs:379 `/** Open the GM panel (also the launcher in the left rail). */`",
+    "scripts/hud.mjs:5-6 `This renders it into `#ui-left-column-1`, above the GM launcher,`",
+    "scripts/gm-panel.mjs:144-146 `const btn = launcher({ id: \"drpg-gm-launcher\", cluster: true, ... }); ... document.body.append(btn);`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "CORE-16",
+   "claim": "fixed: migrate.mjs's header no longer claims the clauses run in stage order",
+   "verdict": "stands",
+   "why": "The header now says the clauses are independent and listed in the order written. The runner gates each clause by its own `since` and catches each clause's error. Not checked: that all 42 clauses are really independent (only the order-of-writing claim was read; the listed `since` values match a written order, 1.1.10 ... 1.2.113).",
+   "evidence": [
+    "scripts/migrate.mjs:67-70 `The clauses are independent of each other - none assumes another has run - which is why the list is in the order they were written rather than by `since` (CORE-16).`",
+    "scripts/migrate.mjs:1671 `if (!force && from && !foundry.utils.isNewerVersion(clause.since, from)) {`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-17",
+   "claim": "fixed: the chapter's end runs on the primary only, one at a time, refused when its window's mark moved; the betrayal sweep is primary-gated",
+   "verdict": "stands",
+   "why": "applyChapterEnd refuses a non-primary GM, queues ends, and endChapterNow refuses an end whose opened mark differs. sweepBetrayalWindows returns unless isPrimaryGm(). A console call without `opened` is not compared (chapter.mjs:832-833 says so) - a GM's own deliberate double call, not the two-GM race the item describes.",
+   "evidence": [
+    "scripts/chapter.mjs:839-842 `if (!game.user.isGM || !chapterEndHere()) return null; const run = chapterEnds.then(() => endChapterNow(choices));`",
+    "scripts/chapter.mjs:885 `const moved = opened ? Object.keys(mark).filter(key => opened[key] != null && opened[key] !== mark[key]) : [];`",
+    "scripts/incident-store.mjs:908 `if (!isPrimaryGm()) return;`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-18",
+   "claim": "fixed: the reset's deaths part revives quietly",
+   "verdict": "stands",
+   "why": "The reset calls reviveCharacter with quiet and silent; the only toast in reviveCharacter is behind !quiet. The reset's other caller-free paths (deathStore.clear, removeBodyTiles) post nothing.",
+   "evidence": [
+    "scripts/season-wipe.mjs:458 `if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true, silent: true });`",
+    "scripts/death.mjs:668 `if (!quiet) ui.notifications.info(game.i18n.format(\"DRPG.Chapter.revived\", { name: actor.name }));`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-19",
+   "claim": "partly: the Next line names the trial once every plan slot is found, but a blank fifth slot counts as missing, so a 4- or 3-Key case never gets it",
+   "verdict": "stands",
+   "why": "keyPlan always builds at least KEY_REMNANTS.scale.length (5) entries; keyPlanStatus counts every unfound entry as missing, blank ones too; the opening gives 5/4/3 Key Remnants. So the trial line needs all five slots found.",
+   "evidence": [
+    "scripts/gm-panel.mjs:925 `if (status?.entries?.length && status.missing === 0) {`",
+    "scripts/key-remnants.mjs:131 `const slots = Math.max(KEY_REMNANTS.scale.length, ...[...rows.keys()].map(slot => slot + 1));`",
+    "scripts/key-remnants.mjs:532 `missing: entries.filter(e => !e.found).length`",
+    "scripts/config.mjs:3689 `keyRemnants: { hope: 5, despair: 4, critical: 3 },`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "CORE-LC1",
+   "claim": "fixed: the code answers the live check (a new English world gets no safeword and no whisper)",
+   "verdict": "weakened",
+   "why": "The code reading stands (see CORE-13), but a live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3's live statuses). No reading of a newly created world exists: the reading filed under CORE-13 (E58 S7-8) pressed the safeword on the seeded sandbox world, as the reader itself says in not_established. The underlying defect is fixed; the live check is open.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md 11.2 U11 `Pozycję live zamyka tylko zapisany odczyt, nigdy rozumowanie.`",
+    "docs/dev/e58/LOCAL-REPORT.md:430 `S7-8 (CORE-13) | measured | PlayerOne pressed the safeword twice`"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "CORE-LC2",
+   "claim": "fixed: read on Foundry 14.370 (E58 S7-9), a bystander's stopwatch did not move when the GM moved the hour",
+   "verdict": "stands",
+   "why": "The recorded reading is the check as asked (a bystander's minutes line while the GM advances), dated 16.11.2026, outcome as the fix intends. 'not started' before and after shows the frozen copy, since the live clock would have read '0 min in' once the advance stamped it.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:431 `the GM moved the hour (`advanceTimeOfDay`, morning to noon, ...): the stopwatch stayed as it was 4 s and 16 s after`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CORE-LC3",
+   "claim": "fixed: the code answers each part of the reset live check",
+   "verdict": "weakened",
+   "why": "Each of the three clears is in the code (CORE-02, -03, -04 stand), but no recorded reading of a reset with an assembly, two rules and a rested student, then an advance and a Long Rest, exists on Foundry or as a single headless run (the reader says so in pinned_by). By U11 the live check is not closed by reasoning.",
+   "evidence": [
+    "audit/findings-1.2.118/old-1.2.42-core.json CORE-LC3 pinned_by `No single run found that resets with all three planted and then advances.`",
+    "scripts/season-wipe.mjs:409-413 (assembly, rules, actions before clock)"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "CORE-LC4",
+   "claim": "obsolete: the Next line and the HUD chevron are one function, and the six-press road is gone",
+   "verdict": "stands",
+   "why": "Both the panel's 'eclipse' action and the HUD's chevron import and call boundary.mjs toggleEclipse; the Next line no longer points to Edit campaign. The question the check compared has no second road.",
+   "evidence": [
+    "scripts/gm-panel.mjs:404 `eclipse: { key: \"eclipse\", run: () => import(\"./boundary.mjs\").then(m => m.toggleEclipse()) },`",
+    "scripts/hud.mjs:1324-1325 `const { toggleEclipse } = await import(\"./boundary.mjs\"); await toggleEclipse();`"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "CORE-LC5",
+   "claim": "open: nobody has counted the HUD draws and sheet renders over one End of chapter",
+   "verdict": "stands",
+   "why": "Scenario 81's parts A-G are a time of day, a pause, an Eclipse, a Despair write, a trial turn and an incident's Remnants; none ends a chapter. Its sandbox run on a real Foundry is recorded as not run.",
+   "evidence": [
+    "audit/harness/scenarios/81-render-budget.mjs:17-31 (parts A to G listed; no chapter's end)",
+    "audit/gate/local-gate.json parts[5] `\"id\": \"sandbox-81-render-budget\", \"status\": \"not-run\", \"reason\": \"no-server\"`"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "CORE-LC6",
+   "claim": "fixed: the code answers two GMs pressing End of chapter (primary only, queue, mark compare); scenario 65 C1/H1 headless",
+   "verdict": "weakened",
+   "why": "The code reading stands (CORE-17), and 65-season C1 and H1 drive the case headless, but their results were not read (no base-run.json) and no reading with two real GM browsers exists (LIVE-E11-09 has none, as the reader says). By U11 the live check stays open.",
+   "evidence": [
+    "audit/harness/scenarios/65-season.mjs:980 `H1: a second GM's End of chapter started on the same clock while the primary's runs is refused and told whose the end is`",
+    "audit/findings-1.2.118/old-1.2.42-core.json not_established `CORE-LC6 and CORE-17 with two real GM browsers: LIVE-E11-09 has no reading in docs/dev/e58`"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "obs-1",
+   "claim": "A bystander's stopwatch counts through a pause that begins during an incident",
+   "verdict": "stands",
+   "why": "While hidden, paintElapsed uses lastPublicClock, copied before the incident, so its pausedAt and pausedTotalMs are old; elapsedOf takes `now` when the copy has no pausedAt, so the reading runs on through the pause, and the break taken off the live clock afterwards is not on the copy. Read, not measured.",
+   "evidence": [
+    "scripts/hud-elapsed.mjs:286 `const end = paused && clock.pausedAt ? Math.max(Number(clock.pausedAt), start) : now;`",
+    "scripts/hud-elapsed.mjs:207-211 `if (!hide) { lastPublicClock = foundry.utils.duplicate(clock); return clock; } return shownClock(clock, { hide: true, last: lastPublicClock });`"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "obs-2",
+   "claim": "The JSDoc of advanceTimeOfDay names the wrong caller of resetActions",
+   "verdict": "stands",
+   "why": "The JSDoc says nothing in the ordinary flow turns resetActions on and that the 'also refill' checkbox is the one remaining caller; boundary.mjs:143 passes it on every Skip the Eclipse, and the checkbox calls resetAllActions directly.",
+   "evidence": [
+    "scripts/clock.mjs:348-350 `nothing in the ordinary flow turns it on any more. The GM panel's \"also refill\" checkbox passes it explicitly ... the one remaining caller`",
+    "scripts/boundary.mjs:143 `return advanceTimeOfDay({ resetActions: true });`",
+    "scripts/gm-campaign.mjs:379-380 `if (result.reset) { await resetAllActions();`"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "obs-3",
+   "claim": "migrate.mjs's header says a '-=key' delete can be accepted and do nothing, against the 14.370 reading",
+   "verdict": "stands",
+   "why": "The comment says so twice; CALIBRATION.md records that on 14.370 '-=' deleted on an actor and a token, with a deprecation warning. Fields other than flags were not read on v14, so 'can do nothing' is unproven rather than disproved for them; the comment still contradicts the only reading.",
+   "evidence": [
+    "scripts/migrate.mjs:39-41 `deleting a key with the `-=key` syntax can be accepted and do nothing at all.`",
+    "scripts/migrate.mjs:141 ``-=key` cannot be trusted to remove anything in this Foundry`",
+    "docs/dev/e39/CALIBRATION.md:20 `LIVE-E30-01 | ... | deleted on both; no `-=` key stored`"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "obs-4",
+   "claim": "DRPG.Clock.eclipseStillOn says one thing more in Polish than in English",
+   "verdict": "stands",
+   "why": "Read both values: the Polish adds 'a przejscia licza sie do limitu Eclipse'; the English stops at 'no incident can open'.",
+   "evidence": [
+    "lang/en.json:5111 `The clock moved, but the Eclipse is still on. End it from the clock's chevron; until then no incident can open.`",
+    "lang/pl.json:5470 `... do tego czasu nie otworzysz incydentu, a przejścia liczą się do limitu Eclipse.`"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 29,
+  "stands": 26,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  "The results of every pin named (R28, R1194, R3406, R1256, R179, R1361, tier 2 E17-T10, E37-T2, scenarios 65 C1/H1, 81 B, 50-lang): base-run.json did not exist when read.",
+  "CORE-16: whether the 42 migration clauses are truly independent of each other, as the new header claims; only the order of writing was read.",
+  "CORE-LC1, CORE-LC3, CORE-LC6: no recorded reading on a real Foundry; each needs a table (a new English world's sheet and chat; a reset with an assembly, two rules and a rested student then an advance and a Long Rest; two GM browsers pressing End of chapter within two seconds, LIVE-E11-09).",
+  "obs-1: the pause gap during an incident is read, not measured; new live check: pause the game during an incident for a minute, read a bystander's and a participant's minutes line before and after the unpause and after the incident ends."
+ ]
+}

@@ -1,0 +1,104 @@
+{
+ "refuter": "verify-domain-text-c-terms",
+ "of": "domain-text-c-terms",
+ "checked": [
+  {
+   "ref": "domain-text-c-terms-1",
+   "claim": "Two English texts write 'search tokens' in lower case, and T8's otherCase match never reads the plural.",
+   "verdict": "stands",
+   "why": "Both texts read as quoted on today's source. The Search tile's hint is the tile's tooltip (sheet-actions.mjs:1398 takes def.hint for the tile); the chapter option is drawn at chapter.mjs:365. A grep of en.json finds no other lower-case 'search token(s)' in a key; 32 lines say 'Search Token'. T8 builds named = wordRe([term], true), whose lookahead forbids a letter after the term, so 'search tokens' (an 's' after 'token') is not matched; its fixture pins the singular only. The glossary entry search-token has otherCase true, variants [] and no except or note keeping the lower case. Nothing refutes it; text only, nit.",
+   "evidence": [
+    "lang/en.json:3343  \"optNextMorning\": \"Open the next chapter on the morning of day {day}, with actions and search tokens refilled\"",
+    "scripts/config.mjs:1524  hint: \"Loot the room for something you name. Spends one of its search tokens.\",",
+    "scripts/tests-text.mjs:873  const wordRe = (forms, anyCase) => new RegExp(`(?<![\\\\p{L}\\\\p{N}_])(?:...)(?![\\\\p{L}\\\\p{N}_])`,",
+    "scripts/tests-text.mjs:948  const named = otherCase ? wordRe([term], true) : null;",
+    "scripts/tests-text.mjs:3203  \"DRPG.Fx.lower\": \"Spend a search token\",                      // flagged: another case",
+    "lang/en.json:702  \"roomTokensTooltip\": { \"one\": \"Search Tokens: {left} of {max} left here this time of day.\", ..."
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-c-terms-2",
+   "claim": "The presets Repair an Item and Close the Breach are written in two casings across their label, note, summary and refusal.",
+   "verdict": "stands",
+   "why": "Read in both files: the preset label 'Repair an item' and its note against the summary 'Repair an Item'; the label and summary 'Close the Breach' against the note and the isBreach refusal's 'a Close the breach project'. The tab button Passage.tab.closeBreach (en.json:775) is a separate verb phrase, as the finding says. The other presets (Breach the Wall, Seal the Passage, Repair the Lock) are one casing. The glossary has entries for repair-the-lock and breach-the-wall and none for these two, so no lint holds them. The handbook's three readings are at gm-handbook.en.md:471 and 1001 (also 891, 995, 1011, 1017). Text only, nit.",
+   "evidence": [
+    "lang/en.json:4455  \"closeBreach\": \"Close the Breach\",",
+    "lang/en.json:4456  \"repairItem\": \"Repair an item\",",
+    "lang/en.json:4463  \"unbreachNote\": \"Close the breach: Body, Complex (6). ...\"",
+    "lang/en.json:4470  \"repairItemSummary\": \"Repair an Item: “{target}”\"",
+    "lang/en.json:735  \"isBreach\": \"... use Close the breach on the Passages tab, or a Close the breach project.\"",
+    "lang/pl.json:750  \"... albo projekt Close the breach.\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-c-terms-3",
+   "claim": "pl.json writes 'Truth Bulleta' and 'tokena' where the glossary's genitive is -u, and neither T8 nor T12 reads a declined term with the wrong ending.",
+   "verdict": "stands",
+   "why": "Both strings read as quoted; 'Truth Bulletu' is on 38 lines of pl.json and 'tokena' is the one -a form against 32 'tokenu'. The glossary gives gen 'Truth Bulletu' and 'tokenu'. T12 (loanDeclension) builds two kinds of check only: an ending on an indeclinable term, and a bare form after a governing preposition; neither matches 'wydania Truth Bulleta' or 'obronny tokena'. T8's truth-bullet variants are case variants only, and token's are empty. 'tokena' is a defensible Polish genitive in general use, so the defect is against the module's own glossary (DB4), not against the language; nit.",
+   "evidence": [
+    "lang/pl.json:2205  \"giveFromPlanTooltip\": \"Otwiera okno wydania Truth Bulleta, wypełnione z tego planu i z jego odbiorcą\"",
+    "lang/pl.json:8833  \"saveNotOwn\": \"rzut obronny tokena, którym ten gracz nie gra\"",
+    "docs/glossary.json truth-bullet  \"declension\": {\"countable\": true, \"gen\": \"Truth Bulletu\"}",
+    "scripts/tests-text.mjs:1769-1772  ? [{ t, kind: \"ending\", ... }] : Object.keys(GOVERNS)...map(c => ({ t, kind: \"bare\", ...",
+    "scripts/investigation.mjs:1400  ...${tipAttr(\"DRPG.Tips.Case.giveFromPlanTooltip\")}..."
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-c-terms-4",
+   "claim": "Three tooltips are over the tooltip limit of 23 words (Project.everyone 43 EN, Monocub.silencedNote 34 EN, Vault.neighboursHint 25 PL).",
+   "verdict": "stands",
+   "why": "Recounted with the same word rule (whitespace tokens holding a letter, digit or brace): Project.everyone 43 EN / 41 PL, Monocub.silencedNote 34 / 26, Vault.neighboursHint 19 / 25. docs/text-budgets.json's tooltip surface is target 15, limit 23, fail null, so it is a report, which matches nit. No allow row names any of the three keys. Each is a tooltip at its call site: a data-tooltip on a disabled viewer tick, a column's tooltip, a title on an input. One doubt outside the claim: the first sits on a disabled input, and whether a browser fires the pointer events Foundry's tooltip needs on a disabled control was not read (not_established); it does not touch the length.",
+   "evidence": [
+    "scripts/projects-ui.mjs:1671  const lock = locked ? ` disabled data-tooltip=\"${foundry.utils.escapeHTML(game.i18n.localize(\"DRPG.Project.everyone\"))}\"` : \"\";",
+    "scripts/gm-students.mjs:218  { key: \"silenced\", ..., tooltip: L(\"DRPG.Monocub.silencedNote\") },",
+    "scripts/room-setup.mjs:338  title=\"${foundry.utils.escapeHTML(game.i18n.localize(\"DRPG.Vault.neighboursHint\"))}\" />",
+    "docs/text-budgets.json surfaces.tooltip  {\"target\": 15, \"limit\": 23, ..., \"fail\": null}"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-c-terms-5",
+   "claim": "Two button labels are over twice their English in Polish: Lock -> 'Zamknij na klucz' in a no-wrap mini button, Pass -> 'Zrezygnuj'.",
+   "verdict": "stands",
+   "why": "Lengths confirmed: 'Lock' 4 / 'Zamknij na klucz' 16, its other face 'Unlock' 6 / 'Otwórz' 6; 'Pass' 4 / 'Zrezygnuj' 9. The lair line is a wrapping flex row and the button is white-space: nowrap, as cited, so the cost is at most a line, and whether it wraps at the sidebar's width is a layout fact the finding already leaves to not_established. Pass is a DialogV2 footer secondary button (trait-ruling.mjs:338), where the finding itself says there is room; that half is the task's ratio rule alone, no visible defect. The finding claims no more than the ratio, so it stands at nit.",
+   "evidence": [
+    "scripts/sheet-sidebar.mjs:811  + `<button type=\"button\" class=\"drpg-mini-button drpg-lair-lock\"${tipAttr(...)}>${t(locked ? \"DRPG.Mastermind.lair.unlock\" : \"DRPG.Mastermind.lair.lock\")}</button>`;",
+    "styles/danganronpa.css:3795  .drpg-lair-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; }",
+    "styles/danganronpa.css:3797  .drpg-lair-lock, .drpg-passage-seal { white-space: nowrap; }",
+    "lang/pl.json:1420  \"lock\": \"Zamknij na klucz\",",
+    "scripts/trait-ruling.mjs:338  secondary: [{ action: \"pass\", label: game.i18n.localize(\"DRPG.TraitRuling.pass\"), ... }], close: \"pass\" },"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-c-terms-6",
+   "claim": "The Class Trial paragraph of the clock's explainer addresses the class as plural 'you' ('one of you did it', 'Trafcie') in a window any user, a GM included, opens.",
+   "verdict": "stands",
+   "why": "Text read as quoted in both files. phaseExplanation picks the key by clock.phase alone (or the Eclipse), with no role branch; openStateExplainer is opened by a delegated click on #drpg-hud for anyone (explain.mjs:429) and by api explainState. text-style.md V1 and P2 keep the second person for the one acting and 'never to many readers at once'. Nuance: the explainer has one reader at a time (the clicker), so P2's 'many readers' is not literally met; what is off is the plural 'you' to a single reader who may be the GM. The fact stands; the rule's reach is a reading, as the finding concedes. Nit.",
+   "evidence": [
+    "lang/pl.json:7037  \"classTrial\": \"Wszyscy są w sali i jedno z was to zrobiło. ... Trafcie, a zabójca zostanie ukarany; pomylcie się, ...\"",
+    "lang/en.json:6501  \"classTrial\": \"Everyone is in the room and one of you did it. ... Get it right and the killer is punished; get it wrong and everybody else is.\"",
+    "scripts/explain.mjs:96  const key = clock?.phase ?? \"dailyLife\";",
+    "scripts/explain.mjs:228  * The clock panel, explained. Anyone may open it",
+    "scripts/explain.mjs:429  [\"#drpg-hud\", openStateExplainer],",
+    "docs/text-style.md:500  - **P2** The second person only to the one acting, never to many readers at once (T16)."
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 6,
+  "stands": 6,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Scope: the reader's file has six findings, all nit, and no surfaces or controls, so nothing met the task's bar (minor or above, or a control verdict of dead, throws, mislabeled or wrong_audience); D-A1 does not apply (no redraw claim). So the check would not be empty, all six nits were re-checked at their cited lines and the lint code they name; the reader's counts (70 T8 rules, 526 tooltips, 226 buttons, 81 few-equals-many families and the rest) were not recounted, except the word counts of finding 4's three keys and the character counts of finding 5's two.",
+  "Finding 4, Project.everyone: the tooltip sits on a disabled checkbox; whether Foundry v14's tooltip shows on a disabled input in the table's browser was not read. New live check: as a GM, open a public project's viewer ticks and hover a greyed tick; see whether any tooltip appears.",
+  "Finding 5's layout (whether 'Zamknij na klucz' wraps the lair line) stays the reader's not_established item and l1 recipe; not measured here.",
+  "No harness, npm, test or check was run, by the brief's rule; no test result is cited as passed. The checkout's HEAD is 530fd7bc on claude/audit-119; git diff b5a29e73 HEAD over scripts, lang, docs and styles is empty, so the lines read are b5a29e73's."
+ ]
+}
