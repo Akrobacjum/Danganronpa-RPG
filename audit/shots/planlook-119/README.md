@@ -5,7 +5,8 @@ probe 08's captures `investigation--map-types-faces` (All open off) and `investi
 default): one placed Remnant of each of the eight types beside the probe's case, 22 nodes, 12 lines, several crossing.
 
 - `before-*`: main b5a29e73 (its sweep, its stylesheets, its case-map.mjs and case-view.mjs).
-- `after-*`: claude/planlook-119 0da0a479.
+- `after-*`: claude/planlook-119 0da0a479 (round 1, the look the owner accepted on 20.11).
+- `round2-*`: claude/planlook-119 87b21526 (round 2: square, grouped arrows; the deductions, counters and solution in colour, their badges).
 - `*-faces-<theme>-<size>.png`: the window at rest; `-view`: after the camera's reveal; `-fit`: after Fit to view.
 - `*-allopen-<theme>-<size>-view.png`: every node open, the legend under the graph.
 
