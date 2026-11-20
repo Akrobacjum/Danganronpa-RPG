@@ -171,7 +171,7 @@ Who sees which dice, what happens to a roll with no GM connected, Daggerheart's 
 
 A row of tiles stands at the window's foot above **Save**, always in view: **Despair Flow**, **The Mastermind**, **Killing game rules** and **Season checklist**. When the window is short, the part above the row scrolls. Each tile's window opens in front, and Season setup waits behind it as you left it, with what you typed kept.
 
-Season setup opens at its top, on the campaign name, which is shown at the top of everyone's screen. A blank **Safeword** means the default, "Safe Word" (section 19).
+Season setup opens at its top, on the campaign name, which is shown at the top of everyone's screen. A blank **Safeword** means the default, "Safe Word" (section 19). While it stands open, its fields and the Season checklist's rows follow what changes elsewhere - the clock, the safeword, the cast, the scenes - and a field you typed in keeps what you typed.
 
 The **Season checklist** is a window of its own: its rows first, then the *First session* rows, then the further checks the rows do not cover. Every row stays on screen with its state showing, so a step you skipped is a step you can still see. A tick means done; a cross, the one red mark, means the season needs it (a screen reader says *Required, not done yet*); a dash means optional; a **!** means something is off and the decision is yours (*Check this*). A row ticks only once it has checked something, and a row that waits on something else has no mark and no button: with no students yet, the rows about students read *Waiting for the cast: create the students first.*
 

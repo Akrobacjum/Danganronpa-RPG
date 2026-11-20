@@ -104334,6 +104334,90 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ timeOfDay: true, name: "SUITE season typed", word: "SUITE elsewhere" }),
             "Season setup's Save wrote back what it had drawn over a change made while it stood open (timeOfDay: the moved one kept, name: the name typed, word: the safeword set elsewhere)");
     }],
+
+    ["Season setup's fields follow the clock and the safeword while it stands open, and a field the GM typed in keeps the text (season-setup.mjs `followWorld`; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\", relayed for the audit of 1.2.118; the line claude/season-119)", async () => {
+        /*
+         * Season setup drawn as a GM opens it. While it stands open the time of day moves one on and the safeword is set
+         * elsewhere; then the GM types a campaign name and the clock's name is written elsewhere too. Read: the time-of-day
+         * select and the safeword field (shown and drawn as the world's now, so Save still reads them untouched), and the
+         * name field (the GM's text kept). The clock and the safeword are put back as found. Red at e3c41870: the window
+         * showed the time of day and the safeword it was drawn with.
+         */
+        needs(env.dialogs(), "Season setup is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const G = await import("./gm-campaign.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const read = {};
+        let answer = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockBefore, phase: "dailyLife", eclipse: false });
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector('form [name="timeOfDay"]'), 6000).catch(() => {});
+            const el = of("drpg-window-season")[0]?.element;
+            const f = name => el?.querySelector(`form [name="${name}"]`);
+            must(f("timeOfDay") && f("safeword"), "Season setup drew no time of day or safeword - this would measure nothing");
+            const moved = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await setClock({ timeOfDay: moved });
+            await game.settings.set(MODULE_ID, SETTINGS.safeword, "SUITE followed");
+            await until(() => f("timeOfDay")?.value === moved && f("safeword")?.value === "SUITE followed", 2000).catch(() => {});
+            read.time = { shown: f("timeOfDay")?.value === moved, untouched: !G.changedField(f("timeOfDay")) };
+            read.word = { shown: f("safeword")?.value, untouched: !G.changedField(f("safeword")) };
+            f("campaignName").value = "SUITE typed here";
+            await setClock({ campaignName: "SUITE written elsewhere" });
+            await settle();
+            await wait(200);
+            read.name = f("campaignName")?.value;
+        } finally {
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ time: { shown: true, untouched: true }, word: { shown: "SUITE followed", untouched: true }, name: "SUITE typed here" }),
+            "Season setup did not follow the world while open, or lost what the GM typed (time and word: shown as the world's and still untouched, name: the GM's text)");
+    }],
+
+    ["the Season checklist's rows follow the world while it stands open: the campaign's name taken off elsewhere turns its row, and put back turns it again (season-setup.mjs `followChecklist`; the audit of 1.2.118, controls-10-setup-config finding -3; the line claude/season-119)", async () => {
+        /*
+         * The Season checklist drawn as a GM opens it, from a clock with a campaign name. While it stands open the name is
+         * written empty (another GM's Edit campaign), then put back. Read: the "name" row's state each time, within 2 s.
+         * The clock is put back as found. Red at e3c41870: the rows redrew only after a press of one of their own buttons.
+         */
+        needs(env.dialogs(), "the Season checklist is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const read = {};
+        let answer = null;
+        const rowState = () => [...foundry.applications.instances.values()].filter(a => a.rendered)
+            .map(a => a.element?.querySelector('li.drpg-check-row[data-drpg-key="name"]')).find(Boolean)?.dataset.drpgState ?? null;
+        try {
+            await setClock({ campaignName: "SUITE checklist" });
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonChecklist()).catch(err => `threw: ${err.message}`);
+            await until(() => rowState(), 6000).catch(() => {});
+            read.before = rowState();
+            must(read.before, "the Season checklist drew no name row - this would measure nothing");
+            await setClock({ campaignName: "" });
+            await until(() => rowState() !== read.before, 2000).catch(() => {});
+            read.emptied = rowState();
+            await setClock({ campaignName: "SUITE checklist" });
+            await until(() => rowState() === read.before, 2000).catch(() => {});
+            read.back = rowState();
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.rendered && a.element?.querySelector('li.drpg-check-row[data-drpg-key="name"]'))) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        equal(stableJson({ changed: read.emptied !== read.before, back: read.back === read.before }), stableJson({ changed: true, back: true }),
+            `the Season checklist's name row did not follow the world (before, emptied, back: ${stableJson(read)})`);
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -171,7 +171,7 @@ To, kto widzi które kości, co dzieje się z rzutem bez połączonego GM-a, wł
 
 Rząd kafelków stoi u dołu okna nad **Zapisz**, zawsze na widoku: **Despair Flow**, **Mastermind**, **Zasady killing game** i **Lista kontrolna sezonu**. Gdy okno jest niskie, przewija się część nad tym rzędem. Okno każdego kafelka otwiera się na wierzchu, a Ustawienia sezonu czekają za nim w takim stanie, w jakim były, razem z tym, co wpisano.
 
-Ustawienia sezonu otwierają się na górze, na nazwie kampanii, którą każdy widzi u góry swojego ekranu. Puste pole **Safeword** znaczy domyślne „Safe Word” (sekcja 19).
+Ustawienia sezonu otwierają się na górze, na nazwie kampanii, którą każdy widzi u góry swojego ekranu. Puste pole **Safeword** znaczy domyślne „Safe Word” (sekcja 19). Gdy okno jest otwarte, jego pola i wiersze Listy kontrolnej sezonu nadążają za tym, co zmienia się gdzie indziej (zegar, safeword, obsada, sceny), a pole, w którym coś wpisałeś, zachowuje to, co wpisałeś.
 
 **Lista kontrolna sezonu** to osobne okno: najpierw jej wiersze, potem wiersze *Pierwsza sesja*, a na końcu dalsze sprawdzenia, których wiersze nie obejmują. Każdy wiersz zostaje na ekranie ze swoim stanem, więc pominięty krok wciąż widać. Ptaszek znaczy zrobione, a krzyżyk, jedyny czerwony znak, znaczy, że sezon tego potrzebuje (czytnik ekranu mówi wtedy *Wymagane, jeszcze nie zrobione*); kreska znaczy opcjonalne, a **!**, że coś jest nie tak i decyzja należy do ciebie (*Do sprawdzenia*). Wiersz dostaje ptaszek dopiero wtedy, gdy coś sprawdził. Wiersz, który czeka na coś innego, nie ma ani znaku, ani przycisku: bez uczniów wiersze o uczniach mówią *Czeka na obsadę: najpierw utwórz uczniów.*
 
