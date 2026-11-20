@@ -12,7 +12,7 @@ those files, so a new file reads like an old one of its lane. The method and voc
 - A reader reads and writes **one file**: `audit/findings-1.2.118/<reader-id>.json`. It writes nothing else, edits
   nothing, commits nothing, pushes nothing. It does not run the harness, the suite, a scenario, a probe or
   `npm`. Plain reading tools, `git grep`/`git log`/`git show`, and short read-only scripts (`python3`, `node -e`
-  over source text) are fine. Scratch files go under `/tmp`, never the repository.
+  over source text) are fine. Scratch files go under `/tmp/<reader-id>/` (your own folder: other readers run beside you), never the repository.
 - The base run (one `npm test` on `b5a29e73`, run centrally) is written to `audit/findings-1.2.118/base-run.json`
   when it ends. If that file exists when you look, cite the result of a test or scenario from it. If not, name the
   test from its source and say its result was not read; never claim a pass.
