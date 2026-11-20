@@ -1,0 +1,218 @@
+{
+ "refuter": "verify-live-items-561",
+ "of": "live-items-561",
+ "checked": [
+  {
+   "ref": "561 (LIVE-E53-01)",
+   "claim": "partly, n/a: perf() and fps() read on the owner's desktop (RTX 4080 SUPER, flat 4000x3000 academy, 1.2.116), not the recipe; perf-baseline.json runs empty, not-measured.",
+   "verdict": "stands",
+   "why": "PERF-READINGS.md exists (357 lines), dated 16.11.2026 at 80dfaf06 (1.2.116), the machine, browser and scene as the reader says, 23 fps under Stained Glass in four windows, and the case dashboard, canvas and GMs' audit lines read 'none since this browser loaded' - so the cost block is only partly filled, as claimed. audit/perf-baseline.json read by script today: status 'not-measured', 0 runs. LOCAL-REPORT.md:342-346 hold the probe attempt and the desktop readings. The identifiers named exist at the lines given (diagnostics.mjs:1658, :1666, :1916; R7540 at tests-tier1.mjs:62629). A partial reading on a module two releases back, of code the paper says unchanged since the release; partly is the right word.",
+   "evidence": "docs/dev/e58/PERF-READINGS.md:3 'Raw output of `game.drpg.perf()` and `await game.drpg.fps({ toChat: false })`, 16.11.2026, at 80dfaf06 (1.2.116'; :15 'the academy (the seed's scene, 4000x3000, not isometric, token vision off)'; :25 'As it stands          42.64 ms/frame  (23 fps)'; :46 'the case dashboard rebuilt in place: none since this browser loaded'; audit/perf-baseline.json status 'not-measured', runs [] (read by script)",
+   "status_after": "partly"
+  },
+  {
+   "ref": "640 (LIVE-E39-02)",
+   "claim": "partly, n/a: CALIBRATION.md:97 records that updateToken's options carry `_priorRegions`; its shape and values not recorded; no module code reads it.",
+   "verdict": "stands",
+   "why": "The row exists on b5a29e73's CALIBRATION.md, dated by section 3 (LIVE-E39-01, 16.11.2026, 14.370), and names `_priorRegions` without its value - the item's subject, partly answered. git grep over scripts/ outside the tests finds no `_priorRegions`, `_regions`, `_movement`, `preMoveToken` or `moveToken`. The shim writes `{ [id]: prior }` at shim.mjs:668 and lists the shape as not read in its TOKEN MOVEMENT header. Nothing more in the e58-local copies.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:97 '| `updateToken`'s changes | `{x, y, _regions: [\"REGHALL000000000\"], _id}`; options also carry `_priorRegions` | as written; no `_regions` |'; audit/harness/lib/shim.mjs:668 'options._priorRegions = { ...(options._priorRegions ?? {}), [id]: prior };'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "641 (LIVE-E39-03)",
+   "claim": "partly, n/a: CALIBRATION.md:93 records each movement hook firing once; order, arguments and a false from preMoveToken not read.",
+   "verdict": "stands",
+   "why": "The row lists the four hooks and their counts; it states no order and no arguments, and nothing on a refused preMoveToken is in either copy of the paper. The shim's header calls the order and the false 'not read' and models them. The module hooks preUpdateToken (movement.mjs:375, onPreUpdateToken :1545) and not preMoveToken or moveToken (grep).",
+   "evidence": "docs/dev/e39/CALIBRATION.md:93 '| updates per route | **one**: `preMoveToken` and `preUpdateToken` once on the mover, `updateToken` and `moveToken` once on every client |'; audit/harness/lib/shim.mjs TOKEN MOVEMENT header 'the order of `preMoveToken` against `preUpdateToken` (here first ...) ... a false from `preMoveToken` (here it cancels'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "642 (LIVE-E39-04)",
+   "claim": "partly, n/a: the 20 steps and their keys are read (CALIBRATION.md:95); each step's coordinates are not.",
+   "verdict": "stands",
+   "why": "The row gives the count, the keys and which step is intermediate or a checkpoint, and no coordinates. The shim's header says 'where a diagonal step falls (the count is read, 20 for L1's route ...)' not read. The module reads these steps in movement-audit.mjs routeOf :119 and movement.mjs passedPath :3252, as said.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:95 '`passed.waypoints`: all 20 grid steps of the route, each `{x, y, action: \"walk\", checkpoint, intermediate, level}`'; scripts/movement-audit.mjs:119 'function routeOf(tokenDoc, was) {'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "643 (LIVE-E39-05)",
+   "claim": "partly, n/a: a displacement's waypoint action 'displace' and teleport true read (CALIBRATION.md:36, :88); the number of points, intermediate and checkpoint not.",
+   "verdict": "stands",
+   "why": "LIVE-H81-03's row records the waypoint's action displace for both the module's placing write and v14's own displacement, and teleport true in updateToken; it records no point count. The GM's put-back by displace at :88 is named in the move's prose without its waypoints. Both 16.11.2026, 14.370.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:36 'the module's own placing write, `update(to, {teleport: true, movementAction: \"displace\", animate: false, <module key>})`: every option arrived in both hooks on both clients, the module's key with them, the waypoint's action `displace`'; :88 'the GM put her back (`move({x: 300, y: 300, action: \"displace\"})`)'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "646 (LIVE-E39-08)",
+   "claim": "partly, n/a: the 22 key names of TokenDocument#movement read (CALIBRATION.md:98), no value of the 14 unmodelled keys.",
+   "verdict": "stands",
+   "why": "The row names the 22 keys, the 14 among them, and records no values. The module's only `constrainOptions` are written by its own put-backs (movement.mjs:1429, bridge-runs-records.mjs:451), not read from the record.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:98 '| `TokenDocument#movement` | 22 keys: id, subpathId, chain, origin, destination, passed, pending, history, split, constrained, recorded, method, constrainOptions, terrainOptions, measureOptions, autoRotate, showRuler, user, state, updateOptions, finished, animation |'; scripts/movement.mjs:1429 'await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "648 (LIVE-E39-10)",
+   "claim": "partly, n/a: the request `options.movement` is seen only in the mover's preUpdateToken (CALIBRATION.md:94); its contents not recorded; the module's routeLegs reads its waypoints.",
+   "verdict": "stands",
+   "why": "The row records where the request appears and nothing of what it holds. routeLegs reads options.movement[id].waypoints and falls back to one leg end to end (movement.mjs:3263-3272), and its comment at :1607 calls the shape not read (LIVE-E39-10). 179c2644 (the runtime L1 ran on 18-19.11) already holds routeLegs, but no paper line names a tier-2 route test's result, so no reading was missed that I could find.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:94 '`options.movement` only in the mover's `preUpdateToken` (the request)'; scripts/movement.mjs:1607 'The request's shape on 14.370 is read here as a list of waypoints - not read on 14.370 (LIVE-E39-10).'; :3272 'return legs.length || start.room === finish.room ? legs : [[start, finish]];'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "650 (LIVE-E39-12)",
+   "claim": "partly, defect: parts 1-2 read with a defect (a stale-copy put-back with diff: false did not land, five roads, r5), part 3 not driven; movement.mjs byte-identical at b5a29e73.",
+   "verdict": "weakened",
+   "why": "The readings exist on origin/claude/e58-local (7875554f) as cited: CALIBRATION.md:153-174 (five roads, nothing written), :176-194 (the GM's socket emitted modifyDocument with x 400, y 300 and diff false; the fresh control failed too), :213 and :221-222 (r5 not written, r1 to the same free square from an in-step copy written). git diff 179c2644 b5a29e73 -- scripts/movement.mjs is empty, so the readings carry. Two things are over-said. (1) Part 1 asks for a plain `update({x, y})` without diff: false; every recorded run carried diff false (test 404 calls putBackWrite, tests-tier2.mjs:27450 '{ animate: false }' through `{ ...options, diff: false }'), so only part 2 is read. (2) The comment movement.mjs:3482-3491 promises 'every coordinate it names sent', and the second probe shows the client did send both (the socket record); what fails is that the write does not land on the server. So the defect stands against the put-back's purpose - the token does not stand where it is sent back - not against 'sent'. And the second probe's stale run and fresh control both failed to (400,300) with no wall in the world (:199-201), so that probe does not single out the copy out of step; only r5 against r1 does. Partly and defect stay, with these limits.",
+   "evidence": "origin/claude/e58-local docs/dev/e39/CALIBRATION.md:191-193 'the GM sent `modifyDocument` with `x: 400, y: 300` in both runs (not (a)); PlayerOne got no write of `x` in either (so (c), by C1's guide) - and **the \"fresh\" control did not reach PlayerOne either**'; :221-222 'r5, a stale copy (the GM's copy set to the free square) asked for the free square with `diff: false`: not written (answer undefined)'; scripts/movement.mjs:3493-3495 'export function putBackWrite(tokenDoc, to, options = {}) { return tokenDoc.update(to, { ...options, diff: false }); }'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "651 (LIVE-E39-13)",
+   "claim": "partly, defect: the default level's name read as 'Level' (LOCAL-REPORT.md:277) against the harness's ''; elevation.base and a levelless token on two floors not read.",
+   "verdict": "weakened",
+   "why": "The line exists on b5a29e73's LOCAL-REPORT.md (the third run, 17.11.2026 evening, 14.370) and the harness does write name '' (futil.mjs:50) under a comment saying the name was not read (:43). But the paper writes only '`defaultLevel0000`, \"Level\"' in a parenthesis about every scene having a floor; it does not say \"Level\" is the level's `name` field, and no other paper line (either branch) records the name. Reading it as the name is likely but inferred, so the result 'defect' (of the harness's model, nothing a player sees) rests on that inference. CALIBRATION.md:109 gives 0-20 (bottom and top), which the item does not ask. The partly stands only on that one unlabelled word; the token's floor on a two-floor scene and `base` are unread, as the reader says.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:277 'v14 every scene has at least one (a new scene: `defaultLevel0000`, \"Level\", read on the sandbox)'; audit/harness/lib/futil.mjs:43 'Not read: its name and its `base`'; :50 'scene.levels = [{ _id: DEFAULT_LEVEL_ID, name: \"\", elevation: { bottom: 0, top: 20, base: 0 }, sort: 0, flags: {} }];'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "652 (LIVE-E39-14)",
+   "claim": "partly, agrees: tier 2 at a table (18.11.2026) passes every tunnel, stairs and Secret Passage test on C1's floorNamed; the console command, a player's crossing and the two-floor refusal not read by name.",
+   "verdict": "stands",
+   "why": "The line exists on origin/claude/e58-local LOCAL-REPORT.md (the run of 18.11.2026, 1372 passed / 187 failed); floorNamed is in 179c2644's passages-gm.mjs at the same line as b5a29e73's (:1343) and the file is byte-identical between them. passageRowFor, which the console's create reaches, calls floorNamed (:1373), so the fixtures' road is the console's. The mapping to the item is the reader's (the delta digest says 'no 9.2 item named'), and three passage tests still fail at a table of unread cause - the reader says both. Partly with 'agrees' for the part read holds.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:366-368 '**Passages: 3 failures left of about 20** - 1037 ... 1096 ... and 1108 ... Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.'; scripts/passages-gm.mjs:1343-1346 'function floorNamed(floors, level) { ... return floors.length === 1 ? (floors[0]?.id ?? null) : null; }'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "653 (LIVE-E39-15)",
+   "claim": "partly, agrees: a GM's change of an open player's role 1 to 2 logged the player out within 5 s and userConnected came once (CALIBRATION.md:30); the Assistant's own lowering, a same-role write, 1 to 3 and the hook order not read.",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:30 (LIVE-E30-05, 16.11.2026) records exactly that case and :29 the Assistant's own raise refused. None of the unread cases appears in either copy of the paper or the digests. The harness's rule (cluster.mjs:528, 00-boot D6 :336) matches the one case read.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:30 'the GM changed PlayerTwo's role 1 to 2 while PlayerTwo's page was open, and back | the hook came once, `(user, false)` - two arguments - with `user.active` already false inside it. The role change: PlayerTwo's page went from `/game` to `/join` within 5 s (logged out)'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "657 (LIVE-E39-19)",
+   "claim": "partly, agrees: the update() half (one options object to two moves throws 'Cannot redefine property') read (LOCAL-REPORT.md:136-140); move()'s half not.",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:136-140 on b5a29e73 (17.11.2026) records v14's `_preUpdate` defining the id on the caller's options and the throw; commit a6b25c51 says the tests kept one PLACE for a move out and back. The paper does not separate move() from update() calls, but it reads v14's _preUpdate source, which is update()'s; whether move() passes the same object is unread - the shim says so (`move` builds its own options, shim.mjs move()). The delta's `move()` answering false is a different question, as the reader says.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:136-139 'client/documents/token.mjs:1742 `options._movement ??= {}` and :2009 `Object.defineProperty(options._movement, this.id, { value: move, enumerable: true })` - not configurable - so one options object passed to two moves of the same token throws \"Cannot redefine property: <token id>\" on the second'; audit/harness/lib/shim.mjs move(): 'await this.update(end, { ...rest, movement });'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "660 (LIVE-F118-01)",
+   "claim": "partly, defect: S7-2 at a table (16.11.2026, 1.2.116) found the chat-log copy's Approve, Change to, Refuse doing nothing; fixed in 1.2.118 (F118); the fixed state not read.",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:428 on b5a29e73 records the defect (a real mouse click, 20 s, no error) and the release notes :62-69 name the fix and LIVE-F118-01 for the real click. The reading predates the fix and the item asks of the fixed state, so it settles only the item's premise; read as partly, as the sibling refuters read such pre-fix reports (verify-live-items-429, item 429). The L1 delta ran on 179c2644, before F118, so nothing later reads it. The identifiers exist at the lines given (gm-bridge.mjs:102, messenger-app.mjs:684, bridge-asks.mjs:1327, en.json:5010, tier-2 tests :25634 and :25687).",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:428 'the ruling card of a player's thread reaches the GM's chat log (\"Foundry tools\") with enabled \"Approve: Hand (+1)\", \"Change to: ...\", \"Refuse\" buttons that do nothing - a real mouse click on the GM's visible copy changed nothing in 20 s (no error)'; .github/release-notes/v1.2.118.md:69 'a real click on v14 is LIVE-F118-01.'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "661 (LIVE-F118-02)",
+   "claim": "partly, defect: the owner's report at a table (17.11.2026) of no frame on the second GM's token; fixed in 1.2.118 (own-ring.mjs frameFor); fixed state, role-change redraw and two GMs on a canvas not read.",
+   "verdict": "stands",
+   "why": "The owner's report is quoted in the item (AUDIT :1616) and the release notes :71-81, which also say frames on a canvas with two GMs are LIVE-F118-02 and the role-change redraw is held by no test (:208-210). Pre-fix premise only, as for 660. own-ring.mjs frameFor (:225 call), registerOwnRing :126, diagnoseOwnRings :441, R7790 tests-tier1.mjs:2440 and the tier-2 test :25746 exist.",
+   "evidence": ".github/release-notes/v1.2.118.md:71-72 '**A second GM's character has its frame** (F118; the owner, 17.11.2026: \"Nowy blad - na tokenie drugiego gma nie ma ramki\").'; :81 'frames on a canvas with two GMs are LIVE-F118-02.'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "662 (LIVE-F118-03)",
+   "claim": "partly, defect: the owner's report (17-18.11.2026) on the Facilities tile's description and grey print; fixed in 1.2.118; contrast after the fix measured in Chromium (C), the fixed window not seen at a table.",
+   "verdict": "stands",
+   "why": "The release notes :83-97 quote the owner and record the contrast as measured in Chromium on the harness's drawing, 'not at a table (LIVE-F118-03)'. Pre-fix premise only. The words the item names exist in both languages: en 'Free.' :1021 / pl 'Za darmo.' :1044, en 'Not here.' :4067 / pl 'Nie tutaj.' :4342; rest.mjs restRoomsSentence :83, action-facilities.mjs priceLine :46, .drpg-choice.unavailable danganronpa.css:13112.",
+   "evidence": ".github/release-notes/v1.2.118.md:84-85 '(F118; the owner, 17-18.11.2026: \"Opis nie uwzglednia akcji pokoju gma i projektow. Szary druk pod poszczegolnymi akcjami, zwlaszcza restow wymaga poprawy.\")'; :95-96 'Measured in Chromium on the window as the harness drew it (audit/style-harness.html, docs/dev/f118/shots), not at a table (LIVE-F118-03).'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "562 (LIVE-E40-02), open",
+   "claim": "open: no season reset on a played copy world has been run; the nearest is checkState() on the seed world.",
+   "verdict": "stands",
+   "why": "Searched b5a29e73's and e58-local's LOCAL-REPORT.md and CALIBRATION.md, PERF-READINGS.md and the three digests for LIVE-E40-02, 'season' and a copy world: origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:448 and :556 say E40's season wipe needs a copy world and was not run. No missed reading. The text-stale note also holds: the Polish button is 'Zresetuj sezon', the item says 'Resetuj sezon'.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:556 '| E40's season wipe on a copy world | not run | the sandbox holds one world, `drpg-qa-gate`.'; lang/pl.json:6857 '\"resetButton\": \"Zresetuj sezon\",'",
+   "status_after": "open"
+  },
+  {
+   "ref": "644 (LIVE-E39-06), open",
+   "claim": "open: a plain update({x, y})'s movement options not read; CALIBRATION.md:28 and :36 are near but not it.",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:28 reads that an update naming a movement field where the token stood was sent with `{_id}` and :36 that 'A walk: `teleport: false`' - the walk's road is not said, so it cannot be taken as update({x, y}); neither records options.movement or _movement. The third probe of e58-local (:206-215) wrote plain updates but recorded positions only. No missed reading.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:36 'A walk: `teleport: false`'; origin/claude/e58-local docs/dev/e39/CALIBRATION.md:215 'PlayerOne's `updateToken` record: `[{\"keys\":[\"x\",\"_id\"],\"at\":[300,300]}, ...' (keys and positions only)",
+   "status_after": "open"
+  },
+  {
+   "ref": "645 (LIVE-E39-07), open",
+   "claim": "open: token.movement after a name or flag change not read.",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:28 records that a no-op on a token's name or a flag is not sent and a mixed update's hook gets only the changed key; nothing on TokenDocument#movement before and after. No digest entry names LIVE-E39-07. No missed reading.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:28 'A token: a no-op on its name or a flag not sent (`undefined`); a mixed update's hook got only the changed key'",
+   "status_after": "open"
+  },
+  {
+   "ref": "655 (LIVE-E39-17), open",
+   "claim": "open: a removal of a missing flag (unsetFlag, ForcedDeletion) not read; CALIBRATION.md:27 read a removal of an existing key.",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:27 (LIVE-E30-03) covers unsetFlag and _del of keys that exist and a write of a value already there; origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:219 is about ownership entries. No line reads the removal of a key that is not there. No missed reading.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:27 'Both hooks got the operator instance (ForcedDeletion after `unsetFlag` and `_del` ...) ... The write of a value already there: `preUpdateActor` ran, then nothing - not sent'",
+   "status_after": "open"
+  },
+  {
+   "ref": "656 (LIVE-E39-18), open",
+   "claim": "open: a player's and an Assistant's userConnected entry not read; only the GM's (item 52).",
+   "verdict": "stands",
+   "why": "The only userConnected(true) reading is the GM's entry seen on PlayerOne's page (origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:624, CALIBRATION.md:138-140), which the item names as read. No paper line gives a player's or an Assistant's entry on the GM's page. No missed reading.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:624 '| 52 (LIVE-E04-12) | measured | on PlayerOne's page as the GM's page loaded: `userConnected(GM, true)` (active already) at +4.8 s, `bridge.gmReady` at +10.5 s'",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 1 (count)",
+   "claim": "27 numbered items at AUDIT lines 1586-1620: 561-563, 600-601, 640-657, 660-663.",
+   "verdict": "stands",
+   "why": "Counted by script: 27 item heads, the same numbers in order.",
+   "evidence": "audit/AUDIT-1.2.42.md:1586-1620 heads '561. 562. 563. 600. 601. 640. ... 657. 660. 661. 662. 663.' (27)",
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation 6 (item 650 the one defect against today's module)",
+   "claim": "At 14.370 a diff: false put-back from a GM copy out of step did not land, against movement.mjs:3482-3491; the cause (client or server) not read.",
+   "verdict": "weakened",
+   "why": "The fact stands (r5 against r1, origin/claude/e58-local docs/dev/e39/CALIBRATION.md:213, :221-222; movement.mjs byte-identical from 179c2644). But the second probe read the client side: the GM's socket emitted modifyDocument with both coordinates and diff false, so the comment's 'sent' holds and what fails is the server applying it; 'client or server not read' understates what was read, and the defect is against the put-back's aim rather than the literal 'sent'. Not yet a finding with a table scenario driven (part 3 needs a wall and a race); minor at most, as the reader's l1 block gives it.",
+   "evidence": "origin/claude/e58-local docs/dev/e39/CALIBRATION.md:191 'the GM sent `modifyDocument` with `x: 400, y: 300` in both runs (not (a))'; :193-194 'Not read: why the server does not apply it.'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "observation 7 (no module code reads _priorRegions, _regions, _movement, preMoveToken, moveToken)",
+   "claim": "git grep over scripts/ outside the tests finds none of these; the module reads passed.waypoints and options.movement[id].waypoints.",
+   "verdict": "stands",
+   "why": "Repeated: git grep for those names over scripts/ excluding tests* returns nothing; passedPath :3252, routeOf :119 and routeLegs :3263 read what is said.",
+   "evidence": "scripts/movement.mjs:3266 'const asked = options?.movement?.[tokenDoc.id]?.waypoints;'; git grep '_priorRegions|_movement|preMoveToken' -- scripts ':!scripts/tests*' (no output)",
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation 8 (two comments against readings, nit)",
+   "claim": "futil.mjs:40-44 says the default level's name was not read; movement-audit.mjs:113-115 says tokenDoc.movement is not modelled by the harness, which D4 models.",
+   "verdict": "stands",
+   "why": "Both comments read as quoted; client-entry.mjs:1998 sets `_drpgMovement` from options._movement, which shim.mjs's `get movement()` returns. The first rests on the same unlabelled 'Level' as 651, so it is a nit at most either way.",
+   "evidence": "scripts/movement-audit.mjs:114-115 'The waypoints are the mover's (`tokenDoc.movement`, a field of v14's move not modelled by the harness'; audit/harness/client-entry.mjs:1998 'if (msg.embeddedName === \"Token\") doc._drpgMovement = options._movement?.[u._id] ?? null;'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 9 (text stale, 562)",
+   "claim": "The Polish button is 'Zresetuj sezon', not 'Resetuj sezon'; 563's 'Kogo stracić' stays as the fieldset legend.",
+   "verdict": "stands",
+   "why": "lang/pl.json carries 'Zresetuj sezon' and the item's Polish text says 'Resetuj sezon'; 'Kogo stracić, jeśli stół się pomylił' is the legend key executedIfWrong.",
+   "evidence": "lang/pl.json:6857 '\"resetButton\": \"Zresetuj sezon\",'; lang/pl.json:2621 '\"executedIfWrong\": \"Kogo stracić, jeśli stół się pomylił\",'",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 25,
+  "stands": 22,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  "650 part 1 (a plain update({x, y}) from a copy out of step, no diff: false) - every recorded run carried diff false; and why 14.370's server does not apply the sent write. Settles with LIVE-E39-12's l1 recipe plus one run without diff: false.",
+  "651 - whether \"Level\" at LOCAL-REPORT.md:277 is the default level's `name`; settles with `canvas.scene.levels.get('defaultLevel0000').name` on a fresh scene (LIVE-E39-13).",
+  "648 - whether any tier-2 route test (R7740's road, routeLegs, present in 179c2644) passed at L1's table on 18.11.2026; the paper names no such result.",
+  "The observations carry no severity field; those checked were those that state a defect or a stale text."
+ ]
+}
