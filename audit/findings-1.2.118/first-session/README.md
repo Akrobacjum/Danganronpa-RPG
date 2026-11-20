@@ -40,3 +40,9 @@ Alone, before the readers started, tiers 0-1 took 549.2 s (`node run-tests.mjs -
 0 failed, 16 skipped, 0 red) and `npm run quick` 108.6 s. A base run started beside ten readers is likely to end the
 same way: the suite's eight shards one at a time (`DRPG_SUITE_SHARD=i/8 node run-all.mjs suite`, then
 `node suite-merge.mjs <dir>`) and the scenarios one at a time are the road that fits a loaded machine.
+
+## One writer
+
+This folder came in with a merge of the second session's 19aa98a3 (no history rewritten). From this commit on the
+first session writes to this branch only when the coordinator asks it to: the second session is its one writer, and
+the resume state in `../README.md` is its to keep.
