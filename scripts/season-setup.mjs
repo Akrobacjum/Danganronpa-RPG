@@ -62,7 +62,7 @@ import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
 import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
-import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow } from "./gm-campaign.mjs";
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -1176,7 +1176,10 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             primary: {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 // The scenes part read with the rest (E101 item 5): null where it is not drawn.
-                callback: (e, b, d) => ({ ...readSeasonForm(d), scenes: scenesTab.readScenesTab(d.element) })
+                /* only what the GM changed (`untouchedKept`; the line claude/season-119): a field left as drawn takes the
+                   clock or the safeword as they stand at the press, so a time step, a trial started or another GM's
+                   safeword written while this window stood open is not written back */
+                callback: (e, b, d) => ({ ...untouchedKept(d.element.querySelector("form"), readSeasonForm(d), { safeword: safeword() }), scenes: scenesTab.readScenesTab(d.element) })
             },
             close: { role: "cancel", action: "close" }
         },
@@ -1211,8 +1214,11 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     });
 
     if (endAsked) return endTheChapter(() => import("./chapter.mjs").then(m => m.openChapterEndDialog()));
-    if (!result || result === "close") return null;
+    /* Read before the null (the line claude/season-119, 20.11.2026; the audit of 1.2.118, controls-10-setup-config): the
+       button closes the window, and a window closed answers null (`rejectClose: false`), so with this line after the
+       return below the reset never opened - since E101 this button is its one door. As `endAsked` above is read. */
     if (resetAsked) return (await import("./season-wipe.mjs")).resetSeason();
+    if (!result || result === "close") return null;
 
     /* THE SCENES' TWO BACKSTOPS (E101 item 5; Room setup's Apply ran them until then): one scene for both roles, and the
        trial hall linked, relinked or unlinked while a Class Trial runs (E13 fix r1-F2). Save is held with the reason while
