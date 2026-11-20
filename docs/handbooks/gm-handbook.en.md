@@ -763,6 +763,8 @@ The Season checklist's rooms row names a scene with rooms that is not ready. Set
 > [!WARNING]
 > A scene with rooms and Foundry vision still on renders as a **black screen for players** on v14 and gives no reason. It is the most common "it is broken" report.
 
+**A reset ahead of your computer's clock.** Each GM's browser stamps what it writes by its own computer's clock. A season reset made on a GM computer whose clock runs ahead is stamped ahead of everyone else's. Until 1.2.119 every room found after such a reset was lost on the GM's side, and a reload did not bring it back. Now the rooms are kept, and the GM is told once, in a notice that stays up: *The GM store "discovery" holds a reset n minutes ahead of this computer's clock.* Check the date and time on every GM's computer. Rooms lost before 1.2.119 are not given back: tick them again on Room setup's **Fog** tab (section 9.1).
+
 **Token visibility** (**Players only see who is in their room**) works on the tokens themselves, so doorways, archways and wall-less maps do not leak. A revealed Remnant is visible only to the people who have found it themselves.
 
 **Door controls.** With token vision off, Foundry would show a player the control of every door on the map. The module shows a player only the doors of rooms the fog leaves clear or veiled for them on the floor on screen, the door out of the room they stand in included, and never a secret door there. Who may open a door is still Foundry's.

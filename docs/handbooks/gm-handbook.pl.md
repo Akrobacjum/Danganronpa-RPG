@@ -763,6 +763,8 @@ Wiersz pokoi Listy kontrolnej sezonu wymienia scenę z pokojami, która nie jest
 > [!WARNING]
 > Scena z pokojami i włączonym widzeniem Foundry pokazuje się graczom na v14 jako **czarny ekran** i nie mówi dlaczego. To najczęstsze zgłoszenie „jest zepsute”.
 
+**Reset późniejszy niż zegar twojego komputera.** Przeglądarka każdego GM-a stempluje to, co zapisuje, zegarem własnego komputera. Reset sezonu zrobiony na komputerze GM-a, którego zegar się spieszy, ma stempel późniejszy niż u wszystkich innych. Do wersji 1.2.119 każdy pokój odkryty po takim resecie ginął po stronie GM-a i wczytanie strony od nowa go nie przywracało. Teraz pokoje zostają, a GM dostaje raz komunikat, który nie znika sam: *Magazyn GM-a „discovery” zawiera reset o n minut późniejszy niż zegar tego komputera.* Sprawdź datę i godzinę na komputerze każdego GM-a. Pokoi utraconych przed 1.2.119 to nie przywraca: zaznacz je znowu w zakładce **Mgła** okna **Ustawienia pokoi** (sekcja 9.1).
+
 **Widoczność tokenów** (**Gracze widzą tylko osoby w swoim pokoju**) działa wprost na tokenach, więc ani drzwi, ani arkady, ani mapy bez ścian niczego nie zdradzają. Ujawniony Remnant widzą tylko ci, którzy sami go znaleźli.
 
 **Ikony drzwi.** Przy wyłączonym token vision Foundry pokazałoby graczowi ikonę każdych drzwi na mapie. Moduł pokazuje graczowi tylko drzwi pokoi, które mgła zostawia mu czyste albo za zasłoną na piętrze na ekranie, łącznie z drzwiami z pokoju, w którym stoi, a sekretnych drzwi nie pokazuje mu tam nigdy. To, kto może drzwi otworzyć, nadal rozstrzyga Foundry.

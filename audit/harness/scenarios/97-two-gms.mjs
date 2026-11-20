@@ -15,6 +15,10 @@
  *      client reads gm2, and the seed GM back makes it the primary again (A4).
  *   B  the GMs' store both ways: a row gm2 writes is held by gm, a row gm writes by gm2, each by the store's own
  *      exchange (gm-store.mjs), and a removal on one is a removal on the other (B1-B3).
+ *   I  the owner's world of 20.11.2026 (1.2.119 line F): two GM users, gm2 gone, a season reset's discovery cut two
+ *      hours ahead of gm's clock, as a reset made on gm2's computer with its clock ahead writes it; p1 walks Aiko into
+ *      a room, and gm's record holds it, after gm's reload too, p1's copy holds it, and gm is told once (I1, I2). Last:
+ *      the watermark stays ahead for the rest of the run.
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -326,6 +330,42 @@ export async function run(api) {
         madeH2.picked === true && J(onGmH2) === J([[IDS.gm]]) && onGm2H2 === 0, J({ picked: madeH2.picked, onGmH2, onGm2H2 }));
     await gm.eval(`const P = ${imp("projects.mjs")}; if (${J(madeH.id)}) await P.deleteProject(${J(madeH.id)}).catch(() => {}); return true;`, { timeout: 60000 });
     await settle(1000);
+
+    /* ------------------------------------------------------------------ I */
+    /* 1.2.119 line F (the owner's item #2 of 20.11.2026: the GM's fog stopped showing the rooms the players found, F5 did
+       not bring them back; two GM users, one connected). On The Forge `game.time.serverTime` is an uptime and each GM
+       browser stamps on its own clock (config.mjs `epochClock`, E90), so a season reset made on the other GM's computer
+       with its clock ahead writes `resetCuts.discovered` ahead of this GM's (season-exceptions.mjs `resetCutPatch`,
+       through clock.mjs `setClock` here). On b5a29e73 the walk below left gm's record empty and nobody was told (I1, I2
+       red); after the reload gm held only the room the token stands in, which the load's seed writes at a weak stamp. */
+    phase("I a reset cut ahead of the GM's clock, the second GM away", { flow: "discovery-ledger" });
+    await api.disconnect("gm2");
+    await settle(1500);
+    const LEDGER = `return (${imp("settings.mjs")}).discoveryLedger()?.["${IDS.scene}"]?.["${IDS.aiko}"] ?? [];`;
+    const setI = await gm.eval(`const C = ${imp("clock.mjs")}, M = ${imp("movement.mjs")};
+        const scene = game.scenes.get("${IDS.scene}"), t = scene.tokens.get("TOKAIKO000000000");
+        await t.update(M.positionIn("Dorm A", t), { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setActions(t.actor, 3); await t.actor.setFlag("${MOD}", "freeMoveUsed", false);
+        await new Promise(r => setTimeout(r, 1200));
+        globalThis.__notifications.length = 0;
+        const cut = Date.now() + 2 * 3600 * 1000;
+        await C.setClock({ resetCuts: { ...(C.getClock().resetCuts ?? {}), discovered: cut } });
+        await new Promise(r => setTimeout(r, 600));
+        return { cut, from: M.roomOfToken(t), to: M.positionIn("Cafeteria", t), held: (${imp("settings.mjs")}).discoveryLedger()?.["${IDS.scene}"]?.["${IDS.aiko}"] ?? [] };`, { timeout: 60000 });
+    const walkedI = await p1.eval(`const M = ${imp("movement.mjs")}; const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
+        await t.update({ x: ${setI.to?.x}, y: ${setI.to?.y} }); await new Promise(r => setTimeout(r, 3000)); return M.roomOfToken(t);`, { timeout: 60000 });
+    const onGmI = await gm.eval(LEDGER);
+    const toldI = await gm.eval(`return globalThis.__notifications.map(n => n.level + (n.opts?.permanent ? " (permanent)" : "") + ": " + n.msg);`);
+    await reload("gm");
+    await settle(2000);
+    const reloadedI = await gm.eval(LEDGER);
+    const onP1I = await p1.eval(LEDGER);
+    check("I1: two GM users, one away, a reset's cut two hours ahead of the GM's clock: the room p1 walks Aiko into is in gm's record, after gm's reload too, and in p1's copy (1.2.119 line F)",
+        setI.from === "Dorm A" && !setI.held.includes("Cafeteria") && walkedI === "Cafeteria"
+            && onGmI.includes("Cafeteria") && reloadedI.includes("Cafeteria") && onP1I.includes("Cafeteria"),
+        J({ setI, walkedI, onGmI, reloadedI, onP1I }));
+    check("I2: gm is told once, in a notice that stays up, that the discovery store holds a reset 120 minutes ahead of its clock (1.2.119 line F)",
+        toldI.filter(text => /^warn \(permanent\): /.test(text) && /"discovery"/.test(text) && /120 minutes/.test(text)).length === 1, J(toldI));
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
