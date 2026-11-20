@@ -342,6 +342,8 @@ Gdy zaczyna się Noc, na końcu nocnego Eclipse albo przy **Pomiń Eclipse** z W
 
 Gdy zaczyna się następny dzień, na początku porannego Eclipse albo przy **Pomiń Eclipse** z Nocy, jeśli nie prowadzisz porannego Eclipse, każdy widzi tę samą planszę z tytułem „Dzień N”, z nastrojem nowego dnia, a pod nim twoje zdanie na poranek z pola **Zdanie na następny poranek** w Edytuj kampanię. Puste zdanie niczego nie pokazuje, a przy dwóch GM-ach to zdanie GM-a, który przesuwa zegar. Koniec porannego Eclipse nie pokazuje żadnej planszy, choć numer dnia i sesja wciąż zmieniają się na jego końcu, a **Zakończ bez przesuwania zegara** przy porannym Eclipse oddaje twoje zdanie z powrotem do pola. Przy następnym poranku z ekranu Końca rozdziału pojawiają się obie plansze, po wyjściu z rozprawy. Edytuj kampanię nie pokazuje żadnej. Esc pomija planszę, a przełącznik **Sekwencje na cały ekran** wyłącza to wszystko (sekcja 15.3).
 
+Gdy przesuwasz zegar z pory dnia, w której ogłoszono ciało (**Ogłoś ciało**, sekcja 13.4), każdy widzi planszę dnia dwa razy z rzędu, jak przy końcu rozdziału: „Koniec dnia N”, a potem „Dzień N”. Plansze grają raz na każde ogłoszenie, nie wracają po cofnięciu zegara ani po przeładowaniu, a numer dnia się przez nie nie zmienia. Gdy ten sam ruch zegara i tak pokazuje własną planszę (początek Nocy albo następnego dnia), pokazuje w sumie dwie plansze, nie trzy. Przy ciele ogłoszonym w Nocy początek porannego Eclipse pokazuje swoją planszę jak zawsze, a jego koniec te dwie. Edytuj kampanię nie pokazuje żadnej, a ekran, który dołączy później, ich nie odtwarza.
+
 ---
 
 ## 5. Akcje i budżety

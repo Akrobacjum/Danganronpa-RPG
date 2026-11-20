@@ -14,7 +14,12 @@
  *   morningEnd      its end with the advance: no board;
  *   evening         Evening to Night by Next, no Eclipse: one end-of-day board each;
  *   morning         Night to Morning by Next, no Eclipse: one start-of-day board each;
- *   edit            Edit campaign's Evening to Night and Night to Morning with the day + 1: nothing.
+ *   edit            Edit campaign's Evening to Night and Night to Morning with the day + 1: nothing;
+ *   body            (1.2.119, the owner's option B) a body announced in the Afternoon of this day and chapter (its stamp
+ *                   in `bodiesFound`, written ten minutes old so no browser's announcement hook wakes: body.mjs
+ *                   `BODY_ANNOUNCED_STALE_MS`), then Next: one end-of-day and one start-of-day board each; the clock
+ *                   put back to the Afternoon and Next again: nothing; a second body announced in the Evening, then Next
+ *                   into Night: one of each, two in all, not the Night's board stacked on them.
  * Everything the run moved is put back.
  *
  * What this cannot see: the boards' frames (jsdom draws nothing); their order against the trial's exit at a chapter's
@@ -33,7 +38,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     const cut = () => Promise.all(Object.values(clients).map(c => c.eval(`(${imp("sequence.mjs")}).endSequence("cut"); return true;`)));
     /* One move on the GM: every browser's counts before and after it, as [end boards, start boards] started; `lines`
        reads the start board's title and line on each browser before the cut. */
-    const move = async (code, { lines = false } = {}) => {
+    const move = async (code, { lines = false, skip = false } = {}) => {
         await cut();
         const was = {};
         for (const [who, c] of Object.entries(clients)) was[who] = await counts(c);
@@ -41,6 +46,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
             ${code}
             return true;`, { timeout: 60000 });
         await settle(2500);
+        /* `skip`: the board standing is skipped on every browser (Escape's road), so the one it hands on to starts - two
+           boards in a row take about 11 s otherwise (sequence.mjs `SEQUENCE_TIMES`) */
+        if (skip) {
+            await Promise.all(Object.values(clients).map(c => c.eval(`(${imp("sequence.mjs")}).endSequence("skipped"); return true;`)));
+            await settle(1500);
+        }
         const out = { done };
         for (const [who, c] of Object.entries(clients)) {
             const now = await counts(c);
@@ -55,7 +66,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     phase("set");
     const start = await gm.eval(`const C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}, M = ${imp("monokuma.mjs")};
         const SET = (${imp("settings.mjs")}).SETTINGS;
-        const keep = ["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences", "morningLineDraft"];
+        const keep = ["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "bodiesFound", "readyRound", "sequences", "morningLineDraft"];
         globalThis.__s97 = { clock: foundry.utils.deepClone(C.getClock()),
             actions: game.actors.filter(a => a.type === "character").map(a => [a.id, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]),
             rows: M.actingStudents().map(a => [a.id, foundry.utils.deepClone(G.eclipseMoveStore.get(a.id) ?? null)]),
@@ -109,6 +120,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
         const editMorning = await move(`${form} await G.applyCampaignForm(f({ day: (Number(c.day) || 1) + 1, timeOfDay: "morning" }));`);
         check("edit: Edit campaign's Evening to Night and Night to Morning with the day + 1 play no board on any browser",
             every(editNight, [0, 0]) && every(editMorning, [0, 0]), JSON.stringify({ editNight, editMorning }));
+
+        phase("body");
+        /* A discovery stamp of this day and chapter in the given time of day, written as recordBodyFound files it but ten
+           minutes old, so no browser's BODY_ANNOUNCED_HOOK wakes on it (its listeners act on a fresh one alone). */
+        const found = timeOfDay => `const S = ${imp("settings.mjs")}, U = ${imp("utils.mjs")}, c = C.getClock();
+            const all = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", S.SETTINGS.bodiesFound) ?? {}), key = S.seasonEpoch() + ":" + c.chapter;
+            all[key] = [...(all[key] ?? []), { at: U.serverNow() - 600000, room: "S69", sceneId: null, victimIds: [], deaths: [], by: "S69", day: c.day ?? 1, timeOfDay: "${timeOfDay}" }];
+            await game.settings.set("danganronpa-rpg", S.SETTINGS.bodiesFound, all);`;
+        await gm.eval(`await (${imp("clock.mjs")}).setClock({ phase: "investigation", timeOfDay: "afternoon" }); return true;`);
+        await settle(1500);
+        const next = `await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });`;
+        const leave = await move(`${found("afternoon")} ${next}`, { skip: true });
+        await gm.eval(`await (${imp("clock.mjs")}).setClock({ timeOfDay: "afternoon" }); return true;`);
+        await settle(1500);
+        const again = await move(next, { skip: true });
+        const night = await move(`${found("evening")} ${next}`, { skip: true });
+        const stamp = await gm.eval(`const c = (${imp("clock.mjs")}).getClock(); return [c.timeOfDay, c.bodyBoard?.timeOfDay ?? null, Number(c.nightBoard) === Number(c.day)];`);
+        check("body: Next from the hour a body was announced in plays the day's board twice in a row on every browser, the end board then the start board; back to that hour and Next again nothing; Next from an Evening a body was announced in, into Night, two boards in all",
+            every(leave, [1, 1]) && every(again, [0, 0]) && every(night, [1, 1]) && JSON.stringify(stamp) === JSON.stringify(["night", "night", true]),
+            JSON.stringify({ leave, again, night, stamp }));
     } finally {
         const back = await gm.eval(`const E = ${imp("eclipse.mjs")}, C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}, Q = ${imp("sequence.mjs")};
             const SET = (${imp("settings.mjs")}).SETTINGS, was = globalThis.__s97;

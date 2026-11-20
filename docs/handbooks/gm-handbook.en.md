@@ -342,6 +342,8 @@ When Night begins (at the end of the Night Eclipse, or at **Skip the Eclipse** f
 
 When the next day begins (at the start of the Morning Eclipse, or at **Skip the Eclipse** from Night when you hold no Morning Eclipse), everyone sees the same board, titled "Day N", with the new day's mood and, under it, your morning line from Edit campaign's **Next morning's line** (empty shows nothing; with two GMs, the line of the GM who moves the clock). The Morning Eclipse's end plays no board, and the day's number and the session still move there. **End without advancing** on a Morning Eclipse gives your line back to the field. At the End of chapter screen's next morning both boards play, after the trial's exit. Edit campaign plays neither. Esc skips a board; the **Full-screen sequences** switch turns all of this off (section 15.3).
 
+When you move the clock on from the time of day in which a body was announced (**Announce the body**, section 13.4), everyone sees the day's board twice in a row, as at a chapter's end: "End of day N", then "Day N". It plays once for each announcement, not again after a rewind or a reload, and the day's number does not move for it. When that move plays a board of its own anyway (Night beginning, or the next day beginning), it plays two boards in all, not three. For a body announced at Night, the Morning Eclipse's start plays its board as always, and its end the two boards. Edit campaign plays none, and a screen that joins later does not play them.
+
 ---
 
 ## 5. Actions and budgets

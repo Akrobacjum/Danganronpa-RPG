@@ -1299,6 +1299,16 @@ export const DEFAULT_CLOCK = {
      */
     nightBoard: null,
     /**
+     * THE DISCOVERY'S BOARDS' STAMP, or null (1.2.119, 20.11.2026; the owner's option B: the day's board twice in a row
+     * after the time of day a body was officially announced in): `{ upTo, key, day, timeOfDay }`, written by the GM's
+     * advance that leaves that time of day (clock.mjs `advanceTimeOfDay` through sequence.mjs `bodyBoardPatch`) - the
+     * newest announcement it boarded (`upTo`, the stamp's `at`), the boards' key and the clock it was written with.
+     * transitions.mjs `bodyBoardsOf` plays the boards on the clock at that place that newly carries it; it stays as the
+     * memory of what was boarded, so a rewind and a second advance play nothing again. Public: the announcement's time
+     * is in `bodiesFound` already.
+     */
+    bodyBoard: null,
+    /**
      * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
      * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
      * (`bodyFoundSinceTrial`) so a chapter's second Investigation is not the first trial's body.

@@ -1023,16 +1023,18 @@ export function startBoardStamped(clock) {
 
 /**
  * The start-of-day board on this browser, from the clock's one event that begins a day (transitions.mjs `boardsOf`: the
- * Morning Eclipse's start, or the roll-over when no Morning Eclipse was held; since 13.11.2026): on every connected
+ * Morning Eclipse's start, or the roll-over when no Morning Eclipse was held; since 13.11.2026), and second of the two
+ * after the hour of a body's announcement (1.2.119, `bodyBoardsOf`, under its `key`): on every connected
  * browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). It shows the day `dayStartClock` reads. `students`
  * defaults to the cast as monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
  */
-export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn() } = {}) {
+export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn(), key = null } = {}) {
     if (!clock || !ready) return null;
     const shown = dayStartClock(clock);
     const cast = students ?? (await import("./monokuma.mjs")).studentActors();
     const board = dayStartBoard(shown, cast, shown.morningLine ?? "");
-    return playSequence("dayStart", dayStartKey(shown), ctx => drawDayBoard(ctx, board),
+    // `key`: the discovery's boards play under a key of their own (transitions.mjs `bodyBoardsOf`), so the day's own start stays unplayed
+    return playSequence("dayStart", key ?? dayStartKey(shown), ctx => drawDayBoard(ctx, board),
         { sound: () => playSound("dayStart"), on });
 }
 
@@ -1091,6 +1093,30 @@ export function dayStartPatch({ rolledOver = false, draft = "", mood = null, bef
     return patch;
 }
 
+/**
+ * THE HOUR OF THE BODY'S ANNOUNCEMENT ENDS ON THE DAY'S BOARD (1.2.119, 20.11.2026; the owner: "Po porze dnia w ktorej
+ * oficjalnie odkryto cialo niech pojawia sie ekran startu/konca dnia", and of the three ways offered, B: "Ekran konca
+ * dnia i startu od teraz maja byc tym samym, pamietasz? Ale tak, B. Dwa razy pod rzad"). What the GM's advance (clock.mjs
+ * `advanceTimeOfDay`, Next time of day and an Eclipse's end with the advance) folds into its one write when it leaves the
+ * time of day of an official announcement: `rows` the chapter's discovery stamps (settings.mjs `bodiesFoundIn`, each
+ * `{ day, timeOfDay, at }` from body.mjs `announceBody`; a row with no day is day 1's, as the hold reads it), `before`
+ * the clock the advance leaves, `after` the one it moves to. A row counts when it is of `before`'s day and time of day,
+ * is not the suite's (`rehearsal`), and is newer than the last one boarded (`before.bodyBoard.upTo`), so a rewind and a
+ * second advance, or a reload, plays nothing again, and a second announcement in the chapter plays its own. The stamp,
+ * `bodyBoard: { upTo, key, day, timeOfDay }`, is the newest such row's time, a key for the boards' sequences and the
+ * clock it is written with; transitions.mjs `bodyBoardsOf` plays the boards on a clock that carries it at that place.
+ * It stays on the clock as the memory of what was boarded. Answers `{ bodyBoard }` or `{}`. Pure. R7881.
+ */
+export function bodyBoardPatch({ before = {}, rows = [], after = {} } = {}) {
+    const done = Number(before?.bodyBoard?.upTo);
+    const day = Number(before?.day ?? 1);
+    const left = (rows ?? []).filter(r => r && r.rehearsal !== true && Number(r.day ?? 1) === day && r.timeOfDay === before?.timeOfDay
+        && Number.isFinite(Number(r.at)) && !(Number(r.at) <= done));
+    if (!left.length) return {};
+    const upTo = Math.max(...left.map(r => Number(r.at)));
+    return { bodyBoard: { upTo, key: `${before?.season ?? ""}:${before?.chapter ?? ""}:${upTo}`, day: Number(after?.day ?? day), timeOfDay: after?.timeOfDay ?? null } };
+}
+
 /* THE SCHOOL'S MOOD (E94 C4; the owner's word of 12.11.2026: "liczony z proporcji cale hope uczniow vs hope monocubow +
    despair monokumow + despair overflow. Matma tajna, jedynie widoczny nastroj"). Three words from one share: the living
    students' Hope over the whole - that Hope, the Monocubs' Hope, the Monokumas' Despair and the Overflow count - against
@@ -1144,7 +1170,8 @@ export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(
 /**
  * The end-of-day board on this browser, when Night begins (transitions.mjs `boardsOf`, since 13.11.2026: the Night
  * Eclipse's end, or Evening to Night with none) and at a chapter's end with the next morning, before the start-of-day
- * board, which it then hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off,
+ * board, which it then hands on to (`then`); so too after the hour of a body's announcement (1.2.119, transitions.mjs
+ * `bodyBoardsOf`, under its `key`). About 6 s, Esc earlier; still under reduced motion; with the switch off,
  * nothing plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays
  * until closed (the plan's C3). Since F118 (18.11.2026) it is the day's board (`drawDayBoard`), and the Evening's own
  * summary is put up beside it (day-summary.mjs `sumUp`). `before` is the clock of the day that ends, `clock` the new one;
@@ -1152,10 +1179,11 @@ export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(
  * `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and the notice history is a setting). Answers what
  * `playSequence` answered.
  */
-export async function playDayEnd(before, clock = getClock(), { on = sequencesOn(), then = null, students = null, keep = true } = {}) {
+export async function playDayEnd(before, clock = getClock(), { on = sequencesOn(), then = null, students = null, keep = true, key = null } = {}) {
     if (!before || !clock || !ready) { then?.("none"); return null; }
     const board = await dayEndBoardFor(before, clock, { students });
-    const played = playSequence("dayEnd", `dayEnd:${before.season ?? ""}:${board.day}:${before.session ?? ""}`, ctx => drawDayBoard(ctx, board),
+    // `key` as `playDayStart`'s: the discovery's end board leaves the day's own end at Night to play
+    const played = playSequence("dayEnd", key ?? `dayEnd:${before.season ?? ""}:${board.day}:${before.session ?? ""}`, ctx => drawDayBoard(ctx, board),
         { sound: () => playSound("dayEnd"), on, then });
     if (played === null) then?.("none");
     if (played && on && keep) {

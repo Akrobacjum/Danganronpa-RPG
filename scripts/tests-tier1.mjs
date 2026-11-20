@@ -57492,7 +57492,7 @@ const INVARIANTS = [
             mood: [el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null, /\d/.test(el.querySelector(".drpg-seq-mood")?.textContent ?? "")],
             quiet: Boolean(quiet.querySelector(".drpg-seq-mood")),
             thens,
-            order: /playDayEnd\(before, clock, \{ on,(?: keep,)? then: \(\) => playDayStart\(clock/.test(heard)
+            order: /playDayEnd\(before, clock, \{ on,(?: keep,)?(?: key: endKey,)? then: \(\) => playDayStart\(clock/.test(heard)
         }), stableJson({
             title: true, parts: ["drpg-seq-day-title", "drpg-seq-day-sub", "drpg-seq-cast", "drpg-seq-mood"], cast: ["Aiko Hoshino", "Mio Tsukishiro"],
             gone: 0, nums: 0, keys: [], mood: ["uneasy", false], quiet: false,
@@ -57712,6 +57712,101 @@ const INVARIANTS = [
             writes: { advance: true, start: true, endGivesBack: true, cleared: true },
             defaults: null
         }), "[the Morning Eclipse's start patch; its end's; its end's with a line written since; a move into Night; another move; the board's day, session and time during the Morning Eclipse; another Night; a Night Eclipse; the start stamp read on four clocks; the keys at the start and the end; the late road during the Eclipse; the writes; the default]");
+    }],
+    ["R7880 - the hour a body was officially announced in ends on the day's board twice in a row, on every browser, once (scripts/transitions.mjs `bodyBoardsOf`, `onClockHeard`; scripts/sequence.mjs `playDayEnd`, `playDayStart`; the owner's words for 1.2.119: \"Po porze dnia w ktorej oficjalnie odkryto cialo niech pojawia sie ekran startu/konca dnia\", option B, \"Dwa razy pod rzad\"): a move of the clock stamped for the discovery (`bodyBoard`, written by the GM's advance) plays the end board and then the start board, as a chapter's end does, under keys of its own, so the day's real end at Night and its real start still play; Evening to Night, the roll-over and the Night Eclipse's end that carry it play two boards in all, not three or four; heard again, or a clock with no stamp or one of another hour, nothing", async () => {
+        /* 20.11.2026 (1.2.119 line D). Hand-built clocks heard on this browser alone (DOM only, R3712), under reduced
+           motion, as R5890 does; each move read by the boards it started (perf-counters.mjs `sequence.dayEnd`,
+           `sequence.dayStart`), the first board skipped (Escape's road, `endSequence("skipped")`) so the second, which
+           follows it, starts. A sequence starts once per key on a page, so the day is the first from 950, in steps of 4,
+           whose keys this page has not started (shard 1 runs tiers 0-1 more than once in one boot). */
+        const S = await import("./sequence.mjs"), T = await import("./transitions.mjs"), P = await import("./perf-counters.mjs");
+        if (typeof T.bodyBoardsOf !== "function") { ok(false, "transitions.mjs has no bodyBoardsOf"); return; }
+        const c = (day, timeOfDay, extra = {}) => ({ season: "R7880", session: day, day, timeOfDay, phase: "investigation", eclipse: false, ...extra });
+        const ownEnd = n => `dayEnd:R7880:${n}:${n}`, ownStart = n => `day:R7880:${n}:${n}`;
+        const fresh = d => [d, d + 1, d + 2, d + 3].every(n => !S.sequenceStarted("dayEnd", ownEnd(n)) && !S.sequenceStarted("dayStart", ownStart(n))
+            && !S.sequenceStarted("dayEnd", `body:R7880:${d}:${n}:end`));
+        let d = 950;
+        while (!fresh(d)) d += 4;
+        const st = (day, timeOfDay, at) => ({ upTo: at, key: `R7880:${d}:${at}`, day, timeOfDay });
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const counts = () => { const n = P.snapshot(); return [n["sequence.dayEnd"] ?? 0, n["sequence.dayStart"] ?? 0]; };
+        const wait = async () => { await settle(); await new Promise(r => setTimeout(r, 300)); };
+        const read = {};
+        // one move: [end boards started, start boards started] over both boards, the first skipped so the second follows
+        const move = async (name, lead, after) => {
+            for (const clock of lead) T.onClockHeard(clock, { on: false, still: true });
+            S.endSequence("cut");
+            const was = counts();
+            T.onClockHeard(after, { on: true, still: true, keep: false });
+            await wait();
+            S.endSequence("skipped");
+            await wait();
+            const now = counts();
+            read[name] = [now[0] - was[0], now[1] - was[1]];
+            S.endSequence("cut");
+        };
+        let keys = null;
+        try {
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            const afternoonBody = st(d, "evening", d * 10 + 1);
+            await move("hour", [c(d, "afternoon")], c(d, "evening", { bodyBoard: afternoonBody }));
+            const ownKeysFree = [S.sequenceStarted("dayEnd", ownEnd(d)), S.sequenceStarted("dayStart", ownStart(d))];
+            /* heard again by a page reloaded after it: the stamp on the clock it found at ready (`seen`), its boards never
+               started here, and the rewind and Edit campaign's hour forward, which write none */
+            const reloaded = st(d, "evening", d * 10 + 7);
+            await move("again", [c(d, "afternoon", { bodyBoard: reloaded })], c(d, "evening", { bodyBoard: reloaded }));
+            await move("laterNight", [], c(d, "night", { nightBoard: d, bodyBoard: afternoonBody }));
+            await move("night", [c(d + 1, "evening", { bodyBoard: afternoonBody })], c(d + 1, "night", { nightBoard: d + 1, bodyBoard: st(d + 1, "night", d * 10 + 2) }));
+            await move("rollOver", [], c(d + 2, "morning", { dayBoard: d + 2, bodyBoard: st(d + 2, "morning", d * 10 + 3) }));
+            await move("nightEclipseEnd", [c(d + 2, "evening", { eclipse: true, bodyBoard: st(d + 2, "morning", d * 10 + 3) })],
+                c(d + 2, "night", { nightBoard: d + 2, bodyBoard: st(d + 2, "night", d * 10 + 4) }));
+            await move("noStamp", [c(d + 3, "morning")], c(d + 3, "noon"));
+            await move("otherHour", [c(d + 3, "noon", { bodyBoard: st(d + 3, "morning", d * 10 + 5) })], c(d + 3, "afternoon", { bodyBoard: st(d + 3, "morning", d * 10 + 6) }));
+            keys = { ownKeysFree, bodyKeys: [S.sequenceStarted("dayEnd", `body:R7880:${d}:${d * 10 + 1}:end`), S.sequenceStarted("dayStart", `body:R7880:${d}:${d * 10 + 1}:start`)] };
+        } finally {
+            S.endSequence("cut");
+            T.onClockHeard(getClock(), { on: false, still: true });
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson({ read, keys }), stableJson({
+            read: {
+                hour: [1, 1], again: [0, 0], laterNight: [1, 0], night: [1, 1], rollOver: [1, 1], nightEclipseEnd: [1, 1],
+                noStamp: [0, 0], otherHour: [0, 0]
+            },
+            keys: { ownKeysFree: [false, false], bodyKeys: [true, true] }
+        }), "[each move: [end boards started, start boards started]; the day's own keys after the discovery's boards; the discovery's keys]");
+    }],
+    ["R7881 - what the GM's advance writes for the discovery's boards (scripts/sequence.mjs `bodyBoardPatch`; scripts/clock.mjs `advanceTimeOfDay`; scripts/settings.mjs `DEFAULT_CLOCK`, `bodiesFoundIn`; the owner's words for 1.2.119, option B): an advance that leaves the time of day of an announcement of the same day and chapter stamps the clock with the newest such announcement's time, the clock it moves to and a key; an announcement stamped already, one of another hour or day, or the suite's rehearsal stamps none; a second announcement of the chapter gets its own; the advance folds it into its one write, and the clock starts with none", async () => {
+        /* 20.11.2026 (1.2.119 line D). Pure over hand-built rows (the stamp's `{ day, timeOfDay, at }`, body.mjs
+           `announceBody`), and the advance read off its source; the boards it plays are R7880's. */
+        const S = await import("./sequence.mjs");
+        const { DEFAULT_CLOCK } = await import("./settings.mjs");
+        if (typeof S.bodyBoardPatch !== "function") { ok(false, "sequence.mjs has no bodyBoardPatch"); return; }
+        const sources = await moduleSources();
+        const advance = bodyOf(stripComments(sources.get("clock.mjs") ?? ""), "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        must(advance.length > 500, "advanceTimeOfDay was not read - this reads nothing");
+        const rows = [{ day: 2, timeOfDay: "afternoon", at: 500 }, { day: 2, timeOfDay: "afternoon", at: 600, rehearsal: true },
+            { day: 1, timeOfDay: "afternoon", at: 100 }, { day: 2, timeOfDay: "noon", at: 400 }];
+        const before = { season: "s", chapter: 3, day: 2, timeOfDay: "afternoon" }, after = { day: 2, timeOfDay: "evening" };
+        const P = (b, r = rows, a = after) => S.bodyBoardPatch({ before: b, rows: r, after: a });
+        equal(stableJson({
+            leave: P(before),
+            done: P({ ...before, bodyBoard: { upTo: 500 } }),
+            rehearsal: P(before, [rows[1]]),
+            otherHour: P({ ...before, timeOfDay: "evening" }, rows, { day: 3, timeOfDay: "morning" }),
+            noDay: P({ season: "s", chapter: 1, day: 1, timeOfDay: "morning" }, [{ timeOfDay: "morning", at: 50 }], { day: 1, timeOfDay: "noon" }),
+            second: P({ ...before, bodyBoard: { upTo: 500 } }, [...rows, { day: 2, timeOfDay: "afternoon", at: 700 }]),
+            none: P(before, []),
+            folded: /bodyBoardPatch\(/.test(advance) && /bodiesFoundIn\(/.test(advance) && /\.\.\.bodyPatch/.test(advance),
+            defaults: Object.hasOwn(DEFAULT_CLOCK, "bodyBoard") ? DEFAULT_CLOCK.bodyBoard : "missing"
+        }), stableJson({
+            leave: { bodyBoard: { upTo: 500, key: "s:3:500", day: 2, timeOfDay: "evening" } },
+            done: {}, rehearsal: {}, otherHour: {},
+            noDay: { bodyBoard: { upTo: 50, key: "s:1:50", day: 1, timeOfDay: "noon" } },
+            second: { bodyBoard: { upTo: 700, key: "s:3:700", day: 2, timeOfDay: "evening" } },
+            none: {}, folded: true, defaults: null
+        }), "[leaving the hour; stamped already; a rehearsal; another hour; a row with no day; a second announcement; no rows; the advance's write; the default]");
     }],
     ["R4402 - the day's boards wear the frame of the module's ordinary windows, in both themes (styles/danganronpa.css, styles/stained-glass.css; the owner's report at a real table on 1.2.109: the boards' frame was pink): read through the module's cascade, the end-of-day and start-of-day boards win the same edge and the same shadow as a module window - Monokuma Legacy's one-pixel window edge and its drop shadow, Stained Glass's window glass (the inset highlights, the accent's glow, the drop shadow); the trial's band and the \"spilling\" mood word keep the sequences' band colour", async () => {
         /* 12.11.2026. Red at 1ff4bc77: the boards' edge was three units of `--drpg-seq-band` (Stained Glass's Despair pink,
