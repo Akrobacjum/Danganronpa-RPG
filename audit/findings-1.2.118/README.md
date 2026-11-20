@@ -61,3 +61,20 @@ either. All of them are run again.
 One change to the plan of the first session, and why: the live-refresh pass (K5) is folded into the controls
 readers, which read the same windows' code; a separate pass would read every window twice. Only the surfaces
 already read by controls 01-04 get a refresh-only reader.
+
+**Update, 19:40Z.** The first session pushed eleven more finished files (`first-session/`, merge 0278ef72, read
+here): `old-1.2.42-ui`, `old-1.1.88-1.2.13-A`, `live-items-07..09` (9.2 items 219-292), `stages-20` (E61 E62 E92
+E94), `stages-21` (E64 E72 E91 E93 E69 E74), two controls files without a refresh block, and two domain files
+(trial-scene, zones, vote, verdict, anonymity, mask, Mastermind; the case's planner files, gm-store, gm-stores,
+world-secrets, pre-session note). The plan above shrinks by what they hold: no new readers for 1.2.42 UI, 1.1.88's
+four findings, 1.2.13 A, 9.2 items 219-292, stages E61-E94 and the two domain groups; their leftovers (assignments,
+monokuma, the three spectator files) join `domain-case-g-death-chapter`. The remaining 9.2 items 293-663 are read
+in chunks named by their first number (`live-items-293`, `-327`, ... `-561`), so no name repeats one of the first
+session's. The running controls-05, -10 and -13 overlap the first session's two controls files in part; they are
+left running because they add the refresh block, and the overlap is a second reading for the adversarial pass.
+57 readers remain after the ten running.
+
+The base run: the first session's `npm test` beside ten readers timed out in 01-runtests (its README). Mine,
+started 19:20Z, gave lint (418 files, 0 problems), check (25 parts, all green) and the gate's self-test (37/37) and
+was stopped in the suite; the suite now runs as CI runs it, in eight shards one at a time, then `suite-merge.mjs`,
+then the `ci` scenarios one at a time, then probes 42 and 43.
