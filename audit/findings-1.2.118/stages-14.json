@@ -34,7 +34,7 @@
      "holds": "yes",
      "test": "R1288 (ok); tier 2 E60-T8 (:94119) and E60-T20 (:94920), not read in the base run",
      "test_kind": "both",
-     "note": "The notes' Open 51 (the card saying saved when the row went) no longer reads true: the card's handler throws when setRemnantFlags answers nothing (remnant-ring.mjs:317) and shows DRPG.Remnant.cardSaveFailed."
+     "note": "The notes' Open 51 (the card saying saved when the row went) no longer reads true: the card's handler throws when setRemnantFlags answers nothing (remnant-ring.mjs:318) and shows DRPG.Remnant.cardSaveFailed."
     },
     {
      "promise": "D153: Give a Truth Bullet from a Remnant to a student who already holds its copy gives none and says so; the check and the copy run in the receiver's finds' queue with Observe's find, a hand-over and Monokuma's Reveal, on one GM's browser (across GMs carried to E38)",
@@ -57,7 +57,7 @@
     {
      "promise": "The dice look diagnostic: game.drpg.diagnoseDiceLook({ messageId, test }), one window and a part of the report, asking no other browser anything; reached from Season setup's Pre-season checks, not the GM panel",
      "source": "v1.2.98.md 80-86, 144-146",
-     "code": "scripts/dice-look.mjs:391 lookFindings, :236 throwLook, :524 diagnoseDiceLook; scripts/season-setup.mjs:1382-1393 wireDiceLookButton, :1453; scripts/diagnostics.mjs REPORT_SECTIONS diceLook",
+     "code": "scripts/dice-look.mjs:391 lookFindings, :236 throwLook, :524 diagnoseDiceLook; scripts/season-setup.mjs:1382-1393 wireDiceLookButton, :1453; scripts/diagnostics.mjs:2219 REPORT_SECTIONS (its diceLook part)",
      "holds": "yes",
      "test": "R1294, R1295, R1296, R1300, R1301 (ok); tier 2 E60-T14 (:94313), not read",
      "test_kind": "both",
