@@ -204,7 +204,7 @@
    },
    "findings": [],
    "superseded_by": [
-    "E73 (1.2.9x, zone modes): the bar's two more buttons, Count now and Skip question (trial-floor.mjs:1403)",
+    "E73 (1.2.108, zone modes): the bar's two more buttons, Count now and Skip question (trial-floor.mjs:1403)",
     "E92 C2 and E110 C2 (1.2.114): the same BROADCAST_AUDIO row blocks a Spectator's account and everyone a trial mode does not give the floor; D-E110-A holds a Monocub in such a mode (voice.mjs:1785-1800)",
     "E72 part A (formerly E67): TR30 is no longer closed by a stage; the owner's TR30 = 2 keeps it as a Foundry limit (known-leaks.json:104-112)",
     "E41 C10a, C10b: the sentence's functions moved to trial-progress.mjs and verdict.mjs (pure moves)"
@@ -565,7 +565,7 @@
      "holds": "superseded",
      "test": "R1541, R1553 (tier 1)",
      "test_kind": "both",
-     "note": "Superseded by E101 item 2 (1.2.112): the contract's lines are in the Debug log's Foundry and modules window, not in the checks before a session (season-setup.mjs:1438-1442; gm-handbook.en.md:2397). The tests follow (R1541's body :35765-35766, R1553's :36575-36576, \"changed on purpose\"), their titles do not: finding E52-1."
+     "note": "Superseded by E101 item 2 (1.2.112): the contract's lines are in the Debug log's Foundry and modules window, not in the checks before a session (season-setup.mjs:1438-1442; gm-handbook.en.md:2397). The tests follow (R1541's body :35764-35765, R1553's :36575-36576, \"changed on purpose\"), their titles do not: finding E52-1."
     },
     {
      "promise": "The trust rows (the relay guard, the roll draw, what a player may read of a roll) keep their own fallbacks and words; a failed one is never turned into a looser one",
@@ -677,7 +677,7 @@
      "severity": "nit",
      "category": "text",
      "title": "R1541 and R1553 say they read Pre-season's checks; since E101 they read the Debug log's Foundry and modules window",
-     "where": "docs/dev/R-REGISTRY.md:901, :913 (the titles); scripts/tests-tier1.mjs:35728, :35732, :35765-35766, :35771-35776 (R1541), :36562, :36575-36576 (R1553)",
+     "where": "docs/dev/R-REGISTRY.md:901, :913 (the titles); scripts/tests-tier1.mjs:35728, :35732, :35764-35765, :35771-35776 (R1541), :36562, :36575-36576 (R1553)",
      "what_happens": "E101 item 2 moved the contract's lines out of the checks before a session; both tests were changed to draw season-setup.mjs foundryReport (\"changed on purpose\"), but their titles, the registry rows and R1541's failure messages still say Pre-season's checks.",
      "evidence": "[\"R1553 - Pre-season's contract lines: each failed row its own line, ...\" (tests-tier1.mjs:36562); \"// Diagnostics' Foundry and modules since E101 item 2 (Pre-season checks until then): changed on purpose.\" / \"el.innerHTML = await SS.foundryReport({ contract: mod.runContract({ rows }) });\" (:36575-36576); R1541's message \"Pre-season's checks do not list the failed rows ...\"",
      "failure_scenario": "A GM or a later stage reading R1541's failure, \"Pre-season's checks do not list the failed rows\", looks in the Season checklist, which no longer shows the contract at all.",
@@ -689,7 +689,7 @@
    "superseded_by": [
     "E101 item 2 (1.2.112): the contract's lines in the Debug log's Foundry and modules window, not in Pre-season's checks (season-setup.mjs:1438-1464)",
     "E91 C1 (owner's note of 09.11): an unknown row is a console info line, not a load warning (patches.mjs:1507-1516)",
-    "E60 C5b: the report's 22nd part, diceLook (diagnostics.mjs:2226)"
+    "E60 C5b: the report's 22nd part, diceLook (diagnostics.mjs:2227)"
    ],
    "grade": 8,
    "provisional": "after L1",
