@@ -45,6 +45,7 @@ import { registerPlayerStatus } from "./player-status.mjs";
 import { registerDespair } from "./despair.mjs";
 import { registerOverflow } from "./overflow.mjs";
 import { registerDespairAwards } from "./despair-award.mjs";
+import { registerDiceHold } from "./dice-hold.mjs";
 import { registerMovement } from "./movement.mjs";
 import { registerRoomPieces } from "./vault.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
@@ -224,6 +225,8 @@ Hooks.once("init", () => {
     safely("the player status strip", registerPlayerStatus);
     safely("Despair pools", registerDespair);
     safely("Despair awards", registerDespairAwards);
+    // A roll's Hope and Despair drawn when this browser's dice of the roll have landed (1.2.119).
+    safely("Dice hold", registerDiceHold);
     // Before the GM stores open at ready: the primary reads the Reroll's journal as they do (E08+E28 C4b).
     safely("the Reroll's journal", registerRerollRecovery);
     // The same, for the GMs' audit of a sheet (E29 C3): the primary fills the marks a character

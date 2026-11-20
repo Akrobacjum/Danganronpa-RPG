@@ -5932,13 +5932,16 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
 .drpg-pending-hope {
     color: light-dark(var(--drpg-gold-deep), var(--drpg-gold-light));
     border: 1px solid light-dark(rgba(var(--drpg-gold-shadow-rgb), 0.55), rgba(var(--drpg-gold-light-rgb), 0.45));
-    background: light-dark(rgba(var(--drpg-gold-light-rgb), 0.22), rgba(var(--drpg-gold-light-rgb), 0.12));
+    /* A variable, so the pile can lay the same tint over an opaque ground (THE PILE, below). */
+    --drpg-pile-tint: light-dark(rgba(var(--drpg-gold-light-rgb), 0.22), rgba(var(--drpg-gold-light-rgb), 0.12));
+    background: var(--drpg-pile-tint);
 }
 
 .drpg-pending-despair {
     color: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
     border: 1px solid light-dark(rgba(var(--drpg-blood-deep-rgb), 0.55), rgba(var(--drpg-blood-rgb), 0.45));
-    background: light-dark(rgba(var(--drpg-blood-rgb), 0.22), rgba(var(--drpg-blood-rgb), 0.12));
+    --drpg-pile-tint: light-dark(rgba(var(--drpg-blood-rgb), 0.22), rgba(var(--drpg-blood-rgb), 0.12));
+    background: var(--drpg-pile-tint);
 }
 
 @keyframes drpg-pending-pulse {
@@ -12064,9 +12067,21 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
    pips say what you can spend, the badge says what is already attached to your
    next roll, and a player wants both in one glance.
 
-   The stack holds two, deliberately. A Hope Call the player armed and a
-   Despair Call or a Monocub's Meddle landing on them are different facts about
-   the same turn; the room is reserved so the second one costs no layout.
+   THE PILE (1.2.119; the owner, 20.11.2026: "efekty rozjezdzaja karte. Niech
+   stackuja sie na sobie, a najechanie myszka niech wyciaga ten, na ktory
+   najezdzamy myszka na wierzch"). Until then the stack was a column that
+   reserved room for two: a third badge grew it past the row's 3rem and pushed
+   the header apart. Now every badge stands in one grid cell, each dropped by
+   its place in the pile times the step (`--drpg-pile-i`, `--drpg-pile-step`,
+   both written by sheet-header.mjs `pileStack`, which shrinks the step so the
+   drops add up to 20 px at most), the last one on top. Read in Chromium
+   (audit/pending-pile.mjs, 20.11.2026): the row 48 px with one badge, three or
+   six in both themes, where b5a29e73's column stood 59/92 px with three and
+   122/188 px with six (Legacy/Stained Glass). The badge the pointer
+   is on (`drpg-raised`, by the pointer's height: `pileStack`'s note) or the one
+   focused is raised over the others; nothing else moves. Each stands on an
+   opaque ground under its tint, since the badges' own tints are translucent and
+   a pile of them would show each label through the one above it.
    ========================================================================== */
 
 /* Same specificity as the column rule further up, which this replaces - a
@@ -12083,18 +12098,43 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
 
 .drpg-pending-stack {
     flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    /* Two badges plus the gap between them. Reserved rather than grown into, so
-       a second one arriving does not nudge the pips sideways. */
+    display: grid;
+    grid-template: auto / auto;
+    align-items: start;
+    /* The row's height before the pile, kept: one badge and the pile's 20 px stand inside it (28 + 20 under Stained
+       Glass), so a badge arriving moves nothing. */
     min-height: 3rem;
     max-width: 11rem;
+    --drpg-pile-ground: light-dark(var(--drpg-bone), var(--drpg-ink));
 }
 
-/* `margin-top` was the old "below the pips" spacing and fights the stack. */
-.drpg-pending-stack .drpg-pending-call {
-    margin-top: 0;
+/* One cell for all; each a step lower than the one before. `margin-top` was also the old "below the pips" spacing,
+   which this replaces. The same width for all (the widest), so the pile's edges are one edge. */
+.drpg-pending-stack > .drpg-pending-call {
+    grid-area: 1 / 1;
+    justify-self: stretch;
+    margin-top: calc(var(--drpg-pile-i, 0) * var(--drpg-pile-step, 0px));
+    position: relative;
+    /* The badge's tint over an opaque ground, in its own background: a ground drawn by a `::before` at z-index -1
+       painted OVER the badge's background (a negative layer is painted after its stacking context's own background),
+       and every badge read as a dark blank in Chromium (audit/pending-pile.mjs, 20.11.2026). */
+    background: linear-gradient(var(--drpg-pile-tint, transparent), var(--drpg-pile-tint, transparent)), var(--drpg-pile-ground);
+    transition: transform 120ms ease-out;
+    /* The pulse dims by brightness, not opacity: a badge at 0.62 showed the label of the one under it. */
+    animation-name: drpg-pile-pulse;
+}
+
+.drpg-pending-stack > .drpg-pending-call:is(.drpg-raised, :focus-visible) {
+    z-index: 2;
+    transform: translateY(-2px);
+}
+
+body.drpg-reduced-motion .drpg-pending-stack > .drpg-pending-call { transition: none; }
+body.drpg-reduced-motion .drpg-pending-stack > .drpg-pending-call:is(.drpg-raised, :focus-visible) { transform: none; }
+
+@keyframes drpg-pile-pulse {
+    0%, 100% { filter: none; }
+    50%      { filter: brightness(0.72); }
 }
 
 /* A room action's timed effect (E93; the owner's asks of 12.11.2026: where the Hope Calls are, a name of one or two words,
@@ -12103,7 +12143,8 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
 .drpg-pending-timed {
     color: var(--drpg-ink);
     border: 1px solid var(--drpg-ink);
-    background: var(--drpg-bone);
+    --drpg-pile-tint: var(--drpg-bone);
+    background: var(--drpg-pile-tint);
 }
 
 /* ==========================================================================

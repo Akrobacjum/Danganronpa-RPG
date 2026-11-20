@@ -417,10 +417,16 @@ function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false, c
 // sentence: this is what you have, and this is what is riding on your next
 // roll. Side by side is where a player reads them together.
 //
-// A column, not a single slot: a Hope Call the player armed and a Despair
-// Call or a Monocub's Meddle landing on them are two different facts about
-// the same turn, and the layout has room for both stacked without moving
-// anything else.
+// A PILE, NOT A COLUMN (1.2.119; the owner, 20.11.2026, on a screenshot of a
+// student's sheet with three badges: "efekty rozjezdzaja karte. Niech stackuja
+// sie na sobie, a najechanie myszka niech wyciaga ten, na ktory najezdzamy
+// myszka na wierzch, tak jakby byly w stosie"). Until then the stack was a flex
+// column, one row a badge, reserved for two: three stood 59 px tall under
+// Legacy and 92 px under Stained Glass in a row held at 3rem (48 px), and six
+// 122 px and 188 px (Chromium, audit/pending-pile.mjs, b5a29e73, 20.11.2026). Now every badge stands in the
+// same cell, each `PILE_STEP` lower than the one before, the steps shrunk so
+// that they never rise past `PILE_RISE` in all (`pileStack`); the last one built
+// is on top at rest. See `pileStack` for which badge a pointer raises.
 export function pendingStack(actor) {
     const stack = document.createElement("div");
     stack.className = "drpg-pending-stack";
@@ -481,7 +487,52 @@ export function pendingStack(actor) {
                            <span>${foundry.utils.escapeHTML(short)}</span>`;
         stack.append(badge);
     }
+    pileStack(stack);
     return stack;
+}
+
+/**
+ * One badge's drop under the one before it in the pile, in px, and the most all the drops may add up to: 20, so a
+ * Stained Glass badge (28 px tall, audit/pending-pile.mjs) and the whole pile fit the row's 3rem (48 px); with 24 six
+ * badges stood 52 px there and grew the row.
+ */
+const PILE_STEP = 6, PILE_RISE = 20;
+
+/** The drop between two neighbours of a pile of `count` badges, in px: `PILE_STEP`, shrunk so the pile rises at most `PILE_RISE`. */
+const pileStep = count => (count > 1 ? Math.min(PILE_STEP, PILE_RISE / (count - 1)) : 0);
+
+/**
+ * Which badge of a pile of `count` a pointer `y` px under the pile's top raises: the one whose strip it is on - the
+ * band of `pileStep` between its top and the next badge's - and the last badge from its own top down. Exported for R7900.
+ */
+export function pileIndexAt(count, y) {
+    if (count < 2 || !(y > 0)) return 0;
+    return Math.min(count - 1, Math.floor(y / pileStep(count)));
+}
+
+/**
+ * The stack's badges made a pile (1.2.119): each badge's place in it (`--drpg-pile-i`), the drop between neighbours
+ * (`--drpg-pile-step`, written here so that the stylesheet and `pileIndexAt` read one number), each badge focusable,
+ * and the badge a pointer is on raised (`drpg-raised`; danganronpa.css "THE PILE").
+ *
+ * BY THE POINTER'S HEIGHT, NOT BY `:hover`. A badge lower in the pile shows only its strip; raised by `:hover`, it
+ * covers the strips under it, and the pointer moving down stays on it - the next badge could be reached only by
+ * leaving the pile and coming back (Chromium, audit/pending-pile.mjs, 20.11.2026: a badge 17 px tall under Legacy and
+ * 28 px under Stained Glass, over steps of 6, covers the next two strips or four). So the pile picks the badge by where the pointer is over the pile at rest, and the raised badge
+ * always covers that point, so the tooltip Foundry shows is the raised badge's. A key raises the badge focused, in the
+ * stylesheet (`:focus-visible`).
+ */
+export function pileStack(stack) {
+    const badges = [...stack.children];
+    stack.style.setProperty("--drpg-pile-step", `${pileStep(badges.length)}px`);
+    badges.forEach((badge, i) => {
+        badge.style.setProperty("--drpg-pile-i", String(i));
+        badge.tabIndex = 0;
+    });
+    if (badges.length < 2) return;
+    const raise = index => badges.forEach((badge, i) => badge.classList.toggle("drpg-raised", i === index));
+    stack.addEventListener("pointermove", event => raise(pileIndexAt(badges.length, event.clientY - stack.getBoundingClientRect().top)));
+    stack.addEventListener("pointerleave", () => raise(-1));
 }
 
 /**

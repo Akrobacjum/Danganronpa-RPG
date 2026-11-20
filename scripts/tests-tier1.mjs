@@ -55025,6 +55025,175 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ sg: ["0", "0"], pulse: ["0", "0"], seamline: ["0", "0"], flash: ["0", "0"] }),
             "{each of the band's canvases: [the padding-left it wins, the padding-right]}");
     }],
+    ["R7900 - the sheet's effect badges pile on one another instead of stretching the header (the owner, 20.11.2026, a screenshot of a student's sheet with three badges pushing the header apart: \"efekty rozjezdzaja karte. Niech stackuja sie na sobie, a najechanie myszka niech wyciaga ten, na ktory najezdzamy myszka na wierzch, tak jakby byly w stosie\"): the stack is one grid cell every badge stands in, each a step lower than the one before, the steps never rising past 20 px in all; the badge pointed at or focused is raised over the others without moving them, the last badge is on top at rest, each paints its tint over an opaque ground, and under reduced motion nothing lifts", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. On b5a29e73 `.drpg-pending-stack` was a flex column with a 4 px gap
+         * (danganronpa.css, "WHAT YOU HAVE, AND WHAT IS RIDING ON THE NEXT ROLL"), so each badge took its own row and three
+         * stood about 65 px tall in a header row reserved for 3rem. Read here: the sheets' cascade on a stack as
+         * sheet-header.mjs `pendingStack` builds it (three badges, as on the owner's screenshot), the indices and steps
+         * `pileStack` writes on it, and which badge a pointer's height picks (`pileIndexAt`). The heights in px are
+         * Chromium's (audit/pending-pile.mjs, 20.11.2026: a badge 17 px tall under Legacy and 28 px under Stained Glass, so
+         * 28 + 20 fills the row's 3rem; on b5a29e73 three badges stood 59 px and 92 px): a headless page lays nothing out,
+         * so the 20 px is held as the steps' sum.
+         */
+        const C = await styleCascade();
+        const SH = await import("./sheet-header.mjs");
+        const shell = document.implementation.createHTMLDocument("R7900");
+        const body = shell.body;
+        const badge = (cls, label) => `<div class="drpg-pending-call ${cls}" data-tooltip="${label}"><i class="fa-solid fa-hand-sparkles" inert></i><span>${label}</span></div>`;
+        body.innerHTML = `<div class="application sheet actor"><div class="character-header-sheet"><div class="character-row"><div class="drpg-actions-section">`
+            + `<div class="drpg-actions"></div><div class="drpg-pending-stack">${badge("drpg-pending-hope", "Experience +1")}${badge("drpg-pending-despair", "+1 Shadow")}`
+            + `${badge("drpg-pending-timed drpg-timed-badge", "+1 Body")}</div></div></div></div></div>`;
+        const stack = body.querySelector(".drpg-pending-stack");
+        const badges = [...stack.children];
+        must(badges.length === 3, "the three badges were not drawn");
+        if (typeof SH.pileStack === "function") SH.pileStack(stack);
+        const seen = {}, want = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            for (const motion of ["", " drpg-reduced-motion"]) {
+                body.className = `${cls} drpg-player${motion}`;
+                const key = `${theme}${motion ? " reduced" : ""}`;
+                badges[1].classList.add("drpg-raised");
+                const raised = C.on(badges[1]), rest = C.on(badges[0]);
+                seen[key] = {
+                    stack: C.winner(stack, "display")?.value ?? null,
+                    cell: badges.map(b => C.winner(b, ["grid-area", "grid-row", "grid-column"])?.value ?? null),
+                    drop: C.winner(badges[2], ["margin-top", "margin"])?.value ?? null,
+                    raisedOver: Number(raised(["z-index"])?.value) > Number(rest(["z-index"])?.value ?? 0),
+                    ground: badges.map(b => C.winner(b, ["background", "background-color"])?.value ?? "").every(v => v.includes("var(--drpg-pile-tint") && v.endsWith("var(--drpg-pile-ground)")),
+                    lift: raised(["transform"])?.value ?? null
+                };
+                badges[1].classList.remove("drpg-raised");
+                want[key] = {
+                    stack: "grid", cell: ["1 / 1", "1 / 1", "1 / 1"], drop: "calc(var(--drpg-pile-i, 0) * var(--drpg-pile-step, 0px))",
+                    raisedOver: true, ground: true, lift: motion ? "none" : "translateY(-2px)"
+                };
+            }
+        }
+        equal(stableJson(seen), stableJson(want), "{theme, motion: the stack's display, each badge's grid cell, the third badge's drop, whether a raised badge stands over the others, whether every badge paints its tint over the opaque ground, the raised badge's lift}");
+
+        must(typeof SH.pileStack === "function" && typeof SH.pileIndexAt === "function", "sheet-header.mjs exports no pileStack or pileIndexAt - the pile is not built");
+        const pile = n => {
+            const el = shell.createElement("div");
+            el.innerHTML = Array.from({ length: n }, (_, i) => badge("drpg-pending-hope", `B${i}`)).join("");
+            SH.pileStack(el);
+            const step = Number.parseFloat(el.style.getPropertyValue("--drpg-pile-step"));
+            return { indices: [...el.children].map(b => b.style.getPropertyValue("--drpg-pile-i")), focusable: [...el.children].every(b => b.tabIndex === 0),
+                rise: Math.round(step * (n - 1) * 100) / 100 };
+        };
+        equal(stableJson([1, 3, 6, 9].map(pile)), stableJson([
+            { indices: ["0"], focusable: true, rise: 0 },
+            { indices: ["0", "1", "2"], focusable: true, rise: 12 },
+            { indices: ["0", "1", "2", "3", "4", "5"], focusable: true, rise: 20 },
+            { indices: ["0", "1", "2", "3", "4", "5", "6", "7", "8"], focusable: true, rise: 20 }
+        ]), "{1, 3, 6 and 9 badges: each badge's index, every badge focusable, the pile's rise over the first badge in px}");
+        // a pointer 0, 5, 6, 11, 12 and 40 px under the stack's top over three badges (steps of 6): the badge whose strip is there
+        equal(stableJson([0, 5, 6, 11, 12, 40, -3].map(y => SH.pileIndexAt(3, y))), stableJson([0, 0, 1, 1, 2, 2, 0]),
+            "{a pointer's height over three piled badges: the index of the badge it raises}");
+    }],
+    ["R7901 - every road of a roll's Hope and Despair names the roll's message, and each place they are drawn waits on it (1.2.119; the owner, 20.11.2026: \"Despair powinno sie aktualizowac dopiero po zakonczeniu animacji kosci dice so nice, tak samo z hope\"): the primary GM's resource step of a drawn roll (roll-draw.mjs `throwDrawn`) runs inside dice-hold.mjs `stampRollWrites` with the message's id, the dice the module throws of a message are noted as its throws (the roller's at the message, the primary's at the throw, the audience's relayed), a roll's Despair point is written with the message (despair-award.mjs -> despair.mjs `adjustDespair` -> the pools' write with `DICE_OPTION`), the pools' redraw and the sheet's repaint ask `holdPaint`, and the option's one name is read where the pools' setting reads it", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T1 (tier 2) measures the hold on one browser with a stand-in Dice So Nice; this
+         * holds the roads that feed it, read off the source, so a road written later without the message - a second
+         * resource step, a throw not noted - is red here rather than a pip that moves under tumbling dice at a table. Red
+         * at b5a29e73: no dice-hold.mjs, and none of the roads below.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const H = await import("./dice-hold.mjs").catch(() => null);
+        must(H && typeof H.holdPaint === "function" && typeof H.stampRollWrites === "function" && typeof H.noteThrow === "function",
+            "dice-hold.mjs is not loaded by the module, or exports no holdPaint, stampRollWrites or noteThrow - no paint waits for the dice");
+        const draw = fnSource(src("roll-draw.mjs"), "throwDrawn");
+        const relayed = fnSource(src("private-rolls.mjs"), "showRelayedDice");
+        const seen = {
+            option: H.DICE_OPTION,
+            drawStamped: /stampRollWrites\(message\.id, \[actor\.id[^\]]*\], \(\) => config\.resourceUpdates\.updateResources\(\)\)/.test(draw),
+            drawUnstamped: (draw.match(/resourceUpdates\.updateResources\(\)/g) ?? []).length,
+            primaryThrow: /if \(shown\) noteThrow\(message\.id, THROWN_HERE\.get\(roll\)\)/.test(draw),
+            rollerThrow: /noteThrow\(message\.id, wait\.started\)/.test(fnSource(src("roll-draw.mjs"), "startOnMessage")),
+            audienceThrow: /^\s*noteThrow\(id, new Promise\(resolve => \{ landed = resolve; \}\)\);\s*\n\s*try \{\s*\n\s*const \{ messageArrives \} = await import/m.test(relayed)
+                && /\} finally \{\s*\n\s*landed\(\);/.test(relayed),
+            award: /const named = dice \?\? message\?\.id \?\? null;[\s\S]*adjustDespair\(monokuma\.id, 1, \{ dice: named \}\)/.test(fnSource(src("despair-award.mjs"), "awardRollDespair")),
+            adjust: /writePool\(userId, held \+ delta, \{ dice \}\)/.test(fnSource(src("despair.mjs"), "adjustDespair")),
+            poolWrite: /game\.settings\.set\(MODULE_ID, SETTINGS\.despairPools, store, dice \? \{ \[DICE_OPTION\]: dice \} : \{\}\)/.test(fnSource(src("despair.mjs"), "writePool")),
+            poolsChange: new RegExp(`options\\?\\.${H.DICE_OPTION}\\b`).test(fnSource(src("settings.mjs"), "onDespairPoolsChange"))
+                && /holdPaint\(dice, "despair"/.test(fnSource(src("settings.mjs"), "onDespairPoolsChange")),
+            sheet: /holdPaint\(takeActorDice\(actorId\), name, paintOwed\)/.test(fnSource(src("sheet-repaint.mjs"), "installRenderPlan")),
+            registered: /safely\("Dice hold", registerDiceHold\)/.test(src("module.mjs"))
+                && /Hooks\.on\("createChatMessage", message => noteRollMessage\(message\)\)/.test(fnSource(src("dice-hold.mjs"), "registerDiceHold"))
+        };
+        equal(stableJson(seen), stableJson({
+            option: "drpgDiceOf", drawStamped: true, drawUnstamped: 1, primaryThrow: true, rollerThrow: true, audienceThrow: true,
+            award: true, adjust: true, poolWrite: true, poolsChange: true, sheet: true, registered: true
+        }), "{the option's name; a drawn roll's resource step stamped, and how many resource steps throwDrawn runs; the primary's and the roller's throws noted, and the audience's before its first await and settled at its end; the Despair point's road; the pools' redraw and the sheet's repaint held; the hooks registered}");
+    }],
+    ["R7902 - a Reroll's Hope and Despair name its message, and its dice are noted on every screen that throws them (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): reroll.mjs `makeReroll` settles the duality, the Despair and the critical's Hope inside dice-hold.mjs `stampRollWrites` with the message's id, the Despair through despair-award.mjs `awardRollDespair`'s `dice` into despair.mjs `adjustDespair` on both its roads, the GM that made it notes its own throw (private-rolls.mjs `relayRerolledDice`), and a throw noted for a message whose dice had landed starts a new settle (dice-hold.mjs `noteThrow`)", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T3 measures the second settle on one browser; this holds the Reroll's roads,
+         * read off the source. Red at 893bfad1: none of them.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const reroll = fnSource(src("reroll.mjs"), "makeReroll");
+        const award = fnSource(src("despair-award.mjs"), "awardRollDespair");
+        const seen = {
+            stamped: /await stampRollWrites\(message\.id, \[actor\.id, actor\.system\?\.partner\?\.id\], async \(\) => \{\s*\n\s*await settleDualityReroll\(original, rerolled, actor\);[\s\S]{0,400}?await settleDespair\(actor, before, after, done, message\.id\);[\s\S]{0,200}?await settleCritHope\(actor, before, after, done\);/.test(reroll),
+            despairCarries: /awardRollDespair\(actor, delta, \{ dice \}\)/.test(fnSource(src("reroll.mjs"), "settleDespair")),
+            awardTakes: /export async function awardRollDespair\(actor, delta, \{ message = null, dice = null \} = \{\}\)/.test(award),
+            bothRoads: (award.match(/adjustDespair\(monokuma\.id, [-1]+, \{ dice: named \}\)/g) ?? []).length,
+            gmThrow: /if \(audience\.includes\(game\.user\?\.id\)\) noteThrow\(message\.id, playRolls\(message, by \?\? game\.user\)\);/.test(fnSource(src("private-rolls.mjs"), "relayRerolledDice")),
+            fresh: /if \(SETTLES\.get\(messageId\)\?\.done\) SETTLES\.delete\(messageId\);/.test(fnSource(src("dice-hold.mjs"), "noteThrow"))
+        };
+        equal(stableJson(seen), stableJson({ stamped: true, despairCarries: true, awardTakes: true, bothRoads: 2, gmThrow: true, fresh: true }),
+            "{the Reroll's three settles stamped with its message; its Despair carrying the message; the award taking it; both of the award's pool writes naming it; the GM's own throw noted; a landed message's settle started again by a new throw}");
+    }],
+    ["R7903 - a roll's point that spills into the Overflow, or comes back off it, is named on the GM that writes it (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): despair-award.mjs `awardRollDespair` hands its message to despair.mjs `spillFrom` at a full pool and runs a Reroll's give-back off the Overflow inside dice-hold.mjs `stampLocal`, `adjustDespair`'s spill hands its `dice` on, `spillFrom` adds to the Overflow inside the stamp, and the count's `onChange` (settings.mjs) tells `drpgOverflowChanged` before it asks `holdPaint`", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T4 measures the hold on the writing GM; this holds the roads, read off the
+         * source. Red at a87c7f82: none of them.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const award = fnSource(src("despair-award.mjs"), "awardRollDespair");
+        const seen = {
+            fullPool: /spillFrom\(monokuma\.id, before, 1, `roll spill from \$\{monokuma\.name\}`, \{ dice: named \}\)/.test(award),
+            giveBack: /stampLocal\("overflow", named, \(\) => takeOverflow\(1, /.test(award),
+            adjust: /spillFrom\(userId, before, delta, "pool spill", \{ dice \}\)/.test(fnSource(src("despair.mjs"), "adjustDespair")),
+            spill: /stampLocal\("overflow", dice, \(\) => addOverflow\(next\.spill, \{ reason \}\)\)/.test(fnSource(src("despair.mjs"), "spillFrom")),
+            redraw: /Hooks\.callAll\("drpgOverflowChanged"\);\s*\n\s*onOverflowStoreChange\(\);/.test(src("settings.mjs"))
+                && /holdPaint\(m\.seenLocal\("overflow"\), "overflow"/.test(fnSource(src("settings.mjs"), "onOverflowStoreChange")),
+            seen: /Hooks\.on\("drpgOverflowChanged", \(\) => noteLocalSeen\("overflow"\)\)/.test(fnSource(src("dice-hold.mjs"), "registerDiceHold"))
+        };
+        equal(stableJson(seen), stableJson({ fullPool: true, giveBack: true, adjust: true, spill: true, redraw: true, seen: true }),
+            "{the full pool's spill named; the Reroll's give-back off the Overflow stamped; adjustDespair's spill named; spillFrom's add stamped; the count's redraw held after the hook; the stamp seen on the hook}");
+    }],
+    ["R7904 - the Party sheet waits for a roll's dice (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): sheet.mjs's `renderPartySheet` listener installs dice-hold.mjs `holdAppRenders` on the sheet, which holds a render that is not forced while dice fall here, and the actor update of the same turn is kept with the roll it named for it", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T5 measures the hold on a stand-in Party sheet; this holds the road, read off the
+         * source. Red at c2e5d6be: no holdAppRenders.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const hold = topLevelFunction(src("dice-hold.mjs"), "holdAppRenders") ?? "";
+        const seen = {
+            installed: /Hooks\.on\("renderPartySheet",[\s\S]{0,400}?holdAppRenders\(app, `party:\$\{app\.id\}`\)/.test(fnSource(src("sheet.mjs"), "registerSheetTweaks")),
+            forcedAtOnce: /if \(args\[0\] === true \|\| options\.force \|\| !anyDiceFalling\(\)\) return original\.apply\(this, args\);/.test(hold),
+            held: /holdPaint\(dice, name, \(\) => original\.apply\(this, args\)\)/.test(hold),
+            turnKept: /thisTurn = \{ actorId: actor\?\.id \?\? null, dice: /.test(fnSource(src("dice-hold.mjs"), "registerDiceHold"))
+        };
+        equal(stableJson(seen), stableJson({ installed: true, forcedAtOnce: true, held: true, turnKept: true }),
+            "{the Party sheet's hook installs the hold; a forced render, or one with no dice falling, at once; one held for the roll; the turn's update kept}");
+    }],
+    ["R7905 - the token HUD waits for a roll's dice, for its own token's actor alone (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): hud.mjs's `renderTokenHUD` listener installs dice-hold.mjs `holdAppRenders` on the HUD with the HUD's actor as what it concerns", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T6 measures the hold on a stand-in HUD; this holds the road, read off the
+         * source. Red at 1567303c: no listener installs it.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const seen = /Hooks\.on\("renderTokenHUD", app => \{\s*\n\s*try \{ holdAppRenders\(app, "tokenHud", actorId => actorId === \(app\?\.actor \?\? app\?\.document\?\.actor\)\?\.id\); \}/.test(fnSource(src("hud.mjs"), "registerHud"));
+        ok(seen, "hud.mjs's renderTokenHUD listener installs no hold for the HUD's actor - a bar pointed at Hope moves under falling dice");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

@@ -2258,8 +2258,9 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => {
-            onStoreChange("overflow");
+            // The hook first: dice-hold.mjs keeps there the roll a spill on this GM was written under (`stampLocal`).
             Hooks.callAll("drpgOverflowChanged");
+            onOverflowStoreChange();
         }
     });
     game.settings.register(MODULE_ID, SETTINGS.gmDespairOwed, {
@@ -3387,7 +3388,10 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {},
-        onChange: () => onWorldChange(SETTINGS.despairPools)
+        /* A roll's point is drawn when this browser's dice of the roll have landed (1.2.119; the owner, 20.11.2026): the
+           write names its message in its options (despair.mjs `adjustDespair`'s `dice`), handed to `onChange` as v13's
+           `Setting#_onUpdate` hands them (LIVE-S119-01); any other write is drawn at once (dice-hold.mjs `holdPaint`). */
+        onChange: (value, options) => onDespairPoolsChange(options)
     });
 
     // Custom display label per pool - a GM's account name is not always what
@@ -3462,6 +3466,21 @@ export function registerSettings() {
  */
 function onWorldChange(key) {
     import("./sync.mjs").then(m => m.applyFor(key)).catch(() => {});
+}
+
+/* The Overflow's count redrawn (sync.mjs `SYNC.overflow`), held for a roll's dice when this GM wrote it as a roll's spill
+   (dice-hold.mjs `stampLocal`, seen on `drpgOverflowChanged`, 1.2.119); at once otherwise. */
+function onOverflowStoreChange() {
+    import("./dice-hold.mjs").then(m => m.holdPaint(m.seenLocal("overflow"), "overflow", () => onStoreChange("overflow")))
+        .catch(() => onStoreChange("overflow"));
+}
+
+/* The pools' redraw (the Despair rows, the Monokumas' sheets, the HUD: sync.mjs `SYNC.despair`), held for a roll's dice. */
+function onDespairPoolsChange(options) {
+    const dice = options?.drpgDiceOf;
+    if (typeof dice !== "string" || !dice) return onWorldChange(SETTINGS.despairPools);
+    import("./dice-hold.mjs").then(m => m.holdPaint(dice, "despair", () => onWorldChange(SETTINGS.despairPools)))
+        .catch(() => onWorldChange(SETTINGS.despairPools));
 }
 
 /**

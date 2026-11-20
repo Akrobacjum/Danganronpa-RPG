@@ -565,7 +565,8 @@ function onClientMessage(who, entry, msg) {
                 world.settings[msg.key] = msg.value;
                 settingWriters[msg.key] = entry.userId;
                 settingLog.push({ who, key: msg.key, at: Date.now() });
-                broadcast({ t: "settingApplied", key: msg.key, value: msg.value, userId: entry.userId, ...(msg.noHook === true ? { noHook: true } : {}) });
+                broadcast({ t: "settingApplied", key: msg.key, value: msg.value, userId: entry.userId, ...(msg.noHook === true ? { noHook: true } : {}),
+                    ...(msg.options && typeof msg.options === "object" ? { options: msg.options } : {}) });
             }
             entry.proc.send({ t: "ack", id: msg.id, ok: !error, result: msg.value, error });
             break;

@@ -555,7 +555,7 @@ The setting **Lock players' resources on the sheet** governs all of this for the
 
 **Earning.** When a student's roll lands with the Despair die higher, **+1 Despair** goes to the pool of the Monokuma assigned to *that student*, while the setting **Rolls grant Despair** is on. Reaction rolls (a bare statistic click) and a Monokuma's own rolls pay nothing. A student set to **- nobody -** feeds no pool: use it for a retired or NPC-run character, or for a template. Do not set the Mastermind to **- nobody -**: every player's browser can read the division, and the one student left out would stand out. The Season checklist warns you when the Mastermind feeds no pool (section 2).
 
-**Pools.** Every full Gamemaster account holds a Despair pool of at most **12**, and the Monokuma characters spend from them. The **Despair Pools** at the top of the screen show every pool, a single one too, under its name: the name set in Despair Flow, otherwise the account name. Everyone sees the counts, and GMs also get the steppers.
+**Pools.** Every full Gamemaster account holds a Despair pool of at most **12**, and the Monokuma characters spend from them. The **Despair Pools** at the top of the screen show every pool, a single one too, under its name: the name set in Despair Flow, otherwise the account name. Everyone sees the counts, and GMs also get the steppers. A point a roll or a Reroll earns is written at once and shown on each screen once that screen's dice of the roll have landed (Dice So Nice); a change by hand shows at once. A point that spills into the overflow waits only on the primary GM's screen, which writes it.
 
 **Despair Flow** (GM panel > Between sessions > Season setup) is the one window for the GM team. Its four tabs:
 
