@@ -606,7 +606,7 @@ Despair zdobyty ponad pełną pulę nie przepada: zbiera się w jednym wspólnym
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała, a gdy punkty się skończą, narzędzie dostaje stan **Zepsuty**. Narzędzie albo broń z Tier 0 to rzecz jednorazowa: psuje ją pierwszy rzut, w którym jej użyjesz, jakkolwiek by wypadł (z Hope, z Despair albo krytyk), a jej wiersz pokazuje **Jednorazowy** zamiast kropek. Przedmiotu użytkowego używa się raz, bez względu na Tier: użycie go psuje albo zabiera jedną sztukę ze stosu, a zużyty też jest Zepsuty.
 
 > [!WARNING]
-> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny, i wciąż jest dowodem. Masz dwa wyjścia i żadne nie kosztuje akcji: **wyrzuć** go (rzut na Shadow decyduje, jak widoczny będzie Remnant, a Remnant zostaje w pokoju) albo schowaj w **skrytce**. W czasie Class Trial nie da się go wyrzucić: przycisk jest wtedy wyszarzony, a jego podpowiedź mówi *W czasie Class Trial nie można niczego wyrzucić.*
+> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny, i wciąż jest dowodem. Masz dwa wyjścia i żadne nie kosztuje akcji: **wyrzuć** go (rzut na Shadow decyduje, jak widoczny będzie Remnant, a Remnant zostaje w pokoju) albo schowaj w **skrytce**. W czasie Class Trial nie da się go wyrzucić: przycisk jest wtedy wyszarzony, a jego podpowiedź mówi *W czasie Class Trial nie można niczego wyrzucić.* Tak samo wyrzucisz każdą inną rzecz, którą nosisz, zepsutą czy nie, z tym samym rzutem i tym samym Remnantem; nie wyrzucisz tylko Truth Bulleta ani klucza do sypialni.
 
 ### Kategorie i ile możesz nosić
 

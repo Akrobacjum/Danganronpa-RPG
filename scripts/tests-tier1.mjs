@@ -55410,6 +55410,36 @@ const INVARIANTS = [
         const seen = /Hooks\.on\("renderTokenHUD", app => \{\s*\n\s*try \{ holdAppRenders\(app, "tokenHud", actorId => actorId === \(app\?\.actor \?\? app\?\.document\?\.actor\)\?\.id\); \}/.test(fnSource(src("hud.mjs"), "registerHud"));
         ok(seen, "hud.mjs's renderTokenHUD listener installs no hold for the HUD's actor - a bar pointed at Hope moves under falling dice");
     }],
+    ["R7906 - any item can be thrown away but what the module only copies (1.2.119; the owner, 20.11.2026: \"Dodajmy mozliwosc wyrzucania przedmiotu tez wtedy gdy nie jest broken\"): inventory.mjs `onlyCopied` answers a Truth Bullet and a bedroom key (by its category or by its flag alone) and no other item, broken or not; the sheet's Discard (sheet-inventory.mjs `addDiscardButton`), `discardBroken` (use-items.mjs) and the GMs' audit of a discard's delete (sheet-audit.mjs `itemFindings`) each ask it, and none asks whether the item is broken", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T7 drives the sheet and the refusal on the GM's browser, scenario 40 a player's
+         * whole discard to the GMs' audit; this holds the predicate on stand-ins and the three places on the source. Red at
+         * f5319776: no onlyCopied, and each of the three asked `isBroken`.
+         */
+        const INV = await import("./inventory.mjs");
+        const { MODULE_ID: M, BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        must(typeof INV.onlyCopied === "function", "inventory.mjs exports no onlyCopied - nothing says which item cannot be thrown away");
+        const stand = flags => ({ getFlag: (scope, key) => (scope === M ? flags[key] : undefined) });
+        const C = INV.ITEM_FLAGS.category, B = INV.ITEM_FLAGS.broken;
+        const answers = {
+            bullet: INV.onlyCopied(stand({ [C]: "truthBullet" })), key: INV.onlyCopied(stand({ [C]: "bedroomKey" })),
+            oldKey: INV.onlyCopied(stand({ [BEDROOM_KEY_FLAG]: "Room" })), tool: INV.onlyCopied(stand({ [C]: "tool" })),
+            broken: INV.onlyCopied(stand({ [C]: "tool", [B]: true })), none: INV.onlyCopied(null)
+        };
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const button = fnSource(src("sheet-inventory.mjs"), "addDiscardButton"), discard = fnSource(src("use-items.mjs"), "discardBroken");
+        const standLine = (topLevelFunction(src("sheet-audit.mjs"), "itemFindings") ?? "").split("\n").find(line => /stamp\.reason === "discard"/.test(line)) ?? "";
+        const places = {
+            button: [/if \(onlyCopied\(item\)\) return;/.test(button), /isBroken\(/.test(button)],
+            discard: [/if \(onlyCopied\(item\)\) \{\s*\n\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Items\.discardNever"\)\);/.test(discard), /isBroken\(/.test(discard)],
+            audit: [/!onlyCopied\(itemLike\(held\)\)/.test(standLine), /isBroken\(/.test(standLine)]
+        };
+        equal(stableJson({ answers, places }), stableJson({
+            answers: { bullet: true, key: true, oldKey: true, tool: false, broken: false, none: false },
+            places: { button: [true, false], discard: [true, false], audit: [true, false] }
+        }), "{onlyCopied of a Truth Bullet, a key, a key by its flag alone, a tool, a broken tool, nothing; [asks onlyCopied, asks isBroken] at the sheet's Discard, discardBroken and the audit's discard line}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

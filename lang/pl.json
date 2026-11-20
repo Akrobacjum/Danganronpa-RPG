@@ -1237,7 +1237,7 @@
       "discardNote": "Wyrzucenie nie kosztuje akcji. Rzucasz na Shadow, a od wyniku zależy, jak widoczny będzie Remnant, który zostawisz przy swoim tokenie w tym pokoju. Ciszej pozbędziesz się przedmiotu, chowając go we własnej skrytce: to też zwalnia miejsce i nie zostawia Remnantu.",
       "discarded": "Wyrzucasz przedmiot „{item}”.",
       "discardTrace": "Zostaje po tobie Remnant.",
-      "discardOnlyBroken": "Wyrzucić można tylko zepsuty przedmiot.",
+      "discardNever": "Tego nie można wyrzucić.",
       "noDiscardInTrial": "W czasie Class Trial nie można niczego wyrzucić.",
       "discardStashed": "Najpierw wyjmij to ze skrytki.",
       "discardNoTrace": "Przedmiot „{item}” zostaje przy tobie: twoja postać nie ma tokenu na żadnej scenie, więc Remnant nie ma gdzie trafić.",

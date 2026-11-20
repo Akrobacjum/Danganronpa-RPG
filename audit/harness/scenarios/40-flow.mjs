@@ -1663,8 +1663,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const tool = await INV.grantItem(aiko, { name: "Scenario 40 stashed tool", category: "tool", tier: 1, override: true, quiet: true });
         const broken = await INV.grantItem(aiko, { name: "Scenario 40 broken tool", category: "tool", tier: 1, override: true, quiet: true });
         if (broken) await INV.breakItem(broken);
+        // 1.2.119 (the owner, 20.11.2026): a whole thing goes the same priced road - the question, the roll, the trace, the ticket.
+        const whole = await INV.grantItem(aiko, { name: "Scenario 40 whole tool", category: "tool", tier: 1, override: true, quiet: true });
         await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
-        return { room, had, tool: tool?.id ?? null, broken: broken?.id ?? null, patches: globalThis.__markPatches };`, { timeout: 30000 });
+        return { room, had, tool: tool?.id ?? null, broken: broken?.id ?? null, whole: whole?.id ?? null, patches: globalThis.__markPatches };`, { timeout: 30000 });
     let dayRun = null;
     try {
         await settle(400);
@@ -1676,19 +1678,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             // The throw-away question is the kit's since E21 C5a (destructive, Cancel the default): p1 presses Yes.
             const D = foundry.applications.api.DialogV2, wait = D.wait;
             D.wait = async function (cfg) { const yes = (cfg?.buttons ?? []).find(b => b.action === "yes"); if (!yes) return wait.call(this, cfg); return yes.callback ? yes.callback() : "yes"; };
-            try { await U.discardBroken(aiko, item(${JSON.stringify(dayItems.broken)})); } finally { D.wait = wait; }
+            try {
+                await U.discardBroken(aiko, item(${JSON.stringify(dayItems.broken)}));
+                await U.discardBroken(aiko, item(${JSON.stringify(dayItems.whole)}));
+            } finally { D.wait = wait; }
             const retrieved = await V.retrieve(aiko, item(${JSON.stringify(dayItems.tool)}));
-            return { stowed, inStash, retrieved, discarded: !item(${JSON.stringify(dayItems.broken)}) };`, { timeout: 90000 });
+            return { stowed, inStash, retrieved, discarded: !item(${JSON.stringify(dayItems.broken)}), wholeGone: !item(${JSON.stringify(dayItems.whole)}) };`, { timeout: 90000 });
         await settle(800);
     } finally {
         dayRun = { ...(dayRun ?? {}), gm: await gm.eval(`const R = await import("${REPO}/scripts/remnants.mjs"); const V = await import("${REPO}/scripts/vault.mjs");
             await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
             const aiko = game.actors.get("${ids.aiko}");
-            const out = { tool: aiko.items.get(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null, broken: aiko.items.has(${JSON.stringify(dayItems.broken)}) };
-            const left = R.remnantsOn(canvas.scene).filter(t => R.remnantData(t)?.subject === "Scenario 40 broken tool");
-            out.traces = left.length;
+            const out = { tool: aiko.items.get(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null, broken: aiko.items.has(${JSON.stringify(dayItems.broken)}),
+                whole: aiko.items.has(${JSON.stringify(dayItems.whole)}) };
+            const ours = t => ["Scenario 40 broken tool", "Scenario 40 whole tool"].includes(R.remnantData(t)?.subject);
+            const left = R.remnantsOn(canvas.scene).filter(ours);
+            out.traces = left.filter(t => R.remnantData(t)?.subject === "Scenario 40 broken tool").length;
+            out.wholeTraces = left.filter(t => R.remnantData(t)?.subject === "Scenario 40 whole tool").length;
             for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.document?.delete(); }
-            for (const id of [${JSON.stringify(dayItems.tool)}, ${JSON.stringify(dayItems.broken)}]) await aiko.items.get(id ?? "")?.delete();
+            for (const id of [${JSON.stringify(dayItems.tool)}, ${JSON.stringify(dayItems.broken)}, ${JSON.stringify(dayItems.whole)}]) await aiko.items.get(id ?? "")?.delete();
             if (${JSON.stringify(dayItems.room)} && !${dayItems.had}) await V.setStash(${JSON.stringify(dayItems.room)}, aiko.id, { present: false, scene: canvas?.scene });
             await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
             out.patches = globalThis.__markPatches;
@@ -1698,6 +1706,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         Boolean(dayItems.room) && Boolean(dayItems.tool) && Boolean(dayItems.broken) && dayRun.stowed === true && dayRun.inStash === "vault"
             && dayRun.retrieved === true && dayRun.discarded === true && dayRun.gm.tool === "carried" && dayRun.gm.broken === false && dayRun.gm.traces === 1,
         JSON.stringify({ dayItems, dayRun }), { flow: "sheet-audit" });
+    /* A WHOLE TOOL THROWN AWAY (1.2.119; the owner, 20.11.2026: "Dodajmy mozliwosc wyrzucania przedmiotu tez wtedy gdy nie
+       jest broken"): the same road as the broken one - gone on the GM, one trace left naming it - and, read by the day's
+       audit check below, neither put back nor flagged: the delete stood on the trace's ticket (sheet-audit.mjs
+       `itemFindings`), which until then covered a broken item alone. Red at f5319776: p1's browser refused it
+       (DRPG.Items.discardOnlyBroken), so nothing went and no trace was left. */
+    check("p1: a Tool that is not broken, discarded, goes on the GM with one trace naming it",
+        Boolean(dayItems.whole) && dayRun.wholeGone === true && dayRun.gm.whole === false && dayRun.gm.wholeTraces === 1,
+        JSON.stringify({ dayItems, dayRun }).slice(0, 1500), { flow: "sheet-audit" });
 
     /*
      * THE DAY, AS THE GMS' AUDIT SAW IT (E29 C3, 05.10.2026; the plan's section 6, "store traffic"). Every write
