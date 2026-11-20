@@ -207,6 +207,45 @@ export function edgePath(from, to, g = MAP_GEOMETRY) {
     return `M${x1} ${y1} C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`;
 }
 
+/**
+ * WHERE AN ARROW ENDS (1.2.119, the owner: "Czytelność strzałek"): the last point of `edgePath`, the middle of the target's
+ * left edge, across columns and within one. The arrowhead is drawn with its tip on this point (case-map.mjs `arrowDefs`:
+ * the marker's reference point is its tip), so it stops at the node's border and is never drawn under the node, which
+ * stands over the edge layer. Pure; R7822.
+ */
+export function edgeEnd(from, to, g = MAP_GEOMETRY) {
+    return { x: to.x, y: to.y + (to.h ?? g.nodeH) / 2 };
+}
+
+/**
+ * THE ARROWS OF ONE NODE LIT (1.2.119; the owner's "Czytelność strzałek"): every edge with `id` at an end gets `is-lit`,
+ * its halo too, its lit arrowhead (`data-drpg-arrow-lit`), and is moved to the top of the layer, so it is drawn over the
+ * lines it crosses; the canvas gets `has-lit`, under which the stylesheet dims every edge not lit (components.css). `id`
+ * null puts every edge back. What it means is unchanged: only the drawing. Answers how many edges are lit. R7823.
+ */
+export function lightEdges(canvas, id = null) {
+    const svg = canvas?.querySelector?.(":scope > svg.drpg-case-edges");
+    if (!svg) return 0;
+    let lit = 0;
+    for (const path of [...svg.querySelectorAll("path[data-drpg-edge]")]) {
+        let ends = [];
+        try { ends = JSON.parse(path.dataset.drpgEnds || "[]"); } catch { ends = []; }
+        const on = id !== null && ends.includes(id);
+        const halo = path.previousElementSibling?.matches?.("path[data-drpg-halo]") ? path.previousElementSibling : null;
+        path.classList.toggle("is-lit", on);
+        halo?.classList.toggle("is-lit", on);
+        const head = on ? path.dataset.drpgArrowLit : path.dataset.drpgArrow;
+        if (head) path.setAttribute("marker-end", `url(#${head})`);
+        if (on) {
+            lit++;
+            if (halo) svg.appendChild(halo);
+            svg.appendChild(path);
+        }
+    }
+    canvas.classList.toggle("has-lit", lit > 0);
+    return lit;
+}
+
 /* ---- THE CAMERA (the owner's "ruch i oddalanie i przyblizanie 'kamery' na schemacie"). The graph's box is a viewport
    that never scrolls (`overflow: clip`, so focusing a node off screen cannot scroll it under the camera); the canvas
    inside it is moved and scaled by one transform, `translate(x, y) scale(z)` about its top left corner. A drag on empty
@@ -358,7 +397,11 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
     };
     for (const path of svg?.querySelectorAll("path[data-drpg-edge]") ?? []) {
         const [from, to] = JSON.parse(path.dataset.drpgEnds ?? "[]");
-        if (place.at[from] && place.at[to]) path.setAttribute("d", edgePath(face(from), face(to), g));
+        if (!place.at[from] || !place.at[to]) continue;
+        path.setAttribute("d", edgePath(face(from), face(to), g));
+        // its halo, drawn just under it (case-map.mjs; 1.2.119), on the same line
+        const halo = path.previousElementSibling;
+        if (halo?.matches?.("path[data-drpg-halo]")) halo.setAttribute("d", path.getAttribute("d"));
     }
     canvas.dataset.drpgMeasured = sizes.size && [...sizes.values()].some(s => s.h > 0) ? "1" : "0";
     return place;

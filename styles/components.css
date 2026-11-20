@@ -3446,8 +3446,87 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
 body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { transition: none; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
+/* THE ARROWS, READABLE (1.2.119, the owner: "Czytelność strzałek"). 1.6 px of the kit's strong line (bone at 0.3) until
+   then, and no head. Now 2.5 px of the help ink (bone at 0.62 under both themes), each over a halo of its own 7 px wide in
+   the graph's ground (case-map.mjs draws it under the edge), so a line keeps a margin where it crosses another; a head on
+   every edge whose tip is the path's end, the target's left edge (case-view.mjs `edgeEnd`). A node hovered or focused
+   lights its edges in the ink, 3 px, and dims the rest (case-view.mjs `lightEdges`); the dim eased only where motion is
+   not reduced. What an edge means is unchanged: an input solid, a counter's dashed in the done green. */
+:root { --drpg-case-halo: var(--drpg-ink); }
+body.drpg-theme-stained-glass { --drpg-case-halo: var(--drpg-sg-ink); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge { fill: none; stroke: var(--drpg-kit-help-ink); stroke-width: 2.5; stroke-linecap: butt; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 6 4; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge-halo { fill: none; stroke: var(--drpg-case-halo); stroke-width: 7; stroke-linecap: round; stroke-opacity: 0.85; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-arrow > path { fill: var(--drpg-kit-help-ink); stroke: none; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-arrow--refutes > path { fill: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-arrow--lit > path { fill: var(--drpg-kit-ink); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge.is-lit { stroke: var(--drpg-kit-ink); stroke-width: 3; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge--refutes.is-lit { stroke: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.has-lit .drpg-case-edge:not(.is-lit),
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.has-lit .drpg-case-edge-halo:not(.is-lit) { opacity: 0.25; }
+body.drpg-high-contrast .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.has-lit .drpg-case-edge:not(.is-lit) { opacity: 0.5; }
+body:not(.drpg-reduced-motion) .application:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-edge, .drpg-case-edge-halo) { transition: opacity 120ms ease-out; }
+/* EACH REMNANT TYPE ITS COLOUR (1.2.119, the owner: "Kodowanie kolorystyczne typów remnantów"; case-map.mjs `caseTypeOf`).
+   A colour per type in each theme, and the ink its words take on it: a 5 px band down the node's left (an inset shadow,
+   so no node's box or measure changes) and its kind's words as a chip in the colour. Each theme's hues follow the
+   evidence pack's badges where they are told apart (`.drpg-tb-badge.type.*`: Legacy's gold Key and Tamper blue, the
+   glass's green Key, light red Incident, violet Tamper and blue Autopsy) and are lifted where two badges read alike on a
+   node (Prep and Incident, both red; Autopsy, Neutral and Faint, three greys under Legacy): Prep orange, Autopsy violet
+   under Legacy, Neutral and Faint two greys apart, Final the theme's bone. Every pair - the ink on each colour, both
+   themes - is held at AA for small text by tools/contrast-pairs.json `case-type-*` (R7824). Colour is not the only cue:
+   the chip's words name the type, a Faint Remnant's band is dashed, and the legend under the graph names each colour. */
+:root {
+    --drpg-case-type-ink: var(--drpg-ink);
+    --drpg-case-type-key: var(--drpg-evidence);
+    --drpg-case-type-incident: #f0707f;
+    --drpg-case-type-prep: #ff9f43;
+    --drpg-case-type-resolution: var(--drpg-tb-resolution);
+    --drpg-case-type-autopsy: #b3a6f5;
+    --drpg-case-type-neutral: #c9c9c9;
+    --drpg-case-type-faint: #8f8f8f;
+    --drpg-case-type-final: var(--drpg-bone);
+}
+body.drpg-theme-stained-glass {
+    --drpg-case-type-ink: var(--drpg-sg-ink);
+    --drpg-case-type-key: var(--drpg-sg-evidence);
+    --drpg-case-type-incident: var(--drpg-sg-gm-light);
+    --drpg-case-type-prep: #ff9f43;
+    --drpg-case-type-resolution: var(--drpg-sg-eclipse);
+    --drpg-case-type-autopsy: var(--drpg-sg-badge-autopsy);
+    --drpg-case-type-neutral: #c4bfcc;
+    --drpg-case-type-faint: #878291;
+    --drpg-case-type-final: var(--drpg-sg-bone);
+}
+.drpg-case-type--key { --drpg-case-type: var(--drpg-case-type-key); }
+.drpg-case-type--incident { --drpg-case-type: var(--drpg-case-type-incident); }
+.drpg-case-type--prep { --drpg-case-type: var(--drpg-case-type-prep); }
+.drpg-case-type--resolution { --drpg-case-type: var(--drpg-case-type-resolution); }
+.drpg-case-type--autopsy { --drpg-case-type: var(--drpg-case-type-autopsy); }
+.drpg-case-type--neutral { --drpg-case-type: var(--drpg-case-type-neutral); }
+.drpg-case-type--faint { --drpg-case-type: var(--drpg-case-type-faint); }
+.drpg-case-type--final { --drpg-case-type: var(--drpg-case-type-final); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > :is(button.drpg-case-node[data-drpg-node], .drpg-case-edit)[data-drpg-type] {
+    box-shadow: inset 5px 0 0 var(--drpg-case-type);
+    padding-left: 13px;
+}
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > :is(button.drpg-case-node[data-drpg-node], .drpg-case-edit).drpg-case-type--faint {
+    box-shadow: none;
+    border-left: 5px dashed var(--drpg-case-type);
+    padding-left: 9px;
+}
+.application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind {
+    flex: 0 1 auto;
+    padding: 0 0.375rem;
+    border-radius: 999px;
+    color: var(--drpg-case-type-ink);
+    background: var(--drpg-case-type);
+}
+/* the legend at the camera strip's left, the buttons kept at its right; it wraps rather than widen the window */
+.application.drpg-window-case .drpg-case-camera.has-legend { align-self: stretch; }
+.application.drpg-window-case .drpg-case-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.625rem; margin: 0 auto 0 0; padding: 0; list-style: none; min-width: 0; }
+.application.drpg-window-case .drpg-case-legend-item { display: inline-flex; align-items: center; gap: 0.25rem; margin: 0; font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case .drpg-case-legend-swatch { flex: 0 0 auto; width: 0.75rem; height: 0.75rem; border-radius: 2px; background: var(--drpg-case-type); border: 1px solid var(--drpg-case-type-ink); }
+.application.drpg-window-case .drpg-case-legend-item.drpg-case-type--faint > .drpg-case-legend-swatch { background: transparent; border: 2px dashed var(--drpg-case-type); }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-col-head {
     position: absolute;
     top: 0.25rem;

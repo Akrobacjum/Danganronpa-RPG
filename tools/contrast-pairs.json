@@ -208,6 +208,134 @@
       "on": "--drpg-sg-ink",
       "size": "small",
       "where": "a destructive answer under the pointer, its raster kept and no brush: body.drpg-theme-stained-glass .application.dialog footer.form-footer button:is(.danger, .drpg-destructive, .drpg-role-destructive, ...):hover:not(:disabled):not(.active) (E22 fix G1; the end review's SCREENS M3: the full GM-red brush under this ink read 1.55)"
+    },
+    {
+      "id": "case-type-sg-key",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-key",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--key"
+    },
+    {
+      "id": "case-type-sg-incident",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-incident",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--incident"
+    },
+    {
+      "id": "case-type-sg-prep",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-prep",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--prep"
+    },
+    {
+      "id": "case-type-sg-resolution",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-resolution",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--resolution"
+    },
+    {
+      "id": "case-type-sg-autopsy",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-autopsy",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--autopsy"
+    },
+    {
+      "id": "case-type-sg-neutral",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-neutral",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--neutral"
+    },
+    {
+      "id": "case-type-sg-faint",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-faint",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--faint"
+    },
+    {
+      "id": "case-type-sg-final",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-final",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--final"
+    },
+    {
+      "id": "case-type-lg-key",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-key",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--key"
+    },
+    {
+      "id": "case-type-lg-incident",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-incident",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--incident"
+    },
+    {
+      "id": "case-type-lg-prep",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-prep",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--prep"
+    },
+    {
+      "id": "case-type-lg-resolution",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-resolution",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--resolution"
+    },
+    {
+      "id": "case-type-lg-autopsy",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-autopsy",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--autopsy"
+    },
+    {
+      "id": "case-type-lg-neutral",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-neutral",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--neutral"
+    },
+    {
+      "id": "case-type-lg-faint",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-faint",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--faint"
+    },
+    {
+      "id": "case-type-lg-final",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-type-final",
+      "size": "small",
+      "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--final"
     }
   ],
   "hours": {

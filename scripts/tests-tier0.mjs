@@ -19,7 +19,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy, chapterText, chapterBy, GLASS_FAMILY, glassText
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssContrastOf, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy, chapterText, chapterBy, GLASS_FAMILY, glassText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -24955,6 +24955,184 @@ const REGRESSIONS = [
             // 300 since owner-116 (15.11.2026; the owner: "Poszerzmy je też trochę"; R7525), 240 until then
             css: { fields: "300px", node: "300px", boxes: true }
         }), "{the fields' width with the clicked face 240 px wide, and 300 px (its classes put back after the reading); a face reading 0 writes none; css: the fields' width, the node's, the text boxes filling the fields}");
+    }],
+    ["R7820 - each Remnant type has its own colour on its node in the planner (1.2.119, the owner: \"Kodowanie kolorystyczne typów remnantów\"; case-map.mjs `caseTypeOf`, components.css): every evidence node's face and its fields carry its type's class and `data-drpg-type` - a placed Remnant by its type, a Key slot and a Remnant in one as Key, a planned Incident Remnant with no type as Incident, a planned Truth Bullet by its real type, an Autopsy as Autopsy - and a schema node none; the stylesheets declare a colour and an ink for every type in both themes, paint each type's class from it, and the node's words still name the type (colour is not the only cue)", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. Pure: a graph of `graphOf` with one placed Remnant of each of the eight types,
+         * drawn with every node open (the Map's default since owner-116) and read back; the stylesheets as served. Red at
+         * b5a29e73: no `caseTypeOf`, the fields carry no type, no stylesheet declares a type's colour.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        must(typeof M.caseTypeOf === "function", "case-map.mjs exports no caseTypeOf - the planner has no colour for a Remnant's type");
+        const TYPES = ["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"];
+        const traces = TYPES.map((t, i) => ({ key: `S.R7820${i}`, type: t, name: `R7820 ${t}`, tiedToCrime: true }));
+        const graph = S.graphOf({ chapter: 4, traces, rows: { "d-a": { kind: "deduction", label: "R7820 d", inputs: traces.map(t => t.key) } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const read = sel => [...d.querySelectorAll(sel)].map(el => [el.dataset.drpgNode ?? el.dataset.drpgEdit, el.dataset.drpgType ?? null,
+            TYPES.filter(t => el.classList.contains(`drpg-case-type--${t}`))]);
+        const want = [...traces.map((t, i) => [t.key, TYPES[i], [TYPES[i]]]), ["d-a", null, []]];
+        const sorted = rows => [...rows].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+        const kinds = [...d.querySelectorAll(".drpg-case-edit[data-drpg-type] .drpg-case-node-kind")].map(k => k.textContent);
+        const hand = [{ evidence: true, kind: "key", planned: true, type: "key" }, { evidence: true, kind: "key", type: "prep" },
+            { evidence: true, kind: "incident", planned: true, type: null }, { evidence: true, kind: "bullet", planned: true, realType: "resolution", type: "resolution" },
+            { evidence: true, kind: "autopsy", planned: true, type: "autopsy" }, { evidence: false, kind: "solution" }, { evidence: true, kind: "trace", type: "nonsense" }].map(M.caseTypeOf);
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const tokens = TYPES.filter(t => (rules.match(new RegExp(`--drpg-case-type-${t}:`, "g")) ?? []).length >= 2);
+        const painted = TYPES.filter(t => new RegExp(`\\.drpg-case-type--${t}\\s*\\{[^}]*--drpg-case-type:\\s*var\\(--drpg-case-type-${t}\\)`).test(rules));
+        equal(JSON.stringify({ faces: sorted(read("button[data-drpg-node]")), fields: sorted(read(".drpg-case-edit[data-drpg-edit]")), kinds: kinds.length, named: kinds.filter(k => TYPES.some(t => k === REMNANT_TYPES[t].label)).length,
+            hand, tokens, painted, ink: (rules.match(/--drpg-case-type-ink:/g) ?? []).length >= 2 }), JSON.stringify({
+            faces: sorted(want), fields: sorted(want), kinds: 8, named: 8,
+            hand: ["key", "key", "incident", "resolution", "autopsy", null, null], tokens: TYPES, painted: TYPES, ink: true
+        }), "{faces and fields: each node's id, data-drpg-type and type classes; kinds: the typed fields' kind words, named: those that name a Remnant type; hand: a slot, a Remnant in a slot, a planned Incident with no type, a planned Truth Bullet, an Autopsy, a schema node, an unknown type; tokens: types with a colour declared twice (both themes); painted: type classes that take their colour; ink: the chip's ink in both themes}");
+    }],
+    ["R7821 - the planner names its colours in a legend (1.2.119; case-map.mjs `caseLegendHtml`, `cameraHtml`): the Map's strip under the graph lists each Remnant type the case holds, once, in the fixed order, each item with its type's class and the type's own name, named as a list by `DRPG.CaseMap.legendLabel` in both languages; a case with no evidence draws none, and the Class Trial console's strip draws none", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. Red at b5a29e73: no legend, no key.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        must(typeof M.caseLegendHtml === "function", "case-map.mjs exports no caseLegendHtml - the planner's colours are named nowhere");
+        const traces = [["final", 1], ["prep", 2], ["prep", 3], ["key", 4]].map(([t, i]) => ({ key: `S.R7821${i}`, type: t, name: `R7821 ${i}`, tiedToCrime: true }));
+        const draw = tr => {
+            const graph = S.graphOf({ chapter: 2, traces: tr, rows: { "d-a": { kind: "deduction", label: "R7821 d", inputs: tr.map(t => t.key) } } });
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+            const legend = d.querySelector(".drpg-case-camera .drpg-case-legend");
+            return legend ? { label: legend.getAttribute("aria-label"), items: [...legend.querySelectorAll("li")].map(li => [li.dataset.drpgType, li.className.includes(`drpg-case-type--${li.dataset.drpgType}`), li.textContent.trim()]) } : null;
+        };
+        const trialStrip = document.createElement("div");
+        trialStrip.innerHTML = M.cameraHtml(1);
+        let lang = {};
+        for (const l of ["en", "pl"]) {
+            try { lang[l] = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.CaseMap?.legendLabel ?? null; } catch { lang[l] = null; }
+        }
+        equal(JSON.stringify({ some: draw(traces), none: draw([]), trial: trialStrip.querySelectorAll(".drpg-case-legend").length, en: typeof lang.en === "string" && lang.en.length > 0, pl: typeof lang.pl === "string" && lang.pl.length > 0 && lang.pl !== lang.en }), JSON.stringify({
+            some: { label: game.i18n.localize("DRPG.CaseMap.legendLabel"), items: ["key", "prep", "final"].map(t => [t, true, REMNANT_TYPES[t].label]) },
+            none: null, trial: 0, en: true, pl: true
+        }), "{some: the legend's name and each item's type, its class and its words; none: a case with no evidence; trial: legends in the trial console's strip; en, pl: the key in each language}");
+    }],
+    ["R7822 - the planner's arrows end at their target's edge and stand out (1.2.119, the owner: \"Czytelność strzałek\"; case-view.mjs `edgeEnd`, case-map.mjs, components.css): each edge's path ends at `edgeEnd`, on the target's left edge inside its box, across columns and within one; it carries an arrowhead (`marker-end`) of its own canvas whose tip is its reference point, so the head ends at the edge and not under the node; a halo path under each edge, drawn again with it by `relayoutCaseMap`; the line at least 2.4 px with a halo wider than it", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. The geometry is pure; whether the head reads at a table is the Chromium shots'
+         * (audit/case-map-sweep.mjs --shots). Red at b5a29e73: no `edgeEnd`, no marker, no halo, the line 1.6 px.
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof V.edgeEnd === "function", "case-view.mjs exports no edgeEnd - nothing says where an arrow ends");
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78221", type: "prep", name: "a", tiedToCrime: true }, { key: "S.R78222", type: "key", name: "b", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7822 d", inputs: ["S.R78221", "S.R78222"] }, "c-b": { kind: "counter", label: "R7822 c", refutes: ["d-a"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        const svg = canvas?.querySelector(":scope > svg.drpg-case-edges");
+        const last = dAttr => (String(dAttr ?? "").match(/(-?[\d.]+)[ ,](-?[\d.]+)\s*$/) ?? []).slice(1).map(Number);
+        const tail = dAttr => { const m = String(dAttr ?? "").match(/H(-?[\d.]+)\s*$/); return m ? Number(m[1]) : null; };
+        const ends = pathsOf => [...(svg?.querySelectorAll("path[data-drpg-edge]") ?? [])].map(p => {
+            const [from, to] = JSON.parse(p.dataset.drpgEnds);
+            const f = { ...pathsOf[from] }, t = { ...pathsOf[to] };
+            const e = V.edgeEnd(f, t);
+            const xy = last(p.getAttribute("d"));
+            const x = tail(p.getAttribute("d")) ?? xy[0];
+            const ref = (p.getAttribute("marker-end") ?? "").match(/^url\(#([^)]+)\)$/)?.[1] ?? null;
+            const marker = ref ? svg.querySelector(`marker[id="${ref}"]`) : null;
+            const vb = (marker?.getAttribute("viewBox") ?? "").split(/\s+/).map(Number);
+            const halo = p.previousElementSibling;
+            return { edge: p.dataset.drpgEdge, atEnd: x === e.x, onEdge: e.x === t.x && e.y >= t.y && e.y <= t.y + (t.h ?? V.MAP_GEOMETRY.nodeH),
+                head: Boolean(marker) && Number(marker.getAttribute("refX")) === vb[2] && marker.getAttribute("orient") === "auto",
+                halo: Boolean(halo?.matches?.("path[data-drpg-halo]")) && halo.getAttribute("d") === p.getAttribute("d") && !halo.hasAttribute("data-drpg-ends") };
+        });
+        const placed = M.mapPlace(layoutCase(graph), V.MAP_GEOMETRY, null, { edges: graph.edges }).at;
+        const drawn = ends(placed);
+        // a browser's sizes: every node 120 px tall, and the halo follows its edge after the relayout
+        for (const b of canvas?.querySelectorAll(":scope > button[data-drpg-node], :scope > .drpg-case-edit") ?? []) {
+            Object.defineProperty(b, "offsetHeight", { configurable: true, get: () => (b.matches("button") ? 0 : 120) });
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => (b.matches("button") ? 0 : 300) });
+        }
+        const again = V.relayoutCaseMap(canvas);
+        const moved = ends(again?.at ?? {});
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const width = re => Number(rules.match(re)?.[1] ?? 0);
+        const line = width(/\.drpg-case-edge \{[^}]*?stroke-width:\s*([\d.]+)/), halo = width(/\.drpg-case-edge-halo \{[^}]*?stroke-width:\s*([\d.]+)/);
+        const all = { atEnd: true, onEdge: true, head: true, halo: true };
+        equal(JSON.stringify({ drawn: drawn.map(({ edge, ...r }) => [edge, r]).sort(), moved: moved.map(({ edge, ...r }) => [edge, r]).sort(), line: line >= 2.4, halo: halo > line,
+            ids: new Set([...(svg?.querySelectorAll("marker") ?? [])].map(m => m.id)).size === (svg?.querySelectorAll("marker").length ?? -1) }), JSON.stringify({
+            drawn: [["S.R78221>d-a", all], ["S.R78222>d-a", all], ["c-b>d-a", all]].sort(),
+            moved: [["S.R78221>d-a", all], ["S.R78222>d-a", all], ["c-b>d-a", all]].sort(), line: true, halo: true, ids: true
+        }), "{drawn and moved (after a relayout at 120 px a node): each edge's end at edgeEnd, edgeEnd on the target's left edge, an arrowhead whose tip is its reference point, a halo under it on the same path; line: the stroke at least 2.4; halo: wider than the line; ids: the markers' ids distinct}");
+    }],
+    ["R7823 - a hovered or focused node lights its arrows and dims the rest (1.2.119; case-view.mjs `lightEdges`, case-map.mjs `wireCaseMap`, components.css): focus on a node's face or into its fields, or the pointer over either, marks every edge with that node at an end lit (`is-lit`, its halo too, its lit arrowhead) and the canvas `has-lit`, and no other edge; leaving clears it; the stylesheet dims an unlit edge only while one is lit, and eases it only where motion is not reduced", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. jsdom dispatches the events the browser would; what it looks like is the
+         * Chromium shots'. Red at b5a29e73: no `lightEdges`, nothing listens.
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof V.lightEdges === "function", "case-view.mjs exports no lightEdges - no arrow is ever highlighted");
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78231", type: "prep", name: "a", tiedToCrime: true }, { key: "S.R78232", type: "key", name: "b", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7823 d", inputs: ["S.R78231"] }, "d-b": { kind: "deduction", label: "R7823 e", inputs: ["S.R78232"] } } });
+        const host = document.createElement("div");
+        host.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: false }, editors: new Map([["d-a", M.editRow("R7823", `<input type="text" name="r7823">`)]]) });
+        document.body.appendChild(host);
+        try {
+            M.wireCaseMap(host, {});
+            const canvas = host.querySelector(".drpg-case-canvas");
+            const state = () => ({ lit: [...canvas.querySelectorAll("path[data-drpg-edge].is-lit")].map(p => p.dataset.drpgEdge).sort(),
+                halos: canvas.querySelectorAll("path[data-drpg-halo].is-lit").length, has: canvas.classList.contains("has-lit"),
+                heads: [...canvas.querySelectorAll("path[data-drpg-edge].is-lit")].every(p => /-lit\)$/.test(p.getAttribute("marker-end") ?? "")) });
+            const fire = (el, type, related = null) => { const e = new Event(type, { bubbles: true }); if (related) Object.defineProperty(e, "relatedTarget", { value: related }); el?.dispatchEvent(e); };
+            const face = canvas.querySelector('button[data-drpg-node="S.R78231"]');
+            fire(face, "focusin");
+            const focused = state();
+            fire(face, "focusout", null);
+            const left = state();
+            const field = canvas.querySelector('.drpg-case-edit[data-drpg-edit="d-a"] input');
+            fire(field, "pointerover");
+            const hovered = state();
+            fire(host.querySelector(".drpg-case-graph"), "pointerleave");
+            const gone = state();
+            let rules = "";
+            try { rules = await moduleStyles(); } catch { rules = ""; }
+            equal(JSON.stringify({ focused, left, hovered, gone,
+                dim: /\.has-lit \.drpg-case-edge:not\(\.is-lit\)[^{]*\{[^}]*opacity:\s*0?\.\d+/.test(rules),
+                still: /body:not\(\.drpg-reduced-motion\)[^{]*\.drpg-case-edge[^{]*\{[^}]*transition:/.test(rules) }), JSON.stringify({
+                focused: { lit: ["S.R78231>d-a"], halos: 1, has: true, heads: true }, left: { lit: [], halos: 0, has: false, heads: true },
+                hovered: { lit: ["S.R78231>d-a"], halos: 1, has: true, heads: true }, gone: { lit: [], halos: 0, has: false, heads: true },
+                dim: true, still: true
+            }), "{focused: a face focused - the lit edges, lit halos, the canvas marked, lit heads; left: focus gone; hovered: the pointer over the open fields of d-a; gone: the pointer off the graph; dim: an unlit edge dimmed while one is lit; still: the easing only without reduced motion}");
+        } finally { host.remove(); }
+    }],
+    ["R7824 - each Remnant type's colour carries its ink at WCAG AA in both themes (1.2.119; tools/contrast-pairs.json `case-type-*`, components.css): a pair for every type in each theme, the chip's ink on the type's colour, each resolved and at AA for small text", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. tests-css.mjs `contrastOf`, the arithmetic `node tools/check.mjs contrast`
+         * prints, on the files Foundry serves. Red at b5a29e73: no pair names a type's colour.
+         */
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        let pairs = [];
+        try { pairs = (await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" }).then(r => r.json())).pairs ?? []; } catch { pairs = []; }
+        const TYPES = ["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"];
+        const mine = pairs.filter(p => String(p.id).startsWith("case-type-"));
+        const read = cssContrastOf(mine, cssThemeTokens(sheets));
+        const got = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, TYPES.map(t => {
+            const i = mine.findIndex(p => p.theme === theme && p.on === `--drpg-case-type-${t}` && p.text === "--drpg-case-type-ink" && p.size === "small");
+            return i < 0 ? `${t}: none` : `${t}: ${read[i].state}`;
+        })]));
+        equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, TYPES.map(t => `${t}: ok`)]))),
+            "each theme's types: the chip's ink on the type's colour, its state by WCAG 2 AA (ok, low, unmeasured or none)");
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
         /*

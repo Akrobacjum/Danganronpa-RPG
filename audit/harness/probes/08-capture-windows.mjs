@@ -220,6 +220,29 @@ const SEED_PLAN = SEED_CASE + `
     await CS.setCaseNode(ch, "probe08-d3", { kind: "deduction", label: "Someone else was in the library", mode: "straw",
         zoneQuestion: "Who left the library first?", zoneA: "The librarian", zoneB: "The night guard" });
     globalThis.__probe08case.ids.push("incident-probe08b", "autopsy", "probe08-d3", "final-probe08", "bullet-probe08");`;
+/* 1.2.119 line P (20.11.2026; the owner: "Kodowanie kolorystyczne typów remnantów. Czytelność strzałek"): one placed
+   Remnant of each type beside the case's own, and two deductions whose inputs cross the others' lines, so a capture shows
+   every type's colour and arrows that cross; for audit/case-map-sweep.mjs --shots, before and after. Dropped after. */
+const SEED_TYPES = SEED_CASE + `
+    const RT = await import(\`\${repoUrl}/scripts/remnants.mjs\`);
+    const placed = [];
+    for (const [type, name] of [["key", "The library's spare key"], ["neutral", "Dust on the window sill"], ["faint", "A smudge on the door handle"],
+        ["incident", "The shattered display case"], ["resolution", "A table wiped too clean"], ["autopsy", "The wound's angle"], ["final", "The second key's mould"]]) {
+        const t = await RT.placeRemnant({ type, visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: ch, note: "probe 08 - " + type });
+        if (t) { await RT.setRemnantPublic(t, { name, playerText: "" }); placed.push(t); }
+    }
+    globalThis.__probe08case.extra = placed;
+    const all = CS.caseGraph(ch).nodes.filter(n => n.evidence && !n.planned).map(n => n.id);
+    await CS.setCaseNode(ch, "probe08-d4", { kind: "deduction", label: "The case was broken from inside", inputs: [all[0], all[all.length - 1], all[3]].filter(Boolean) });
+    await CS.setCaseNode(ch, "probe08-d5", { kind: "deduction", label: "Somebody cleaned up after it", inputs: [all[all.length - 2], all[1], all[4]].filter(Boolean) });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2", "probe08-d4", "probe08-d5"] });
+    globalThis.__probe08case.ids.push("probe08-d4", "probe08-d5");`;
+const DROP_TYPES = `{
+        const c = globalThis.__probe08case;
+        const RT = await import(\`\${repoUrl}/scripts/remnants.mjs\`);
+        for (const t of c?.extra ?? []) { await RT.dropRemnantSecret(t).catch(() => {}); await t.delete().catch(() => {}); }
+    }
+    ` + DROP_CASE;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -338,6 +361,7 @@ export const WINDOWS = [
     { id: "investigation--map-zone", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="probe08-d3"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-final", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="final-probe08"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-bullet", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="bullet-probe08"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-types", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
     { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },

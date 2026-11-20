@@ -7335,6 +7335,7 @@
       "editLabel": "Fields of {name}",
       "toolsLabel": "Map tools",
       "cameraLabel": "Camera",
+      "legendLabel": "Remnant colors",
       "zoomOut": "Zoom out",
       "zoomIn": "Zoom in",
       "zoomLevel": "Zoom",
