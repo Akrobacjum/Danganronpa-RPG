@@ -65,6 +65,7 @@ import {
     showsStopwatch
 } from "./hud-elapsed.mjs";
 import { markLoneInitials } from "./chrome.mjs";
+import { holdAppRenders } from "./dice-hold.mjs";
 export {
     unpausePatch, CLOCK_BEAT_MS, readyPatch, settleClockAtReady, beatClock, shownClock, clockForDisplay, elapsedOf,
     showsStopwatch
@@ -256,6 +257,12 @@ export function registerHud() {
 
     // Foundry's token HUD, not this one: a student's bars are display-only for a player (E29 C7).
     Hooks.on("renderTokenHUD", stillTokenBars);
+    /* And a bar pointed at a student's Hope waits for a roll's dice as the sheet's Hope does (dice-hold.mjs
+       `holdAppRenders`, 1.2.119): the HUD's own render, held only for its token's actor's write. */
+    Hooks.on("renderTokenHUD", app => {
+        try { holdAppRenders(app, "tokenHud", actorId => actorId === (app?.actor ?? app?.document?.actor)?.id); }
+        catch (err) { error("Could not hold the token HUD for a roll's dice", err); }
+    });
 }
 
 /**

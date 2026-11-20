@@ -55117,6 +55117,16 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson({ installed: true, forcedAtOnce: true, held: true, turnKept: true }),
             "{the Party sheet's hook installs the hold; a forced render, or one with no dice falling, at once; one held for the roll; the turn's update kept}");
     }],
+    ["R7905 - the token HUD waits for a roll's dice, for its own token's actor alone (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): hud.mjs's `renderTokenHUD` listener installs dice-hold.mjs `holdAppRenders` on the HUD with the HUD's actor as what it concerns", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T6 measures the hold on a stand-in HUD; this holds the road, read off the
+         * source. Red at 1567303c: no listener installs it.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const seen = /Hooks\.on\("renderTokenHUD", app => \{\s*\n\s*try \{ holdAppRenders\(app, "tokenHud", actorId => actorId === \(app\?\.actor \?\? app\?\.document\?\.actor\)\?\.id\); \}/.test(fnSource(src("hud.mjs"), "registerHud"));
+        ok(seen, "hud.mjs's renderTokenHUD listener installs no hold for the HUD's actor - a bar pointed at Hope moves under falling dice");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

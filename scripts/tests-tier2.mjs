@@ -96770,6 +96770,68 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ held: 0, landed: [1, base + 2], unnamed: [2, base + 1] }),
             "{the Party sheet's renders after two writes of the roll while its dice fall; [renders, the Hope drawn] when they land; after a write naming no roll}");
     }],
+    ["S119-T6 - the token HUD a roll's write renders is drawn when this browser's dice of the roll have landed (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): with a stand-in Dice So Nice whose animation has not ended, a Hope write naming the roll leaves the HUD of that student's token, opened through the module's hook (`renderTokenHUD`), unrendered, and renders it once, with the latest Hope, when the animation ends; a write naming no roll renders it at once, and a forced render (the HUD opened on a token) is never held", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. Foundry's token HUD draws a bar pointed at Hope itself; the module holds the HUD's own render
+         * (dice-hold.mjs `holdAppRenders`, installed at its first render, for its token's actor alone) - which road of v14
+         * renders it after the actor's write is not read here (LIVE-S119-01): the stand-in sits in the actor's `apps`, which
+         * the harness's shim renders after a write. No canvas: the HUD is a stand-in with the token's actor (`actor`). Counted: the
+         * stand-in's own renders, with the member's Hope each drew. Put back: Hope, `game.dice3d`.
+         */
+        const [student] = cast(1);
+        must(student, "no student - this would measure nothing");
+        const HOPE = "system.resources.hope.value", OPT = "drpgDiceOf", ROLL = `s119t6roll${Date.now().toString(36)}`;
+        const hopeMax = Number(foundry.utils.getProperty(student, "system.resources.hope.max") ?? 6);
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+        const base = Math.min(hopeWas, hopeMax - 3);
+        let open = null;
+        const gate = new Promise(resolve => { open = resolve; });
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        const ownApps = !student.apps;
+        let drawn = 0, drew = null, open2 = null;
+        const gate2 = new Promise(resolve => { open2 = resolve; });
+        const Hud = { render() { drawn++; drew = Number(foundry.utils.getProperty(student, HOPE) ?? 0); return Promise.resolve(this); } };
+        const app = Object.assign(Object.create(Hud), { actor: student, id: `s119t6-${Date.now().toString(36)}`, rendered: true, element: document.createElement("div") });
+        const write = async (changes, options = {}) => { await student.update(changes, options); await settle(); };
+        const read = {};
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            await write({ [HOPE]: base });
+            Hooks.callAll("renderTokenHUD", app, app.element, {}, { isFirstRender: true });
+            student.apps[app.id] = app;
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: id => (id === ROLL ? gate : Promise.resolve(true)) } });
+            const H = await import("./dice-hold.mjs");
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            drawn = 0;
+            await write({ [HOPE]: base + 1 }, { [OPT]: ROLL });
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL });
+            read.held = drawn;
+            open(true);
+            await settle();
+            read.landed = [drawn, drew];
+            await write({ [HOPE]: base + 1 });
+            read.unnamed = [drawn, drew];
+            const H2 = await import("./dice-hold.mjs");
+            const ROLL2 = `${ROLL}b`;
+            H2.noteRollMessage({ id: ROLL2, rolls: [{}] });
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: () => gate2 } });
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL2 });
+            const before = drawn;
+            await app.render(true);
+            read.forced = drawn - before;
+        } finally {
+            open?.(true);
+            open2?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            if (student.apps) delete student.apps[app.id];
+            if (ownApps) delete student.apps;
+            await student.update({ [HOPE]: hopeWas }).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: 0, landed: [1, base + 2], unnamed: [2, base + 1], forced: 1 }),
+            "{the HUD's renders after two writes of the roll while its dice fall; [renders, the Hope drawn] when they land; after a write naming no roll; a forced render while another roll's dice fall}");
+    }],
     /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
     ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
         /*
