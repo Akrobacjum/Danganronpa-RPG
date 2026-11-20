@@ -28,6 +28,7 @@ import { narrowColumn } from "./narrow.mjs";
 import { registerSeasonState } from "./season-reset.mjs";
 
 import { tipText } from "./ui-kit.mjs";
+import { DICE_OPTION } from "./dice-hold.mjs";
 
 const WIDGET_ID = "drpg-despair";
 
@@ -299,8 +300,12 @@ export async function setDespair(userId, value) {
     return out === HANDED ? ((await askToSet(key, value)) ?? null) : out;
 }
 
-/** One pool written, inside a step of `DESPAIR_KEY`: `setDespair`'s, and `adjustDespair`'s read and write. */
-async function writePool(userId, value) {
+/**
+ * One pool written, inside a step of `DESPAIR_KEY`: `setDespair`'s, and `adjustDespair`'s read and write. `dice`, the
+ * chat message of the roll the change carries out, goes into the write's options (dice-hold.mjs `DICE_OPTION`), so each
+ * browser draws it when its dice of that roll have landed (1.2.119).
+ */
+async function writePool(userId, value, { dice = null } = {}) {
     if (!game.user.isGM) return null;
 
     // A User object handed to this signature used to be stringified into a
@@ -314,7 +319,7 @@ async function writePool(userId, value) {
 
     const next = Math.min(Math.max(Math.round(value), 0), despairMax());
     const store = { ...pools(), [key]: next };
-    await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
+    await game.settings.set(MODULE_ID, SETTINGS.despairPools, store, dice ? { [DICE_OPTION]: dice } : {});
     return next;
 }
 
@@ -326,8 +331,12 @@ async function writePool(userId, value) {
  * here rather than inside `setDespair` because the two signatures mean
  * different things: this one is INCOME, and an absolute `setDespair(id, 20)` is
  * a GM correcting a number by hand, which should not darken the world.
+ *
+ * `dice` (1.2.119): the chat message of the roll this change carries out (despair-award.mjs `awardRollDespair`), named
+ * on the pools' write so each browser draws the point when its dice of that roll have landed (`writePool`). A change
+ * handed to the primary from another GM (`routeToPrimary`) carries none and is drawn at once.
  */
-export async function adjustDespair(userId, delta, { clamp = false } = {}) {
+export async function adjustDespair(userId, delta, { clamp = false, dice = null } = {}) {
     /*
      * ONE WRITER (DESP-12). The pools are one world object, written whole from
      * the local cache; two GM clients writing at once - the primary awarding a
@@ -345,7 +354,7 @@ export async function adjustDespair(userId, delta, { clamp = false } = {}) {
     const out = await serialWrite(DESPAIR_KEY, async () => {
         if (userId && primaryElsewhere()) return { handed: true };
         const held = getDespair(userId);
-        return { before: held, wanted: held + delta, applied: await writePool(userId, held + delta) };
+        return { before: held, wanted: held + delta, applied: await writePool(userId, held + delta, { dice }) };
     });
     if (out.handed) return (await routeToPrimary(userId, delta, clamp)) ?? getDespair(userId);
     const { before, wanted, applied } = out;

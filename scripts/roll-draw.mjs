@@ -69,6 +69,7 @@ import { cardFlag, cardWriter } from "./secret.mjs";
 import { box, roleButton, tipText } from "./ui-kit.mjs";
 // The balance log (E53 C3): a drawn roll kept while the world switch is on.
 import { noteBalanceRoll } from "./balance-log.mjs";
+import { noteThrow, stampRollWrites } from "./dice-hold.mjs";
 
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
@@ -501,6 +502,8 @@ function startOnMessage(message) {
         wait.messageId = message.id;
         wait.atMessage = true;
         wait.started = playDice(message.rolls);
+        // What the roll moved is drawn here when these dice have landed (dice-hold.mjs, 1.2.119).
+        noteThrow(message.id, wait.started);
         wait.onStart?.();
     } catch (err) {
         error("Could not start the dice of a roll the GM drew at its message", err);
@@ -614,6 +617,8 @@ async function playBack(cls, roll, config, message, answer, subject, start = awa
         start.at = performance.now();
         start.messageId = messageId;
         start.started = playDice(played);
+        // Noted for what the roll moves after this (dice-hold.mjs, 1.2.119); a write that came before the answer was drawn at once.
+        noteThrow(messageId, start.started);
     } else if (start.messageId !== messageId) {
         warn(`The dice of roll ${rollId} started at message ${start.messageId}, and the GM's answer names ${messageId}; they are not thrown again.`);
     }
@@ -1697,7 +1702,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     detachOptions(roll, config);
     // The dice on this screen as the roller's, now, at the throw (H82 C6, `throwOnThisScreen`); the relay sends them on.
     // Only where this GM sees a player's dice (E60 C5e): rolls not forced private, or its Monokuma in the roller's room.
-    const shown = seesPlayersDice(actor) ? throwOnThisScreen(roll, sender) : false;
+    const thrown = seesPlayersDice(actor) ? throwOnThisScreen(roll, sender) : false;
+    const shown = Boolean(thrown);
     const rollId = foundry.utils.randomID();
     let message;
     try {
@@ -1707,10 +1713,15 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         throw err;
     }
     written?.();
+    // The throw on this screen, now that it has a message: what the roll moved is drawn here when it has landed (1.2.119).
+    if (thrown) noteThrow(message.id, thrown);
     await cls.dualityUpdate(config);
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
-    await config.resourceUpdates.updateResources();
+    /* Every write of the character's resources in the step names the roll's message (dice-hold.mjs `stampRollWrites`,
+       1.2.119; the owner, 20.11.2026: Hope shown when the dice of Dice So Nice have landed): each browser draws them when
+       its own dice of this message have, and a GM's hand edit or a Call's price, which name none, at once. */
+    await stampRollWrites(message.id, [actor.id, actor.system?.partner?.id], () => config.resourceUpdates.updateResources());
     const flags = checkRoll(legal, told, expected);
     const used = [...applied, ...hostile].map(call => call.nonce);
     if (used.length) await spendCallsByNonce(actor, used);
@@ -2519,14 +2530,15 @@ function seesPlayersDice(actor) {
     return !forced || gmsInRoomOf(actor).includes(game.user?.id);
 }
 
+/* Answers the throw (a promise that settles when the dice have landed, at once for the sound alone), or false when nothing
+   was thrown: `throwDrawn` reads it as `shown` and notes it as this screen's throw of the message (dice-hold.mjs, 1.2.119). */
 function throwOnThisScreen(roll, user) {
     try {
         if (typeof game.dice3d?.showForRoll !== "function") {
             foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
-            return true;
+            return Promise.resolve();
         }
-        void Promise.resolve(game.dice3d.showForRoll(roll, user, false)).catch(err => error("Could not show the dice of a roll the GM drew", err));
-        return true;
+        return Promise.resolve(game.dice3d.showForRoll(roll, user, false)).catch(err => error("Could not show the dice of a roll the GM drew", err));
     } catch (err) {
         error("Could not show the dice of a roll the GM drew", err);
         return false;

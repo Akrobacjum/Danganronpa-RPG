@@ -555,7 +555,7 @@ Ustawienie **Zablokuj graczom zasoby na arkuszu** decyduje o tym wszystkim w pol
 
 **Zdobywanie.** Gdy rzut ucznia wypadnie z wyższą kością Despair, **+1 Despair** idzie do puli Monokumy przypisanego temu uczniowi, o ile włączone jest ustawienie **Rzuty dają Despair**. Rzuty reakcji (gołe kliknięcie statystyki) nie dają Despair, tak samo jak własne rzuty Monokumy. Uczeń ustawiony na **- nikt -** nie zasila żadnej puli: użyj tego dla postaci wycofanej albo prowadzonej jako NPC, albo dla szablonu. Nie ustawiaj Masterminda na **- nikt -**: przeglądarka każdego gracza może odczytać podział, a jedyny uczeń poza pulami rzuca się w oczy. Lista kontrolna sezonu ostrzega cię, gdy Mastermind nie zasila żadnej puli (sekcja 2).
 
-**Pule.** Każde konto pełnego Gamemastera ma pulę Despair, która mieści najwyżej **12**, a postacie Monokum wydają z tych pul. Panel **Pule Despair** u góry ekranu pokazuje każdą pulę pod jej nazwą, także gdy jest tylko jedna; to nazwa ustawiona w Despair Flow, a bez niej nazwa konta. Liczby widzą wszyscy, a GM-owie mają przy nich także przyciski do zmiany.
+**Pule.** Każde konto pełnego Gamemastera ma pulę Despair, która mieści najwyżej **12**, a postacie Monokum wydają z tych pul. Panel **Pule Despair** u góry ekranu pokazuje każdą pulę pod jej nazwą, także gdy jest tylko jedna; to nazwa ustawiona w Despair Flow, a bez niej nazwa konta. Liczby widzą wszyscy, a GM-owie mają przy nich także przyciski do zmiany. Punkt z rzutu jest zapisywany od razu, a na każdym ekranie pokazuje się, gdy kości tego rzutu na nim wylądują (Dice So Nice); zmianę ręczną widać od razu.
 
 **Despair Flow** to jedno okno dla całego zespołu GM-ów: znajdziesz je w panelu GM-a > Między sesjami > Ustawienia sezonu. Ma cztery zakładki:
 

@@ -96431,6 +96431,130 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ hope: [0, true, true], health: [0, true, true], cut: [true, 0], flag: 1 }),
             "[after a Hope-only write, after a Health write: the original's renders, the Hope pips, the Health row true; a Hope gain under Despair: the write cut, the renders; after a flag write: the renders]");
     }],
+    /* ---- 1.2.119 line S ---------------------------------------------------------------------------------------------- */
+    ["S119-T1 - a roll's Hope and Despair are shown when this browser's dice of that roll have landed (1.2.119; the owner, 20.11.2026: \"Despair powinno sie aktualizowac dopiero po zakonczeniu animacji kosci dice so nice, tak samo z hope\"): with a stand-in Dice So Nice whose animation of the roll's message has not ended, a Hope write that names the message (`drpgDiceOf`) leaves the open sheet's Hope as it was, a second roll's too, and the latest value is drawn when both animations have ended; a hand edit and a write naming no message are drawn at once; a Despair pool written with the message's name keeps the Despair row as it was until then; with no Dice So Nice a roll's write is drawn at once; and a roll's resource step on the writer's browser names its message on every write of its character (dice-hold.mjs `stampRollWrites`)", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. On b5a29e73 the sheet repainted Hope and the Despair rows redrew as each write
+         * arrived; action-report.mjs `diceSettled` held only the result card. Here: the sheet is E45-T2's stand-in window
+         * (`e45SheetRoot`), its render called as the notes say Foundry calls it, in the write's turn, since the shim does not; Dice
+         * So Nice is a stand-in `game.dice3d` whose `waitFor3DAnimationByMessageID` answers a gate the test opens, one for
+         * each of the two messages named here, and at once for any other, put back in a finally. The messages are names only: Dice So
+         * Nice's wait is keyed by the id. Read: the sheet's held Hope pips, and the filled pips of the first Monokuma's
+         * Despair row (despair.mjs `despairRowOf`). Put back: Hope, the pool, `game.dice3d`.
+         * The pool's write carries its options to every browser's `onChange` as v13's `Setting#_onUpdate` does
+         * (LIVE-S119-01; the harness's settings carry a write's options since this line, client-entry.mjs).
+         */
+        const [student] = cast(1);
+        const D = await import("./despair.mjs");
+        const [gm] = D.monokumas();
+        must(student && gm, "no student or no Monokuma - this would measure nothing");
+        const HOPE = "system.resources.hope.value";
+        const hopeMax = Number(foundry.utils.getProperty(student, "system.resources.hope.max") ?? 6);
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+        const poolsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {});
+        const despairWas = D.getDespair(gm.id);
+        const OPT = "drpgDiceOf", ROLL = "s119t1roll", ROLL2 = "s119t1roll2";
+        // one gate a roll, opened one after the other: a paint that waits on both must wait for the second
+        const opens = {};
+        const gates = Object.fromEntries([ROLL, ROLL2].map(id => [id, new Promise(resolve => { opens[id] = resolve; })]));
+        const dsn = { waitFor3DAnimationByMessageID: id => gates[id] ?? Promise.resolve(true) };
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        const ownApps = !student.apps;
+        const Stand = {
+            render() {
+                const root = e45SheetRoot();
+                this.element.replaceWith(root);
+                this.element = root;
+                Hooks.callAll("renderCharacterSheet", this, root, {}, { isFirstRender: false });
+                return Promise.resolve(this);
+            }
+        };
+        const app = Object.assign(Object.create(Stand), { id: `s119t1-${Date.now().toString(36)}`, document: student, isEditable: true, rendered: true });
+        // The render Foundry asks for inside the write (sheet-repaint.mjs "THE ORDER": before `updateActor`), asked here
+        // from this listener, in the same turn, since the shim asks none: dice-hold.mjs's own listener came first.
+        let asked = 0;
+        const hook = Hooks.on("updateActor", (doc, changes) => {
+            if (doc.id !== student.id || !app.element) return;
+            asked++;
+            void app.render(false, { renderContext: "updateActor", renderData: changes });
+        });
+        const write = async (changes, options = {}) => {
+            await student.update(changes, options);
+            await settle();
+        };
+        const pips = () => [...app.element.querySelectorAll(".character-header-sheet .hope-section .hope-value")].filter(s => s.querySelector("i.fa-solid")).length;
+        const despairShown = () => document.querySelectorAll(`#drpg-despair .drpg-despair-row[data-user-id="${gm.id}"] .drpg-despair-pip.filled`).length;
+        const setPool = async (value, options) => {
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...game.settings.get(MODULE_ID, SETTINGS.despairPools), [gm.id]: value }, options);
+            await settle();
+        };
+        const read = {};
+        const base = Math.min(hopeWas, hopeMax - 3);
+        const pool = Math.min(despairWas, 9);
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            app.element = e45SheetRoot();
+            document.body.append(app.element);
+            Hooks.callAll("renderCharacterSheet", app, app.element, {}, { isFirstRender: true });
+            student.apps[app.id] = app;
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: dsn });
+            // away and back, so the sheet has drawn the base (a write that changes nothing draws nothing)
+            await write({ [HOPE]: base + 1 });
+            await write({ [HOPE]: base });
+            await setPool(pool);
+            D.renderDespairBar();
+            read.start = [pips(), despairShown()];
+            await write({ [HOPE]: base + 1 }, { [OPT]: ROLL });
+            read.rollHeld = pips();
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL2 });
+            read.secondHeld = pips();
+            await setPool(pool + 1, { [OPT]: ROLL });
+            read.despairHeld = despairShown();
+            opens[ROLL](true);
+            await settle();
+            read.firstLanded = [pips(), despairShown()];
+            opens[ROLL2](true);
+            await settle();
+            read.landed = [pips(), despairShown()];
+            await write({ [HOPE]: base + 1 });
+            read.handEdit = pips();
+            await write({ [HOPE]: base + 2 }, { [OPT]: "s119t1other" });
+            read.notAnimated = pips();
+            delete game.dice3d;
+            await write({ [HOPE]: base + 3 }, { [OPT]: ROLL });
+            await setPool(pool + 2, { [OPT]: ROLL });
+            read.noDiceSoNice = [pips(), despairShown()];
+            // the writer's side: a roll's resource step names its message on every write of its character
+            const H = await import("./dice-hold.mjs").catch(() => null);
+            must(H && typeof H.stampRollWrites === "function" && H.DICE_OPTION === OPT, "dice-hold.mjs exports no stampRollWrites, or names another option - a roll's writes are not stamped");
+            let seen = null;
+            const stampHook = Hooks.on("updateActor", (doc, changes, options) => { if (doc.id === student.id) seen = options?.[OPT] ?? null; });
+            try {
+                await H.stampRollWrites("s119t1stamp", [student.id], () => student.update({ [HOPE]: base }));
+                await settle();
+                read.stamped = seen;
+                await student.update({ [HOPE]: base + 1 });
+                await settle();
+                read.after = seen;
+            } finally { Hooks.off("updateActor", stampHook); }
+        } finally {
+            for (const go of Object.values(opens)) go(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            Hooks.off("updateActor", hook);
+            if (student.apps) delete student.apps[app.id];
+            if (ownApps) delete student.apps;
+            app.element?.remove();
+            await student.update({ [HOPE]: hopeWas }).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, poolsWas).catch(() => {});
+            await settle();
+        }
+        must(asked >= 7, `the sheet was asked to draw ${asked} writes, not 7 - this would measure nothing`);
+        equal(stableJson(read), stableJson({
+            start: [base, pool], rollHeld: base, secondHeld: base, despairHeld: pool, firstLanded: [base, pool + 1], landed: [base + 2, pool + 1],
+            handEdit: base + 1, notAnimated: base + 2, noDiceSoNice: [base + 3, pool + 2], stamped: "s119t1stamp", after: null
+        }), "{the sheet's Hope and the Despair row: at the start; after a roll's write while its dice fall; after a second; the Despair row after the roll's pool write; when the first roll's dice land (the sheet waits on the second's too); when the second's land; after a hand edit; after a write naming a message not animated; with no Dice So Nice; the option a stamped step wrote, and one after it}");
+    }],
     /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
     ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
         /*

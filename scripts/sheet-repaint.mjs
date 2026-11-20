@@ -13,6 +13,7 @@ import { sheetMode } from "./sheet-mode.mjs";
 import { markHopeChange } from "./sheet-header.mjs";
 import { paintReserves } from "./sheet-sidebar.mjs";
 import { actionButton, callLockNote, callButton, monokumaPool, monocubMoveNote, monocubTiles } from "./sheet-actions.mjs";
+import { anyDiceFalling, holdPaint, takeActorDice } from "./dice-hold.mjs";
 
 /* ==========================================================================
  * THE FLICKER
@@ -171,7 +172,24 @@ export function installRenderPlan(app) {
         if (this.document?.type === "character" && root
             && renderPlan(args, { rendered: Boolean(this.rendered) }) === "repaint") {
             try {
-                settle(root, () => repaintInPlace(this.document, root, this));
+                const repaint = () => {
+                    const now = this.element instanceof HTMLElement ? this.element : this.element?.[0];
+                    if (now?.isConnected) settle(now, () => repaintInPlace(this.document, now, this));
+                };
+                /*
+                 * A ROLL'S CHANGE WAITS FOR THIS BROWSER'S DICE (1.2.119; the owner, 20.11.2026: Hope "dopiero po
+                 * zakonczeniu animacji kosci dice so nice"). The write that asked for this repaint may be a roll's, named
+                 * in its options (dice-hold.mjs `DICE_OPTION`); Foundry calls this render inside the update, before the
+                 * `updateActor` that carries the options (THE ORDER, above), so the option is read a microtask later
+                 * (`takeActorDice`), and the repaint waits until that roll's dice have landed here (`holdPaint`, which
+                 * paints at once for a write naming none). Where no dice can be falling on this browser - no Dice So
+                 * Nice, no throw of the module's - the repaint is drawn now, as before.
+                 */
+                if (!anyDiceFalling()) repaint();
+                else {
+                    const actorId = this.document.id, name = `sheet:${this.id ?? actorId}`;
+                    queueMicrotask(() => holdPaint(takeActorDice(actorId), name, repaint));
+                }
                 return Promise.resolve(this);
             } catch (err) {
                 // A sheet that renders is the safe failure.

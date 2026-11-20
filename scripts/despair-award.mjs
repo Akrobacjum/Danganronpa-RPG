@@ -178,7 +178,8 @@ export async function awardRollDespair(actor, delta, { message = null } = {}) {
         return { monokuma, pool: 0, overflow: next?.spill ?? 0 };
     }
 
-    await adjustDespair(monokuma.id, 1);
+    // The roll's message named on the write: each browser draws the point when its dice of the roll have landed (1.2.119).
+    await adjustDespair(monokuma.id, 1, { dice: message?.id ?? null });
     debug(`${actor.name} rolled with Despair -> +1 to ${monokuma.name} (${before + 1}/${despairMax()}).`);
     return { monokuma, pool: 1, overflow: 0 };
 }

@@ -3387,7 +3387,10 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {},
-        onChange: () => onWorldChange(SETTINGS.despairPools)
+        /* A roll's point is drawn when this browser's dice of the roll have landed (1.2.119; the owner, 20.11.2026): the
+           write names its message in its options (despair.mjs `adjustDespair`'s `dice`), handed to `onChange` as v13's
+           `Setting#_onUpdate` hands them (LIVE-S119-01); any other write is drawn at once (dice-hold.mjs `holdPaint`). */
+        onChange: (value, options) => onDespairPoolsChange(options)
     });
 
     // Custom display label per pool - a GM's account name is not always what
@@ -3462,6 +3465,14 @@ export function registerSettings() {
  */
 function onWorldChange(key) {
     import("./sync.mjs").then(m => m.applyFor(key)).catch(() => {});
+}
+
+/* The pools' redraw (the Despair rows, the Monokumas' sheets, the HUD: sync.mjs `SYNC.despair`), held for a roll's dice. */
+function onDespairPoolsChange(options) {
+    const dice = options?.drpgDiceOf;
+    if (typeof dice !== "string" || !dice) return onWorldChange(SETTINGS.despairPools);
+    import("./dice-hold.mjs").then(m => m.holdPaint(dice, "despair", () => onWorldChange(SETTINGS.despairPools)))
+        .catch(() => onWorldChange(SETTINGS.despairPools));
 }
 
 /**

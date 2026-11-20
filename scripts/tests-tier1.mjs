@@ -55024,6 +55024,41 @@ const INVARIANTS = [
         equal(stableJson([0, 5, 6, 11, 12, 40, -3].map(y => SH.pileIndexAt(3, y))), stableJson([0, 0, 1, 1, 2, 2, 0]),
             "{a pointer's height over three piled badges: the index of the badge it raises}");
     }],
+    ["R7901 - every road of a roll's Hope and Despair names the roll's message, and each place they are drawn waits on it (1.2.119; the owner, 20.11.2026: \"Despair powinno sie aktualizowac dopiero po zakonczeniu animacji kosci dice so nice, tak samo z hope\"): the primary GM's resource step of a drawn roll (roll-draw.mjs `throwDrawn`) runs inside dice-hold.mjs `stampRollWrites` with the message's id, the dice the module throws of a message are noted as its throws (the roller's at the message, the primary's at the throw, the audience's relayed), a roll's Despair point is written with the message (despair-award.mjs -> despair.mjs `adjustDespair` -> the pools' write with `DICE_OPTION`), the pools' redraw and the sheet's repaint ask `holdPaint`, and the option's one name is read where the pools' setting reads it", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T1 (tier 2) measures the hold on one browser with a stand-in Dice So Nice; this
+         * holds the roads that feed it, read off the source, so a road written later without the message - a second
+         * resource step, a throw not noted - is red here rather than a pip that moves under tumbling dice at a table. Red
+         * at b5a29e73: no dice-hold.mjs, and none of the roads below.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const H = await import("./dice-hold.mjs").catch(() => null);
+        must(H && typeof H.holdPaint === "function" && typeof H.stampRollWrites === "function" && typeof H.noteThrow === "function",
+            "dice-hold.mjs is not loaded by the module, or exports no holdPaint, stampRollWrites or noteThrow - no paint waits for the dice");
+        const draw = fnSource(src("roll-draw.mjs"), "throwDrawn");
+        const relayed = fnSource(src("private-rolls.mjs"), "showRelayedDice");
+        const seen = {
+            option: H.DICE_OPTION,
+            drawStamped: /stampRollWrites\(message\.id, \[actor\.id[^\]]*\], \(\) => config\.resourceUpdates\.updateResources\(\)\)/.test(draw),
+            drawUnstamped: (draw.match(/resourceUpdates\.updateResources\(\)/g) ?? []).length,
+            primaryThrow: /noteThrow\(message\.id, thrown\)/.test(draw),
+            rollerThrow: /noteThrow\(message\.id, wait\.started\)/.test(fnSource(src("roll-draw.mjs"), "startOnMessage")),
+            audienceThrow: /^\s*noteThrow\(id, new Promise\(resolve => \{ landed = resolve; \}\)\);\s*\n\s*try \{\s*\n\s*const \{ messageArrives \} = await import/m.test(relayed)
+                && /\} finally \{\s*\n\s*landed\(\);/.test(relayed),
+            award: /adjustDespair\(monokuma\.id, 1, \{ dice: message\?\.id/.test(fnSource(src("despair-award.mjs"), "awardRollDespair")),
+            adjust: /writePool\(userId, held \+ delta, \{ dice \}\)/.test(fnSource(src("despair.mjs"), "adjustDespair")),
+            poolWrite: /game\.settings\.set\(MODULE_ID, SETTINGS\.despairPools, store, dice \? \{ \[DICE_OPTION\]: dice \} : \{\}\)/.test(fnSource(src("despair.mjs"), "writePool")),
+            poolsChange: new RegExp(`options\\?\\.${H.DICE_OPTION}\\b`).test(fnSource(src("settings.mjs"), "onDespairPoolsChange"))
+                && /holdPaint\(dice, "despair"/.test(fnSource(src("settings.mjs"), "onDespairPoolsChange")),
+            sheet: /holdPaint\(takeActorDice\(actorId\), name, repaint\)/.test(fnSource(src("sheet-repaint.mjs"), "installRenderPlan")),
+            registered: /safely\("Dice hold", registerDiceHold\)/.test(src("module.mjs"))
+        };
+        equal(stableJson(seen), stableJson({
+            option: "drpgDiceOf", drawStamped: true, drawUnstamped: 1, primaryThrow: true, rollerThrow: true, audienceThrow: true,
+            award: true, adjust: true, poolWrite: true, poolsChange: true, sheet: true, registered: true
+        }), "{the option's name; a drawn roll's resource step stamped, and how many resource steps throwDrawn runs; the primary's and the roller's throws noted, and the audience's before its first await and settled at its end; the Despair point's road; the pools' redraw and the sheet's repaint held; the hooks registered}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

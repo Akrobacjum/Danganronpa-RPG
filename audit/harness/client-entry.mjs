@@ -299,11 +299,11 @@ const bus = {
             else send({ t: "op", id, op });
         });
     },
-    setSetting(key, value, { noHook = false } = {}) {
+    setSetting(key, value, { noHook = false, options = null } = {}) {
         return new Promise((resolve, reject) => {
             const id = `${WHO}-${++reqSeq}`;
             pending.set(id, { resolve, reject });
-            send({ t: "setting", id, key, value, ...(noHook ? { noHook: true } : {}) });
+            send({ t: "setting", id, key, value, ...(noHook ? { noHook: true } : {}), ...(options ? { options } : {}) });
         });
     },
     /* The server's files (E111; cluster.mjs case "files"): browse, mkdir, upload and read, each judged there. */
@@ -525,7 +525,7 @@ const settingsApi = {
         if (def.scope === "world") {
             /* `noHook` as Foundry's update operation takes it (E16 fix r1b-G2): the value lands and `onChange` runs on every
                client, and no client's `updateSetting` listener hears it, as the harness's document writes do (applyRemote). */
-            await bus.setSetting(full, JSON.parse(JSON.stringify(value ?? null)), { noHook: options?.noHook === true });
+            await bus.setSetting(full, JSON.parse(JSON.stringify(value ?? null)), { noHook: options?.noHook === true, options: settingOptions(options) });
         } else {
             clientValues.set(full, JSON.parse(JSON.stringify(value ?? null)));
             try { def.onChange?.(value); } catch (err) { logLine(`setting onChange ${full}: ${err.stack}`); recordError(`setting onChange ${full}`, err); }
@@ -535,6 +535,14 @@ const settingsApi = {
     },
     storage: { get: scope => (scope === "world" ? worldValues : clientStore) }
 };
+/* A world setting write's options as they travel to every client (1.2.119 line S): what JSON carries, `noHook` aside
+   (sent on its own); null when there is nothing else. */
+function settingOptions(options) {
+    if (!options || typeof options !== "object") return null;
+    const { noHook, ...rest } = options;
+    if (!Object.keys(rest).length) return null;
+    try { return JSON.parse(JSON.stringify(rest)); } catch { return null; }
+}
 /* v14's world storage is a collection of Setting documents that answers `getSetting(key)`
    with the stored document, or nothing when the world never wrote that key (the E04
    design's LIVE-E04-10). The harness keeps world values in a Map; this reads it the same way. */
@@ -2080,12 +2088,16 @@ process.on("message", async msg => {
                 worldValues.set(msg.key, msg.value);
                 if (msg.userId) worldWriters.set(msg.key, msg.userId);
                 const def = settingDefs.get(msg.key);
-                if (def) { try { def.onChange?.(coerce(def, msg.value)); } catch (err) { logLine(`setting onChange ${msg.key}: ${err.stack}`); recordError(`setting onChange ${msg.key}`, err); } }
+                /* The write's options as the writer passed them (1.2.119 line S): v13's `Setting#_onUpdate` hands `onChange`
+                   `(value, options, userId)`, and the `updateSetting` hook the options as any document's update does -
+                   as remembered, not read in v14's source (LIVE-S119-01). Until then every client got none. */
+                const options = msg.options ?? {};
+                if (def) { try { def.onChange?.(coerce(def, msg.value), options, msg.userId); } catch (err) { logLine(`setting onChange ${msg.key}: ${err.stack}`); recordError(`setting onChange ${msg.key}`, err); } }
                 /* Foundry's shape, `(document, changed, options, userId)`: until E16 fix r1b-G1 (19.10.2026) the writer's
                    id was handed third, where a listener reads the options, so no listener could tell who wrote a world
                    setting (dice-sync.mjs `onSwitchWritten`, tests-kit.mjs `watchWrites`, which took every write for
                    this client's own). */
-                if (!msg.noHook) hooks.callAll("updateSetting", { key: msg.key, value: msg.value }, { value: msg.value }, {}, msg.userId);
+                if (!msg.noHook) hooks.callAll("updateSetting", { key: msg.key, value: msg.value }, { value: msg.value }, options, msg.userId);
                 break;
             }
             case "socketMsg": {
