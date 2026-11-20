@@ -243,6 +243,16 @@ const DROP_TYPES = `{
         for (const t of c?.extra ?? []) { await RT.dropRemnantSecret(t).catch(() => {}); await t.delete().catch(() => {}); }
     }
     ` + DROP_CASE;
+/* 1.2.119 line P round 3 (20.11.2026; the owner's photo: lines on top of each other): the typed case with three more
+   deductions resting on many Remnants each and a second counter, so the first gutter is crowded many to many. */
+const SEED_CROWD = SEED_TYPES + `
+    const many = CS.caseGraph(ch).nodes.filter(n => n.evidence && !n.planned).map(n => n.id);
+    await CS.setCaseNode(ch, "probe08-d6", { kind: "deduction", label: "The key was copied before the night", inputs: many.filter((_, i) => i % 2 === 0) });
+    await CS.setCaseNode(ch, "probe08-d7", { kind: "deduction", label: "Two people were in the library", inputs: many.filter((_, i) => i % 3 !== 1) });
+    await CS.setCaseNode(ch, "probe08-d8", { kind: "deduction", label: "The case was staged", inputs: many.slice(1, 7) });
+    await CS.setCaseNode(ch, "probe08-c2", { kind: "counter", label: "The guard had a key too", refutes: ["probe08-d6"] });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2", "probe08-d4", "probe08-d5", "probe08-d6", "probe08-d7", "probe08-d8"] });
+    globalThis.__probe08case.ids.push("probe08-d6", "probe08-d7", "probe08-d8", "probe08-c2");`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -363,6 +373,7 @@ export const WINDOWS = [
     { id: "investigation--map-bullet", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="bullet-probe08"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-types", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-types-faces", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
+    { id: "investigation--map-crowd", module: "investigation.mjs", before: SEED_CROWD, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
     { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },

@@ -3450,20 +3450,19 @@ body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-trial) 
    then, and no head. Now 2.5 px of the help ink (bone at 0.62 under both themes), over a halo 7 px wide in the graph's
    ground (case-map.mjs draws every halo in one layer under every line), so a line keeps a margin where it crosses
    another; a head on every edge whose tip is the path's end, the target's left edge (case-view.mjs `edgeEnd`). Since
-   round 2 (the owner: "bardziej kwadratowe, pogrupowane") square routes in lanes, the lines into one node down one trunk
-   (case-view.mjs `routeEdges`), the counter's still dashed. A node hovered or focused
-   lights its edges in the ink, 3 px, and dims the rest (case-view.mjs `lightEdges`); the dim eased only where motion is
-   not reduced. What an edge means is unchanged: an input solid, a counter's dashed in the done green. */
+   round 2 (the owner: "bardziej kwadratowe, pogrupowane") square routes; since round 3 grouped by their source, a track a
+   source, a port a line, no stretch shared by two sources (case-view.mjs `routeEdges`), each line and its head in its
+   source's colour (the band's `--drpg-case-type`, the help ink for a source with none; the owner: "Niech maja kolory
+   pasujace do typu bulleta"). A node hovered or focused lights its edges - each keeps its colour, 3.5 px - and dims the
+   rest (case-view.mjs `lightEdges`); the dim eased only where motion is not reduced. What an edge means is unchanged: an
+   input solid, a counter's dashed (in the Counter's colour since round 3, the done green until then). */
 :root { --drpg-case-halo: var(--drpg-ink); }
 body.drpg-theme-stained-glass { --drpg-case-halo: var(--drpg-sg-ink); }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge { fill: none; stroke: var(--drpg-kit-help-ink); stroke-width: 2.5; stroke-linecap: butt; }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 6 4; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge { fill: none; stroke: var(--drpg-case-type, var(--drpg-kit-help-ink)); stroke-width: 2.5; stroke-linecap: butt; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge--refutes { stroke-dasharray: 6 4; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge-halo { fill: none; stroke: var(--drpg-case-halo); stroke-width: 7; stroke-linecap: round; stroke-opacity: 0.85; }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-arrow > path { fill: var(--drpg-kit-help-ink); stroke: none; }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-arrow--refutes > path { fill: var(--drpg-kit-check-done); }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-arrow--lit > path { fill: var(--drpg-kit-ink); }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge.is-lit { stroke: var(--drpg-kit-ink); stroke-width: 3; }
-.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge--refutes.is-lit { stroke: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-arrow > path { fill: var(--drpg-case-type, var(--drpg-kit-help-ink)); stroke: none; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge.is-lit { stroke-width: 3.5; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.has-lit .drpg-case-edge:not(.is-lit),
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.has-lit .drpg-case-edge-halo:not(.is-lit) { opacity: 0.25; }
 body.drpg-high-contrast .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.has-lit .drpg-case-edge:not(.is-lit) { opacity: 0.5; }

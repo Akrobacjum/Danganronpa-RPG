@@ -25138,42 +25138,40 @@ const REGRESSIONS = [
         equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, TYPES.map(t => `${t}: ok`)]))),
             "each theme's types: the chip's ink on the type's colour, its state by WCAG 2 AA (ok, low, unmeasured or none)");
     }],
-    ["R7825 - the planner's arrows are square and grouped (1.2.119 round 2, the owner: \"Same strzalki niech beda bardziej kwadratowe, pogrupowane\"; case-view.mjs `routeEdges`): every route is horizontal, vertical, horizontal, with small rounded corners and no curve; it ends at `edgeEnd`; every line into one node with one meaning shares that node's lane, so they meet in one trunk and one last stretch with one head; lines into two nodes take two lanes; each lane stands in the gutter left of its target's column, the head's room kept; a counter's line into its own column turns in that gutter too; of the two lane orders by the targets' height the one with fewer crossings is drawn", async () => {
+    ["R7825 - the planner's arrows are square and grouped by their source (1.2.119; round 2, the owner: \"Same strzalki niech beda bardziej kwadratowe, pogrupowane\"; round 3, his photo: lines into one node merged were unreadable; case-view.mjs `routeEdges`, `routeCrossings`): every route is horizontal, vertical, horizontal, with small rounded corners and no curve, and ends on its target's left edge (`edgeEnd`'s x); every line of one source runs down that source's one track, in the gutter right of its column, the head's room kept, and lines of two sources down two; a counter's line into its own column leaves its left edge for a track in the gutter left of that column; lines of different sources into one node end at different ports; of the gutter's track orders the one with the fewest crossings is drawn", async () => {
         /*
-         * Line P of 1.2.119, round 2, 20.11.2026. Pure: places as `mapPlace` answers them, given by hand. Red at 0da0a479:
-         * case-view.mjs exports no routeEdges (the lines are curves from `edgePath`).
+         * Line P of 1.2.119, round 2 (20.11.2026), rewritten in round 3 (the same day): round 2 gave each target one lane
+         * and its lines one trunk (pOne, qOne, sameTail here until then), which merged lines of different sources - the
+         * owner's photo, R7829. Pure: places as `mapPlace` answers them, given by hand. Red at 0da0a479: no routeEdges.
          */
         const V = await import("./case-view.mjs");
         must(typeof V.routeEdges === "function", "case-view.mjs exports no routeEdges - the arrows are curves, one each");
         const g = V.MAP_GEOMETRY;
         const n = (x, y, h = 54) => ({ x, y, w: 300, h });
         const c1 = 12 + 300 + g.colGap, c2 = c1 + 300 + g.colGap;
-        const at = { a: n(12, 40), b: n(12, 110), c: n(12, 180), d: n(12, 250), p: n(c1, 60), q: n(c1, 200), k: n(c1, 300), s: n(c2, 120) };
+        const at = { a: n(12, 40), b: n(12, 110), c: n(12, 180), d: n(12, 250), p: n(c1, 60), q: n(c1, 200, 120), k: n(c1, 340), s: n(c2, 120) };
         const edges = [{ from: "a", to: "p", kind: "input" }, { from: "b", to: "p", kind: "input" }, { from: "c", to: "q", kind: "input" }, { from: "d", to: "q", kind: "input" },
             { from: "a", to: "q", kind: "input" }, { from: "k", to: "q", kind: "refutes" }, { from: "p", to: "s", kind: "input" }, { from: "q", to: "s", kind: "input" }];
         const routes = V.routeEdges(edges, at, g);
-        const two2 = { a: n(12, 40), b: n(12, 400), p: n(c1, 60), q: n(c1, 380) };
-        const two = [{ from: "b", to: "p", kind: "input" }, { from: "a", to: "p", kind: "input" }, { from: "a", to: "q", kind: "input" }];
-        const key = e => `${e.from}>${e.to}`;
-        const d = e => routes.get(key(e)) ?? "";
+        const d = e => routes.get(`${e.from}>${e.to}`) ?? "";
         const square = edges.every(e => /^M[-\d. ]+(?:\s*[HVQ][-\d. ]+)+$/.test(d(e)) && !/[CLSTAZ]/i.test(d(e).replace(/^M/, "")));
-        const lastH = s => Number((s.match(/H(-?[\d.]+)\s*$/) ?? [])[1]);
-        const lane = s => { const m = s.match(/V(-?[\d.]+)/); const q = s.match(/Q(-?[\d.]+) /); return q ? Number(q[1]) : m ? null : null; };
+        const lastH = r => Number((r.match(/H(-?[\d.]+)\s*$/) ?? [])[1]);
+        const endY = r => Number((r.match(/(-?[\d.]+) H-?[\d.]+\s*$/) ?? [])[1]);
+        const track = e => { const q = d(e).match(/Q(-?[\d.]+) /); return q ? Number(q[1]) : null; };
         const ends = edges.every(e => lastH(d(e)) === V.edgeEnd(at[e.from], at[e.to], g).x);
-        const tail = e => d(e).match(/Q[^Q]*$/)?.[0] ?? null;
-        const laneOf = e => lane(d(e));
-        const pLanes = new Set(edges.filter(e => e.to === "p").map(laneOf)), qIn = new Set(edges.filter(e => e.to === "q" && e.kind === "input").map(laneOf));
-        const gutter = (e, lo, hi) => { const x = laneOf(e); return x > lo && x < hi - 10; };
+        const tracksOf = from => new Set(edges.filter(e => e.from === from).map(track));
+        const into = to => edges.filter(e => e.to === to).map(e => endY(d(e)));
+        const two = { a: n(12, 40), b: n(12, 110), c: n(12, 180), p: n(c1, 40), q: n(c1, 180) };
+        const twoEdges = [["a", "q"], ["b", "q"], ["c", "p"]].map(([from, to]) => ({ from, to, kind: "input" }));
+        const R = V.ROUTE ?? {};
         equal(JSON.stringify({ square, ends,
-            pOne: pLanes.size, qOne: qIn.size, apart: [...pLanes][0] !== [...qIn][0] && [...qIn][0] !== laneOf(edges[5]),
-            sameTail: tail(edges[0]) === tail(edges[1]) && tail(edges[2]) === tail(edges[3]),
-            inGutter: edges.filter(e => e.to !== "s").every(e => gutter(e, 312, c1)) && edges.filter(e => e.to === "s").every(e => gutter(e, c1 + 300, c2)),
-            counter: d(edges[5]).startsWith(`M${c1} `),
-            crossings: typeof V.routeCrossings === "function" ? V.routeCrossings(edges, at, g) <= V.routeCrossings(edges, at, g, { order: "other" }) : "no routeCrossings",
-            // a case where the two orders differ (read at 0da0a479+edits: 1 against 2): the one with fewer is drawn
-            fewer: typeof V.routeCrossings === "function" ? [V.routeCrossings(two, two2, g), V.routeCrossings(two, two2, g, { order: "other" })] : null }),
-        JSON.stringify({ square: true, ends: true, pOne: 1, qOne: 1, apart: true, sameTail: true, inGutter: true, counter: true, crossings: true, fewer: [1, 2] }),
-            "{square: only M, H, V and Q; ends: each at edgeEnd; pOne, qOne: lanes of the lines into p, into q; apart: p's, q's and the counter's lanes differ; sameTail: lines into one node end alike; inGutter: each lane between its columns, the head's room kept; counter: its line leaves the counter's left edge; crossings: the drawn order crosses no more than the other; fewer: the drawn order's crossings and the other's where they differ}");
+            oneTrack: tracksOf("a").size, twoTracks: track(edges[0]) !== track(edges[1]),
+            inGutter: edges.filter(e => e.from !== "k").every(e => { const x = track(e), lo = at[e.from].x + 300, hi = lo + g.colGap; return x > lo && x < hi - (R.stub ?? 18) + 0.01; }),
+            counter: d(edges[5]).startsWith(`M${c1} `) && track(edges[5]) > 312 && track(edges[5]) < c1,
+            ports: [into("p"), into("q")].every(ys => new Set(ys).size === ys.length),
+            fewer: typeof V.routeCrossings === "function" ? [V.routeCrossings(twoEdges, two, g), V.routeCrossings(twoEdges, two, g, { order: "worst" })] : null }),
+        JSON.stringify({ square: true, ends: true, oneTrack: 1, twoTracks: true, inGutter: true, counter: true, ports: true, fewer: [2, 3] }),
+            "{square: only M, H, V and Q; ends: each on its target's left edge; oneTrack: tracks of a's two lines; twoTracks: a's and b's tracks differ; inGutter: each forward track in the gutter right of its source, the head's room kept; counter: it leaves its left edge for the gutter left of its column; ports: lines into one node end at different heights; fewer: the drawn order's crossings and the worst order's on a case where they differ (read at 87b21526+edits: 2 against 3)}");
     }],
     ["R7826 - the drawn map uses the square routes, under one halo layer, and lights a node's whole trunk (1.2.119 round 2; case-map.mjs, case-view.mjs `relayoutCaseMap`, `lightEdges`): each edge's path is `routeEdges`' route for it when drawn and again after a relayout at the measured sizes; every halo stands in a layer under every line, so a branch meets its trunk without a gap; lighting a target lights every line into it and its halo, and lighting a source only its own lines", async () => {
         /*
@@ -25262,6 +25260,97 @@ const REGRESSIONS = [
         })]));
         equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, grounds.map(on => `${on}: ok`)]))),
             "each theme's grounds: the ink on the kind's colour and on the problem badge, by WCAG 2 AA (ok, low, unmeasured or none)");
+    }],
+    ["R7829 - no two arrows of different sources share a stretch, and parallel ones stand apart (1.2.119 round 3, the owner: \"zwroc uwage ze nachodza na siebie ... przez co sa nieczytelne\"; case-view.mjs `routeEdges`): on a crowded case (twelve sources into five targets, many to many, two counters, a solution, a line across two columns) and on the shot's case, every route square; no horizontal or vertical stretch of one source's route overlaps one of another source's; two parallel stretches of different sources that run beside each other stand at least `ROUTE.track` apart; every line into one node ends at a port of its own on the node's left edge, inside its box, the ports at least `ROUTE.port` apart; the lines of one source leave it at one point", async () => {
+        /*
+         * Line P of 1.2.119, round 3, 20.11.2026. Pure: places given by hand, routes read back as segments by this test's
+         * own parser (M, H, V, Q), so the check does not take the router's word. Red at 87b21526: the lines into one node
+         * run down one trunk, so stretches of different sources overlap (round 2's design).
+         */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const R = V.ROUTE ?? {};
+        const TRACK = R.track ?? 8, PORT = R.port ?? 10;
+        const n = (x, y, h = 54) => ({ x, y, w: 300, h });
+        const c1 = 12 + 300 + g.colGap, c2 = c1 + 300 + g.colGap;
+        const crowd = { at: {}, edges: [] };
+        for (let i = 0; i < 12; i++) crowd.at[`s${i}`] = n(12, 40 + i * 66);
+        for (let j = 0; j < 5; j++) crowd.at[`t${j}`] = n(c1, 40 + j * 150, 120);
+        crowd.at.k1 = n(c1, 800); crowd.at.k2 = n(c1, 870); crowd.at.z = n(c2, 300, 120);
+        for (let i = 0; i < 12; i++) for (const j of [i % 5, (i * 3 + 1) % 5, (i * 2 + 3) % 5]) if (!crowd.edges.some(e => e.from === `s${i}` && e.to === `t${j}`)) crowd.edges.push({ from: `s${i}`, to: `t${j}`, kind: "input" });
+        crowd.edges.push({ from: "k1", to: "t1", kind: "refutes" }, { from: "k2", to: "t3", kind: "refutes" });
+        for (let j = 0; j < 5; j++) crowd.edges.push({ from: `t${j}`, to: "z", kind: "input" });
+        crowd.edges.push({ from: "s5", to: "z", kind: "input" });
+        // the shot's case, its first gutter as the photo shows it (probe 08 investigation--map-types-faces, measured sizes)
+        const shot = { at: { a: n(12, 300), b: n(12, 366), c: n(12, 432, 60), d: n(12, 504), e: n(12, 570, 160), f: n(12, 742), p: n(c1, 300), q: n(c1, 366, 120), r: n(c1, 498), s: n(c1, 564), k: n(c1, 630), z: n(c2, 450) },
+            edges: [["a", "p"], ["b", "p"], ["c", "q"], ["d", "q"], ["e", "q"], ["a", "r"], ["c", "r"], ["d", "s"], ["f", "s"], ["e", "p"], ["p", "z"], ["q", "z"], ["r", "z"], ["s", "z"]].map(([from, to]) => ({ from, to, kind: "input" })).concat([{ from: "k", to: "q", kind: "refutes" }]) };
+        const segsOf = d => {
+            const out = [];
+            const t = String(d).match(/[MHVQ][^MHVQ]*/g) ?? [];
+            let x = 0, y = 0;
+            for (const c of t) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") { [x, y] = v; } else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; } else if (c[0] === "Q") { x = v[2]; y = v[3]; }
+            }
+            return out;
+        };
+        const read = ({ at, edges }) => {
+            const routes = V.routeEdges(edges, at, g);
+            const segs = edges.flatMap(e => segsOf(routes.get(`${e.from}>${e.to}`) ?? "").map(s => ({ ...s, owner: e.from, edge: `${e.from}>${e.to}` })));
+            let overlap = 0, close = 0;
+            for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+                const s = segs[i], t = segs[j];
+                if (s.owner === t.owner || s.h !== t.h) continue;
+                const along = Math.min(s.b, t.b) - Math.max(s.a, t.a);
+                if (along <= 0.5) continue;
+                const apart = Math.abs(s.h ? s.y - t.y : s.x - t.x);
+                if (apart < 0.5) overlap++; else if (apart < TRACK - 0.01) close++;
+            }
+            const ends = edges.map(e => { const d = routes.get(`${e.from}>${e.to}`) ?? ""; const m = d.match(/Q[\d. -]+ (-?[\d.]+) H(-?[\d.]+)\s*$/) ?? d.match(/^M[\d. -]+ (-?[\d.]+) H(-?[\d.]+)\s*$/); return { to: e.to, y: m ? Number(m[1]) : NaN, x: m ? Number(m[2]) : NaN }; });
+            const portsOk = ends.every(p => p.x === at[p.to].x && p.y > at[p.to].y && p.y < at[p.to].y + at[p.to].h);
+            const byTarget = new Map();
+            for (const p of ends) (byTarget.get(p.to) ?? byTarget.set(p.to, []).get(p.to)).push(p.y);
+            const portsApart = [...byTarget.values()].every(ys => ys.sort((u, w) => u - w).every((y, i) => i === 0 || y - ys[i - 1] >= PORT - 0.01));
+            const starts = new Map();
+            for (const e of edges) { const m = (routes.get(`${e.from}>${e.to}`) ?? "").match(/^M(-?[\d.]+) (-?[\d.]+)/); (starts.get(e.from) ?? starts.set(e.from, new Set()).get(e.from)).add(m ? m[0] : "none"); }
+            return { square: edges.every(e => /^M[-\d. ]+(\s*[HVQ][-\d. ]+)+$/.test(routes.get(`${e.from}>${e.to}`) ?? "")), overlap, close, portsOk, portsApart,
+                oneExit: [...starts.values()].every(s => s.size === 1) };
+        };
+        const want = { square: true, overlap: 0, close: 0, portsOk: true, portsApart: true, oneExit: true };
+        equal(JSON.stringify({ crowd: read(crowd), shot: read(shot), edges: crowd.edges.length }), JSON.stringify({ crowd: want, shot: want, edges: 40 }),
+            "{crowd, shot: square routes; overlap: pairs of stretches of different sources on one line; close: pairs of parallel stretches of different sources nearer than ROUTE.track; portsOk: every line ends on its target's left edge inside its box; portsApart: the ports of one target ROUTE.port apart; oneExit: each source's lines leave it at one point; edges: the crowded case's lines}");
+    }],
+    ["R7830 - a line takes its source's colour (1.2.119 round 3, the owner: \"Niech maja kolory pasujace do typu bulleta\"; case-map.mjs, components.css): each drawn edge carries its source node's type or kind class (a Remnant's type, a Deduction's, a Counter's), its arrowhead a marker of that colour, a counter's line still dashed; the stylesheet strokes a line and fills its head with `--drpg-case-type`, the theme's help ink where the source has none", async () => {
+        /*
+         * Line P of 1.2.119, round 3, 20.11.2026. Red at 87b21526: every line in the help ink, the heads by meaning.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78301", type: "prep", name: "a", tiedToCrime: true }, { key: "S.R78302", type: "key", name: "b", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7830 d", inputs: ["S.R78301", "S.R78302"] }, "c-b": { kind: "counter", label: "R7830 c", refutes: ["d-a"] }, "s-c": { kind: "solution", label: "R7830 s", inputs: ["d-a"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const svg = d.querySelector("svg.drpg-case-edges");
+        const cls = el => [...el.classList].find(c => /^drpg-case-(type|kind)--/.test(c)) ?? null;
+        const edges = Object.fromEntries([...svg.querySelectorAll("path[data-drpg-edge]")].map(p => {
+            const id = (p.getAttribute("marker-end") ?? "").match(/^url\(#([^)]+)\)$/)?.[1];
+            const marker = id ? svg.querySelector(`marker[id="${id}"]`) : null;
+            const litId = p.dataset.drpgArrowLit;
+            const lit = litId ? svg.querySelector(`marker[id="${litId}"]`) : null;
+            return [p.dataset.drpgEdge, [cls(p), marker ? cls(marker) : "no head", lit ? cls(lit) : "no lit head", p.classList.contains("drpg-case-edge--refutes")]];
+        }));
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        equal(JSON.stringify({ edges,
+            stroke: /\.drpg-case-edge \{[^}]*stroke: var\(--drpg-case-type, var\(--drpg-kit-help-ink\)\)/.test(rules),
+            head: /\.drpg-case-arrow > path \{[^}]*fill: var\(--drpg-case-type, var\(--drpg-kit-help-ink\)\)/.test(rules),
+            dashed: /\.drpg-case-edge--refutes \{[^}]*stroke-dasharray/.test(rules) }), JSON.stringify({
+            edges: { "S.R78301>d-a": ["drpg-case-type--prep", "drpg-case-type--prep", "drpg-case-type--prep", false], "S.R78302>d-a": ["drpg-case-type--key", "drpg-case-type--key", "drpg-case-type--key", false],
+                "c-b>d-a": ["drpg-case-kind--counter", "drpg-case-kind--counter", "drpg-case-kind--counter", true], "d-a>s-c": ["drpg-case-kind--deduction", "drpg-case-kind--deduction", "drpg-case-kind--deduction", false] },
+            stroke: true, head: true, dashed: true
+        }), "{edges: each line's colour class, its head's, its lit head's, dashed; stroke, head: the stylesheet's colour of a line and of a head; dashed: a counter's line}");
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
         /*

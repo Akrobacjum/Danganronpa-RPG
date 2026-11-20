@@ -138,20 +138,22 @@ export function caseLegendHtml(graph) {
         + `</ul>`;
 }
 
-/* THE ARROWHEADS (1.2.119, "Czytelność strzałek"): one marker per edge kind and one lit, in this canvas's own SVG and
-   named for it alone, since the Map and the Class Trial console can stand in one page. Drawn in user space (the head the
-   same size whatever the line's width) with its tip as its reference point, so the head ends where the path ends, on the
-   target's left edge (case-view.mjs `edgeEnd`), not under the node. Their fill is the stylesheet's (components.css). */
+/* THE ARROWHEADS (1.2.119, "Czytelność strzałek"): in this canvas's own SVG and named for it alone, since the Map and the
+   Class Trial console can stand in one page. Drawn in user space (the head the same size whatever the line's width) with
+   its tip as its reference point, so the head ends where the path ends, on the target's left edge (case-view.mjs
+   `edgeEnd`), not under the node. 8 px tall since round 3: a target's ports stand `ROUTE.port` (10 px) apart. ONE PAIR
+   PER COLOUR (round 3, the owner: "Niech maja kolory pasujace do typu bulleta"): a line takes its source's colour, so
+   each source type or kind drawn has a head and a lit head carrying its class (`drpg-case-type--*`, `drpg-case-kind--*`),
+   whose fill is `--drpg-case-type` (components.css); "plain" for a source with neither. */
 let arrowSets = 0;
-const ARROW_KINDS = ["input", "refutes"];
-function arrowDefs(kinds) {
+function arrowDefs(colours) {
     const base = `drpg-case-arrow-${++arrowSets}`;
-    const ids = Object.fromEntries([...new Set([...ARROW_KINDS, ...kinds])].map(k => [k, `${base}-${String(k).replace(/[^\w-]/g, "")}`]));
-    const lit = `${base}-lit`;
-    const marker = (id, cls) => `<marker id="${id}" class="drpg-case-arrow ${cls}" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse"`
-        + ` markerWidth="10" markerHeight="10" orient="auto"><path d="M0 0 L10 5 L0 10 z"/></marker>`;
-    const defs = `<defs>${Object.entries(ids).map(([k, id]) => marker(id, `drpg-case-arrow--${esc(k)}`)).join("")}${marker(lit, "drpg-case-arrow--lit")}</defs>`;
-    return { defs, ids, lit };
+    const keys = [...new Set(colours.map(c => c ?? "plain"))];
+    const ids = Object.fromEntries(keys.map(k => [k, `${base}-${String(k).replace(/[^\w-]/g, "")}`]));
+    const marker = (id, cls) => `<marker id="${id}" class="drpg-case-arrow ${cls}" viewBox="0 0 10 8" refX="10" refY="4" markerUnits="userSpaceOnUse"`
+        + ` markerWidth="10" markerHeight="8" orient="auto"><path d="M0 0 L10 4 L0 8 z"/></marker>`;
+    const defs = `<defs>${keys.map(k => marker(ids[k], k === "plain" ? "" : esc(k)) + marker(`${ids[k]}-lit`, `drpg-case-arrow--lit${k === "plain" ? "" : ` ${esc(k)}`}`)).join("")}</defs>`;
+    return { defs, head: c => ids[c ?? "plain"], lit: c => `${ids[c ?? "plain"]}-lit` };
 }
 
 /** The name a node shows: its label, else a slot's number, else "(no name)". */
@@ -252,15 +254,18 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
        layer under every line (round 2): the square routes meet in trunks (case-view.mjs `routeEdges`), and a halo drawn
        between two lines cut a branch off its trunk where they join. A halo carries no `data-drpg-ends`, so case-view.mjs
        reads the edges alone (`relayoutCaseMap` routes it again with its edge, `lightEdges` lights it with its edge). */
-    const arrows = arrowDefs(shownEdges.map(e => e.kind));
+    // a line in its source's colour (round 3): the source's type or kind class, as its band takes it
+    const colourOf = e => { const n = nodes.get(e.from); return n ? typeAttrs(caseTypeOf(n), n).cls[0] ?? null : null; };
+    const arrows = arrowDefs(shownEdges.map(colourOf));
     const routes = routeEdges(shownEdges, place.at, MAP_GEOMETRY);
     const halos = [], edges = [];
     for (const e of shownEdges) {
         const d = routes.get(`${e.from}>${e.to}`) ?? "";
-        const head = arrows.ids[e.kind] ?? arrows.ids.input;
+        const colour = colourOf(e);
+        const head = arrows.head(colour);
         halos.push(`<path class="drpg-case-edge-halo" data-drpg-halo="${esc(e.from)}>${esc(e.to)}" d="${d}"/>`);
-        edges.push(`<path class="drpg-case-edge drpg-case-edge--${esc(e.kind)}" data-drpg-edge="${esc(e.from)}>${esc(e.to)}" data-drpg-ends="${esc(JSON.stringify([e.from, e.to]))}"`
-            + ` data-drpg-arrow="${head}" data-drpg-arrow-lit="${arrows.lit}" marker-end="url(#${head})" d="${d}"/>`);
+        edges.push(`<path class="drpg-case-edge drpg-case-edge--${esc(e.kind)}${colour ? ` ${colour}` : ""}" data-drpg-edge="${esc(e.from)}>${esc(e.to)}" data-drpg-ends="${esc(JSON.stringify([e.from, e.to]))}"`
+            + ` data-drpg-arrow="${head}" data-drpg-arrow-lit="${arrows.lit(colour)}" marker-end="url(#${head})" d="${d}"/>`);
     }
     const buttons = [], fields = [];
     for (const [id, p] of Object.entries(place.at)) {

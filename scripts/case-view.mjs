@@ -208,8 +208,8 @@ export function edgePath(from, to, g = MAP_GEOMETRY) {
 }
 
 /**
- * WHERE AN ARROW ENDS (1.2.119, the owner: "Czytelność strzałek"): the last point of `edgePath`, the middle of the target's
- * left edge, across columns and within one. The arrowhead is drawn with its tip on this point (case-map.mjs `arrowDefs`:
+ * WHERE AN ARROW ENDS (1.2.119, the owner: "Czytelność strzałek"): on the target's left edge (`x`), at its middle (`y`) -
+ * `edgePath`'s last point; `routeEdges` ends a line on the same edge at a port of its own (round 3). The arrowhead is drawn with its tip on this point (case-map.mjs `arrowDefs`:
  * the marker's reference point is its tip), so it stops at the node's border and is never drawn under the node, which
  * stands over the edge layer. Pure; R7822.
  */
@@ -218,92 +218,179 @@ export function edgeEnd(from, to, g = MAP_GEOMETRY) {
 }
 
 /**
- * SQUARE, GROUPED ROUTES (1.2.119 round 2; the owner: "Same strzalki niech beda bardziej kwadratowe, pogrupowane - ... niech
- * polaczenia strzalkami beda czytelniejsze"). Every edge is drawn horizontal - vertical - horizontal, its two corners rounded
- * (`ROUTE.radius`): out of its source's right edge (a counter into its own column: out of its left edge), along its source's
- * middle to its target's lane, along the lane to the target's middle, and into the target's left edge, where its head ends
- * (`edgeEnd`). A LANE is one vertical line per target and meaning (an input and a counter's refutation into one node are
- * two lanes, the counter's dashed), in the gutter left of the target's column, between the widest node of the columns
- * before and the target, the head's room kept (`ROUTE.inset`, `ROUTE.stub`). So every line into one node runs down one
- * trunk and ends in one last stretch with one head - the lines grouped - and lines into two nodes never share a vertical.
- * A gutter's lanes are spread evenly in it, ordered by their targets' height, top to bottom from the left or from the
- * right, whichever crosses fewer lines (`routeCrossings`; ties from the left). Replaces `edgePath`'s curves on the Map and
- * the Class Trial console; `edgePath` stays exported, as E99 reads it. Answers a Map of `from>to` to the path. Pure; R7825.
+ * SQUARE ROUTES, GROUPED BY THEIR SOURCE (1.2.119; round 2, the owner: "bardziej kwadratowe, pogrupowane"; round 3, his
+ * photo of round 2: "nachodza na siebie ... przez co sa nieczytelne. Proponuje opracowac jakas metode zeby te strzalki sie
+ * grupowaly ladnie i czytelnie"). Round 2 ran every line into one node down that node's trunk: lines of different sources
+ * merged and the eye could not follow them (R7829 read 197 shared stretches on its crowded case, 26 on the shot's). Now:
+ *   - A SOURCE'S BUNDLE. Every line of one node leaves it at one point (its right edge's middle; a counter into its own
+ *     column, or a line back to an earlier one, its left edge's) and runs to that node's own TRACK, one vertical in a gutter
+ *     - the gutter right of its column, or for a line back, the gutter left of its target's column - and down or up it. The
+ *     bundle is one colour (its source's, case-map.mjs), so it reads as one line that branches.
+ *   - ITS OWN PORT. Each line leaves the track at its own height and runs straight into its target's left edge at a PORT
+ *     of its own, the target's ports at least `ROUTE.port` apart, centred on the node; its head ends there.
+ *   - NO SHARED STRETCH. Tracks of different sources never share an x: a gutter's tracks are spread at least `ROUTE.track`
+ *     apart (forward tracks first, the lines back at its right, so a line back never runs along a forward exit); a port is
+ *     moved, within its node and its order, off the height of any other source's horizontal stretch it would run beside
+ *     closer than `ROUTE.track`. What is left are crossings, at right angles.
+ *   - ORDER. A gutter's tracks are tried in three orders - by their sources' height, its reverse, and by the mean height
+ *     of their targets - and the one with fewest crossings drawn (`routeCrossings`; ties to the first); a target's ports top
+ *     to bottom, the lines from above it from the rightmost track, then those from below from the leftmost, which crosses
+ *     no line into the same node with another's track.
+ * Every route is horizontal, vertical, horizontal, its corners rounded (`ROUTE.radius`). The gutter is not widened: its
+ * zone holds 20 tracks at `ROUTE.track` (a 200 px gap, `MAP_GEOMETRY.colGap`); past that the tracks stand closer and R7829
+ * would read it. A node shorter than its ports need (more than five lines into a 54 px face) gets them closer than
+ * `ROUTE.port`, inside its box. The Map and the Class Trial console draw it; `relayoutCaseMap` routes again at the measured
+ * places. Answers a Map of `from>to` to the path; pure, and independent of the edges' order. R7825, R7829.
  */
-export const ROUTE = Object.freeze({ radius: 6, inset: 18, stub: 22 });
+export const ROUTE = Object.freeze({ radius: 4, inset: 14, stub: 18, track: 8, port: 10, portInset: 6, maxStep: 24 });
 
-/** One route's three segments and its path, given its lane's x. */
-function routeOf(e, at, x, g) {
-    const from = at[e.from], to = at[e.to];
-    const fw = from.w ?? g.nodeW, fh = from.h ?? g.nodeH;
-    const back = to.x <= from.x;
-    const ex = back ? from.x : from.x + fw;
-    const ys = from.y + fh / 2;
-    const end = edgeEnd(from, to, g);
-    const segs = [{ h: true, y: ys, a: Math.min(ex, x), b: Math.max(ex, x) }, { h: false, x, a: Math.min(ys, end.y), b: Math.max(ys, end.y) },
-        { h: true, y: end.y, a: x, b: end.x }];
-    const r6 = n => Math.round(n * 10) / 10;
-    if (Math.abs(end.y - ys) < 0.5) return { segs, d: `M${r6(ex)} ${r6(ys)} H${r6(end.x)}` };
-    const dx = Math.sign(x - ex) || 1, dy = Math.sign(end.y - ys);
-    const r = Math.max(0, Math.min(ROUTE.radius, Math.abs(end.y - ys) / 2, Math.abs(x - ex), Math.abs(end.x - x)));
-    return { segs, d: `M${r6(ex)} ${r6(ys)} H${r6(x - dx * r)} Q${r6(x)} ${r6(ys)} ${r6(x)} ${r6(ys + dy * r)} V${r6(end.y - dy * r)}`
-        + ` Q${r6(x)} ${r6(end.y)} ${r6(x + r)} ${r6(end.y)} H${r6(end.x)}` };
+const r1 = n => Math.round(n * 10) / 10;
+const midOf = (p, g) => p.y + (p.h ?? g.nodeH) / 2;
+
+/** The plan: each owner's track x, each edge's port y, with one gutter's order picked per `choose` (gutter -> index). */
+function routePlan(shown, at, g, choose = new Map()) {
+    const right = p => p.x + (p.w ?? g.nodeW);
+    const xs = [...new Set(Object.values(at).map(p => p.x))].sort((a, b) => a - b);
+    const info = new Map();
+    for (const e of shown) {
+        const S = at[e.from], T = at[e.to];
+        const back = T.x <= S.x;
+        const hi = back ? T.x : (xs.find(x => x > S.x) ?? T.x);
+        const before = Object.values(at).filter(p => p.x < hi).map(right);
+        const lo = before.length ? Math.max(...before) : hi - g.colGap;
+        info.set(e, { back, hi, lo, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys: midOf(S, g) });
+    }
+    // the gutters and their owners
+    const gutters = new Map();
+    for (const e of shown) {
+        const i = info.get(e);
+        const gut = gutters.get(i.hi) ?? gutters.set(i.hi, { lo: i.lo, hi: i.hi, owners: new Map() }).get(i.hi);
+        const o = gut.owners.get(i.owner) ?? gut.owners.set(i.owner, { back: i.back, ys: i.ys, targets: [] }).get(i.owner);
+        o.targets.push(midOf(at[e.to], g));
+    }
+    const orders = gut => {
+        const fwd = [...gut.owners.entries()].filter(([, o]) => !o.back), bck = [...gut.owners.entries()].filter(([, o]) => o.back);
+        const by = f => list => [...list].sort((a, b) => f(a[1]) - f(b[1]) || String(a[0]).localeCompare(String(b[0])));
+        const mean = o => o.targets.reduce((s, y) => s + y, 0) / o.targets.length;
+        const asc = by(o => o.ys), desc = by(o => -o.ys), tgt = by(mean);
+        return [asc, desc, tgt].map(f => [...f(fwd), ...f(bck)].map(([k]) => k));
+    };
+    const trackX = new Map();
+    for (const [hi, gut] of gutters) {
+        const order = orders(gut)[choose.get(hi) ?? 0];
+        const zoneLo = gut.lo + ROUTE.inset, zoneHi = gut.hi - ROUTE.stub;
+        const step = Math.max(ROUTE.track, Math.min(ROUTE.maxStep, (zoneHi - zoneLo) / (order.length + 1)));
+        order.forEach((k, i) => trackX.set(`${hi}|${k}`, zoneLo + step * (i + 1)));
+    }
+    const tx = e => trackX.get(`${info.get(e).hi}|${info.get(e).owner}`);
+    // the horizontal stretches already placed: each owner's exit
+    const placed = [];
+    for (const e of shown) {
+        const i = info.get(e), x = tx(e);
+        placed.push({ y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x), owner: i.owner });
+    }
+    // the ports, target by target (left to right, top to bottom)
+    const byTarget = new Map();
+    for (const e of shown) (byTarget.get(e.to) ?? byTarget.set(e.to, []).get(e.to)).push(e);
+    const port = new Map();
+    const targets = [...byTarget.keys()].sort((a, b) => at[a].x - at[b].x || at[a].y - at[b].y || String(a).localeCompare(String(b)));
+    for (const t of targets) {
+        const T = at[t], h = T.h ?? g.nodeH, my = midOf(T, g);
+        const list = byTarget.get(t).map(e => ({ e, x: tx(e), above: info.get(e).ys <= my }));
+        list.sort((a, b) => (a.above === b.above ? (a.above ? b.x - a.x : a.x - b.x) : a.above ? -1 : 1) || String(a.e.from).localeCompare(String(b.e.from)));
+        const k = list.length, room = h - 2 * ROUTE.portInset;
+        const step = k > 1 ? Math.min(Math.max(ROUTE.port, Math.min(16, room / (k - 1))), room / (k - 1)) : 0;
+        const top = T.y + ROUTE.portInset, bottom = T.y + h - ROUTE.portInset;
+        /* Three tries, the first that keeps every port inside the node: centred and moved off other sources' stretches;
+           packed from the node's top and moved the same way; spaced evenly over the node with no move (the last
+           resort, where a shared height may be left - R7829 would read it). */
+        const attempt = (start, nudge) => {
+            let prev = -Infinity;
+            const ys = [];
+            for (const [i, { e, x }] of list.entries()) {
+                const owner = info.get(e).owner;
+                const ideal = Math.max(top, Math.min(bottom, start + i * step));
+                // the preferred step where it is free, `ROUTE.port` at the least where a move needs the room
+                const free = y => y >= prev + Math.min(step, ROUTE.port) - 0.01 && y >= top && y <= bottom
+                    && (!nudge || !placed.some(q => q.owner !== owner && Math.abs(q.y - y) < ROUTE.track && Math.min(q.b, T.x) - Math.max(q.a, x) > 0.5));
+                let y = null;
+                for (let d = 0; d <= h && y === null; d++) {
+                    if (free(ideal + d)) y = ideal + d;
+                    else if (free(ideal - d)) y = ideal - d;
+                }
+                if (y === null) return null;
+                prev = y;
+                ys.push(y);
+            }
+            return ys;
+        };
+        const ys = attempt(my - (k - 1) / 2 * step, true) ?? attempt(top, true)
+            ?? list.map((_, i) => (k > 1 ? top + i * (bottom - top) / (k - 1) : my));
+        list.forEach(({ e, x }, i) => {
+            port.set(e, ys[i]);
+            placed.push({ y: ys[i], a: Math.min(x, T.x), b: Math.max(x, T.x), owner: info.get(e).owner });
+        });
+    }
+    return { info, tx, port };
 }
 
-/** How many times the segments of routes into different lanes cross (a horizontal through a vertical, inside both). */
+/** One route's path and its three stretches. */
+function routePath(e, at, plan) {
+    const i = plan.info.get(e), x = plan.tx(e), yp = plan.port.get(e), T = at[e.to];
+    const segs = [{ h: true, y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x) }, { h: false, x, a: Math.min(i.ys, yp), b: Math.max(i.ys, yp) },
+        { h: true, y: yp, a: Math.min(x, T.x), b: Math.max(x, T.x) }];
+    if (Math.abs(yp - i.ys) < 0.5 && !i.back) return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(T.x)}` };
+    const dx = Math.sign(x - i.ex) || 1, dy = Math.sign(yp - i.ys) || 1;
+    const r = Math.max(0, Math.min(ROUTE.radius, Math.abs(yp - i.ys) / 2, Math.abs(x - i.ex), Math.abs(T.x - x)));
+    return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(x - dx * r)} Q${r1(x)} ${r1(i.ys)} ${r1(x)} ${r1(i.ys + dy * r)} V${r1(yp - dy * r)}`
+        + ` Q${r1(x)} ${r1(yp)} ${r1(x + r)} ${r1(yp)} H${r1(T.x)}` };
+}
+
+/** How many times a horizontal stretch of one source crosses a vertical of another, inside both. */
 function crossingsOf(routes) {
     let n = 0;
-    for (let i = 0; i < routes.length; i++) {
-        for (let j = 0; j < routes.length; j++) {
-            if (i === j || routes[i].lane === routes[j].lane) continue;
-            for (const h of routes[i].segs) {
-                if (!h.h) continue;
-                for (const v of routes[j].segs) {
-                    if (v.h) continue;
-                    if (v.x > h.a + 0.5 && v.x < h.b - 0.5 && h.y > v.a + 0.5 && h.y < v.b - 0.5) n++;
-                }
-            }
+    for (const a of routes) for (const b of routes) {
+        if (a.owner === b.owner) continue;
+        for (const h of a.segs) {
+            if (!h.h) continue;
+            for (const v of b.segs) if (!v.h && v.x > h.a + 0.5 && v.x < h.b - 0.5 && h.y > v.a + 0.5 && h.y < v.b - 0.5) n++;
         }
     }
     return n;
 }
 
-/** The lanes' x by group, each gutter's order `pick`: "best" (fewer crossings), "other" (the one "best" did not take). */
-function laneXs(edges, at, g, pick = "best") {
-    const shown = edges.filter(e => at[e.from] && at[e.to]);
-    const groupOf = e => `${e.to}|${e.kind ?? "input"}`;
-    const gutters = new Map();
-    for (const e of shown) {
-        const tx = at[e.to].x;
-        if (!gutters.has(tx)) gutters.set(tx, new Map());
-        gutters.get(tx).set(groupOf(e), at[e.to].y + (at[e.to].h ?? g.nodeH) / 2);
+/** The edges placed, in one order whatever order they came in. */
+const shownOf = (edges, at) => (edges ?? []).filter(e => at?.[e.from] && at?.[e.to])
+    .sort((a, b) => String(a.from).localeCompare(String(b.from)) || String(a.to).localeCompare(String(b.to)));
+
+/** Each gutter's order chosen, gutter by gutter from the left: the fewest crossings, or with `worst` the most. */
+function chosenPlan(shown, at, g, worst = false) {
+    const choose = new Map();
+    const base = routePlan(shown, at, g, choose);
+    const gutters = [...new Set(shown.map(e => base.info.get(e).hi))].sort((a, b) => a - b);
+    const score = c => { const p = routePlan(shown, at, g, c); return crossingsOf(shown.map(e => ({ owner: p.info.get(e).owner, ...routePath(e, at, p) }))); };
+    for (const hi of gutters) {
+        let best = 0, bestN = null;
+        for (let k = 0; k < 3; k++) {
+            const n = score(new Map([...choose, [hi, k]]));
+            if (bestN === null || (worst ? n > bestN : n < bestN)) { best = k; bestN = n; }
+        }
+        choose.set(hi, best);
     }
-    const xs = new Map();
-    const routesWith = () => shown.map(e => ({ lane: groupOf(e), ...routeOf(e, at, xs.get(groupOf(e)), g) }));
-    for (const tx of [...gutters.keys()].sort((a, b) => a - b)) {
-        const groups = [...gutters.get(tx).entries()].sort((a, b) => a[1] - b[1] || String(a[0]).localeCompare(String(b[0])));
-        const before = Object.values(at).filter(p => p.x < tx).map(p => p.x + (p.w ?? g.nodeW));
-        const lo = (before.length ? Math.max(...before) : tx - g.colGap) + ROUTE.inset, hi = tx - ROUTE.stub;
-        const place = order => order.forEach(([k], i) => xs.set(k, order.length === 1 ? Math.round((lo + hi) / 2) : Math.round(lo + (hi - lo) * i / (order.length - 1))));
-        const scored = [groups, [...groups].reverse()].map(order => {
-            place(order);
-            return { order, n: crossingsOf(routesWith().filter(r => xs.has(r.lane))) };
-        });
-        const best = scored[1].n < scored[0].n ? 1 : 0;
-        place(scored[pick === "other" ? 1 - best : best].order);
-    }
-    return { shown, xs, groupOf };
+    return routePlan(shown, at, g, choose);
 }
 
-export function routeEdges(edges, at, g = MAP_GEOMETRY, { order = "best" } = {}) {
-    const { shown, xs, groupOf } = laneXs(edges ?? [], at ?? {}, g, order);
-    return new Map(shown.map(e => [`${e.from}>${e.to}`, routeOf(e, at, xs.get(groupOf(e)), g).d]));
+export function routeEdges(edges, at, g = MAP_GEOMETRY) {
+    const shown = shownOf(edges, at);
+    const plan = chosenPlan(shown, at, g);
+    return new Map(shown.map(e => [`${e.from}>${e.to}`, routePath(e, at, plan).d]));
 }
 
-/** How many crossings the routes of `edges` make, in the order drawn or ({ order: "other" }) the other. Pure; R7825. */
+/** How many crossings the routes make: as drawn, or ({ order: "worst" }) in each gutter's order with the most. R7825. */
 export function routeCrossings(edges, at, g = MAP_GEOMETRY, { order = "best" } = {}) {
-    const { shown, xs, groupOf } = laneXs(edges ?? [], at ?? {}, g, order);
-    return crossingsOf(shown.map(e => ({ lane: groupOf(e), ...routeOf(e, at, xs.get(groupOf(e)), g) })));
+    const shown = shownOf(edges, at);
+    const plan = chosenPlan(shown, at, g, order === "worst");
+    return crossingsOf(shown.map(e => ({ owner: plan.info.get(e).owner, ...routePath(e, at, plan) })));
 }
 
 /**
