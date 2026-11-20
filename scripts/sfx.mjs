@@ -657,9 +657,9 @@ const fileName = path => decodeURIComponent(String(path ?? "").split(/[\\/]/).po
  * "N files" chip is a button (`aria-expanded`) that unfolds the row's own files (`ownSoundsFor`: never its fallback's)
  * in a list under the box. EACH FILE A BOX LIKE THE ROW'S OWN (the owner on the first shot, 20.11.2026: "niech kazdy
  * wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)"; a line of its name until then): its whole stored
- * path or link, to select, copy or paste over, its name (the path's last part, decoded) the tooltip, with Choose
- * (another file in its place, through the picker), Play (that file alone, `testSfx`'s `only`) and Remove (that file
- * alone). Answers `{ chip, list }`, both empty for a row with no file of its own. Pure but for the words.
+ * path or link, to select, copy or paste over, its name (the path's last part, decoded) the tooltip, with Play (that
+ * file alone, `testSfx`'s `only`) and Remove (that file alone). No Choose of its own: under the glass at 1366x768 three
+ * icon buttons left the box 3 characters wide ("sou", Chromium, 20.11.2026); the row's Choose adds, the box replaces. Answers `{ chip, list }`, both empty for a row with no file of its own. Pure but for the words.
  */
 export function soundFilesHtml(key, files = ownSoundsFor(key), { open = openFileLists.has(key) } = {}) {
     if (!files?.length) return { chip: "", list: "" };
@@ -674,7 +674,6 @@ export function soundFilesHtml(key, files = ownSoundsFor(key), { open = openFile
             const name = fileName(path);
             return `<li class="drpg-sound-file drpg-sound-files-item" data-drpg-sfx-file="${i}">`
                 + `<input type="text" name="sfx-file:${esc(key)}:${i}" value="${esc(path)}" data-drpg-sfx-file-box="${i}" title="${esc(name)}" aria-label="${esc(F("DRPG.Sound.editFile", { name }))}" />`
-                + iconButton({ icon: "fa-solid fa-folder-open", label: F("DRPG.Sound.replaceFile", { name }), attrs: { "data-drpg-sfx-pick-file": String(i) } })
                 + iconButton({ icon: "fa-solid fa-play", label: F("DRPG.Sound.playFile", { name }), attrs: { "data-drpg-sfx-play-file": String(i) } })
                 + iconButton({ icon: "fa-solid fa-trash-can", label: F("DRPG.Sound.removeFile", { name }), attrs: { "data-drpg-sfx-remove": String(i) } })
                 + `</li>`;
@@ -868,19 +867,9 @@ export function wireSoundRows(root) {
             });
         }
         /* one file's own box: left after an edit, it replaces that file alone, in its place (`withSoundFileAt`; emptied, it
-           removes it); its Choose puts the picked file in its place. The box being typed in holds the redraw (keepLive). */
+           removes it). The box being typed in holds the redraw (keepLive). */
         for (const box of row.querySelectorAll("[data-drpg-sfx-file-box]")) {
             box.addEventListener("change", () => write(soundValueOf(withSoundFileAt(ownSoundsFor(key), Number(box.dataset.drpgSfxFileBox), box.value))));
-        }
-        for (const button of row.querySelectorAll("[data-drpg-sfx-pick-file]")) {
-            button.addEventListener("click", () => {
-                const index = Number(button.dataset.drpgSfxPickFile);
-                new foundry.applications.apps.FilePicker.implementation({
-                    type: "audio",
-                    current: ownSoundsFor(key)[index] ?? "",
-                    callback: path => write(soundValueOf(withSoundFileAt(ownSoundsFor(key), index, path)))
-                }).render(true);
-            });
         }
         for (const button of row.querySelectorAll("[data-drpg-sfx-play-file]")) {
             button.addEventListener("click", async () => {

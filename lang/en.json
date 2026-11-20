@@ -2379,7 +2379,6 @@
       "playFile": "Play {name}",
       "removeFile": "Remove {name}",
       "editFile": "Path or link of {name}",
-      "replaceFile": "Choose another file instead of {name}",
       "fileCount": { "one": "{n} file", "other": "{n} files" },
       "varies": "varies",
       "safewordNoFile": "No file yet: the safeword plays no sound until you choose one. Its card still reaches everybody.",

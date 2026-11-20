@@ -24976,7 +24976,7 @@ const REGRESSIONS = [
             value: "sounds/a.ogg | sounds/c.ogg", one: "sounds/a.ogg", none: null
         }), "{add, again, pasted: the files after adding; removeSecond, removeFirst, outside: after removing at 1, 0 and 5; kept: the input untouched; value, one, none: the stored value}");
     }],
-    ["R7834 - an Effects row shows its files one by one (1.2.119; sfx.mjs `soundFilesHtml`; the owner: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"): the \"N files\" chip is a button that unfolds or folds the row's list (`aria-expanded`, `aria-controls`), the list hidden while folded; each file a box like the row's own - its whole stored path or link as the value, its name (the path's last part, decoded) as the tooltip and in its accessible name - with Choose, Play and Remove named by it and carrying its index; a row with no file draws neither; the words in both languages", async () => {
+    ["R7834 - an Effects row shows its files one by one (1.2.119; sfx.mjs `soundFilesHtml`; the owner: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"): the \"N files\" chip is a button that unfolds or folds the row's list (`aria-expanded`, `aria-controls`), the list hidden while folded; each file a box like the row's own - its whole stored path or link as the value, its name (the path's last part, decoded) as the tooltip and in its accessible name - with Play and Remove named by it and carrying its index; a row with no file draws neither; the words in both languages", async () => {
         /*
          * Line P of 1.2.119 (the sound item), 20.11.2026. Pure markup. Red at b5a29e73: sfx.mjs exports no soundFilesHtml
          * (the chip was a span, and the files stood in one box separated by "|").
@@ -24995,7 +24995,6 @@ const REGRESSIONS = [
                 items: [...(ul?.querySelectorAll("li[data-drpg-sfx-file]") ?? [])].map(li => {
                     const box = li.querySelector('input[type="text"][data-drpg-sfx-file-box]');
                     return [box?.value ?? null, box?.title ?? null, box?.getAttribute("aria-label") ?? null, li.classList.contains("drpg-sound-file"),
-                        li.querySelector("[data-drpg-sfx-pick-file]")?.dataset.drpgSfxPickFile, li.querySelector("[data-drpg-sfx-pick-file]")?.getAttribute("aria-label"),
                         li.querySelector("[data-drpg-sfx-play-file]")?.dataset.drpgSfxPlayFile, li.querySelector("[data-drpg-sfx-play-file]")?.getAttribute("aria-label"),
                         li.querySelector("[data-drpg-sfx-remove]")?.dataset.drpgSfxRemove, li.querySelector("[data-drpg-sfx-remove]")?.getAttribute("aria-label")];
                 }) };
@@ -25003,18 +25002,18 @@ const REGRESSIONS = [
         const F = (k, data) => game.i18n.format(k, data);
         const lang = {};
         for (const l of ["en", "pl"]) {
-            try { const S = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.Sound ?? {}; lang[l] = ["addFile", "showFiles", "filesOf", "playFile", "removeFile", "editFile", "replaceFile"].map(k => typeof S[k] === "string" && S[k].length > 0); } catch { lang[l] = null; }
+            try { const S = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.Sound ?? {}; lang[l] = ["addFile", "showFiles", "filesOf", "playFile", "removeFile", "editFile"].map(k => typeof S[k] === "string" && S[k].length > 0); } catch { lang[l] = null; }
         }
         const empty = X.soundFilesHtml(key, []);
         equal(JSON.stringify({ shut: read(false), open: read(true), empty, lang }), JSON.stringify({
             shut: { chip: ["false", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: true, items: [
-                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.replaceFile", { name: "a.ogg" }), "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
-                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.replaceFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
             open: { chip: ["true", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: false, items: [
-                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.replaceFile", { name: "a.ogg" }), "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
-                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.replaceFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
-            empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true, true, true], pl: [true, true, true, true, true, true, true] }
-        }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [its box's value, tooltip and name, a row box's class, Choose's, Play's and Remove's index and name]; empty: a row with no file; lang: the seven keys in each language}");
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+            empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true, true], pl: [true, true, true, true, true, true] }
+        }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [its box's value, tooltip and name, a row box's class, Play's and Remove's index and name]; empty: a row with no file; lang: the six keys in each language}");
     }],
     ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*
