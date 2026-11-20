@@ -1,0 +1,368 @@
+{
+ "refuter": "verify-stages-12",
+ "of": "stages-12",
+ "checked": [
+  {
+   "ref": "E90 grade",
+   "claim": "E90 graded 8, provisional after L1",
+   "verdict": "stands",
+   "why": "The scale's 8 ('promises delivered, but one holds only by code reading') fits: the recovery roads (P4) were not traced by the reader, and the main promise rests on LIVE-E90-01, unread, which caps at 9. The base run now holds every E90 test green, including the three the reader listed as not read (E90-T2 in shards 3/8 and 3/8 again, E90-T3 in 4/8), so missing_to_10's 'joined from the base run' is done for the tier-2 tests; scenario 61 is still unread (the scenarios run had reached 21 when read).",
+   "evidence": "base run shard results (central scratch, results-suite-3/01-runtests.json, -4/): 'E90-T2 - a debate started on the uptime clock has its whole ...' pass, 'E90-T3 - a trace's ring follows its row and its sight ...' pass; scenarios.log ends at '21-masked-killer'",
+   "grade_after": 8
+  },
+  {
+   "ref": "E90 promise 1",
+   "claim": "The clocks take serverTime only when it reads as a date (1e12), else Date.now(); no other reader of serverTime",
+   "verdict": "stands",
+   "why": "Read the three functions and both callers; grep of scripts/ outside the suite finds serverTime only in comments and in the two epochClock calls. R1564 pass (shard 1/8); scenario 61 A8 is written as claimed (uptime 2811317, cut 5869492, row kept).",
+   "evidence": "scripts/config.mjs:503-505 'export function epochClock(serverTime, local) { return isEpochStamp(serverTime) ? Number(serverTime) : local; }'; scripts/utils.mjs:432-434 'return epochClock(game.time?.serverTime, Date.now());'; scripts/gm-store.mjs:1687 'now: () => epochClock(game.time?.serverTime, Date.now()),'; audit/harness/scenarios/61-gmstore-case.mjs:249 'check(\"A8: on a server whose serverTime is its uptime ...'"
+  },
+  {
+   "ref": "E90 promise 2",
+   "claim": "Old stamps read as unknown in the HUD's minutes, the debate floor and the trial clock",
+   "verdict": "stands",
+   "why": "staleStamp has exactly the five readers the reader names (hud-elapsed.mjs 89, 128, 285; trial-floor.mjs 286, 294; trial-floor-ui.mjs 491). Line numbers for floorStart are 284-289, not 283-288 - cosmetic. The take-back not offered follows from the 56-year elapsed time, as the notes say; no separate guard. R1565 pass (1/8), E90-T1 pass (2/8), E90-T2 pass (3/8).",
+   "evidence": "scripts/hud-elapsed.mjs:285 'if (staleStamp(start, now)) return null;'; scripts/trial-floor.mjs:1724-1726 'if (staleFloorStart()) { await rebaseStaleFloor()...'; scripts/trial-floor-ui.mjs:491 'if (!Number.isFinite(start) || start <= 0 || staleStamp(start, now)) return null;'; .github/release-notes/v1.2.93.md:36 'the stamp is far past the take-back window'"
+  },
+  {
+   "ref": "E90 promise 3",
+   "claim": "A trace's ring follows its ledger row (clientSettingChanged on gmRemnants) and its sight (sightRefresh), once a frame",
+   "verdict": "stands",
+   "why": "gmRemnants is a client-scoped GM store (settings.mjs), so clientSettingChanged is the hook that fires for it, as the module's other GM stores listen. ringPassNow paints every Remnant token after a ledger change and only an unringed visible one after a sight refresh. E90-T3 pass in shard 4/8 (the reader had it unread).",
+   "evidence": "scripts/remnant-ring.mjs:186-189 'Hooks.on(\"clientSettingChanged\", key => { if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) { ledgerGen++; ringPassNextFrame(\"ledger\"); } }); Hooks.on(\"sightRefresh\", () => ringPassNextFrame(\"sight\"));'; scripts/settings.mjs:375 'remnantSecrets: \"gmRemnants\",'"
+  },
+  {
+   "ref": "E90 promise 4",
+   "claim": "Recovery roads (health count, migrateRemnants, reclaim, the restore's 'Restore anyway') marked partly",
+   "verdict": "weakened",
+   "why": "The reader marks 'partly' while saying the road was not traced and no defect was seen. In the brief's vocabulary that is 'unread' for the untraced half, not 'partly' (delivered in part). What I read: previewSection counts rows at or under the cut as beforeCut and fileSection never takes a file's cut, which fits the promise; I did not trace migrateRemnants either. Neither 'partly' nor a defect is established.",
+   "evidence": "scripts/gm-store.mjs:511 'else if (newestInFile <= (base.cleared ?? 0)) { out.beforeCut++; out.beforeCutKeys.push(k); }'; :531 'sec.cleared = 0;'; stages-12.json E90 P4 note: 'marked partly for that reason, not for a defect'"
+  },
+  {
+   "ref": "E90 promise 5",
+   "claim": "No bridge action or socket changed; a server whose serverTime is a date is unchanged",
+   "verdict": "stands",
+   "why": "epochClock keeps serverTime at or above the floor; the only E90 code readers are clock functions. Scenario 61 A4 checks the harness's epoch serverTime.",
+   "evidence": "scripts/config.mjs:504 'return isEpochStamp(serverTime) ? Number(serverTime) : local;'; audit/harness/scenarios/61-gmstore-case.mjs:206 'check(\"A4: its game.time.serverTime is the server's clock, and a finite number\"'"
+  },
+  {
+   "ref": "E50 grade",
+   "claim": "E50 graded 8, provisional after L1",
+   "verdict": "stands",
+   "why": "The scale allows the 8, but on a narrower ground than the reader's: the echo's overrule (P7) is a recorded decision stated in the notes and the GM handbook, so by the brief it belongs under by_decision, not as a mark against the grade, and a stand-in in a test is not one of the scale's criteria. What does hold the grade at 8 is that P7 holds by code reading alone: no registry row names MAP_ECHO_MS, the two tier-2 bodies that mention it pin the opposite case (this user's own write is not overruled), and scenario 87 was not read in the base run. E50-T2 and E50-T4, which the reader listed as not read, pass (shards 4/8, 5/8). Cap 9 for LIVE-E50-01/-02 stands.",
+   "evidence": "scripts/music-states.mjs:308-312 '... it is overruled once: the key comes back, one write ... The GM handbook says so.'; scripts/tests-tier2.mjs:88055 'MAP_ECHO_MS of the window's, is not overruled by the module's echo repair'; base run: 'E50-T2 - the primary follows a mapping change from any GM' pass (results-suite-4), 'E50-T4 ...' pass (results-suite-5)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E50 promise 1",
+   "claim": "A thread is read only when its window is drawn, on Chat, frontmost and the page visible",
+   "verdict": "stands",
+   "why": "seesThread is exactly that conjunction (plus not folded, E44 C4b); markIfSeen is called at render, bringToFront, maximize and visibilitychange; the message hook raises the card when not seen. R1061 pass (1/8).",
+   "evidence": "scripts/messenger-app.mjs:457-460 'return Boolean(this.rendered) && !this.minimized && this.tab === \"chat\" && ui.activeWindow === this && document.visibilityState === \"visible\";'; :533 'if (instance.seesThread?.() ?? true) return;'"
+  },
+  {
+   "ref": "E50 promise 2",
+   "claim": "A GM's own unsettled asks count as unread; one pass counts the threads",
+   "verdict": "stands",
+   "why": "threadStatsOf counts a GM's own message as unread when it is a gmAsk and not settled; threadStats memoises one pass and counts it. R1064, R1065 pass (1/8).",
+   "evidence": "scripts/messenger.mjs:150 'if (!own || (isGM && cardFlag(message, MESSENGER_FLAGS.gmAsk) && !cardFlag(message, MESSENGER_FLAGS.settled))) row.unread++;'; :166-168 'if (statsMemo) return statsMemo; count(\"messenger.threadStats\");'"
+  },
+  {
+   "ref": "E50 promise 3",
+   "claim": "The roster closes by one road; a deleted message leaves open windows",
+   "verdict": "stands",
+   "why": "Every close of the roster goes through closeRoster (1546, 1586, 1622, 1662); onDeleteChatMessage raises drpgMessengerDeleted and the app listens. R1063, R1066 pass.",
+   "evidence": "scripts/messenger-app.mjs:1586 'for (const old of document.querySelectorAll(\"#drpg-messenger-roster\")) closeRoster(old, { instant: true });'; scripts/messenger.mjs:403 'Hooks.callAll(\"drpgMessengerDeleted\", message, thread);'"
+  },
+  {
+   "ref": "E50 promise 4",
+   "claim": "A failed send keeps the words and says once what is known",
+   "verdict": "stands",
+   "why": "The box is emptied only on a sent result; maybePosted warns sendUnsure, an untold failure errors sendFailed, a told refusal adds nothing. R1062, R1072 pass.",
+   "evidence": "scripts/messenger-app.mjs:423-425 'if (sent) textarea.value = \"\"; else if (outcome.maybePosted) ui.notifications.warn(...sendUnsure); else if (!outcome.told) ui.notifications.error(...sendFailed);'"
+  },
+  {
+   "ref": "E50 promise 5",
+   "claim": "The Sound window saves each change with Saving/Saved/Not saved, no Apply",
+   "verdict": "stands",
+   "why": "The tab comment and SAVE_STATE_KEYS match; E50-T1 pass (2/8). The two-GM part is the queue over the map read at write time (music-states.mjs).",
+   "evidence": "scripts/sound-panel.mjs:117-118 'Every one of them acts or saves at once (E50 C3, D45): there is no Apply.'; :230-231 'saving: \"DRPG.Music.saveState.saving\", saved: ..., failed: ...'"
+  },
+  {
+   "ref": "E50 promise 6",
+   "claim": "The primary follows any GM's mapping after 1500 + 400 ms; a playlist the map moves away from stops",
+   "verdict": "stands",
+   "why": "Constants as cited; the rule that stops a playlist the map no longer names is written beside them. E50-T2 and E50-T4 pass (shards 4/8, 5/8), which the reader had as not read.",
+   "evidence": "scripts/music-play.mjs:90 'const SETTLE_MS = 400;'; :117 'const MAP_SETTLE_MS = 1500;'; :127-128 'A state's playlist moved from A to B was followed by B and left A playing beside it'"
+  },
+  {
+   "ref": "E50 promise 7",
+   "claim": "Another GM's take-out within 4000 ms comes back once; a write the module did not send ends the watch",
+   "verdict": "stands",
+   "why": "The rule and the constant are in the code as stated. It holds by reading: no registry row names it and the tier-2 mentions pin the other branch (own write ends the watch); scenario 87 line 44 drives the race repair the overrule shares.",
+   "evidence": "scripts/music-states.mjs:312 'const MAP_ECHO_MS = 4000;'; audit/harness/scenarios/87-messenger-sound.mjs:44 'gm2's write takes gm's row away: gm writes it again on the echo'"
+  },
+  {
+   "ref": "E50 promise 8",
+   "claim": "The cue playlist cannot be mapped; a stored mapping onto it is dropped by the primary at ready",
+   "verdict": "stands",
+   "why": "dropCueMappings returns early off the primary, filters cue playlists, writes once with a debug line; called at the primary's ready. R1067 pass.",
+   "evidence": "scripts/music-states.mjs:409-410 'if (!primary || !map) return []; const dropped = Object.keys(map).filter(key => isCuePlaylist(playlists?.get(map[key])));'; scripts/music-play.mjs:274 'dropCueMappings().catch(...)'"
+  },
+  {
+   "ref": "E50 promise 9",
+   "claim": "Times of day localized; Music slider on Foundry's curve; texts localized",
+   "verdict": "stands",
+   "why": "The slider comment and function match; the curve is read from fvtt-types, not v14 (LIVE-E50-03), as the reader says. R1068-R1071 pass.",
+   "evidence": "scripts/sfx-play.mjs:371-375 'Foundry's own functions where it has them, else the same curve (`v ** (1 / 1.5)`, `x ** 1.5`, read in fvtt-types 14.366, not in v14's code: LIVE-E50-03)'"
+  },
+  {
+   "ref": "E50 promise 10",
+   "claim": "The Known gap (other GM's window stale) was closed later by E44 C2b",
+   "verdict": "stands",
+   "why": "keepLive on the music map's key is in the Sound window as cited.",
+   "evidence": "scripts/sound-panel.mjs:446-449 'keepLive(dialog, { region: \".drpg-music-map\", build: musicMapBody, watch: { settings: [SETTINGS.musicMap] },'"
+  },
+  {
+   "ref": "E51 grade",
+   "claim": "E51 graded 7, provisional after L1",
+   "verdict": "refuted",
+   "why": "The 7 rests first on 'two promises delivered in part'. Neither holds as a partial delivery by E51: P15 (the turn card away from a bystander) is pinned by scenario 10's own check, which is green in the base run (10-murder 45/45), and the 'weaker promise' the reader quotes is about the Testimony card, a separate Known gap (E51-29), not the turn card; P10's lost part (Clear Faint and Sweep's result) was removed later by the owner's pick, which the reader itself calls 'superseded, not broken', and the scale's 6/7 rows speak of a promise not delivered or broken, not one the owner withdrew. No minor finding is written for E51. What is left - m14 (runCall's press-time check no test reaches), the doubled token with no cause (LIVE-E51-04 partly), the drawn checks never looked at - is 'one part holds only by reading' plus unread live checks: an 8, capped at 9 after L1. Every E51 tier-2 test is green in the base run (28 of 28, shards 2/8 to 8/8), not 3 of 28 as written.",
+   "evidence": "audit/harness/scenarios/10-murder.mjs:176 'check(\"gm, p3: the incident's turn card is on the killer's player's Events panel ... p1 and p2, bystanders, hold none (E51-29)\"'; scenarios.log: 'green 10-murder 41.6 s 45/45 passed'; .github/release-notes/v1.2.94.md:165-166 'The incident's turn card reaches the participants and the GM, not a bystander (held by three defences on the harness). The Testimony card is held to a weaker promise: see Known gaps.'",
+   "grade_after": 8
+  },
+  {
+   "ref": "E51 promise 1",
+   "claim": "Thresholds said before the roll and on the card",
+   "verdict": "stands",
+   "why": "palmTitle, cardHead and the tracker rows exist as cited; R1101, R1104, R1108, R1109 pass and E51-T5, -T6, -T7, -T8, -T31 pass in shards 3-8.",
+   "evidence": "scripts/palm.mjs:67 'export function palmTitle(part, def = ACTIONS.palm) {'; base run: 'E51-T7 - a free crisis take is not shown as a roll' pass"
+  },
+  {
+   "ref": "E51 promise 2",
+   "claim": "Call windows from one builder, live while open, opened once",
+   "verdict": "stands",
+   "why": "callWindow, callWindowClass and callWindowOpen at the lines cited; R1110-R1112 pass, E51-T29 pass (6/8).",
+   "evidence": "scripts/call-pickers.mjs:95 'export async function callWindow({'; :199 'export function callWindowOpen(call, kind) {'"
+  },
+  {
+   "ref": "E51 promise 3",
+   "claim": "The Projects window shows the picked row's select",
+   "verdict": "stands",
+   "why": "The data-drpg-when list and its comment are at the lines cited; R1142 pass, E51-T28 pass (5/8). Cascade only, as the reader says.",
+   "evidence": "styles/danganronpa.css:5364-5366 'EVERY VALUE WRITTEN HAS ITS LINE BELOW (E51 fix round FG4, 31.10.2026). The Projects window's two selects now each name their row'"
+  },
+  {
+   "ref": "E51 promise 4",
+   "claim": "Map: silent fog off, placed token arrives, no glow towards a vetoed room, outline redraws",
+   "verdict": "stands",
+   "why": "passageOpenFor as cited; R1113, R1114, R1141 pass; E51-T9, -T10, -T26, -T27 pass.",
+   "evidence": "scripts/movement.mjs:2297 'export function passageOpenFor(actor, passage, scene, { from = null, ...'"
+  },
+  {
+   "ref": "E51 promise 5",
+   "claim": "The GM's outline follows the GM's own Monokuma",
+   "verdict": "stands",
+   "why": "leadsHere returns true for this GM's own Monokuma and, with none of their own, for any; R1140 pass, E51-T25 pass (5/8).",
+   "evidence": "scripts/fog.mjs:4456-4457 'if (poolUserFor(token.actor)?.id === me) return true; return !game.actors?.some(a => a?.type === \"character\" && isMonokuma(a) && poolUserFor(a)?.id === me);'"
+  },
+  {
+   "ref": "E51 promise 6",
+   "claim": "The doorway light stops at the first wall",
+   "verdict": "stands",
+   "why": "doorwayLight, eraseBeyondLight, doorwayGlowPlan at the lines cited; R1138, R1139 pass; the drawing is LIVE-E51-03.",
+   "evidence": "scripts/fog-doorways.mjs:1316 'export function doorwayLight(region, level = null, { actor = null, elevation = null } = {}) {'"
+  },
+  {
+   "ref": "E51 promise 7",
+   "claim": "The token ruler takes the hour's colour through a contract row",
+   "verdict": "stands",
+   "why": "hourRulerFor and the 'token-ruler' override row on CONFIG.Token.rulerClass; R1115 pass.",
+   "evidence": "scripts/patches.mjs:631-633 'id: \"token-ruler\", kind: \"override\", target: \"CONFIG.Token.rulerClass\",'"
+  },
+  {
+   "ref": "E51 promise 8",
+   "claim": "A region's scrolling text passes only over a token shown here",
+   "verdict": "stands",
+   "why": "The wrapper passes only when the stack names the region class and a visible token holds the point; the class name on v14 is LIVE-E51-05, as said. R1131 pass.",
+   "evidence": "scripts/no-scrolling-text.mjs:77 'if (fromRegionBehavior() && shownHere(args[0])) return drpgNoScrollingText.original.apply(this, args);'"
+  },
+  {
+   "ref": "E51 promise 9",
+   "claim": "One viewer for a player with several characters; the GM never gets the player view",
+   "verdict": "stands",
+   "why": "chooseOwnStudent at the line cited; R1117, R1118 pass.",
+   "evidence": "scripts/monokuma.mjs:160 'export function chooseOwnStudent(list = [], { assigned = null, controlled = [] } = {}) {'"
+  },
+  {
+   "ref": "E51 promise 11",
+   "claim": "A debate of at least 30 s; Objection only at participants; a refusal says the refund",
+   "verdict": "stands",
+   "why": "debateSeconds clamps to debateMinSeconds 30 (a -60 gives 30); targetRefusal as cited; R1123-R1126 pass, E51-T16, -T17, -T18 pass.",
+   "evidence": "scripts/trial-floor.mjs:831 'return Math.max(Number(TRIAL.debateMinSeconds) || 30, Math.round(n));'; scripts/config.mjs:4310 'debateMinSeconds: 30,'"
+  },
+  {
+   "ref": "E51 promise 12",
+   "claim": "No discard in the Class Trial; outside it a discard delete stands only on a one-use ticket",
+   "verdict": "stands",
+   "why": "The bridge refuses a discard in the classTrial phase before placing; the ticket is noted only after placeRemnant succeeds, taken once by name within 60 s; the delete also needs isBroken. The console road and the same-name ticket are the trust model's written limit (sheet-audit.mjs:2128-2130), rightly not counted. R1134, R1135, E51-T19, E51-T22 pass.",
+   "evidence": "scripts/bridge-runs-records.mjs:136 'if (data.action === \"discard\" && getClock()?.phase === \"classTrial\") return { refused: ... };'; scripts/sheet-audit.mjs:2179 'if (stamp.reason === \"discard\" && isBroken(itemLike(held)) && takeDiscardTrace(actor.id, held.name)) return out;'"
+  },
+  {
+   "ref": "E51 promise 13",
+   "claim": "The rules manager's Announce card; whole-number fields; Players window counts characters",
+   "verdict": "stands",
+   "why": "rules.mjs:590 and utils.mjs:939 as cited; R1127, R1128, E51-T20, E51-T21 pass.",
+   "evidence": "scripts/rules.mjs:590 '/** The card the manager's \"Announce changes\" posts: the rules introduced, then the rules revoked; public. */'; scripts/utils.mjs:939 'export function wholeNumber(value, options = {}) {'"
+  },
+  {
+   "ref": "E51 promise 14",
+   "claim": "The handbook keeps one language and the last book; a First session screen",
+   "verdict": "stands",
+   "why": "handbookBook client setting read and written as cited; R1129, R1130, R1132, R1143 pass.",
+   "evidence": "scripts/handbooks.mjs:43-46 'function storedBook() { try { return getSetting(SETTINGS.handbookBook) || null;'"
+  },
+  {
+   "ref": "E51 promise 16",
+   "claim": "The main flows held to a click baseline (scenario 88)",
+   "verdict": "stands",
+   "why": "R1133 pass; scenario 88 not yet read in the base run (the scenarios run had reached 21).",
+   "evidence": "base run: 'R1133 - the flows whose length is counted are FLOWS' flows' pass (results-suite-1)"
+  },
+  {
+   "ref": "E51 promise 10",
+   "claim": "The trace: neutral word, spiral spot, digest a GM store; Clear Faint and Sweep show their result - marked partly",
+   "verdict": "weakened",
+   "why": "The code parts stand (spiralSpot, traceDigestStore; R1120-R1122 pass, E51-T12, -T13, -T14 pass). The part that is gone was taken away by the owner's later pick (E64-inv, R3967), which the reader calls superseded, not broken. 'partly' reads as a partial delivery by E51; the accurate mark is yes with the part superseded, as the reader's own superseded_by records.",
+   "evidence": "scripts/tests-tier2.mjs:89452-89453 'E51-T15 (Clear Faint and Sweep said their count in the Investigation Dashboard) left with the two buttons: E64-inv, 12.11.2026, the owner's pick'; scripts/gm-stores.mjs:926 'export const traceDigestStore = defineGmStore({'"
+  },
+  {
+   "ref": "E51 promise 15",
+   "claim": "The incident's turn card reaches participants and the GM, not a bystander - marked partly, road not traced",
+   "verdict": "refuted",
+   "why": "Scenario 10 has a check of exactly this promise, read off the Events panel each browser draws, and it is green in the base run. castCopyFor sends a non-participant either nothing or the betrayal offer alone, so a bystander holds no cast to name the turn from. The 'weaker promise' is the Testimony card's (E51-29 Known gap), a different card. m1 surviving scenario 10 means one of the three defences is enough, not that the promise is partial.",
+   "evidence": "audit/harness/scenarios/10-murder.mjs:176 'check(\"gm, p3: the incident's turn card is on the killer's player's Events panel ... p1 and p2, bystanders, hold none (E51-29)\"'; scripts/incident-store.mjs:577 'if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };'; scenarios.log 'green 10-murder ... 45/45 passed'"
+  },
+  {
+   "ref": "E65 grade",
+   "claim": "E65 graded 9",
+   "verdict": "stands",
+   "why": "Two nits only, both confirmed below; no runtime change (diff confirmed); LIVE-E65-01 unread does not bear on the main promise. The two 'partly' promises are later stages' hand-overs left undone, already written as the two nits, so the 9 is consistent with the scale's 'at most nit findings'.",
+   "evidence": "git diff --stat ed6e8a0b c014681b -- scripts lang styles module.json: 'module.json 2, scripts/tests-kit.mjs 16, scripts/tests-text.mjs 3600, scripts/tests-tier0.mjs 235, styles/danganronpa.css 2'",
+   "grade_after": 9
+  },
+  {
+   "ref": "E65 promise 1",
+   "claim": "No module behaviour changes; under scripts/ only the suite's three files",
+   "verdict": "stands",
+   "why": "The diff over scripts, lang, styles and module.json is the three suite files and two version stamps; lang has no change; docs/handbooks change only the six version lines.",
+   "evidence": "git diff ed6e8a0b c014681b -- docs/handbooks: '-*For the Foundry VTT v14 module \"Danganronpa RPG\", version 1.2.94' / '+... version 1.2.95'"
+  },
+  {
+   "ref": "E65 promise 2",
+   "claim": "The style guide's statuses; rules not confirmed by the pilot read 'to confirm in E71' - partly",
+   "verdict": "stands",
+   "why": "Counted again: 35 lines 'to confirm in E71', 0 'confirmed in E71', 89 'confirmed in the pilot'. The guide holds as E65 wrote it; its residue is E71's (E65-1).",
+   "evidence": "docs/text-style.md:276 '- **X8** \"please\" or \"sorry\" in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.113)]'"
+  },
+  {
+   "ref": "E65 promise 3",
+   "claim": "The glossary: fields per entry, lint red on faults, Hope and Despair masculine",
+   "verdict": "stands",
+   "why": "147 entries with id, en, pl, gender, inflection, forbidden, stage, source (by script); the npm test log reads T8 fail with 0 found; R1058 pass.",
+   "evidence": "npm test log line 37: 'text: T8 fail glossaryHits read 70 found 0 (entries 147, due 147, pending 0)'"
+  },
+  {
+   "ref": "E65 promise 4",
+   "claim": "The text budgets: 13 surfaces, rules, allow rows",
+   "verdict": "stands",
+   "why": "docs/text-budgets.json has 13 surfaces; the log line matches; T4's share 28.4% with no floor, as the reader says.",
+   "evidence": "npm test log line 24: 'text: budgets: 13 surface(s), 12 with a limit; 13 rule(s), 9 by key and 4 by sender; 58 allow row(s); 0 schema fault(s)'; line 44: 'T4 classified 4086 of 14378 string(s) it read (28.4%) ... a reading, no floor'"
+  },
+  {
+   "ref": "E65 promise 5",
+   "claim": "The text lint in check: detectors on fixtures, FAIL set, baselines - partly",
+   "verdict": "stands",
+   "why": "27 detectors (21 fail, 6 report in MODES by grep), the T3 baseline empty, the T6 baseline two rows naming E25 after E25 shipped, and the shape check reads only /^E\\d\\d$/: as the reader says; the residue is E65-2.",
+   "evidence": "scripts/tests-text.mjs:2871 'familyFormats: Object.freeze([]),'; :4210 '!/^E\\d\\d$/.test(row.empties ?? \"\")'; npm test log line 336: 'text: 27 detector(s), 27 hold their fixture'"
+  },
+  {
+   "ref": "E65 promise 6",
+   "claim": "The four text tools exist",
+   "verdict": "stands",
+   "why": "Files present with the line counts given.",
+   "evidence": "wc -l: 'tools/text-map.mjs 570, tools/text-render.mjs 943, tools/text-audience.mjs 385, tools/handbook-facts.mjs 421'"
+  },
+  {
+   "ref": "E65 promise 7",
+   "claim": "Three tier-0 tests R1058-R1060",
+   "verdict": "stands",
+   "why": "At the lines cited; all three pass in shard 1/8.",
+   "evidence": "scripts/tests-tier0.mjs:19223 '[\"R1058 - every detector of the text lint ...'; :19417 '[\"R1060 - an item table's words are held ...'"
+  },
+  {
+   "ref": "E65 promise 8",
+   "claim": "The review and the pilot; the approved texts applied later by E66 and E71 (superseded_by: 39 of the 40 applied)",
+   "verdict": "weakened",
+   "why": "The files exist and the 60 naturalness pairs are gone (T27). But the same base run's pilot reading over the tree says some of the 40 pilot texts still read as their before: en 4, pl 3, with 24 and 24 landed and 25 changed since. That does not support '39 of the 40 applied'; which of those still-before texts are kept by a later word was not traced by the reader or by me.",
+   "evidence": "npm test log line 274: 'text: pilot: in this tree's files (a reading): 80 text(s) read; still the before en 4, pl 3; the after landed en 24, pl 24; changed since the pilot 25'"
+  },
+  {
+   "ref": "E65 promise 9",
+   "claim": "CLAUDE.md gains the text-style rule and text among the check parts",
+   "verdict": "stands",
+   "why": "Both are in CLAUDE.md today.",
+   "evidence": "CLAUDE.md 'Before writing any user-facing text, read docs/text-style.md and docs/glossary.json.'; 'One check' row: '... prose, names, moves, contract, registry, stages, tree, gatecode, live, text, ...'"
+  },
+  {
+   "ref": "E65 promise 10",
+   "claim": "The guide, glossary, budgets, docs/dev and tools stay out of module.zip",
+   "verdict": "stands",
+   "why": "All five are export-ignore; the archive was not built (not allowed here).",
+   "evidence": ".gitattributes:13 'docs/dev/ export-ignore', :15 'docs/glossary.json export-ignore', :18 'docs/text-style.md export-ignore', :19 'docs/text-budgets.json export-ignore', :35 'tools/ export-ignore'"
+  },
+  {
+   "ref": "E65-1",
+   "claim": "The style guide still asks E71 to confirm 35 rules after E71 shipped",
+   "verdict": "stands",
+   "why": "Counts confirmed (35 / 0); E71 STATUS records outcomes for X8, X16, X7 and others; text-style.md was last touched by E109 commits without a status change. The omission is E71's, recorded under E65's hand-over; nit is right.",
+   "evidence": "docs/dev/e71/STATUS.md:58 '| X8 (no \"please\"/\"sorry\") | `DRPG.Reroll.rulingVoid` \"Please rule again.\" -> \"Rule again.\" ... | Holds.'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E65-2",
+   "claim": "T6's baseline keeps two U+2212 rows naming E25 after E25 shipped; nothing reads a row's stage",
+   "verdict": "stands",
+   "why": "The two rows and the two literal U+2212 characters in action-report.mjs (lines 90 and 117) are there; the shape check is the only reader of 'empties'; E25 shipped 1.2.113. No paper keeps the sign by decision (S02-66 appears only in tests-text.mjs). nit is right.",
+   "evidence": "scripts/action-report.mjs:117 'formula.push(`<span class=\"drpg-duality-op\">${bonus < 0 ? \"\\u2212\" : \"+\"}</span>`);' (the character itself in the file); tools/stages.json:91 '{\"id\": \"E25\", ... \"version\": \"1.2.113\", \"shipped\": \"2026-11-14\"'",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 47,
+  "stands": 42,
+  "weakened": 3,
+  "refuted": 2
+ },
+ "grade_changes": [
+  "E51 7 -> 8: P15 is pinned by scenario 10's check, green in the base run, and P10's lost part was withdrawn by the owner's pick, so no E51 promise is delivered in part and no minor is written; what remains is one part held by reading (m14) and unread live checks"
+ ],
+ "not_established": [
+  {
+   "what": "Scenarios 30, 61, 66, 86, 87 and 88 have no verdict in the base run yet (the scenarios run had reached 21-masked-killer when read); E90 P1 (61 A8), E50 P5-P7 (87), E51 P5 (66), P12 (30) and P16 (88) rest on them in part.",
+   "l1": null
+  },
+  {
+   "what": "Which of the pilot texts the base run reads as still the before (en 4, pl 3) are kept by a later owner's word and which were never applied (E65 P8); the log names only the 25 changed since.",
+   "l1": null
+  },
+  {
+   "what": "The reader's count_note says 37 tier-2 titles (3 E90, 3 E50, 28 E51); those add to 34, and the base run holds exactly 34 such titles, all pass. A slip in the note, not in a grade.",
+   "l1": null
+  },
+  {
+   "what": "migrateRemnants and the restore's fresh stamp on a world whose cut is an uptime mark (E90 P4): not traced by the reader or by me.",
+   "l1": null
+  }
+ ]
+}

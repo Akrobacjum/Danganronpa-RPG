@@ -1,0 +1,140 @@
+{
+ "refuter": "verify-first-session/live-items-09",
+ "of": "first-session/live-items-09",
+ "read": [
+  "audit/findings-1.2.118/BRIEF.md (whole)",
+  "audit/AUDIT-1.2.42.md 11.3 and lines 1148-1166 (items 274-292)",
+  "audit/findings-1.2.118/first-session/live-items-09.json (whole: 19 items, 9 observations)",
+  "audit/findings-1.2.118/live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json (searched for every id and subject of the chunk)",
+  "docs/dev/e39/CALIBRATION.md:1-20, 30-40, 82-100, 125-132, 150 on b5a29e73; the branch copy's added lines (git show origin/claude/e58-local, head 7875554f)",
+  "docs/dev/e58/LOCAL-REPORT.md:12-40, 75-82, 200-206, 268-275, 320-335, 505-520 on b5a29e73; the branch copy's added lines 248-399 (diff)",
+  "docs/dev/e58/TRIAGE-9.2.md:295-316",
+  "scripts/movement.mjs:2415-2462, sheet-sidebar.mjs:739-745, call-world.mjs:463, 552, cleanup.mjs:1983-1987, tests-tier2.mjs:73404-73470 ('H81 C3 drag') and 40852-40875, tests-tier1.mjs:14836-14905 (R299), voice-client.mjs:461-483, enforced.mjs:111-120, murder-music.mjs exports, lang/pl.json:274-280, 919-920, 3405, 6531 on b5a29e73; lang/pl.json at v1.2.82",
+  "git grep of the chunk's LIVE ids over .github, docs, scripts, audit/harness, tools on b5a29e73; git log v1.2.116..b5a29e73 on movement.mjs and sheet-sidebar.mjs"
+ ],
+ "scope_note": "The file has one item with a status of read, partly or obsolete (274, partly); all 18 others are open. Five open items were checked for a missed reading: 281, 284, 290, 291, 292 - the K and S rows of the triage, the ones a sandbox could have read. The file has no new_observations or findings with a severity; its nine observations carry none, and three of them that make countable claims (4, 5, 6) were checked as well.",
+ "checked": [
+  {
+   "ref": "274",
+   "claim": "LIVE-H81-03 partly read, as-expected: on 14.370 the module's own placing options reach every client's hooks and v14's own API displacement carries teleport: true in updateToken (movementAction null), so the tunnel-step guard holds for a GM's API displacement; one update a route for a TokenDocument#move route; the drags of (a)-(c), the mouse drag of (d)/(e), the wait for rest and all of (f) not read.",
+   "verdict": "stands",
+   "why": "The row exists at the cited line, is about this id by name, is dated 16.11.2026 on Foundry 14.370 with the module at 1.2.116, and says exactly what the reader carries, including its own limit (mouse drag and region teleport not read). LOCAL-REPORT.md:514 repeats it as cited. The E39-01 move is PlayerOne's TokenDocument#move route, read as one update with pending.waypoints empty, and CALIBRATION.md:129-130 says the mouse drag was not read - so part (e) is read only for an API route, as the reader says. 1.2.116 is recent enough: git log v1.2.116..b5a29e73 on movement.mjs and sheet-sidebar.mjs shows two commits (putBackWrite, legs of a route), and neither touches the guard line of tunnelStepTarget, which still refuses on teleport === true or movementAction === 'displace'. Tried for a refutation: the branch's L1 lines say every tunnel, stairs and Secret Passage test passes on 14.370 (LR-branch:368); the tier 2 test 'H81 C3 drag' moves a token by token.update({x, y}) - an API write with no option, not a mouse drag - and replaces dorm.teleportTokens with a stand-in even on a real Foundry, so it reads neither a drag nor (f)'s real region teleport; the item stays partly, not read. No other reading of a drag onto a tunnel's end found in the three digests, the branch's CALIBRATION.md or LOCAL-REPORT.md. The note's observation that TRIAGE and LOCAL-REPORT count 274 measured whole holds. Small: the result is written 'as-expected', not one of the brief's 'agrees|defect|n/a' (the other live-items files of this session use it too).",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:3-5 'Read on 16.11.2026 on the owner's sandbox: Foundry 14.370 ... this module 1.2.116 (the checkout, symlinked)'",
+    "docs/dev/e39/CALIBRATION.md:36 '| LIVE-H81-03 | a scratch token on the Annex moved by the GM four ways ... v14's own `move({x, y, action: \"displace\"})`: in `preUpdateToken` `teleport` and `movementAction` null; in `updateToken` on both clients `teleport: true`, `movementAction` null ... so its guard holds for a GM's API displacement. A GM's mouse drag and a region's teleport behaviour: not read |'",
+    "docs/dev/e58/LOCAL-REPORT.md:514 '| LIVE-H81-03 | the module's own placing options reach every client's hooks; v14's own displacement carries `teleport: true` in `updateToken` only, `movementAction` never | read; the module's guard holds where it runs |'",
+    "docs/dev/e39/CALIBRATION.md:86 'PlayerOne's page moved Aiko (Dorm A, 300,300) through v14's own `TokenDocument#move(...)`'; :93 'updates per route | **one**'; :129-130 'A drag by mouse (`method: \"dragging\"` ...) was not read'",
+    "scripts/movement.mjs:2459 'if (options?.[TUNNEL_CROSSING] || options?.[REVERT] || options?.teleport === true || options?.movementAction === \"displace\") return null;'",
+    "scripts/tests-tier2.mjs:73460-73461 'dorm.teleportTokens = async tokens => { for (const placed of tokens) await placed.update({ x: 200, y: 200, level: L1, elevation: 0 }); };'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:368 'Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.'",
+    "docs/dev/e58/TRIAGE-9.2.md:297 '| 274 | LIVE-H81-03 | M | measured |'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "281",
+   "claim": "LIVE-E19-06 open: no recorded reading of useExternalAV held false, the Join window or the A/V Config fields on v14.",
+   "verdict": "stands",
+   "why": "No digest row names 281 or LIVE-E19-06, and neither copy of LOCAL-REPORT.md or CALIBRATION.md mentions useExternalAV, hideDock or the A/V Config window. The nearest reading is item 63 (LIVE-E05-11), avclient-livekit 0.6.8's liveKitConnectionSettings at world scope with A/V off - another setting, not this item's. The triage gives it K and it is not in the measured list at LOCAL-REPORT.md:327. The 1.2.83 notes still say 'not tried yet'.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:304 '| 281 | LIVE-E19-06 | K | set useExternalAV true, read reverts false; no Join window; A/V Config fields disabled (actual connect T) |'",
+    "docs/dev/e58/LOCAL-REPORT.md:327 '| measured | 46 | step 3's ten (25, 26, 27, 29, 30, 33, 34, 274 LIVE-H81-03, ...' (281 not among them)",
+    ".github/release-notes/v1.2.83.md:212 '- **LIVE-E19-06** (item 281, not tried yet)'",
+    "scripts/enforced.mjs:116 '{ id: \"liveKitInFoundry\", module: \"avclient-livekit\", key: \"useExternalAV\", value: false,'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "284",
+   "claim": "LIVE-E19-02 open: no recorded reading of the Music slider after a player's F5 mid-incident or of a parked musicDuckedFrom.",
+   "verdict": "stands",
+   "why": "No digest row names it; neither copy of the papers mentions music, the murder track or musicDuckedFrom (grep for music, murder track over the branch's LOCAL-REPORT.md and CALIBRATION.md finds nothing). Item 67's reading (LIVE-E06-01) records 'no sound' on a victim's browser through an opening, which is not the slider or the reload. The identifiers the reader names exist where it says.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:307 '| 284 | LIVE-E19-02 | K | Music 0.6, room music, incident, reload; read volume, murder track after click, restore; musicDuckedFrom |'",
+    "scripts/murder-music.mjs:338 'export async function applyMurderMusic() {' and :355 'export async function restoreDuckedMusic({'",
+    ".github/release-notes/v1.2.83.md:221 '- **LIVE-E19-02** (item 284, not tried yet)'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "290",
+   "claim": "LIVE-E19-10 open: no reading of the corner and the notice tile over a real camera dock; whether R299 ran on Foundry not established.",
+   "verdict": "stands",
+   "why": "No digest row names it. The branch's LOCAL-REPORT.md adds a first run of tiers 0-1 on the sandbox (36 and 31 failures, 5 and 15 skips), which could include R299, but it names no test and says 'Not read yet'; and R299 (f) builds a dock of its own (tests-tier1.mjs:14899-14905), not avclient-livekit's, and the sandbox ran with A/V off - so even a pass would not read the item's real dock. The reader's caution on R299 is right.",
+   "evidence": [
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:306 '**Tiers 0-1 at a table, read for the first time** ...: Stained Glass 36 failed, 5 skipped; Monokuma Legacy 31 failed, 15 skipped. Headless the same tiers read 0 failed. Not read yet; in the loop below.'",
+    "scripts/tests-tier1.mjs:14899-14900 '(f), E19 C7 ... a dock of the test's own, first in the document, fixed at the bottom across the screen'",
+    "docs/dev/e58/TRIAGE-9.2.md:313 '| 290 | LIVE-E19-10 | S | corner/notice tile above camera dock edge; dock hidden, lift 0 when on (dock may need LiveKit) |'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "291",
+   "claim": "LIVE-E18-04 open: no recorded reading of what v14's ChatLog#updateMessage does with an old private card it has not drawn.",
+   "verdict": "stands",
+   "why": "No digest row names it. A near reading exists that the reader does not mention: on 17.11.2026 PlayerOne's page on 14.370 showed the notice 'A private card. Its words did not reach this browser.' during a tier 2 run (LOCAL-REPORT.md:25). It is a notice on one page during a run, not the item's question - where v14's log puts a card it has not drawn, a doubled card after scrolling, a fresh browser with dozens of private cards, a GM's delete within 4 s - so it does not make 291 partly read. The tier 2 test the item names reads which cards the module asks the log to redraw, not what v14's log then does, so a pass of it on the sandbox would not read the item either.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:24-25 '**PlayerOne** - \"Stay hidden?\" (Stay hidden, Reveal yourself) and the notice \"A private card. Its words did not reach this browser.\"'",
+    "scripts/tests-tier2.mjs:40863-40865 'Read: which of them the log was asked to draw again, and which of those it had not drawn (the harness log's record of a card Foundry would post anew).'",
+    "docs/dev/e58/TRIAGE-9.2.md:314 '| 291 | LIVE-E18-04 | K | Seed long chat; ui.chat.updateMessage(contents[0]); read #chat-log li order/duplicates; ...'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "292",
+   "claim": "LIVE-E18-03 open: no reading of the notice tile under and over real windows, the bar's VT323 height or the request card's buttons.",
+   "verdict": "stands",
+   "why": "No digest row names it; the papers' shots and readings hold no notice tile against a dragged sheet and no button height of the messenger's request card (grep over both copies of LOCAL-REPORT.md and CALIBRATION.md for notice tile, R847-R849 and the buttons finds nothing). The triage gives it S, not among the measured. The reader's text_stale (the split by kind of card replaced by the split by theme, E44 C8c) is a statement about the item's text, not a status; not refuted here.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:315 '| 292 | LIVE-E18-03 | S | K+S: elementFromPoint/heights measurable; shot of card bar VT323 title, both themes, 1366x768/393x852 |'",
+    ".github/release-notes/v1.2.83.md:239 '- **LIVE-E18-03** (item 292, not tried yet)'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 4",
+   "claim": "Of the 19, only 274 has a recorded reading, and the triage (M) and LOCAL-REPORT.md:327 count it measured whole though the reading covers the API half of (d) and (e).",
+   "verdict": "stands",
+   "why": "Read both lines; the reading's own verdict says the mouse drag and the region teleport were not read, so 'measured' in the triage overstates it. No reading of the other 18 found in the digests or either copy of the papers.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:297 '| 274 | LIVE-H81-03 | M | measured |'",
+    "docs/dev/e58/LOCAL-REPORT.md:327 'step 3's ten (..., 274 LIVE-H81-03, ...)'",
+    "docs/dev/e39/CALIBRATION.md:36 'A GM's mouse drag and a region's teleport behaviour: not read'"
+   ],
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation 5",
+   "claim": "Triage: K for 281, 284, 285, 291; S for 277, 278, 290, 292; T for the other ten; none of the eight K/S in the measured list.",
+   "verdict": "stands",
+   "why": "TRIAGE-9.2.md:297-315 reads 274 M, 281/284/285/291 K, 277/278/290/292 S, and 275, 276, 279, 280, 282, 283, 286-289 T (ten); 281-292 are absent from the measured list at LOCAL-REPORT.md:327.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:305 '| 282 | LIVE-E19-07 | T | real LiveKit audio (others heard); settings part K |'",
+    "docs/dev/e58/TRIAGE-9.2.md:308 '| 285 | LIVE-E19-03 | K | incident: read murder sound channel/volume, ...'"
+   ],
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation 6",
+   "claim": "LIVE-E19-02, -03, -04, -05, -08, -09 and -10 are cited by nothing in scripts/ or audit/harness/.",
+   "verdict": "stands",
+   "why": "git grep -l on b5a29e73 over scripts and audit/harness: 0 files for each of those seven; E19-01 3, E19-06 2, E19-07 1, E18-03 1, E18-04 3.",
+   "evidence": [
+    "git grep -l 'LIVE-E19-02' b5a29e73 -- scripts audit/harness: no file (and the same for -03, -04, -05, -08, -09, -10)"
+   ],
+   "severity_after": "none"
+  }
+ ],
+ "counts": {
+  "checked": 9,
+  "stands": 9,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "status_changes": [],
+ "not_established": [
+  "Whether the tier 2 test 'H81 C3 drag' (scripts/tests-tier2.mjs:73404) ran and passed on the branch's 14.370 run: LR-branch:368 says every tunnel, stairs and Secret Passage test passes, but names none. Even so it is a GM's token.update({x, y}) with a stand-in region teleport, so it would read neither part (b)'s drag nor part (f); item 274 stays partly either way.",
+  "The 13 open items not sampled (275-280, 282, 283, 285-289) were not searched one by one for a missed reading beyond the id and subject search over the three digests, the branch's papers and the release notes, which found none for any of them.",
+  "The reader's text_stale claims were spot-read only (lang/pl.json:274-280, 919-920, 3405, 6531 against v1.2.82; voice-client.mjs:461-483; enforced.mjs:111-120): each matched; the rest of stale_detail was not checked."
+ ]
+}
