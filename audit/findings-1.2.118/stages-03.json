@@ -1,0 +1,798 @@
+{
+ "reader": "stages-03",
+ "checkout": "main b5a29e73 = 1.2.118, read on the audit's branch claude/audit-119 at caa7ce94 (which adds files under audit/ only); nothing run, nothing changed but this file",
+ "read_counts": {
+  "stages": 4,
+  "release_notes_lines_read": "v1.2.65.md 1-146, v1.2.66.md 1-131, v1.2.67.md 1-145, each whole (422 lines)",
+  "papers_read_whole": {},
+  "papers_not_found": [
+   "docs/dev/e06",
+   "docs/dev/e32",
+   "docs/dev/e07",
+   "docs/dev/e08 (ls docs/dev: no folder for any of the four stages)"
+  ],
+  "other_papers_read": [
+   "audit/findings-1.2.118/BRIEF.md (whole), README.md 1-120, first-session/README.md 25-45, stages-25.json and stages-02.json (shape)",
+   "audit/AUDIT-1.2.42.md 16-127 (section 11) and the 9.2 rows 67-93 (lines 895-927) by grep of the four ids",
+   "audit/findings-1.2.118/live-items-02.json items 67-82 and live-items-03.json items 83-93 (each item's status, evidence, note); live-readings-e58-delta.json rows naming LIVE-E32-01 or LIVE-E08 / item 89",
+   "docs/dev/e58/LOCAL-REPORT.md 225-290 (b5a29e73's copy); origin/claude/e58-local's copy 262-272, 326-345, 384-390 (git show, class F)",
+   "docs/dev/e39/CALIBRATION.md:30 (LIVE-E30-05)",
+   "audit/harness/known-leaks.json (every entry's id and what), audit/harness/skip-baseline.json (27 skips; none of R201-R219)",
+   "audit/harness/README.md rows naming the four stages (grep: 178, 182, 208, 258, 738)",
+   "tools/stages.json rows E06, E32, E07, E08; tools/registry.mjs 1-40, 145-160 (read only)"
+  ],
+  "source_read_in_part": [
+   "scripts/private-rolls.mjs 18-54, 700-800, 940-1000",
+   "scripts/safeword.mjs 25-60",
+   "scripts/settings.mjs 3640-3700 (incidentSeats)",
+   "scripts/secret.mjs 1076-1100",
+   "scripts/world-secrets.mjs 135-145",
+   "scripts/character.mjs 285-300",
+   "scripts/config.mjs 1510-1520 (ACTIONS.search)",
+   "scripts/murder-rules.mjs 4625-4660 (throwOpeningRoll's Night die); grep of crisisKilled (1019, 1701, 2114)",
+   "scripts/incident-store.mjs 305-322",
+   "scripts/reroll.mjs 540-600, 846-935, 1240-1262; grep of exported functions",
+   "scripts/reroll-receipts.mjs 1-40, 165-185",
+   "scripts/bridge-table.mjs 1109-1125; scripts/bridge-asks.mjs 995-1020",
+   "scripts/utils.mjs 470-483",
+   "scripts/tests-grid.mjs 1-80, 355-380, 1655-1719",
+   "scripts/tests-tier0.mjs 7669-7857 (R201, R205), 7980-8000, 8023-8072 (R215)",
+   "scripts/tests-tier1.mjs 8386-8431 (R203), 8682-8700 (R212), 10925-10940 (R216)",
+   "grep hits only: the 'E06 C*', 'E32 C*', 'E32+E07 C*' and 'E08' markers over scripts/ (counts per file and per change number); call-effects.mjs, migrate.mjs, anonymity.mjs, diagnostics.mjs, eclipse.mjs, movement.mjs, rest.mjs, music.mjs, voice.mjs, projects.mjs, monocub.mjs, search-tokens.mjs, action-project.mjs, projects-ui.mjs, bridge-guards.mjs at the lines cited below"
+  ],
+  "registry_rows": {
+   "E06": 4,
+   "E32": 10,
+   "E07": 0,
+   "E08": 5
+  },
+  "test_bodies_read": "R201, R203, R205, R215 whole; R212, R216 header comments; R202, R204, R206-R211, R213, R217-R219 read by name only (13 of 19 rows); the grid's 58 case names and its GRID_RED table",
+  "base_run_lookups": "base-run.json does not exist; the first session's tiers 0-1 totals (0 failed, 16 skipped) are the only results read; none of the 19 rows is in skip-baseline.json, so each is taken as run and passed from the totals, not from its own line",
+  "live_items": 27,
+  "live_readings_found": "5 partly read (LIVE-E06-01, -02, -04, -05, LIVE-E08-03), all through live-items-02/-03's digests of LOCAL-REPORT.md and CALIBRATION.md; 22 open"
+ },
+ "count_note": "Four stages, as the scope names (E06, E32, E07, E08; tools/stages.json rows 9-12, in that order). None has a folder in docs/dev, and the checkout is shallow (git rev-parse --is-shallow-repository: true; oldest commit 32fd204f of 14.10.2026), so none of their own commits (27.09-05.10.2026) can be read; 'what was promised' rests on the release notes, the registry rows and the comments that name each change number. E32 and E07 shipped together as 1.2.66 and their code carries joint markers ('E32+E07 C7' to 'C18'), while the registry stamps all ten rows E32; E08 shipped with E28 as 1.2.67, and only E08's Reroll half is graded here. E07 has no registry row of its own and is 'not graded' under 11.4's second rule.",
+ "stages": [
+  {
+   "id": "E06",
+   "version": "1.2.65",
+   "shipped": "2026-09-28",
+   "what": "What the chat tells whom: a roll the module throws names nobody and goes to the GMs; 3D dice only to the roller, the GMs and an incident's participants; one table of who is in an incident (a direct murder's victim told only once it starts); every private card veiled while an incident runs; a private card's facts travel with its words; the trap's receipt and the reshape card in the messenger; the safeword card posted by a GM's browser with a 3 s fallback; a hidden stash's -1 after the roll; a Confusion's armed Call in the GMs' store; rooms not found unnamed; the GMs' reports to the GM who asked; a four-step migration of the chat log and data written before 1.2.65. 4 registry rows (R201-R204).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.65.md (1-146, whole)",
+    "tools/stages.json row E06 (planned and shipped 1.2.65, 28.09.2026; touches sockets, rolls, scenes; drills [])",
+    "docs/dev/e06/: does not exist",
+    "docs/dev/R-REGISTRY.md:211-214 (R201-R204, 'E06')",
+    "audit/AUDIT-1.2.42.md 9.2 items 67-74 (lines 895-902)",
+    "audit/harness/README.md:208 (72-canary's E06 phase), :258 (11-killer-secrecy's red S04-02 until E06)",
+    "git log -E --grep '\\bE06\\b': 1 commit, df6fbc5f of 03.11.2026 (E60), naming it later; the stage's own commits are older than the shallow checkout"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout; 1 later commit names E06.",
+   "promises": [
+    {
+     "promise": "A roll the module throws names nobody on its document - no speaker, title, actor or statistic - and is whispered to the GMs alone, its roller reading their own",
+     "source": "v1.2.65.md 55-58",
+     "code": "scripts/private-rolls.mjs:719-728 neutralRollSource (speaker alias with actor/token/scene null, system.title and source.actor emptied, flavour gone), :779-801 neutralRollOf (title, headerTitle, data {}, effects, bonusEffects, experiences, the Loaded Die's nonce and roll.trait gone, modifier labels emptied), :955-959 a claimed roll whispered to the GMs alone",
+     "holds": "yes",
+     "test": "R204 (name only); scenario 11-killer-secrecy (green in the first session); LIVE-E06-02 partly read on 14.370 (no id/name/uuid of the killer's actor, speaker Monokuma; title 'Duality Roll')",
+     "test_kind": "both",
+     "note": "The formula still carries the statistic's value (private-rolls.mjs:41-42, a known gap the notes name). The 'Duality Roll' title the 14.370 reading saw is Daggerheart's generic heading on the GM's drawn roll (private-rolls.mjs:1644 per live-items-02 item 68); it names nobody. Since E08+E28 C12a/C13 a player's roll is drawn on the GM, so the author the notes' known gap names is the GM's (private-rolls.mjs:33-42)."
+    },
+    {
+     "promise": "Dice only where the rule says: a private roll's 3D dice to its roller and the GMs, an incident's to its participants, a Reroll's too; a roll nobody on a browser can read lights no Chat tab",
+     "source": "v1.2.65.md 59-62",
+     "code": "scripts/private-rolls.mjs:1424-1469 (the three places that decide who watches the dice; 'not measured (LIVE-E06-03)'); scripts/secret.mjs:1556 the Chat tab's pip",
+     "holds": "unread",
+     "test": "13-murder-signals (green in the first session); LIVE-E06-03 open, LIVE-E06-04 partly read (which arrivals reach ui.chat.notify, as expected; the sound unread)",
+     "test_kind": "behaviour",
+     "note": "The harness has no Dice So Nice; whether the dice appear only where the code sends them is a table question. The notes' own gap 'A Reroll's dice are still sent to every browser' was not re-read against today's code."
+    },
+    {
+     "promise": "One table decides who is in an incident; a direct murder's victim is told only once it starts; a trap's builder reaches only the killers",
+     "source": "v1.2.65.md 63-68",
+     "code": "scripts/settings.mjs:3659-3670 incidentSeats (openingRoll: the killers / the victim; incident: killers, victim, third / victim and a third not on the killer's side; else everyone named), read by incident-store.mjs:390-438 and murder-rules.mjs:4272",
+     "holds": "yes",
+     "test": "R203 (every cell, 36 of them, plus the caller's stage and the world half's method); 13-murder-signals 'opening' phase; LIVE-E06-01 partly read",
+     "test_kind": "both",
+     "note": "LIVE-E06-01 on 14.370 (LOCAL-REPORT.md:481): nothing on the victim's page while the killer throws; after a Hope opening the incident look and one event card, no killer's name. One earlier run's card named the killer on the victim; not repeated in two runs and its dice not recorded (not_established). Since E69 C8 (1.2.113) a Hope or critical opening hides the killer from the victim ('someone'), so the notes' 'tells the victim everything' is narrowed by a later stage."
+    },
+    {
+     "promise": "While an incident runs, every private card that names somebody is veiled, whoever posts it; a private card's own facts travel with its words; a player's copy of a ruling card carries no GM-only line or button",
+     "source": "v1.2.65.md 69-73",
+     "code": "scripts/secret.mjs:1076-1100 (the rule asked at the one place every private card is posted, of PUBLIC_INCIDENT's active, never of the cast), :208 C7a (facts with the words), :322 and :1017-1021 C7b (the GMs' prose stays theirs; 'Whether v14's log draws anything around them is LIVE-E06-08')",
+     "holds": "yes",
+     "test": "13-murder-signals and 11-killer-secrecy (green in the first session); 72-canary's E06 phase (no verdict here); LIVE-E06-08 open",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The safeword card is posted by a GM's browser; when none answers within three seconds the player's own browser posts it and says so",
+     "source": "v1.2.65.md 77-80",
+     "code": "scripts/safeword.mjs:27-46 (the header's reason), :245-253 awaitCard on TIMING.safewordAnswerMs; scripts/config.mjs:407 safewordAnswerMs: 3000",
+     "holds": "yes",
+     "test": "40-flow (no verdict here); LIVE-E06-05 partly read on 14.370 (GM's card 53-61 ms, one card; no GM: the caller's card 54-59 ms, header hidden)",
+     "test_kind": "both",
+     "note": "The GM-F5 half is not read. The 9.2 item's text expects no avatar on the GM's card; the code keeps the GM's header (safeword.mjs:123-126, :468-472) and the reading saw what the code says (live-items-02 item 71)."
+    },
+    {
+     "promise": "A hidden stash's -1 lands on the total after the roll, not as a disadvantage die in the window",
+     "source": "v1.2.65.md 81-85",
+     "code": "scripts/reroll.mjs:1247-1251 (a 1.2.65 bookmark's flat -1 still scored); scripts/tests-tier0.mjs:7990-7993 (R5468: a Search reaches into no stash since 1.2.112)",
+     "holds": "no",
+     "test": "R5468 (the replacement's census)",
+     "test_kind": "static",
+     "note": "Superseded twice: 1.2.66 (E32/E07) made it a disadvantage die again, and the owner's decision of 13.11.2026 (feba55c3, 1.2.112) took the stash out of the Search, so no roll carries it. Not a defect: the promise has no subject today."
+    },
+    {
+     "promise": "A Confusion's armed Call is the GMs' and its target's player's, not a flag on the target's sheet; an armed Call names no buyer; a secret project's repair is sealed and named 'Repair'",
+     "source": "v1.2.65.md 86-93",
+     "code": "scripts/call-effects.mjs:38, :189, :343, :580 (the Confusions' store, the list without `from`); scripts/projects.mjs:2252 (the repair sealed); scripts/search-tokens.mjs:764 (a plant hands the item alone)",
+     "holds": "yes",
+     "test": "61-gmstore-case and 30-security (no verdict here); tier 2 (not read)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Rooms not found stay unnamed; the GMs' reports (music, season checklist, voice plan, anonymity audit) go to the GM who asked",
+     "source": "v1.2.65.md 94-98",
+     "code": "scripts/movement.mjs:1895, scripts/eclipse.mjs:1113, scripts/rest.mjs:59 (found rooms only); scripts/utils.mjs:773 and scripts/music.mjs:203, scripts/diagnostics.mjs:1540, scripts/voice.mjs:2573, scripts/anonymity.mjs:893 (gmReport, C11)",
+     "holds": "yes",
+     "test": "none stamped E06 for these; tier 2 (not read)",
+     "test_kind": "static",
+     "note": "Held by reading the markers' code, not by a test this reader read."
+    },
+    {
+     "promise": "The first load rewrites the old chat log and data in four steps, each read back; a step that did not change what it should leaves the world and a standing notice",
+     "source": "v1.2.65.md 20-43",
+     "code": "scripts/migrate.mjs:872-935 (the four clauses: neutraliseOldCards, armed Calls unsigned, sealOldRepairs, Confusions lifted), :1308-1322 the veiled kinds, :1370-1380 the rewrite",
+     "holds": "unread",
+     "test": "tier 2 (not read); LIVE-E06-07 open",
+     "test_kind": "behaviour",
+     "note": "The notes say how many old cards a played world holds and how long the rewrite takes was not measured; it still has not been."
+    },
+    {
+     "promise": "Every socket emit names its recipients, but four that carry nothing",
+     "source": "registry R201; v1.2.65.md 3-9",
+     "code": "scripts/tests-tier0.mjs:7669-7748 R201 (fog, gm-bridge, relay-guard, sync)",
+     "holds": "yes",
+     "test": "R201",
+     "test_kind": "static",
+     "note": ""
+    }
+   ],
+   "registry_rows": 4,
+   "tests_read": [
+    {
+     "test": "R201 (tests-tier0.mjs:7669-7748)",
+     "measures": "yes",
+     "why": "Shows its reader planted emits first (an address, the word in a string, a payload by name, a comment), then reads every served source, needs at least 30 emits, fails on a fifth unaddressed emit, a second in a listed file, a listed one gaining a field and a listed one gone. It cannot see an emit through another name or what `data` of sync.mjs holds, and says so."
+    },
+    {
+     "test": "R203 (tests-tier1.mjs:8386-8429)",
+     "measures": "yes",
+     "why": "Every cell of incidentSeats for three kinds x three thirds x four stages against a table written in the test, plus the three precedence readings; pure, but the function is the one every reader of 'who is told' asks."
+    },
+    {
+     "test": "scenario 11-killer-secrecy",
+     "measures": "yes",
+     "why": "Reads the killer's opening roll on a bystander's browser; green in the first session's run."
+    },
+    {
+     "test": "scenario 13-murder-signals",
+     "measures": "yes",
+     "why": "Reads the cast packets four browsers receive through the opening; green in the first session's run."
+    }
+   ],
+   "tests_to_join": [
+    "R201",
+    "R202",
+    "R203",
+    "R204",
+    "tier 2: the tests naming E06 in tests-tier2.mjs (79 mentions; not enumerated here)",
+    "scenario 11-killer-secrecy",
+    "scenario 13-murder-signals",
+    "scenario 30-security",
+    "scenario 40-flow",
+    "scenario 61-gmstore-case",
+    "scenario 72-canary"
+   ],
+   "scenarios": [
+    "72-canary (audit/harness/README.md:208: the chat each phase's bystanders hold, read for the cast and the secret actions' titles, E06) - no verdict in this audit's runs",
+    "11-killer-secrecy (README.md:258: S04-02 red until E06) and 13-murder-signals - green in the first session's run",
+    "30-security, 33-bridge-paths, 40-flow, 61-gmstore-case name E06 in their source - no verdict"
+   ],
+   "live": {
+    "items": 8,
+    "read": 0,
+    "partly": 4,
+    "open": 4,
+    "ids_partly": [
+     "LIVE-E06-01",
+     "LIVE-E06-02",
+     "LIVE-E06-04",
+     "LIVE-E06-05"
+    ],
+    "ids_open": [
+     "LIVE-E06-03",
+     "LIVE-E06-06",
+     "LIVE-E06-07",
+     "LIVE-E06-08"
+    ],
+    "note": "The four partly read on Foundry 14.370 with Daggerheart 2.12.9, 16.11.2026, headless pages with no person (LOCAL-REPORT.md:477-481; live-items-02 items 67, 68, 70, 71): none showed a module defect; three texts are stale against the code (E69's hidden killer, the GM's safeword header, '2.10.x' for 2.12.9). Open: Dice So Nice on every account, the trap's receipt in the messenger, the old cards' rewrite on a played world, a ruling card on a player's Chat tab.",
+    "l1": {
+     "what": "LIVE-E06-03 (Dice So Nice on every account), LIVE-E06-07 (the old chat log rewritten on a copy of a played world), LIVE-E06-08 (a ruling card on a player's Chat tab), and the halves of LIVE-E06-01/-02/-04/-05 not read (the murder music, a Reroll's document in a bystander's console, the message sound, a GM's F5 during a safeword press)",
+     "recipe": [
+      "1. On a copy of the owner's played world from before 1.2.65 (or a world saved on 1.2.64), load 1.2.118 as the primary GM and read the count neutraliseOldCards reports (migrate.mjs:872); open one old module roll's document in a player's console: speaker alias Monokuma, no actor, empty system.title, rolls without data/effects/experiences.",
+      "2. Three players plus the GM, Dice So Nice on, 'Hide 3D dice on secret rolls' off then on: a player's Search; a direct murder's opening; a trap's opening - watch each screen for dice.",
+      "3. Same table: a Reroll of that Search - the 3D dice on the roller's screen only; a bystander's console reads the rewritten message naming nobody.",
+      "4. A ruling card (a Search proposed on Hand) on the player's Chat tab: no GM-only line, no GM button.",
+      "5. A safeword press while the only GM presses F5: one card on every screen after 3 s, the caller's card saying their browser posted it.",
+      "6. A direct murder with a murder playlist mapped: the victim hears nothing while the killer rolls the opening."
+     ],
+     "clients": "GM and three players",
+     "theme": "default (one pass in stained glass for step 4)",
+     "settles_if": "each step as written - E06's chat and dice promises hold at a table and the grade loses 'provisional'; a die, a name or a GM-only line on a screen that should not have it is a finding against E06 (major at least where it names a killer or a role)",
+     "priority": "grade cap 9 (rule 1); E06 graded 8"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E32/E07 (1.2.66): the hidden stash's step a disadvantage die again; then the owner's decision of 13.11.2026 (feba55c3, 1.2.112): a Search reaches into no stash (R5468)",
+    "E08+E28 C12a/C13 (1.2.67): a player's roll drawn and written on the primary GM, which ends the known leak 'roll-author' (private-rolls.mjs:33-42; 11-killer-secrecy.mjs:116)",
+    "E69 C8 (1.2.113): a Hope or critical opening hides the killer from the victim (mask-gm.mjs:5-21, per live-items-02 item 67)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise still standing has its code where the notes say (private-rolls.mjs, safeword.mjs, settings.mjs incidentSeats, secret.mjs, call-effects.mjs, migrate.mjs), the four rows R201-R204 passed in the first session's tiers 0-1 (totals read, none skipped), and 11-killer-secrecy and 13-murder-signals - the two scenarios that read the opening on a bystander's browser - were green there. Four of eight live checks are partly read on 14.370 with no module defect. Against a 9: the dice half (LIVE-E06-03) and the old log's rewrite (LIVE-E06-07) are unread, 72-canary, 30-security, 40-flow and 61-gmstore-case have no verdict in this audit, three promises are held by code reading only (the reports, the found rooms, the migration), and one 14.370 run once showed the killer's name on the victim without a recorded cause. Capped at 9 by 11.4's first rule in any case: the stage's main promise - what reaches whose browser - is a table question.",
+   "missing_to_10": "LIVE-E06-03, -06, -07, -08 read and the unread halves of -01, -02, -04, -05; 72-canary and 30-security green in a base run; the one 14.370 run where the victim's card named the killer explained or repeated with its dice recorded; a named test for the GMs' reports and the found rooms."
+  },
+  {
+   "id": "E32",
+   "version": "1.2.66",
+   "shipped": "2026-10-03",
+   "what": "The incident written down as a grid of played-through cases in tier 2 (49 at 1.2.66; 28 of the then 46 red on 1.2.65's code), with the store-side changes the grid needed: the fight out of world data into the GMs' store and each participant's copy (C2, C3), every incident write through one queue (C4), one incident at a time and a betrayal declared in an Eclipse (C5a, C5b), only a body makes a Blackened or a betrayal (C6). 10 registry rows (R205-R214; R214 removed since).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.66.md (1-131, whole)",
+    "tools/stages.json row E32 (planned and shipped 1.2.66, 03.10.2026; touches sockets, rolls; drills [])",
+    "docs/dev/e32/: does not exist",
+    "docs/dev/R-REGISTRY.md:215-224 (R205-R214, 'E32')",
+    "audit/AUDIT-1.2.42.md 9.2 items 75-76 (lines 906-907) and 86 (LIVE-E07-10, stage 'E32+E07')",
+    "audit/harness/README.md:182 (19-standing-cast, 'E32+E07 fix r2-G2')",
+    "scripts/tests-grid.mjs:1-80 (the grid's header, E32 C1)",
+    "git log -E --grep '\\bE32\\b': 1 later commit, 43ca073d of 10.11.2026 (E68)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout; 1 later commit names E32.",
+   "promises": [
+    {
+     "promise": "A grid of played-through incident cases runs in every suite, its oracle the case's own model, never the module",
+     "source": "v1.2.66.md 3-9, 114-116; tests-grid.mjs:1-24",
+     "code": "scripts/tests-grid.mjs:1659-1716 (58 cases today: DM01-DM22, TP01-TP15, TR01-TR09, SI01-SI03, XI01-XI09), :359-360 GRID_RED empty, :1578-1580 a malformed marker throws",
+     "holds": "partly",
+     "test": "the grid in tier 2 (no verdict in this audit: base-run.json absent, the first session's 01-runtests timed out)",
+     "test_kind": "behaviour",
+     "note": "In tier 2, not 'every suite' as tiers 0-1 run by default (runTests() runs tier 1). 58 cases where the notes said 49: later stages added them (E33 C7-C8's drawn and faulted cases, DM16-DM22, XI08-XI09). On 14.370 tier 2 ran in full (LOCAL-REPORT.md:10-28) but no grid case is named (live-items-02 item 75)."
+    },
+    {
+     "promise": "The world's data says only whether an incident runs and its stage; the fight goes to the GMs and the participants' browsers; the first load lifts a running fight out of world data, reading the store back first",
+     "source": "v1.2.66.md 33-42, 100-103",
+     "code": "scripts/world-secrets.mjs:140-144 (murderState only ['active', 'stage'], 'the stage alone since E32 C2'); scripts/gm-stores.mjs:329-380 (the fight in the cast store); scripts/incident-store.mjs:1556-1569 liftIncidentFight",
+     "holds": "yes",
+     "test": "R9 and 72-canary (the world-secrets rule; 72 no verdict); tier 2 (not read); LIVE-E32-02 open",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Every write of an incident runs in one queue, and nothing in the queue queues again; a transition says what it read and stops on a mismatch",
+     "source": "registry R205; v1.2.66.md 107-110",
+     "code": "scripts/incident-store.mjs:305-320 (the queue, per browser); murder-rules.mjs transitions with `expect`",
+     "holds": "yes",
+     "test": "R205 (reads the whole family, incident-store, murder-rules, murder-ui, murder.mjs)",
+     "test_kind": "static",
+     "note": "Per browser only: two GMs' queues are not ordered (incident-store.mjs:317-319; LIVE-E07-10 open)."
+    },
+    {
+     "promise": "One incident at a time: a new incident starts from nothing left over; no murder opens while one runs, Stage 6 included; a betrayal closes the first incident's Stage 6 before its own opens",
+     "source": "v1.2.66.md 56-58",
+     "code": "scripts/murder-rules.mjs:365, :458 ('ONE INCIDENT AT A TIME, STAGE 6 INCLUDED', E32 C5a), :531",
+     "holds": "yes",
+     "test": "R206; grid TP01, TP02, XI01",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A betrayal declared in an Eclipse costs an action and opens when the Eclipse ends; none in a Class Trial; only a body makes a Blackened or a betrayal",
+     "source": "v1.2.66.md 59-63",
+     "code": "scripts/action-murder.mjs:230 and bridge-runs-acts.mjs:886 (E32 C5b, the declaration); scripts/incident-store.mjs:841, :1762 leftABody (E32 C6)",
+     "holds": "yes",
+     "test": "R207, R210; grid XI02, XI03, XI07, DM04, TP04",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A roll that lists several statistics asks a GM, and nothing takes a list's first statistic but a list of one",
+     "source": "registry R212, R213; v1.2.66.md 26-31",
+     "code": "scripts/trait-ruling.mjs traitFor (per R212's header); throwOpeningRoll at murder-rules.mjs:4629-4635 refuses a statistic the side does not list",
+     "holds": "yes",
+     "test": "R212, R213",
+     "test_kind": "static",
+     "note": "R212's comment names 'E32+E07 C11b' and was rewritten by E68 C1 (the player proposes, the GM approves); R212 and R213 measure E07's pick under E32's stamp."
+    }
+   ],
+   "registry_rows": 10,
+   "tests_read": [
+    {
+     "test": "R205 (tests-tier0.mjs:7750-7855)",
+     "measures": "yes",
+     "why": "Planted source first (three spans, five writes, two strays, one nested queue), then every file of the incident's family read and summed, at least 15 writes and 6 spans required, the nine named transitions asked for `expect`. Its name still says 'in murder.mjs', which today is a facade with no code; the body reads the family (fix r2-G2 of E34)."
+    },
+    {
+     "test": "R212 (tests-tier1.mjs:8682, header read)",
+     "measures": "yes",
+     "why": "Drives traitFor on stubs for one, several and none listed, Resolve armed, and the GM's judgement of a proposal; pure, but the function is the one every several-statistic roll asks."
+    },
+    {
+     "test": "the grid (tests-grid.mjs)",
+     "measures": "yes",
+     "why": "Its tables are written from the handbooks, not imported (:15-23), and a case fails once with every violation listed; its result is not read in this audit."
+    },
+    {
+     "test": "scenario 19-standing-cast",
+     "measures": "yes",
+     "why": "What a player outside the running incident is sent of its cast; green in the first session's run."
+    }
+   ],
+   "tests_to_join": [
+    "R205",
+    "R206",
+    "R207",
+    "R208",
+    "R209",
+    "R210",
+    "R211",
+    "R212",
+    "R213",
+    "tier 2: the 58 grid cases ('grid DM01' ... 'grid XI09')",
+    "scenario 10-murder",
+    "scenario 13-murder-signals",
+    "scenario 19-standing-cast",
+    "scenario 61-gmstore-case"
+   ],
+   "scenarios": [
+    "19-standing-cast (README.md:182, 'E32+E07 fix r2-G2') - green in the first session's run",
+    "10-murder and 13-murder-signals (E32 in source) - green in the first session's run",
+    "11-killer-secrecy - green; 30-security, 33-bridge-paths, 40-flow, 61-gmstore-case (E32 in source) - no verdict"
+   ],
+   "live": {
+    "items": 2,
+    "read": 0,
+    "partly": 0,
+    "open": 2,
+    "ids_open": [
+     "LIVE-E32-01",
+     "LIVE-E32-02"
+    ],
+    "note": "Tier 2 ran on 14.370 (LOCAL-REPORT.md:10-28; the e58 line's later runs 18-19.11.2026, live-readings-e58-delta.json), filed under item 75 with others, but no grid case and no grid time is named. The update across 1.2.65 -> 1.2.66 with a fight running needs a world left on 1.2.65.",
+    "l1": {
+     "what": "LIVE-E32-01 (which grid cases stand down on the QA world and the grid's time) and LIVE-E32-02 (a running incident carried across the 1.2.65 -> 1.2.66 update)",
+     "recipe": [
+      "1. On the QA world, run game.drpg.runTests({ tier: 2, only: 'grid ' }) as GM with three players connected; write down each grid case's pass/fail/skip and the total time.",
+      "2. On a world left on 1.2.65 with a direct murder in its fight (round 2, one hindrance set), install 1.2.118, reload as the primary GM: the fight's round, side and hindrance are in the GMs' store; a player's console reads game.settings.get('danganronpa-rpg','murderState') with only active and stage."
+     ],
+     "clients": "GM and three players (1); GM and two players (2)",
+     "theme": "default",
+     "settles_if": "58 grid cases green or each skip a fixture the world lacks - the grid promise measured on a table; a red case is a finding against E32/E07; any fight field left in world data after the update is a major finding",
+     "priority": "grade cap 9 (rule 1); E32 graded 8"
+    }
+   },
+   "findings": [
+    {
+     "id": "E32-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "R214's registry row says it was removed in E54; the test went in the 1.2.112 stash change",
+     "where": "docs/dev/R-REGISTRY.md:224; scripts/tests-tier0.mjs:7990-7993; tools/registry.mjs:148-153, :183",
+     "what_happens": "The generator marks a removed test '(removed in <the first stage not shipped>)' when --write next runs, so R214's row names E54 (1.2.113, the split of the sheet and other files), while the test was removed by feba55c3 (13.11.2026, '(1.2.112)'), the owner's rule that a Search reaches into no stash, as R5468's own comment records.",
+     "evidence": "R-REGISTRY.md:224: '| R214 | 0 | E32 | the hidden stash's step is the old count's die, exactly: ... (removed in E54) |'; tests-tier0.mjs:7992-7993: 'a hidden one at one more step of disadvantage (`stashStep`, which R214 held to the old count's die; R214 went with it)'; git log -S'R214 - the hidden' -- scripts/tests-tier0.mjs: feba55c3 2026-11-13 'Stashes: a roll to discover, no roll to take ... (1.2.112)'.",
+     "failure_scenario": "A maintainer asking why the hidden stash's die test is gone reads E54's papers and release notes, which say nothing of stashes, instead of the 1.2.112 notes that hold the decision.",
+     "expected": "The row names the change that removed the test (1.2.112 / feba55c3), or the generator's rule is stated on the row.",
+     "evidence_class": "K",
+     "confidence": "read",
+     "refutation_tried": "Checked whether E54 itself removed R214 (git log -S on tests-tier0.mjs: the string leaves in feba55c3, a 1.2.112 commit, before E54's 1.2.113); read tools/registry.mjs:148-153, which says the stamp is the first unshipped stage when --write runs, so the row is the generator's rule working as written, not a hand error; the effect is only on the row's text."
+    }
+   ],
+   "superseded_by": [
+    "E33 C7, C8 (1.2.69): the grid's drawn and faulted cases (tests-grid.mjs:44-72), part of today's 58",
+    "E68 C1 (1.2.114 line): R212 rewritten - the player proposes, the GM approves",
+    "the owner's stash rule of 13.11.2026 (feba55c3, 1.2.112): R214 and the hidden stash's die removed"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The grid stands with 58 cases and no marker of a red case (tests-grid.mjs:359-360), its oracle written apart from the module; the fight is out of world data (world-secrets.mjs:140-144) with its lift in place; the queue is read by R205 over the whole family; R205-R213 passed in the first session's tiers 0-1 (totals read), and 10-murder, 13-murder-signals and 19-standing-cast were green there. Against a 9: the grid itself is tier 2 and has no verdict in this audit, nor any named grid result on 14.370; 'runs in every suite' holds for tier 2 only; both live checks are open; one nit (E32-1). Capped at 9 by rule 1 in any case: the update across a running fight (LIVE-E32-02) is the stage's one data promise and is unread.",
+   "missing_to_10": "The grid's 58 cases green in a base run of tier 2 and named in a 14.370 run (LIVE-E32-01); LIVE-E32-02 read on a world left on 1.2.65; R214's row naming the change that removed it."
+  },
+  {
+   "id": "E07",
+   "version": "1.2.66",
+   "shipped": "2026-10-03",
+   "what": "The incident made to hold the grid (E32+E07 C7-C18): hits take Sanity first and the line says what landed (C7), weapons worn after the blow and broken at the close (C8, C8b), turns (C9), the third's departures (C10), the opening's roll and the GM's pick of the statistic (C11a-e), tools broken at the discovery (C12), a project's own statistic required (C13), the murder window (C14), one menu one roll (C15), the fight's tile (C16), the tracker's last three turns (C17), the event card (C18); plus a killing crisis action cannot be rerolled and the Night die reaches the opening (fix r2-G1). No registry row is stamped E07.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.66.md (1-131, whole)",
+    "tools/stages.json row E07 (planned 1.2.66, with E32; shipped 03.10.2026; touches sockets, rolls; drills [])",
+    "docs/dev/e07/: does not exist",
+    "docs/dev/R-REGISTRY.md: no row with Since E07 (grep)",
+    "audit/AUDIT-1.2.42.md 9.2 items 77-88 (lines 908-919)",
+    "the 'E32+E07 C7'-'C18' and 'E07 fix r1/r2' markers over scripts/ (grep counts: C7 4, C8 11, C8b 9, C9 5, C10 7, C11a-e 40, C12 12, C13 11, C14 6, C15 4, C16 13, C17 6, C18 1; fixes 30)",
+    "git log -E --grep '\\bE07\\b': 1 later commit, 43ca073d (E68)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout.",
+   "promises": [
+    {
+     "promise": "A crisis action that killed cannot be rerolled; the Reroll is refused before anything is paid",
+     "source": "v1.2.66.md 64-65",
+     "code": "scripts/murder-rules.mjs:1019 ('that crisis action killed somebody; the death stands'), :2114 crisisKilled; scripts/bridge-guards.mjs:310 the reason deathStands",
+     "holds": "yes",
+     "test": "grid DM10, XI05 (tier 2, not read)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The opening roll carries its Night die: at Night the direct killer rolls with advantage and a trap's victim with disadvantage",
+     "source": "v1.2.66.md 66-68",
+     "code": "scripts/murder-rules.mjs:4637-4641 (situational from atNight() and the side's nightAdvantage / nightDisadvantage, handed by name past the shield, fix r2-G1)",
+     "holds": "yes",
+     "test": "tier 2's situationalAdvantage() test (tests-tier2.mjs near 25906, not read); LIVE-E07-12 open",
+     "test_kind": "behaviour",
+     "note": "live-items-03 item 88: the test's comment still says the harness has no D20RollDialog, which exists since E33 C2b."
+    },
+    {
+     "promise": "A hit takes Sanity first and what Sanity cannot take from Health; its line says what landed, in the second person to the victim",
+     "source": "v1.2.66.md 73-75",
+     "code": "scripts/character.mjs:288-298 (the reserve: what landed, the overflow on Health, the sentence from the language file); lang/en.json:2865-2866 youLose / theyLose (per live-items-02 item 80)",
+     "holds": "yes",
+     "test": "R208 (stamped E32); LIVE-E07-04 open",
+     "test_kind": "both",
+     "note": "Since E24 every Health and Sanity number a person reads is the reserve (character.mjs:295-298)."
+    },
+    {
+     "promise": "You pick the statistic of the incident's rolls (a crisis action listing several, both openings, Stage 6's clean-up); a player with Resolve armed picks their own; the roll waits for the pick",
+     "source": "v1.2.66.md 26-31",
+     "code": "scripts/murder-rules.mjs:4629-4635 (the opening: a statistic its side lists, byGm unless Resolve is armed - E112); trait-ruling.mjs traitFor",
+     "holds": "yes",
+     "test": "R212, R213 (stamped E32); LIVE-E07-05, -11 open",
+     "test_kind": "both",
+     "note": "Reshaped by E68 C1 (the player proposes, the GM approves or changes) and E112 (Resolve buys the picker)."
+    },
+    {
+     "promise": "Search rolls Eye, and a project's roll and its sabotage roll the project's own statistic; the editor saves no project without one, and an old one asks a GM once",
+     "source": "v1.2.66.md 22-25, 71-72",
+     "code": "scripts/config.mjs:1510-1517 (Search: six statistics, Eye the default, E68 C6); scripts/projects-ui.mjs:1201 and action-project.mjs:358 (DRPG.Project.traitRequired), :504 (an old project waits for a GM)",
+     "holds": "partly",
+     "test": "tier 2 (not read); LIVE-E07-11 open",
+     "test_kind": "behaviour",
+     "note": "Search 'rolls Eye' was replaced by E68 C6 (10.11.2026): six statistics, Eye the default, any other a proposal to a GM. The project half holds."
+    },
+    {
+     "promise": "Weapons and tools: the weapon worn after the blow, the close breaks every killer's swung weapon only once Stage 6 ran, the discovery breaks the clean-up's tools even put away",
+     "source": "v1.2.66.md 76-81",
+     "code": "scripts/murder-rules.mjs:1157-1173 (the swung weapon and its Despair wear, per live-items-02 item 79); scripts/cleanup.mjs:2818-2824, :2862 destroyCleaningTools; scripts/chapter.mjs:665 (C12)",
+     "holds": "yes",
+     "test": "grid DM02, DM13, TP05; 10-murder (green in the first session); LIVE-E07-03, -07 open",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Turns: a trap's victim acts turn after turn with no Pass; a dead killer takes no turn and the GMs are told; Pin and Keep your distance last two turns; the third who leaves stays out",
+     "source": "v1.2.66.md 82-89",
+     "code": "scripts/gm-stores.mjs:333-380 (C9 turn fields, C10 `departed`, C17 `recent`); scripts/config.mjs:3773 (drain direct 1, indirect 2, per live-items-02 item 82)",
+     "holds": "unread",
+     "test": "grid TR02-TR09, DM11, TP08, TP10; LIVE-E07-06 open",
+     "test_kind": "behaviour",
+     "note": "The turn hand-over (passTurn) was not traced by this reader."
+    },
+    {
+     "promise": "The murder window, the tracker and the fight's tile: the window opens on a trap's victim and warns on a dead killer or different rooms; the tracker says whose opening roll it waits for and lists the last three turns; the tile reads 'Crisis actions' or 'Fight back', dimmed off-turn",
+     "source": "v1.2.66.md 90-99",
+     "code": "scripts/murder-ui.mjs:457-467, :512, :548-550 (per live-items-03 item 85); scripts/action-murder.mjs:33 (crisisTileLabel, C16); scripts/action-menus.mjs:474 (C15)",
+     "holds": "unread",
+     "test": "tier 2's drawn murder window (tests-tier2.mjs:1160, E32+E07 C14; not read); LIVE-E07-01, -08, -09 open",
+     "test_kind": "behaviour",
+     "note": "No layout in the harness; the windows are table questions."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R212 (tests-tier1.mjs:8682, header) - stamped E32, written for 'E32+E07 C11b'",
+     "measures": "yes",
+     "why": "See E32; the GM's pick is E07's promise measured under E32's stamp."
+    },
+    {
+     "test": "the grid (tests-grid.mjs)",
+     "measures": "yes",
+     "why": "The notes say the grid was red on 1.2.65's code and green once E07 made the incident hold it; its result today is not read."
+    }
+   ],
+   "tests_to_join": [
+    "grid DM01-DM22, TP01-TP15, TR01-TR09, SI01-SI03, XI01-XI09 (tier 2)",
+    "R208, R211, R212, R213 (stamped E32, measuring E07's changes)",
+    "tier 2: the tests whose comments name 'E32+E07 Cn' (tests-tier2.mjs, 90 mentions of E07)",
+    "scenario 10-murder",
+    "scenario 13-murder-signals",
+    "scenario 19-standing-cast"
+   ],
+   "scenarios": [
+    "10-murder, 13-murder-signals, 19-standing-cast - green in the first session's run",
+    "30-security, 33-bridge-paths, 40-flow, 61-gmstore-case (E07 in source) - no verdict"
+   ],
+   "live": {
+    "items": 12,
+    "read": 0,
+    "partly": 0,
+    "open": 12,
+    "ids_open": [
+     "LIVE-E07-01",
+     "LIVE-E07-02",
+     "LIVE-E07-03",
+     "LIVE-E07-04",
+     "LIVE-E07-05",
+     "LIVE-E07-06",
+     "LIVE-E07-07",
+     "LIVE-E07-08",
+     "LIVE-E07-09",
+     "LIVE-E07-10",
+     "LIVE-E07-11",
+     "LIVE-E07-12"
+    ],
+    "note": "None read (live-items-02 items 77-82, live-items-03 items 83-88). S7-2's reading on 14.370 (LOCAL-REPORT.md:428) saw the statistic locked in a player's roll window after a GM's approval for a Search, a neighbour of LIVE-E07-05, not the item.",
+    "l1": {
+     "what": "LIVE-E07-01 to -12: the fight from an Eclipse to Stage 6 on three accounts, the betrayal, the Tier 1 knife on a Despair hit, the damage lines, the crisis menu and the GM's pick with Daggerheart's roll window, a trap's turns, the tools at the discovery, the murder window on a Polish client, the GM's tracker, two GMs, the wait for the GM's pick, the Night die's chip",
+     "recipe": [
+      "1. Eclipse, a direct murder by player A on player B at Night: A's opening window shows the advantage chip locked; the opening's statistic is the GM's pick in the murder window.",
+      "2. In the fight: the tile reads 'Crisis actions' / 'Fight back', dimmed off-turn with its line; a crisis action listing several statistics waits for the GM's card in the player's thread; the roll window's Statistic select is locked to the pick.",
+      "3. A Despair hit with a Tier 1 knife: the damage lands, then the knife breaks; the victim reads 'You lose 2 Health.' and the others the victim's name.",
+      "4. A Finishing blow that kills: the Reroll is refused before Hope is paid.",
+      "5. Stage 6 clean-up with gloves, put away; the discovery breaks them.",
+      "6. A second GM presses Pass while the primary resolves an action; then the primary reloads mid-fight.",
+      "7. The murder window on a Polish client, opened from a trap's card."
+     ],
+     "clients": "two GMs and three players",
+     "theme": "both",
+     "settles_if": "each as the 1.2.66 notes say - E07 is read at a table; any step otherwise is a finding against the incident (major where it breaks a rule of the fight)",
+     "priority": "not graded; the incident's rules are major-class"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E68 C6 (10.11.2026): Search no longer rolls Eye only (config.mjs:1514-1516)",
+    "E68 C1 and E112: the GM's pick became the player's proposal approved by a GM, and an armed Resolve buys the picker",
+    "the owner's stash rule (feba55c3, 1.2.112): the hidden stash's disadvantage die (v1.2.66.md 69-70) has no subject",
+    "E24 (08.11.2026): every Health and Sanity number read as the reserve"
+   ],
+   "grade": "not graded",
+   "grade_reasons": "11.4's second rule: E07 has no papers in docs/dev and no registry row stamped with it (R-REGISTRY.md: none 'E07'); every test that measures its changes is stamped E32 (R208-R213) or is the E32 grid, and tier 2's tests name it only in comments. Read for the record: of eight promises checked, five hold in today's code, one holds in part (Search's statistic, replaced by E68), two were not traced (turns, the windows); all twelve live checks are open, and its grid result is not read in this audit. Were it graded with E32 as one train, it would sit with E32's 8 at most, provisional, and below it while the incident's table checks stay unread.",
+   "missing_to_10": "Its tests stamped E07 or the registry naming E32+E07 as one train; the grid green in a base run; LIVE-E07-01 to -12 read at a table."
+  },
+  {
+   "id": "E08",
+   "version": "1.2.67",
+   "shipped": "2026-10-05",
+   "what": "The Reroll moved to the GM: asked of the primary GM, paid, thrown again, taken back and replayed there as one step, from the GMs' record of each roll, written in the GMs' journal so a reload half way is undone or handed to the GMs; a player's undo refused; Daggerheart's two rerolls off a player's chat menu and a player's rewrite of a roll's dice put back; the receipts of E03 retired (R134, R135 removed). Shipped with E28 (the GM draws the players' rolls), which is not this reader's. 5 registry rows (R215-R219).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.67.md (1-145, whole; the Reroll's lines 3-6, 14-18, 50-61, 72-88, 110-115, 122-123)",
+    "tools/stages.json row E08 (planned and shipped 1.2.67, 05.10.2026; touches sockets, rolls; drills []); E28's row 'with': E08",
+    "docs/dev/e08/: does not exist",
+    "docs/dev/R-REGISTRY.md:225-229 (R215-R219, 'E08'); :144-145 (R134, R135 'removed in E08')",
+    "audit/AUDIT-1.2.42.md 9.2 items 89-93 (lines 923-927); item 35 (LIVE-E31-01, line 860) hands the real Roll#reroll to LIVE-E08-01",
+    "audit/harness/README.md:178 (15-held, 'E08+E28 C18'), :737-738 (the harness's Reroll is its own, not Roll#reroll)",
+    ".claude/rules/trust-model.md (the Reroll is the GM's own transaction, E08)",
+    "git log -E --grep '\\bE08\\b': 1 later commit, 4f35731d of 26.10.2026 (E16 C5)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout; 1 later commit names E08.",
+   "promises": [
+    {
+     "promise": "The Reroll is made by the primary GM's browser: a player asks for it, any other GM asks the primary as a player does; with no GM connected it is not made and nothing is spent",
+     "source": "v1.2.67.md 50-52; registry R219",
+     "code": "scripts/bridge-asks.mjs:1001-1013 requestReroll (onPrimary: true, quiet, late/lateRefused up to rerollWindowMinutes); scripts/bridge-table.mjs:1109-1122 (knownSender, notSpectator, owns; answer reply); scripts/reroll.mjs:566-576 rerollOnGm (GM only, one Reroll per character at a time)",
+     "holds": "yes",
+     "test": "R216, R219; 33-bridge-paths and 30-security (no verdict here)",
+     "test_kind": "both",
+     "note": "R219's waiter is read, not the race: 'the harness has one GM' (bridge-asks.mjs:1006) - see E08-1."
+    },
+    {
+     "promise": "The GM's browser takes the Hope, throws again, takes the first result back and makes the action again as one step; the journal says paying before the payment and paid after",
+     "source": "v1.2.67.md 3-6, 72-77",
+     "code": "scripts/reroll.mjs:578-600 makeReroll (rerollRefusal, the Hope read again with no await before the write, the journal's phases); :129-131 rollAsThrown (the whole roll from the record's `scored`, E29 C11)",
+     "holds": "yes",
+     "test": "tier 2's Reroll tests (not read headless; on 14.370 the five failed on the tests' own stand-in roll, LOCAL-REPORT.md on claude/e58-local :328-343, 18.11.2026); LIVE-E08-01 open",
+     "test_kind": "behaviour",
+     "note": "'A Reroll of a Work, a Sabotage or a Dynamic action is scored on what its first throw claimed' (v1.2.67.md 74-75) was replaced by E29 C11: the Reroll throws again from what the GM counted. The harness rerolls its own roll, not Daggerheart's Roll#reroll (README.md:737-738)."
+    },
+    {
+     "promise": "A reload half way is put right when the primary GM's world loads: before the new dice counted, the first roll and Hope come back; during the replay, a card with the character, the action and both totals; during payment, the first roll stands and the GM checks Hope",
+     "source": "v1.2.67.md 51-57",
+     "code": "scripts/reroll.mjs:891-911 recoverRerollJournal (primary only, `leaving`, one pass at a time), :876-881 orphaned, :989 registerRerollRecovery; scripts/gm-stores.mjs:1484 rerollJournalStore",
+     "holds": "yes",
+     "test": "R216 (the `leaving` read); tier 2 recoverRerollJournal (tests-tier2.mjs:5994-6153, per live-items-03 item 90; not read); LIVE-E08-02 open",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Taking a result back is the GM's: a player's request to undo is refused",
+     "source": "v1.2.67.md 58-59",
+     "code": "scripts/bridge-guards.mjs:624 guardUndoIsTheGms, :260, :112",
+     "holds": "yes",
+     "test": "R215",
+     "test_kind": "static",
+     "note": ""
+    },
+    {
+     "promise": "Daggerheart's two rerolls are gone from a player's chat menu, and dice changed in a roll after it was thrown are put back by the primary GM, and the GMs told; a roll thrown before that GM loaded is only told",
+     "source": "v1.2.67.md 59-61, 124-126",
+     "code": "scripts/reroll-receipts.mjs:1-33 (the file's header: receipts retired, first dice kept), :171-175 registerRollKeeper (createChatMessage, updateChatMessage judgeRewrite, getChatMessageContextOptions dropDaggerheartRerolls)",
+     "holds": "partly",
+     "test": "83-roll-integrity's `rewrite` row (no verdict here); LIVE-E08-05 open",
+     "test_kind": "behaviour",
+     "note": "The hook name getChatMessageContextOptions is not read from Foundry's source and never ran in a browser (reroll-receipts.mjs:25-30): until LIVE-E08-05 is read, the menu half rests on a guessed name."
+    },
+    {
+     "promise": "A Reroll that cannot be made is refused before anything is paid (an attempt that can no longer be taken back, an Observe still being described, a roll gone or being put back, a second Reroll of a character)",
+     "source": "v1.2.67.md 84-88",
+     "code": "scripts/reroll.mjs:566-570 (`making`), :550-556 standingRolls (a message holding other dice is refused), rerollRefusal",
+     "holds": "yes",
+     "test": "tier 2 (not read)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "What a Reroll takes back: an erased trace back as it was, a Search's planted item survives, a crisis action keeps the critical's pick and item; a trace a GM wrote on stays",
+     "source": "v1.2.67.md 78-83",
+     "code": "scripts/reroll.mjs:1233 settleSearch, :1613 settleCrisis; scripts/cleanup.mjs:2118 placeRemnant(data, { keepId: true }) (per live-items-03 item 92); R952 (E35) names reroll.mjs settleSearch's plant",
+     "holds": "unread",
+     "test": "grid DM15, DM17-DM22 (tier 2, not read); LIVE-E08-04 open",
+     "test_kind": "behaviour",
+     "note": "keepId on v14 is measured only in the shim's model of Foundry's rule (shim.mjs createData)."
+    }
+   ],
+   "registry_rows": 5,
+   "tests_read": [
+    {
+     "test": "R215 (tests-tier0.mjs:8023-8070)",
+     "measures": "yes",
+     "why": "Live over every declaration of the bridge's tables (must > 30): each whitelist asked with a player's and a GM's undo, the four undo-only actions held to gmOnly with the reason, the guard driven on six inputs, and every guard a bridge function names held to a definition. It would fail if a whitelist handed a player's undo to a run."
+    },
+    {
+     "test": "R216 (tests-tier1.mjs:10925, header read)",
+     "measures": "weak",
+     "why": "Drives the late answer with R165's fakes and reads `leaving` in the source; the hook order on v14 is out of its reach, as its comment says."
+    },
+    {
+     "test": "scenario 15-held",
+     "measures": "yes",
+     "why": "A GM away and back (E08+E28 C18); green in the first session's run."
+    }
+   ],
+   "tests_to_join": [
+    "R215",
+    "R216",
+    "R217",
+    "R218",
+    "R219",
+    "tier 2: the Reroll tests (tests-tier2.mjs, 148 mentions of E08; the five that ran on 14.370 as 35, 40-43)",
+    "grid DM15, DM17-DM22",
+    "scenario 12-social",
+    "scenario 15-held",
+    "scenario 30-security",
+    "scenario 33-bridge-paths",
+    "scenario 40-flow",
+    "scenario 83-roll-integrity"
+   ],
+   "scenarios": [
+    "15-held (README.md:178, 'E08+E28 C18') - green in the first session's run",
+    "10-murder, 11-killer-secrecy, 12-social, 13-murder-signals, 20-crit-hope (E08 in source) - green in the first session's run",
+    "30-security, 33-bridge-paths, 40-flow, 60-ledger, 61-gmstore-case, 72-canary, 83-roll-integrity (E08 in source) - no verdict"
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "partly": 1,
+    "open": 4,
+    "ids_partly": [
+     "LIVE-E08-03"
+    ],
+    "ids_open": [
+     "LIVE-E08-01",
+     "LIVE-E08-02",
+     "LIVE-E08-04",
+     "LIVE-E08-05"
+    ],
+    "note": "LIVE-E08-03's hook-order question read on 14.370 for a player leaving (CALIBRATION.md:30: one call, (user, false), user.active already false inside it), not for a GM. On the e58 line (class F, 18.11.2026) tier 2's five Reroll tests failed on 14.370 with Daggerheart 2.12.9 because the tests' stand-in roll has no terms; read there as the tests', not the module's (the real road writes a whole DualityRoll) - which leaves the Reroll of a real roll at a table never passed.",
+    "l1": {
+     "what": "LIVE-E08-01 (a player's Reroll of a real Daggerheart roll at a table), -02 (a GM reload at each journal phase), -03's unread half (a Reroll as the primary changes), -04 (an erase rerolled keeps its token id on v14), -05 (no Reroll entry in a player's chat menu; dice rewritten from a console put back)",
+     "recipe": [
+      "1. GM and three players, Dice So Nice on: a player's Search with Hope 3; press Reroll: Hope 3 -> 0 paid on the GM, the card struck with the old and new totals, the new dice on the roller's screen only.",
+      "2. Repeat, with the GM pressing F5 at each phase (game.drpg cut points: before replay, during replay, during payment): read the card each phase leaves and the character's Hope.",
+      "3. Right-click the player's own roll card: no Reroll entry (Daggerheart 2.12.9). In the player's console rewrite the message's rolls: the primary GM puts them back and whispers the GMs.",
+      "4. Two GMs: the primary leaves during a Reroll; the second GM's journal pass recovers the row.",
+      "5. A Stage 6 erase rerolled: the trace comes back under its old token id.",
+      "6. Tier 2's five Reroll tests (35, 40-43 on the sandbox) once the tests' stand-in roll writes terms (LOCAL-REPORT.md on claude/e58-local :328-343)."
+     ],
+     "clients": "two GMs and three players",
+     "theme": "default",
+     "settles_if": "each as the 1.2.67 notes say - the Reroll is measured on a real Daggerheart roll for the first time and E08 may rise to 8-9; Hope paid twice, a card not struck, dice on every screen or a recovery that gives back Hope never paid is a major finding",
+     "priority": "grade cap 9 (rule 1); E08 graded 7"
+    }
+   },
+   "findings": [
+    {
+     "id": "E08-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "Comments give 'the harness has one GM' as why the GM-leaving order and the two-GM races are not measured, and do not cite the 14.370 reading of the order",
+     "where": "scripts/reroll.mjs:857-862; scripts/utils.mjs:478-481; scripts/bridge-asks.mjs:1006; scripts/incident-store.mjs:317-319 (E07's queue); scripts/tests-tier1.mjs:10939 (R216)",
+     "what_happens": "The headless harness runs a second Gamemaster in 61-gmstore-case, 62-investigation and 97-two-gms (CLAUDE.md's harness paragraph; scenario files present), so 'one GM' no longer describes it; and the order these comments call unmeasured on v14 was read on 14.370 for a player leaving: userConnected came once with user.active already false (CALIBRATION.md:30, LIVE-E30-05). The conclusion - not measured for a GM on v14 - still holds; the reason given is stale and the nearest reading is not named.",
+     "evidence": "reroll.mjs:861-862: 'The pass now asks without the GM it was told is gone (`isPrimaryGm({ leaving })`, utils.mjs). Which of the two comes first on v14 is not measured: the harness has one GM.'; utils.mjs:480-481: 'Which of the hook and the flag comes first on v14 is not measured: the harness has one GM.'; CALIBRATION.md:30: '| LIVE-E30-05 | a GM page listening on `userConnected`; PlayerOne's page closed ... | the hook came once, `(user, false)` - two arguments - with `user.active` already false inside it.'",
+     "failure_scenario": "A maintainer deciding whether `isPrimaryGm({ leaving })` is still needed reads 'not measured' and does not learn that 14.370 already flips `active` before the hook for a player, which is the one fact that would let a single GM-leaving check settle it.",
+     "expected": "The comments say the order was read on 14.370 for a player (LIVE-E30-05) and not yet for a GM (LIVE-E08-03), and drop 'the harness has one GM'.",
+     "evidence_class": "F",
+     "confidence": "read",
+     "refutation_tried": "Checked that the harness's second GM would not answer the v14 question anyway (its hook order is the shim's, so 'not measured on v14' stays true - the finding is only the stated reason and the missing citation); checked that 97-two-gms, 61-gmstore-case and 62-investigation exist (ls audit/harness/scenarios) and that live-items-03 item 86 records the same staleness for incident-store.mjs:317-319; grep 'harness has one GM' over scripts/ finds 13 hits, the five non-test ones listed here plus R216's comment; the suite's own run in one browser does have one GM, so the tests' comments about the suite (tests-tier0.mjs:15944, tests-tier2.mjs:28163 ...) are not counted."
+    }
+   ],
+   "superseded_by": [
+    "E29 C11 (1.2.68): the Reroll throws again from the record's `scored`, not from what its first throw claimed (reroll.mjs:116-131)",
+    "E68 / E112: the crisis roll's statistic is the GM's approval of the player's proposal, or the roller's own under Resolve"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every Reroll promise but the menu's has its code where the notes say (bridge-asks.mjs requestReroll on the primary, bridge-table.mjs's declaration, reroll.mjs's one step and journal recovery, bridge-guards.mjs guardUndoIsTheGms, reroll-receipts.mjs's put-back), R215-R219 passed in the first session's tiers 0-1 (totals read), and 15-held and 12-social were green there. Against an 8: the stage's centre - a player's Reroll of a real Daggerheart roll - has run nowhere: the harness rerolls its own roll, tier 2's Reroll tests have no verdict here and the only run on 14.370 failed on the tests' stand-in roll (read there as the tests', 18.11.2026), and LIVE-E08-01 and -02 are open; the menu half rests on a hook name never read from Foundry (LIVE-E08-05); 30-security, 33-bridge-paths and 83-roll-integrity have no verdict in this audit; one nit (E08-1). Capped at 9 by rule 1.",
+   "missing_to_10": "LIVE-E08-01, -02, -04, -05 and the GM half of -03 read; tier 2's five Reroll tests fixed to throw a real roll and green on 14.370; 30-security, 33-bridge-paths and 83-roll-integrity green in a base run; E08-1's comments brought in line with LIVE-E30-05."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "Tier 2's and the scenarios' results for these stages: base-run.json does not exist, the first session's 01-runtests timed out, and 30-security, 33-bridge-paths, 40-flow, 60-ledger, 61-gmstore-case, 72-canary and 83-roll-integrity have no verdict in either session's runs. The grid's 58 cases and the Reroll's tier-2 tests are listed in tests_to_join, not claimed green.",
+   "live_check": "none - a base run settles it"
+  },
+  {
+   "what": "Per-test results of the 19 tier 0-1 rows R201-R219: only the first session's totals were read (0 failed); a row that ran and passed is inferred from 0 failed and the skip baseline, not read on its own line.",
+   "live_check": "none - a base run's per-test file settles it"
+  },
+  {
+   "what": "The stages' own commits (27.09-05.10.2026): the checkout is shallow from 14.10.2026, so no promise is checked against the diff that made it; git fetch was not run.",
+   "live_check": "none"
+  },
+  {
+   "what": "LIVE-E06-01's one earlier 14.370 run in which the victim's card named the killer (LOCAL-REPORT.md:481): not repeated in two later runs and its dice not recorded; whether it was a Fear opening (which names the killer by rule) or a leak is not known.",
+   "live_check": "LIVE-E06-01",
+   "l1": {
+    "what": "a direct murder's opening seen on the victim's page, ten times, each with its dice recorded",
+    "recipe": [
+     "1. GM and three players; Eclipse; player A declares a direct murder on player B.",
+     "2. The GM draws A's opening; record the dice (Hope/Fear, critical) from the GM's card.",
+     "3. On B's page, read every chat card and the Event panel for A's name.",
+     "4. Repeat ten times across Hope, Fear and critical outcomes."
+    ],
+    "clients": "GM and three players",
+    "theme": "default",
+    "settles_if": "A's name only after a successful Fear opening - as the rule says, no finding; A's name after a failed or Hope/critical opening - a blocker (the answer given away)",
+    "priority": "blocker if it repeats; E06's cap 9 otherwise"
+   }
+  },
+  {
+   "what": "Whether any of the 58 grid cases failed in the 14.370 tier-2 runs (third run 1326 passed, 214 failed, 26 skipped; later runs in live-readings-e58-delta.json): the paper names no grid case.",
+   "live_check": "LIVE-E32-01"
+  },
+  {
+   "what": "E07's turn hand-over (passTurn), the drains and the murder window's warnings were not traced in source by this reader.",
+   "live_check": "LIVE-E07-06, LIVE-E07-08"
+  },
+  {
+   "what": "The notes' known gap 'A Reroll's dice are still sent to every browser' (v1.2.65.md 110) and 'the 3D dice of a changed roll may fall on every screen before it is put back' (v1.2.67.md 125-126) were not re-read against today's private-rolls.mjs dice rules.",
+   "live_check": "LIVE-E06-03, LIVE-E08-01"
+  }
+ ]
+}
