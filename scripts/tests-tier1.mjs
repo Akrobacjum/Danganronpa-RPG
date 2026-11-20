@@ -62864,6 +62864,28 @@ const INVARIANTS = [
         stableJson({ gone: ["bullet-gone", "deduction-gone"], none: [], onOpen: true }),
             "{gone: the ids found to cut, none: with no tombstone, onOpen: the dashboard cuts them after its GM check and before it reads the case}");
     }],
+    ["R7802 - two counters refuting each other, and a counter refuting the deduction that rests on it, are laid out and checked without end: the Planner's pure path over each - case-schema.mjs `graphOf`, case-layout.mjs `layoutCase`, `checkCase`, `reachability` - answers, every node in a column, the two counters at depth 1 and a counter's depth its target's otherwise (the audit's reading, relayed by the coordinator on 20.11.2026; the line claude/plan-119)", async () => {
+        /* Red at de1d5072: `layoutCase`'s depth of a counter with no inputs read its targets' depth, and a refutes-loop
+           recursed until the stack ran out - the Map could not open. Each shape is one a GM makes from the editor: a
+           counter's "Refutes" offers every other deduction and counter, a deduction's "Rests on" every node but a solution. */
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const run = rows => {
+            try {
+                const graph = S.graphOf({ chapter: 4, rows });
+                const layout = layoutCase(graph);
+                const problems = S.checkCase(graph, { cycle: layout.cycle ?? [] });
+                S.reachability(graph, {});
+                const col = Object.fromEntries(Object.entries(layout.positions).map(([id, p]) => [id, p.col]));
+                return { col, cycle: layout.cycle, problems: problems.map(p => p.code).sort() };
+            } catch (err) { return { threw: `${err?.name}: ${String(err?.message).slice(0, 60)}` }; }
+        };
+        const mutual = run({ "counter-a": { kind: "counter", label: "R7802 a", refutes: ["counter-b"] }, "counter-b": { kind: "counter", label: "R7802 b", refutes: ["counter-a"] } });
+        const onItself = run({ "counter-c": { kind: "counter", label: "R7802 c", refutes: ["deduction-c"] }, "deduction-c": { kind: "deduction", label: "R7802 d", inputs: ["counter-c"] } });
+        equal(stableJson({ mutual: mutual.threw ?? mutual.col, onItself: onItself.threw ?? Object.keys(onItself.col ?? {}).sort() }),
+            stableJson({ mutual: { "counter-a": 1, "counter-b": 1 }, onItself: ["counter-c", "deduction-c"] }),
+            "{mutual: the two counters' columns, or what threw; onItself: the nodes laid out, or what threw}");
+    }],
 ];
 
 /**

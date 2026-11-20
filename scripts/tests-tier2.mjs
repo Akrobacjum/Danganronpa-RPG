@@ -104655,6 +104655,37 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ drawn: true, moved: true, roomIn: true, roomOut: true, gone: true }),
             "the open planner did not show a change on the map at once, or redrew for a token it does not show (drawn: the trace's node at the start, moved: no redraw for a non-Remnant token's move, roomIn and roomOut: the room in the planned row's list, gone: the deleted token's node off)");
     }],
+
+    ["the planner's Map opens on a case with two counters refuting each other and a counter refuting the deduction that rests on it, and draws all four (case-layout.mjs `layoutCase`; the audit's reading, relayed by the coordinator on 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * The two shapes written in this chapter as the Map's editor writes them (a counter's "Refutes", a deduction's "Rests
+         * on"), then the dashboard drawn on the Map as this GM opens it. Read: each node's fields drawn, and whether the
+         * dashboard's open threw. Red at de1d5072: the layout recursed until the stack ran out and the Map did not open
+         * (tier 1 R7802 holds the pure path).
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is drawn on its window");
+        const ch = getClock().chapter;
+        const ids = ["counter-suite-loop-a", "counter-suite-loop-b", "counter-suite-loop-c", "deduction-suite-loop"];
+        let win = null, read = null;
+        try {
+            await S.setCaseNode(ch, ids[0], { kind: "counter", label: "SUITE loop a", refutes: [ids[1]] });
+            await S.setCaseNode(ch, ids[1], { kind: "counter", label: "SUITE loop b", refutes: [ids[0]] });
+            await S.setCaseNode(ch, ids[2], { kind: "counter", label: "SUITE loop c", refutes: [ids[3]] });
+            await S.setCaseNode(ch, ids[3], { kind: "deduction", label: "SUITE loop d", inputs: [ids[2]] });
+            await gmStoresIdle();
+            let threw = null;
+            win = await drawnCaseWindow({ view: "map" }).catch(err => { threw = String(err?.message ?? err); return null; });
+            const root = win?.app?.element;
+            await until(() => ids.every(id => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)), 3000).catch(() => {});
+            read = { threw, drawn: ids.filter(id => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)).length };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ threw: null, drawn: 4 }), "the Map did not open on a refutes loop, or drew fewer than its four nodes (threw: the open's error, drawn: the nodes drawn)");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
