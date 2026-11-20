@@ -25012,6 +25012,19 @@ const REGRESSIONS = [
             empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true], pl: [true, true, true, true, true] }
         }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [name, tooltip, Play's index and name, Remove's index and name]; empty: a row with no file; lang: the five keys in each language}");
     }],
+    ["R7835 - an Effects row's file names stand on one line each, cut with an ellipsis, the whole path in the tooltip (1.2.119; the coordinator on the owner's shot: \"turn-\" / \"in.ogg\" broke mid-name in the narrow column; components.css `.drpg-sound-files-name`, sfx.mjs `soundFilesHtml`): the name's rule keeps it on one line (`white-space: nowrap`), hides what overflows and draws an ellipsis, and gives it the room the row's buttons leave (`min-width: 0`); no rule lets it wrap anywhere", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026. The stylesheets as served; the look is the Chromium shot's.
+         * Red at 10053acf: the name's rule wraps it anywhere (`overflow-wrap: anywhere`), no nowrap, no ellipsis.
+         */
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const rule = rules.match(/\.drpg-sound-files-name\s*\{([^}]*)\}/)?.[1] ?? "";
+        equal(JSON.stringify({ found: Boolean(rule), nowrap: /white-space:\s*nowrap/.test(rule), hidden: /overflow:\s*hidden/.test(rule), ellipsis: /text-overflow:\s*ellipsis/.test(rule),
+            shrink: /min-width:\s*0/.test(rule), wraps: /overflow-wrap:\s*anywhere|word-break:\s*break-all/.test(rule) }),
+            JSON.stringify({ found: true, nowrap: true, hidden: true, ellipsis: true, shrink: true, wraps: false }),
+            "{the name's rule: found, one line, overflow hidden, an ellipsis, may shrink, wraps anywhere}");
+    }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
         /*
          * fix-113d, 13.11.2026. Pure. Red at ed428f63: every bracket of a column stood at `colGap / 4` to its left, so a
