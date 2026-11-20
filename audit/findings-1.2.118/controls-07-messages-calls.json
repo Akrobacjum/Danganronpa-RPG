@@ -1,0 +1,1291 @@
+{
+ "reader": "controls-07-messages-calls",
+ "read": [
+  {
+   "file": "scripts/messenger.mjs",
+   "lines": 405,
+   "of": 405,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines": 1673,
+   "of": 1673,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/popup.mjs",
+   "lines": 1299,
+   "of": 1299,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "lines": 617,
+   "of": 617,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/chat-card.mjs",
+   "lines": 89,
+   "of": 89,
+   "how": "whole: builds card markup, draws no control"
+  },
+  {
+   "file": "scripts/arrival-notices.mjs",
+   "lines": 51,
+   "of": 51,
+   "how": "whole: a hook on the primary, no control"
+  },
+  {
+   "file": "scripts/call-gm.mjs",
+   "lines": 1308,
+   "of": 1308,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "lines": 579,
+   "of": 579,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/calls.mjs",
+   "lines": 680,
+   "of": 931,
+   "how": "1-60, 140-440, 560-931 (the spenders' refusals, the windows, the approval); 60-140 and 440-560 (Despair's spend after its gates) by outline"
+  },
+  {
+   "file": "scripts/notice-history.mjs",
+   "lines": 130,
+   "of": 1320,
+   "how": "outline of every function and change() site; 200-215 (snapshot tags), 1230-1320 (registration, marks); the engine not read whole"
+  },
+  {
+   "file": "scripts/call-world.mjs",
+   "lines": 60,
+   "of": 731,
+   "how": "1-60 and a search for windows, listeners, buttons, cards and notifications: none but announcements and warnings"
+  },
+  {
+   "file": "scripts/call-effects.mjs",
+   "lines": 0,
+   "of": 1422,
+   "how": "searched only (drpgWindow, callWindow, addEventListener, <button, data-drpg-call, actions:, callGm, showPopup, Hooks.on, keepLive, socket): no control; its whispers and announcements carry no button"
+  },
+  {
+   "file": "neighbours",
+   "lines": "about 620",
+   "of": null,
+   "how": "gm-bridge.mjs 95-175; bridge-asks.mjs 674-773, 1300-1343; secret.mjs 325-345, 815-836, 915-927, 1051-1053; live.mjs 69-72, 296-346; use-items.mjs 590-625, 1000-1045; inventory.mjs 1170-1200; traps.mjs 318-383; eclipse.mjs 682-705; projects.mjs 1455-1471; projects-secrecy.mjs 250-260; projects-ui.mjs 1407-1427; monocub.mjs 1515-1562; tables-editor.mjs 1605-1640; despair.mjs 273-277, 593-611; action-pipeline.mjs 1025-1125; utils.mjs 195-205, 333-341, 370-376; a11y.mjs 50-75; pre-session-note.mjs 88-92, 256-264; settings.mjs 2746-2753; config.mjs 2332-2375; tests-windows.mjs 45; tests-tier2.mjs 79880-79962; styles/narrow.css 514-539; styles/stained-glass.css 1236-1310"
+  },
+  {
+   "file": "styles/*.css",
+   "lines": null,
+   "of": null,
+   "how": "a script over every rule of the five sheets: 356 rules name the lane's selectors, 19 of them hide, disable or take the pointer; each read"
+  },
+  {
+   "file": "docs/dev/e59/WINDOWS.md",
+   "lines": null,
+   "of": null,
+   "how": "every row naming a file of this lane"
+  }
+ ],
+ "count_note": "WINDOWS.md lists 5 windows in 6 sites for this lane's files: call-pickers.mjs callWindow (128), messenger-app.mjs DrpgMessengerApp (152), askItemEffect (815), ruleReply (1132), notice-history-app.mjs NoticeHistoryApp (161, 589). Two differences. (1) call-gm.mjs askForRequest's window (1228, `(columns ? actionWindow : drpgWindow)(`) has no row: the census's pattern does not match a conditional callee (finding 12); it is a surface here. (2) The rows' lines are those of df841790 (14.11, when WINDOWS.md was last written): today DrpgMessengerApp is at 151, askItemEffect's window at 821 (the function 815), ruleReply's at 1138 (the function 1127), callWindow's drpgWindow at 128 and its actionWindow branch at 126; the generator's --check was not run. callWindow is one site that draws seven kinds of window (the pickers, pickChoice, the confirmation, the GM's own approval, Confusion, the call-off); this file has them as three surfaces (pickers, confirmation, approval); Confusion and the call-off are monocub.mjs's and the sheet's. Surfaces here that WINDOWS.md does not list by design (not kit windows): the launcher, the roster, the Players list's entry, the ruling cards, the notices and their tile, the waiting card. The ruling cards: 26 action names are posted by scripts/ today, 32 are keys of CARD_ACTIONS (3 kept for old cards); this file has 12 rows for them; the Observe card's (pickObserveTrace, refuseObserveTrace, observeMiss, reply), the Key Remnant's (keyRemnantHere) and the reshape card's (approveReshape, declineReshape) rows are controls-04's and controls-03's and are not counted again. call-effects.mjs, call-world.mjs, chat-card.mjs and arrival-notices.mjs draw no control.",
+ "surfaces": [
+  {
+   "surface": "The messenger's launcher (the speech-bubble button by the corner, with its unread badge)",
+   "file": "scripts/messenger-app.mjs",
+   "opener": "renderLauncher:1499, drawn at ready and canvasReady (41-43)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Messenger (the launcher; its badge counts unread messages)",
+     "key": "DRPG.Messenger.launcherTooltip",
+     "kind": "button",
+     "selector": "#drpg-messenger-launcher",
+     "handler": "scripts/messenger-app.mjs:1521-1530",
+     "effect": "plays chatOpen; a player opens their own conversation (openMessenger(game.user.id)); a GM opens or closes the roster (toggleRoster:1542)",
+     "gate": "anyone; the badge is totalUnread (messenger.mjs:220-224: a GM's every thread, a player's own)",
+     "how_read": "code; R1066 and scenario 87-messenger-sound part B press it (named from their text, results not read)",
+     "themes": "Stained Glass: the button itself takes no pointer and its ::before, the hex, does (styles/stained-glass.css:1296-1310, E49 S11-49), so the press lands; under Monokuma Legacy the button is the hit area. Hidden with the other corner blocks while a sequence covers the page (danganronpa.css, body[data-drpg-sequence-cover]): by design",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "game.messages (thread flag, writer, timestamp, gmAsk, settled through secret.mjs cardFlag)",
+     "client setting messengerLastRead (the read map)",
+     "game.users (threadUsers: who is a player)"
+    ],
+    "listens": [
+     "ready, canvasReady (messenger-app.mjs:42-43)",
+     "drpgMessengerMessage (44)",
+     "drpgMessengerRead (45)",
+     "drpgMessengerEdited (50; raised by messenger.mjs:391 and by secret.mjs:829-831 and 922-924 when a card's words or meta land)",
+     "drpgMessengerDeleted (51, onMessengerDeleted:598-601)"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "A user made a GM or a player while the page is up changes threadUsers (messenger.mjs:98-100) and so the GM's total; no user hook redraws the button until the next message or canvasReady (nit, not filed)"
+    ],
+    "focus_rule": "n/a: the button is rebuilt whole (1501), no field"
+   }
+  },
+  {
+   "surface": "The GM's roster (the panel the launcher opens on a GM: every player, a badge, a one-line preview)",
+   "file": "scripts/messenger-app.mjs",
+   "opener": "toggleRoster:1542 from the launcher; buildRoster(null) from game.drpg.openMessenger() on a GM (111-115)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "A player's row (name, the newest message's first words, an unread badge)",
+     "key": "DRPG.Messenger.rosterTitle, DRPG.Messenger.rosterNoMessages",
+     "kind": "list row (li)",
+     "selector": "#drpg-messenger-roster .drpg-messenger-roster-row",
+     "handler": "scripts/messenger-app.mjs:1660-1664",
+     "effect": "closes the roster through closeRoster and opens or raises that player's conversation (openMessenger)",
+     "gate": "a GM; the panel is built only on a GM",
+     "how_read": "code; R1066 and scenario 87 B2 (named from their text)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "stale_state",
+     "detail": "The rows are drawn once and keep their preview and badge while new messages come: finding 4. The row is an li with a click listener and no tabindex or role (1632-1664), and a11y.mjs CONTROLS (a11y.mjs:70-71) does not list it, so a keyboard cannot open a conversation from the roster: finding 10."
+    },
+    {
+     "label": "A click outside the roster",
+     "key": "-",
+     "kind": "gesture",
+     "selector": "document click listener",
+     "handler": "scripts/messenger-app.mjs:1619-1628 (armed a tick after the opening click, removed by closeRoster:1570-1583)",
+     "effect": "closes the roster with its fade (a 400 ms backstop)",
+     "gate": "a GM",
+     "how_read": "code; R1066",
+     "themes": "the panel rests at opacity 0 and fades in with .visible (danganronpa.css #drpg-messenger-roster); Stained Glass moves it with the launcher (stained-glass.css:1271-1273); no rule hides it once open",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "threadUsers() (game.users)",
+     "threadStats() over game.messages with the read map (messenger.mjs:166-173)",
+     "contentOf(last) for the preview (secret.mjs words)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "drpgMessengerMessage, drpgMessengerRead, drpgMessengerEdited and drpgMessengerDeleted redraw the launcher only (messenger-app.mjs:44-51); the comment at 48-49 says so: 'An open roster keeps the rows it was drawn with, as it does for a message or a read'",
+     "a player added or removed (game.users) while it is open"
+    ],
+    "focus_rule": "n/a: no field"
+   }
+  },
+  {
+   "surface": "The Players list's context entry 'Open GM Chat' (a GM's right-click on a player)",
+   "file": "scripts/messenger-app.mjs",
+   "opener": "getUserContextOptions hook (66-80)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Open GM Chat",
+     "key": "DRPG.Messenger.openChat",
+     "kind": "context-menu entry",
+     "selector": "Foundry's players list menu",
+     "handler": "scripts/messenger-app.mjs:75-78",
+     "effect": "opens or raises that player's conversation",
+     "gate": "shown only to a GM and only on a player's row (condition, 70-74)",
+     "how_read": "code",
+     "themes": "Foundry's menu; no module rule names it",
+     "verdict": "ok",
+     "detail": "The label names the window by its own title ('{player} - GM Chat', DRPG.Messenger.gmWindowTitle), so it reads right on the GM's side too."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "game.users (isThreadUser)"
+    ],
+    "listens": [
+     "built by Foundry each time the menu opens"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The conversation window: its frame, the participants line, the Chat tab and the send box (title 'GM Chat' for a player, '{player} - GM Chat' for a GM)",
+   "file": "scripts/messenger-app.mjs",
+   "opener": "openMessenger:91 (the launcher, a roster row, the context entry, a notice's click, the notice history's Open the conversation, game.drpg.openMessenger)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Chat / Note (the kit's tabs; a dot on Note when a note is written)",
+     "key": "DRPG.Messenger.tabChat, DRPG.Note.tab",
+     "kind": "tab bar",
+     "selector": "[data-drpg-tab-key=chat|note]",
+     "handler": "scripts/ui-kit.mjs wireKitTabs -> messenger-app.mjs:386-391 onSwitch",
+     "effect": "sets the tab and renders the whole window again",
+     "gate": "anyone who has the window",
+     "how_read": "code; controls-03 read the Note half",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "silent",
+     "detail": "A press of Note renders the window, so a chat message typed in the box and not sent is gone when the reader comes back to Chat, and nothing says so (the box is built empty, 257-262): finding 7, the other half of controls-03-investigation-planner-15. The Note tab's dot is drawn at render only: finding 3."
+    },
+    {
+     "label": "The message box (Enter sends, Shift+Enter a new line)",
+     "key": "DRPG.Messenger.placeholder, DRPG.Tips.Sweep.More.messageBoxTooltip",
+     "kind": "textarea",
+     "selector": "form.drpg-messenger-input textarea[name=text]",
+     "handler": "scripts/messenger-app.mjs:429-434",
+     "effect": "Enter without Shift submits the form; Shift+Enter writes a new line",
+     "gate": "anyone who has the window",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Send (paper plane)",
+     "key": "DRPG.Messenger.send, DRPG.Tips.Sweep.More.sendMessageTooltip",
+     "kind": "button (submit)",
+     "selector": "form.drpg-messenger-input button[type=submit]",
+     "handler": "scripts/messenger-app.mjs:408-427 -> send:442 -> messenger.mjs sendMessage:240",
+     "effect": "posts a private thread card to the player and every GM; the box empties only once the card is there; on a failure the words stay, and the writer is told once: 'may have gone out' (sendUnsure) when the primary may have posted it, 'wasn't sent' (sendFailed) when nothing said why, nothing more when a refusal already said why",
+     "gate": "the player of the thread or any GM (sendMessage refuses a thread for a non-player, messenger.mjs:243-246); held while a send runs (the box disabled, 411-412)",
+     "how_read": "code; tier 1 and scenario 87 (named, results not read)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Fold and unfold (the title bar), Close",
+     "key": "Foundry's",
+     "kind": "window controls",
+     "selector": "the window header",
+     "handler": "scripts/messenger-app.mjs:466-477 (bringToFront, maximize mark the thread read), 520-524 (close)",
+     "effect": "unfolding or raising marks the thread read when the Chat tab is in front and the page visible (seesThread:457-460); close keeps the window's place (left, top) in the client setting messengerWindowPositions and drops the instance",
+     "gate": "anyone who has the window",
+     "how_read": "code; LIVE-E50-01 is what sets ui.activeWindow on v14",
+     "themes": "Stained Glass: the header's canvas takes no pointer (stained-glass.css, .drpg-messenger .window-header > canvas), the buttons do; no rule hides them",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "threadMessages(player) over game.messages and the words secret.mjs holds (shownWordsOf)",
+     "each card's settled mark and buttons (wireCallActions)",
+     "noteFor / noteStatus (the note store on a GM, mineNote on a player)",
+     "game.users: the player's name (title) and every GM's name (participantsLine, gmIds at utils.mjs:370-372)",
+     "the read map, written by markIfSeen"
+    ],
+    "listens": [
+     "drpgMessengerMessage -> appendMessage (529-536)",
+     "drpgMessengerEdited -> replaceMessage (606-608), raised on a document update (messenger.mjs:386-392) and when a private card's words or meta land (secret.mjs:829-831, 922-924)",
+     "drpgMessengerDeleted -> removeMessage (598-601)",
+     "drpgNotesChanged -> refreshNote (60-62; the Note tab only)",
+     "visibilitychange -> markIfSeen on the front window (54-58)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "The Note tab's dot (_buildTabs:269-283) is drawn at render; refreshNote returns at once on the Chat tab (368) and touches no dot on the Note tab: finding 7",
+     "The title (211-215) and the participants line (236) read game.users once: a GM who joins the world or a renamed player shows only after a re-render (no updateUser or createUser hook): finding 7"
+    ],
+    "focus_rule": "Bubbles are appended, replaced and removed one by one (483-513), so a half-typed message in the box stays; the Note tab's box takes another browser's change only while it still holds what it was drawn with (373-376). A tab press renders the whole window and drops an unsent chat message (finding 7)."
+   }
+  },
+  {
+   "surface": "The ruling cards' buttons, in a thread's bubble and in the GMs' chat log (call-gm.mjs callGm's cards; the Observe, Key Remnant and reshape cards are controls-03's and controls-04's)",
+   "file": "scripts/messenger-app.mjs (wireCallActions:724, CARD_ACTIONS:1392), scripts/call-gm.mjs (callCardHtml:762, settleCall:1150)",
+   "opener": "a bubble's buildBubble:684; the GMs' log through gm-bridge.mjs:143-160 (renderChatMessageHTML, every card whose copy holds a [data-drpg-call] button)",
+   "audience": "gm (a player's copy carries no buttons)",
+   "controls": [
+    {
+     "label": "Approve / Refuse (a Hope Call that waits for a GM: Experience, Ultimate, Talent)",
+     "key": "DRPG.Calls.approveYes, DRPG.Calls.approveNo",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=approveCall|refuseCall]",
+     "handler": "scripts/messenger-app.mjs:859-864 -> bridge-asks.mjs:708-719 answerHopeCall; a yes -> call-gm.mjs:475-492 yesOnPrimary",
+     "effect": "Approve: the primary keeps the yes for that purchase, takes the buttons off (keepRuling) and sends it to the asker; the card says Approved once the asker's browser has it (receivedOnPrimary:735-743). Refuse: the no goes to the asker and the card settles Declined",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now')",
+     "how_read": "code; tier 2 'the chat log's copy of a thread's ruling card rules it on a GM: Approve in the log is the messenger's Approve' (tests-tier2.mjs:25634), 40-flow and 33-bridge-paths (named, results not read)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "silent",
+     "detail": "Approve on a card whose ask the primary no longer holds (a primary that reloaded before the asker's browser asked again, a card of another ask) answers false: the buttons come back and the GM is told nothing on screen - call-gm.mjs:478 and 482 warn in the console only (utils.mjs:333-336). Finding 2. Refuse always goes."
+    },
+    {
+     "label": "Set the difficulty / Refuse (a Dynamic action)",
+     "key": "DRPG.Action.dynamicSet, DRPG.Action.dynamicRefuse",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=setDifficulty|refuseDynamic]",
+     "handler": "scripts/messenger-app.mjs:874-887 -> action-dynamic.mjs askDynamicDifficulty (the GM's window) -> bridge-asks.mjs:747-754 answerDynamic -> call-gm.mjs:499-520 dynamicOnPrimary",
+     "effect": "Set: the GM's difficulty window, then the primary keeps the ruling in the card's meta and sends it on; a closed window leaves the card open. Refuse: the primary sends the no on",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now')",
+     "how_read": "code; tier 2 'a Dynamic ruling is the GMs' record from the moment the primary sends it on' (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "silent",
+     "detail": "Both answer null when the primary holds no such ask (call-gm.mjs:501-508, console only): the buttons come back and nothing is said. Finding 2."
+    },
+    {
+     "label": "Approve: {stat} / Change to: {stat} / one button a statistic; Refuse (the statistic card)",
+     "key": "DRPG.TraitRuling.*, DRPG.Action.dynamicRefuse",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=pickTrait|refuseTrait]",
+     "handler": "scripts/messenger-app.mjs:910-933 (rulePickTrait, ruleRefuseTrait); the valve presses Approve itself (call-gm.mjs:322-327 -> pressCard:793)",
+     "effect": "the statistic goes to the asker alone (answerTraitRuling) and is kept in the card's meta with how it was ruled; Refuse sends false; the card settles Answered or Declined",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now'); a statistic not on the list for that roll is refused (915-918, console warn: only a card written by hand carries one)",
+     "how_read": "code; tier 2 E68 tests (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Works: apply an effect / Works, no effect: use it up / Refuse (a Tier 0 item used creatively)",
+     "key": "DRPG.Items.itemWorks, DRPG.Items.itemNoEffect, DRPG.Items.itemRefuse",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=itemWorks|itemNoEffect|itemRefuse]",
+     "handler": "scripts/messenger-app.mjs:938-962 -> use-items.mjs:1029-1045 ruleCreativeUse",
+     "effect": "Works opens the effect window (askItemEffect, below) and gives the effect; No effect uses the item up; Refuse posts the refusal in the thread; each settles the card. One ruling at a time per item on this GM (rulingOpen warn); an item broken, stashed or gone during the window settles 'nothing to rule on'",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now')",
+     "how_read": "code; tier 2 E14-T7 'a creative use was ruled twice, or on a thing gone' (tests-tier2.mjs:79880-79962: busy, used up, stashed)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "silent",
+     "detail": "An item no longer on the character when the button is pressed - handed over (inventory.mjs:1187-1200 deletes the last piece), stolen, destroyed - returns null at 941 before any of the three branches, Refuse included: the buttons come back, nothing is said, and the card (posted with no expiry, use-items.mjs:596-609) can never be closed by its own buttons. Finding 2."
+    },
+    {
+     "label": "Allow on {stat} (one a statistic) / Refuse (a Direct Murder declared in an Eclipse; the GMs' log only)",
+     "key": "DRPG.Action.murderRefuse and the trait labels (eclipse.mjs murderAllowChoices)",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=approveMurder|refuseMurder]",
+     "handler": "scripts/messenger-app.mjs:975-982 -> eclipse.mjs ruleOnParkedMurder",
+     "effect": "decides whether the parked declaration becomes an incident at the lights, and on which statistic; settles Approved or Declined; null (nothing happened) leaves the card open",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now'); gmOnly: the card is a whisper to the GMs (call-gm.mjs:951-986), wired in the log by gm-bridge.mjs:143-160",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": "In the chat log the buttons work; the same card's notice on a GM's screen carries them unwired: finding 1."
+    },
+    {
+     "label": "Spring the trap / Rearm the trap (a watched trap went off; the GMs' log only)",
+     "key": "DRPG.Project.trapFire, DRPG.Trap.rearm",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=fireTrap|rearmTrap]",
+     "handler": "scripts/messenger-app.mjs:1005-1014 (openMurderDialog, indirect, the trap's victim proposed), 990-1003 (traps.mjs:376-383 rearmTrap)",
+     "effect": "Spring opens the murder window prefilled and settles Handled once it opens an incident; Rearm writes the trap armed again and settles 'The trap is watching again.'",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now'); gmOnly (traps.mjs:323-348)",
+     "how_read": "code; scenario 13-murder-signals presses fireTrap with its own wiring (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "mislabeled",
+     "detail": "Rearm asks nothing of the project: on a trap whose project was deleted it writes a trigger row for the gone id and settles the card 'The trap is watching again.' (finding 11, nit). The notice copy of this card: finding 1."
+    },
+    {
+     "label": "Review and approve / Refuse (a player's project proposal)",
+     "key": "DRPG.Project.approveButton, DRPG.Project.declineButton",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=approveProject|declineProject]",
+     "handler": "scripts/messenger-app.mjs:1024-1066",
+     "effect": "Review opens the project window prefilled with what the player wrote and settles Approved once a project is made; Refuse posts the refusal in the player's thread and settles Declined",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now')",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": "Refuse on a card whose character was deleted returns null (1058): finding 2."
+    },
+    {
+     "label": "Choose the target again (a Secret Passage's or a breach's completion refused; the GMs' log only)",
+     "key": "DRPG.Passage.card.repick",
+     "kind": "card button",
+     "selector": "[data-drpg-call=repickProjectTarget]",
+     "handler": "scripts/messenger-app.mjs:1016-1022 -> projects-ui.mjs:1407 openTargetRepick",
+     "effect": "the approval's pick again, the completion made on the primary; closed with nothing chosen, the card stays open; a project gone or no longer waiting is said (repickGone, projects-ui.mjs:1413-1417)",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now'); gmOnly (projects.mjs:1465-1471)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": "The notice copy of this card: finding 1."
+    },
+    {
+     "label": "Create an item / Give an existing item / Nothing was there / Refuse the attempt (a Search for something specific)",
+     "key": "DRPG.Bridge.createItem, DRPG.Bridge.giveItem, DRPG.Bridge.nothingThere, DRPG.Bridge.refuseAttempt",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=createItem|giveItem|searchMiss|decline]",
+     "handler": "scripts/messenger-app.mjs:1336-1350 (tables.mjs openItemTables with the card's preset), 1352-1361 (gm-items.mjs gmGiveItemDialog), 1185-1196 (ruleSearchMiss), 1285-1334 (ruleDecline, refundOnCard:1271)",
+     "effect": "Create opens the item tables on the card's category, tier, room and name and leaves the card open (an editor that may write nothing, 801-809); Give opens the give window and settles Handled; Nothing was there answers in the thread and keeps the price; Refuse gives back what the card says was paid, from PRICE_CHAINS, never an amount the card names",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now')",
+     "how_read": "code; tier 2 'a free card's Nothing was there and a critical's Nothing more to add each answer in their own words' (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "silent",
+     "detail": "Create an item with the item tables already open raises them (tables-editor.mjs:1623 returns RAISED before the preset is read) and the card's category, tier, room and name are not put in: finding 8. Give, Nothing was there and Refuse on a deleted character return null: finding 2."
+    },
+    {
+     "label": "Reply / No help / Refuse the attempt (a hint asked of the GM, an Analyze's question, a Reroll's question, Think, Listen and the other reply cards)",
+     "key": "DRPG.Bridge.reply, DRPG.Bridge.noHelp, DRPG.Bridge.refuseAttempt",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=reply|searchMiss|decline]",
+     "handler": "scripts/messenger-app.mjs:1127-1174 (ruleReply and its window, below), 1185-1196, 1285-1334; posted by action-pipeline.mjs:1055-1066 gmRulingActions (action-analyze.mjs:270), reroll.mjs:1955",
+     "effect": "Reply opens the GM's reply window and posts the words in the thread under the GM's name (to the GMs when the character has no player), settles Answered; No help answers in the thread; Refuse as above",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now')",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": "On a deleted character each returns null: finding 2."
+    },
+    {
+     "label": "Give 1 Hope / Give 2 Hope / Not now (a Monocub's Ask for Hope)",
+     "key": "DRPG.Monocub.askGive, DRPG.Monocub.askNotNow",
+     "kind": "card buttons",
+     "selector": "[data-drpg-call=cubGiveHope|cubNotNow]",
+     "handler": "scripts/messenger-app.mjs:1429-1435 -> monocub.mjs:1548-1562 answerHopeAsk",
+     "effect": "Give n: n Hope from the pressing GM's Despair (convertDespairToHope), the ask closed; Not now: the Monocub is told, the ask closed; the card settles with the line answerHopeAsk writes",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now'); a student who is no Monocub any more is answered Not now whatever was pressed (1550-1551)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Buttons of cards no poster writes today: Open the murder, Decline the murder, Plant the item",
+     "key": "-",
+     "kind": "card buttons (old cards only)",
+     "selector": "[data-drpg-call=openMurder|declineMurder|plantTrapItem]",
+     "handler": "scripts/messenger-app.mjs:964-968, 1373-1389, 984-988",
+     "effect": "kept so a card already in a world's log can still be answered; no file of scripts/ posts these three today (a script over every actions array of scripts/: 26 action names posted, each a key of CARD_ACTIONS)",
+     "gate": "a GM: the buttons are taken off a player's copy (secret.mjs:325-335 GM_PROSE; messenger-app.mjs:735-737), every button of the card is held while one press runs (747-748), the press is claimed on the primary first (bridge-asks.mjs:1327-1343: another GM's claim or ruling is refused with a card naming that GM, 'already ruled' or 'is ruling on this card right now')",
+     "how_read": "code (scan of every 'actions: [' array in scripts/, 26 action names, each a key of CARD_ACTIONS:1392-1426)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the card's words and meta (secret.mjs: settled, ruling, sentOn, rid)",
+     "the GMs' ruled-card rows (ruledCardStore) and the primary's claims, at the press",
+     "what the card rules on, at the press: the character (game.actors), the item, the project, the ask the primary holds"
+    ],
+    "listens": [
+     "a bubble: drpgMessengerEdited -> replaceMessage (messenger-app.mjs:606-608) when settleCall or keepRuling writes the words again (call-gm.mjs:537-549, 1185-1197), so the buttons go on every reader at once",
+     "the log: Foundry redraws the message on its update, and secret.mjs redraws a drawn private card when its words land (secret.mjs:1405)",
+     "drpgMessengerDeleted / deleteChatMessage take a deleted card away"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "The card does not follow what it rules on: a character deleted, an item handed over, an ask the primary dropped leave the buttons drawn and pressable to no effect (finding 2) - a control gap rather than a source the card reads"
+    ],
+    "focus_rule": "n/a: buttons only; the windows the buttons open are their own surfaces"
+   }
+  },
+  {
+   "surface": "A GM's notice of a ruling card with no thread (popup titled 'A ruling to make' or the card's title: a trap that went off, a Direct Murder in an Eclipse, a refused completion's repick, any callGm for a character with no player)",
+   "file": "scripts/popup.mjs",
+   "opener": "onCreateChatMessage:1205 (gmPopup from call-gm.mjs:976-986)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "The card's buttons as copied: Allow on {stat} / Refuse, Spring the trap / Rearm the trap, Choose the target again",
+     "key": "the card's own",
+     "kind": "buttons inside a notice",
+     "selector": "#drpg-popups .drpg-popup .drpg-call-action",
+     "handler": "none: no listener; the press reaches the card's own click (popup.mjs:1072-1077), which closes the notice",
+     "effect": "the notice closes as read; nothing is ruled; the card in the log stays open",
+     "gate": "a GM (the notice is raised for a GM by gmPopup)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "dead",
+     "detail": "Finding 1. The messenger's notices take the buttons off (cardPreview, messenger-app.mjs:617-625); this road hands showPopup the words whole (popup.mjs:1287), and a GM's words keep the buttons (secret.mjs:325-329)."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the card's words at arrival (wordsOf)"
+    ],
+    "listens": [
+     "deleteChatMessage (popup.mjs:1185-1189)",
+     "its own body's mutations (watchCard:802-826)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "settleCall on another GM's browser: the notice keeps 'Awaiting a ruling' and the buttons (finding 5)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The notices: the corner tile (#drpg-popups) with the history's button, and the centre stage (#drpg-evidence) for evidence, objections, the day summary and the body's card",
+   "file": "scripts/popup.mjs",
+   "opener": "showPopup:856 (the messenger's cards, report(), the trial, sayRefusedHere, showWaiting...), onCreateChatMessage:1205 for every module message addressed to this user (a GM: public ones, gmPopup, popupForce from a GM)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Close (the X on the card's bar)",
+     "key": "DRPG.Panel.close, DRPG.Tips.Setup.closeXTooltip",
+     "kind": "button",
+     "selector": ".drpg-popup .drpg-popup-close",
+     "handler": "scripts/popup.mjs:935-939 -> dismiss:1005",
+     "effect": "closes the card as read in the notice history; the newest parked card takes the seat",
+     "gate": "anyone",
+     "how_read": "code; R293, R298 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A click on the card",
+     "key": "-",
+     "kind": "card click",
+     "selector": ".drpg-popup",
+     "handler": "scripts/popup.mjs:1072-1077",
+     "effect": "runs the caller's onClick first (the messenger's cards open their conversation, messenger-app.mjs:555 and 576), then closes the card as read; a sticky card closes only from its X unless it has an onClick",
+     "gate": "anyone",
+     "how_read": "code; R297 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "+N (the cards waiting under the shown ones)",
+     "key": "DRPG.Popup.moreCloseAll, DRPG.Popup.moreTip",
+     "kind": "button (a label when only sticky cards stand)",
+     "selector": ".drpg-popup-title .drpg-popup-more",
+     "handler": "scripts/popup.mjs:483-530 (markParked, closeLoose)",
+     "effect": "closes every card that is not sticky: a parked one unread, a shown one read; with only sticky cards it is a label",
+     "gate": "anyone",
+     "how_read": "code; R298 (8) (named)",
+     "themes": "parked cards are display:none by design (danganronpa.css .drpg-popup.drpg-popup-parked); the badge itself is never hidden",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The notice history's button (the tile's bottom-right corner; a count of unread)",
+     "key": "DRPG.Notices.title, DRPG.Notices.buttonUnread",
+     "kind": "button",
+     "selector": "#drpg-notices-corner",
+     "handler": "scripts/popup.mjs:149-165 -> notice-history-app.mjs:614 openNotices",
+     "effect": "opens or raises the notice history window",
+     "gate": "anyone",
+     "how_read": "code; R298, R299 (named)",
+     "themes": "On a stacked screen it is not drawn while no card stands on the tile, in both themes (styles/narrow.css:534-539): the owner's Q6 of 07.10; the keybinding (no default key) and game.drpg.openNotices() stay the way in. A recorded decision, not filed.",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the words handed in at arrival (a copy)",
+     "the notice history's unread count (the button)",
+     "#drpg-despair and #drpg-hud boxes (the tile's top under Monokuma Legacy)"
+    ],
+    "listens": [
+     "deleteChatMessage -> the card goes, withdrawn (1139, 1185-1189)",
+     "updateChatMessage -> an overruled Objection's card stamped and closed (1140, 1165-1177)",
+     "the card's own body (MutationObserver, watchCard:802-826: the kept snapshot and the corner's tail)",
+     "onNoticeHistoryChange -> the button's count (131-134, 168-183)",
+     "drpgThemeApplied, ResizeObserver and MutationObserver on the widgets (135-139, 306-328)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "A card that changes after it is drawn - an ask settled or ended on another GM's browser, a card rerolled - is not drawn again: only a deletion and an overruled Objection reach a card on screen (finding 5)"
+    ],
+    "focus_rule": "n/a: no field"
+   }
+  },
+  {
+   "surface": "The notice history (title 'Notices')",
+   "file": "scripts/notice-history-app.mjs",
+   "opener": "openNotices:614 (the tile's button, the keybinding noticeHistory with no default key, game.drpg.openNotices)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "All / For you / Not done (chips, each with its count)",
+     "key": "DRPG.Notices.filter.all|forYou|notDone",
+     "kind": "chips",
+     "selector": "[data-drpg-chip]",
+     "handler": "scripts/notice-history-app.mjs:320-326, 381-392",
+     "effect": "shows only those entries; a chip whose count falls to 0 is disabled and the window goes back to All",
+     "gate": "anyone",
+     "how_read": "code; R4103 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "More filters (Announcements, Players, Evidence, Messenger)",
+     "key": "DRPG.Notices.filter.moreLabel, DRPG.Notices.filter.withCount",
+     "kind": "select",
+     "selector": "select.drpg-notices-more",
+     "handler": "scripts/notice-history-app.mjs:281-285, 393-402",
+     "effect": "picks one of the four; an option at 0 is disabled",
+     "gate": "anyone",
+     "how_read": "code; R4103",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Search (folded: marks and ł ignored; Esc empties it first)",
+     "key": "DRPG.Notices.search, DRPG.Notices.searchLabel",
+     "kind": "search box",
+     "selector": ".drpg-notices-search input",
+     "handler": "scripts/notice-history-app.mjs:276-297",
+     "effect": "filters the rows by the words they show, 150 ms after the last key, matches marked",
+     "gate": "anyone; disabled while the history is empty (404)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Mark all as read",
+     "key": "DRPG.Notices.markRead",
+     "kind": "button",
+     "selector": "[data-drpg-do=markRead]",
+     "handler": "scripts/notice-history-app.mjs:334 -> notice-history.mjs markNoticesRead",
+     "effect": "every entry read; the banner goes and the tile's count with it",
+     "gate": "anyone; the banner shows only with unread entries (405-408)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Show new notices",
+     "key": "DRPG.Notices.newPill",
+     "kind": "button (pill)",
+     "selector": ".drpg-notices-new",
+     "handler": "scripts/notice-history-app.mjs:335-338",
+     "effect": "draws the list again and scrolls it to the top",
+     "gate": "shown only when entries came while the reader was scrolled or had focus in the list (371-373)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "An entry (its row opens the card as it was drawn)",
+     "key": "DRPG.Tips.Sweep.More.noticeLineTooltip",
+     "kind": "details/summary",
+     "selector": "details.drpg-notice-entry",
+     "handler": "scripts/notice-history-app.mjs:299-303, 567-592",
+     "effect": "draws the kept card through noticeSnapshot (cleaned again, buttons not kept: notice-history.mjs:203-205) and says its words once",
+     "gate": "anyone",
+     "how_read": "code; R294, R296 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Chapter N (a fold of an older chapter's entries)",
+     "key": "DRPG.Notices.chapterFold",
+     "kind": "details/summary",
+     "selector": "details.drpg-notices-fold",
+     "handler": "scripts/notice-history-app.mjs:446-456",
+     "effect": "opens or folds the chapter's entries",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Open the conversation",
+     "key": "DRPG.Notices.openConversation",
+     "kind": "button",
+     "selector": "[data-drpg-do=conversation]",
+     "handler": "scripts/notice-history-app.mjs:339-343 -> messenger-app.mjs openMessenger",
+     "effect": "opens the thread the entry came from (link.messenger, held to an existing user by the store's read)",
+     "gate": "drawn only on a messenger entry (584-590); a player's own thread, any thread for a GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Clear the history",
+     "key": "DRPG.Notices.clear",
+     "kind": "button (destructive, left)",
+     "selector": "footer.drpg-kit-footer [data-action=clear]",
+     "handler": "scripts/notice-history-app.mjs:329-331 -> askClear:597",
+     "effect": "asks first (below)",
+     "gate": "anyone; disabled while the history is empty (409)",
+     "how_read": "code; R1330 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close",
+     "key": "the kit's closing word",
+     "kind": "button (right)",
+     "selector": "footer.drpg-kit-footer [data-action=close]",
+     "handler": "Foundry's close action; _onClose:310-318",
+     "effect": "closes the window and marks what it listed read",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "noticeEntries() (this login's section of the client store)",
+     "noticeHistoryStatus() (the line that saving stopped)",
+     "noticeSessionOnly(id)",
+     "game.users (an entry's author's name)",
+     "clockSummary of each entry's stamp"
+    ],
+    "listens": [
+     "onNoticeHistoryChange -> changed() (270, 363-378): every write of the engine calls changed() (notice-history.mjs:452, 788-805, 854-858, 893-1133), another tab's write through the storage event (1313-1315), a card deleted, settled or rerolled (1309-1311)",
+     "keepLive on the list (269): WORLD_HOOKS and every module world setting (live.mjs:69, 303-333)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "The counts, banner and foot follow at once; the list itself waits while the reader is in it: new entries behind the 'Show new notices' pill while the list is scrolled or holds focus, a change to drawn entries until focus leaves the list (363-378, 304-307). Recorded as the A7 design (P10); the owner's rule of 20.11 asks for at once: finding 9 (nit)",
+     "An author renamed shows the old name until the list is drawn again (nit, not filed)"
+    ],
+    "focus_rule": "Focus inside the list holds a redraw of changed entries until focusout (304-307); new entries wait behind the pill; the search box's value is kept by the debounce reading the box as it is when the wait ends (274-279)"
+   }
+  },
+  {
+   "surface": "Clear the history (the question)",
+   "file": "scripts/notice-history-app.mjs",
+   "opener": "askClear:597 (drpgConfirm)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Clear (destructive) / Cancel (the default)",
+     "key": "DRPG.Notices.clearYes, the kit's Cancel",
+     "kind": "buttons",
+     "selector": "the question's footer",
+     "handler": "scripts/notice-history-app.mjs:597-606 -> notice-history.mjs clearNoticeHistory",
+     "effect": "Clear empties this login's history; Cancel and a closed window change nothing",
+     "gate": "anyone",
+     "how_read": "code; R6751 (destructive never the default, named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The Call pickers: who, which project, which room, which item, which Monocub, which of a tile's two Calls, the new rule's words, the motive (callWindow under the Call's header)",
+   "file": "scripts/call-pickers.mjs",
+   "opener": "pickTarget:216 and pickChoice:165 from the sheet's Call tiles (sheet-actions.mjs runCall); monocub.mjs's Confusion",
+   "audience": "both (Hope Calls a player or a GM on a student's sheet; Despair Calls a GM)",
+   "controls": [
+    {
+     "label": "The rows (one press picks: a student, a project, a room, an item, a Monocub, a Call)",
+     "key": "DRPG.Calls.whichPlayer|whichProject|whichRoom|whichItem, DRPG.Monocub.who, DRPG.Calls.choiceAsk",
+     "kind": "radio rows",
+     "selector": "input[name=choice|call]",
+     "handler": "scripts/call-pickers.mjs:141-150 (callRowsHtml, pickedRow), 566-579 choose",
+     "effect": "the first usable row is picked; the pick goes on to the confirmation",
+     "gate": "the buyer; an empty list is said before the window (nobodyHere, noPlayers, Project.none or noneToMove, Rest.noRegions, noItems, Monocub.noneYet)",
+     "how_read": "code; R1111, R3818 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "stale_state",
+     "detail": "Drawn once from the world at opening: a student who walks out, a project made or finished, an item handed over while the window stands are not followed (finding 6). The GM's arm judges the pick again live (call-effects.mjs projectRefusal, bridge-guards.mjs guardArmOtherCharacter), so a stale pick is refused there."
+    },
+    {
+     "label": "Next",
+     "key": "DRPG.Calls.next, DRPG.Tips.Actions.nextTooltip",
+     "kind": "button (primary)",
+     "selector": "button[data-action=ok]",
+     "handler": "scripts/call-pickers.mjs:175-177, 324-327, 373-383, 572-575",
+     "effect": "answers the row, the text or the motive; the new rule's and the motive's Next stay shut until the words are written (315-323, 360-372)",
+     "gate": "the buyer",
+     "how_read": "code; E15 C4 tests (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "the kit's Cancel",
+     "kind": "button",
+     "selector": "the footer's close",
+     "handler": "scripts/call-pickers.mjs:106 (callWindow adds it)",
+     "effect": "answers cancel; the picker answers null and nothing is paid",
+     "gate": "the buyer",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The new rule's words; the motive's demand, deadline (stepper) and consequence",
+     "key": "DRPG.Calls.newRulePrompt, DRPG.Motive.*",
+     "kind": "textarea, stepper",
+     "selector": "[name=text], [name=consequence], [name=timesOfDay]",
+     "handler": "scripts/call-pickers.mjs:303-391",
+     "effect": "the words of the Despair Call, read at Next",
+     "gate": "a GM (Despair Calls)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "othersInRoom / studentActors / isDeadForGm (pickPlayer)",
+     "projectsAvailableIn, knownProjects or projectsAsSeen (pickProject)",
+     "roomNames of the caller's scene (pickRoom)",
+     "every character's items (pickItem)",
+     "monocubActors and cubHopeTotal (pickMonocub)"
+    ],
+    "listens": [
+     "none: choose and the other pickers hand callWindow no live (call-pickers.mjs:566-576, 304-328, 345-384)"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "tokens and actors (a move, a death, an item handed over), the projects' settings and stores (a project made, finished, frozen): finding 6"
+    ],
+    "focus_rule": "n/a for the rows; the text fields are never redrawn"
+   }
+  },
+  {
+   "surface": "The Call's confirmation (the Call's header with what the buyer holds; Talent's two rows and the note to the GM; Spend or Send to the GM)",
+   "file": "scripts/calls.mjs",
+   "opener": "confirmCall:714 from the sheet's Call tiles (sheet-actions.mjs runCall)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Spend {cost} / Send to the GM ({cost} Hope)",
+     "key": "DRPG.Calls.spend, DRPG.Calls.send",
+     "kind": "button (primary; the GM's road, red, when a GM rules it)",
+     "selector": "button[data-action=spend]",
+     "handler": "scripts/calls.mjs:774-793, 732-736 syncSpend",
+     "effect": "answers the note (or the row and note); the spender asks the price and the rules again at the press (spendHopeCall:156, spendDespairCallFor:408)",
+     "gate": "the buyer; shut when the buyer cannot pay, kept live from the buyer's Hope or Monokuma's pool (761-766)",
+     "how_read": "code; tier 2 E51-T29 opens one twice and grants Hope while it stands (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": "The price line and Spend follow the actor and the module's world settings, not a Despair pool's debt: finding 6."
+    },
+    {
+     "label": "Experience / Ultimate rows (Talent), with a shut row greyed with its reason",
+     "key": "DRPG.Calls.talentAsk",
+     "kind": "radio rows",
+     "selector": "input[name=call]",
+     "handler": "scripts/calls.mjs:752-755, 798-800",
+     "effect": "picks which Call; the note's example follows the row",
+     "gate": "the buyer",
+     "how_read": "code; R3818",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "stale_state",
+     "detail": "The shut rows (no experience on the sheet, the Call already armed) are read once at opening: finding 6."
+    },
+    {
+     "label": "Tell the GM (the note)",
+     "key": "DRPG.Calls.tellGm, DRPG.Calls.tellGmPlaceholder.*",
+     "kind": "textarea",
+     "selector": "[name=callNote]",
+     "handler": "scripts/calls.mjs:650-664 wireNoteGate",
+     "effect": "an empty note stops the press before the submit starts and says 'First write what you will do with this Call' (needNote)",
+     "gate": "drawn only for a Call a GM rules",
+     "how_read": "code; CALL-12 tests (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel (the default when the buyer cannot pay)",
+     "key": "the kit's Cancel",
+     "kind": "button",
+     "selector": "the footer's close",
+     "handler": "scripts/call-pickers.mjs:106-107",
+     "effect": "answers cancel; confirmCall answers null",
+     "gate": "the buyer",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the buyer's Hope (hopeHeld) or the Monokuma's spendable Despair (heldReader:671-684: the pools, a world setting, less what the pool owes, the GM store despairOwed)",
+     "the shut rows (handed in once)",
+     "the roll in hand (callAbout, once)"
+    ],
+    "listens": [
+     "keepLive on .drpg-call-header with watch.actors (calls.mjs:761-766): updateActor, createActor, deleteActor, WORLD_HOOKS and every module world setting (live.mjs:303-333)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "despairOwedStore (despair.mjs:593-606) is a GM store, a client setting, heard only through watch.stores (live.mjs:335-346), which is not asked: a conversion's debt written while the window stands leaves the spendable number and Spend as they were",
+     "the shut rows and callAbout's line"
+    ],
+    "focus_rule": "Only the header region is redrawn; the note keeps what is typed"
+   }
+  },
+  {
+   "surface": "The GM's ruling on a Call bought on the GM's own side (title 'Approve {call}?' with the player's words)",
+   "file": "scripts/calls.mjs",
+   "opener": "askHopeCallApproval:845 from spendHopeCall:228 on a GM",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Approve / Refuse",
+     "key": "DRPG.Calls.approveYes, DRPG.Calls.approveNo",
+     "kind": "buttons (primary, secondary)",
+     "selector": "button[data-action=yes|no]",
+     "handler": "scripts/calls.mjs:857-874",
+     "effect": "yes buys the Call; no, or a closed window, is the GM's no ('not allowed', spendHopeCall:242-246); a second ask while one stands raises the first and answers null, so nothing is spent",
+     "gate": "a GM",
+     "how_read": "code; D176 (E44 C2c)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the ask's words as handed in"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The GM's reply window (title 'Reply to {name}')",
+   "file": "scripts/messenger-app.mjs",
+   "opener": "ruleReply:1127 from a card's Reply",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Send the ruling / Cancel; the reply's box",
+     "key": "DRPG.Bridge.sendRuling, DRPG.Bridge.replyPrompt",
+     "kind": "buttons, textarea",
+     "selector": "[name=reply]",
+     "handler": "scripts/messenger-app.mjs:1138-1173",
+     "effect": "Send posts the words in the thread under the GM's name and settles the card Answered; empty words, Cancel or a closed window leave the card open (1159-1160)",
+     "gate": "a GM",
+     "how_read": "code; S11-60 ('cancel' typed is a ruling, E18 C0)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the character's name, once"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "What a Tier 0 item turned out to do (title 'What does {item} do?')",
+   "file": "scripts/messenger-app.mjs",
+   "opener": "askItemEffect:815 from a card's Works: apply an effect",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Health / Sanity / Hope (steppers 0-12), Use it up (ticked), Works / Cancel",
+     "key": "DRPG.Items.effectHealth|effectSanity|effectHope|effectConsume, DRPG.Items.itemWorks",
+     "kind": "steppers, checkbox, buttons",
+     "selector": "form.drpg-item-effect",
+     "handler": "scripts/messenger-app.mjs:815-848",
+     "effect": "Works answers the amounts and the tick; Cancel and a closed window answer no effect, and the card stays open; the item is read again after the window (ruleCreativeUse)",
+     "gate": "a GM",
+     "how_read": "code; tier 2 E14-T7",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The request window (a player's words to the GM: Think, Listen, a Search for something specific, a Tier 0 item's use, a Dynamic action)",
+   "file": "scripts/call-gm.mjs",
+   "opener": "askForRequest:1215 (promptForRequest:1259, promptAndCallGm:1271)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "The request's box; Send to the GM / Cancel",
+     "key": "DRPG.Bridge.send, DRPG.Tips.Sweep.Actions.requestTooltip|requestRequiredTooltip",
+     "kind": "textarea, buttons (Send on the GM's road)",
+     "selector": "[name=request]",
+     "handler": "scripts/call-gm.mjs:1221-1250",
+     "effect": "Send answers the words; a required request sent empty is refused with a card (emptyRequest, through sayRefusedHere) and the window opens again; Cancel or a closed window answers null and nothing is sent; with no GM connected the window does not open and the refusal says nothing was spent (1260-1263)",
+     "gate": "the asker",
+     "how_read": "code; R838 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The waiting card ('waiting on the GM' while a Call's ruling is asked)",
+   "file": "scripts/popup.mjs",
+   "opener": "showWaiting:1115 (calls.mjs showWaitingCard:825)",
+   "audience": "player",
+   "controls": [
+    {
+     "label": "Close (X)",
+     "key": "DRPG.Panel.close",
+     "kind": "button",
+     "selector": ".drpg-popup-sticky .drpg-popup-close",
+     "handler": "scripts/popup.mjs:935-939",
+     "effect": "takes the card down; the ask goes on, and its answer takes the card down if it is still there (calls.mjs:237-239)",
+     "gate": "the asker; kept nowhere (record false)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 356 rules naming drpg-messenger*, drpg-call-action(s), drpg-popup*, drpg-notices*, drpg-notice-*, drpg-hope-dialog, drpg-despair-dialog, drpg-call-header, drpg-call-note, #drpg-popups, #drpg-evidence; the 19 that hide are a parked or leaving card, the [hidden] parts of the notices window, the tile and stage that take no pointer while their cards do, the roster's resting state, and the two named in this row where they apply)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  }
+ ],
+ "counts": {
+  "surfaces": 16,
+  "controls": 49,
+  "ok": 39,
+  "dead": 1,
+  "throws": 0,
+  "mislabeled": 1,
+  "wrong_audience": 0,
+  "silent": 5,
+  "stale_state": 3,
+  "unknown": 0
+ },
+ "findings": [
+  {
+   "id": "controls-07-messages-calls-1",
+   "severity": "minor",
+   "verdict": "dead",
+   "title": "A GM's notice of a ruling card with no thread carries the card's buttons, unwired: Allow, Refuse, Spring the trap, Rearm and Choose the target again in the notice only close it",
+   "surface": "A GM's notice of a ruling card with no thread",
+   "control": "The card's buttons as copied into the notice",
+   "where": "scripts/popup.mjs:1267-1269 and 1287-1298 (the notice drawn from the words whole), 1072-1077 (a click anywhere closes it); scripts/call-gm.mjs:976-986 (gmPopup on the no-thread road); against scripts/messenger-app.mjs:617-625 (cardPreview takes the buttons off the messenger's notices)",
+   "what_happens": "callGm's road with no thread (gmOnly, or a character with no player) whispers the card to the GMs with gmPopup, so popup.mjs raises it for every GM. It hands showPopup the words as they are, and a GM's copy of the words keeps .drpg-call-actions (secret.mjs strips them for a player only). Nothing wires a button inside a notice: wireCallActions runs on a bubble and on the chat log's render alone. The press bubbles to the card's click, which closes the notice as read. The messenger's own notices were fixed for exactly this (the comment at messenger-app.mjs:610-616: 'every button on one looked live and did nothing at all') and the no-thread road was not.",
+   "evidence": "const forGm = cardFlag(message, \"gmPopup\")\n    || (cardWriter(message)?.isGM && cardFlag(message, \"popupForce\"));\nif (game.user.isGM && whisper.length && !forGm) return;\n[...]\nshowPopup(await wordsOf(message), {\n[...]\nif (!sticky || onClick) {\n    card.addEventListener(\"click\", () => {\n        onClick?.();\n        dismiss({ reason: \"user\" });\n    });\n}\n--- messenger-app.mjs:617-620 ---\nfunction cardPreview(html) {\n    const wrap = document.createElement(\"div\");\n    wrap.innerHTML = html ?? \"\";\n    wrap.querySelectorAll(\".drpg-call-actions\").forEach(el => el.remove());",
+   "failure_scenario": "In an Eclipse a GM gets the notice 'A ruling to make' for Chie's Direct Murder, presses 'Allow on Strength' in it: the notice closes, nothing is ruled, and the card in the chat log still waits for a ruling.",
+   "expected": "the notice carries no buttons (as cardPreview does) or its buttons open the card where it can be ruled",
+   "confidence": "read",
+   "refutation_tried": "Looked for a wiring of [data-drpg-call] inside .drpg-popup: wireCallActions' callers are messenger-app.mjs:684 (a bubble) and gm-bridge.mjs:157-158 (renderChatMessageHTML, the log) only. Looked for a stylesheet rule that hides .drpg-call-action in a notice: none among the 356 rules naming the notices' and cards' selectors. Checked that a GM's words keep the buttons: secret.mjs:325-329 ('A player is sent the words without the two blocks now; a GM gets them as written'). The three posters with gmOnly are GM-side: traps.mjs:323-348, eclipse.mjs:685-700, projects.mjs:1465-1471. The notice history's snapshot keeps no button (SNAPSHOT_TAGS, notice-history.mjs:203-205), so only the live notice is wrong. old-1.2.42-comms COMM-02 (fixed) reads the popup's flags and the log's wiring, not the notice's buttons; scenario 30 7l2 reads the flags. No test presses a button inside a notice.",
+   "probe": "as a GM: arm a watched trap, walk a student into its room so traps.mjs posts the alert; on the GM read #drpg-popups .drpg-popup .drpg-call-action (expected 0, read 2), press [data-drpg-call=fireTrap] in it and read whether the murder window opened and the card in the log settled"
+  },
+  {
+   "id": "controls-07-messages-calls-2",
+   "severity": "minor",
+   "verdict": "silent",
+   "title": "A ruling card that finds nothing to rule on gives its buttons back and says nothing: an item handed over leaves a creative-use card no button can close, Refuse included; a deleted character does the same to most cards; a Call's or a Dynamic action's ask the primary dropped is told in the console only",
+   "surface": "The ruling cards' buttons",
+   "control": "Works: apply an effect / Works, no effect / Refuse; Approve (a Call); Set the difficulty / Refuse (Dynamic); Reply, Nothing was there, Refuse the attempt, Give an existing item, the project's Refuse",
+   "where": "scripts/messenger-app.mjs:939-941 (the item read before any branch), 783 (hold(false), nothing said); 1132-1133, 1186-1187, 1212-1213, 1290-1291, 1057-1058, 1356-1357, 1378-1379, 1430-1431 (if (!actor) return null); 862, 881, 886 with scripts/call-gm.mjs:476-484, 500-508 (warn, utils.mjs:333-336: the console)",
+   "what_happens": "Every handler that returns null tells wireCallActions the ruling was not made: the claim is dropped and the buttons come back (messenger-app.mjs:778-783), with nothing on screen. For the creative-use card the item is read at 940-941, before the itemRefuse branch at 943, so when the item is no longer on the character - handed over (inventory.mjs:1187-1200 deletes the last piece), stolen, destroyed by a Call - all three buttons do nothing. ruleCreativeUse's own 'gone' answer (settled 'nothing to rule on', 960) is reached only when the item goes during the window. The card has no expiry (use-items.mjs:596-609). The same early return on a deleted character holds every button of the generic cards. A Call's Approve and a Dynamic's two buttons answer false when the primary holds no such ask, and the GM sees the buttons come back.",
+   "evidence": "const actor = game.actors.get(data.by);\nconst item = actor?.items?.get(data.item);\nif (!actor || !item) return null;   // Handed over meanwhile; nothing to rule on.\nconst { grantItemEffect, ruleCreativeUse } = await import(\"./use-items.mjs\");\nif (action === \"itemRefuse\") {\n[...]\n    if (done?.gone) return settled(\"DRPG.Items.rulingGone\");\n--- wireCallActions ---\n            } catch (err) {\n                error(\"Could not act on the ruling card\", err);\n            } finally {\n                busy = false;\n            }\n            hold(false);",
+   "failure_scenario": "Bob asks whether his odd spoon works, then hands the spoon to Chie before the GM looks; the GM presses Refuse on Bob's card, the buttons flash and come back, nothing is said, and the card reads 'Awaiting a ruling' for the rest of the campaign.",
+   "expected": "a card whose subject is gone settles with the 'nothing to rule on' line (DRPG.Items.rulingGone exists) or says why it cannot be ruled; a Call or Dynamic button the primary refuses says so on the GM's screen",
+   "confidence": "read",
+   "refutation_tried": "Looked for anything that settles or ends a creative-use card when its item leaves: nothing in use-items.mjs, inventory.mjs transferItem or the card's poster; the card has no expires, so sweepAskCards (call-gm.mjs:207-218) never ends it. Tier 2 E14-T7 covers a busy item, one used up (broken, still there) and one stashed during the window, all of which reach ruleCreativeUse; none deletes the item before the press. For the Call and Dynamic case: the primary's own resend road (askAgain, call-gm.mjs:150-163) re-holds an ask when the asker resends after a reload, and expiry ends the card at its time, so that silent window is short; kept as part of this finding, not on its own.",
+   "probe": "as a player: use a Tier 0 item creatively; as the GM, hand the item to another student (inventory.mjs transferItem); press [data-drpg-call=itemRefuse] on the card; read cardFlag(message, 'settled') and any notice shown"
+  },
+  {
+   "id": "controls-07-messages-calls-3",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The conversation window's Note dot, title and participants line are drawn once",
+   "surface": "The conversation window",
+   "control": "Chat / Note",
+   "where": "scripts/messenger-app.mjs:269-283 (_buildTabs), 211-215 (title), 234-237 (participants), 367-378 (refreshNote)",
+   "what_happens": "The dot on the Note tab is added when the window renders and the note has words. refreshNote, the window's one road for a note that changed, returns at once on the Chat tab and touches no dot on the Note tab. The title and the participants line read game.users at render; no user hook redraws them.",
+   "evidence": "if (context.note.trim()) {\n    const dot = document.createElement(\"span\");\n    dot.className = \"drpg-messenger-tab-dot\";\n[...]\nrefreshNote() {\n    if (!this.rendered || this.tab !== \"note\") return;",
+   "failure_scenario": "A GM reads Alice's conversation on the Chat tab while Alice writes her pre-session note: the Note tab gets no dot until the GM switches tabs; a second GM who connects later is missing from the participants line.",
+   "expected": "the dot, title and line follow the note and the users",
+   "confidence": "read",
+   "refutation_tried": "appendMessage and replaceMessage touch the log alone (497-513); drpgNotesChanged reaches refreshNote only (60-62). Language and names are the module's (bubbleTime, participantsLine). gmIds lists every GM user (utils.mjs:370-372), connected or not, so a GM connecting changes nothing; only a user created, renamed or given the role does.",
+   "probe": "game.drpg.openMessenger(<player>) on a GM, Chat tab; on the player write the note and Save; read [data-drpg-tab-key=note] .drpg-messenger-tab-dot on the GM"
+  },
+  {
+   "id": "controls-07-messages-calls-4",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The GM's roster keeps the rows it was drawn with: a message, a read or a settled ask while it is open changes the launcher's badge but not the row's preview or badge",
+   "surface": "The GM's roster",
+   "control": "A player's row",
+   "where": "scripts/messenger-app.mjs:44-51 (the hooks redraw the launcher only), 1585-1629 (buildRoster), 1631-1667 (rosterRow)",
+   "what_happens": "buildRoster counts the threads once (threadStats) and draws a row per player. The four messenger hooks call renderLauncher, which rebuilds the button and nothing else; the comment says the roster keeps its rows on purpose. Under the standing rule of 20.11.2026 the panel shows a stale count and preview until the GM closes and opens it again.",
+   "evidence": "Hooks.on(\"drpgMessengerMessage\", () => renderLauncher());\nHooks.on(\"drpgMessengerRead\", () => renderLauncher());\n/* [...] An open\n   roster keeps the rows it was drawn with, as it does for a message or a read. */\nHooks.on(\"drpgMessengerEdited\", () => renderLauncher());",
+   "failure_scenario": "The GM opens the roster to pick a conversation; Bob writes 'are you there?': the launcher's badge goes to 1, Bob's row still shows his old preview and no badge.",
+   "expected": "the open roster's rows follow the same four hooks the launcher does",
+   "confidence": "read",
+   "refutation_tried": "Searched for any listener on #drpg-messenger-roster or a call of rosterRow outside buildRoster: none (rosterRow is called at 1606 only). A recorded choice in the comment (E50 fix FG2), older than the owner's rule of 20.11.2026, which asks for windows to redraw at once; filed for the owner to weigh.",
+   "probe": "as a GM click #drpg-messenger-launcher; as a player send a message; read the player's .drpg-messenger-roster-row .drpg-messenger-badge (expected 1, read none)"
+  },
+  {
+   "id": "controls-07-messages-calls-5",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "A notice on a GM's screen keeps 'Awaiting a ruling' after another GM ruled the ask or its time ran out",
+   "surface": "The notices",
+   "control": "the card itself",
+   "where": "scripts/popup.mjs:1131-1141 (the hooks), 1165-1177 (an update reaches a card only for an overruled Objection); scripts/messenger-app.mjs:553-563 (the GM's notice of an ask)",
+   "what_happens": "Every GM gets a notice of a thread's ask ('Waiting on your ruling'). When one GM rules it, settleCall writes the card's words again and every bubble and the log redraw; the notices on the other GMs' screens are copies and are reached only by a deletion or an overruled Objection's mark. The notice history marks its entry settled (notice-history.mjs:1265-1281), the card on screen still reads 'Awaiting a ruling. Open until 21:35.'",
+   "evidence": "export function onUpdateChatMessage(message, change) {\n    const flags = change?.flags?.[MODULE_ID];\n    if (!flags || !(OVERRULED_FLAG in flags) || !message?.getFlag?.(MODULE_ID, OVERRULED_FLAG)) return;",
+   "failure_scenario": "Two GMs; Alice's Experience Call raises 'Waiting on your ruling' on both; GM A approves in the thread; GM B's notice still asks for the ruling until B closes it or clicks it and finds the card answered.",
+   "expected": "a notice of an ask follows the card it came from (its settled line, or it closes as the deleted ones do)",
+   "confidence": "read",
+   "refutation_tried": "Looked for another closer of notices: only trial.mjs:702 (the overruled stamp's own) and the deletion hook dispatch drpg-dismiss. watchCard observes the notice's own body, not the message. The notice is a copy by design (popup.mjs:16-21); the owner's rule of 20.11.2026 is what makes the copy's staleness a finding. The click still opens the conversation, which is right.",
+   "probe": "two GM pages: a player asks an Experience Call; on GM A press Approve in the thread; on GM B read the .drpg-popup whose data-drpg-message is that card (still drawn, still 'Awaiting a ruling')"
+  },
+  {
+   "id": "controls-07-messages-calls-6",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The Call windows do not follow the world: the pickers' lists are drawn once, and the confirmation follows the buyer's Hope and the pools but not a pool's debt or its shut rows",
+   "surface": "The Call pickers; The Call's confirmation",
+   "control": "The rows; Spend",
+   "where": "scripts/call-pickers.mjs:393-434 (pickPlayer), 448-507 (pickProject), 566-579 (choose: no live); scripts/calls.mjs:761-766 (live watch actors only), 671-684 (heldReader); scripts/despair.mjs:593-611 (owedOf from despairOwedStore)",
+   "what_happens": "Every picker builds its rows when it opens and hands callWindow no live, so a Support's 'who is here' still lists a student who walked out, a project made meanwhile is missing, an item handed over is still offered. The confirmation is kept live on the header with watch.actors and, through updateSetting, the module's world settings: the Hope and the Despair pools follow, but the spendable Despair also subtracts despairOwedStore, a GM store heard only through watch.stores (live.mjs:335-346), which is not asked; Talent's shut rows are read once.",
+   "evidence": "const id = await choose(ask, \"DRPG.Calls.whichPlayer\",\n    pool.map(a => ({ value: a.id, label: nameAsSeen(a) })));\n[...]\nlive: readHeld ? {\n    region: \".drpg-call-header\",\n    build: () => callHeader(call, kind, { held: readHeld() }),\n    watch: { actors: true },",
+   "failure_scenario": "Bob opens Support with Chie in the room; Chie walks out before he picks; the window still offers her, Bob presses Next and Spend, and only the GM's refusal tells him she is gone.",
+   "expected": "the rows drawn again on a move, a project's change and an item's change; the header also on the debt store",
+   "confidence": "read",
+   "refutation_tried": "The GM judges the pick live at the arm (bridge-guards.mjs guardArmOtherCharacter; call-effects.mjs projectRefusal), so nothing wrong is bought - the cost is a window that offers what is gone, and a refusal after Spend instead of a shorter list. The debt half needs a conversion while a Despair Call's confirmation stands on the same GM: rare.",
+   "probe": "as a player open a Support tile with another student in the room; move that student's token out; read the picker's rows (the student still listed)"
+  },
+  {
+   "id": "controls-07-messages-calls-7",
+   "severity": "minor",
+   "verdict": "silent",
+   "title": "A chat message typed and not sent is dropped by a press of the Note tab",
+   "surface": "The conversation window",
+   "control": "Chat / Note",
+   "where": "scripts/messenger-app.mjs:386-391 (onSwitch renders the window), 255-262 (the box built empty)",
+   "what_happens": "The tab press renders the whole window; the Chat tab's box is built empty, so what stood in it is gone when the reader comes back from Note, and nothing says so. The same cause as controls-03-investigation-planner-15, which reads the note's half (a note dropped by Chat); this is the chat's half, filed so the count of each surface is whole.",
+   "evidence": "wireKitTabs(this.element, {\n    onSwitch: key => {\n        this.tab = key;\n        this.render();\n    }\n});\n[...]\n<textarea name=\"text\" rows=\"1\"...></textarea>",
+   "failure_scenario": "A player writes a long question to the GM, presses Note to check what they wrote there, presses Chat: the question is gone.",
+   "expected": "the typed message kept across the tabs",
+   "confidence": "read",
+   "refutation_tried": "Nothing keeps the box: the window holds noteSaid and noteShown only (185, 192), no draft field. The send's failure road keeps the words (408-427) but a tab press never reaches it. Duplicate root of controls-03-investigation-planner-15.",
+   "probe": "as a player: game.drpg.openMessenger(); type in form.drpg-messenger-input textarea; press [data-drpg-tab-key=note], then [data-drpg-tab-key=chat]; read the textarea"
+  },
+  {
+   "id": "controls-07-messages-calls-8",
+   "severity": "minor",
+   "verdict": "silent",
+   "title": "'Create an item' on a Search card, with the item tables already open, raises them without the card's category, tier, room and name",
+   "surface": "The ruling cards' buttons",
+   "control": "Create an item",
+   "where": "scripts/messenger-app.mjs:1336-1350 (ruleCreateItem), scripts/tables-editor.mjs:1616-1623 (openItemTables returns RAISED before the preset)",
+   "what_happens": "The button exists to open the add-an-item form prefilled with what the roll and the player already said (the comment at 1337-1340). openItemTables answers RAISED for a window already open, before presetTargetsFor reads the preset, so a GM who had the item tables open gets them raised as they were, and nothing says the card's details were not carried.",
+   "evidence": "if (alreadyOpen(\"drpg-window-tables\")) return RAISED;\n[...]\nconst presetTargets = await presetTargetsFor(tables, preset);",
+   "failure_scenario": "The GM has the item tables open from preparing the chapter, presses 'Create an item' on Bob's Search for a crowbar: the tables come to the front on the pool they showed, and the GM retypes the category, tier, room and name.",
+   "expected": "the open window takes the card's preset, or the GM is told it did not",
+   "confidence": "read",
+   "refutation_tried": "The card stays open either way (an editor may write nothing, 801-809), so nothing is lost but the prefill. Looked for a road that hands an open window a new preset: none in tables-editor.mjs.",
+   "probe": "open the item tables; on a Search card 'something specific' press [data-drpg-call=createItem]; read the add form's category and name"
+  },
+  {
+   "id": "controls-07-messages-calls-9",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The notice history's list waits for the reader: new entries behind a pill while the list is scrolled or holds focus, a change to drawn entries until focus leaves it",
+   "surface": "The notice history",
+   "control": "the list",
+   "where": "scripts/notice-history-app.mjs:363-378 (changed), 304-307 (the focusout redraw)",
+   "what_happens": "The counts, banner and foot follow at once. The list is held while the reader is in it, so a row that was settled or marked deleted keeps its old tags until focus leaves the list, and a new card is behind 'Show new notices'. The A7 design (P10) chose this so the list does not jump under the reader; the standing rule of 20.11.2026 names 'redraws only after focus leaves' as what it does not want.",
+   "evidence": "} else if (focused) {\n    this.stale = true;\n    if (this.syncChrome(root)) this.redraw();\n} else this.redraw();",
+   "failure_scenario": "A player with an entry open reads it while a GM settles the ask it came from: the row keeps 'Shown' without 'Settled' until the player clicks outside the list.",
+   "expected": "the owner's call: the A7 design or the 20.11 rule",
+   "confidence": "read",
+   "refutation_tried": "A recorded design choice, not a defect of the code (the comment at 357-362). Filed as nit so the owner can weigh it against the new rule.",
+   "probe": "open the notices window, focus an entry, settle its card on another GM, read the entry's tags before and after focusout"
+  },
+  {
+   "id": "controls-07-messages-calls-10",
+   "severity": "nit",
+   "verdict": "dead",
+   "title": "The GM's roster rows cannot be reached from the keyboard",
+   "surface": "The GM's roster",
+   "control": "A player's row",
+   "where": "scripts/messenger-app.mjs:1631-1664 (rosterRow: an li with a click listener); scripts/a11y.mjs:70-71 (CONTROLS)",
+   "what_happens": "Each row is an li with a click listener and no tabindex, role or key handler, and the roster takes focus nowhere, so a GM on the keyboard opens the roster from the launcher and cannot open any conversation from it. a11y.mjs's sweep lists button, a[href], [role=button] and the form fields, so game.drpg.a11y() does not report it.",
+   "evidence": "const li = document.createElement(\"li\");\nli.className = \"drpg-messenger-roster-row\";\n[...]\nli.addEventListener(\"click\", () => {",
+   "failure_scenario": "A GM who works the keyboard presses the launcher with Enter, the roster opens, and Tab never reaches a player's name.",
+   "expected": "the rows as buttons (or role=button with Enter and Space)",
+   "confidence": "read",
+   "refutation_tried": "Looked for a sweep that dresses the rows: a11y.mjs names none; the Players list's context entry is the other way into a thread, with the mouse too.",
+   "probe": "as a GM focus #drpg-messenger-launcher, press Enter, press Tab repeatedly and read document.activeElement"
+  },
+  {
+   "id": "controls-07-messages-calls-11",
+   "severity": "nit",
+   "verdict": "mislabeled",
+   "title": "'Rearm the trap' on a trap whose project was deleted settles the card 'The trap is watching again.'",
+   "surface": "The ruling cards' buttons",
+   "control": "Rearm the trap",
+   "where": "scripts/messenger-app.mjs:990-1003, scripts/traps.mjs:376-383, scripts/projects-secrecy.mjs:257-260",
+   "what_happens": "rearmTrap writes { armed: true, firedAt: null } into the projects' secret store for the id the card names and answers true, whatever the project is now; patchTrigger asks nothing either. On a deleted project the card settles with a line that is not so, and the store keeps a row for a project that is gone.",
+   "evidence": "export async function rearmTrap(projectId) {\n    if (!game.user.isGM) return null;\n    await serialWrite(COUNTDOWNS_KEY, () => patchTrigger(projectId, { armed: true, firedAt: null }));\n    forgetArmedTraps();\n    log(`Trap \"${projectId}\" is watching again.`);\n    return true;\n}",
+   "failure_scenario": "A GM deletes a trap project after its alert, then presses Rearm on the old alert: the card says the trap is watching again.",
+   "expected": "a gone project answered as gone",
+   "confidence": "read",
+   "refutation_tried": "A deleted project's row harms nothing that fires (no countdown carries the id), so the cost is the card's line; nit.",
+   "probe": "post a trap alert, delete the project, press [data-drpg-call=rearmTrap], read the card's line"
+  },
+  {
+   "id": "controls-07-messages-calls-12",
+   "severity": "nit",
+   "verdict": "unknown",
+   "title": "The request window of call-gm.mjs is not in docs/dev/e59/WINDOWS.md, so the window rules R6750-R6753 never read it",
+   "surface": "The request window",
+   "control": "-",
+   "where": "scripts/call-gm.mjs:1228 (`(columns ? actionWindow : drpgWindow)({`); scripts/tests-windows.mjs:45 (OPENERS)",
+   "what_happens": "The window opens through a conditional callee; OPENERS matches `drpgWindow\\s*\\(` and does not see `drpgWindow)(`, so neither the census nor its rules count the window. Read by hand here it keeps the kit's contract (gmRoute and close, 1235-1243).",
+   "evidence": "const answer = await (columns ? actionWindow : drpgWindow)({\n--- tests-windows.mjs:45 ---\nconst OPENERS = /\\b(drpgWindow|drpgConfirm|drpgPrompt)\\s*\\(|...",
+   "failure_scenario": "A later change to the request window's footer that breaks the kit's contract passes R6753, which does not know the window exists.",
+   "expected": "the census counts a window opened through a conditional callee",
+   "confidence": "read",
+   "refutation_tried": "WINDOWS.md was searched for every file of this lane: 5 rows, none in call-gm.mjs. The actionWindow branch is action-menus.mjs's own site; the drpgWindow branch is the one not counted.",
+   "probe": "node tools/e59/windows.mjs (read-only, not run in this pass) and look for a call-gm.mjs row"
+  }
+ ],
+ "not_established": [
+  "No control was pressed in this pass (rule 2: no harness run, no probe). Every row is label -> element -> listener -> handler -> effect as read in source on b5a29e73; the tests and scenarios named are named from their text, and base-run.json, probe-42.json and probe-43.json did not exist when this file was written, so no result of theirs is cited.",
+  "Finding 1 on a real screen: that a press on a button inside a v14 notice reaches the card's click as it does in the code. New live check: fire a watched trap with a GM connected and press 'Spring the trap' in the notice, then in the chat log.",
+  "What sets ui.activeWindow on v14, which decides when a conversation counts as read (seesThread, messenger-app.mjs:457-460): LIVE-E50-01, and LIVE-E50-02 for a hidden page.",
+  "Whether the notices' snapshot of a card follows a real browser's parser as the harness's does: LIVE-E81-01; the tile's place under a growing clock: LIVE-E81-04.",
+  "Findings 4, 5 and 9 are recorded choices that the owner's rule of 20.11.2026 may overturn; whether the owner wants the roster, the notices and the history list to redraw at once is a question, not a measurement.",
+  "call-effects.mjs and call-world.mjs were searched, not read whole: no window, listener, button or card with buttons in either (they post announcements, warnings and cards through utils.mjs only). notice-history.mjs was read at its registration, its change sites and its snapshot tags, not whole: its engine is the store behind the window, not a surface."
+ ]
+}

@@ -1,0 +1,2005 @@
+{
+  "reader": "controls-10-setup-config",
+  "read": [
+    {
+      "file": "scripts/season-setup.mjs (1-80, 186-300, 480-1480 whole; 300-480 by the steps' keys and open/fix lines; 1480-1640 the report body's helpers by outline)",
+      "lines_read": 1220
+    },
+    {
+      "file": "scripts/season-wipe.mjs (1-420: the window, its fields and its answer)",
+      "lines_read": 420
+    },
+    {
+      "file": "scripts/season-reset.mjs (by grep: no window, no listener, no control)",
+      "lines_read": 0
+    },
+    {
+      "file": "scripts/season-exceptions.mjs (by grep: the reset's groups and memory, no window)",
+      "lines_read": 0
+    },
+    {
+      "file": "scripts/day-summary.mjs (60-100, 240-288: the hooks and the card)",
+      "lines_read": 90
+    },
+    {
+      "file": "scripts/requirements.mjs (95-160, 313-419: both windows and Show again)",
+      "lines_read": 170
+    },
+    {
+      "file": "scripts/diagnostics.mjs (1-60, the outline, 2161-2358: the report's parts, window and Copy report)",
+      "lines_read": 260
+    },
+    {
+      "file": "scripts/explain.mjs (1-140, 225-520)",
+      "lines_read": 435
+    },
+    {
+      "file": "scripts/a11y.mjs (1-40 and the outline: a console report, no window)",
+      "lines_read": 60
+    },
+    {
+      "file": "scripts/handbooks.mjs (40-95, 243-310, 355-564)",
+      "lines_read": 330
+    },
+    {
+      "file": "scripts/settings-window.mjs (whole)",
+      "lines_read": 523
+    },
+    {
+      "file": "scripts/settings.mjs (1453-1484 the dice look's writes, 1960-2030 the menu; registerMenu and config: true by grep: one menu, no config: true row)",
+      "lines_read": 105
+    },
+    {
+      "file": "scripts/dh-settings.mjs (whole)",
+      "lines_read": 223
+    },
+    {
+      "file": "scripts/tables-editor.mjs (80-135, 245-360, 543-720, 845-990, 1023-1205, 1215-1540, 1617-1795)",
+      "lines_read": 1020
+    },
+    {
+      "file": "scripts/tables-pools.mjs (by grep: no window, one name-index hook at 1157)",
+      "lines_read": 0
+    },
+    {
+      "file": "scripts/safeword.mjs (95-477)",
+      "lines_read": 383
+    },
+    {
+      "file": "scripts/monocub.mjs (285-335, 440-560, 1540-1640: the copy, the invitation, the Bribe)",
+      "lines_read": 270
+    },
+    {
+      "file": "scripts/migrate.mjs (by grep: no window; notifications and GM whispers only)",
+      "lines_read": 0
+    },
+    {
+      "file": "scripts/live.mjs (neighbour: 1-200 keepLive, 300-353 listenFor, 680-890 alreadyOpen, reopen, handOff, keepFresh)",
+      "lines_read": 460
+    },
+    {
+      "file": "scripts/gm-campaign.mjs (neighbour: 53-126, 136-217, 256-380 - Edit campaign's rows, reader and applyCampaignForm)",
+      "lines_read": 320
+    },
+    {
+      "file": "scripts/gm-panel.mjs (neighbour: 278-308, 377-391, 496-512 - the tiles)",
+      "lines_read": 70
+    },
+    {
+      "file": "scripts/clock.mjs (neighbour: 999-1040 reconcilePhase leaving the trial)",
+      "lines_read": 42
+    },
+    {
+      "file": "scripts/ui-kit.mjs, ui-columns.mjs (neighbour: drpgWindow 1301-1344, WINDOW_HELP 1219, wideWindow 65-67)",
+      "lines_read": 50
+    },
+    {
+      "file": "scripts/tests-tier1.mjs, tests-tier2.mjs (the tests named: R4055 20336-20354, 20680-20700; E49-A1e 69266; E101-T10/T11 88337, 88422; 99458)",
+      "lines_read": 90
+    },
+    {
+      "file": "styles/*.css (by script: 396 rules naming the lane's classes, 9 that hide, each read)",
+      "lines_read": 0
+    },
+    {
+      "file": "docs/dev/e59/WINDOWS.md (header and the lane's rows)",
+      "lines_read": 60
+    }
+  ],
+  "count_note": "WINDOWS.md lists 18 kit windows in the lane's files: season-setup.mjs 4 (openSeasonSetup, openSeasonChecklist, askStartHere, openFoundryReport), season-wipe.mjs 1, diagnostics.mjs 1, explain.mjs 1, handbooks.mjs 1, monocub.mjs 2, requirements.mjs 2, safeword.mjs 1, tables-editor.mjs 5 (installTables, placeResultDialog, promptForTableName, wirePaneHeading's Delete, openItemTables). All 18 are here. This file has 25 surfaces because: explain.mjs's one site draws four explainers (four surfaces); settings-window.mjs's two windows are drawn through ui-columns.mjs wideWindow, which WINDOWS.md counts once under ui-columns.mjs:66 (two surfaces here, no row of their own there); and three surfaces are not kit windows (Configure Settings' DRPG Settings button, settings.mjs; Daggerheart's character settings, dressed by dh-settings.mjs, 0 module controls; the handbook launcher is listed with the Handbooks). season-reset.mjs, season-exceptions.mjs, tables-pools.mjs, a11y.mjs (game.drpg.a11y() reports to the console) and migrate.mjs open no window, and WINDOWS.md lists none for them. Not counted here: the safeword's GM card and banner and the day's summary are notices drawn by popups.mjs (their only control is the notice's own close, popups.mjs's lane); the questions Season setup's Save and End the chapter open (gm-campaign.mjs confirmCorrection, endTheChapter) are gm-campaign.mjs's rows; Season setup's scenes part is controls-02's surface and is not counted again; the Voice section of this browser's settings is voice-panel.mjs's. The Reset the season window is listed with its controls although no control reaches it (finding 1).",
+  "surfaces": [
+    {
+      "surface": "Season setup (title \"Season setup\"): Edit campaign's block, the safeword, the scenes part, Reset the season's frame, the row of four tiles, Save and Cancel",
+      "file": "scripts/season-setup.mjs",
+      "opener": "openSeasonSetup:1121 (the GM panel's Between sessions tile seasonSetup, gm-panel.mjs:294-295; Start here's button, season-setup.mjs:1426-1435; the checklist's scenes row, :557; game.drpg)",
+      "audience": "gm (a player is refused with DRPG.Panel.gmOnly at :1129-1132)",
+      "controls": [
+        {
+          "label": "? (\"Open the GM Handbook at section 2\")",
+          "key": "DRPG.Help.gm",
+          "kind": "button",
+          "selector": ".window-header > .drpg-help-button",
+          "handler": "ui-kit.mjs dressHelp, help row WINDOW_HELP.seasonSetup (ui-kit.mjs:1219, season-setup.mjs:1146)",
+          "effect": "opens the handbook window on the GM handbook, section 2 (handbooks.mjs openHandbooks with remember: false)",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Edit campaign's six fields: Campaign name, Chapter, Phase, Day, Session, Time of day",
+          "key": "DRPG.Clock.* (gm-campaign.mjs campaignRows:136-193)",
+          "kind": "fields",
+          "selector": "fieldset.drpg-setup-campaign [name=campaignName|chapter|phase|day|session|timeOfDay]",
+          "handler": "read on Save by readSeasonForm:973 -> gm-campaign.mjs readClockForm (:80-95)",
+          "effect": "handed to applyCampaignForm (gm-campaign.mjs:256), which writes all six through setClock (:347-361)",
+          "gate": "any GM",
+          "how_read": "code; tier 2 'E49-A1e - Season setup's Save writes what Edit campaign's Apply writes' (tests-tier2.mjs:69266) writes them from one fresh clock, result not read in this pass",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "drawn from getClock() once at open (:1134, campaignRows); every one is written back at Save whether the GM touched it or not - finding 2"
+        },
+        {
+          "label": "Also refill actions and search tokens (box)",
+          "key": "DRPG.Clock.reset",
+          "kind": "checkbox",
+          "selector": "fieldset.drpg-setup-campaign input[name=reset]",
+          "handler": "readClockForm",
+          "effect": "only when ticked: resetAllActions and SearchTokens.reset (gm-campaign.mjs:370-376)",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Next morning's line",
+          "key": "DRPG.Clock.morningLine",
+          "kind": "textarea",
+          "selector": "textarea[name=morningLine]",
+          "handler": "readSeasonForm:984",
+          "effect": "kept on this browser in morningLineDraft (client setting) before the clock is written (:1247-1249)",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Safeword",
+          "key": "DRPG.Season.safeword",
+          "kind": "text field",
+          "selector": "input[name=safeword]",
+          "handler": "readSeasonForm:982",
+          "effect": "written only when it differs from the setting as it stands (:1255-1258)",
+          "gate": "any GM",
+          "how_read": "code; R1125 reads the form",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "drawn from the setting at open; another GM's change since is written back by any Save, as the six fields are (finding 2)"
+        },
+        {
+          "label": "End the chapter",
+          "key": "DRPG.Chapter.endTitle",
+          "kind": "button (destructive)",
+          "selector": "[data-drpg-end-chapter]",
+          "handler": "render listener :1194-1198 -> endAsked, dialog.close(); then :1213 endTheChapter",
+          "effect": "the window closes unsaved, the question 'End the chapter' (gm-campaign.mjs:116), then chapter.mjs openChapterEndDialog",
+          "gate": "any GM",
+          "how_read": "code; tier 2 at tests-tier2.mjs:99458-99460 presses it, result not read in this pass",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": "checked before the result: the one of the two close-and-run buttons that works"
+        },
+        {
+          "label": "Reset the season",
+          "key": "DRPG.Season.resetTitle",
+          "kind": "button (destructive)",
+          "selector": "[data-drpg-reset-season]",
+          "handler": "render listener :1200-1204 -> resetAsked = true, dialog.close()",
+          "effect": "none: the close answers null, :1214 returns before :1215 reads resetAsked; season-wipe.mjs resetSeason never runs",
+          "gate": "any GM (primary GM inside resetSeason)",
+          "how_read": "code; R4055 and the tier 1 test at tests-tier1.mjs:20694 read the source line by regex only, no test presses it",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "dead",
+          "detail": "finding 1"
+        },
+        {
+          "label": "Despair Flow (tile)",
+          "key": "DRPG.Panel.despairFlow",
+          "kind": "tile",
+          "selector": "button.drpg-gmp-button[data-drpg-run=gmTeam]",
+          "handler": "wireSeasonTiles:1110 -> SEASON_TILES (gm-panel.mjs:378-379)",
+          "effect": "opens Despair Flow in front; this window stays as it is",
+          "gate": "any GM",
+          "how_read": "code; E101-T4 named at :1105",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "The Mastermind (tile)",
+          "key": "DRPG.Mastermind.dialogTitle",
+          "kind": "tile",
+          "selector": "[data-drpg-run=mastermind]",
+          "handler": "wireSeasonTiles",
+          "effect": "opens The Mastermind window (mastermind.mjs openMastermindDialog)",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Killing game rules (tile)",
+          "key": "DRPG.Rules.manageTitle",
+          "kind": "tile",
+          "selector": "[data-drpg-run=rules]",
+          "handler": "wireSeasonTiles",
+          "effect": "opens rules.mjs openRulesManager",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Season checklist (tile)",
+          "key": "DRPG.Season.checklistTitle",
+          "kind": "tile",
+          "selector": "[data-drpg-run=seasonChecklist]",
+          "handler": "wireSeasonTiles",
+          "effect": "opens the Season checklist (surface 2)",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Save",
+          "key": "DRPG.Assign.save",
+          "kind": "button (primary)",
+          "selector": "footer button[data-action=save]",
+          "handler": "callback :1179 readSeasonForm + scenesTab.readScenesTab",
+          "effect": "the scenes part (applyScenesTab), the morning line, applyCampaignForm, the safeword",
+          "gate": "any GM; held (disabled) by the scenes part's two backstops (holdSeasonSave:1280)",
+          "how_read": "code; tier 2 E101-T10, E101-T11 (tests-tier2.mjs:88337, 88422) press it; results not read in this pass",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "writes the clock fields and the safeword as drawn at open (finding 2)"
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button (close role)",
+          "selector": "footer button[data-action=close]",
+          "handler": "the kit's footer",
+          "effect": "closes; nothing written",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "setting clock (getClock: campaignName, chapter, phase, day, session, timeOfDay) at :1134 through campaignRows",
+          "setting safeword (safeword():1161)",
+          "client setting morningLineDraft (gm-campaign.mjs morningLineRow:195-200)",
+          "the scenes part: scenes, the trial hall, its tokens and the trial's lock (trial-scene.mjs; controls-02's surface)",
+          "SEASON_TILES (static)"
+        ],
+        "listens": [
+          "none: no keepLive, keepFresh or hook in openSeasonSetup (:1121-1262); only its own selects' change in the scenes part (trial-scene.mjs wireScenesTab, controls-02)"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "the clock: the HUD's or the GM panel's time step, Start the Class Trial on the trial console, another GM's Edit campaign - none redraws the six fields (season-setup.mjs:1134, 1161; gm-campaign.mjs:136-193), and Save writes them back (finding 2)",
+          "the safeword setting: another GM's Season setup Save (:1255-1258)",
+          "the scenes part's lock: a trial started meanwhile is not seen until Save (the comment at :1219-1223 says so; the Save drops the scenes part then)"
+        ],
+        "focus_rule": "nothing redraws, so nothing is lost while typing; the cost is the other way: what the GM did not type is written back as it was at open"
+      }
+    },
+    {
+      "surface": "Season checklist (title \"Season checklist\"): the rows, the First session rows, the further checks under them, Close",
+      "file": "scripts/season-setup.mjs",
+      "opener": "openSeasonChecklist:1316 (Season setup's tile, gm-panel.mjs:384-385; the GM panel's Next line, EXTRA_ACTIONS.seasonChecklist)",
+      "audience": "gm (a player refused at :1318-1321)",
+      "controls": [
+        {
+          "label": "A row's Open (Monokumas -> Students; Ultimate, Experiences -> the first student's sheet; Items -> item manager; Despair pools, Nobody public, Uneven split, Overflow -> Despair Flow; Rooms -> Room setup; Rooms marked -> Room setup's Rooms tab; Scenes -> Season setup; Foundry held -> Give back; Dice So Nice -> Foundry's module list; Mastermind -> The Mastermind)",
+          "key": "DRPG.Season.openIt",
+          "kind": "button (row)",
+          "selector": "li.drpg-check-row > button[data-drpg-action=do]",
+          "handler": "wireSetupSteps:1047, one listener per list -> step.open(step.missing()) (steps():268-689)",
+          "effect": "the step's window, awaited; then the checklist closes and comes back built from the world with the draft and the scroll (handOff), and what opened is raised (raiseOpened:794)",
+          "gate": "any GM; a row with nothing to open draws no button (setupRows:114-118)",
+          "how_read": "code; each opener named exists (gm-students.mjs openWhoIsAliveDialog via gm-panel.mjs:35, gm-items.mjs:331, gm-team-dialog.mjs:240, room-setup.mjs:1200 with tab 'bedrooms' at :385, enforced.mjs:944); R1514 for the raise",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Give starting resources (resources row)",
+          "key": "DRPG.Season.resourcesButton",
+          "kind": "button (row)",
+          "selector": "li[data-drpg-key=resources] > button[data-drpg-action=do]",
+          "handler": "step.fix fixResources:191",
+          "effect": "initCharacter on each student that needs it, one notice with the count, then the round trip",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Hide the GM's cursor / Convert the doors / Hide the rulers (cursor, secretDoors, rulers rows)",
+          "key": "DRPG.Season.cursorButton, .convertDoors, .hideRulers",
+          "kind": "button (row)",
+          "selector": "li[data-drpg-key=cursor|secretDoors|rulers] > button[data-drpg-action=do]",
+          "handler": "step.fix: fixCursorPermission:203, convertDoorsStep:159, setPlayerRulers(false):132",
+          "effect": "writes core.permissions or the walls, one notice with its own count (fixedKey), then the round trip",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Show the rulers (rulers row, once done)",
+          "key": "DRPG.Season.showRulers",
+          "kind": "button (row)",
+          "selector": "li[data-drpg-key=rulers] > button[data-drpg-action=undo]",
+          "handler": "wireSetupSteps -> step.undo setPlayerRulers(true)",
+          "effect": "puts the players' ruler back, its notice, the round trip",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Check rooms",
+          "key": "DRPG.Season.checkRooms",
+          "kind": "button",
+          "selector": "[data-drpg-check]",
+          "handler": "wireRoomCheck:1016",
+          "effect": "runs checkRegions on the scene on screen, records its problems, draws the rooms row again in place (repaintStep) and the findings under it",
+          "gate": "any GM",
+          "how_read": "code; R1526 for repaintStep",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Show on map (a finding's row)",
+          "key": "DRPG.Fog.showOnMap",
+          "kind": "button",
+          "selector": "[data-drpg-check-out] button",
+          "handler": "fog-diagnostics.mjs wireShowOnMap (wired at :1036-1037)",
+          "effect": "pans to the finding",
+          "gate": "any GM",
+          "how_read": "code (fog-diagnostics.mjs not read whole: another lane's file)",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Set them to Observer (the anonymity line of the further checks)",
+          "key": "DRPG.Anon.fix",
+          "kind": "button",
+          "selector": "[data-drpg-season-more] [data-drpg-anon]",
+          "handler": "anonymity.mjs wireAnonymityFix (fillMoreChecks:1373-1386)",
+          "effect": "the anonymity audit's own fix, drawn again in place",
+          "gate": "any GM",
+          "how_read": "code (anonymity.mjs not read: neighbour)",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Open the dice look (the further checks)",
+          "key": "DRPG.DiceLook.diag.open",
+          "kind": "button",
+          "selector": "[data-drpg-dice-look]",
+          "handler": "wireDiceLookButton:1390",
+          "effect": "dice-look.mjs diagnoseDiceLook({ test: false })",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": "footer button[data-action=close]",
+          "handler": "the kit's footer",
+          "effect": "closes",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "steps(): actors (roster, resources, Ultimates, experiences, items), assignments and the Despair pools, scenes, regions and rooms, core.permissions, walls (secret doors), the trial hall, foundryGivenBack, the Mastermind (GM store), LiveKit's settings, the module list - all at open (:1323)",
+          "preSessionReport (filled once, :1373-1386): the cast, scenes' pictures (asked of the server), anonymity, the dice look"
+        ],
+        "listens": [
+          "none: no keepLive, keepFresh or hook; its own row's press closes and reopens it (wireSetupSteps), and Check rooms repaints the rooms row"
+        ],
+        "verdict": "partial",
+        "gaps": [
+          "a change made in a window opened from anywhere but its own rows - Season setup's Despair Flow and The Mastermind tiles beside it (gm-panel.mjs:377-386), the GM panel, a player creating a character, another GM - leaves every row as drawn (season-setup.mjs:1323-1325; finding 3)",
+          "the further checks are read once (:1373)"
+        ],
+        "focus_rule": "no field is redrawn; a row's own press reopens the window with its scroll and the row focused (seasonOpening:863)"
+      }
+    },
+    {
+      "surface": "Start here (title \"Start here\")",
+      "file": "scripts/season-setup.mjs",
+      "opener": "askStartHere:1426, from offerStartHere at ready when startHereDue (:1406-1424), once per browser",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Season setup",
+          "key": "DRPG.Season.title",
+          "kind": "button (primary)",
+          "selector": "footer button[data-action=open]",
+          "handler": "answer 'open' -> openSeasonSetup (:1435)",
+          "effect": "opens Season setup",
+          "gate": "GM",
+          "how_read": "code; R1513 hands its own ask",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": "footer button[data-action=close]",
+          "handler": "the kit",
+          "effect": "closes; the setting startHereShown was already written at the offer",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "nothing but its words"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "Foundry and modules (title \"Foundry and modules\")",
+      "file": "scripts/season-setup.mjs",
+      "opener": "openFoundryReport:1444 (the GM panel's Debug log button 'foundry', gm-panel.mjs:745, 781-782)",
+      "audience": "gm (no gate of its own: its one door is the GM panel's)",
+      "controls": [
+        {
+          "label": "Open the dice look",
+          "key": "DRPG.DiceLook.diag.open",
+          "kind": "button",
+          "selector": "[data-drpg-dice-look]",
+          "handler": "wireDiceLookButton:1390",
+          "effect": "dice-look.mjs diagnoseDiceLook({ test: false })",
+          "gate": "any user who reaches it",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": "footer",
+          "handler": "the kit",
+          "effect": "closes",
+          "gate": "-",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "patches.mjs runContract() once at open (:1460-1468)"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "no field; a reading taken when the window opened, as a report is (not a window showing a store)"
+      }
+    },
+    {
+      "surface": "Reset the season (title \"Reset the season\")",
+      "file": "scripts/season-wipe.mjs",
+      "opener": "resetSeason:206 - its one door was Season setup's Reset the season, which does not reach it (finding 1); no game.drpg entry (api.mjs: no hit)",
+      "audience": "gm, the primary GM alone (:220-224, again after the window :352-356)",
+      "controls": [
+        {
+          "label": "A group's tick (one per RESET_GROUPS entry, by section)",
+          "key": "DRPG.Season.reset* group labels",
+          "kind": "checkbox",
+          "selector": "[name=wipe.<group>]",
+          "handler": "render listener :331-336 on .drpg-reset-groups change",
+          "effect": "strikes the group's row out of 'This goes' in place (resetGoesHtml); read at Reset by tickedIn",
+          "gate": "primary GM",
+          "how_read": "code; R353, R1255 read resetGoesHtml",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Where the cast goes: Stay / Their own bedroom / One room",
+          "key": "DRPG.Season.resetCastStay, .resetCastBedroom, .resetCastPoint",
+          "kind": "radio",
+          "selector": "[name=castTo]",
+          "handler": "castChoiceIn:170 at Reset",
+          "effect": "the plan's cast (placeCast step)",
+          "gate": "primary GM; One room disabled with no room on any map",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "The room (One room's list)",
+          "key": "DRPG.Season.resetCastPoint",
+          "kind": "select",
+          "selector": "[name=castPoint]",
+          "handler": "castChoiceIn",
+          "effect": "the room the cast is moved to",
+          "gate": "primary GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Type RESET",
+          "key": "DRPG.Season.resetType",
+          "kind": "text field",
+          "selector": "[name=confirm]",
+          "handler": "the Reset callback",
+          "effect": "compared exactly with the word (:345-351)",
+          "gate": "primary GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Reset",
+          "key": "DRPG.Season.resetButton",
+          "kind": "button (destructive)",
+          "selector": "footer button[data-action=reset]",
+          "handler": "callback :339-343, then :345-380 wipeSeason(plan)",
+          "effect": "the wipe, in RESET_STEPS order",
+          "gate": "primary GM; refused when another browser became primary meanwhile, told",
+          "how_read": "code; scenario 65 U1 named at :350",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button (default)",
+          "selector": "footer button[data-action=cancel]",
+          "handler": "the kit",
+          "effect": "closes, nothing written",
+          "gate": "-",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "resetTallies() at :233 (counts of every group)",
+          "rememberedExceptions, unfinishedGroups (the reset's record)",
+          "the GMs online (:262)",
+          "every scene's rooms for One room (castPoints:154)"
+        ],
+        "listens": [
+          "none: the ticks redraw the list from the tallies taken at open (:331-336)"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "the tallies and the offline GMs' line are taken once (:233, :262): a Remnant placed or a GM connecting while the window stands is not shown (the primary check is asked again at :352, so the write is guarded; only the counts are stale)"
+        ],
+        "focus_rule": "nothing redraws but the list beside the ticks"
+      }
+    },
+    {
+      "surface": "Diagnostics' report (title \"Diagnostics\"): the report text, Copy report, Show again",
+      "file": "scripts/diagnostics.mjs",
+      "opener": "openReport:2295 from diagnose:2351 (game.drpg.diagnose, api.mjs:76, 1270; console only - no tile or button opens it)",
+      "audience": "any user (gmOnly parts are named, not run, on a player: gatherReport:2263-2279)",
+      "controls": [
+        {
+          "label": "Copy report",
+          "key": "DRPG.Diagnose.copy",
+          "kind": "button (secondary)",
+          "selector": "footer button[data-action=copy]",
+          "handler": "openReport loop :2327-2335 -> game.clipboard.copyPlainText",
+          "effect": "copies the text, says 'Copied', and the window comes back",
+          "gate": "any user",
+          "how_read": "code; R1550 hands its own copy",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "silent",
+          "detail": "a failed copy is written to the console only (:2331-2333, utils.mjs error:338-341 draws nothing) and the window comes back as if it had worked: finding 7"
+        },
+        {
+          "label": "Show again (one per silence)",
+          "key": "DRPG.Diagnose.showAgain",
+          "kind": "button (secondary)",
+          "selector": "footer button[data-action=again:<id>]",
+          "handler": "openReport :2337-2344 -> requirements.mjs showSystemWarningAgain:327",
+          "effect": "the silence emptied and the newer-Daggerheart window asked again; the report comes back without that silence's line",
+          "gate": "a GM in practice (only a GM sets the silence: requirements.mjs:351)",
+          "how_read": "code; R1552",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": "footer",
+          "handler": "the kit",
+          "effect": "closes",
+          "gate": "-",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the report text, gathered once by gatherReport before the window (:2352)"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "n/a",
+        "gaps": [
+          "after Show again the report's own 'Silenced warnings' part still says the warning is silenced (silenceText:2204-2210 ran before): a snapshot, nit, not written as a finding"
+        ],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "The state of play (the clock panel's explainer)",
+      "file": "scripts/explain.mjs",
+      "opener": "openStateExplainer:232, from a click or Enter/Space on its panel (registerExplainers:484-512, PANELS:428-433); explainOnce:476 closes any explainer standing first",
+      "audience": "any user (each section asks what this user may see)",
+      "controls": [
+        {
+          "label": "The panel itself (click, or Enter / Space on the focused panel)",
+          "key": "-",
+          "kind": "panel opener",
+          "selector": "#drpg-hud",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "effect": "opens this explainer, one at a time",
+          "gate": "any user",
+          "how_read": "code; R3463",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control); body[data-drpg-sequence-cover] fades the four panels out during a full-screen sequence (danganronpa.css, the sequence-cover rule): no panel to press then, by design",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": ".drpg-explain footer",
+          "handler": "explainer:49",
+          "effect": "closes",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the clock as the HUD shows it (clockForDisplay(getClock())), the subject's actions and room (roomBlock)"
+        ],
+        "listens": [
+          "none: explainer:49-57 has no live region"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "explain.mjs:232: the values under 'where things stand' are read once; a change while the window stands (the time of day, a Despair write, an action spent, a project's progress) leaves them as they were (finding 6)"
+        ],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "Despair (the Despair rail's explainer)",
+      "file": "scripts/explain.mjs",
+      "opener": "openDespairExplainer:269, from a click or Enter/Space on its panel (registerExplainers:484-512, PANELS:428-433); explainOnce:476 closes any explainer standing first",
+      "audience": "any user (each section asks what this user may see)",
+      "controls": [
+        {
+          "label": "The panel itself (click, or Enter / Space on the focused panel)",
+          "key": "-",
+          "kind": "panel opener",
+          "selector": "#drpg-despair",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "effect": "opens this explainer, one at a time",
+          "gate": "any user",
+          "how_read": "code; R3463",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control); body[data-drpg-sequence-cover] fades the four panels out during a full-screen sequence (danganronpa.css, the sequence-cover rule): no panel to press then, by design",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": ".drpg-explain footer",
+          "handler": "explainer:49",
+          "effect": "closes",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "every pool's Despair and its maximum, a GM's owed Despair, the overflow's hat (overflowStatus)"
+        ],
+        "listens": [
+          "none: explainer:49-57 has no live region"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "explain.mjs:269: the values under 'where things stand' are read once; a change while the window stands (the time of day, a Despair write, an action spent, a project's progress) leaves them as they were (finding 6)"
+        ],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "Your actions (the status strip's explainer)",
+      "file": "scripts/explain.mjs",
+      "opener": "openStatusExplainer:322, from a click or Enter/Space on its panel (registerExplainers:484-512, PANELS:428-433); explainOnce:476 closes any explainer standing first",
+      "audience": "any user (each section asks what this user may see)",
+      "controls": [
+        {
+          "label": "The panel itself (click, or Enter / Space on the focused panel)",
+          "key": "-",
+          "kind": "panel opener",
+          "selector": "#drpg-player-status",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "effect": "opens this explainer, one at a time",
+          "gate": "any user",
+          "how_read": "code; R3463",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control); body[data-drpg-sequence-cover] fades the four panels out during a full-screen sequence (danganronpa.css, the sequence-cover rule): no panel to press then, by design",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": ".drpg-explain footer",
+          "handler": "explainer:49",
+          "effect": "closes",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the subject's actions left and maximum, the free Move, Hope held and its maximum"
+        ],
+        "listens": [
+          "none: explainer:49-57 has no live region"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "explain.mjs:322: the values under 'where things stand' are read once; a change while the window stands (the time of day, a Despair write, an action spent, a project's progress) leaves them as they were (finding 6)"
+        ],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "Projects (the countdown tray's explainer)",
+      "file": "scripts/explain.mjs",
+      "opener": "openProjectsExplainer:383, from a click or Enter/Space on its panel (registerExplainers:484-512, PANELS:428-433); explainOnce:476 closes any explainer standing first",
+      "audience": "any user (each section asks what this user may see)",
+      "controls": [
+        {
+          "label": "The panel itself (click, or Enter / Space on the focused panel)",
+          "key": "-",
+          "kind": "panel opener",
+          "selector": "#countdowns",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "effect": "opens this explainer, one at a time",
+          "gate": "any user",
+          "how_read": "code; R3463",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control); body[data-drpg-sequence-cover] fades the four panels out during a full-screen sequence (danganronpa.css, the sequence-cover rule): no panel to press then, by design",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": ".drpg-explain footer",
+          "handler": "explainer:49",
+          "effect": "closes",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "projectsAsSeen(game.user): each project as this reader last saw it"
+        ],
+        "listens": [
+          "none: explainer:49-57 has no live region"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "explain.mjs:383: the values under 'where things stand' are read once; a change while the window stands (the time of day, a Despair write, an action spent, a project's progress) leaves them as they were (finding 6)"
+        ],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "Handbooks (title \"Handbooks\") and the book launcher in the corner",
+      "file": "scripts/handbooks.mjs",
+      "opener": "openHandbooks:523 (the launcher #drpg-book-launcher:537-561, every window's '?' through ui-kit.mjs dressHelp, game.drpg)",
+      "audience": "any user; the GM handbook's tab for a GM alone (booksFor:79)",
+      "controls": [
+        {
+          "label": "The book launcher",
+          "key": "DRPG.Handbooks.launcherTooltip",
+          "kind": "button",
+          "selector": "#drpg-book-launcher",
+          "handler": "renderBookLauncher:554-557",
+          "effect": "opens the window on the remembered book, or raises it",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A book's tab (GM handbook, Player handbook, Brochure)",
+          "key": "DRPG.Handbooks.* labels",
+          "kind": "tab",
+          "selector": "nav.drpg-tabs > button[role=tab][data-drpg-tab-key]",
+          "handler": "wireKitTabs onSwitch -> show(id, { remember: true }) (_onRender:421-424)",
+          "effect": "loads the book's text into the one pane, remembers the book (client setting handbookBook)",
+          "gate": "any user; the GM book is not drawn for a player",
+          "how_read": "code; R4722",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A contents entry",
+          "key": "-",
+          "kind": "link (role=link)",
+          "selector": ".drpg-handbook-toc a",
+          "handler": "fillContents:495-511",
+          "effect": "scrolls the text to the heading, no address followed",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control); '.drpg-handbook-toc { display: none }' inside '@container (max-width: 620px)' (danganronpa.css:13789-13791): a narrow window gives the text the whole width and the contents go, in both themes, by design (the comment at :13788)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A 'section N' reference in the text",
+          "key": "-",
+          "kind": "link (role=link)",
+          "selector": "a.drpg-section-link[data-drpg-goto]",
+          "handler": "linkSections:267-306",
+          "effect": "scrolls to that section of the same book",
+          "gate": "any user",
+          "how_read": "code; R6602",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the book's Markdown file in the page's language (handbookPath:85)",
+          "client setting handbookBook"
+        ],
+        "listens": [
+          "none needed"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "This browser's settings (title \"DRPG Settings\"): sections Look, Effects, Sound, Technical",
+      "file": "scripts/settings-window.mjs",
+      "opener": "openSettingsWindow:445 (the gear, look.mjs openLookDialog; Configure Settings' DRPG Settings button, settings.mjs:1988-2003)",
+      "audience": "any user; Technical (verbose log) for a GM alone (GM_ONLY_CLIENT_KEYS:140, keysFor:143-146)",
+      "controls": [
+        {
+          "label": "A section's button (Look, Effects, Sound, Technical)",
+          "key": "DRPG.SettingsWindow.sections.*",
+          "kind": "button",
+          "selector": "[data-drpg-section]",
+          "handler": "wireSections:315-325 -> showSection",
+          "effect": "shows that pane, the others hidden; the window keeps one size (holdSectionHeight)",
+          "gate": "any user",
+          "how_read": "code; R3420, R4059",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control); a pane not picked is [hidden] with 'visibility: hidden' (components.css, the settings window's panes): the stacking that keeps one size, by design",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A setting's switch, select or stepper (language, theme, uiScale, hudTicker, wideProjectWindows, pixelFont, glassPulse, glassBlur, reducedMotion, highContrast, messengerSound, debug)",
+          "key": "DRPG.Settings.<key>.name",
+          "kind": "toggle / select / stepper",
+          "selector": "[data-drpg-setting] [name]",
+          "handler": "settingRowHtml:186-209; read at Save",
+          "effect": "written at Save only when it differs from the setting as it stands (saveSettings:408-437)",
+          "gate": "any user; a row of the other theme's is disabled with its reason as the row's title, following the Theme select before Save (syncTheme:369-378)",
+          "how_read": "code; R3530, R4102",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Interface scale's line",
+          "key": "DRPG.SettingsWindow.scaleNow",
+          "kind": "read-out",
+          "selector": "[data-drpg-scale-note]",
+          "handler": "render :467-471",
+          "effect": "follows the field before Save",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Effects and Music volume sliders",
+          "key": "sfx.mjs volumeSliders",
+          "kind": "range",
+          "selector": "[data-drpg-slider] input[type=range]",
+          "handler": "sfx.mjs wireVolumeSliders",
+          "effect": "saved as it moves, heard at once",
+          "gate": "any user",
+          "how_read": "code (sfx.mjs not read whole: neighbour)",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Save",
+          "key": "DRPG.SettingsWindow.save",
+          "kind": "button (primary)",
+          "selector": "footer button[data-action=save]",
+          "handler": "callback :455-461 -> saveSettings",
+          "effect": "the changed rows written; a reload asked once when one carries requiresReload",
+          "gate": "any user",
+          "how_read": "code; R3530",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "finding 4: a row drawn before another window changed its setting is written back"
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer button[data-action=cancel]",
+          "handler": "the kit",
+          "effect": "closes; no setting row written (volumes and voice were saved as touched)",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "every client setting of CLIENT_SECTIONS at open (settingRowHtml:192)",
+          "the volumes (sfx.mjs volumeSliders)",
+          "the voice devices (voice-panel.mjs, built before the window)"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "messengerSound is also written at once by the Sound window's box (sfx.mjs:727-731); with both windows open the gear's row keeps the old value and its Save writes it back (finding 4)",
+          "the volume sliders are also the Sound window's (sfx.mjs:723): the other window's slider does not follow"
+        ],
+        "focus_rule": "nothing redraws"
+      }
+    },
+    {
+      "surface": "The game's settings (title \"Game settings\"): sections Audio, Rules, Privacy, GM, Foundry and the system",
+      "file": "scripts/settings-window.mjs",
+      "opener": "openGameSettingsWindow:490 (the GM panel's Settings tile in Between sessions, disabled without SETTINGS_MODIFY: gm-panel.mjs:388-391)",
+      "audience": "a user Foundry lets modify settings (the Assistant GM up); refused with a warning otherwise (:493-497)",
+      "controls": [
+        {
+          "label": "A section's button",
+          "key": "DRPG.SettingsWindow.sections.*",
+          "kind": "button",
+          "selector": "[data-drpg-section]",
+          "handler": "wireSections",
+          "effect": "shows the pane",
+          "gate": "as above",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A world setting's switch, select or stepper (the 27 rows of GAME_SECTIONS, the dice look one select of three)",
+          "key": "DRPG.Settings.<key>.name",
+          "kind": "toggle / select / stepper",
+          "selector": "[data-drpg-setting] [name]",
+          "handler": "saveSettings:408-437; the dice look through diceLookWrites (settings.mjs:1472-1482, which writes nothing for the look already chosen)",
+          "effect": "written at Save when changed; a world setting with requiresReload asks Foundry's reload for every client",
+          "gate": "SETTINGS_MODIFY",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Give back Foundry's settings",
+          "key": "DRPG.GiveBack.menuLabel",
+          "kind": "button",
+          "selector": "[data-drpg-give-back]",
+          "handler": "wireSections:319-324 -> enforced.mjs openGiveBackFoundry:944",
+          "effect": "opens Give back's own window with its gates",
+          "gate": "SETTINGS_MODIFY, then enforced.mjs's own",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Save",
+          "key": "DRPG.SettingsWindow.save",
+          "kind": "button (primary)",
+          "selector": "footer button[data-action=save]",
+          "handler": "callback :504-510 -> saveSettings",
+          "effect": "as the browser's window",
+          "gate": "SETTINGS_MODIFY",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "finding 4; a failed write is the console's alone (:508)"
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer",
+          "handler": "the kit",
+          "effect": "closes",
+          "gate": "-",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "every world setting of GAME_SECTIONS at open"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "another GM's change to a world setting (their own Game settings, Foundry's settings, a console) is not drawn, and this window's Save writes the old value back over it (saveSettings:426 compares the drawn field with the setting as it stands; finding 4)"
+        ],
+        "focus_rule": "nothing redraws"
+      }
+    },
+    {
+      "surface": "Configure Settings: the module's one button, DRPG Settings",
+      "file": "scripts/settings.mjs",
+      "opener": "Foundry's Configure Settings window (registerMenu:1996-2002, restricted: false)",
+      "audience": "any user",
+      "controls": [
+        {
+          "label": "DRPG Settings",
+          "key": "DRPG.SettingsWindow.menuLabel",
+          "kind": "button (Foundry's)",
+          "selector": "Configure Settings' menu row",
+          "handler": "DrpgSettingsMenu.render:1990-1994",
+          "effect": "opens openSettingsWindow (surface above) instead of drawing a window of its own",
+          "gate": "any user",
+          "how_read": "code; how v14's settings window constructs a menu's class is LIVE-E49-02 (settings.mjs:1985-1987; the harness's registerMenu is a no-op)",
+          "themes": "Foundry's window, not the module's",
+          "verdict": "unknown",
+          "detail": "the press road is v14's, not read: LIVE-E49-02"
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "-"
+        ],
+        "listens": [
+          "-"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "-"
+      }
+    },
+    {
+      "surface": "Daggerheart's character settings, dressed (the wrench in a sheet's header)",
+      "file": "scripts/dh-settings.mjs",
+      "opener": "Daggerheart's own (openSettings in the sheet header); dressed on renderApplicationV2 (registerDhSettings:211-222)",
+      "audience": "the character's owners and the GMs (Daggerheart's)",
+      "controls": [],
+      "refresh": {
+        "reads": [
+          "the actor (Daggerheart's ActorSheetV2)"
+        ],
+        "listens": [
+          "Foundry's document sheet re-render on the actor's update; the dressing is idempotent and runs on every render (dressCharacterSettings:113-135)"
+        ],
+        "verdict": "live",
+        "gaps": [],
+        "focus_rule": "Daggerheart's (submitOnChange)"
+      }
+    },
+    {
+      "surface": "Item tables (title \"Item tables\"): tabs Tier pools, Room pools, Add an item",
+      "file": "scripts/tables-editor.mjs",
+      "opener": "openItemTables:1617 (the GM panel's Between sessions tile tables, gm-panel.mjs:289-290; a ruling's preset; game.drpg)",
+      "audience": "gm (a player refused at :1625-1628)",
+      "controls": [
+        {
+          "label": "Tier pools / Room pools / Add an item (tabs)",
+          "key": "DRPG.Tables.tabTierPools, .tabRoomPools, .tabNewItem",
+          "kind": "tab",
+          "selector": "nav.drpg-tabs",
+          "handler": "wireKitTabs with buttons per tab (:1724-1737)",
+          "effect": "shows the pane and its footer buttons (Install on Tier pools, Create table on Room pools, Add an item on Add an item; Close always)",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A table in the list",
+          "key": "-",
+          "kind": "button",
+          "selector": "[data-drpg-pool-pane] .drpg-tables-list [data-drpg-table]",
+          "handler": "wirePoolPane:1514-1522 -> show",
+          "effect": "writes the fields changed on screen (flush), then draws that table's entries",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Rename (Room pools)",
+          "key": "DRPG.Tables.renameTable",
+          "kind": "button",
+          "selector": "[data-drpg-rename-table]",
+          "handler": "wirePaneHeading:1225-1248 -> promptForTableName",
+          "effect": "renames the table, repoints the rooms that named it, updates the heading and the list entry in place",
+          "gate": "any GM; disabled with no table",
+          "how_read": "code; tier 2 'a room table renamed in the Item tables window ...' named at :1199-1201",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Delete (both pools)",
+          "key": "DRPG.Tables.deleteTable",
+          "kind": "button",
+          "selector": "[data-drpg-delete-table]",
+          "handler": "wirePaneHeading:1250-1285 -> drpgConfirm",
+          "effect": "deletes the table after the question with its entry count, removes it from the list, shows the next",
+          "gate": "any GM; disabled with no table",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "An entry's name and description",
+          "key": "-",
+          "kind": "text fields",
+          "selector": "[data-drpg-field=name|description]",
+          "handler": "wirePaneRows focusout :1407-1458 -> editResult",
+          "effect": "written when changed, a brief saved mark; an empty name refused",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "An entry's role boxes",
+          "key": "-",
+          "kind": "checkbox",
+          "selector": "[data-drpg-role]",
+          "handler": "wirePaneRows change :1375-1400",
+          "effect": "writes the roles at once; one extra role",
+          "gate": "any GM; locked under MULTI_ROLE_TIER",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "An entry's picture",
+          "key": "-",
+          "kind": "image button",
+          "selector": "[data-drpg-result-img]",
+          "handler": "wirePaneRows :1340-1361 -> FilePicker",
+          "effect": "writes the picked image",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Place (which pools hold it)",
+          "key": "DRPG.Tables.place",
+          "kind": "button",
+          "selector": "[data-drpg-place]",
+          "handler": "wirePaneRows :1316-1330 -> placeResultDialog:583",
+          "effect": "copies or removes the entry across pools; redraws the table and every count in both lists",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Remove (x)",
+          "key": "DRPG.Tables.drop",
+          "kind": "button",
+          "selector": "[data-drpg-drop]",
+          "handler": "wirePaneRows :1334-1338 -> dropResult:543",
+          "effect": "deletes the entry at once and redraws the table's entries",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "the list's item count beside the table is not touched (finding 8)"
+        },
+        {
+          "label": "Room filter (Room pools)",
+          "key": "DRPG.Tables.roomFilter",
+          "kind": "select",
+          "selector": "[data-drpg-room-filter]",
+          "handler": "wireRoomFilter:276-281",
+          "effect": "shows one group of the room pool",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control); '.drpg-window-tables .drpg-room-groups > .drpg-room-group[hidden] { display: none }' (components.css): the groups the filter hides, by design",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Add an item's fields: name, description, category, tier, roles, room pools, picture grid, Another file",
+          "key": "DRPG.Tables.*, DRPG.Items.*",
+          "kind": "fields",
+          "selector": ".drpg-tables-new-item [name=newName|newText|newCategory|newTier|role:*|target:*|newImgChoice]",
+          "handler": "wireNewItemForm:1108-1170, wireItemPicture:848-889",
+          "effect": "the target pool said, the roles gated by tier, the picture chosen or picked",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Add an item",
+          "key": "DRPG.Tables.addItem",
+          "kind": "button (primary)",
+          "selector": "footer button[data-action=add]",
+          "handler": "callback readNewItemForm:1081 -> :1771-1785 addItemFrom",
+          "effect": "the item made in the pools picked, the window drawn again",
+          "gate": "any GM; shown on Add an item's tab",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "silent",
+          "detail": "a refusal (no name, no pool) reopens the window empty: every other field typed is gone, unsaid (finding 9)"
+        },
+        {
+          "label": "Create table (Room pools)",
+          "key": "DRPG.Tables.createTable",
+          "kind": "button (secondary)",
+          "selector": "footer button[data-action=newPool]",
+          "handler": "readNewPoolName:1102 -> createPoolFrom:1536, then reopen",
+          "effect": "makes the room pool, or comes back on the tab with the name kept and the refusal under it",
+          "gate": "any GM",
+          "how_read": "code; R4057",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Install / reinstall",
+          "key": "DRPG.Tables.installAction",
+          "kind": "button (destructive)",
+          "selector": "footer button[data-action=install]",
+          "handler": "action 'install' :1759-1762 -> installTables:80",
+          "effect": "installs the missing pools, or asks Keep mine / Delete and rebuild when all are present; the window comes back",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button (close role)",
+          "selector": "footer",
+          "handler": "the kit",
+          "effect": "closes; every row saved itself",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "game.tables: every module table, its results, their names, descriptions, pictures and roles flags, at open (moduleTables at :1630)",
+          "the rooms' item tables for the room groups"
+        ],
+        "listens": [
+          "none: no keepLive, keepFresh or RollTable/TableResult hook"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "a table or an entry changed in Foundry's own RollTable sheet (Install ends on the sidebar's tables tab: openTablesTab:1788), by another GM's Item tables window, or a table created or deleted in the sidebar - the lists, counts and rows stay as drawn (finding 8)",
+          "the count beside a table after its own Remove (tables-editor.mjs:1337)"
+        ],
+        "focus_rule": "no redraw from outside; the window's own redraws (a table picked) write the fields changed first (flush:1477-1495)"
+      }
+    },
+    {
+      "surface": "Install the tables (question, title \"Install item tables\")",
+      "file": "scripts/tables-editor.mjs",
+      "opener": "installTables:93, only when every pool is already present",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Keep mine",
+          "key": "DRPG.Tables.keep",
+          "kind": "button (primary)",
+          "selector": "footer [data-action=keep]",
+          "handler": "answer 'keep' :106-110",
+          "effect": "nothing installed, told in blue",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Delete and rebuild",
+          "key": "DRPG.Tables.recreate",
+          "kind": "button (destructive)",
+          "selector": "footer [data-action=recreate]",
+          "handler": "overwrite = true :111",
+          "effect": "rebuilds the default set",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer",
+          "handler": "the kit",
+          "effect": "nothing",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "which pools exist, at the call"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "Place an entry (title \"Where does <name> live?\")",
+      "file": "scripts/tables-editor.mjs",
+      "opener": "placeResultDialog:583, from a row's Place",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "A pool's box (tier pools, room pools)",
+          "key": "-",
+          "kind": "checkbox",
+          "selector": "[name=table:<id>]",
+          "handler": "callback :621-624",
+          "effect": "the pools picked",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Save",
+          "key": "DRPG.Tables.placeSave",
+          "kind": "button (primary)",
+          "selector": "footer [data-action=save]",
+          "handler": "placeResultDialog:629-679",
+          "effect": "copies into the pools ticked, removes from those unticked; no box ticked is refused, told; nothing changed is told",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer",
+          "handler": "the kit",
+          "effect": "nothing",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the pools and which hold the name, at open"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "a short modal question"
+      }
+    },
+    {
+      "surface": "Rename a table (one-field question)",
+      "file": "scripts/tables-editor.mjs",
+      "opener": "promptForTableName:683, from Rename",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "The name",
+          "key": "-",
+          "kind": "text field",
+          "selector": "[name=name]",
+          "handler": "drpgPrompt callback",
+          "effect": "the name; a refused one comes back with the reason under it (:683-716)",
+          "gate": "GM",
+          "how_read": "code; E14 fix e1-G7",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Rename",
+          "key": "DRPG.Tables.renameTable",
+          "kind": "button (primary)",
+          "selector": "footer",
+          "handler": "drpgPrompt",
+          "effect": "answers the name",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "-"
+        ],
+        "listens": [
+          "-"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "-"
+      }
+    },
+    {
+      "surface": "Delete a table (question)",
+      "file": "scripts/tables-editor.mjs",
+      "opener": "wirePaneHeading:1258 (drpgConfirm)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Delete table",
+          "key": "DRPG.Tables.deleteTable",
+          "kind": "button (destructive)",
+          "selector": "footer",
+          "handler": "drpgConfirm yes",
+          "effect": "the table deleted",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel (default)",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer",
+          "handler": "drpgConfirm",
+          "effect": "nothing",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the table's name and entry count"
+        ],
+        "listens": [
+          "-"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "-"
+      }
+    },
+    {
+      "surface": "The safeword's confirmation (title \"Safeword\")",
+      "file": "scripts/safeword.mjs",
+      "opener": "safewordDialog:387 (the sheet's Stop, the keybinding registerSafeword:430-436, game.drpg.safeword)",
+      "audience": "any user",
+      "controls": [
+        {
+          "label": "Stop it (default)",
+          "key": "DRPG.Safeword.stopIt",
+          "kind": "button (GM's road)",
+          "selector": "footer [data-action=yes]",
+          "handler": "answer true -> callSafeword (:409-419)",
+          "effect": "the GMs told who and where; the card posted (by the primary GM, or by the caller with no GM); the game paused by the primary GM",
+          "gate": "any user",
+          "how_read": "code; R297, R1369",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer [data-action=no]",
+          "handler": "answer false",
+          "effect": "nothing",
+          "gate": "any user",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "-"
+        ],
+        "listens": [
+          "-"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "a modal question"
+      }
+    },
+    {
+      "surface": "Become a Monocub? (the invitation, title \"An invitation\")",
+      "file": "scripts/monocub.mjs",
+      "opener": "openInvitation:487, from receiveCubs:322 when the owner's copy says invited",
+      "audience": "the dead student's player (never a GM: :488)",
+      "controls": [
+        {
+          "label": "Accept the Rule",
+          "key": "DRPG.Monocub.inviteAccept",
+          "kind": "button (primary)",
+          "selector": "footer [data-action=accept]",
+          "handler": "requestCubAnswer -> answerMonocubOffer:458 on the primary GM",
+          "effect": "the Rule taken and the student made a Monocub; refused by the bridge when no invitation is open any more",
+          "gate": "the owner",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "finding 5"
+        },
+        {
+          "label": "Not now",
+          "key": "DRPG.Monocub.inviteDecline",
+          "kind": "button (secondary)",
+          "selector": "footer [data-action=decline]",
+          "handler": "requestCubAnswer accept false",
+          "effect": "the invitation closed, the GMs told",
+          "gate": "the owner",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "finding 5"
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the owner's copy of the Monocub row (invited) at the moment it arrived"
+        ],
+        "listens": [
+          "none: the window is not closed or redrawn when the copy says the invitation is gone (receiveCubs:320-325 only forgets that it was shown)"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "a GM's Withdraw (cancelMonocubOffer:441) or the student brought back to life leaves the window standing (monocub.mjs:322-323)"
+        ],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "A Bribe offered (title \"A Bribe\")",
+      "file": "scripts/monocub.mjs",
+      "opener": "openBribeOffer:1581, from receiveCubs:324, once per offer",
+      "audience": "the Monocub's player",
+      "controls": [
+        {
+          "label": "Accept",
+          "key": "DRPG.Monocub.bribeAccept",
+          "kind": "button (primary)",
+          "selector": "footer [data-action=accept]",
+          "handler": "requestBribeAnswer accept true",
+          "effect": "paid on the GM in one step; refused when the offer is no longer open",
+          "gate": "the owner",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "finding 5"
+        },
+        {
+          "label": "Refuse",
+          "key": "DRPG.Monocub.bribeRefuse",
+          "kind": "button (secondary)",
+          "selector": "footer [data-action=refuse]",
+          "handler": "requestBribeAnswer accept false",
+          "effect": "the offer closed unpaid",
+          "gate": "the owner",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "stale_state",
+          "detail": "finding 5"
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the offer as the copy carried it"
+        ],
+        "listens": [
+          "none"
+        ],
+        "verdict": "stale",
+        "gaps": [
+          "the offer answered from the sheet's Monocub panel (sheet-actions.mjs:364-381 draws Accept and Refuse for the same offer), lapsed at the next time of day (settleBribes) or closed by the darkening: the window stays (monocub.mjs:1581-1600)"
+        ],
+        "focus_rule": "no field"
+      }
+    },
+    {
+      "surface": "Required modules unavailable",
+      "file": "scripts/requirements.mjs",
+      "opener": "announceMissingRequirements (window at :119), at init when a requirement is missing; a player gets a permanent notice instead (:105-108)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Understood",
+          "key": "DRPG.Requirements.understood (its own words file)",
+          "kind": "button (primary)",
+          "selector": "footer [data-action=ok]",
+          "handler": "the kit",
+          "effect": "closes",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "missingRequirements() at init"
+        ],
+        "listens": [
+          "-"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "-"
+      }
+    },
+    {
+      "surface": "A newer Daggerheart",
+      "file": "scripts/requirements.mjs",
+      "opener": "announceNewerSystem:372 (at ready; again from Diagnostics' Show again)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Do not mention <version> again",
+          "key": "DRPG.Requirements.newerSystemSilence",
+          "kind": "checkbox",
+          "selector": "[name=silence]",
+          "handler": "callback :404-406",
+          "effect": "the silence written for this version on this browser (:410)",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Understood",
+          "key": "DRPG.Requirements.understood",
+          "kind": "button (primary)",
+          "selector": "footer [data-action=ok]",
+          "handler": "callback",
+          "effect": "closes; the silence when ticked",
+          "gate": "GM",
+          "how_read": "code; R1552",
+          "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ],
+      "refresh": {
+        "reads": [
+          "the patch probe at the call"
+        ],
+        "listens": [
+          "-"
+        ],
+        "verdict": "n/a",
+        "gaps": [],
+        "focus_rule": "-"
+      }
+    }
+  ],
+  "counts": {
+    "surfaces": 25,
+    "controls": 93,
+    "ok": 79,
+    "dead": 1,
+    "throws": 0,
+    "mislabeled": 0,
+    "wrong_audience": 0,
+    "silent": 2,
+    "stale_state": 10,
+    "unknown": 1
+  },
+  "findings": [
+    {
+      "id": "controls-10-setup-config-1",
+      "severity": "major",
+      "verdict": "dead",
+      "title": "Reset the season in Season setup does nothing: the window closes and the reset never opens",
+      "surface": "Season setup",
+      "control": "Reset the season",
+      "where": "scripts/season-setup.mjs:1200-1204 (the press), 1213-1215 (what follows the window)",
+      "what_happens": "The press sets resetAsked and calls dialog.close(). A DialogV2 closed with rejectClose: false answers null, so result is null; line 1214 returns null on '!result' before line 1215 reads resetAsked. End the chapter, built the same way beside it, works only because its flag is read first (1213). Since E101 this frame is Reset the season's one door: the GM panel's tile went in E49 A1d (gm-panel.mjs:305-308), and no game.drpg entry or other caller of resetSeason exists (git grep: season-setup.mjs:1215 is the only call outside season-wipe.mjs).",
+      "evidence": "dialog.element.querySelector(\"[data-drpg-reset-season]\")?.addEventListener(\"click\", ev => {\n    ev.preventDefault();\n    resetAsked = true;\n    dialog.close();\n});\n[...]\nif (endAsked) return endTheChapter(() => import(\"./chapter.mjs\").then(m => m.openChapterEndDialog()));\nif (!result || result === \"close\") return null;\nif (resetAsked) return (await import(\"./season-wipe.mjs\")).resetSeason();",
+      "failure_scenario": "A GM ending a season opens Season setup and presses Reset the season: the window closes, nothing else opens and nothing is said, and no other button in the module starts a reset.",
+      "expected": "the reset's flag read before the null answer, as End the chapter's is, so the press opens season-wipe.mjs resetSeason",
+      "confidence": "read",
+      "refutation_tried": "Looked for another answer of the close: drpgWindow returns DialogV2.wait(config) (ui-kit.mjs:1344), and rejectClose: false is passed (:1210), so a close() answers null; the footer has no 'reset' action since E101 (R4055 asserts its absence). Looked for another door: gm-panel.mjs has no seasonReset tile (R3582's 'tiles: [false, ...]'), api.mjs names no resetSeason, chapter.mjs:826 only mentions it in a comment. Looked for a test that presses it: R4055 (tests-tier1.mjs:20336-20354) and the test at tests-tier1.mjs:20694 match the source line 'if (resetAsked) return ...' by regular expression and press nothing; the tier 2 tests that drive openSeasonSetup (E49-A1e, E101-T10, E101-T11, the End the chapter press at tests-tier2.mjs:99458) do not press Reset. The order came in 59e1997a (r112 review P2, P4), the first commit holding 'if (resetAsked)'. base-run.json is not present, so no result is cited.",
+      "probe": "As a GM: await game.drpg... openSeasonSetup() (season-setup.mjs), press [data-drpg-reset-season], then read whether any window with the class drpg-window-season-reset is in foundry.applications.instances (expected one; read: none)"
+    },
+    {
+      "id": "controls-10-setup-config-2",
+      "severity": "major",
+      "verdict": "stale_state",
+      "title": "Season setup's Save writes the clock's six fields and the safeword as they were when the window opened: a time step, a trial started or another GM's change since is undone without a question",
+      "surface": "Season setup",
+      "control": "Save (with Edit campaign's six fields and the safeword)",
+      "where": "scripts/season-setup.mjs:1134, 1161 (drawn once), 1179 (read), 1250, 1255-1258 (written); scripts/gm-campaign.mjs:347-361 (the patch of all six)",
+      "what_happens": "The fields are drawn from getClock() and the safeword setting once, and the window has no live region or hook. Save hands every field to applyCampaignForm, which builds a patch of campaignName, chapter, day, phase, session and timeOfDay from the form and writes it through setClock; only a chapter change and an entry into the Class Trial ask first (gm-campaign.mjs:308-334). So a time of day or a day stepped on the HUD or the GM panel while Season setup stood open is set back (and correctsTheHour, :357, then calls off an assembly), and a Class Trial started from the trial console meanwhile is left by the phase select still reading Investigation - clock.mjs reconcilePhase:999-1034 then ends the floor, shuts the vote uncounted and runs the sentence's exit. The safeword is written when the drawn value differs from the setting as it stands, so another GM's new word is put back. The comment at gm-campaign.mjs:281-286 says the Eclipse warning compares against the clock at the write because 'it is not a live window'; the write itself does not.",
+      "evidence": "const patch = {\n    campaignName: result.campaignName,\n    chapter,\n    day: result.day,\n    phase,\n    session: result.session,\n    timeOfDay: result.timeOfDay\n};\n[...]\nawait setClock(patch);\n(gm-campaign.mjs:347-361)\n\nif (result.safeword !== safeword()) {\n    await setSetting(SETTINGS.safeword, result.safeword);\n(season-setup.mjs:1255-1256)",
+      "failure_scenario": "A GM opens Season setup in the Morning to set the safeword, leaves it open, steps the clock to Afternoon on the HUD, then presses Save: the clock goes back to Morning with no question and the table's Afternoon is undone.",
+      "expected": "the window redraws its fields from the clock and the safeword when they change (the owner's rule of 20.11.2026), or Save writes only the fields the GM changed",
+      "confidence": "read",
+      "refutation_tried": "Looked for a guard against a stale form: readClockForm reads every select (gm-campaign.mjs:80-95); the patch takes them all; setClock compares nothing to the form's origin. The only questions are the chapter's (:308-312) and the trial's entry (:321-334); a phase moving out of the trial and a time of day moving back ask nothing. Looked for a live region: openSeasonSetup (season-setup.mjs:1121-1262) calls no keepLive, keepFresh or Hooks.on; Edit campaign's own window (gm-campaign.mjs openClockDialog:204) has none either (git grep keepLive in gm-campaign.mjs: 0). Season setup is not modal (drpgWindow modal defaults to false, ui-kit.mjs:1301), so the HUD and the console stay usable under it. The tier 2 test E49-A1e (tests-tier2.mjs:69266) writes from one fresh clock and does not move the clock under an open window. base-run.json is not present.",
+      "probe": "Open Season setup; from the console setClock({ timeOfDay: <the next one> }); press Save; read getClock().timeOfDay (expected the new one; read in source: the one drawn at open)"
+    },
+    {
+      "id": "controls-10-setup-config-3",
+      "severity": "minor",
+      "verdict": "stale_state",
+      "title": "The Season checklist's rows redraw only after a press of one of its own rows: a pool assigned in Despair Flow or a Mastermind picked from Season setup's tiles beside it leaves the row red",
+      "surface": "Season checklist",
+      "control": "the rows and their marks",
+      "where": "scripts/season-setup.mjs:1316-1371 (the window), 1323-1325 (rows built once), 1110-1119 (Season setup's tiles open Despair Flow and The Mastermind without closing anything)",
+      "what_happens": "steps() is read once when the checklist opens. A row's own Do it / Open closes and reopens it (wireSetupSteps:1047-1101), and Check rooms repaints the rooms row; nothing else redraws it. Season setup's row of tiles - from which the checklist is opened - also opens Despair Flow and The Mastermind, which change the assignments, Nobody public, Uneven split, Overflow and Mastermind rows, and since E101 those windows leave Season setup standing (wireSeasonTiles comment :1103-1109), so the checklist beside them keeps its old marks and its count of what is still to do.",
+      "evidence": "const list = steps();\n// The First session screen's rows under their own heading, the rest as they were (E51 C8).\nconst rows = setupRows(list.filter(step => step.group !== FIRST_SESSION), { label: game.i18n.localize(\"DRPG.Season.checklistTitle\") });\nconst outstanding = list.filter(s => !s.done && !s.optional).length;",
+      "failure_scenario": "A GM with the Season checklist open presses Despair Flow on Season setup's row, assigns every student a pool and saves: the checklist still shows 'Every student feeds a pool' red with the names, and 'N still to do' unchanged, until it is closed and opened again.",
+      "expected": "the rows redraw when the world they read changes (actors, assignments, the GM stores, scenes, settings), as the owner's rule asks",
+      "confidence": "read",
+      "refutation_tried": "Looked for a keepLive or hook in openSeasonChecklist and fillMoreChecks: none. Looked for the tiles' windows reopening the checklist: Despair Flow is opened through SEASON_TILES (gm-panel.mjs:378-379), which reopens nothing; the checklist's own Open rows for the same windows do round-trip, which is the only road that refreshes. No test reads the checklist after a write made in another window. base-run.json is not present.",
+      "probe": "Open the Season checklist and Despair Flow from Season setup's tiles; assign a pool in Despair Flow; read the checklist's li[data-drpg-key=assignments] data-drpg-state (expected done; read in source: as drawn)"
+    },
+    {
+      "id": "controls-10-setup-config-4",
+      "severity": "minor",
+      "verdict": "stale_state",
+      "title": "Both settings windows draw every setting once and their Save writes a stale row back over a change made elsewhere while they stood open",
+      "surface": "This browser's settings; The game's settings",
+      "control": "Save",
+      "where": "scripts/settings-window.mjs:186-209 (a row's value read at open), 408-437 (saveSettings), 445-523 (no listener)",
+      "what_happens": "Neither window has a live region or a hook. saveSettings compares each drawn field with the setting as it stands at Save (:426), not with the value drawn, so a field the GM never touched but whose setting changed meanwhile differs and is written: the old value replaces the new one. On a GM's Game settings this is any world setting another GM changed in their own window; on this browser's window it is the messenger sounds, which the Sound window's box writes at once (sfx.mjs:727-731), and its volume sliders, which follow only their own window.",
+      "evidence": "const value = fieldValue(field, reg);\nif (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;\nawait game.settings.set(MODULE_ID, key, value);\nwritten.push(key);",
+      "failure_scenario": "Two GMs have Game settings open; one turns Force private rolls off and saves, the other changes Room visibility and saves: Force private rolls is on again, and neither window said so.",
+      "expected": "the rows redraw when their setting changes (updateSetting for world rows, clientSettingChanged for this browser's), or Save writes only rows changed in the window",
+      "confidence": "read",
+      "refutation_tried": "Read openSettingsWindow and openGameSettingsWindow whole: their render wires the section buttons, the theme sync, the scale line, the volumes and Give back, and nothing that listens. diceLookWrites (settings.mjs:1472-1482) compares with the current settings itself, so the dice look's select is the one row that cannot write a stale value back while unchanged on screen - only when the GM picks the same choice that was drawn is it compared against the new value. Writers outside the windows were searched by script for every key of the 35 (setSetting / game.settings.set with SETTINGS.<key> outside settings-window.mjs and tests): messengerSound (sfx.mjs:729) and documentLanguage (i18n.mjs:147, a weak first-start write) are the only ones, so on one browser the case is the messenger sounds; the rest needs a second GM or Foundry's own settings. base-run.json is not present.",
+      "probe": "With two GMs: open Game settings on both, change and save forcePrivateRolls on one, change another row and save on the other; read game.settings.get('danganronpa-rpg', 'forcePrivateRolls')"
+    },
+    {
+      "id": "controls-10-setup-config-5",
+      "severity": "minor",
+      "verdict": "stale_state",
+      "title": "A Monocub invitation or a Bribe window stays open after the GM withdrew the invitation or the offer was answered or lapsed, and its Accept is then refused",
+      "surface": "Become a Monocub?; A Bribe offered",
+      "control": "Accept the Rule / Not now; Accept / Refuse",
+      "where": "scripts/monocub.mjs:320-325 (receiveCubs), 487-516 (openInvitation), 1581-1600 (openBribeOffer); 441-446 (cancelMonocubOffer)",
+      "what_happens": "Each window is opened from the owner's copy of the Monocub row and is never closed or redrawn by a later copy. When a copy says the invitation is gone, receiveCubs only forgets that the window was shown (:323); the window stands. A Bribe offer answered from the sheet's Monocub panel (sheet-actions.mjs:364-381, the same offer's Accept and Refuse), lapsed at the next time of day or closed by the darkening leaves its window as well. A press then goes to the primary GM, whose answerMonocubOffer / bribe answer finds nothing open and refuses; the bridge tells the player the refusal.",
+      "evidence": "for (const [actorId, row] of Object.entries(cubCopy.read() ?? {})) {\n    if (row?.invited) openInvitation(game.actors.get(actorId));\n    else invitationsShown.delete(actorId);\n    for (const [bribeId, offer] of Object.entries(row?.bribes ?? {})) openBribeOffer(game.actors.get(actorId), bribeId, offer);\n}",
+      "failure_scenario": "A dead student's player is reading the invitation when the GM withdraws it; the window stays, the player presses Accept the Rule and is told the request was refused.",
+      "expected": "the window closes (live.mjs closeOpen) or redraws when the copy no longer carries the invitation or the offer",
+      "confidence": "read",
+      "refutation_tried": "Searched for a closer: git grep for drpg-cub-invite and drpg-cub-bribe finds the two drpgWindow calls only; no closeOpen. answerMonocubOffer returns null with no invitation (:458-461), which the bridge turns into a refusal told in the player's language (trust model, E31). Also noticed, not written as its own finding: a window closed with no answer is forgotten (:509, :1596) and opened again at the next copy that reaches this browser, which tellCubOwners sends on every patch of the row (:285-291) - sooner than 'the next load' the comment at :506-508 says; how often a dead student's row is patched before the answer is not read. base-run.json is not present.",
+      "probe": "As the player of a dead student invited by a GM (game.drpg's Monocub offer), keep the invitation open, run cancelMonocubOffer on the GM, then read whether .drpg-cub-invite is still on the player's page"
+    },
+    {
+      "id": "controls-10-setup-config-6",
+      "severity": "nit",
+      "verdict": "stale_state",
+      "title": "The four panel explainers print where things stand and never redraw: the clock, the pools, the actions and Hope, and the projects stay as they were when opened",
+      "surface": "The panel explainers (state, Despair, status, projects)",
+      "control": "the 'where things stand' sections",
+      "where": "scripts/explain.mjs:49-57 (explainer), 232-253, 269-277, 322-375, 383-415",
+      "what_happens": "Each explainer reads the live values once (the clock as the HUD shows it, each pool's Despair and the overflow's hat, the subject's actions left, free Move and Hope, the projects as seen) into a plain window with no live region. The panel it explains, beside it, redraws on every change, so the two disagree while the window stays open.",
+      "evidence": "function explainer(title, body) {\n    return drpgWindow({\n        title,\n        classes: [\"drpg-panel\", \"drpg-explain\"],\n        body: `<div class=\"drpg-explain-body\">${body}</div>`,\n        footer: { close: \"close\" },\n        rejectClose: false\n    });\n}",
+      "failure_scenario": "A player opens the status strip's explainer ('You have 3 of 3 actions'), takes an action from the sheet, and the window still says 3 of 3 under the strip that now says 2.",
+      "expected": "the 'where things stand' section live (keepLive on the clock, the Despair settings, the actor, the projects), the rest of the text left as is",
+      "confidence": "read",
+      "refutation_tried": "Read the four openers and the wiring: no keepLive, keepFresh or hook; explainOnce closes a standing explainer only when another is asked for. The windows are read-only, so nothing is written from a stale value: nit. base-run.json is not present.",
+      "probe": "Open the Despair explainer, write a pool's Despair from the GM's rail, read the explainer's pool row"
+    },
+    {
+      "id": "controls-10-setup-config-7",
+      "severity": "nit",
+      "verdict": "silent",
+      "title": "Copy report says nothing when the copy fails, and the report window comes back as if it had copied",
+      "surface": "Diagnostics' report",
+      "control": "Copy report",
+      "where": "scripts/diagnostics.mjs:2327-2335; scripts/utils.mjs:338-341",
+      "what_happens": "A copy that throws is written to the console by error(), which draws nothing on the page, and the loop continues to the window's next round, which looks the same as after a copy that worked. The 'Copied' notice is the only difference, and its absence is easy to miss.",
+      "evidence": "if (action === \"copy\") {\n    try {\n        await copy(text);\n        notify(localize(\"DRPG.Diagnose.copied\"));\n    } catch (err) {\n        error(\"Could not copy the report\", err);\n    }\n    continue;\n}",
+      "failure_scenario": "A GM on a table served over plain http presses Copy report, the browser refuses the clipboard, the window comes back, and the GM pastes nothing into the report without knowing why.",
+      "expected": "a warning that the copy failed, and the text left selectable as it is (it is in a pre)",
+      "confidence": "read",
+      "refutation_tried": "error() (utils.mjs:338) is console.error plus the session's failure record; no notification. Whether Foundry 14's game.clipboard.copyPlainText throws or falls back where the Clipboard API is missing is not read here (not_established). base-run.json is not present.",
+      "probe": "game.drpg.diagnose(); stub game.clipboard.copyPlainText to reject; press Copy report; read ui.notifications"
+    },
+    {
+      "id": "controls-10-setup-config-8",
+      "severity": "nit",
+      "verdict": "stale_state",
+      "title": "Item tables draws the tables once: its Remove leaves the table's count beside it one too high, and a change made in Foundry's own table sheet or by another GM is not shown",
+      "surface": "Item tables",
+      "control": "Remove (x); the lists and rows",
+      "where": "scripts/tables-editor.mjs:1334-1338 (Remove), 1316-1330 (Place, which does update the counts), 1617-1786 (no listener)",
+      "what_happens": "Remove deletes the entry and redraws the table's entries but not the list's count; Place updates both lists' counts (1322-1328), Remove does not. The window has no hook on RollTable or TableResult, so a rename or an entry changed in Foundry's RollTable sheet - where Install leaves the GM (openTablesTab:1788) - or by a second GM is not drawn, and a row's later edit still writes only its own field (so nothing is lost; the view is old).",
+      "evidence": "const drop = ev.target.closest(\"[data-drpg-drop]\");\nif (drop) {\n    ev.preventDefault();\n    const table = game.tables.get(drop.dataset.drpgDropTable);\n    if (await dropResult(table, drop.dataset.drpgDrop)) show(table);\n    return;\n}",
+      "failure_scenario": "A GM removes two entries from 'Kitchen' and reads the list: it still says 14 items where the table holds 12, until the window is opened again.",
+      "expected": "Remove updates the count as Place does, and the window listens for its tables' changes",
+      "confidence": "read",
+      "refutation_tried": "show(table) redraws bodyEl only (wirePoolPane:1497-1508); the count is the list's [data-drpg-table-count] cell, written by poolListHtml at open and by Place's loop. No keepLive in the file (git grep: 0). base-run.json is not present.",
+      "probe": "Open Item tables on a room pool, press a row's [data-drpg-drop], read the list's [data-drpg-table-count] against table.results.size"
+    },
+    {
+      "id": "controls-10-setup-config-9",
+      "severity": "nit",
+      "verdict": "silent",
+      "title": "Add an item refused for a missing name or pool reopens the window empty: the description, picture, tier, roles and ticks typed are gone, unsaid",
+      "surface": "Item tables",
+      "control": "Add an item",
+      "where": "scripts/tables-editor.mjs:1771-1778",
+      "what_happens": "The two refusals warn and reopen through openItemTables({ preset }), which draws the Add an item pane from the preset alone (newItemPaneHtml:892), so the window comes back on the first tab (no preset) with every field of the form empty. The warning names the missing part; it does not say the rest was dropped.",
+      "evidence": "if (!action.name) {\n    ui.notifications.warn(game.i18n.localize(\"DRPG.Tables.needsName\"));\n    return reopen(\"drpg-window-tables\", () => openItemTables({ preset }));\n}\nif (!action.tables.length) {\n    ui.notifications.warn(game.i18n.localize(\"DRPG.Tables.needsTable\"));\n    return reopen(\"drpg-window-tables\", () => openItemTables({ preset }));\n}",
+      "failure_scenario": "A GM types a description, picks a picture and ticks three room pools, forgets the name and presses Add an item: the window comes back on Tier pools and the form is blank.",
+      "expected": "the typed form carried back, as Create table carries its refused name (poolError) and Season setup its draft",
+      "confidence": "read",
+      "refutation_tried": "Create table's refusal does carry the name back (createPoolFrom -> poolError, :1739-1756); the Add path has no such carrier. The needsTable case needs a category and tier with no installed pool and no room ticked, so it is rarer than needsName. base-run.json is not present.",
+      "probe": "Open Item tables on Add an item, fill the description and tick a room pool, leave the name empty, press Add an item, read [name=newText] and the ticks on the window that comes back"
+    }
+  ],
+  "not_established": [
+    "No control was pressed in this pass (rule: no harness run). Every row is label -> element -> listener -> handler -> effect read in source; tests named by their text. audit/findings-1.2.118/base-run.json, probe-42.json and probe-43.json did not exist when this file was written, so no result of a test or probe is cited.",
+    "Finding 1 rests on Foundry's DialogV2.wait answering null when a window is closed with rejectClose: false, read as the kit uses it (ui-kit.mjs:1344) and as every other close-and-null branch of the module assumes; the press on v14 itself is the probe named in the finding.",
+    "Configure Settings' DRPG Settings button: how v14's SettingsConfig constructs and renders a menu's class (the override's render() ignores its options) - LIVE-E49-02.",
+    "Copy report (finding 7): whether Foundry 14's game.clipboard.copyPlainText throws, or falls back, where the page is not a secure context. New live check: game.drpg.diagnose() on a world served over plain http, press Copy report, paste.",
+    "Monocub windows: how often a dead student's row is patched while its invitation or a Bribe waits, which decides how soon a window closed with no answer comes back (finding 5's note). Read on a table: close the invitation unanswered, change the student's row from the GM (a witness mark), see whether the window returns.",
+    "Season setup's tiles (Despair Flow, The Mastermind, Killing game rules): what those windows do is other lanes' files; only that each tile opens its window was read here.",
+    "The keepLive focus rule (live.mjs:126-180: a redraw waits while focus is in a field of the region) is the module's design for every live window and is not met by any surface of this lane, none of which has a live region."
+  ]
+}

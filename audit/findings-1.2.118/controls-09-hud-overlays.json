@@ -1,0 +1,1484 @@
+{
+ "reader": "controls-09-hud-overlays",
+ "read": [
+  {
+   "file": "scripts/hud.mjs",
+   "lines_read": 1300,
+   "of": 1717,
+   "how": "1-160 (header, imports, the track band), 160-310 (registerHud, stillTokenBars), 316-645 (hudHeader, renderHud), 1077-1390 (shell, trial row, buildTimeRow, the chevrons), 1440-1717 (viewerActor, objectionControl, the latch, control); 646-1076 (alignment, the slide, the fit) by outline only"
+  },
+  {
+   "file": "scripts/hud-elapsed.mjs",
+   "lines_read": 135,
+   "of": 324,
+   "how": "190-324 (clockForDisplay, the stopwatch); 1-189 by outline (pause and beat patches, no control)"
+  },
+  {
+   "file": "scripts/player-status.mjs",
+   "lines_read": 550,
+   "of": 675,
+   "how": "36-280 (registration, render), 370-675 (rows, table view, STRIP_SETTINGS)"
+  },
+  {
+   "file": "scripts/despair.mjs",
+   "lines_read": 550,
+   "of": 1341,
+   "how": "30-78 (registration), 293-450 (set, adjust, route to the primary), 1000-1341 (the bar, the caption, the row, the steppers); the rest by outline (owed, conversions, Calls)"
+  },
+  {
+   "file": "scripts/overflow.mjs",
+   "lines_read": 245,
+   "of": 1354,
+   "how": "1107-1352 (the Overflow tab's markup, readOverflowForm, overflowStatus); 110-140 (setOverflowRules); the rest by outline (no control drawn)"
+  },
+  {
+   "file": "scripts/voice-tile.mjs",
+   "lines_read": 700,
+   "of": 1838,
+   "how": "349-430 (the tile and its two buttons), 440-560 (the watch, the Room's events), 885-1240 (mic state, paint, OBJECTION!, Spectator switch, Stop listening, Reveal), 1395-1560 (the list's rows and their buttons), 1636-1838 (the list's frame, the key, registration)"
+  },
+  {
+   "file": "scripts/voice-panel.mjs",
+   "lines_read": 167,
+   "of": 167,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/voice.mjs",
+   "lines_read": 200,
+   "of": 2627,
+   "how": "425-500 (the two warnings, the notice patch), 1172-1211, 1347-1424 (micHold, moduleHoldsMic), 2460-2500 (voicePlan); a grep for addEventListener, buttons and markup over the whole file found no control drawn"
+  },
+  {
+   "file": "scripts/voice-client.mjs",
+   "lines_read": 20,
+   "of": 824,
+   "how": "90-110 (drpgVoiceApplying); a grep for addEventListener, buttons and markup over the whole file found no control drawn"
+  },
+  {
+   "file": "scripts/sound-panel.mjs",
+   "lines_read": 469,
+   "of": 469,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/spectator-ui.mjs",
+   "lines_read": 103,
+   "of": 103,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/spectator.mjs",
+   "lines_read": 30,
+   "of": 123,
+   "how": "outline (readers only, no control)"
+  },
+  {
+   "file": "scripts/camera-view.mjs",
+   "lines_read": 80,
+   "of": 292,
+   "how": "1-80 and a grep: no control of its own (it restyles Foundry's dock and names its tiles)"
+  },
+  {
+   "file": "scripts/float-text.mjs",
+   "lines_read": 40,
+   "of": 394,
+   "how": "1-30 and the listeners at 280-394 by grep: Escape and focus leaving put a lifted field back"
+  },
+  {
+   "file": "scripts/ui-columns.mjs",
+   "lines_read": 67,
+   "of": 67,
+   "how": "grep and the one function (wideWindow, a wrapper of drpgWindow)"
+  },
+  {
+   "file": "scripts/ui-kit.mjs",
+   "lines_read": 210,
+   "of": 1600,
+   "how": "1200-1356 (WINDOW_HELP, dressHelp, drpgWindow), 1515-1560 (drpgConfirm, drpgPrompt)"
+  },
+  {
+   "file": "scripts/window-scale.mjs",
+   "lines_read": 30,
+   "of": 225,
+   "how": "grep: no control"
+  },
+  {
+   "file": "scripts/glass.mjs",
+   "lines_read": 80,
+   "of": 3870,
+   "how": "40-95 (LAUNCHERS), 1060-1080 (the pinned column), a grep for click, pointer and keydown: the curtain draws no control and takes no pointer"
+  },
+  {
+   "file": "scripts/glass-close.mjs",
+   "lines_read": 30,
+   "of": 483,
+   "how": "header and a grep: pure geometry, no DOM, no control"
+  },
+  {
+   "file": "scripts/chrome.mjs",
+   "lines_read": 20,
+   "of": 200,
+   "how": "grep: no control"
+  },
+  {
+   "file": "scripts/foundry-windows.mjs",
+   "lines_read": 450,
+   "of": 510,
+   "how": "60-510 (header, frames, drag, Escape, launcher, toggles)"
+  },
+  {
+   "file": "neighbours",
+   "lines_read": 900,
+   "of": null,
+   "how": "sync.mjs 60-200, 343-351, 380-530 (SETTING_KINDS, clockNews, REFRESHES, KIND_REFRESH); explain.mjs 49-58, 225-330, 395-520 (the explainers and their wiring); settings.mjs 3225-3250, 3455-3500, 3933-3953, 3990-3997; eclipse.mjs 96-185, 1205-1262; movement.mjs 2730-2800; mask-gm.mjs 690-720 and a grep; monocub.mjs 246-250, 762-764; monokuma.mjs 120-123; gm-team-dialog.mjs 140-200, 290-345; music-play.mjs 1098-1210; sfx.mjs 475-560, 688-790; messenger-app.mjs 1490-1530; handbooks.mjs 530-560; gm-panel.mjs 130-150; clock.mjs 47-49, 688-730, 940-954; settings-window.mjs 340-365"
+  },
+  {
+   "file": "styles/*.css",
+   "lines_read": null,
+   "of": null,
+   "how": "a script (comments kept as blank lines so line numbers hold) listed every rule whose selector names a lane control and whose body hides or disables it (display none, visibility hidden, pointer-events none, opacity 0): 149 rules naming the HUD (11 hide), 122 the Despair bar and caption (3), 81 the voice tile and list (8), 71 the corner launchers, the Foundry tools frames and the help button (5); each hit read in place, and every pointer-events rule naming the Despair panel listed (2)"
+  }
+ ],
+ "count_note": "docs/dev/e59/WINDOWS.md has 5 rows in the lane's files: sound-panel.mjs openPlayerSoundDialog (56) and openSoundDialog (388), ui-columns.mjs wideWindow (66), ui-kit.mjs drpgConfirm (1466) and drpgPrompt (1480); the code holds the same 5 sites (grep for drpgWindow, drpgConfirm, drpgPrompt, DrpgApp, DialogV2 and ApplicationV2 in the 21 files). Three of them are the kit's helpers that other files call (wideWindow, drpgConfirm, drpgPrompt), read here as one surface; the two Sound windows are two surfaces. The other 12 surfaces are not kit windows and so not in WINDOWS.md, as its header says (the HUD, the Despair bar, the strip, the voice tile and its list, the corner's launchers, Foundry's token HUD); the two Foundry tools frames are the kit's frame() rather than a drpgWindow, and are not in it either. The explainers (WINDOWS.md row explain.mjs explainer, 51) and the Overflow tab (inside gm-team-dialog.mjs openGmTeamDialog, 278) belong to files outside the lane and are read because a lane surface opens them or a lane file draws them. voice.mjs, voice-client.mjs, spectator.mjs, camera-view.mjs, chrome.mjs, window-scale.mjs, glass.mjs and glass-close.mjs draw no control: 0 rows each. No probe-42.json, probe-43.json or base-run.json stood in audit/findings-1.2.118/ when this was read, so no row is H.",
+ "surfaces": [
+  {
+   "surface": "The clock (HUD, #drpg-hud): campaign, chapter and day, the phase stamp, the time of day row with its controls, the stopwatch, the track band",
+   "file": "scripts/hud.mjs, scripts/hud-elapsed.mjs",
+   "opener": "registerHud: ready, canvasReady and every redraw source below (hud.mjs:165-259)",
+   "audience": "all; the chevrons GM only, OBJECTION! a living student's player only",
+   "controls": [
+    {
+     "label": "Step back one time of day (left chevron)",
+     "key": "DRPG.Hud.rewind / DRPG.Hud.rewindEclipse",
+     "kind": "button",
+     "selector": "#drpg-hud .drpg-hud-time-row .drpg-hud-button (fa-chevron-left)",
+     "handler": "hud.mjs:1235-1240 control() -> clock.mjs:688 rewindTimeOfDay",
+     "effect": "steps the clock back one time of day; during an Eclipse refuses with \"An Eclipse is running. End it first.\" (clock.mjs:715-718), the tooltip saying the same (hud.mjs:1237)",
+     "gate": "GM only (drawn under isGM, hud.mjs:1235; rewindTimeOfDay returns for a player, clock.mjs:689); the row's latch refuses a second press for 400 ms past the handler, 10 s at most (hud.mjs:1620-1666)",
+     "how_read": "code; the latch's reasons in the comment at hud.mjs:1590-1625 (HUD-01)",
+     "themes": "drawn in both themes; danganronpa.css:1076-1109 and stained-glass.css:3371-3390 dim it, hide nothing; #drpg-hud is pointer-events none and its children opt back in (danganronpa.css:995-998, 1076-1077); hidden in a Class Trial by design (the trial row takes it, hud.mjs:1182-1192)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Start / end the Eclipse (right chevron, play while one runs)",
+     "key": "DRPG.Hud.startEclipseNamed / startEclipseFree / startEclipseNewSession / endEclipse, or the refusal's own key",
+     "kind": "button",
+     "selector": "#drpg-hud .drpg-hud-time-row .drpg-hud-button (fa-chevron-right / fa-play)",
+     "handler": "hud.mjs:1319-1330 control() -> boundary.mjs toggleEclipse",
+     "effect": "opens the placement window, or ends it and starts the next time of day; held (dimmed, aria-disabled, still pressable) with the gate's own words over an unanswered body or a running incident (eclipse.mjs startRefusalOf, hud.mjs:1306-1308)",
+     "gate": "GM only; the same latch",
+     "how_read": "code; tier 0 R1194 (one road for the Eclipse, the chevron and the panel's Do it) named from its text, result not read",
+     "themes": "as the left chevron",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "OBJECTION! (trial row)",
+     "key": "DRPG.Trial.objection",
+     "kind": "button",
+     "selector": "#drpg-hud .drpg-hud-objection",
+     "handler": "hud.mjs:1511-1585 objectionControl -> trial.mjs raiseObjection",
+     "effect": "previews whom it would be aimed at on pointer or focus; a held press says why; otherwise asks the primary GM for the Objection",
+     "gate": "a player whose viewer is a living student not on the trial's list of the dead, in a Class Trial, only where no voice tile stands (hud.mjs:1206, 1478-1480); its own latch (objectionRaising)",
+     "how_read": "code; tier 1 R592 (drawn for a living student, none for a Monokuma, Monocub or the dead) named from its text, result not read",
+     "themes": "danganronpa.css:3678-3692 and stained-glass.css:3402-3410 colour it, hide nothing",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The clock itself: click, Enter or Space",
+     "key": "DRPG.Explain.state.window",
+     "kind": "panel",
+     "selector": "#drpg-hud (tabindex 0, aria-haspopup dialog)",
+     "handler": "explain.mjs:463-490 registerExplainers (delegated) -> explainOnce(openStateExplainer)",
+     "effect": "closes any explainer standing and opens \"Where things stand\"; a click on a chevron or OBJECTION! opens nothing (INTERACTIVE, explain.mjs:454-455)",
+     "gate": "anyone",
+     "how_read": "code; tier 1 R3463 (Enter opens it, one explainer at a time, a click on a control opens none) named from its text, result not read",
+     "themes": "cursor help in both themes (danganronpa.css:17074-17083); the campaign line, stamp and rows opt into the pointer (danganronpa.css:995-998)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "setting clock (shown through clockForDisplay: a bystander's frozen copy during an incident)",
+     "game.paused",
+     "setting murderState (incidentWitness, the Eclipse refusal)",
+     "setting bodyFound (the Eclipse refusal)",
+     "settings trialQueue and trialProgress (the trial row, the Confer line, OBJECTION!'s hold, the dead's voice line)",
+     "settings overflow and overflowRules (the Eclipse chevron's crossings, overflowCrossings)",
+     "the voice tile's presence (#drpg-voice-tile)",
+     "this browser's audio (nowPlayingHere) and the murder track",
+     "the body classes drpg-theme-stained-glass and drpg-no-ticker"
+    ],
+    "listens": [
+     "sync.mjs KIND_REFRESH: the clock's row (on any change of the clock's JSON, clockNews sync.mjs:343-351), despair, projects, searchTokens, restrictions (seals, bodyFound, pendingGather), incident (murderState), trial (trialQueue, trialProgress, chapterEnd), rules, overflow, visibility (Eclipse crossings, deaths kept) - each runs `hud` (sync.mjs:478-528)",
+     "updateSetting for every module world setting not on the bus (hud.mjs:231-237)",
+     "pauseGame (hud.mjs:204-208)",
+     "canvasReady, renderDhCountdowns",
+     "playlist hooks, drpgMurderMusicChanged and a 3 s interval for the band (hud.mjs:177-186)",
+     "the voice tile asks the row again when it comes or goes (voice-tile.mjs trialRowAgain)",
+     "a 10 s interval for the stopwatch (hud-elapsed.mjs:237-248)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "no field; the row is rebuilt under the pointer, and the latch keeps a press on the rebuilt chevron out (hud.mjs:1590-1625)"
+   }
+  },
+  {
+   "surface": "The four explainers: \"Where things stand\", Despair, the status strip's, Projects (explain.mjs explainer, opened from the clock, the Despair bar, the status strip and the Projects tray)",
+   "file": "scripts/explain.mjs (opened from lane surfaces; not a lane file)",
+   "opener": "explain.mjs:428-433 PANELS, a click or Enter on #drpg-hud, #drpg-despair, #drpg-player-status, #countdowns",
+   "audience": "all",
+   "controls": [
+    {
+     "label": "Close",
+     "key": "the kit's closing word",
+     "kind": "button",
+     "selector": "footer [data-action=close]",
+     "handler": "ui-kit.mjs footerButtons (close: \"close\")",
+     "effect": "closes the window",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "kit footer, no hiding rule",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The window's body (the clock, the phase's paragraph with this character's actions, the pools held/max, the overflow's hat, the strip's counters)",
+     "key": "-",
+     "kind": "readout",
+     "selector": ".drpg-explain-body",
+     "handler": "explain.mjs:232-251 openStateExplainer, 266-310 despairExplainerBody, 314- openStatusExplainer",
+     "effect": "drawn once when the window opens",
+     "gate": "anyone",
+     "how_read": "code; explainer() passes no live option (explain.mjs:49-58), and explain.mjs has no keepLive, keepFresh or hook",
+     "themes": "-",
+     "verdict": "stale_state",
+     "detail": "see finding controls-09-hud-overlays-2"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "setting clock (through clockForDisplay)",
+     "the viewer's actor: actions left and maximum (R4106)",
+     "setting despairPools, poolNames, the owed store on a GM",
+     "the overflow's count, threshold and hat",
+     "the room block (roomBlock)",
+     "the Projects the viewer has seen"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "every source: explain.mjs:49-58 opens the window with no `live`; nothing redraws it until it is closed and a panel is clicked again"
+    ],
+    "focus_rule": "n/a (no field)"
+   }
+  },
+  {
+   "surface": "The Despair bar (#drpg-despair): the heading, a row per Monokuma pool, the overflow caption",
+   "file": "scripts/despair.mjs",
+   "opener": "registerDespair: ready, canvasReady (despair.mjs:34-77) and the bus's `bar`",
+   "audience": "all; the pips and steppers act for a GM only",
+   "controls": [
+    {
+     "label": "A pip (set the pool to N, or N-1 when it is N)",
+     "key": "DRPG.Despair.pipTooltip",
+     "kind": "button (span role=button, tabindex 0)",
+     "selector": "#drpg-despair .drpg-despair-pip",
+     "handler": "despair.mjs:1254-1267 set -> adjustDespair(userId, delta, { clamp: true })",
+     "effect": "asks the one writer for the step from what this row last asked; another GM's press goes to the primary (routeToPrimary, despair.mjs:414-427)",
+     "gate": "GM only (handlers attached under isGM, despair.mjs:1243); a player's pip is a readout and a click on it opens the Despair explainer",
+     "how_read": "code; tier 2 E17-T8 named in the comment at despair.mjs:1248-1253, result not read",
+     "themes": "opted into the pointer (danganronpa.css:1176-1181); cursor pointer only on gm-editable (1240); no theme hides it",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "- (one less)",
+     "key": "DRPG.Look.stepDown, tooltip DRPG.Tips.Gm.minusTooltip",
+     "kind": "button",
+     "selector": "#drpg-despair .drpg-despair-button (fa-minus)",
+     "handler": "despair.mjs:1316-1317 stepper -> adjustDespair(userId, -1)",
+     "effect": "one Despair off the pool, through the primary",
+     "gate": "GM; disabled at 0 (redrawn on every pool change)",
+     "how_read": "code",
+     "themes": "danganronpa.css:1254-1290 style it; opted into the pointer",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "+ (one more)",
+     "key": "DRPG.Look.stepUp, tooltip DRPG.Tips.Gm.plusTooltip",
+     "kind": "button",
+     "selector": "#drpg-despair .drpg-despair-button (fa-plus)",
+     "handler": "despair.mjs:1318-1319 stepper -> adjustDespair(userId, +1)",
+     "effect": "one Despair on the pool; past the maximum it spills into the overflow (adjustDespair without clamp, despair.mjs:357-367)",
+     "gate": "GM; disabled at the maximum",
+     "how_read": "code",
+     "themes": "as the minus",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The steppers on a player's row",
+     "key": "-",
+     "kind": "button (ghost)",
+     "selector": ".drpg-despair-button.is-ghost",
+     "handler": "none attached (despair.mjs:1338-1342)",
+     "effect": "nothing: kept for the width, disabled, tabindex -1, aria-hidden",
+     "gate": "player",
+     "how_read": "code",
+     "themes": "visibility hidden (danganronpa.css .drpg-despair-button.is-ghost)",
+     "verdict": "ok",
+     "detail": "by design: the same width on every client (despair.mjs:1300-1313)"
+    },
+    {
+     "label": "The bar itself: click, Enter or Space",
+     "key": "DRPG.Explain.despair.window",
+     "kind": "panel",
+     "selector": "#drpg-despair",
+     "handler": "explain.mjs registerExplainers -> openDespairExplainer",
+     "effect": "opens the Despair explainer; a GM's pip or stepper opens nothing",
+     "gate": "anyone",
+     "how_read": "code; R3463 by its text",
+     "themes": "the names, counts, rows, pips and buttons take the pointer (danganronpa.css:1176-1181); the heading and the caption do not on a desk layout (finding 3)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The overflow caption's tooltip (GM: the real count and why a full counter has not fired; player: what the counter is)",
+     "key": "DRPG.Overflow.gmHint / gmHintActive / gmHintActiveFull / gmHintQueued / playerHint",
+     "kind": "tooltip (title)",
+     "selector": "#drpg-despair .drpg-overflow-caption",
+     "handler": "despair.mjs:1142-1147 line.title",
+     "effect": "none on a desk layout: the caption takes no pointer, so the browser never shows its title",
+     "gate": "anyone",
+     "how_read": "CSS cascade read by script; not hovered in a browser",
+     "themes": "#drpg-despair is pointer-events none (danganronpa.css:1148-1153) and the caption is not in the opt-in list (1176-1181), in both themes; on the narrow stack #drpg-column > * gives the panel auto (narrow.css:80), so there it shows",
+     "verdict": "dead",
+     "detail": "see finding controls-09-hud-overlays-3"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "setting despairPools, poolNames, monokumaPools, extraPoolUsers",
+     "the owed store (a GM's client setting)",
+     "the users (who is a full GM)",
+     "setting overflow, overflowRules and the clock (the caption's state)"
+    ],
+    "listens": [
+     "SYNC.despair -> bar (sync.mjs:493)",
+     "SYNC.clock, SYNC.eclipse, SYNC.overflow -> bar",
+     "clientSettingChanged on the owed store, GM only (despair.mjs:56-58)",
+     "userConnected, updateUser, createUser, deleteUser, canvasReady"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "the bar is rebuilt whole (despair.mjs:1012); a focused pip loses its focus on a redraw - no field is typed in"
+   }
+  },
+  {
+   "surface": "The status strip (#drpg-player-status): a player's actions, Move feet and Hope; a GM's Still to act / Still placing",
+   "file": "scripts/player-status.mjs",
+   "opener": "registerPlayerStatus (player-status.mjs:40-75); keepMounted puts it back when Foundry's column drops it",
+   "audience": "all (a player's own view, a GM the table's)",
+   "controls": [
+    {
+     "label": "The strip itself: click, Enter or Space",
+     "key": "DRPG.Explain.status window",
+     "kind": "panel",
+     "selector": "#drpg-player-status",
+     "handler": "explain.mjs registerExplainers -> openStatusExplainer",
+     "effect": "opens the strip's explainer",
+     "gate": "anyone",
+     "how_read": "code; R3463 by its text",
+     "themes": "under Stained Glass the pinned column takes no pointer (glass.mjs:1077-1078) and the strip opts back in (stained-glass.css:3420-3421); no theme hides it",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The strip's counters (feet in an Eclipse, a Monocub's Hope with its purse, Still placing, Still to act)",
+     "key": "DRPG.Hud.stillPlacing, DRPG.Hud.stillToAct, DRPG.Actions.eclipseMovesLeft",
+     "kind": "readout",
+     "selector": "#drpg-player-status .drpg-status-*",
+     "handler": "player-status.mjs:432-562 buildPlayerView, 608-660 buildTableView",
+     "effect": "redrawn on its own hooks only",
+     "gate": "-",
+     "how_read": "code; R1013 holds its setting list (named from its text, result not read)",
+     "themes": "-",
+     "verdict": "stale_state",
+     "detail": "see finding controls-09-hud-overlays-1"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the viewer's actor (actions, Hope, the free Move flag, its effects)",
+     "settings clock, overflow, overflowRules, language, theme, murderState (STRIP_SETTINGS, player-status.mjs:671-672)",
+     "the Eclipse's crossings: the GMs' store eclipseMoves on a GM, the owner's copy mineEclipseMoves on a player (settings.mjs:3933-3943, through eclipse.mjs movesLeft/movesUsed)",
+     "a Monocub's purse: the GMs' store gmCubs, the owner's copy mineCubs (monocub.mjs:246-250, 762-764)",
+     "a death the GMs keep (isDeadForGm through monokuma.mjs actingStudents:120-123 and sheetMode's strip)",
+     "the user's assigned character"
+    ],
+    "listens": [
+     "updateActor of a relevant actor (player-status.mjs:50-52)",
+     "create/deleteActiveEffect (effects widget only)",
+     "updateSetting of STRIP_SETTINGS (63-65)",
+     "updateUser of the own user (70-72)",
+     "drpgEclipseChanged (74)",
+     "canvasReady; keepMounted's MutationObserver when the node is gone"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "the Eclipse crossings: a crossing patches the store (eclipse.mjs:1229) and sends the owner's copy (1247); both settings' onChange run SYNC.visibility (settings.mjs:3239, 3246), whose row is visibility, sheets, hud (sync.mjs:485) - not the strip; a crossing writes no actor (movement.mjs:2781-2802)",
+     "a Monocub's purse: onCubsChange refreshes the sheets and calls drpgCubsChanged (settings.mjs:3483-3486); the strip listens to neither",
+     "a death kept by the GMs: onDeathsChange runs SYNC.visibility and drpgDeathsChanged (settings.mjs:3491-3494); the strip listens to neither"
+    ],
+    "focus_rule": "n/a (no field); a redraw that would draw the same markup is skipped (player-status.mjs:240-256)"
+   }
+  },
+  {
+   "surface": "The voice tile (#drpg-voice-tile): who speaks, the microphone, the speaker, and up to three more buttons",
+   "file": "scripts/voice-tile.mjs",
+   "opener": "registerVoiceTile (voice-tile.mjs:1813-1838), drawn where LiveKit is up and the voiceTile setting is on",
+   "audience": "all with voice; OBJECTION! a living student's player, the Spectator switch a Spectator's, Stop listening a listener's, Reveal a masked killer's",
+   "controls": [
+    {
+     "label": "Microphone (mute / unmute)",
+     "key": "DRPG.Voice.mic.mute / unmute, DRPG.Voice.mic.ptt",
+     "kind": "button (mini launcher)",
+     "selector": ".drpg-voice-mic",
+     "handler": "voice-tile.mjs:375-379 -> toggleOwnMic (940-950)",
+     "effect": "flips users.<self>.muted in this browser's A/V client settings; held, a GM's block or offline writes nothing and says why (942-944)",
+     "gate": "anyone with voice; the state is asked at the click",
+     "how_read": "code; tier 1 R537 (micHold's reasons) by its text",
+     "themes": "the tile is pointer-events none (components.css:1170) and mini launchers opt back in (components.css:1286-1306); the lock and the PTT badge are hidden by state (components.css:1081, 1093; pixel-icons.css:1509 under glass for a GM's block, whose face is drawn there instead); no theme hides the button",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Speaker (Who you hear)",
+     "key": "DRPG.Voice.list.open, DRPG.Voice.list.count",
+     "kind": "button (mini launcher)",
+     "selector": ".drpg-voice-speaker",
+     "handler": "voice-tile.mjs:390-398 -> toggleVoiceList",
+     "effect": "opens or closes the list of who this browser hears",
+     "gate": "anyone with voice",
+     "how_read": "code",
+     "themes": "as the microphone",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "OBJECTION! (tile)",
+     "key": "DRPG.Trial.objection, DRPG.Trial.objectionOutside",
+     "kind": "button (mini launcher)",
+     "selector": ".drpg-voice-objection",
+     "handler": "voice-tile.mjs:1080-1094 paintObjection -> hud.mjs objectionControl(host: tile)",
+     "effect": "outside a trial held with \"You can raise an Objection only in a Class Trial.\" and the press says so; in a trial as the row's",
+     "gate": "a living student's player; one latch with the row's",
+     "how_read": "code; E70-T13 named in the comment, result not read",
+     "themes": "as the microphone",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Talk with the Spectators / Listen in your room",
+     "key": "DRPG.Spectator.talk / talkBack",
+     "kind": "toggle (mini launcher, aria-pressed)",
+     "selector": ".drpg-voice-spectator-talk",
+     "handler": "voice-tile.mjs:1112-1148 -> spectator-ui.mjs:30-39 toggleSpectatorTalk",
+     "effect": "writes or unsets the player's own User flag; the primary moves the voice; the tile repaints on updateUser",
+     "gate": "a Spectator's account only",
+     "how_read": "code",
+     "themes": "as the microphone",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Stop listening",
+     "key": "DRPG.Listen.eavesdrop.stop",
+     "kind": "button (mini launcher)",
+     "selector": ".drpg-voice-stop-listening",
+     "handler": "voice-tile.mjs:1152-1186 -> stopListening (1225-1230) -> bridge-asks.mjs requestEavesdropStop",
+     "effect": "asks the primary GM to end the eavesdrop; the copy's change takes the button away",
+     "gate": "the owner of a character listening at a door",
+     "how_read": "code",
+     "themes": "as the microphone",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Reveal yourself",
+     "key": "DRPG.Mask.reveal",
+     "kind": "button (mini launcher)",
+     "selector": ".drpg-voice-reveal",
+     "handler": "voice-tile.mjs:1189-1215 -> requestReveal (mask.reveal)",
+     "effect": "asks the primary GM to take the mask off",
+     "gate": "the owner of a masked character",
+     "how_read": "code",
+     "themes": "as the microphone",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The mute key (a keybinding)",
+     "key": "the module's mute keybinding",
+     "kind": "key",
+     "selector": "game.keybindings",
+     "handler": "voice-tile.mjs:1732-1760 onMuteKey -> toggleOwnMic",
+     "effect": "the microphone button's press from the keyboard; nothing where voice is not available",
+     "gate": "anyone with voice",
+     "how_read": "code",
+     "themes": "-",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "this browser's A/V client settings (muted, mode, muteAll)",
+     "the LiveKit Room's participants and active speakers",
+     "micHold: the Room voice-client.mjs wants, the Eclipse room, the trial's facts (clock, trialQueue, trialProgress), the eavesdrop copy, the mask and veil token flags, the user's BROADCAST_AUDIO",
+     "spectator flags on actors and the user's own flag",
+     "the floor (has the floor mark)"
+    ],
+    "listens": [
+     "Room events: activeSpeakersChanged, participantConnected/Disconnected, connectionStateChanged, disconnected (voice-tile.mjs:524-539)",
+     "rtcSettingsChanged (1815)",
+     "updateUser (1819-1822)",
+     "drpgVoiceApplying (state word), drpgEavesdropCopy, drpgMaskChanged, drpgEavesdropChanged (1823-1828)",
+     "updateSetting of clock, trialQueue, trialProgress (1833-1836)",
+     "SYNC.trial -> voiceTile (sync.mjs:510)",
+     "updateActor with flags (spectator-ui.mjs:96)",
+     "liveKitClientInitialized"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "each button is written only where it differs, so a repaint swaps no button under the pointer or the focus (voice-tile.mjs:1095-1110, 1139-1147)"
+   }
+  },
+  {
+   "surface": "Who you hear (the voice list, a popover by the tile)",
+   "file": "scripts/voice-tile.mjs",
+   "opener": "the speaker button (toggleVoiceList, voice-tile.mjs:1720)",
+   "audience": "all with voice; the block column a GM's",
+   "controls": [
+    {
+     "label": "Mute all",
+     "key": "Foundry's muteAll",
+     "kind": "button",
+     "selector": ".drpg-voice-list [mute all]",
+     "handler": "voice-tile.mjs:1637 -> toggleMuteAll (1413-1418)",
+     "effect": "flips this browser's muteAll; the speaker button is struck and the settings launcher marked (sfx.mjs refreshSoundLauncher)",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule but [hidden] (components.css:1564-1566)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A row's volume slider",
+     "key": "DRPG.Tips.More.volumeTooltip",
+     "kind": "slider",
+     "selector": ".drpg-voice-row-volume",
+     "handler": "voice-tile.mjs:1489-1505 -> setPeerVolume, moveVolume",
+     "effect": "sets that person's volume as it moves, saves after VOLUME_SAVE_MS or on change",
+     "gate": "a person in this browser's Room",
+     "how_read": "code",
+     "themes": "as above",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A row's mute for me",
+     "key": "sound glyph",
+     "kind": "button",
+     "selector": ".drpg-voice-row-mute",
+     "handler": "voice-tile.mjs:1506 -> toggleMuteFor (1397-1410)",
+     "effect": "volume 0 and the old volume kept, or put back",
+     "gate": "a person in this browser's Room",
+     "how_read": "code",
+     "themes": "as above",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Unhide",
+     "key": "DRPG.Voice.list.unhide",
+     "kind": "button",
+     "selector": ".drpg-voice-row-unhide",
+     "handler": "voice-tile.mjs:1510 -> unhidePeer (1421-1426)",
+     "effect": "users.<id>.blocked off in this browser",
+     "gate": "shown only for a person hidden in the dock",
+     "how_read": "code",
+     "themes": "as above",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Block for everybody (GM)",
+     "key": "lock glyph; DRPG.Voice.list.gmHeld / gmSecretDead / gmNoBlock",
+     "kind": "button",
+     "selector": ".drpg-voice-row-block",
+     "handler": "voice-tile.mjs:1517-1520 -> toggleBlock (1448-1466)",
+     "effect": "flips the user's permissions.BROADCAST_AUDIO; refused with its reason where the module holds the microphone, asked at the click",
+     "gate": "GM only (built for a GM's list)",
+     "how_read": "code; tier 1 R539 and R1546 by their names in the docs",
+     "themes": "as above",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close (outside press, Escape, the speaker again)",
+     "key": "-",
+     "kind": "dismiss",
+     "selector": "document pointerdown (capture), keydown on the list",
+     "handler": "voice-tile.mjs:1681-1716 openVoiceList / closeVoiceList, onListKey",
+     "effect": "closes the list and gives focus back",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "-",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the Room's remote participants",
+     "this browser's A/V client settings (volumes, mutes, blocked)",
+     "each user's BROADCAST_AUDIO",
+     "moduleHoldsMic on a GM: the mask, veil and eavesdrop rows, the trial's list of the dead, a death the GMs keep",
+     "the eavesdrops under way (GM)"
+    ],
+    "listens": [
+     "every Room step repaints an open list (paintControls -> paintList, voice-tile.mjs:1057)",
+     "rtcSettingsChanged, updateUser of anybody (1819-1822)",
+     "drpgEavesdropChanged (1828)",
+     "each press repaints it (listAct, 1469-1471)"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "suspected, not traced to the end: a GM's open list after a death the GMs keep or a mask goes up, if no permission write follows (the block button would then stand enabled until the next repaint; the press is refused with its reason, toggleBlock asks at the click)"
+    ],
+    "focus_rule": "rows are kept between paints, so a focused slider keeps its focus and value (voice-tile.mjs:1541-1551)"
+   }
+  },
+  {
+   "surface": "The Voice section of this browser's settings window (fieldset.drpg-voice-panel)",
+   "file": "scripts/voice-panel.mjs (mounted by settings-window.mjs:352-365, not a lane file)",
+   "opener": "the corner's settings launcher -> look.mjs openLookDialog -> settings-window.mjs voiceSection, where voiceAvailable()",
+   "audience": "all with voice",
+   "controls": [
+    {
+     "label": "Microphone (select)",
+     "key": "DRPG.Voice.panel.mic",
+     "kind": "select",
+     "selector": "select[name='voice:audioSrc']",
+     "handler": "voice-panel.mjs:158-163 change -> writeVoiceSetting (46-51)",
+     "effect": "writes audioSrc into this browser's A/V client settings",
+     "gate": "anyone; before the browser allowed the microphone a note stands instead (126)",
+     "how_read": "code; tier 1 R542 by its text",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Sound output (select)",
+     "key": "DRPG.Voice.panel.output",
+     "kind": "select",
+     "selector": "select[name='voice:audioSink']",
+     "handler": "the same listener",
+     "effect": "writes audioSink",
+     "gate": "only where the browser lists outputs",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Always on / Push to talk",
+     "key": "DRPG.Voice.panel.modeAlways / modePtt",
+     "kind": "radio",
+     "selector": "input[name='voice:mode']",
+     "handler": "the same listener",
+     "effect": "writes voice.mode (always or ptt only)",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Change the key",
+     "key": "DRPG.Voice.panel.pttChange",
+     "kind": "button",
+     "selector": ".drpg-voice-panel-key-change",
+     "handler": "voice-panel.mjs:146-154 -> openControls (97-102)",
+     "effect": "opens Foundry's Configure Controls",
+     "gate": "where Foundry has ControlsConfig",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The push-to-talk key line",
+     "key": "DRPG.Voice.panel.pttKey",
+     "kind": "readout",
+     "selector": ".drpg-voice-panel-key > span",
+     "handler": "voice-panel.mjs:143",
+     "effect": "names the key read when the window was built",
+     "gate": "-",
+     "how_read": "code: no listener for a keybinding change",
+     "themes": "-",
+     "verdict": "stale_state",
+     "detail": "see finding controls-09-hud-overlays-6"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "game.webrtc.settings.client (audioSrc, audioSink, voice.mode)",
+     "the AVClient's device lists (getAudioSources, getAudioSinks)",
+     "the core pushToTalk keybinding"
+    ],
+    "listens": [],
+    "verdict": "partial",
+    "gaps": [
+     "the keybinding: the line is drawn once (voice-panel.mjs:143) and nothing redraws it after the section's own Change the key",
+     "the device list: drawn once (voice-panel.mjs:113-127); the browser allowing the microphone later leaves the note in place"
+    ],
+    "focus_rule": "n/a (no redraw)"
+   }
+  },
+  {
+   "surface": "The Sound window, GM (title \"Sound\"; tabs Play, Music, Effects)",
+   "file": "scripts/sound-panel.mjs (the Effects tab's rows from sfx.mjs)",
+   "opener": "sound-panel.mjs:363 openSoundDialog (GM panel tile gm-panel.mjs:207; game.drpg.soundDialog)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Play / Music / Effects (tabs)",
+     "key": "DRPG.Sound.tabPlay / tabMusic / tabEffects",
+     "kind": "tabs",
+     "selector": "nav.drpg-tabs",
+     "handler": "ui-kit.mjs wireKitTabs (sound-panel.mjs:319-324)",
+     "effect": "shows the tab; Close on every tab",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The two volume sliders (above the tabs)",
+     "key": "SFX_SLIDERS labels",
+     "kind": "slider",
+     "selector": "[data-drpg-slider] input[type=range]",
+     "handler": "sfx.mjs:692-707 wireVolumeSliders -> setSfxVolume",
+     "effect": "writes this browser's volume as it moves and marks the settings launcher when both are 0",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "Monokuma Legacy only: under Stained Glass the window leaves them out (sound-panel.mjs:400) and they live in the settings window",
+     "verdict": "ok",
+     "detail": "by design (the comment at sound-panel.mjs:397-399)"
+    },
+    {
+     "label": "Track (select) and Enter",
+     "key": "DRPG.Music.track",
+     "kind": "select",
+     "selector": "select[name=playTrack]",
+     "handler": "data-drpg-enter -> [data-drpg-play]",
+     "effect": "chooses the cue",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Play",
+     "key": "DRPG.Music.play",
+     "kind": "button",
+     "selector": "[data-drpg-play]",
+     "handler": "sound-panel.mjs:267-273 -> music-play.mjs:1098 playTrack",
+     "effect": "holds the music and plays the cue; says Playing {track}; refusals warned in playTrack (1099-1117)",
+     "gate": "GM; disabled when the cue playlist has no track",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Reset",
+     "key": "DRPG.Music.reset",
+     "kind": "button",
+     "selector": "[data-drpg-reset-music]",
+     "handler": "sound-panel.mjs:275-278 -> music-play.mjs:1179 resetMusic",
+     "effect": "stops the cue and gives the held music back; says it was reset",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Make the cue playlist",
+     "key": "DRPG.Music.makeSituational",
+     "kind": "button",
+     "selector": "[data-drpg-make-cue]",
+     "handler": "sound-panel.mjs:295-308",
+     "effect": "creates the playlist by its name; the live region swaps the pane on createPlaylist",
+     "gate": "GM; only while the playlist is missing",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Music on (world switch)",
+     "key": "DRPG.Settings.musicEnabled.name",
+     "kind": "toggle",
+     "selector": "[data-drpg-sound-setting=musicEnabled] input[role=switch]",
+     "handler": "sound-panel.mjs:328-335 -> setSetting",
+     "effect": "writes the world setting; a refusal puts the switch back",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "stale_state",
+     "detail": "not redrawn when another GM changes it: finding controls-09-hud-overlays-4"
+    },
+    {
+     "label": "A state's playlist (10 selects, one per music state)",
+     "key": "DRPG.Music.playlist: {state}",
+     "kind": "select",
+     "selector": "select[name^='state:']",
+     "handler": "sound-panel.mjs:243-250 wireMusicMap -> saveMusicKey",
+     "effect": "saves the row's key as it changes, its marker saying saving, saved or failed",
+     "gate": "GM",
+     "how_read": "code; the live region E44 C2b",
+     "themes": "no hiding rule found",
+     "verdict": "stale_state",
+     "detail": "follows another GM's mapping but not a playlist created, renamed or deleted: finding controls-09-hud-overlays-4"
+    },
+    {
+     "label": "Messenger sound (checkbox, Effects tab)",
+     "key": "-",
+     "kind": "checkbox",
+     "selector": "input[name=messengerSound]",
+     "handler": "sfx.mjs:727-733",
+     "effect": "saves at once",
+     "gate": "GM",
+     "how_read": "code (sfx.mjs not a lane file, wiring read)",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "An effect's file path (Effects tab)",
+     "key": "-",
+     "kind": "text",
+     "selector": "input[name^='sfx:']",
+     "handler": "sfx.mjs:776 change -> setSoundFor",
+     "effect": "writes the typed paths for that event",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "stale_state",
+     "detail": "the Effects tab has no live region: finding controls-09-hud-overlays-4"
+    },
+    {
+     "label": "Choose (Effects tab)",
+     "key": "-",
+     "kind": "button",
+     "selector": "[data-drpg-sfx-pick]",
+     "handler": "sfx.mjs:752-772 -> FilePicker -> write",
+     "effect": "adds a file to the event's list, read fresh from the world",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Test (Effects tab)",
+     "key": "-",
+     "kind": "button",
+     "selector": "[data-drpg-sfx-test]",
+     "handler": "sfx.mjs:778-782 -> testSfx",
+     "effect": "plays it; warns with the reason when it did not",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Clear (Effects tab)",
+     "key": "-",
+     "kind": "button",
+     "selector": "[data-drpg-sfx-clear]",
+     "handler": "sfx.mjs:784 -> write(null)",
+     "effect": "empties the event's list",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Vary the sounds (world switch, Effects tab)",
+     "key": "DRPG.Sound.varyLabel",
+     "kind": "toggle",
+     "selector": "[data-drpg-sound-setting=sfxVary] input[role=switch]",
+     "handler": "sound-panel.mjs:328-335",
+     "effect": "writes the world setting",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "stale_state",
+     "detail": "as Music on"
+    },
+    {
+     "label": "Close",
+     "key": "the kit's closing word",
+     "kind": "button",
+     "selector": "footer [data-action=close]",
+     "handler": "ui-kit.mjs footer (sound-panel.mjs:414)",
+     "effect": "closes; everything was saved as it changed",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "kit footer",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the cue playlist and its sounds",
+     "game.playlists (the map's options, the no-playlists box)",
+     "setting musicMap",
+     "settings musicEnabled and sfxVary",
+     "setting sfxMap (the Effects rows, their counts)",
+     "this browser's volumes"
+    ],
+    "listens": [
+     "keepLive on .drpg-music-now: create/update/deletePlaylist and create/update/deletePlaylistSound (sound-panel.mjs:427-437)",
+     "keepLive on .drpg-music-map: setting musicMap only (446-451)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "game.playlists for the Music tab: the map's options are built from sortedPlaylists() (sound-panel.mjs:81-84, 259-261) and its region wakes on musicMap alone (449); the no-playlists box (196-197) is outside any region",
+     "musicEnabled and sfxVary: no region (sound-panel.mjs:195, 226)",
+     "sfxMap: the Effects tab has no region at all (soundEffectsPane, sound-panel.mjs:225-227)"
+    ],
+    "focus_rule": "keepLive's rule 1: a region redraw waits while focus is inside it; a select being chosen from holds the map's redraw (the comment at sound-panel.mjs:439-445)"
+   }
+  },
+  {
+   "surface": "The Sound window, player (title \"Sound\", the two sliders)",
+   "file": "scripts/sound-panel.mjs",
+   "opener": "openSoundDialog on a player's browser (sound-panel.mjs:369-372): only game.drpg.soundDialog() reaches it; the corner's settings launcher opens the settings window, which holds the same sliders",
+   "audience": "player",
+   "controls": [
+    {
+     "label": "The two volume sliders",
+     "key": "SFX_SLIDERS labels",
+     "kind": "slider",
+     "selector": "[data-drpg-slider] input[type=range]",
+     "handler": "sfx.mjs wireVolumeSliders",
+     "effect": "this browser's volumes as they move",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close",
+     "key": "the kit's closing word",
+     "kind": "button",
+     "selector": "footer",
+     "handler": "ui-kit.mjs",
+     "effect": "closes",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "kit footer",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "this browser's volumes"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a: per-browser values written by this window itself"
+   }
+  },
+  {
+   "surface": "Despair Flow's Overflow tab (the pane overflow.mjs draws in gm-team-dialog.mjs openGmTeamDialog)",
+   "file": "scripts/overflow.mjs (markup and reader); wired in gm-team-dialog.mjs (not a lane file)",
+   "opener": "gm-team-dialog.mjs:551 (the window's fourth tab)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Clear",
+     "key": "DRPG.Overflow.clear",
+     "kind": "button",
+     "selector": "[data-drpg-overflow-clear]",
+     "handler": "gm-team-dialog.mjs:310-313 -> clearOverflowFromTab (a drpgConfirm)",
+     "effect": "asks, then clears the count; the window stays open",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Right now (the count line)",
+     "key": "DRPG.Overflow.current / currentDrawn / currentWaiting",
+     "kind": "readout",
+     "selector": ".drpg-overflow-now",
+     "handler": "gm-team-dialog.mjs:326-333 keepFresh",
+     "effect": "rewritten in place on the overflow setting and drpgOverflowChanged",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "-",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The rules form: the threshold stepper, each rule's on toggle and size stepper",
+     "key": "DRPG.Overflow.threshold, DRPG.Overflow.name.<key>, DRPG.Overflow.amount",
+     "kind": "form",
+     "selector": "[name=ovf-threshold], [name^=ovf-][name$=-on], [name$=-by]",
+     "handler": "overflow.mjs:1266-1282 readOverflowForm, read by Save (gm-team-dialog.mjs:159-160) -> overflow.mjs:110 setOverflowRules",
+     "effect": "Save writes every rule as the form holds it",
+     "gate": "GM",
+     "how_read": "code; tier 1 R2031 (the tab on the kit) by its text",
+     "themes": "no hiding rule found",
+     "verdict": "stale_state",
+     "detail": "see finding controls-09-hud-overlays-5"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "setting overflowRules (threshold, every rule)",
+     "the overflow count (setting overflow / the GMs' store)",
+     "overflowEffect (the is-drawn row)",
+     "the cast's size for the suggestion line"
+    ],
+    "listens": [
+     "keepFresh on .drpg-overflow-now: setting overflow, hook drpgOverflowChanged (gm-team-dialog.mjs:326-333)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "overflowRules: not listened to; another GM's save leaves this form on the old rules (gm-team-dialog.mjs:316-325 says none of it changes underneath the GM)",
+     "the drawn darkening's row mark (overflow.mjs:1220 is-drawn) and the suggestion line: drawn once"
+    ],
+    "focus_rule": "n/a for the form (never redrawn); the count line is written in place without touching the fields"
+   }
+  },
+  {
+   "surface": "Foundry tools: the corner's anvil button and the two frames (Foundry tools, Map tools) that hold Foundry's sidebar and scene controls",
+   "file": "scripts/foundry-windows.mjs",
+   "opener": "registerFoundryWindows (foundry-windows.mjs:154-183), a GM's page with foundryToolWindows on",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Open or close Foundry tools (launcher)",
+     "key": "DRPG.FoundryTools.toggle",
+     "kind": "toggle (aria-pressed)",
+     "selector": "#drpg-foundry-tools",
+     "handler": "foundry-windows.mjs:390-398 -> toggleFoundryTools (504-510)",
+     "effect": "closes both if either is open, else opens both; aria-pressed follows (showFrame, 479-488)",
+     "gate": "GM; none on a player's page (154-158)",
+     "how_read": "code; tier 1 R531 by its text",
+     "themes": "its glyph is pointer-events none (components.css #drpg-foundry-tools i), the button takes the press; hover rules in both themes",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A frame's close",
+     "key": "DRPG.FoundryTools.close",
+     "kind": "button",
+     "selector": ".drpg-foundry-window-close",
+     "handler": "foundry-windows.mjs:225 -> setFoundryWindow(key, false)",
+     "effect": "hides that frame (Foundry tools collapses the sidebar first)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found; hidden with the frame during a sequence (danganronpa.css body[data-drpg-sequence] .drpg-foundry-window)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Drag by the title",
+     "key": "-",
+     "kind": "drag",
+     "selector": ".drpg-foundry-window-header",
+     "handler": "foundry-windows.mjs:236-262 dragByTitle",
+     "effect": "moves the frame, clamped to the screen and off the cluster; the place is remembered at the drop",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "-",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Escape",
+     "key": "-",
+     "kind": "key",
+     "selector": "window keydown (capture)",
+     "handler": "foundry-windows.mjs:382-387 onEscape, escapeFallsToWindows (365-380)",
+     "effect": "closes both frames only when nothing Foundry's Escape would dismiss stands above them",
+     "gate": "GM",
+     "how_read": "code; LIVE-E77-10 for another module's Escape",
+     "themes": "-",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "Foundry's #sidebar and #scene-controls nodes",
+     "the frames' hidden state",
+     "#interface's theme classes"
+    ],
+    "listens": [
+     "renderSidebar, renderSceneControls, a MutationObserver on #interface (adopt), collapseSidebar, resize, a ResizeObserver per frame"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a: Foundry's own nodes, moved, never redrawn by the module"
+   }
+  },
+  {
+   "surface": "The corner's launchers (glass.mjs LAUNCHERS and the GM's red button)",
+   "file": "drawn by gm-panel.mjs, messenger-app.mjs, sfx.mjs, handbooks.mjs; read as one block by glass.mjs:50",
+   "opener": "ready and canvasReady of each file",
+   "audience": "all; the GM panel's a GM's",
+   "controls": [
+    {
+     "label": "GM panel (the eye)",
+     "key": "DRPG.Panel.launcher",
+     "kind": "button",
+     "selector": "#drpg-gm-launcher",
+     "handler": "gm-panel.mjs:144-145 -> openGmPanel",
+     "effect": "opens the GM panel",
+     "gate": "GM only (injectLauncher returns for a player)",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Messenger (with the unread badge)",
+     "key": "DRPG.Messenger.launcherTooltip",
+     "kind": "button",
+     "selector": "#drpg-messenger-launcher",
+     "handler": "messenger-app.mjs:1520-1528 -> toggleRoster (GM) / openMessenger (player)",
+     "effect": "a player's own messenger; a GM's roster of players",
+     "gate": "anyone",
+     "how_read": "code; the badge redrawn on drpgMessengerMessage, drpgMessengerRead, drpgMessengerEdited (messenger-app.mjs:43-50)",
+     "themes": "under Stained Glass the button takes no pointer and its ::before hexagon does (stained-glass.css:1284-1307), the badge takes it back (1312-1314): pressable in both themes",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Settings",
+     "key": "DRPG.Look.launcherTooltip",
+     "kind": "button",
+     "selector": "#drpg-sound-launcher",
+     "handler": "sfx.mjs:505-513 -> look.mjs openLookDialog",
+     "effect": "opens this browser's settings window; marked muted when both volumes are 0 or muteAll is on (refreshSoundLauncher, sfx.mjs:535-539)",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Handbooks",
+     "key": "DRPG.Handbooks.launcherTooltip",
+     "kind": "button",
+     "selector": "#drpg-book-launcher",
+     "handler": "handbooks.mjs:553-557 -> openHandbooks",
+     "effect": "opens the handbooks",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the messenger's unread count",
+     "this browser's volumes and muteAll"
+    ],
+    "listens": [
+     "messenger hooks (messenger-app.mjs:43-50)",
+     "the sliders' writes and rtcSettingsChanged (sfx.mjs:703-704, voice-tile.mjs:1815-1818)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The kit's two questions and the header's \"?\" (ui-kit.mjs drpgConfirm, drpgPrompt, dressHelp)",
+   "file": "scripts/ui-kit.mjs, scripts/ui-columns.mjs (wideWindow, a wrapper)",
+   "opener": "each caller's (29 drpgConfirm and 1 drpgPrompt sites, WINDOWS.md); the \"?\" in the seven windows of WINDOW_HELP",
+   "audience": "each caller's",
+   "controls": [
+    {
+     "label": "A question's yes",
+     "key": "the caller's label",
+     "kind": "button",
+     "selector": "footer",
+     "handler": "ui-kit.mjs:1530-1543 drpgConfirm -> the yes callback (true without one)",
+     "effect": "answers the caller",
+     "gate": "the caller's",
+     "how_read": "code",
+     "themes": "kit footer",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A question's no / close",
+     "key": "Cancel or Close",
+     "kind": "button",
+     "selector": "footer",
+     "handler": "ui-kit.mjs:1533-1536",
+     "effect": "answers false, or null for a close",
+     "gate": "the caller's",
+     "how_read": "code",
+     "themes": "kit footer",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A prompt's one answer",
+     "key": "the caller's label",
+     "kind": "button",
+     "selector": "footer",
+     "handler": "ui-kit.mjs:1551-1557 drpgPrompt",
+     "effect": "answers its callback or its action",
+     "gate": "the caller's",
+     "how_read": "code",
+     "themes": "kit footer",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "? (Open the GM Handbook at section N)",
+     "key": "DRPG.Help.gm",
+     "kind": "button",
+     "selector": ".window-header > .drpg-help-button",
+     "handler": "ui-kit.mjs:1237-1268 dressHelp -> handbooks.mjs openHandbooks(book, { section })",
+     "effect": "opens the handbook at the row's section",
+     "gate": "the seven GM windows that name a row (ui-kit.mjs:1217-1229)",
+     "how_read": "code; tier 1 R6601 by its text",
+     "themes": "no hiding rule found",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the caller's"
+    ],
+    "listens": [
+     "the caller's `live` (drpgWindow passes it to keepLive, ui-kit.mjs:1340)"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "the caller's"
+   }
+  },
+  {
+   "surface": "A text field lifted while edited (float-text.mjs)",
+   "file": "scripts/float-text.mjs",
+   "opener": "focusin on any textarea of a module window or an actor's sheet",
+   "audience": "all",
+   "controls": [
+    {
+     "label": "Escape",
+     "key": "-",
+     "kind": "key",
+     "selector": "window keydown (capture)",
+     "handler": "float-text.mjs:360, 384",
+     "effect": "puts the field back in its place; focus leaving does the same",
+     "gate": "anyone",
+     "how_read": "code (audit/float-sweep.mjs named in the header, not run)",
+     "themes": "-",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "the field stays focused while lifted, so keepLive's rule 1 holds a redraw of its region until it is put back"
+   }
+  },
+  {
+   "surface": "Foundry's token HUD, a student's two bars (a module change to Foundry's own window)",
+   "file": "scripts/hud.mjs",
+   "opener": "renderTokenHUD (hud.mjs:258)",
+   "audience": "player",
+   "controls": [
+    {
+     "label": "Bar 1 / Bar 2 inputs",
+     "key": "Foundry's",
+     "kind": "number (disabled)",
+     "selector": "input[name=bar1], input[name=bar2]",
+     "handler": "hud.mjs:278-291 stillTokenBars",
+     "effect": "disabled and read-only for a player while lockPlayerResources is on; the GMs' audit judges a write either way",
+     "gate": "player",
+     "how_read": "code; scenario 15-held named in the comment, result not read",
+     "themes": "-",
+     "verdict": "ok",
+     "detail": "by design (E29 C7; the trust model: a courtesy on the writer's own browser)"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "setting lockPlayerResources",
+     "the token's actor type"
+    ],
+    "listens": [
+     "renderTokenHUD"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  }
+ ],
+ "counts": {
+  "surfaces": 15,
+  "controls": 66,
+  "ok": 57,
+  "dead": 1,
+  "throws": 0,
+  "mislabeled": 0,
+  "wrong_audience": 0,
+  "silent": 0,
+  "stale_state": 8,
+  "unknown": 0
+ },
+ "findings": [
+  {
+   "id": "controls-09-hud-overlays-1",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The status strip does not follow the GMs' stores it reads: an Eclipse crossing, a Monocub's purse and a death the GMs keep leave it showing the old count",
+   "surface": "The status strip (#drpg-player-status)",
+   "control": "the strip's counters",
+   "where": "scripts/player-status.mjs:40-75 (its listeners) against 432-562 and 608-660 (what it reads); settings.mjs:3233-3247, 3483-3494; sync.mjs:485",
+   "what_happens": "In an Eclipse the strip draws a player's Move feet from eclipse.mjs movesLeft and the GM's Still placing from stillPlacing, both read off the GMs' store eclipseMoves on a GM and the owner's copy mineEclipseMoves on a player (settings.mjs:3933-3943). A crossing patches the store on the primary (eclipse.mjs:1229) and sends the owner's copy (1247); both are client settings whose onChange runs the sync kind `visibility`, whose row is visibility, sheets and hud (sync.mjs:485). The strip is redrawn by none of them: it hears updateActor, its six settings through updateSetting, updateUser, drpgEclipseChanged and canvasReady, and a crossing in an Eclipse writes no actor (movement.mjs:2781-2802 returns before any charge). The same holds for a Monocub's Hope, which the strip counts with its purse (player-status.mjs:543-547; the purse is the store gmCubs or the copy mineCubs, monocub.mjs:246-250), whose change calls drpgCubsChanged and refreshes the sheets only (settings.mjs:3483-3486), and for the GM's Still to act, which counts with isDeadForGm (monokuma.mjs:120-123), whose store change runs `visibility` and drpgDeathsChanged (settings.mjs:3491-3494). The sheet and the clock are redrawn; the strip beside them is not, until some student's actor is written or the scene changes.",
+   "evidence": "// player-status.mjs:663-667\n * which fire no `updateSetting`. R1013 fails when the strip reads a module setting this list lacks.\n// settings.mjs:3233-3240\n    game.settings.register(MODULE_ID, SETTINGS.gmEclipseMoves, {\n        scope: \"client\", ...\n        onChange: () => onStoreChange(\"visibility\")\n// sync.mjs:485\n    [SYNC.visibility]: Object.freeze([\"visibility\", \"sheets\", \"hud\"]),",
+   "failure_scenario": "In a Morning Eclipse a player drags their token through one door: the sheet's Move tile says one crossing left, the strip under the clock still shows both feet lit, and the GM's strip still reads Still placing 5 / 5 until somebody's sheet is written.",
+   "expected": "the strip redrawn on each source it reads - the crossings' store and copy, the Monocubs' record, the deaths kept - as the sheets and the clock are",
+   "confidence": "read",
+   "refutation_tried": "Looked for any other caller of renderPlayerStatus outside the tests (grep: none but its own hooks); checked whether renderHud, refreshSheets or the visibility pass call it (hud.mjs:406-627, clock.mjs:940-954, visibility.mjs:1088: none); checked that the crossing writes no actor in an Eclipse (movement.mjs:2781-2802) and that keepMounted's observer redraws only when the node is gone (player-status.mjs:157-180). The file's own note says the stores fire no updateSetting (667), which is Foundry's own behaviour for client settings as the module reads it, not measured here. R1013 holds the setting list only, and R997 reads the rows pure with handed-in counts. A student's actor write elsewhere at the table repaints a GM's strip at once (relevant() is any student on a GM), so on a busy GM screen the gap is short; on the player's own strip it lasts until that player's own actor changes.",
+   "probe": "Headless: in an Eclipse with allowance 2, a player's client moves its token across one door; read #drpg-player-status .drpg-free-move on that client before and after the copy lands (both feet lit after = the gap), and on the GM the is-move field's text"
+  },
+  {
+   "id": "controls-09-hud-overlays-2",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The four explainers opened from the clock, the Despair bar, the strip and the Projects tray are snapshots: the clock, the actions and the pools they print do not follow a change",
+   "surface": "The four explainers (explain.mjs explainer)",
+   "control": "the window's body",
+   "where": "scripts/explain.mjs:49-58 (explainer), 232-251, 266-310, 314- (the bodies), 428-433 (the panels that open them)",
+   "what_happens": "explainer() opens a kit window with the body built once and no `live` option, and explain.mjs has no keepLive, keepFresh or hook. \"Where things stand\" prints the campaign, chapter and day, the phase with this character's own actions (R4106) and the time of day; the Despair one each pool's held / max and the overflow's hat; the strip's one the actions and Hope. A clock moved, a pool spent or an action taken while it stands leaves it on the old numbers, beside a clock, bar or strip that has already redrawn. A second click on the panel closes it and opens a fresh one (explainOnce, 476-482).",
+   "evidence": "function explainer(title, body) {\n    // On the kit's frame (E21 C5a): nothing to answer, so its one word is Close.\n    return drpgWindow({\n        title,\n        classes: [\"drpg-panel\", \"drpg-explain\"],\n        body: `<div class=\"drpg-explain-body\">${body}</div>`,\n        footer: { close: \"close\" },\n        rejectClose: false\n    });\n}",
+   "failure_scenario": "A player opens \"Where things stand\" to read how many actions they have this Morning, the GM moves the clock to Noon, and the window goes on saying Morning and the old count beside a clock that says Noon.",
+   "expected": "the body redrawn in place on the clock, the pools, the overflow and the character, as the panel beside it is (keepLive with the clock's and the despair kind's hooks and the actor)",
+   "confidence": "read",
+   "refutation_tried": "Searched explain.mjs for live, keepLive, keepFresh and Hooks: none (grep); drpgWindow starts keepLive only when `live` is passed (ui-kit.mjs:1340). Looked for a recorded decision that the explainers are snapshots by design: none found in the file's comments; the owner's standing rule of 20.11.2026 covers every window that shows what changes.",
+   "probe": "game.drpg.explainState() on a player, then a GM's clock write (setClock to the next time of day); read .drpg-explain-body text on the player before and after"
+  },
+  {
+   "id": "controls-09-hud-overlays-3",
+   "severity": "minor",
+   "verdict": "dead",
+   "title": "The overflow caption's tooltip, which holds the GM's real count and why a full counter has not fired, can never show on a desk layout: the caption takes no pointer",
+   "surface": "The Despair bar (#drpg-despair)",
+   "control": "the overflow caption's tooltip",
+   "where": "scripts/despair.mjs:1142-1147 (line.title); styles/danganronpa.css:1148-1153 and 1176-1181",
+   "what_happens": "#drpg-despair is pointer-events none so the canvas takes clicks through it, and its interactive parts opt back in by name: the row, the pip, the button, the name and the count. The caption (.drpg-overflow-caption) and the heading are not in that list, and no other rule in the seven stylesheets names the caption with pointer-events (script over every rule naming the panel: 2 rules, both listed here). So the caption inherits none and is never hit, and its `title` - the GM's \"Spilled Despair: {count} of {max} ...\", \"This time of day is darkened. {count} of {max} spilled Despair is waiting ...\", the player's \"Only the GMs see the count\" - is never shown. The caption draws at most the threshold (despair.mjs:1131), so the real count past it is in the tooltip only, as the function's note says (1119). A click on the caption also falls through to the canvas instead of opening the Despair explainer. On the narrow stack #drpg-column > * gives the panel pointer-events auto (narrow.css:80), and there it works.",
+   "evidence": "/* despair.mjs:1142 */ line.title = isGM\n            ? game.i18n.format(active ? (count >= threshold ? \"DRPG.Overflow.gmHintActiveFull\" : ...\n/* danganronpa.css:1148 */ #drpg-despair {\n    ...\n    pointer-events: none;\n/* danganronpa.css:1176 */ /* Opt the interactive parts back in (see the note on #drpg-despair above). */\n#drpg-despair .drpg-despair-row,\n#drpg-despair .drpg-despair-pip,\n#drpg-despair .drpg-despair-button,\n#drpg-despair .drpg-despair-name,\n#drpg-despair .drpg-despair-count {\n    pointer-events: auto;",
+   "failure_scenario": "A GM sees \"Despair overflow · 20/20\" with no darkening card and hovers the caption to read why and how much is really spilled: nothing appears, in either theme, on a desk screen.",
+   "expected": "the caption in the opt-in list (or its words where the GM can read them)",
+   "confidence": "read",
+   "refutation_tried": "Listed every rule naming the Despair panel or the caption with pointer-events across styles/*.css (2: the panel's none and the opt-in list); stained-glass.css's rules for the panel (2731, 2287, 3863) set type and colour only. Foundry's own core stylesheet was not read: a universal rule there giving #ui-top's descendants the pointer would refute this, but then the module's own opt-in list (whose note says without it the pips do nothing) would not have been needed. Not hovered in a browser.",
+   "probe": "Chromium on audit/glass-harness.html or a table, a GM, 1366x768, both themes: document.elementFromPoint at the centre of #drpg-despair .drpg-overflow-caption (expect the canvas or a parent outside the panel, not the caption)"
+  },
+  {
+   "id": "controls-09-hud-overlays-4",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The Sound window's Music tab does not follow the world's playlists, and its two switches and the Effects tab do not follow another GM",
+   "surface": "The Sound window, GM",
+   "control": "a state's playlist selects; Music on; Vary the sounds; an effect's file path",
+   "where": "scripts/sound-panel.mjs:81-84, 195-197, 225-227, 259-261, 446-451",
+   "what_happens": "The Music tab's selects list game.playlists as they stood when the window opened (musicMapTable from sortedPlaylists), and their live region is woken by the setting musicMap alone (449). A playlist created, renamed or deleted in the Playlists sidebar with the window open is not offered, keeps its old name, or stays selectable until the window is reopened; the no-playlists box above the table is outside any region. The Play tab's cue pane does follow the six playlist hooks (427-437), so the window is half live on the same documents - the F17 note at 120-135 describes this exact fault for the cue pane and its cure. The two world switches (musicEnabled, sfxVary) and the Effects tab's rows (sfxMap) have no region, so another GM's change is not drawn; a typed path saved from the stale field writes over it (sfx.mjs:776).",
+   "evidence": "keepLive(dialog, {\n                region: \".drpg-music-map\",\n                build: musicMapBody,\n                watch: { settings: [SETTINGS.musicMap] },\n                after: next => wireMusicMap(next, dialog.element)\n            });",
+   "failure_scenario": "A GM with the Sound window open on Music creates a playlist \"Trial theme\" in the sidebar to map it: no select offers it until the window is closed and opened again, while the Play tab beside it already lists the cue playlist's new tracks.",
+   "expected": "the map's region woken by the playlist hooks too, and the switches and the Effects rows in live regions of their own",
+   "confidence": "read",
+   "refutation_tried": "Read the window's two keepLive calls whole (sound-panel.mjs:418-452) and drpgWindow's own live option (not passed); the comment at 439-445 says only that another module setting does not wake the map, nothing of playlists. musicMap's write by another GM does redraw the rows (the 27.10 amend), so that half is live. The cue pane's hooks are on a different region and do not rebuild the map.",
+   "probe": "openSoundDialog() on a GM, the Music tab shown; Playlist.create({ name: \"probe\" }); read the options of select[name='state:dailyLife'] (no \"probe\" = the gap)"
+  },
+  {
+   "id": "controls-09-hud-overlays-5",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "Despair Flow's Overflow tab keeps the rules it opened with: another GM's change is not drawn, and Save writes the old rules back",
+   "surface": "Despair Flow's Overflow tab",
+   "control": "the rules form (threshold, each rule's toggle and size)",
+   "where": "scripts/gm-team-dialog.mjs:316-333 (keepFresh on the count line only), 159-160 (Save reads the form); scripts/overflow.mjs:110-138 (setOverflowRules), 1188-1258 (the pane)",
+   "what_happens": "The tab's one live part is the Right now line (keepFresh on the setting overflow and drpgOverflowChanged). The threshold and the thirteen rules are drawn from overflowRules once, and nothing listens to that setting here; the drawn darkening's row mark (is-drawn) and the suggestion line are drawn once too. Save reads the whole form (readOverflowForm) and setOverflowRules takes each field that carries a value, so a second GM's threshold or rule written meanwhile is replaced by what this form shows. The comment that chose this says none of it changes underneath the GM - true for one GM, not with two.",
+   "evidence": "/* gm-team-dialog.mjs:316-332 */\n               Everything else here is a setting being edited - pool names, who is a\n               Monokuma, which pool feeds whom, the overflow rules - and none of it\n               changes underneath the GM. ...\n            keepFresh(dialog, {\n                run: root => { ... line.textContent = overflowNowLine(); },\n                watch: { settings: [SETTINGS.overflow], hooks: [\"drpgOverflowChanged\"] }\n            });",
+   "failure_scenario": "GM A has Despair Flow open; GM B lowers the threshold from 20 to 16 in their own copy and saves; A renames a pool and presses Save: the threshold is 20 again, and A's form never showed 16.",
+   "expected": "the rules form follows overflowRules (redrawn in place, rule 1 holding a field being typed in), or Save writes only what this GM changed",
+   "confidence": "read",
+   "refutation_tried": "Read setOverflowRules (overflow.mjs:110-138): an edit without a value keeps the current, but readOverflowForm hands every toggle's checked state and every stepper's number, so every field carries one. Looked for another keepLive or hook in gm-team-dialog.mjs (keepFresh at 326 only; wireMonokumaLive and wireAssignmentLive are the other tabs'). With one GM nothing differs; the two-GM table is the module's supported case (the bridge's primary).",
+   "probe": "Two GMs (61-gmstore-case's gm2): open Despair Flow on gm1, setOverflowRules({ threshold: 16 }) on gm2, read [name=ovf-threshold] on gm1, press Save on gm1, read overflowRules().threshold"
+  },
+  {
+   "id": "controls-09-hud-overlays-6",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The Voice section names the push-to-talk key it was built with: after its own Change the key, it still shows the old key",
+   "surface": "The Voice section of the settings window",
+   "control": "the push-to-talk key line",
+   "where": "scripts/voice-panel.mjs:141-156",
+   "what_happens": "The key line is written once from pushToTalkKey() when the fieldset is built, and the button beside it opens Foundry's Configure Controls; nothing listens for the binding's change, so after a player rebinds the key there and comes back, the line names the old one until the settings window is reopened. The device list is the same: the micNote drawn before the browser allowed the microphone stays after it does.",
+   "evidence": "keyRow.append(node(\"span\", \"\", key ? game.i18n.format(\"DRPG.Voice.panel.pttKey\", { key }) : game.i18n.localize(\"DRPG.Voice.mic.pttNoKey\")));\n    if (typeof foundry.applications?.sidebar?.apps?.ControlsConfig === \"function\") {\n        const change = node(\"button\", \"drpg-voice-panel-key-change\", t(\"pttChange\"));",
+   "failure_scenario": "A player presses Change the key, binds push to talk to V in Foundry's window, closes it, and the settings window beside it still says \"Push-to-talk key: `\".",
+   "expected": "the line read again when Configure Controls closes or the binding changes",
+   "confidence": "read",
+   "refutation_tried": "settings-window.mjs mounts the fieldset once (placeVoice, 360-365) and has no redraw for it (grep for keepLive and Hooks in it found none); the tile's own tooltip reads the key at each paint (voice-tile.mjs:978), so only this line lags.",
+   "probe": ""
+  }
+ ],
+ "not_established": [
+  "Nothing was pressed or run (rule 2): every row is a source reading at b5a29e73. No base-run.json, probe-42.json or probe-43.json stood in audit/findings-1.2.118/ when this was read; the tests and scenarios named were found by grep and their results were not read.",
+  "Whether Foundry 14 fires `updateSetting` for a client-scope setting (the GMs' stores and their copies). player-status.mjs:667 says it does not, and finding 1 rests on that; new live check: at a table in an Eclipse, a player crosses one door and the status strip's feet are read on that player and the GM's Still placing on the GM.",
+  "Finding 3's last step: Foundry's own core stylesheet for #ui-top / #ui-middle descendants was not read. New live check: on a desk screen, hover the overflow caption as a GM in both themes and read whether its tooltip shows (or document.elementFromPoint at its centre).",
+  "The voice list's held reasons on a GM (moduleHoldsMic: a death the GMs keep, a mask, a veil): whether each change is followed by a permission write that repaints the list (updateUser) was traced for the veil (mask-gm.mjs: the block is C6's) but not for a death kept secret. A wrong button there is refused at the press with its reason, so at worst it is shown enabled until the next repaint.",
+  "The Effects tab's rows are sfx.mjs's (not a lane file): their wiring was read (sfx.mjs:727-790), their markup was not.",
+  "The windows the corner's launchers open (the GM panel, the messenger and its roster, the settings window, the handbooks) and the room tile and Event panel under the clock are other lanes' files and were not read here beyond the launcher's handler."
+ ]
+}
