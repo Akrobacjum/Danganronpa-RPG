@@ -32,7 +32,7 @@ Plik ma dwie części. **Część I** (sekcje 10-18, na górze) to audyt powtór
 | znaleziska | 13.1-13.5 (stare), 15-17 (nowe) | 2, 4 |
 | treść | 13.4 (stare tabele), 17.9 (dziś) | 3 |
 | lista zadań | 10.3 | 5 |
-| decyzje | 13.5 (stare), `audit/findings-1.2.118/DECISIONS.md` (z tego audytu), 18.2 (pytania) | 9.1, 9.1a |
+| decyzje | 13.5 (stare), `audit/findings-1.2.118/DECISIONS.md` (z tego audytu), 18.2 (pytania i odpowiedzi) | 9.1, 9.1a |
 | live checki | 9.2 (lista) + 13.6 (stan każdej pozycji) + `L1-HANDOFF.md` (przepisy) | 7, 9.2 |
 | co jest już naprawiane | 18.3, `audit/findings-1.2.118/ROUTING.md` | - |
 
@@ -574,7 +574,7 @@ Znaleziska COMM:
 | COMM-10 | minor | otwarte | minor | Play i Reset dla każdego GM-a, a zapis `interrupted` żyje w jednej przeglądarce (music-play.mjs:175, 1098-1099, 1179-1180) | następca COMM-29 (`minor`), nie skierowane |
 | COMM-11 | minor | częściowo | minor | skrót klawiszowy dla każdego i `game.drpg.safeword()` (safeword.mjs:428-436, api.mjs:839); klawisz bez domyślnego przypisania (:432), na ekranie brak kontrolki | UI-25 (`minor`, Stop na arkuszu Spectatora), nie skierowane |
 | COMM-15 | minor | częściowo | minor | znacznik odczytu z czasu wiadomości (messenger.mjs:196-208); reguła `timestamp >` nadal zależy od zegara nadawcy (:147), COMM-LC7 nieodczytany | - |
-| COMM-18 | nit | częściowo | nit | `contestedWarning` z klucza (voice.mjs:2235-2259); weryfikacja: osłabione - nowe angielskie zdania dla GM-a (music-play.mjs:619, voice.mjs:1686, 1749) trafiają do dziennika awarii; czy dziennik ma zostać angielski - pytanie do właściciela | - |
+| COMM-18 | nit | częściowo | nit | `contestedWarning` z klucza (voice.mjs:2235-2259); weryfikacja: osłabione - nowe angielskie zdania dla GM-a (music-play.mjs:619, voice.mjs:1686, 1749) trafiają do dziennika awarii; czy dziennik ma zostać angielski - pytanie do właściciela; **odpowiedź 20.11.2026: tak, zamknięte decyzją** (18.2, D-A7) | - |
 | COMM-01 | major | zamknięte | - | każda prośba idzie przez jedną funkcję czekającą na odpowiedź (`bridgeRequest`), adresowaną do połączonych GM-ów (bridge-guards.mjs:2120-2121, 2144) | - |
 | COMM-02 | major | zamknięte | - | karta bez wątku niesie popup i dźwięk `gmAsk` (call-gm.mjs:975-986, popup.mjs:1267-1269); ekran przy stole nieodczytany (9.2 pozycja 660) | - |
 | COMM-03 | major | zamknięte | - | wątek idzie przez `postSecret`, w dokumencie zostaje zaślepka (messenger.mjs:275-313, secret.mjs:1190-1224); odczyt F LOCAL-REPORT.md:418 | - |
@@ -4405,16 +4405,16 @@ Scenariusz: CI dzieli suite na osiem shardów jak tura bazowa, shard 3 wychodzi 
 - **Duplikaty między czytającymi** są połączone w sekcjach 14-17 jako "to samo", ale nie wszędzie: część okien czytało dwóch czytających kontrolek (15.1), a te same wady wracają jako STG i jako znalezisko domeny. Liczby w 10.1 są przed łączeniem.
 - **Pokrycie (U10):** wszystkie 258 skryptów modułu bez testów (226 282 linii) przeczytane w całości przez czytających domen (29 plików, każdy plik dokładnie raz, sprawdzone skryptem); 13 plików testów i zestawu czytane tylko tam, gdzie znalezisko lub etap je cytuje.
 
-### 18.2 Pytania do właściciela (decyzje, których kod nie rozstrzygnie)
+### 18.2 Pytania do właściciela i jego odpowiedzi (decyzje, których kod nie rozstrzygnie)
 
-Przy każdym domyślna odpowiedź, z którą raport idzie dalej.
+Właściciel odpowiedział na wszystkie cztery 20.11.2026 około 23:30Z, przez koordynatora, przyjmując odpowiedzi domyślne; zapisane jako decyzje D-A5..D-A8 w `audit/findings-1.2.118/DECISIONS.md`. Liczby w 10 i 13 są sprzed tych odpowiedzi: COMM-18 liczy się tam jeszcze jako "częściowo" (po odpowiedzi: zamknięte decyzją, więc stare pozycje 1.2.42 to 330 zamkniętych i 117 częściowo).
 
-| # | Pytanie | Skąd | Domyślnie |
+| # | Pytanie | Skąd | Odpowiedź (20.11.2026, 23:30Z) |
 | --- | --- | --- | --- |
-| Q-A119-1 | Czy zasada "bez angielskiej liczby mnogiej w polskim tekście" obejmuje Truth Bullets, Search Tokens i Calls, a nie tylko Remnanty? | `domain-text-c-terms` | zostaje jak dziś (tylko Remnanty) |
-| Q-A119-2 | Listy całej obsady (Despair Call, Tamper) dalej nazywają zawoalowanego zabójcę z założenia linii D; czy tak ma zostać? | ROUTING.md, `day-119` | zostaje jak w linii D, zapisane jako decyzja |
-| Q-A119-3 | Czy dziennik awarii panelu GM-a może zostać po angielsku (zdania głosu i muzyki w `voice.mjs:1686, 1749`, `music-play.mjs:619-620`)? | `verify-old-1.2.42-comms` (COMM-18) | tak, jak konsola diagnostyki (zasada E65); wtedy COMM-18 jest zamknięte decyzją |
-| Q-A119-4 | `giveKeyDialog` jest osiągalne tylko z testów; zostawić czy usunąć? | `controls-06-items-sheet` | zostawić do decyzji, oznaczone jako martwy kod |
+| Q-A119-1 | Czy zasada "bez angielskiej liczby mnogiej w polskim tekście" obejmuje Truth Bullets, Search Tokens i Calls, a nie tylko Remnanty? | `domain-text-c-terms` | zostaje jak dziś: zasada dotyczy tylko Remnantów (D-A5) |
+| Q-A119-2 | Listy całej obsady (Despair Call, Tamper) dalej nazywają zawoalowanego zabójcę z założenia linii D; czy tak ma zostać? | ROUTING.md, `day-119` | zostaje jak w linii D: listy całej obsady dalej nazywają zawoalowanego zabójcę, z decyzji (D-A6) |
+| Q-A119-3 | Czy dziennik awarii panelu GM-a może zostać po angielsku (zdania głosu i muzyki w `voice.mjs:1686, 1749`, `music-play.mjs:619-620`)? | `verify-old-1.2.42-comms` (COMM-18) | tak, jak konsola diagnostyki (zasada E65); COMM-18 zamknięte decyzją (D-A7) |
+| Q-A119-4 | `giveKeyDialog` jest osiągalne tylko z testów; zostawić czy usunąć? | `controls-06-items-sheet` | zostaje, oznaczone jako martwy kod (D-A8) |
 
 ### 18.3 1.2.119
 
