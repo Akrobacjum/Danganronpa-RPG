@@ -99,6 +99,18 @@ Look at one existing file of your lane before you start and match its keys. In s
   `live-readings-*.json` here.
 - The texts: `docs/text-style.md`, `docs/glossary.json`, `lang/en.json`, `lang/pl.json`.
 
+## The real-table line L1 (from 20.11.2026 ~19:40Z)
+
+The owner's real-Foundry line L1 (branch `claude/e58-local`, head `7875554f`) is paused until after the audit. Its
+readings as they stand are evidence class F: `git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md` and
+`...:docs/dev/e39/CALIBRATION.md` hold 152 and 72 lines more than `b5a29e73`'s copies; the digest of that difference
+is `live-readings-e58-delta.json` here once written. Everything that needs a real table is written as not
+measured, and each such item (an open or partly read live item, a `not_established` entry, a grade capped by an
+unread live check) carries an `l1` block for the hand-over file `L1-HANDOFF.md`: {what (what to measure), recipe
+(the steps at the table, numbered), clients (GM / players / how many), theme (default, stained glass, both),
+settles_if (the reading that settles it, each way), priority (the item's severity, or the stage's grade cap)}. A
+grade that rests on unread live checks is provisional, at most 9, and marked `provisional: "after L1"`.
+
 ## The return
 
 Your last message is a short summary (under 200 words): the file written, how much was read, the counts of
