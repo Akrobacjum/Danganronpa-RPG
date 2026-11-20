@@ -65,7 +65,7 @@ import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, n
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
-import { isMonokuma, isSpectator, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, isSpectator, poolUserFor, studentActors } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, hiddenByGm, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -1495,7 +1495,7 @@ function ownSection(section) {
 }
 
 /**
- * Every room ANY character has recorded on this scene.
+ * Every room any student has recorded on this scene (the Fog tab's students, below).
  *
  * The Monokuma's view is built on this rather than on the list of rooms that
  * exist: the mastermind knows the building, but what the class has actually
@@ -1508,15 +1508,30 @@ function ownSection(section) {
  * which rooms the season's secret had been to. The current Mastermind's row is skipped here, at read
  * time; nothing is deleted, so a Mastermind changed later reads as any student again. `ledger` and
  * `mastermindId` are the suite's (R563); a GM's browser reads the store and its Mastermind.
+ *
+ * AND THE STUDENTS' ROWS ALONE (1.2.119 line F; the owner's item #2, restated 20.11.2026: after Hide all on the Fog tab
+ * the GM's map still lit rooms the players had not found). Room setup's Fog tab has a column for each student
+ * (monokuma.mjs `studentActors`: no Monokuma, no character put out of the class, no Spectator), and its Hide all
+ * unticks those columns; a row of any other character - a Spectator's from before it was one, a character's put out
+ * of the class, a Monokuma's from before the flag - was counted here and had no box to untick. Headless on b5a29e73,
+ * Hide all and Apply left ["Gym", "Hall"] lit, a not-in-class character's row and the Monokuma's (R7862; scenario 97
+ * J). Now only a student's row counts: what the tab shows is what this map shows. Nothing is deleted, so a character
+ * made a student again brings its rooms back. `students` is the suite's (R7862); a GM's browser reads the world's.
  */
-export function ledgerRooms(scene, { ledger = allDiscovered(), mastermindId = mastermindActor()?.id ?? null } = {}) {
+export function ledgerRooms(scene, { ledger = allDiscovered(), mastermindId = mastermindActor()?.id ?? null, students = studentIds() } = {}) {
     const rooms = new Set();
     if (!scene) return rooms;
     for (const [actorId, list] of Object.entries(ledger?.[scene.id] ?? {})) {
         if (mastermindId && actorId === mastermindId) continue;
+        if (!students.has(actorId)) continue;
         for (const room of list ?? []) rooms.add(room);
     }
     return rooms;
+}
+
+/** The ids of the students, the Fog tab's columns (monokuma.mjs `studentActors`), as a set. */
+function studentIds() {
+    return new Set(studentActors().map(actor => actor.id));
 }
 
 /** Rooms this scene's ledger has recorded for one actor. */

@@ -19599,7 +19599,7 @@ const INVARIANTS = [
         const J = v => JSON.stringify(v);
         const scene = { id: "R563SCENE" };
         const rows = { MM: ["R563 Lab", "R563 Gym"], S1: ["R563 Hall"] };
-        const read = (more, mm) => [...F.ledgerRooms(scene, { ledger: { [scene.id]: { ...rows, ...more } }, mastermindId: mm })].sort();
+        const read = (more, mm) => [...F.ledgerRooms(scene, { ledger: { [scene.id]: { ...rows, ...more } }, mastermindId: mm, students: new Set(["MM", "S1"]) })].sort();
         equal(J([read({}, "MM"), read({ MM: [...rows.MM, "R563 Pool"] }, "MM"), read({ S1: [...rows.S1, "R563 Pool"] }, "MM"), read({}, null), read({}, "S1")]),
             J([["R563 Hall"], ["R563 Hall"], ["R563 Hall", "R563 Pool"], ["R563 Gym", "R563 Hall", "R563 Lab"], ["R563 Gym", "R563 Lab"]]),
             "[the Mastermind's old row, the Mastermind entering a new room, a student entering one, nobody the Mastermind, another student the Mastermind]");
@@ -19620,6 +19620,32 @@ const INVARIANTS = [
         const none = [...F.myCurrentRooms({ tokens: [placeable(doc, false)], gm: false })];
         equal(J([all, mine, none]), J([[...new Set(roomNames(here))].sort(), [roomOfToken(doc)], []]),
             "[the Mastermind's discovered rooms, the current room under their own token beside another's, under nobody's own]");
+    }],
+    ["R7862 - the GM's fog counts the rows of the students the Fog tab offers, so Hide all clears the GM's map", async () => {
+        /*
+         * The owner's item #2 of 1.2.119, as restated on 20.11.2026: "mi jako gmowi podświetla pokoje nieodkryte przez
+         * graczy po hide all w zakładce fog" - after Hide all on Room setup's Fog tab the GM's map still lit rooms the
+         * players had not found. The Fog tab draws one column per student (monokuma.mjs `studentActors`: no Monokuma, no
+         * character not in class, no Spectator), and Hide all with Apply unticks those columns' cells; `ledgerRooms`, the
+         * GM's map, read every character's row but the Mastermind's, so a row with no column - a Spectator's from before
+         * it was one, a character's put out of the class, a Monokuma's from before the flag - stayed lit, out of the GM's
+         * reach. On b5a29e73 this read the not-in-class row's and the Monokuma's rooms (`ledgerRooms` took no `students`).
+         * Read on a ledger of the suite's own; then which students the GM's fog asks, off the source.
+         */
+        const F = await import("./fog.mjs");
+        const J = v => JSON.stringify(v);
+        const scene = { id: "R7862SCENE" };
+        const ledger = { [scene.id]: { S1: ["R7862 Hall"], S2: ["R7862 Gym"], NIC: ["R7862 Lab"], MK: ["R7862 Pool"], MM: ["R7862 Roof"] } };
+        const read = students => [...F.ledgerRooms(scene, { ledger, mastermindId: "MM", students: new Set(students) })].sort();
+        equal(J([read(["S1", "S2", "MM"]), read(["S1"]), read(["S1", "S2", "NIC"]), read([])]),
+            J([["R7862 Gym", "R7862 Hall"], ["R7862 Hall"], ["R7862 Gym", "R7862 Hall", "R7862 Lab"], []]),
+            "[the students S1, S2 and the Mastermind; S1 alone; NIC back in the class; nobody a student]: a row with no column on the Fog tab counted on the GM's map");
+        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText).then(stripComments);
+        const lr = fnSource(fog, "ledgerRooms");
+        ok(/students\s*=\s*studentIds\(\)/.test(lr) && /students\.has\(actorId\)/.test(lr),
+            "ledgerRooms does not default to the world's students, the Fog tab's columns (studentIds)");
+        const ids = fnSource(fog, "studentIds");
+        ok(/studentActors\(\)/.test(ids), "studentIds does not read monokuma.mjs studentActors, the roster the Fog tab draws");
     }],
     ["R573 - the GMs' overlay follows the floor: drawn again for another floor of the scene it shows that floor's passages and the ones on no floor, and no other floor's or scene's; and a floor switched is a new canvas, on which the overlay draws every layer again from the camera", async () => {
         /*
