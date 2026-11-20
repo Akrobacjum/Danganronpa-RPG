@@ -1,0 +1,946 @@
+{
+ "reader": "stages-24",
+ "stages": [
+  {
+   "id": "E110",
+   "version": "1.2.114",
+   "shipped": "2026-11-14",
+   "what": "The Class Trial changes the owner asked for on 14.11.2026: the GM redirects a running Objection, the trial's modes mute who may not speak, a playlist for each mode and three for Scrum Debate, the trial's sounds, and four gaps of the modes closed; one stage alone in its release.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.114.md (lines 1-132, whole: the plain-words part 9-77, Known gaps 95-107, Checked 109-132)",
+    "docs/dev/e110/STATUS.md (lines 1-156, whole: the spec E110-01..15, the owner's decisions D-E110-A..C, Q-E110-1..16, the progress table)",
+    "audit/AUDIT-1.2.42.md 9.2 items 542-546 (lines 1548-1556): LIVE-E110-01..05; no block headed 'Po E110' exists, the items stand in the numbered list",
+    "git log --oneline v1.2.113..v1.2.114: 17 commits, 12 of them name E110",
+    "docs/dev/R-REGISTRY.md lines 1632-1642 (R7100-R7110, stamped E110)",
+    "audit/harness/README.md register rows 30, 33, 67 (none names E110 in its stage column; the scenarios' own headers do: 67-trial-modes.mjs:44-48, 33-bridge-paths.mjs:1699-1740, 30-security.mjs:6542)",
+    "docs/dev/e58/TRIAGE-9.2.md:569-573 (how each LIVE-E110 item could be read; none was)"
+   ],
+   "commits": 17,
+   "promises": [
+    {
+     "promise": "Re-point works in the Objection's minute and in its Rebuttal; the new target is judged as a fresh Objection's (not the objector, a participant, alive) and must be present (a player connected).",
+     "source": ".github/release-notes/v1.2.114.md:12-14; STATUS.md E110-01",
+     "code": "scripts/trial-floor.mjs:1256 repointRefusal, :1272 repointObjectionInStep; scripts/floor-machine.mjs:571-585 (the machine's repoint row); scripts/trial.mjs:1522 repointDialog (offers only participants whose player is connected)",
+     "holds": "yes",
+     "test": "R7100, R7101 (tier 1); tier 2 E110-T1; scenario 67 phase V; scenario 33 A23",
+     "test_kind": "behaviour",
+     "note": "R7100 and R7101 ask the pure machine and the pure judgement on fixed floors; E110-T1 drives the two GM roads on the primary."
+    },
+    {
+     "promise": "The same target again is refused with its own line, and so is an absent one.",
+     "source": ".github/release-notes/v1.2.114.md:14",
+     "code": "scripts/trial-floor.mjs:1258, :1261 (the keys DRPG.Floor.repointSame and repointAbsent are returned), :1274 (the key is dropped: return null); scripts/trial.mjs:1285 (one English refusal for every reason); scripts/bridge-guards.mjs:452 (mapped to the code cannotNow); scripts/bridge-asks.mjs:325-331",
+     "holds": "partly",
+     "test": "R7100 (reads that the two keys exist in both languages), R7101 (the keys the pure judgement answers)",
+     "test_kind": "source-read",
+     "note": "Both are refused and nothing is written (E110-T1 'again', 'objector'). The two lines exist in lang/en.json:1703-1704 and lang/pl.json but no code localises them: the GM reads the bridge's general line 'You cannot do that right now.' (lang/en.json:4947). Finding E110-1."
+    },
+    {
+     "promise": "One step writes every copy of the target: the floor, the Objection's card (found by the newest entry of the floor's stack, so the GM's card road works), its flags and the receipt; the clock is not restarted; a public card names the objector and the new target.",
+     "source": ".github/release-notes/v1.2.114.md:15-18; STATUS.md E110-02, E110-03, Q-E110-2, Q-E110-3",
+     "code": "scripts/trial-floor.mjs:1272-1287 repointObjectionInStep (one step of SEIZE_KEY); scripts/trial.mjs:1296-1318 repointCopies (card by floor.before.at(-1).messageId, flags, trialProgress().objections[card].targetId); scripts/trial-floor.mjs:699-722 postFloorCard",
+     "holds": "yes",
+     "test": "tier 2 E110-T1; scenario 67 phase V (every player's page reads the floor's target and the public card)",
+     "test_kind": "behaviour",
+     "note": "E110-T1 builds the Objection as the GM's card road does (floor.messageId null, the stack naming the card) and refuses to run on any other fixture."
+    },
+    {
+     "promise": "Both of the GM's roads (the console's floor.repoint and another GM's or the API's trial.gm op repoint) end in the same step; a second press at the same target writes nothing.",
+     "source": ".github/release-notes/v1.2.114.md:19-20; STATUS.md E110-04, Q-E110-11",
+     "code": "scripts/trial-floor.mjs:392 (FLOOR_STEPS.repoint), :736-742 floorStep; scripts/bridge-table.mjs:1336-1345 (floor.repoint, gmOnly), :1356-1372 (trial.gm, gmOnly); scripts/bridge-runs-records.mjs:810-815",
+     "holds": "yes",
+     "test": "tier 2 E110-T1; scenario 33 A23 (an Assistant GM by both roads); scenario 30 (a trial.gm op repoint packet a player's console could send is refused)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "While a mode gives the floor to someone, every other player is muted by the module: the objector in an Objection (from the press), the pair in a Rebuttal, the turn's speaker in a round, the speaker of a Closing Argument's or a Scrum Debate's speaking phase; no speaker, no muting; never a GM, a Spectator by their own switch; a GM's hand block never undone; Monocubs muted too (D-E110-A); nothing stays muted after the floor ends, the turn passes, the trial ends, the season is reset, the primary changes or a reload.",
+     "source": ".github/release-notes/v1.2.114.md:22-39; STATUS.md E110-05..E110-09, D-E110-A, Q-E110-4, Q-E110-6, Q-E110-7",
+     "code": "scripts/floor-machine.mjs:151-160 floorSpeakers; scripts/voice.mjs:1739-1813 settleTrialVoices (the floorHeld term :1803-1807), :1683-1730 blockForTrial and restoreTrialBlock, :1848-1866 registerTrialVoices (settles on every write of trialQueue), :1574-1584 holdsTheFloor",
+     "holds": "yes",
+     "test": "R7102 (tier 1); tier 2 E110-T2; scenario 67 phase V",
+     "test_kind": "behaviour",
+     "note": "What the tests read is the BROADCAST_AUDIO permission written and given back and the GMs' store row; whether a microphone really stops without a reload when the permission flips is LIVE-E110-01, not read. E59 (1.2.115, B-T1) later made the mute know a player by every student they own."
+    },
+    {
+     "promise": "The voice line and the HUD say why: 'The floor is X's', or both names in a Rebuttal, in English and Polish.",
+     "source": ".github/release-notes/v1.2.114.md:37; STATUS.md E110-10",
+     "code": "scripts/voice.mjs:1593-1601 floorHold; :1380, :1421, :1563 (micHold, moduleHoldsMic, trialVoiceLine)",
+     "holds": "yes",
+     "test": "R7103 (tier 1); scenario 67 phase V (p2 and p3 read floorHeld, p3 floorHeldPair)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A murder's mask does not apply in the trial: the trial's own muting decides there; in a Night Eclipse the mask stands as before.",
+     "source": ".github/release-notes/v1.2.114.md:35-36; STATUS.md Q-E110-16",
+     "code": "scripts/voice.mjs:1158 masksInForce, :1800 (the settle's mask term asks !inTrial), :909",
+     "holds": "yes",
+     "test": "R7109 (tier 1; green in the base run, its body not read here)",
+     "test_kind": "behaviour",
+     "note": "Read in the code; the test's kind is taken from its registry row (pure calls plus a source read)."
+    },
+    {
+     "promise": "Gaps closed: the vote's opening ends any floor; any mode's start takes back a Straw Poll's split; the Event panel's Next skips a player who is not here; a Scrum Debate speaker has Done, Pass and Post thesis, and a speaker whose player leaves is passed.",
+     "source": ".github/release-notes/v1.2.114.md:41-48; STATUS.md E110-11..E110-15",
+     "code": "scripts/vote.mjs:462-468 (openRound asks endFloorForVote); scripts/trial-floor.mjs:686-693 endFloorForVoteInStep, :660-663 and :677 MODE_OPENS; scripts/events.mjs:1126-1133 roundNextId; scripts/trial-prompt.mjs:91-98 turnFooter, :104-116 the thesis window; scripts/trial-floor.mjs:606 speakerGone, :1783",
+     "holds": "yes",
+     "test": "R7104 (tier 1); tier 2 E110-T3",
+     "test_kind": "both",
+     "note": "The gone-speaker road for a Scrum speaker is read in the code and its machine row only (the harness cannot disconnect a player), and the thesis window is not opened headless: both declared in the notes' Known gaps (lines 99-100)."
+    },
+    {
+     "promise": "Music: a row and a state of its own for the Rebuttal, Testimony, Panic Round, Closing Argument, Straw Poll and Logic Dive, three for Scrum Debate and one for the vote; a row with no playlist plays what played until now.",
+     "source": ".github/release-notes/v1.2.114.md:50-55; STATUS.md D-E110-B, D-E110-C, Q-E110-14",
+     "code": "scripts/music-states.mjs:63-73 TRIAL_MODE_OWN_MUSIC and SCRUM_PHASE_MUSIC, :86-92 trialMusicState, :98-102 voteMusicPlays, :189-200 (the own rows and the vote's row in MUSIC_STATES)",
+     "holds": "yes",
+     "test": "R7105, R7107 (tier 1); tier 2 E110-T4",
+     "test_kind": "behaviour",
+     "note": "One road where 'Nonstop Debate and the Objection keep the states they had' does not hold once the vote's playlist is mapped: finding E110-4. The watch that makes the vote's state follow the record was missing at 1.2.114 and added by E59 (B-S1, R7161). No hint for the new rows of the Music tab (declared, notes line 101)."
+    },
+    {
+     "promise": "Sounds: three new events (present, stashFound, bedroomEntered); a sound gives way to a more specific one in either order within 120 ms; the debate's opening sound plays for a debate alone and a Scrum speaker hears 'your turn'; the Messenger switch silences all three messenger sounds on a card.",
+     "source": ".github/release-notes/v1.2.114.md:57-71",
+     "code": "scripts/config.mjs:5216, :5222, :5424 (SFX_EVENTS rows); scripts/sfx-play.mjs:70 YIELD_MS, :470-484; scripts/sfx.mjs:280-306 floorSounds, :141 and :150 messengerMuted; scripts/doors-gm.mjs:56; scripts/stash-reach.mjs:764",
+     "holds": "yes",
+     "test": "R7106, R7107, R7108 (tier 1; green in the base run, bodies not read here)",
+     "test_kind": "behaviour",
+     "note": "The harness plays no audio: what is tested is which key is asked for. Whether an Eclipse's start and end sound twice with the day's is declared not measured (LIVE-E110-05)."
+    }
+   ],
+   "registry_rows": 11,
+   "tests_read": [
+    {
+     "test": "R7100",
+     "measures": "yes",
+     "why": "Asks floor-machine.mjs nextFloor on a fixed Objection and its Rebuttal: the target moves, mode, holder, start, seconds and stack stay, one card is handed, and five refusals are compared one by one; it would fail if the row restarted the clock or moved in a debate. Its last assertion only reads that three keys exist in both language files."
+    },
+    {
+     "test": "R7101",
+     "measures": "yes",
+     "why": "Asks repointRefusal with handed-in participants and absentees on both modes and barRefusal for the bar's button; a pure judgement, so it does not show what the GM is told (see E110-1)."
+    },
+    {
+     "test": "R7102",
+     "measures": "yes",
+     "why": "Asks floorSpeakers on 17 floors and holds each answer to modeAllows(floor, 'speak'); pure."
+    },
+    {
+     "test": "R7103",
+     "measures": "yes",
+     "why": "Asks floorHold over handed facts (listener, speaker, pair, debate, outside the trial, no list yet) and reads both lines' placeholders; its last assertion is a source read that registerTrialVoices names the trialQueue setting."
+    },
+    {
+     "test": "R7104",
+     "measures": "weak",
+     "why": "The Scrum rows, roundNextId and turnFooter are asked as pure calls and would fail; 'the vote's opening ends any floor' is held here by a regex over vote.mjs openRound and a typeof - the behaviour is tier 2 E110-T3's, to join."
+    },
+    {
+     "test": "R7105",
+     "measures": "yes",
+     "why": "Asks trialMusicState on 11 floors with every own state mapped and with none; pure. It does not read the order of MUSIC_STATES, so it cannot see E110-4."
+    },
+    {
+     "test": "E110-T1 (tier 2)",
+     "measures": "yes",
+     "why": "Drives handleTrialGm and repointOnPrimary on the primary against a real card and receipt and compares the floor, the card's flags and line, the receipt, the clock and the count of public cards per press; needs three students with a connected player (the harness has three)."
+    },
+    {
+     "test": "E110-T2 (tier 2)",
+     "measures": "yes",
+     "why": "Counts updateUser writes and reads each player's permission and the store through an Objection, a Rebuttal, the end, a Monocub, a Panic turn, a crash and a release. Its optional fourth player M is expected 'open' although M is a Monocub from the start: with four such players the expectation contradicts D-E110-A (finding E110-3); with the harness's three players that branch does not run."
+    },
+    {
+     "test": "scenario 67 phase V",
+     "measures": "yes",
+     "why": "From the players' own pages: the permissions on the primary, the line each player reads, the redirect's floor and public card on every page, the Rebuttal's pair, the end and an empty store."
+    }
+   ],
+   "tests_to_join": [
+    "E110-T1",
+    "E110-T2",
+    "E110-T3",
+    "E110-T4",
+    "scenario 67",
+    "scenario 33",
+    "scenario 30",
+    "scenario 68"
+   ],
+   "scenarios": [
+    "67-trial-modes, phase V: an Objection mutes who may not speak, the GM redirects it, its Rebuttal opens the pair, the end gives every microphone back and leaves no row (67-trial-modes.mjs:480-515)",
+    "33-bridge-paths, A23: an Assistant GM redirects by floor.repoint and, in the Rebuttal, by trial.gm op repoint - one floor write and one public card each on the primary (33-bridge-paths.mjs:1699-1740)",
+    "30-security: a trial.gm op repoint packet from a player's console is refused (30-security.mjs:6542)"
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E110-1",
+     "severity": "nit",
+     "title": "The redirect's two own refusal lines are never shown: the GM reads the bridge's general line",
+     "where": "scripts/trial-floor.mjs:1258-1261 and :1274; scripts/trial.mjs:1285; scripts/bridge-guards.mjs:452; lang/en.json:1703-1704",
+     "what_happens": "repointRefusal answers DRPG.Floor.repointSame or DRPG.Floor.repointAbsent, repointObjectionInStep turns any answer into null, repointOnPrimary then refuses with one English reason for every cause ('the student named may not be objected to now'), which maps to the code cannotNow. No file of scripts/ outside the tests localises either key (grep over scripts/, audit/harness/scenarios and docs/handbooks).",
+     "failure_scenario": "A GM opens Re-point during an Objection (the dialog preselects the current target, trial.mjs:1543-1544) and presses Re-point without changing it: nothing is written, and the notice says 'You cannot do that right now.' instead of 'The Objection is already aimed at that student.' The notes (line 14) say each has its own line.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a dynamic key build (DRPG.Floor. + variable), for a reader of floorStep's refusal, for barRefusal answering the two keys (it answers only noExchange for repoint, trial-floor.mjs:1437) and for a tooltip that carries them: none. The absent case cannot be chosen in the dialog (it lists connected participants only), so only the same-target line is reachable from the window; both are reachable from the API."
+    },
+    {
+     "id": "E110-2",
+     "severity": "nit",
+     "title": "The claim text of floor.repoint still says 'connected or not' for the target",
+     "where": "scripts/bridge-table.mjs:1343",
+     "what_happens": "The row's claims line reads 'one of the trial's participants (vote.mjs trialParticipants, connected or not; E51 C6)'. Since E110 C1 the primary refuses a target whose player is not connected (trial-floor.mjs:1261) and the dialog lists connected participants only (trial.mjs:1530).",
+     "failure_scenario": "A reader of the bridge's table who relies on the claim line to know who judges targetId reads a rule the code no longer has; the census row in tests-tier0.mjs:9360 was brought to repointRefusal, the claim line was not.",
+     "confidence": "read",
+     "refutation_tried": "Checked whether absentOf could answer nothing on the primary (it reads the connected users) and whether the claim is quoted by a test that would pin the old words: R1b reads that a claim exists for the id, not its words."
+    },
+    {
+     "id": "E110-3",
+     "severity": "nit",
+     "title": "E110-T2 expects its optional fourth player, a Monocub from the start, to stay open through an Objection",
+     "where": "scripts/tests-tier2.mjs:103945, :103964, :104028-104042",
+     "what_happens": "With four or more connected players whose only voice is a living student the test makes the fourth, M, a Monocub before the trial and expects 'open' for M in every step (const m = M ? ['open'] : []). The settle blocks a Monocub the floor does not name (voice.mjs:1803-1806; D-E110-A), as the same test expects of H in its own 'monocub' step ([2, [open, blocked, blocked]]).",
+     "failure_scenario": "Tier 2 run in a world with four connected players each owning one living student: the Objection step reads 2 writes and M 'blocked', the expectation says 1 and 'open', and the test goes red on a module that is right. The harness and the gate's sandbox have three players, so the branch has not run.",
+     "confidence": "read",
+     "refutation_tried": "Checked that M is not on the trial's list (deadForTrial leaves Monocubs out), that M's account has no other character (the pick requires the student to be the account's only voice) and that 08048db0 changed only the H step of the expectation."
+    },
+    {
+     "id": "E110-4",
+     "severity": "nit",
+     "title": "With a playlist mapped to the vote, a debate or an Objection opened after the vote's first opening plays the vote's music",
+     "where": "scripts/music-states.mjs:98-102 and :189-210; scripts/vote.mjs:460; scripts/trial-progress.mjs:366",
+     "what_happens": "voteMusicPlays is true from the vote's first opening in the trial until the verdict (voteOpenedAt is kept by a restart and cleared only at the next trial's entry). In MUSIC_STATES the vote's row stands after the modes' own rows and before trial.objection and trial.debate, and currentState takes the first row whose test holds. Nothing refuses a floor after the vote opened (only the Closing's Resume does, floor-machine.mjs:290).",
+     "failure_scenario": "The GM maps a playlist to The vote and none to the Rebuttal. The vote ends in a tie, the table argues on and the GM opens the debate again; a player objects. The vote's playlist plays through the debate and through the Objection's minute, while a Testimony with its own playlist mapped would switch. The notes (line 54) say Nonstop Debate and the Objection keep the states they had.",
+     "confidence": "read",
+     "refutation_tried": "Q-E110-14's answer is 'from the vote's opening (or its count) to the verdict', so by its letter the vote's music through a reopened debate is the rule taken; what remains is that the modes' own rows win over the vote and the two older rows lose to it, which the comment at music-states.mjs:191-194 does not foresee ('the vote ends every floor, so no mode's row competes with it'). Not driven: the harness reads the state, and no test opens a floor after a vote."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 8,
+   "grade_reasons": "Every promise of the notes is in the code of 1.2.118 and the main ones are driven, not only read: tier 1 R7100-R7110 are green in the base run (tier01.log lines 1773-1785), tier 2 E110-T1..T4 and scenarios 67 V, 33 A23 and 30 drive the redirect and the muting on the primary and on the players' pages (their base results to join). Held down by: the main promise's last link - a microphone that really stops and comes back without a reload - rests on LIVE-E110-01, and none of the five LIVE-E110 items has a recorded reading (0 hits in both live-readings files); two parts are held by reading alone and say so (a disconnected Scrum speaker, the thesis window); four nits found, one of them a line of the notes that does not hold as written (E110-1). Three defects of this stage were repaired by E59 one release later (the vote's music watch B-S1, the Panic Round's double sound B-T8, the handbooks B-T5 and B-S2), so they do not count against 1.2.118.",
+   "missing_to_10": "A recorded reading of LIVE-E110-01..05 on a real Foundry with LiveKit; the same-target and absent refusals said with their own lines (or the two keys and the notes' sentence taken out); a driven test of a Scrum speaker's disconnect and of the thesis window; E110-T2's fourth-player expectation brought to D-E110-A; the claim line of floor.repoint; a decision on the vote's music against a floor opened after the vote; hints for the Music tab's new rows."
+  },
+  {
+   "id": "E56",
+   "version": "1.2.115",
+   "shipped": "2026-11-15",
+   "what": "Comments and dead code. Part 1 arrived ahead in 1.2.113 (no-unused-vars as an error, the keys guard); part 2 is 1.2.115's: every comment naming what no code holds, stacked docblocks, 12 dead exports, doubled imports, local copies of esc. Meant to change nothing at the table.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.115.md (lines 1-298 read whole; E56's part 149-152, Known gaps 219-220, Checked 271-274)",
+    "docs/dev/e56/STATUS-115.md (1-109), STATUS-P1.md (1-71), NOTES-113.md (1-31), C10-LIST.md (1-17), C14-COUNTS.md (1-41); MEASURE.md (1839 lines) and COMMENT-POLICY-DRAFT.md (69) not read",
+    "audit/AUDIT-1.2.42.md 9.2: no item LIVE-E56-n (grep: 0 lines); STATUS-115.md names a planned LIVE-E56-01 that 9.2 does not hold",
+    "git log --oneline v1.2.114..v1.2.115: 167 commits in the train, 30 of them name E56",
+    "the base run's quick.log lines 7 (lint), 390 (comments), 393 (keys)",
+    "tools/comment-budget.json (read: the about text and the first 30 known rows)"
+   ],
+   "commits": 167,
+   "promises": [
+    {
+     "promise": "Every comment name no code holds is rewritten or marked gone: 141 in 77 module files and 49 in the suite's files, to 0.",
+     "source": ".github/release-notes/v1.2.115.md:150; STATUS-115.md item 1",
+     "code": "tools/comment-budget.json (every row at 0; known 119 names, each with a reason); tools/comments-lint.mjs (the check part comments)",
+     "holds": "yes",
+     "test": "the check part comments (base run: 271 module files, cited names no code holds 0, known 119, 0 problems); R7151",
+     "test_kind": "source-read",
+     "note": "The plan's 'a known list of at most 20' became 119 on the coordinator's answer (Q-E56-4). A comment that contradicts its code in prose without naming a missing identifier is found by no check (STATUS-115.md item 1 says so); one such line met in this reading is E110-2."
+    },
+    {
+     "promise": "11 stacked docblocks fixed, and the comments check now refuses a docblock after a docblock.",
+     "source": ".github/release-notes/v1.2.115.md:150-151; STATUS-115.md item 2",
+     "code": "tools/comments-lint.mjs; tools/comment-budget.json (no row with doubledJsdoc above 0)",
+     "holds": "yes",
+     "test": "the check part comments (base run: doubled JSDoc 0); R7150",
+     "test_kind": "source-read",
+     "note": "Own count with a regex over the 271 files of scripts/: 16 pairs of adjacent docblocks, 15 of them at a file's head (lines 9-113) and one at scripts/enforced.mjs:88 (a typedef before a type) - the two cases the lint says it does not count; the 16 were located by line, not each opened."
+    },
+    {
+     "promise": "12 dead exports removed.",
+     "source": ".github/release-notes/v1.2.115.md:151; STATUS-115.md item 3",
+     "code": "grep over scripts/: none of effectsLine, INFILTRATE_REROLLS, TIMED_KINDS, lastMessage, fillObjection, curtainHeld, bulletsWithoutAnswer, ownSpectator, markedChecks, exportLedger, deadRoomFor, scrumCampOfRoom is declared; importLedger stands in scripts/truth-bullets.mjs (put back by 7387437f)",
+     "holds": "yes",
+     "test": "none",
+     "test_kind": "none",
+     "note": "The finder that listed them (tools/e56) is in no check part, and STATUS-115.md says it misses a namespace read after await import(); nothing keeps the count at 0 from here on."
+    },
+    {
+     "promise": "48 doubled import statements in 42 files merged, and no-duplicate-imports is now an error.",
+     "source": ".github/release-notes/v1.2.115.md:151-152; STATUS-115.md 'Q-E56-115-1 done'",
+     "code": "eslint.config.mjs:44-50",
+     "holds": "yes",
+     "test": "the lint part (base run: 416 files, 0 problems, a planted doubled import reported in 6 of 6 folders)",
+     "test_kind": "source-read",
+     "note": "Own count over scripts/: 2 files import one module in two statements (i18n.mjs:43-44 and utils.mjs:7 and :10), each a named import beside a namespace import, which cannot be one statement."
+    },
+    {
+     "promise": "13 local copies of esc replaced by utils'.",
+     "source": ".github/release-notes/v1.2.115.md:152",
+     "code": "scripts/utils.mjs:34 (the only declaration with that body left in scripts/); 26 local aliases of the bare foundry.utils.escapeHTML stay, listed as another behaviour in docs/dev/e56/C10-LIST.md",
+     "holds": "yes",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Counted by grep on this checkout."
+    },
+    {
+     "promise": "Part 1 (in 1.2.113): no-unused-vars is an error, and a key of lang/en.json that no code reads fails the keys guard.",
+     "source": "docs/dev/e56/NOTES-113.md:6-22; STATUS-P1.md items 1-2",
+     "code": "eslint.config.mjs:40-49; tools/keys-lint.mjs (the check part keys)",
+     "holds": "yes",
+     "test": "the lint part (a planted unread name reported in 6 of 6 folders) and the check part keys (base run: 6369 keys, dead 0, the planted unread key seen)",
+     "test_kind": "source-read",
+     "note": "The keys guard still passes 999 keys under 179 builder prefixes and 207 read by tests alone (base run's line); STATUS-P1.md left both to part 2, and STATUS-115.md does not say they were read."
+    },
+    {
+     "promise": "Meant to change nothing at the table; no console name changed.",
+     "source": ".github/release-notes/v1.2.115.md:149, :179-180",
+     "code": "tools/api-surface.json: git diff v1.2.114 v1.2.115 is empty",
+     "holds": "unknown",
+     "test": "none",
+     "test_kind": "none",
+     "note": "The API surface is unchanged over the range (read). 'Nothing at the table' is not measurable from the repository: no test compares behaviour before and after, and what stands for it is tiers 0-1 staying green (1776 passed, 0 failed in the base run)."
+    }
+   ],
+   "registry_rows": 60,
+   "tests_read": [
+    {
+     "test": "R7150",
+     "measures": "weak",
+     "why": "Reads tools/comment-budget.json and fails if a row allows a doubled docblock; it does not read a comment. The measuring is the check part comments, which holds the budget to the lint's counts; the two together hold the promise."
+    },
+    {
+     "test": "R7151",
+     "measures": "weak",
+     "why": "Reads the same budget: no row with citations above 0, every known name with a reason of ten characters or more. As R7150: a pin on the budget, with the check as the meter."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 65",
+    "scenario 76",
+    "scenario 40",
+    "scenario 95"
+   ],
+   "scenarios": [
+    "None names E56 in audit/harness/README.md's register; the line ran 65, 76, 40 and 95 as regressions (notes lines 271-274)."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E56-1",
+     "severity": "nit",
+     "title": "The counts in the rules' code table were measured as stale and left, and nothing checks them",
+     "where": "docs/dev/e56/C14-COUNTS.md:8-41; the rules' code table (code.md), row scripts/music-states.mjs",
+     "what_happens": "C14-COUNTS.md read 18 of 22 rows of the table as differing from the tree on 13.11.2026 and left the edit to whoever may edit that folder. One row read again today: the table says music-states.mjs has '11 names exported, 8 of them re-exported'; the file exports 15 (grep of its export declarations), four of them E110's.",
+     "failure_scenario": "Somebody planning a move reads the table to know how many names a file exports and what its facade re-exports, and plans from numbers that are four releases old.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a check part that computes the counts (tools/check.mjs parts list in the project instructions: none) and for a later commit that brought the rows up to date (the music-states row still reads 11)."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 9,
+   "grade_reasons": "What the notes promise is on 1.2.118 and each countable part was counted again: the comments check, the keys check and the lint are green in the base run with their own planted faults seen, the 12 exports are gone, no doubled named import and no copy of esc's body is left. No live check belongs to the stage. Not a 10 because three promises have no check of their own (the dead exports, the esc copies, 'nothing changes at the table'), the two R tests are pins on a budget file and measure only together with the check, the plan's own bounds were moved by decision (a known list of 119, not 20; five helpers and 46 other groups of identical bodies not merged), and the code table's counts stay stale.",
+   "missing_to_10": "A check part for dead exports (the finder fixed for namespace reads); the 999 builder-covered and 207 test-only keys read; the rules' code table computed or corrected; a statement of what was compared to say 'nothing at the table'."
+  },
+  {
+   "id": "E109",
+   "version": "1.2.115",
+   "shipped": "2026-11-15",
+   "what": "The owner's answers of 14.11.2026 on the review page DRPG-Q113 (11 of 140 rows changed something), the 40 open text disagreements of batches B14-B18 decided by the coordinator (27 taken, 13 kept), and four leftovers of 1.2.113.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.115.md (E109's part 111-129; Known gaps 217-218 and 231-237; Checked 278-280)",
+    "docs/dev/e109/STATUS-115.md (1-306, whole)",
+    "docs/dev/e109/DISAGREEMENTS.json (42 rows counted by script: 27 taken, 13 kept, 2 settled before; rows not read one by one)",
+    "audit/AUDIT-1.2.42.md 9.2: no item LIVE-E109-n (grep: 0); the table checks are named without an id (notes line 235)",
+    "git log --oneline v1.2.114..v1.2.115: 167 commits in the train, 18 name E109",
+    "docs/dev/R-REGISTRY.md: R7120-R7130 (stamped E56, the train's first stage; no row is stamped E109)"
+   ],
+   "commits": 167,
+   "promises": [
+    {
+     "promise": "Four text answers: the darkening's line says only that it blocks Hope; 'Send to the GM' on a statistic's proposal; the stage after the fight is named Tamper; Prepare the Weapon's note drops 'unless the killer already has the tool'.",
+     "source": ".github/release-notes/v1.2.115.md:112-114",
+     "code": "lang/en.json DRPG.Overflow.hopeBlocked, DRPG.TraitRuling.propose, DRPG.Murder.stage.resolution, DRPG.Remnant.action.resolution (read by script: 'The darkening blocks Hope this time of day.', 'Send to the GM', 'Tamper', 'Tamper'); config.mjs INDIRECT_MURDER.subProjects[0].note",
+     "holds": "partly",
+     "test": "R7120",
+     "test_kind": "source-read",
+     "note": "One UI text and two handbook lines still name the stage 'the clean-up' (finding E109-2). The Polish of hopeBlocked ('o tej porze dnia') and of Monocub.darkened ('w tej porze dnia') differ by a preposition for one English sentence."
+    },
+    {
+     "promise": "The critical's hint line is drawn only on Observe's and Analyze's cards.",
+     "source": ".github/release-notes/v1.2.115.md:114",
+     "code": "scripts/call-gm.mjs:763 and :781-783 (callCardHtml draws it only with criticalHint); scripts/action-observe.mjs:240; scripts/action-analyze.mjs:263; scripts/reroll.mjs:1948",
+     "holds": "yes",
+     "test": "R7121",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Analyze's roll card comes before its result.",
+     "source": ".github/release-notes/v1.2.115.md:115",
+     "code": "scripts/action-analyze.mjs analyseBullet (the awaited whisperToOwner before requestAnalyzeResolve)",
+     "holds": "yes",
+     "test": "R7122",
+     "test_kind": "source-read",
+     "note": "The order follows from the awaits and is read off the source; the cards in a real chat log are a table check without a LIVE id (STATUS-115.md 'Needs a local Foundry')."
+    },
+    {
+     "promise": "Move the Body's number to beat has the clean-up's floor (no tier reaches it today).",
+     "source": ".github/release-notes/v1.2.115.md:115-116",
+     "code": "scripts/cleanup.mjs:1794 (atLeastFloor over the threshold less the relief), :387-389; scripts/config.mjs:4491 minDc 8",
+     "holds": "yes",
+     "test": "R7123",
+     "test_kind": "source-read",
+     "note": "The test says itself that no fixture reaches the floor; it reads the line and asks atLeastFloor apart."
+    },
+    {
+     "promise": "The GM's session log keeps the newest 60 rows and counts the dropped.",
+     "source": ".github/release-notes/v1.2.115.md:116",
+     "code": "scripts/utils.mjs:287 keepNewest, :312, :324 sessionFailuresDropped; scripts/diagnostics.mjs:2196 failureText; scripts/gm-panel.mjs:706-708",
+     "holds": "yes",
+     "test": "R7124 (and R7640, a later follow-up that shows the count in the Debug log window)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Replay the summary on the trial console plays the case summary's board on that GM's screen alone.",
+     "source": ".github/release-notes/v1.2.115.md:116-117",
+     "code": "scripts/trial-floor-ui.mjs:1456-1458 and :1556; scripts/case-summary.mjs:117-126; scripts/sequence.mjs:899-905 (a key of its own each time, nothing sent or written)",
+     "holds": "yes",
+     "test": "R7125",
+     "test_kind": "both",
+     "note": "Drawn and heard by nobody headless (the test asks with the switch off and no sound); a table check without a LIVE id."
+    },
+    {
+     "promise": "A held Key fee's card has its own Charge the Key fee button.",
+     "source": ".github/release-notes/v1.2.115.md:121-122; STATUS-115.md round 2, D27 and D28",
+     "code": "scripts/key-remnants.mjs:720-727 (the card and its flag), :790-801 wireChargeHeld; scripts/gm-bridge.mjs:137-141; scripts/key-remnants.mjs:683-735 chargeForUnfoundKeys",
+     "holds": "partly",
+     "test": "R7130",
+     "test_kind": "source-read",
+     "note": "The button is there and asks the primary's charge. It is bound to no chapter and no phase: pressed on an old card it charges the chapter now on the clock (finding E109-1)."
+    },
+    {
+     "promise": "Texts taken from the disagreements: the settings window is 'Danganronpa RPG settings'; 'Hide the Daggerheart Fear tracker'; one name, Tier tables and Room tables, in the Item tables window; a GM's own tooltip on the floor switcher; the Key limit, the Investigation's Save and the Key Remnant window's intro count what they say they count.",
+     "source": ".github/release-notes/v1.2.115.md:118-124",
+     "code": "lang/en.json:335, :440-442; 'Tier tables' or 'Room tables' on 6 lines of lang/en.json and 'tier pool' or 'room pool' on none (grep); the three counts and the tooltip not traced in the code by this reader",
+     "holds": "yes",
+     "test": "R975, R1517, R518, R1016, R2036, R3587, R7126-R7129 (all green in the base run; bodies not read here)",
+     "test_kind": "source-read",
+     "note": "Held here by the texts read and by the named tests' base results; the code behind R7126-R7129 was not opened."
+    },
+    {
+     "promise": "The season reset's 'actions' group names everything it clears.",
+     "source": ".github/release-notes/v1.2.115.md:125-127",
+     "code": "lang/en.json:6438; scripts/gm-stores.mjs rows with resetGroup 'actions' (19 on this checkout, 18 at v1.2.115, counted by script)",
+     "holds": "partly",
+     "test": "the check part text (no test holds the label to the group's rows)",
+     "test_kind": "none",
+     "note": "Finding E109-3: four kinds of rows the group clears are not in the label."
+    },
+    {
+     "promise": "In Polish, the Item tables window's 'Serves also as' checkbox stands at its label's first line under Stained Glass; the radio sweep reads Polish.",
+     "source": ".github/release-notes/v1.2.115.md:128-129, :221-222",
+     "code": "styles/components.css (the rule not located by this reader); audit/windows-pl",
+     "holds": "unknown",
+     "test": "audit/radio-sweep.mjs in Chromium (42 windows, 1488 radio readings, green on f3f8e5a0 by the notes)",
+     "test_kind": "behaviour",
+     "note": "The sweep is not part of the audit's base run and was not run again; with Foundry's core sheet loaded it is a table check without a LIVE id."
+    },
+    {
+     "promise": "Leftovers closed: the check part live reads any LIVE id; docs/dev/e102/KEYS.json matches lang/; NEEDSCODE.md:21 corrected.",
+     "source": ".github/release-notes/v1.2.115.md:195-196, :221-223",
+     "code": "tools/check.mjs part live",
+     "holds": "yes",
+     "test": "the check part live (base run: 563 items in AUDIT 9.2, 1067 citations in 453 files, 0 problems)",
+     "test_kind": "source-read",
+     "note": "KEYS.json and NEEDSCODE.md not read again."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R7120",
+     "measures": "yes",
+     "why": "Reads the five texts in both language files against exact strings and a list of five cards that must say 'the Tamper stage'; it would fail if a text drifted back. Its list of cards does not hold DRPG.Murder.openSelfNote, which still says 'the clean-up' (E109-2)."
+    },
+    {
+     "test": "R7121",
+     "measures": "yes",
+     "why": "Draws callCardHtml three ways and reads the hint in the card's text, then three source reads that Observe, Analyze and the Reroll pass criticalHint."
+    },
+    {
+     "test": "R7122",
+     "measures": "weak",
+     "why": "Compares the positions of three calls in analyseBullet's source text; it pins the order of the awaits, not the order of two cards in a chat log."
+    },
+    {
+     "test": "R7123",
+     "measures": "weak",
+     "why": "A regex over resolveStageSix plus a pure call of atLeastFloor; no roll reaches the floor, as its own comment says."
+    },
+    {
+     "test": "R7124",
+     "measures": "yes",
+     "why": "Feeds 75 rows to keepNewest on a log of its own and reads 60 kept, the 16th first, 15 dropped, and the report's sentence; one source read that record() goes through it."
+    },
+    {
+     "test": "R7125",
+     "measures": "yes",
+     "why": "Calls sequence.mjs replayCaseSummary for a GM's and a player's card with the switch off and no sound, then reads the console's button, its wiring and that the road writes nothing (source)."
+    },
+    {
+     "test": "R7130",
+     "measures": "weak",
+     "why": "Seven regexes over key-remnants.mjs, gm-bridge.mjs and the language files; it never presses the button, so it cannot see which chapter a press charges (E109-1)."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 63",
+    "scenario 89",
+    "scenario 62",
+    "scenario 50",
+    "scenario 51",
+    "scenario 65",
+    "scenario 13",
+    "scenario 17",
+    "scenario 61",
+    "scenario 66"
+   ],
+   "scenarios": [
+    "None names E109 in audit/harness/README.md's register; the line ran 63, 89, 13, 17, 62, 50, 51, 65, 61, 66, 68, 30, 72 and 40 as regressions (STATUS-115.md 'Checked', three rounds)."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E109-1",
+     "severity": "minor",
+     "title": "The held Key fee card's button charges whatever chapter the clock is in when it is pressed",
+     "where": "scripts/key-remnants.mjs:683-735 (chargeForUnfoundKeys: no phase read), :790-801 (wireChargeHeld: wired by the card's flag alone); scripts/gm-bridge.mjs:137-141 (wired on every render of the card); scripts/trial-progress.mjs:347 and :604-606 (keysCharged is the chapter's and survives the trial's entry)",
+     "what_happens": "Until E109 the charge was asked only as the clock entered a Class Trial (clock.mjs:1108-1111) or from a console. The card E109 gave a button stays in the chat log; every render on a GM's browser wires the button again ('a reload draws it again'), and a press runs chargeForUnfoundKeys for the clock's chapter. Its guards are the chapter's stamp and 'too late' (a closed earlier case and no case in the clock's chapter); neither asks whether a trial is running or whether the card is this chapter's.",
+     "failure_scenario": "Chapter 1's trial opens while a Truth Bullet lacks its answer key on the primary: the held card appears. In chapter 2 a body is found and the investigation runs (caseKeyCount(2) is a number). A GM scrolling the log presses 'Charge the Key fee' on the chapter-1 card: the fee is counted on the Keys found so far (none yet: 3 Despair a Key to each Monokuma for the whole bar), keysCharged is stamped for chapter 2 and the Reveal's paid count written, so the honest charge at chapter 2's trial entry is skipped and Keys found afterwards are still paid for.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a phase check in chargeForUnfoundKeys, in handleKeysCharge (bridge-runs-records.mjs:736-739) and in the keys.charge row (bridge-table.mjs:1154-1160: gmOnly only); for a chapter on the card's flag (keyChargeHeld: true alone); for the chapter's end deleting the card (only a season reset clears the chat). With no case in the new chapter the press is refused as too late, so the window is from the new chapter's incident to its trial entry. Not driven: R7130 reads source text."
+    },
+    {
+     "id": "E109-2",
+     "severity": "nit",
+     "title": "One window text and two player handbook lines still call the Tamper stage 'the clean-up'",
+     "where": "lang/en.json:2784 (DRPG.Murder.openSelfNote); docs/handbooks/player-handbook.en.md:760 and :818",
+     "what_happens": "The murder window's note for a death by one's own hand ends 'the incident goes straight to the clean-up'; the handbook says 'goes straight to the clean-up' and 'an incident that reached the clean-up closes'. The tracker and five cards say Tamper.",
+     "failure_scenario": "A GM setting up a death by one's own hand reads 'the clean-up' in the window and 'Tamper' on the tracker a moment later for the same stage.",
+     "confidence": "read",
+     "refutation_tried": "Q-E109-1 keeps the attempts' words ('a clean-up attempt', 'clean-up roll', the Cleaning Tool); these three name the stage the incident goes to, not an attempt. The notes declare the handbook lines as not read one by one (line 217-218); the UI text is not declared, and R7120's list of cards leaves it out."
+    },
+    {
+     "id": "E109-3",
+     "severity": "nit",
+     "title": "The reset's 'actions' label does not name everything the group clears",
+     "where": "lang/en.json:6438; scripts/gm-stores.mjs:998 (facilityUses), :1079 (bedroomNotes), :1407 (cubTargets), :1186 (veils, added by E112)",
+     "what_happens": "The label lists rests, barricades, Bounties, Confusions, room effects, masks, tails, watches, eavesdrops, lock picks, crossings and the rolls' records. The group also cuts who used which facility, the bedroom notes waiting for their owners, the Monocubs' move counts and, since E112, the opening's veils; the list of sheet writes (sheetWrites, the audit's rows) is in the group too and is named only if 'the rolls' records' is read to cover it.",
+     "failure_scenario": "A GM who unticks 'actions' to keep, say, the Monocubs' caps or a waiting bedroom note cannot learn from the window that the group holds them.",
+     "confidence": "read",
+     "refutation_tried": "Counted the group's stores at v1.2.115 (18) and today (19) by script; 'the rests' is the cast's own count, not the facilityUses store. The four are bookkeeping a GM rarely thinks of, which is why this is a nit and not more."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 8,
+   "grade_reasons": "The eleven answers and the decided disagreements are in the texts and the code of 1.2.118, and R7120-R7130 with the six older text tests are green in the base run. One promise is delivered with a defect (E109-1, minor: the new button on a card that outlives its chapter), two are true only in part (the Tamper name, the reset label - nits), and four of the seven tests read are pins on source text (R7122, R7123, R7130 and most of R7120's neighbours), so the card order, the floor and the button are held by reading. The stage has no LIVE id; its five table checks are named in the notes without one and none is recorded as read.",
+   "missing_to_10": "The held card bound to its chapter and to a running trial (or the press refused outside one), with a test that presses it; the last 'clean-up' stage names; the label or the group brought together; ids and readings for the five table checks (the replay, Analyze's order in a real chat, the Polish checkbox with the core sheet, the Key fee button, the floor tooltip)."
+  },
+  {
+   "id": "E59",
+   "version": "1.2.115",
+   "shipped": "2026-11-15",
+   "what": "The consistency stage. Its 1.2.113 part: seven rules over every window as tier 0 tests, the gate list and the gap list. Its 1.2.115 part: 35 mechanics mapped from start to what the table sees and hears, 49 breaks found, 39 fixed.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.115.md (E59's part 131-147; Known gaps 231-236; Checked 281-282)",
+    "docs/dev/e59/STATUS-115.md (1-143, whole), CHAINS.md (part 3, lines 100-201, all 49 rows; parts 1-2 not read), STATUS.md (1-71), GAPS.md (1-40 of 194); GATES.md, WINDOWS.md, BRANCHES.md, LEAK-PROJECT-MARK.md not read",
+    "audit/AUDIT-1.2.42.md 9.2 item 532 (line 1528): LIVE-E59-01",
+    "git log --oneline v1.2.114..v1.2.115: 167 commits in the train, 15 name E59",
+    "docs/dev/R-REGISTRY.md: R6750-R6756 (stamped E54) and R7160-R7182 (stamped E56); no row is stamped E59"
+   ],
+   "commits": 167,
+   "promises": [
+    {
+     "promise": "35 mechanics mapped and 49 breaks found: 39 fixed and one more in part, 5 written into the handbooks as they are, 2 kept as written, 2 handed to E109.",
+     "source": ".github/release-notes/v1.2.115.md:132-135",
+     "code": "docs/dev/e59/CHAINS.md part 3 (49 rows counted by script: 39 'fixed', B-T8 in part, 5 'documented', 2 'as written', 2 'handed to E109')",
+     "holds": "yes",
+     "test": "one R number a fix, R7160-R7182 (23 rows, all 'ok' in the base run)",
+     "test_kind": "source-read",
+     "note": "21 of the 23 are tier 0 tests that read the fixed function's source text; R7166 and R7175 are tier 1 pure calls. Eight of the 39 fixes were read in the code by this reader (the rows below); the other 31 stand on their CHAINS.md rows and their green text pins."
+    },
+    {
+     "promise": "The Final Trial's Level Ups read the living as the table knows them.",
+     "source": ".github/release-notes/v1.2.115.md:136; CHAINS.md B-T3",
+     "code": "scripts/verdict.mjs:724-727 aliveAsTableKnows (the roster less isDeceased of the flags the GMs hold); verdict.mjs holds no read of livingStudentsForGm",
+     "holds": "yes",
+     "test": "R7160",
+     "test_kind": "source-read",
+     "note": ""
+    },
+    {
+     "promise": "The vote's music follows the trial.",
+     "source": ".github/release-notes/v1.2.115.md:136-137; CHAINS.md B-S1",
+     "code": "scripts/music-play.mjs registerMusic (the updateSetting watch names every setting a state's test reads, trialProgress among them); scripts/music-states.mjs:98-102",
+     "holds": "yes",
+     "test": "R7161",
+     "test_kind": "source-read",
+     "note": "R7161 is a guard over a class: it collects the settings each state's test names and holds each to the watch. On a real playlist it is a table check without a LIVE id. See E110-4 for the order of the vote's row."
+    },
+    {
+     "promise": "A forced door's banging names the room as each listener knows it; door and breach cards go to a room's people as movement counts them.",
+     "source": ".github/release-notes/v1.2.115.md:137-138; CHAINS.md B-R6, B-R7",
+     "code": "scripts/doors-gm.mjs:131-151 tellRooms (countsAsPresent, a text built per student), :186-190 (the banging through roomNamerFor); scripts/passages-gm.mjs:2177-2183 roomNamerFor",
+     "holds": "yes",
+     "test": "R7163, R7164",
+     "test_kind": "source-read",
+     "note": "The witnesses in the forcer's own room and in the room beyond are told the room by its real name (doors-gm.mjs:192-193): that is the owner's rule 8 of 13.11.2026 quoted at :179-180, not a miss of this fix."
+    },
+    {
+     "promise": "Shut the Door is refused before it costs anything for an Eclipse, a bedroom or too many open doors; a body or another student's barricade still refuse after the roll, and the handbooks say so.",
+     "source": ".github/release-notes/v1.2.115.md:138-140; CHAINS.md B-R5",
+     "code": "scripts/action-listen.mjs:102-112 shutShutWhy; scripts/doors-gm.mjs:82-96 shutRefusal",
+     "holds": "yes",
+     "test": "R7173",
+     "test_kind": "source-read",
+     "note": "The player's side counts neighbouring rooms not locked, the GM's side openExits: read as the same rule, not compared on a map."
+    },
+    {
+     "promise": "The trial's end closes an open vote, uncounted.",
+     "source": ".github/release-notes/v1.2.115.md:140; CHAINS.md B-T6",
+     "code": "scripts/trial-progress.mjs:581-587 shutVoteAtExit; scripts/clock.mjs:1012-1019 (reconcilePhase, every road out, before the sentence)",
+     "holds": "yes",
+     "test": "R7172",
+     "test_kind": "source-read",
+     "note": ""
+    },
+    {
+     "promise": "The floor's mute knows a player by every student they own.",
+     "source": ".github/release-notes/v1.2.115.md:140-141; CHAINS.md B-T1",
+     "code": "scripts/voice.mjs:1574-1584 holdsTheFloor, :1595 (floorHold), :1803 (the settle)",
+     "holds": "yes",
+     "test": "R7175 (tier 1)",
+     "test_kind": "both",
+     "note": "Pure calls with two students of one player, then a source read that floorHold and the settle ask it. On LiveKit a table check without a LIVE id."
+    },
+    {
+     "promise": "A Bounty of last season gives nothing back into this one.",
+     "source": ".github/release-notes/v1.2.115.md:141; CHAINS.md B-H1",
+     "code": "scripts/monocub.mjs:1857-1881 lapseBounties (:1869 a Bounty's season against seasonEpoch())",
+     "holds": "yes",
+     "test": "R7176",
+     "test_kind": "source-read",
+     "note": "A Bounty posted before 1.2.115 holds no season and is treated as this season's (the comment at :1868 says so)."
+    },
+    {
+     "promise": "The Eclipse wins over a Spectator's talk switch, and unmarking a Spectator takes the switch off.",
+     "source": ".github/release-notes/v1.2.115.md:142-143; CHAINS.md B-S5, B-S6",
+     "code": "scripts/voice.mjs:1066-1072 (the Spectators' room rule passes over every account while eclipse holds); scripts/monokuma.mjs:239-254 (setSpectator unsets both flags); scripts/spectator.mjs:19-41",
+     "holds": "superseded",
+     "test": "R7181, R7168",
+     "test_kind": "source-read",
+     "note": "The Eclipse rule stands as written. The switch itself was replaced one release later (owner-116, e389c2ca, 1.2.116, the owner's word): a Spectator now talks in the Spectators' room by default and the switch takes it to listen at its token, so B-S6's 'no open microphone without a press' is no longer the rule; unmarking still clears both flags, and R7168 was brought to the new flag."
+    },
+    {
+     "promise": "(1.2.113 part) Every window is held to seven rules as tests; the second screenshot rating (C3) is left to the auditor's pass after the local gate.",
+     "source": "docs/dev/e59/STATUS.md items C2 and C3; Q-E59-4",
+     "code": "scripts/tests-windows.mjs (not read here); docs/dev/e59/WINDOWS.md (162 windows in 165 sites, by the paper)",
+     "holds": "partly",
+     "test": "R6750-R6756 (tier 0, all 'ok' in the base run, lines 466-472); LIVE-E59-01 for C3",
+     "test_kind": "source-read",
+     "note": "C2 is delivered as static rules over the source and the sheets. C3, the plan's point (2), was not done and stands as LIVE-E59-01, with no recorded reading."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R7160",
+     "measures": "weak",
+     "why": "Regexes over verdict.mjs: aliveAsTableKnows has the roster and isDeceased, two functions call it, the file never names livingStudentsForGm. It pins the text; a helper that kept its name and changed its filter in another way would pass."
+    },
+    {
+     "test": "R7161",
+     "measures": "yes",
+     "why": "A source read, but of a relation: every setting a music state's test names must be named in the watch, with a floor on how much was read (at least 10 tests, 500 characters of the watch). It would fail for the next state that reads an unwatched setting."
+    },
+    {
+     "test": "R7163",
+     "measures": "weak",
+     "why": "Reads that tellRooms and tellBreach call countsAsPresent and hold no filter of their own; text only."
+    },
+    {
+     "test": "R7164",
+     "measures": "weak",
+     "why": "Reads that forceDoor names roomNamerFor near the banging's key and that tellRooms takes a function; text only."
+    },
+    {
+     "test": "R7172",
+     "measures": "weak",
+     "why": "Reads that reconcilePhase names shutVoteAtExit before executeAtExit and that the helper writes open: false; it does not leave a trial with a vote open."
+    },
+    {
+     "test": "R7173",
+     "measures": "weak",
+     "why": "Reads that shutShutWhy and shutRefusal both name the Eclipse, the bedroom's owner and maxExits, and that six language keys exist; it does not ask shutShutWhy anything."
+    },
+    {
+     "test": "R7175",
+     "measures": "yes",
+     "why": "Asks holdsTheFloor four ways with stand-in actors and users (a second student of the speaker's player, the speaker, another's, no speaker); would fail if the mute went back to one student."
+    },
+    {
+     "test": "R7166",
+     "measures": "yes",
+     "why": "Asks sfx.mjs floorSounds for a Panic Round's opening on the speaker's browser, on another's, for the next speaker and for a Testimony; pure."
+    },
+    {
+     "test": "R7176",
+     "measures": "weak",
+     "why": "Two regexes: postBountyNow writes a season, lapseBounties names .season and seasonEpoch()."
+    },
+    {
+     "test": "R7180, R7181, R7182",
+     "measures": "weak",
+     "why": "Each a handful of regexes over the fixed functions (announceOverflow veils, endEclipse posts its end, placeVoices' rule names eclipse, inThatDeath reads the row's there)."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 13",
+    "scenario 93",
+    "scenario 76",
+    "scenario 87",
+    "scenario 18",
+    "scenario 63",
+    "scenario 10",
+    "scenario 67",
+    "scenario 86",
+    "scenario 40",
+    "scenario 81",
+    "scenario 41",
+    "E92+E93",
+    "E74-T2",
+    "E50-T2",
+    "PV-DOORS-T1",
+    "E15-T14"
+   ],
+   "scenarios": [
+    "None names E59 in audit/harness/README.md's register. The line ran 13, 93, 76, 87, then 18, 63, 10, 67, 86, 13, 40, 81 and 41 for its changes (STATUS-115.md 'Test numbers'); none of them was written or widened for a fix of this stage, so they show that nothing else moved, not that a fix works."
+   ],
+   "live": {
+    "items": 1,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E59-1",
+     "severity": "nit",
+     "title": "The status paper says R7172 on are stamped E59; the registry stamps every one of the stage's rows E56 or E54",
+     "where": "docs/dev/e59/STATUS-115.md:72-73; docs/dev/R-REGISTRY.md (R7160-R7182 'E56', R6750-R6756 'E54'; grep '| E59 |' finds 0 rows)",
+     "what_happens": "The registry is generated and a row keeps the first stamp it was written with; the paper's sentence about --stage E59 does not match what the generated file holds on this checkout.",
+     "failure_scenario": "Anyone who looks the stage up by its stamp, as this audit's method does, finds no test for E59 and 60 for E56, of which 2 are E56's own.",
+     "confidence": "read",
+     "refutation_tried": "Looked for the rows under another spelling of the stamp and for a later regeneration note; the registry's header only says how it is generated."
+    }
+   ],
+   "superseded_by": [
+    "owner-116 (1.2.116, e389c2ca, 15.11.2026): the Spectator's talk switch became a listen switch with the Spectators' room as the default, replacing the rule B-S6 fixed"
+   ],
+   "grade": 8,
+   "grade_reasons": "The count in the notes is the count in CHAINS.md, the eight fixes read in the code are there on 1.2.118 as described, all 30 tests the stage wrote (R6750-R6756, R7160-R7182) are green in the base run, and one fix was replaced by a later word of the owner, not broken. What keeps it at 8: 21 of the 23 fix tests are tier 0 readers of the fixed function's text, so almost every fix is held by reading plus a pin that would not fail if the behaviour changed with the words kept; the scenarios run were regressions, none drives a fix; the stage's nine table checks have no LIVE id and its one LIVE item (the screenshot rating and every window drawn on v14) has no recorded reading; 31 fixes were not read in the code by this reader.",
+   "missing_to_10": "A behaviour test or a scenario check for the fixes a table would notice first (the vote closed at the trial's exit, Shut the Door's row, the veiled darkening and the Eclipse's public end during an incident, the third of an incident, the banging's name per listener); LIVE ids and readings for the nine table checks; LIVE-E59-01 read; the registry's stamps or the paper's sentence corrected."
+  },
+  {
+   "id": "E111",
+   "version": "1.2.115",
+   "shipped": "2026-11-15",
+   "what": "The case's copy on the Foundry server, read by every GM's browser at load so that a GM alone on another computer finds the case, and Clear the plan for one chapter. A first design with a passphrase was built and taken out whole before release.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.115.md (E111's part 15-45; Before installing 159-165; Known gaps 208-209 and 215-216; Checked 241-249 and 283-287)",
+    "docs/dev/e111/STATUS-115.md (1-103, whole), README-DRAFT.md (1-12); TRUST-DRAFT.md (lines 1-3 of 31)",
+    "audit/AUDIT-1.2.42.md 9.2 items 549-551 (lines 1562-1566): LIVE-E111-01..03",
+    "git log --oneline v1.2.114..v1.2.115: 167 commits in the train, 11 name E111",
+    "docs/dev/R-REGISTRY.md: R7345-R7350 (stamped E56), R7340-R7344 kept as removed rows of the passphrase design",
+    "audit/harness/README.md:189 (scenario 34's row) and :499-511 (what the server-files stand-in models)",
+    "scripts/case-copy.mjs (lines 1-279, whole)",
+    "docs/dev/e58/LOCAL-REPORT.md:461 (a reading on Foundry 14.370, 16.11.2026, filed under LIVE-E04-08)"
+   ],
+   "commits": 167,
+   "promises": [
+    {
+     "promise": "A GM who opens the world alone on another computer finds the case there: the primary GM's browser keeps the whole case in a file worlds/<world>/drpg-case/case-<32 hex>.json, about 15 s after a change and at most a minute after the first; every GM's browser reads it at load and merges it as Restore from a file does.",
+     "source": ".github/release-notes/v1.2.115.md:18-23, :159-163",
+     "code": "scripts/case-copy.mjs:42 copyFolder, :51-52 SEAL_QUIET_MS and SEAL_MOST_MS, :210-221 scheduleCopy, :166-200 writeServerCopy, :138-158 readServerCopies (restoreCase quiet), :251-279 registerCaseCopy and copyAtLoad; scripts/module.mjs:432",
+     "holds": "yes",
+     "test": "scenario 34 A1, A4, C1, C2, D1; R7348 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "One recorded reading on a real server exists, though not under this stage's ids: on Foundry 14.370 (16.11.2026) a fresh browser with none of the seed's storage held all 67 module stores from the copy and the health row read 'caseCopy ... GM, 1' (docs/dev/e58/LOCAL-REPORT.md:461); the same reading saw one field of the cast older than the old browser's, as a copy written up to a minute behind would be. With the files open to players the copy is not read at load either (finding E111-2)."
+    },
+    {
+     "promise": "An empty browser never replaces a full copy: every write first lists the folder and merges every copy in it, and no browser writes before its stores have heard the other GMs; two racing first writes leave two files, both read, the newer written on.",
+     "source": ".github/release-notes/v1.2.115.md:24-26",
+     "code": "scripts/case-copy.mjs:91-98 copyRefusal, :177-184 (read, hydration asked again, then build and upload over the newest name), :154 (newest by exportedAt)",
+     "holds": "yes",
+     "test": "R7346 (tier 1); scenario 34 D1, D2, E1-E3",
+     "test_kind": "both",
+     "note": "The stores count as hydrated when they were alone, answered or timed out (gm-store.mjs:1127), so 'has heard the other GMs' includes a GM who did not answer in time; the read-and-merge before every write is what protects the copy then."
+    },
+    {
+     "promise": "What protects it is Foundry's file permissions and an unguessable name, not encryption: the module writes no copy while its switch is off or while a Player, a Trusted Player or a player's own account may browse or upload files; it tells the GMs why and the health check names it.",
+     "source": ".github/release-notes/v1.2.115.md:27-33, :161-165",
+     "code": "scripts/case-copy.mjs:70-83 filesRefusal and filesPrivate, :168-175, :203-207 tellRefused; scripts/gm-stores.mjs:2677-2680 (the health row caseCopy)",
+     "holds": "yes",
+     "test": "R7345 (tier 1); scenario 34 A2, B1, B2",
+     "test_kind": "behaviour",
+     "note": "That the server hands the file to anyone with its address, refuses a player's listing and shows no folder index is assumed, not measured: LIVE-E111-02, no recorded reading. The harness's stand-in models the permission as its README says (:499-511)."
+    },
+    {
+     "promise": "The file's name is 128 random bits that nothing a player's browser receives contains.",
+     "source": ".github/release-notes/v1.2.115.md:29-30",
+     "code": "scripts/case-copy.mjs:59-62 newCopyName (crypto.getRandomValues, 16 bytes), :103 (the names kept in this GM's memory), :235-240 copyStatus names no file",
+     "holds": "yes",
+     "test": "R7347 (tier 1); scenario 34 A3 (a player's world settings, localStorage, chat messages, flags and packets)",
+     "test_kind": "both",
+     "note": "R7347 counts the module's own writing calls in the file (0). The file's two error lines hand the server's message to the GM's own console and session log (case-copy.mjs:144, :198); whether a real server's upload error names the file was not established."
+    },
+    {
+     "promise": "The Case window shows the copy - when it was last written and by whom - and Write the copy now.",
+     "source": ".github/release-notes/v1.2.115.md:34",
+     "code": "scripts/gm-stores.mjs:2866-2892 (the line and the button; a press runs writeServerCopy({ explicit: true })), :2896-2901 copyLineText",
+     "holds": "yes",
+     "test": "R7348 (source read of the window and the health row); scenario 34 A1 (a GM's press)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Clear the plan: a button in the Investigation window's footer clears one chapter's planned Key Remnants, its case schema's nodes and the schema's layout; the chapter is picked first (the clock's by default) and a question counts what goes and says which are already placed.",
+     "source": ".github/release-notes/v1.2.115.md:38-42",
+     "code": "scripts/investigation.mjs:2051-2088 openClearPlan; scripts/case-schema.mjs:464-472 planToClear, :490-496 clearChapterPlan",
+     "holds": "yes",
+     "test": "R7349, R7350 (tier 1); R3967, R1358 (the footer drawn); scenario 34 F1",
+     "test_kind": "both",
+     "note": "The question counts the placed ones ('{n} of them are already placed'), it does not name them; the notes and the handbook (gm-handbook.en.md:1339) say 'names'."
+    },
+    {
+     "promise": "Remnants, Truth Bullets, the nodes ticked in the Class Trial and other chapters' plans stay; the plan goes on every GM's browser and in the server copy, and a GM who was away does not bring it back; any GM, an Assistant too, never a player; it cannot be undone.",
+     "source": ".github/release-notes/v1.2.115.md:43-45",
+     "code": "scripts/case-schema.mjs:464-472 (never the reveal row, the closed case's keys, another chapter or the ticks), :490-496 (dropMany on both stores: stamped removals)",
+     "holds": "yes",
+     "test": "R7349 (pure), scenario 34 F1-F3",
+     "test_kind": "behaviour",
+     "note": "An Assistant GM's press is read in the source, not driven (STATUS-115.md says so)."
+    },
+    {
+     "promise": "Declared not done: the trust model's rule file and the README's privacy paragraph do not name the server copy yet (drafts for the owner).",
+     "source": ".github/release-notes/v1.2.115.md:215-216",
+     "code": "README.md:283 ('the Key Remnant plan and a murder declared in the dark stay on the GMs' browsers'); docs/dev/e111/README-DRAFT.md, TRUST-DRAFT.md",
+     "holds": "no",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Still so on 1.2.118, three releases later (grep of README.md and the rules file for the copy: nothing). Finding E111-1."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R7345",
+     "measures": "yes",
+     "why": "Asks the pure filesRefusal with seven tables (held, switch off, a Player browsing, a Trusted uploading, an account, a GM's grant) and reads that filesPrivate takes the playerFiles row."
+    },
+    {
+     "test": "R7346",
+     "measures": "weak",
+     "why": "Six pure calls of copyRefusal that would fail, then the write's order (read, hydration again, build, upload) held by positions of text in writeServerCopy; the order itself is driven by scenario 34 D1, D2 and E3 and by the two mutants the status paper records."
+    },
+    {
+     "test": "R7347",
+     "measures": "yes",
+     "why": "Calls newCopyName twice, the folder and the pattern; counts the file's writing calls and file calls in its source."
+    },
+    {
+     "test": "R7348",
+     "measures": "weak",
+     "why": "Eight regexes over case-copy.mjs and gm-stores.mjs (the merge call, caseFileNow, quiet's toast and mark, the health row, the button)."
+    },
+    {
+     "test": "R7349",
+     "measures": "yes",
+     "why": "Asks the pure planToClear with a plan and a schema that hold the reveal row, the closed case's keys, chapters 3, 20 and 22 and a row of no chapter; would fail if a clear widened."
+    },
+    {
+     "test": "R7350",
+     "measures": "weak",
+     "why": "Regexes over clearChapterPlan and openClearPlan (the GM guard, dropMany on both stores, no caseTickStore, the footer's button, the default chapter, the destructive answer)."
+    },
+    {
+     "test": "scenario 34 (its 16 check() names read; the notes count 17/17)",
+     "measures": "yes",
+     "why": "Drives the copy on jsdom clients with separate storage and a server-files stand-in: one file, a player's listing and upload refused, nothing on a player's page, the debounce, the two refusals, an empty browser alone, racing writes, and Clear the plan on three GMs."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 34",
+    "scenario 61",
+    "scenario 62",
+    "scenario 72"
+   ],
+   "scenarios": [
+    "34-case-seal (layer ci; the register's only row naming E111): A a GM's press writes one file with a 128-bit name, a player can neither list nor upload, nothing a player's browser holds names it, a change reaches it after the debounce; B the switch off or a player's FILES_BROWSE stops the write and tells the GM; C the second computer alone holds the planner at load; D an empty browser reads before it writes; E racing writes; F Clear the plan on three GMs",
+    "61-gmstore-case: found two faults of the quiet read on the line (B2, B3), fixed by 36868715"
+   ],
+   "live": {
+    "items": 3,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E111-1",
+     "severity": "nit",
+     "title": "The README's privacy paragraph and the trust model's rule file still say the case stays on the GMs' browsers",
+     "where": "README.md:283; docs/dev/e111/README-DRAFT.md:1-12; docs/dev/e111/TRUST-DRAFT.md",
+     "what_happens": "Since 1.2.115 the whole case, the Key Remnant plan in it, is also an unencrypted file on the Foundry server that (by the module's own assumption) is handed to anyone who has its address. The README says the Key Remnant plan stays on the GMs' browsers; the rule file that states what a new change must respect does not name the file. Both drafts exist and neither file changed.",
+     "failure_scenario": "A host reads the README to decide what a public server exposes and does not learn that the case is a file under the world's folder, protected by its name and by one switch.",
+     "confidence": "read",
+     "refutation_tried": "The 1.2.115 notes declare it under Known gaps and the GM handbook does describe the copy (gm-handbook.en.md:1413-1415, :2291), so the information exists; looked for a later commit touching either file for this (none found by grep of their text)."
+    },
+    {
+     "id": "E111-2",
+     "severity": "nit",
+     "title": "With the files open to players an existing copy is not read at load, and the notes say only that nothing is written",
+     "where": "scripts/case-copy.mjs:261-268 (copyAtLoad returns before readServerCopies when filesPrivate() answers a reason)",
+     "what_happens": "The notes: 'Every GM's browser reads it when it opens the world'; 'otherwise it writes nothing'. The code also skips the read, and with it the 'empty here' notice; a GM who is not the primary is told nothing at all at load.",
+     "failure_scenario": "A copy was written in earlier sessions; the switch is turned off (or a player's account is given FILES_BROWSE). The owner opens the world alone on the second computer: the planner is empty although the file is on the server, and the only word is the primary's notice that no copy is written.",
+     "confidence": "read",
+     "refutation_tried": "A press of Write the copy now is refused for the same reason before it reads (case-copy.mjs:168-175), so there is no other road to the read; reading an existing file would expose nothing more than the file already does. Whether not reading is meant (a copy a player may have rewritten is not trusted) is not said in the paper or the code: FILES_UPLOAD would let a player overwrite a file only with its name known."
+    }
+   ],
+   "superseded_by": [
+    "Within the stage: the passphrase design (e1afdd84, 6116f17d; R7340-R7344) was taken out by 18df17c4 on the owner's word of 14.11.2026 before release"
+   ],
+   "grade": 9,
+   "grade_reasons": "Both things the owner asked for are in 1.2.118 and are driven, not only read: scenario 34 runs the copy and the clear on separate clients (16 check() calls in its file, 17/17 by the notes; its base result to join), R7345-R7350 are green in the base run, the two mutants the paper records turned the right checks red, and one reading on a real Foundry 14.370 shows a fresh browser filled from the server's copy. Not above 9: the copy's protection rests on LIVE-E111-02 (who can fetch or list the file), which nobody has read, and none of the three LIVE-E111 items has a reading under its id; hosts whose file source is not 'data' are not modelled; two nits (the README and rule file, the unread copy with the switch off) and a word of the notes ('names' for 'counts').",
+   "missing_to_10": "LIVE-E111-01..03 read on a real server (above all -02: a logged-out fetch, a player's listing, the folder's address); the README's and the rule file's paragraphs; a decision, written down, on reading the copy while the files are open; an Assistant GM's Clear driven."
+  }
+ ],
+ "not_established": [
+  "The base run's tier 2 results and scenario results were not ready: every tier 2 name and scenario number above is in tests_to_join, and 'green' in this file means tiers 0-1 of the base run (tier01.log) or the base run's quick.log, never tier 2.",
+  "E110: whether a microphone stops and returns without a reload when BROADCAST_AUDIO flips (LIVE-E110-01), how a Panic Round feels with a mute every turn (LIVE-E110-02), and whether a mode's own playlist starts once with two GMs (LIVE-E110-04): no recorded reading. The bodies of R7106-R7110 and of tier 2 E110-T3 and E110-T4 were not read.",
+  "E110-4 and E109-1 were traced in the source and not driven; no test or scenario opens a floor after a vote or presses the held card's button.",
+  "E56: 'nothing changes at the table' cannot be established from the repository. The comments, keys and lint results are the base run's lines, not runs of mine; my own counts (adjacent docblocks, doubled imports, the 12 names, copies of esc) are regex and grep counts over scripts/.",
+  "E109: of the 27 disagreements taken, only the texts and code named in the promises were read; the rows of DISAGREEMENTS.json were counted, not read one by one. The code behind R7126-R7129 and the Polish checkbox rule were not opened; the radio sweep was not run.",
+  "E59: 8 of the 39 fixes were read in the code (B-T3, B-S1, B-R6, B-R7, B-R5, B-T6, B-T1, B-H1, and B-S5 and B-S6 for the supersession); the other fixes, the 35 mechanics' map (CHAINS.md parts 1-2), tests-windows.mjs and WINDOWS.md were not read. Whether any of the nine table checks without a LIVE id was ever made is not recorded anywhere I searched.",
+  "E111: whether a real server hands the copy to a logged-out request, refuses a player's browse of the folder and shows no index (LIVE-E111-02); what hosts whose file source is not 'data' answer (LIVE-E111-01); whether a real upload's error text names the file. The body of scenario 34 was not read beyond its check names and the README's row.",
+  "Coverage of this reading: 2 release notes read whole (430 lines), 9 stage papers read whole or in the parts named, 6 AUDIT 9.2 item groups, 41 test bodies read (tiers 0-2), scenario 67's phase V and scenario 34's check names read, scripts/case-copy.mjs whole (279 lines) and the decisive functions named in each promise; 67 R numbers looked up in the base log (all 'ok'); both live-readings files searched for 9 ids (0 hits)."
+ ]
+}

@@ -1,0 +1,789 @@
+{
+ "reader": "stages-23",
+ "stages": [
+  {
+   "id": "E55",
+   "version": "1.2.113",
+   "shipped": "2026-11-14",
+   "what": "CSS consolidation behind a look freeze: dead and overridden rules out and gated, identical selectors merged, the glass ink and the brush as tokens, the rules aimed at Foundry and Daggerheart indexed",
+   "claim_sources": [
+    ".github/release-notes/v1.2.113.md (1-236 read whole; E55's part 162-165, Known gaps 185-199, Checked 201-236)",
+    "docs/dev/e55/STATUS.md (1-99)",
+    "docs/dev/e55/PLAN.md (1-200)",
+    "docs/dev/e55/C0-113.md (1-26)",
+    "docs/dev/e55/SHEET.md (1-60)",
+    "docs/dev/e59/GAPS.md (119-128: the plan's gaps as read on 14.11.2026)",
+    "docs/dev/e109/STATUS-115.md (180-181: Q-E55-8 and Q-E55-9 kept by the owner, 14.11)",
+    "audit/AUDIT-1.2.42.md 9.2 items 538-541 (lines 1540-1546); 9.2 has no block that begins \"Po E55\": the stage's items stand as numbered rows",
+    "tools/stages.json:90",
+    "git log --oneline v1.2.112..v1.2.113 (644 commits, 43 subjects naming E55)"
+   ],
+   "commits": 43,
+   "promises": [
+    {
+     "promise": "Dead rules out and held out: the crisis block (28 rules) and 121 overridden declarations removed; the CSS lint counts `overridden` and `deadAttributes` per sheet against a budget that only falls",
+     "source": ".github/release-notes/v1.2.113.md:162; STATUS rows C1, C2, D1, D2",
+     "code": "scripts/tests-css.mjs:195 overriddenDeclarations, :321 deadAttributes, :375 BUDGET_FIELDS; tools/css-lint.mjs:21-25; tools/css-budget.json (overridden 0 and deadAttributes 0 on all seven sheets)",
+     "holds": "yes",
+     "test": "R6100 (tier 1), R1311 (tier 0), node tools/check.mjs css",
+     "test_kind": "behaviour",
+     "note": "Counted here with the repository's own detector on this checkout: 0 overridden of 11595 declarations read in 7 sheets; !important 827 in all (4 + 612 + 199 + 12), 869 at the plan's base. `data-drpg-crisis` is named once in the sheets, in a comment (styles/danganronpa.css:4299). R6100 runs the two detectors on planted fixtures; the sheets themselves are held by R1311 (at most the budget) and by `check css` (equal to it)."
+    },
+    {
+     "promise": "A selector stated more than once in a sheet made one rule, 22 surfaces, a commit each (step 3)",
+     "source": ".github/release-notes/v1.2.113.md:162; STATUS row Step 3 and \"Step 3 in numbers\" (65-73)",
+     "code": "styles/danganronpa.css, styles/stained-glass.css, styles/components.css, styles/narrow.css",
+     "holds": "partly",
+     "test": "none standing (style-freeze, style-sweep and look-freeze in Chromium at commit time, 0 differences each, recorded in STATUS and the commit messages)",
+     "test_kind": "none",
+     "note": "Counted here by a script over the comment-stripped sheets: 91 statements of a selector list already stated in the same sheet under the same at-rules remain (danganronpa.css 31, stained-glass.css 46, components.css 11, narrow.css 3) - exactly the number STATUS gives for e8f83c90; 29 were merged. STATUS \"Open\" (77-78) says a surface's colour or size stated by different selectors is not merged. The plan's own done-when (PLAN.md:15-16, \"each surface has one rule place per theme\") is not reached; the notes word the smaller claim, truthfully."
+    },
+    {
+     "promise": "The glass's ink at seven alphas as tokens (L1)",
+     "source": ".github/release-notes/v1.2.113.md:163; STATUS row L1",
+     "code": "styles/stained-glass.css:51-64 (--drpg-sg-ink-40 .. -72)",
+     "holds": "yes",
+     "test": "node tools/check.mjs css (colourLiterals budget 63 for stained-glass.css; a literal added is red); no test names the tokens",
+     "test_kind": "behaviour",
+     "note": "In stained-glass.css each of the seven alphas stands only in its token (script count). Outside it three raw rgba(7, 7, 10, a) at a tokenised alpha stand (danganronpa.css:14764, components.css:1109, :1111), and four `color-mix(in srgb, var(--drpg-sg-ink) 55%, transparent)` in stained-glass.css (1314, 4143, 4164, 4898) say the 55 token another way; STATUS:81-82 leaves the near-miss darks open."
+    },
+    {
+     "promise": "One brush definition, its inset a token per role (B1)",
+     "source": ".github/release-notes/v1.2.113.md:163; STATUS row B1; PLAN.md:99 (six roles in one rule)",
+     "code": "styles/stained-glass.css:917-946 (the rule, inset: var(--brush-inset, 1px -5px)), :2886 and :3273 (the roles' insets)",
+     "holds": "partly",
+     "test": "none standing (look-freeze's brush rows at commit time)",
+     "test_kind": "none",
+     "note": "The two restatements for the panel, GM panel, mini and messenger buttons are gone. Five more ::before rules still draw the same brush with bodies of their own: stained-glass.css:1372-1385 (action and call tiles), :1545-1553 (the sheet's tab bar), :1918-1926 (choice rows), components.css:2278-2284 and :2309-2316 (the room and voice tiles' plates; Q-E55-8, kept by the owner). The plan's sixth role (the tiles' plates) is not in the one rule."
+    },
+    {
+     "promise": "Four named fixes: the 88vh ceiling only on Foundry's token, scene and tile config; a duality card's formula wraps; Daggerheart's effects display hidden by its own names; Font Awesome named by --fa-style-family alone",
+     "source": "STATUS row \"Named\"; R6101-R6104's titles",
+     "code": "styles/danganronpa.css:15075-15082 (88vh), :8424-8438 (the icon fonts)",
+     "holds": "yes",
+     "test": "R6101, R6102, R6103, R6104 (tier 1)",
+     "test_kind": "both",
+     "note": "R6101-R6103 build markup and read the sheets' cascade in jsdom (no layout); R6104 reads the sheets' text. The three class names are v13's as the module knows them (LIVE-E55-02) and the face a v14 table resolves is LIVE-E55-03: both unread."
+    },
+    {
+     "promise": "Legacy's checkbox places read one token (K1)",
+     "source": "STATUS row K1",
+     "code": "styles/components.css:193 (--drpg-kit-check-accent), :1025, :2956; styles/danganronpa.css:15206, :18508",
+     "holds": "yes",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Four selectors kept on purpose (Q-E55-7); held by the freezes at commit time only."
+    },
+    {
+     "promise": "The sheet's CSS split by surface (step 4; the plan's done-when)",
+     "source": "docs/dev/e55/PLAN.md:15-16, :103-115",
+     "code": "docs/dev/e55/SHEET.md (an index of where each part's rules stand; no rule moved)",
+     "holds": "superseded",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Not done: 121 of 487 and 69 of 169 sheet rules were movable by text. The owner accepted the index instead on 14.11.2026 (Q-E55-9; docs/dev/e109/STATUS-115.md:181); the moves wait for a stand-in of Daggerheart's whole sheet. styles/danganronpa.css is 18950 lines on this checkout."
+    },
+    {
+     "promise": "The rules aimed at Foundry and Daggerheart markup described, with the twelve Foundry ids no script writes (X1)",
+     "source": "STATUS row X1",
+     "code": "CONTRIBUTING.md:143-165",
+     "holds": "yes",
+     "test": "none",
+     "test_kind": "none",
+     "note": "A paper; LIVE-E55-04 (one querySelector per id on v14) is unread, so no rule left."
+    },
+    {
+     "promise": "The look did not change: frozen first, then each step measured in Chromium (style-freeze 1304 readings and style-sweep 628 readings at 0, look-freeze 34 differences accepted by surface)",
+     "source": ".github/release-notes/v1.2.113.md:163-165; STATUS 28-43",
+     "code": "audit/look-freeze.mjs, audit/style-freeze.mjs, audit/style-sweep.mjs and their baselines",
+     "holds": "unknown",
+     "test": "none in CI or in a check part",
+     "test_kind": "none",
+     "note": "A reading of 14.11.2026 kept in the papers and commit messages. Not run here (rule 2), and the baselines were last written by E55 (finding E55-1). The same look on a real v14 is LIVE-E55-01, unread."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R6100",
+     "measures": "yes",
+     "why": "Runs overriddenDeclarations and deadAttributes on planted sheets and on clean ones, and stubs each blind to see the self-check go red (scripts/tests-tier1.mjs:41101-41115). It measures the detectors, not the sheets; R1311 and `check css` hold the sheets."
+    },
+    {
+     "test": "R1311",
+     "measures": "yes",
+     "why": "Counts the served sheets with lintCounts and holds every BUDGET_FIELDS row, `overridden` and `deadAttributes` among them, at most its budget (scripts/tests-tier0.mjs:568-594); a declaration made dead again would be red."
+    },
+    {
+     "test": "R6101",
+     "measures": "yes",
+     "why": "Five foreign windows built on a body, max-height and overflow of each read from the cascade; red if the ceiling reached a journal again. jsdom's cascade, no layout, and the config windows' class names are assumed."
+    },
+    {
+     "test": "R6102",
+     "measures": "yes",
+     "why": "flex-wrap of .drpg-duality-formula read from the cascade under both theme classes; it says so itself that how a long formula lays out is not read."
+    },
+    {
+     "test": "R6103",
+     "measures": "yes",
+     "why": "Four elements, three that must hide and one of another module that must not; red on the old [class*=] rule."
+    },
+    {
+     "test": "R6104",
+     "measures": "weak",
+     "why": "A text read of the served sheets for the old Font Awesome names; it pins the text, and what a v14 browser resolves is LIVE-E55-03."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 74-room-tile (the notes read it 46/46 on E55's merge eaed7ae6)"
+   ],
+   "scenarios": [
+    "none: no row of audit/harness/README.md's register names E55"
+   ],
+   "live": {
+    "items": 4,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E55-1",
+     "severity": "nit",
+     "title": "The look freeze is a reading of 14.11.2026, not a standing gate: its three baselines were last written by E55 and 32 later commits changed styles/ without one",
+     "where": "audit/look-freeze-baseline.json (last commit 8ba4decc), audit/style-baseline.json (94a47e0a), audit/style-freeze/ (b0eb89d6); .github/workflows/*.yml, audit/harness/package.json and tools/check.mjs name none of the three tools",
+     "what_happens": "git log v1.2.113..b5a29e73 -- styles/ lists 32 commits (the Interface scale down to 25 %, the Event panel that never scrolls, the planner's nodes, the sheet header's glass). None touches a freeze baseline, and none of their subjects or bodies names look-freeze, style-freeze or style-sweep (grep count 0). No CI job and no check part runs them (Q-E55-1's default: a commit-time step with its summary line in each commit message).",
+     "failure_scenario": "The next stage that merges or moves rules (E55's open step 3 and the sheet split wait for exactly that) runs the freeze first and reads every look change of 1.2.114-1.2.118 as a difference; it has to rebuild the baselines from today's look, and a regression already in the sheets is accepted with them.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a later baseline commit (git log -3 on each baseline: all three last written in the 1.2.113 train), for a CI job or check part that reads them (none), and for freeze readings in the later style commits' messages (none). The owner accepted \"not in CI\" on 12.11.2026, so this is the accepted default not being kept up, not a broken promise of the notes."
+    }
+   ],
+   "superseded_by": [
+    "the owner's decision of 14.11.2026 for step 4 (Q-E55-9) and the tiles' brush (Q-E55-8), recorded in docs/dev/e109/STATUS-115.md:180-181; no later stage has taken the split"
+   ],
+   "grade": 7,
+   "grade_reasons": "What the notes say is true of 1.2.118 and measured: 0 overridden declarations of 11595 (the repository's detector, run read-only), the budget rows at 0, 827 !important, the seven ink tokens, the five named tests R6100-R6104 and R1311 ok in the base run. But the stage's own done-when is delivered in part: 91 restated selector lists remain where 29 were merged, the brush is drawn by six rules in two sheets, and the sheet split was put off by the owner. \"The look did not change\" rests on Chromium readings of 14.11 against baselines nobody has re-read since, and on four live checks, none read.",
+   "missing_to_10": "LIVE-E55-01..04 read on a v14 table; the freezes re-read (or rebuilt and committed) on 1.2.118 and run where a red result stops a merge; a test that names the brush's one rule and the ink tokens; step 3 beyond identical selectors and the sheet split, or the ledger saying they are another stage's."
+  },
+  {
+   "id": "E25",
+   "version": "1.2.113",
+   "shipped": "2026-11-14",
+   "what": "Texts, Polish and the handbooks: fact faults in UI texts, the Polish GM forms and the glossary's words, the handbooks held to the code; built on the same lines as E71 and E57",
+   "claim_sources": [
+    ".github/release-notes/v1.2.113.md (75-79 the texts, 124-151 the fixes, 168-170 the checks that block; Known gaps and Checked whole)",
+    "docs/dev/e59/GAPS.md (143-152: E25's plan read against the tree on 14.11.2026 - the only reading of the plan in this repository)",
+    "docs/dev/e71/STATUS.md (1-202, the early pass over E25 and E71)",
+    "docs/dev/e57/STATUS-HANDBOOKS.md (1-92, \"E25's handbook part\")",
+    "scripts/tests-text.mjs:2868-2878 (T6's baseline), :2924-2962 (MODES)",
+    "The spec lived outside the repository: docs/dev/plans/E25.md on the planning branch plan-130, which is not fetched here (git show of that branch fails: invalid object name). The notes and the papers above are the claim. No folder docs/dev/e25, no block \"Po E25\" in AUDIT 9.2.",
+    "git log --oneline v1.2.112..v1.2.113 (13 subjects naming E25)"
+   ],
+   "commits": 13,
+   "promises": [
+    {
+     "promise": "Handbook sentences that contradict the code fixed, and the six handbooks brought to this version (C6-C7; the rewrite itself is E57 C6-C11)",
+     "source": ".github/release-notes/v1.2.113.md:77; STATUS-HANDBOOKS.md:11",
+     "code": "docs/handbooks/*.md (third line 1.2.118, R125 ok)",
+     "holds": "partly",
+     "test": "R310, R321, R387, R431, R603 (tier 0), node tools/check.mjs rules",
+     "test_kind": "source-read",
+     "note": "The tier-0 tests pair a regex on a function's source with a regex on the handbook's sentence (R321's body, scripts/tests-tier0.mjs): they pin both texts, not what the code does. 25 UI labels the handbooks quote are no longer what the UI draws (finding E57-1), some since 1.2.113 itself."
+    },
+    {
+     "promise": "D33c: the Polish forms GM-a, GM-owi, GM-em ... in the three Polish handbooks",
+     "source": "commits d8fbb34f, ce38e5ab; GAPS.md:149",
+     "code": "docs/handbooks/*.pl.md",
+     "holds": "yes",
+     "test": "R321, R431 (the sentences in the new forms), T8 (glossary entry gm-a, FAIL)",
+     "test_kind": "source-read",
+     "note": "grep -cw on this checkout: 0 whole-word \"GMa\" and 0 \"MG\" in each of the three Polish handbooks (56, 18 and 1 lines at the assembly base, GAPS.md:149)."
+    },
+    {
+     "promise": "T7 (a rule number written in words) and T8 (a word the glossary forbids) are red from E25 on",
+     "source": ".github/release-notes/v1.2.113.md:145-151, :168-169; tests-text.mjs MODES",
+     "code": "scripts/tests-text.mjs:2933 (glossaryHits, fail E25), :2946 (ruleNumberWords, fail E25)",
+     "holds": "yes",
+     "test": "R1059 (T7 over the served files, ok), node tools/check.mjs text (T8, Node only: it needs docs/glossary.json)",
+     "test_kind": "behaviour",
+     "note": "The release commit read 34 T8 findings and fixed 29; 5 stand in the glossary's except lists with a reason each."
+    },
+    {
+     "promise": "stale-pl, a report of Polish texts whose English moved (C1)",
+     "source": "docs/dev/e57/SPEC.md:22; GAPS.md:147",
+     "code": "tools/stale-pl.mjs, tools/pl-reviewed.json",
+     "holds": "superseded",
+     "test": "R6600",
+     "test_kind": "behaviour",
+     "note": "Built by E57 C1 as a gate (T9 FAIL), not by E25 as a report."
+    },
+    {
+     "promise": "T6's baseline rows marked `empties: \"E25\"` emptied (C2: no dash or minus sign left in a text)",
+     "source": "GAPS.md:148 (9 rows then); docs/dev/e71/STATUS.md:85",
+     "code": "scripts/tests-text.mjs:2875-2876",
+     "holds": "partly",
+     "test": "R1059 (dashesIn: 2 baseline sites, both filled)",
+     "test_kind": "behaviour",
+     "note": "Two rows remain: scripts/action-report.mjs:90 (`signed`, a roll's bonus) and :117 (the duality formula's operator) still write U+2212 for a negative on a roll card. lang/en.json and lang/pl.json hold none. Nothing turns a row red once the stage named in `empties` has shipped."
+    },
+    {
+     "promise": "Fact faults in UI texts fixed and Stage jargon out of player texts (C3-C5)",
+     "source": "GAPS.md:150; docs/dev/e71/STATUS.md:96-98",
+     "code": "lang/en.json:4374 (noMovesLeft, rewritten), DRPG.Panel.gmOnly, no \"analysed\" left (0 in en.json and the English handbooks)",
+     "holds": "partly",
+     "test": "R6919 (the handbooks line's untrue texts), none for the items left",
+     "test_kind": "source-read",
+     "note": "\"Stage N\" stands only in two GM texts (DRPG.Chapter.stageSixWhat, stageSixYes; drawn by scripts/death.mjs:602-606 in a GM's question). Left from E25's own list: DRPG.Note.intro still says \"The first four questions are your boundaries\" (S01-25) while the template's first is the plan to kill and its fifth the triggers (scripts/pre-session-note.mjs:64-67; lang/en.json DRPG.Note.q1-q7); DRPG.Hud.stillToAct in Polish is as GAPS.md:150 quotes it (S13-23; the issue's text is not in the repository)."
+    },
+    {
+     "promise": "The glossary's open questions that the text guide gives to E25 settled (db3-english, mechanic-capitals)",
+     "source": "GAPS.md:151; docs/text-style.md",
+     "code": "docs/glossary.json:78-87, :434-443",
+     "holds": "no",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Both entries are still `open: true` with stage E65 and no forbidden variant, so T8 holds nothing for them."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R1059",
+     "measures": "yes",
+     "why": "Runs every FAIL detector that needs only what a table serves over the real lang files, scripts and six handbooks and holds each to its baseline both ways (scripts/tests-tier0.mjs); T7 is among them since E57. T8, T4, T5, T9, T11, T12, T15, T16 and T21 are not: they run in `node tools/check.mjs text` alone."
+    },
+    {
+     "test": "R321",
+     "measures": "weak",
+     "why": "Each claim is a regex on a function's source and a regex on a handbook sentence; it fails when either text moves, so it pins the pair's wording. It would not fail if the behaviour changed behind the same source text."
+    },
+    {
+     "test": "R6600",
+     "measures": "yes",
+     "why": "Changes one thing of a stamped fixture at a time and reads which status moves (listed under E57)."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 50-lang",
+    "scenario 62-investigation (the handbooks' labels)"
+   ],
+   "scenarios": [
+    "none names E25 in audit/harness/README.md's register"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E25-1",
+     "severity": "nit",
+     "title": "Four items of E25's own list still stand on 1.2.118, and the three live checks its plan named were never written into AUDIT 9.2",
+     "where": "scripts/tests-text.mjs:2875-2876; scripts/action-report.mjs:90, :117; lang/en.json DRPG.Note.intro; docs/glossary.json:78-87, :434-443; docs/dev/e59/GAPS.md:152",
+     "what_happens": "T6's baseline keeps two rows marked for E25 (a roll card writes U+2212 before a negative bonus); the session note's intro counts the wrong four questions as the boundaries; two glossary entries the guide gives to E25 are still open; and GAPS.md:152 says LIVE-E25-01..03 need a local Foundry while 9.2 holds no item with that id (grep: none).",
+     "failure_scenario": "A player fills the pre-session note: the intro says the first four questions are their boundaries and that the GMs plan around them; the first asks whether they plan to kill, and the question about triggers is the fifth, outside the four the sentence names.",
+     "confidence": "read",
+     "refutation_tried": "Read the template (pre-session-note.mjs:64-67, seven fixed keys) and q1-q7 in lang/en.json; looked for a later decision on the minus sign (docs/dev/e71/STATUS.md:85 leaves it to E25 C2; the needsCode line changed roll-dialog.mjs's sign only); searched AUDIT 9.2 and tools for LIVE-E25. The 38-issue census E25's C0 was to write does not exist (GAPS.md:152), so what else of the list stands could not be counted."
+    }
+   ],
+   "superseded_by": [
+    "E57 (C1 built stale-pl as a gate; C6-C11 rewrote the handbooks E25 had corrected)"
+   ],
+   "grade": 7,
+   "grade_reasons": "Judged from the notes and the papers of its sister stages, because its plan and its issue list are not in the repository. What can be read holds: the Polish forms (0 old forms left), T7 and T8 blocking and green, the handbooks at the version, the named fact faults rewritten. Delivered in part: T6's two rows, the session note's count, the two open glossary entries; the handbooks it corrected quote 25 labels the UI no longer draws (E57-1); its three live checks have no row in 9.2; and with no census of the 38 issues nobody can show which of them closed.",
+   "missing_to_10": "The plan and the issue list in the repository with a row per issue and its outcome; T6's two rows emptied or the minus sign kept by a written decision; DRPG.Note.intro said as the template is; LIVE-E25-01..03 written into 9.2 and read; a guard that holds a handbook's quoted label to its key."
+  },
+  {
+   "id": "E71",
+   "version": "1.2.113",
+   "shipped": "2026-11-14",
+   "what": "The UI copy-edit in English and Polish: every namespace's texts rewritten to docs/text-style.md in batches, the English literals of UI files moved into lang/, and the code faults the texts exposed fixed",
+   "claim_sources": [
+    ".github/release-notes/v1.2.113.md (75-79, 124-151, 168-170; Known gaps 185-199; Checked 201-236)",
+    "docs/dev/e71/STATUS.md (1-202)",
+    "docs/dev/e71/STATUS-A.md (1-130, 170-230)",
+    "docs/dev/e71/STATUS-B.md (95-197)",
+    "docs/dev/e71/STATUS-C.md (150-154 and headings)",
+    "docs/dev/e71/STATUS-D.md (163-168 and headings)",
+    "docs/dev/e71/NEEDSCODE.md (1-33, 197-303)",
+    "docs/dev/e71/census-C.json ($comment and the rows' modes)",
+    "docs/dev/text-batch-B*.json (20 files, counted)",
+    "docs/dev/e59/GAPS.md (154-164)",
+    "scripts/tests-text.mjs:2092-2110, :2340-2400, :2924-2962",
+    "The plan (docs/dev/plans/E71.md on plan-130) is outside the repository; the papers above carry its commit list (C0-C21). No block \"Po E71\" and no LIVE-E71 item in AUDIT 9.2.",
+    "git log --oneline v1.2.112..v1.2.113 (87 subjects naming E71)"
+   ],
+   "commits": 87,
+   "promises": [
+    {
+     "promise": "The module's sentences rewritten to the text guide in both languages, each from the facts of the function that runs its rule (batches B01b-B18)",
+     "source": ".github/release-notes/v1.2.113.md:75-77; STATUS-A.md:92-100",
+     "code": "lang/en.json, lang/pl.json, scripts/config.mjs prose; docs/dev/text-batch-B*.json (20 files, 2888 texts by a script count here)",
+     "holds": "partly",
+     "test": "node tools/check.mjs text (each batch file held to the lang files), the T detectors",
+     "test_kind": "behaviour",
+     "note": "Not every key was read against its code: census-C.json's own header says a key written after E65 is mode \"check\" (\"linted only\"), 324 of line C's 1662 families. One of them tells a dead player something the code stopped doing two days before the train (finding E71-1). 2829 of the 2888 batch texts carry `owner: null`; 59 (B01a) carry the owner's verdict."
+    },
+    {
+     "promise": "The ten style lints named for E71 block at 0: T4, T5, T11, T12, T13, T15, T16, T21, T24, T25 (C21; turned on E57's lines)",
+     "source": ".github/release-notes/v1.2.113.md:168-169",
+     "code": "scripts/tests-text.mjs:2924-2962 (each `mode: \"fail\"`)",
+     "holds": "yes",
+     "test": "R1059 (T13, T24, T25 on the served files), R1058 (every detector on its fixture), node tools/check.mjs text (all of them)",
+     "test_kind": "behaviour",
+     "note": "R1058 and R1059 ok in the base run. T4, T5, T11, T12, T15, T16 and T21 need the budgets, the glossary or the screen map and run only in Node (`check text`, CI's check job)."
+    },
+    {
+     "promise": "No English literal a screen shows is left in UI-rendering code (DB12); C20: the fog files, voice.mjs and investigation.mjs",
+     "source": "the repository's root instructions, section \"The house style\" (DB12: E71 sweeps the older files); R6550's and R6553's titles",
+     "code": "scripts/fog*.mjs, scripts/voice.mjs, scripts/investigation.mjs; scripts/tests-text.mjs:2104 (UI_FILE), :2340-2378 (33 allow rows), :2384-2400 (13 fields of patches.mjs)",
+     "holds": "yes",
+     "test": "R6550, R6553 (tier 1), R1059",
+     "test_kind": "behaviour",
+     "note": "True inside T13's reach. T13 reads only a script its UI_FILE rule matches (it names DialogV2, ApplicationV2, ui.notifications, ChatMessage.create or assigns innerHTML/textContent). By a script here that is 149 of 258 module scripts; 20 of the 109 left unread open a window or post a card through a helper (drpgWindow, whisperToGms, whisperToOwner). A rough read of their sentence-like literals found console lines only, so no screen literal was established there; the limit is the lint's own (tests-text.mjs \"a script that draws no UI is not read\")."
+    },
+    {
+     "promise": "77 places in the code where a text could not be right fixed (needsCode)",
+     "source": ".github/release-notes/v1.2.113.md:76-77; NEEDSCODE.md \"Counts\" (238-247)",
+     "code": "the commits of NEEDSCODE.md \"Fixes\"; e.g. utils.mjs listOf at the listed sites, movement `roomPhrase`, calls refused before the price",
+     "holds": "yes",
+     "test": "R6900-R6919, R6400-R6405 (tier 1), all ok in the base run",
+     "test_kind": "source-read",
+     "note": "Of 158 rows: 77 fixed, 35 questions (26 of them one family, numbers written into prose), 19 not defects, 13 done by a text line, 13 for the handbooks, 1 open. Several of the rows marked \"1.2.114\" were answered by E109 (R7120-R7123)."
+    },
+    {
+     "promise": "A list a sentence names is joined by listOf (English with its Oxford comma, Polish with its conjunction)",
+     "source": "STATUS-A.md:211; NEEDSCODE.md Fixes",
+     "code": "scripts/murder-rules.mjs applyUnlocks, tail-gm.mjs onTailCrossing, watch-gm.mjs startWatches, action-briefing.mjs tamperThresholdFacts and the sites of R6900-R6902",
+     "holds": "yes",
+     "test": "R6403, R6900, R6901, R6902",
+     "test_kind": "source-read",
+     "note": "Each test reads the function's source for the key, for no `.join(\", \")` and for a listOf call; the cards themselves are driven by tier 2."
+    },
+    {
+     "promise": "The code faults line A found are fixed: the GMs' card of a cancelled Direct Murder gives the GMs' reason, the night note follows the opening's rule, the free clean-up attempt names no Sanity spent, the Rest report reads from lang/",
+     "source": "STATUS-A.md:203-215",
+     "code": "scripts/eclipse.mjs judgePendingMurders, murder-rules.mjs nightNoteKey, cleanup.mjs report, rest.mjs applyRest",
+     "holds": "yes",
+     "test": "R6400, R6401, R6402, R6405",
+     "test_kind": "source-read",
+     "note": "Read as written in their bodies (scripts/tests-tier1.mjs from the line of \"R6400 -\"): each cuts the function's source and reads the two lang files; the tests say themselves that tier 2 drives the cards."
+    },
+    {
+     "promise": "Dead keys the lines found are gone from both files",
+     "source": "STATUS-A.md:212; NEEDSCODE.md (2883945f)",
+     "code": "lang/en.json, lang/pl.json",
+     "holds": "yes",
+     "test": "R6404, R6904; node tools/check.mjs keys (E56)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Each window batch looked at drawn: English and Polish, both themes, 1366x768, 1024x768 and 820x1180 - nothing cut, buttons on one line, a toast at most three lines (the plan's C1-C19)",
+     "source": "STATUS-A.md:222-228, STATUS-B.md:154-160, STATUS-C.md:150-154, STATUS-D.md:163-167",
+     "code": "-",
+     "holds": "no",
+     "test": "none (T4 holds a text's length in characters by surface; nothing reads the drawn window)",
+     "test_kind": "none",
+     "note": "Not taken on any of the four lines (\"the harness draws no layout\"). The plan's LIVE-E71-01..03 are named in all four status files and are in no row of AUDIT 9.2 (finding E71-2)."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R6400",
+     "measures": "weak",
+     "why": "Cuts applyRest from rest.mjs's source and reads it for three English fragments and three keys, then the keys' words in both files. It would fail if a literal came back; it does not post a Rest card."
+    },
+    {
+     "test": "R6401",
+     "measures": "weak",
+     "why": "Source of judgePendingMurders read for the two GM keys, and their words read for a second person; no Eclipse is run."
+    },
+    {
+     "test": "R6402",
+     "measures": "weak",
+     "why": "Source of nightNoteKey read for the config flags it must name, plus config.mjs's victim flags as values; the note posted is tier 2's."
+    },
+    {
+     "test": "R6403",
+     "measures": "weak",
+     "why": "Four functions' sources read for their key, a `.join(\", \")` and a listOf call."
+    },
+    {
+     "test": "R6550",
+     "measures": "yes",
+     "why": "Runs the T13 detector itself over the six real files and asserts the files were read and that at least one draws UI, so an empty read is red."
+    },
+    {
+     "test": "R1059",
+     "measures": "yes",
+     "why": "The FAIL detectors over the served files, each held to read something and to its baseline both ways."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: a misleading trail names its band as the table does, and the GMs' copy reads the roll against its threshold",
+    "tier 2: a GM report's document holds no words",
+    "tier 2: Room Setup warns of a Neighbours name that is no room on the scene and not of a region marked a room in the same Apply",
+    "tier 2: E51-T18 - a refused Objection says what became of its price",
+    "tier 2: E66-T1 - a crisis Pin them down writes the hindrance and a critical Keep your distance the block on their cards",
+    "scenario 10-murder",
+    "scenario 50-lang",
+    "scenario 62-investigation",
+    "scenario 63-class-trial",
+    "scenario 66-rooms"
+   ],
+   "scenarios": [
+    "none names E71 in audit/harness/README.md's register; the lines ran 10, 50, 62, 63, 66 and sixteen more by a grep of changed keys (STATUS-B.md:186-193)"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E71-1",
+     "severity": "minor",
+     "title": "A dead student's sheet says \"Outside the Class Trial you still speak at the table\"; with voice per room on, the module puts that player in the Spectators' room, which no living player hears",
+     "where": "lang/en.json:4266 and lang/pl.json:4549 (DRPG.Class.deadStill); scripts/sheet-actions.mjs:233-246; scripts/voice.mjs:1948-1971 (voiceClaim, the `silenced()` branch: target SPECTATOR_ROOM)",
+     "what_happens": "sheet-actions.mjs draws the sentence on every dead student's Actions panel, whatever the voice setting. voice.mjs sends a dead student's account to the Spectators' room once the incident ends, the body is found, an outsider walks in or a GM presses Silence now, for a public death as for a secret one (E72 C8 of 12.11.2026, E62 C3b of 13.11.2026). The key was written by E24 on 08.11.2026, when a public death talked in the main room, and its English line has not changed since (git log -G deadStill on lang/en.json: 7c874d66 alone).",
+     "failure_scenario": "Separate voice in each room is on. A student is murdered, the body is found, the Class Trial has not started. The dead student's player opens their sheet, reads that outside the trial they still speak at the table, and talks to the living about what happened; only other dead players and Spectators hear it. The player handbook says the opposite of the sheet (player-handbook.en.md:951 and :1185: \"you talk with the Spectators\"), and its line 78 was reworded to stop repeating the sheet.",
+     "confidence": "read",
+     "refutation_tried": "Checked that the sentence is not drawn conditionally (it is not: any sheet whose mode.actions is \"dead\"); that it is true with voice per room off (it is: the module then moves nobody, so the finding is the on case); and whether a later stage rewrote it. The handbooks line found it on 14.11 (docs/dev/e57/STATUS-HANDBOOKS.md:92; NEEDSCODE.md row H3, \"UI text: 1.2.114\") and E109's answered rows do not name it; lang/en.json at b5a29e73 still has E24's words. E71's census marked the key \"check\" (docs/dev/e71/census-C.json:1419), linted only."
+    },
+    {
+     "id": "E71-2",
+     "severity": "nit",
+     "title": "The plan's three live checks and its per-batch screenshots exist only in the papers: AUDIT 9.2 has no LIVE-E71 item, so nothing asks a table to look at about 2800 rewritten texts in their windows",
+     "where": "docs/dev/e71/STATUS-A.md:222-228, STATUS-B.md:154-160, STATUS-C.md:150-154, STATUS-D.md:163-167; docs/dev/e59/GAPS.md:164; audit/AUDIT-1.2.42.md 9.2 (grep LIVE-E71: no hit)",
+     "what_happens": "Each of the four lines writes \"Needs a local Foundry\": the window batches' screenshots in two languages, two themes and three sizes were not taken, and LIVE-E71-01 (the crisis cards in the third person on the victim's and the killer's browsers), -02 and -03 (VT323 glyphs for Polish quotes and marks; a Polish player reading the fog and voice notices that came from literals) are \"as the plan proposes\". The release's list of live checks (notes 205-208) names none of them, and `node tools/check.mjs live` has nothing to count.",
+     "failure_scenario": "A rewritten Polish sentence that is longer than its English wraps a footer button or is cut in a window at 1024x768; T4 passes because the key is inside its character budget, no test draws the window, and the owner's sandbox triage (docs/dev/e58/TRIAGE-9.2.md) has no row that would send anyone to look.",
+     "confidence": "read",
+     "refutation_tried": "Searched the whole repository for LIVE-E71 (six hits, all in docs/dev/e71 and docs/dev/e59/GAPS.md) and the two live-readings files of this audit (none); looked for screenshots or a later look pass that took the batches over: LIVE-E59-01 (item 532) asks for every window drawn once on v14 and would cover the fit, and it is itself unread."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 8,
+   "grade_reasons": "The main promise is delivered and measured: twelve detectors that only reported at 1.2.112 are red on a finding and green in the base run (R1058, R1059; `check text` in CI), T13 finds nothing in UI files outside 33 reasoned rows, 26 tier-1 tests hold the code fixes (R6400-R6405, R6900-R6919, all ok), 20 batch files are held to the lang files. Against it: one minor, a sheet text that is untrue with voice per room on (E71-1), found by the stage's own sister line and left; keys written after E65 were linted and not re-read (324 in one line); the drawn fit of the rewritten texts was never looked at and its live checks never reached 9.2.",
+   "missing_to_10": "DRPG.Class.deadStill said as voice.mjs does it; the \"check\" keys read against their code once; LIVE-E71-01..03 in 9.2 and read, with the window batches drawn in both languages; a behaviour test for at least the fixes whose tests read source (a Rest card posted, a cancelled Direct Murder's GM card)."
+  },
+  {
+   "id": "E57",
+   "version": "1.2.113",
+   "shipped": "2026-11-14",
+   "what": "Texts and handbooks after all stages: the text guards in the gate (stale Polish, rules-parity, twelve lints that block), the world's document language, a \"?\" in seven GM windows that opens the handbook at its section, a mixed-language scenario, the six handbooks rewritten",
+   "claim_sources": [
+    ".github/release-notes/v1.2.113.md (77-79, 168-170; Known gaps; Checked incl. 205-208 LIVE-E57-01..03)",
+    "docs/dev/e57/PLAN.md (1-142)",
+    "docs/dev/e57/SPEC.md (1-110)",
+    "docs/dev/e57/STATUS.md (1-48)",
+    "docs/dev/e57/STATUS-HANDBOOKS.md (1-92)",
+    "docs/dev/e59/GAPS.md (166-175)",
+    "docs/dev/facts-117/STATUS.md (1-40)",
+    "tools/check.mjs:1573-1640",
+    "tools/stale-pl.mjs:1-110",
+    "tools/rules-parity.mjs:1-70",
+    "audit/AUDIT-1.2.42.md 9.2 items 529-531 (lines 1522-1526); no block \"Po E57\"",
+    "git log --oneline v1.2.112..v1.2.113 (60 subjects naming E57)"
+   ],
+   "commits": 60,
+   "promises": [
+    {
+     "promise": "stale-pl in the gate: a Polish text whose English moved since it was read is red (C1, T9)",
+     "source": "PLAN.md:84; STATUS.md row C1",
+     "code": "tools/stale-pl.mjs; tools/pl-reviewed.json; scripts/tests-text.mjs staleTranslations (MODES :2928)",
+     "holds": "yes",
+     "test": "R6600 (tier 0), R1058, node tools/check.mjs text",
+     "test_kind": "behaviour",
+     "note": "It guards one case, by design (SPEC Q-E57-14): the English moved alone. Counted here with the tool's own statusOf on this checkout: of 7456 Polish keys 352 are stamped as read, 4748 still carry the baseline stamp (\"written, not read\"), 1724 are \"rewritten\" (both languages moved since the stamp) and 632 have no stamp. None of the last three is red, so the gate vouches for a read of 352 keys."
+    },
+    {
+     "promise": "rules-parity: the handbooks' rule numbers held to config.mjs and to the code that composes a number (C2; the notes: \"holds the handbooks' rule sentences to the code\")",
+     "source": ".github/release-notes/v1.2.113.md:170; SPEC.md section 5",
+     "code": "tools/rules-parity.mjs (RULES, rowRules, COMPOSED); check part `rules`",
+     "holds": "partly",
+     "test": "node tools/check.mjs rules (with its planted faults)",
+     "test_kind": "behaviour",
+     "note": "53 rules holding 95 config values at the stage, against about 307 distinct rule numbers the prep line counted in the handbooks (SPEC.md:76-84 names the gap: Tamper's ladders, the thresholds shown since E51, the Monocub's numbers, the passages, Logic Dive and Scrum timings unread). A number with no rule can drift unseen; one spot check here (Camps confer 120 s, gm-handbook.en.md:1607 against config.mjs:4394) agrees."
+    },
+    {
+     "promise": "D34: what the module writes into a world document is in the world's document language, and the setting is shown (C3)",
+     "source": "PLAN.md:86; SPEC.md section 3; R6603's title",
+     "code": "scripts/utils.mjs:167-188 worldLocalize; scripts/inventory.mjs:722-728 tierDescription (grantItem :867, refreshTierThreeWording :744); scripts/settings-window.mjs:94-96",
+     "holds": "partly",
+     "test": "R6603 (tier 1), R3420, scenario 51-lang-mixed",
+     "test_kind": "behaviour",
+     "note": "Delivered for the two sites the spec listed (an item's tier line). The setting E57 made visible says more than that (finding E57-2)."
+    },
+    {
+     "promise": "D35: a \"?\" in the header of seven GM windows opens the GM handbook at that window's section; \"section N\" in a handbook's text is a jump (C4)",
+     "source": ".github/release-notes/v1.2.113.md:77-78; SPEC.md section 4",
+     "code": "scripts/ui-kit.mjs:1217-1228 WINDOW_HELP, :1242-1270 dressHelp; `help: WINDOW_HELP.<row>` at gm-panel.mjs:572, season-setup.mjs:1146, room-setup.mjs:1285, gm-stores.mjs:2870, investigation.mjs:2289, trial-floor-ui.mjs:1626, gm-campaign.mjs:220; scripts/handbooks.mjs:197 markSections, :231 goToSection, :267 linkSections",
+     "holds": "yes",
+     "test": "R6601, R6602, R4720-R4722 (tier 1, ok); R111 skipped (env.layout)",
+     "test_kind": "both",
+     "note": "The seven rows name sections 3, 2, 9.1, 14, 14, 15 and 4, and the GM handbook's headings on this checkout are those windows' (gm-handbook.en.md:236, :168, :701, :1270, :1421, :286; the Polish the same lines). R6601 holds a section to exist, not to be the right one. The \"?\" in a real Foundry header and its landing are LIVE-E57-01, unread; R111's layout part is skipped headless."
+    },
+    {
+     "promise": "A mixed-language table: a Polish GM, English and Polish players, every window of the registry drawn with no raw key (C5)",
+     "source": "PLAN.md:89; README register row 51",
+     "code": "audit/harness/scenarios/51-lang-mixed.mjs",
+     "holds": "yes",
+     "test": "scenario 51-lang-mixed (17 windows opened, 31 listed with a reason)",
+     "test_kind": "behaviour",
+     "note": "To be joined to the base run. 31 of 48 window rows are listed, not opened, on a fresh world."
+    },
+    {
+     "promise": "The six handbooks rewritten for this version from a facts inventory, the Polish from the facts (C6-C11); done-when: every UI text and every number in the handbooks agrees with the code",
+     "source": ".github/release-notes/v1.2.113.md:77; PLAN.md:17-19; STATUS-HANDBOOKS.md:8-14",
+     "code": "docs/handbooks/*.md; docs/handbook-facts.*.en.json; docs/dev/e57/LABELS.md (3053 quoted labels at the line's end)",
+     "holds": "partly",
+     "test": "the tier-0 handbook-sentence tests (R310, R321, R387, R431, R603 ...), `check text` (the pairs' ids, the facts files of the player handbook and the brochure), `check rules`",
+     "test_kind": "source-read",
+     "note": "25 quoted labels have drifted (finding E57-1). The GM handbook's facts file (7222 facts) is left out of the check by the owner's decision of 16.11.2026 (tools/check.mjs:1613-1619: 8845 problems when measured at ff3e12e5), so the inventory the rewrite was made from no longer describes that book. The books grew where the plan said shorter (STATUS-HANDBOOKS.md:36-47), said so there."
+    },
+    {
+     "promise": "Twelve text checks that only reported at 1.2.112 block: T4, T5, T7, T8, T11, T12, T13, T15, T16, T21, T24, T25",
+     "source": ".github/release-notes/v1.2.113.md:168-169",
+     "code": "scripts/tests-text.mjs:2924-2962",
+     "holds": "yes",
+     "test": "R1058, R1059, node tools/check.mjs text",
+     "test_kind": "behaviour",
+     "note": "All twelve read `mode: \"fail\"` on this checkout; R1058 and R1059 ok in the base run."
+    },
+    {
+     "promise": "Guards for the handbooks: UI names in the handbooks (T10), a section keeps its facts (T26), T7 reading the handbooks (C1)",
+     "source": "PLAN.md:84, F6, F9, Q-E57-6",
+     "code": "scripts/tests-text.mjs MODES (no T10, no T26; ruleNumberWords reads [\"lang\"], also [\"prose\"])",
+     "holds": "no",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Never built: docs/dev/e59/GAPS.md:172 said so on 14.11 and MODES says so today. LABELS.md is a generated paper, read by no tool (grep of tools/, the tier files and the harness: no hit)."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R6601",
+     "measures": "yes",
+     "why": "Holds WINDOW_HELP to exactly seven rows, reads each opener's source for its row, holds each section to a heading of the English and the Polish GM handbook, then dresses a stood-in header twice and presses the \"?\" (scripts/tests-tier1.mjs:2017-2105). The real header is Foundry's and is not drawn headless, as the test says."
+    },
+    {
+     "test": "R6603",
+     "measures": "yes",
+     "why": "Calls worldLocalize and tierDescription with each language and compares with config.mjs's English and pl.json's Polish; a mutant that does not keep the English was red (STATUS.md row C3). It measures the tier line and nothing else a document holds."
+    },
+    {
+     "test": "R6600",
+     "measures": "yes",
+     "why": "The detector on a stamped fixture, one change at a time; it shows T9 can be red. What share of the Polish it vouches for is a count the test does not make."
+    },
+    {
+     "test": "R1059",
+     "measures": "yes",
+     "why": "As under E25: the served FAIL detectors over the real files."
+    },
+    {
+     "test": "R111",
+     "measures": "no",
+     "why": "Skipped in the base run (env.layout): its part that would land the handbook on a section in a laid-out window does not run headless."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 51-lang-mixed",
+    "scenario 50-lang",
+    "scenario 62-investigation"
+   ],
+   "scenarios": [
+    "51-lang-mixed (ci): English and Polish browsers at one table, each window of the screen map's registry opened or listed with its reason, no raw key, its title in that browser's language; and D34's one tier line written by a Polish GM and an English player in the world's language"
+   ],
+   "live": {
+    "items": 3,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E57-1",
+     "severity": "minor",
+     "title": "The handbooks quote 25 UI labels the module no longer draws under those words, some since 1.2.113 itself; the guard the plan named for it (T10) was never built",
+     "where": "docs/handbooks/gm-handbook.en.md:562, :383, :609, :721, :1195, :1243, :1346, :2145; player-handbook.en.md:724, :764, :789; the Polish twins (gm-handbook.pl.md:562 ...); lang/en.json:660, :665 (Despair.addPool, removePool), :3462 (TrialScene.castWho), :7455 (CaseRealize.preview)",
+     "what_happens": "Measured by a script: of the 3053 rows of docs/dev/e57/LABELS.md (a bold or italic span of a handbook that was a whole lang value), 33 rows, 25 distinct, are still in the handbook today while no key of that language has that value any more. Examples, handbook against lang/en.json now: **Add pool** / **Remove pool** against \"Grant pool\" / \"Revoke pool\"; *I'll pass (nothing spent)* against \"Pass\"; *The incident is over - what now* against \"After the incident\"; **Takes part** against \"In the hall\"; **Realization preview** against \"Preview realization\"; **Clear the overflow**, **Fight back**, **Crisis actions** against the same words capitalised; in Polish **Dodaj pulę** / **Usuń pulę** against \"Przyznaj pulę\" / \"Odbierz pulę\", **Bierze udział** against \"W sali\", **Podgląd realizacji** against \"Podejrzyj realizację\". At tag v1.2.113 lang/en.json already read \"Grant pool\", \"Revoke pool\", \"Pass\" and \"After the incident\" (E71's batch c4d7073d, the same train) while the GM handbook of that tag named the old ones on its lines 562, 383 and 1240; castWho and preview still matched at the tag and moved in 1.2.115.",
+     "failure_scenario": "A GM reads section 7 of the GM handbook to hand an Assistant GM a Despair pool and looks for the button \"Add pool\" in Despair Flow; the window has \"Grant pool\". Every tier-0 handbook test and `check text` are green, because nothing compares a quoted label with its key.",
+     "confidence": "read",
+     "refutation_tried": "Checked that the spans are still in the books and are labels, not emphasis (three of the 25 may be plain emphasis that once equalled a value: \"failed\", its Polish twin, and a sentence with placeholders); checked the keys' present values and the tag's; looked for the guard: MODES has no T10, scenario 62 holds the Investigation's labels only, and E109 round 3 updated some handbook lines (f3f8e5a0) and not these. PLAN.md's boundary row says a handbook sentence naming a renamed button is \"made to match E71's button\"."
+    },
+    {
+     "id": "E57-2",
+     "severity": "minor",
+     "title": "The Document language setting says it is \"the language of the documents the module writes into this world, one for everyone\"; the code sends one sentence through it, an item's tier line",
+     "where": "lang/en.json:366-369 (DRPG.Settings.documentLanguage); scripts/inventory.mjs:726-727 (the only callers of worldLocalize); scripts/vault-store.mjs:321-327 (a bedroom key's name and description), scripts/handover.mjs:904-909 (a Truth Bullet taken from a body: name and text), scripts/projects-map.mjs:324 (the project token's name)",
+     "what_happens": "E57 C3 put the setting into the game's settings window because one document text now follows it (SPEC.md Q-E57-18). grantBedroomKey, mintLootBullet and the project token still format their names and texts with game.i18n in the language of the browser that runs them, which is a GM's. A grep of scripts/ for worldLocalize finds inventory.mjs alone.",
+     "failure_scenario": "Scenario 51's own table: the world's Document language is English, the primary GM's browser is in Polish, the players' in English. The GM's Season setup hands out bedroom keys: each English player's sheet holds an item named in Polish with a Polish description. A player takes an item from a body: their new Truth Bullet has a Polish name and Polish words. The usable the same GM grants reads \"Tier 2. ...\" in English, as the setting promises.",
+     "confidence": "read",
+     "refutation_tried": "Read SPEC.md section 3: the sites were found by reading which world documents take DRPG.Config prose, so names built from lang keys were outside the search, and the only thing ruled \"not a site\" is a whispered card. Checked that grantItem does not translate a name it is handed (it writes it as given) and that LIVE-E57-02 asks only for the granted item's and the tier 3 rewrite's description. The hint's sentence is E66's (8e9d40e9); E57 is the stage that showed it to a GM."
+    }
+   ],
+   "superseded_by": [
+    "facts-117 (16.11.2026, the owner's \"nie trzeba\"): the GM handbook's facts file is no longer held to its book",
+    "the tooltip sweep of 1.2.115 (Q-E57-8, R7300) took the 395 untipped controls E57 left out by its boundary"
+   ],
+   "grade": 7,
+   "grade_reasons": "The guards are in the gate and green (T9 by R6600, the twelve lints by R1058 and R1059, `check rules`), the \"?\" is in all seven windows on a section that exists and fits, D34's two listed sites write the world's language (R6603, behaviour), scenario 51 exists. Two minors stand: 25 handbook labels that are not the UI's with no guard to see the next one (the stage's done-when is that every UI text in the handbooks agrees with the code), and a setting that promises every document where the code delivers one sentence. rules-parity holds 53 rules of about 307 numbers, the Polish read covers 352 of 7456 keys by stamp, T10 and T26 were not built, and all three live checks are unread, the \"?\" in a real header among them.",
+   "missing_to_10": "A guard that holds each quoted label to its key (the 25 fixed first); bedroom keys, a looted Truth Bullet and the project token written through worldLocalize, or the hint narrowed to what it does; LIVE-E57-01..03 read (and LIVE-E57-02's text freed of \"waits for E54\"); rules for the numbers rules-parity does not read; a read of the Polish keys still stamped as baseline or rewritten."
+  },
+  {
+   "id": "E102",
+   "version": "1.2.113",
+   "shipped": "2026-11-14",
+   "what": "Tooltips across the module: one kit helper, a key per tooltip under DRPG.Tips in both languages, each family's controls tipped, and a census that fails on a control drawn with neither a tooltip nor a hint",
+   "claim_sources": [
+    ".github/release-notes/v1.2.113.md (78-79: \"197 tooltip keys (DRPG.Tips, 135 at 1.2.112), the Investigation and the case among them (C6)\"; 129-131; Known gaps 195-196; Checked 221, 205)",
+    "docs/dev/e102/STATUS.md (1-190)",
+    "docs/dev/e102/PLAN.md (headings; the owner's five defaults)",
+    "docs/dev/e59/GAPS.md (109-117)",
+    "audit/AUDIT-1.2.42.md 9.2 item 508 (line 1482); no block \"Po E102\"",
+    "audit/harness/README.md:229",
+    "tools/tooltip-census.json (about, 69 rows)",
+    "git log --oneline v1.2.112..v1.2.113 (14 subjects naming E102; C1-C5 and the reviews shipped earlier, in 1.2.112's tree)"
+   ],
+   "commits": 14,
+   "promises": [
+    {
+     "promise": "A control's tooltip comes from one place in the kit: tipText, tipAttr (data-tooltip, or title for a footer button), setTip for an element made in code, and a tab's `tooltip`",
+     "source": "STATUS.md rows C1 and the code review's C5, C6",
+     "code": "scripts/ui-kit.mjs:760-763 tipText, :765-768 tipAttr, :776-780 setTip, :315-318 the tab bar",
+     "holds": "yes",
+     "test": "R4750, R4764 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "A key with no words draws nothing, never the raw key (tipText returns \"\" when the words equal the key)."
+    },
+    {
+     "promise": "197 tooltip keys under DRPG.Tips at 1.2.113 (135 at 1.2.112), in English and Polish, each at most 23 words",
+     "source": ".github/release-notes/v1.2.113.md:78-79",
+     "code": "lang/en.json and lang/pl.json DRPG.Tips",
+     "holds": "yes",
+     "test": "R4751-R4755, R4761, R6351-R6353 (each family's key count, words in both files, the 23-word limit)",
+     "test_kind": "behaviour",
+     "note": "Counted from the tags: 135 leaves at v1.2.112, 197 at v1.2.113. On this checkout 416 English leaves (418 Polish, with plural forms): the 1.2.115 sweep added a Sweep family of 208. None is empty, none is over 23 words in English, none equals its Polish, and every one is named whole in a non-test script (script count over 258 files)."
+    },
+    {
+     "promise": "Each family's control draws its tooltip where it stands: actions and projects, chapter, murder and trial, the GM panels, setup and sheet, the Investigation and the case (C2-C6, C8, C12)",
+     "source": "STATUS.md 16-29, 88-105",
+     "code": "the functions named in the tests' TIPS tables (e.g. action-dynamic.mjs askDynamicDifficulty, projects-ui.mjs openProjectDialog, investigation.mjs)",
+     "holds": "yes",
+     "test": "R4751-R4755, R4761, R6351-R6353 (tier 1); scenario 95-tooltips-drawn",
+     "test_kind": "both",
+     "note": "The family tests read where a key lands in the drawing function's source (tests-tips.mjs tipPlacement, with its own planted pairs); scenario 95 opens windows and reads the drawn controls, 53 of 134 keys on 13.11 by its register row."
+    },
+    {
+     "promise": "A census gate: a control drawn with neither a tooltip nor a hint is red unless a row says why, and the baseline only shrinks",
+     "source": "STATUS.md 14, 55-58",
+     "code": "tools/tooltip-census.mjs, tools/tooltip-census.json; check part `tooltips`",
+     "holds": "yes",
+     "test": "node tools/check.mjs tooltips; R7300 (tier 1, the 1.2.115 sweep)",
+     "test_kind": "behaviour",
+     "note": "Baseline today: 69 rows for 70 sites, each with one of five reasons (hint 38, help in code 15, label is enough 9, conditional 4, not met 4); 242 sites at E102's tip. No row names a stage any more. The guard against the baseline growing compared with main's copy is off in CI (code review C2, left to the owner)."
+    },
+    {
+     "promise": "The tooltips say what the code does (three reviews: T1-T15, G1-G7 and S1-S11, the code review)",
+     "source": "STATUS.md 51-84",
+     "code": "lang DRPG.Tips against the functions the tests name",
+     "holds": "yes",
+     "test": "R4760, R4762, R4763 (tier 1, ok)",
+     "test_kind": "source-read",
+     "note": "About 200 tooltips of E102's five families (Actions, Trial, Gm, Setup, Case) were read here once as text; one names a button by a label it no longer has (finding E102-1). They were not each checked against their code."
+    },
+    {
+     "promise": "A closing word given its own word draws that word (\"Not now\", \"Not yet\") with its tooltip (C6 follow-up)",
+     "source": "STATUS.md 119-126",
+     "code": "scripts/ui-kit.mjs:125-137 footerButtons",
+     "holds": "yes",
+     "test": "R6350, R1320 (tier 1, ok)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "C7: a second key on a planned Incident Remnant node, \"What a finder reads\"",
+     "source": "STATUS.md row C7 and 138-142",
+     "code": "-",
+     "holds": "superseded",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Not built, with the reason measured: E104 gave that node New Remnant's own fields, and its words are the traceText field, which draws Case.playerDescriptionTooltip."
+    },
+    {
+     "promise": "C10: screenshots of the tooltips; Foundry's delay, place and a tooltip over a disabled button",
+     "source": "STATUS.md row C10-C11; GAPS.md:116-117",
+     "code": "-",
+     "holds": "unknown",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Not done headless; LIVE-E102-01 is the item, unread. The kit assumes Foundry shows no tooltip over a disabled button and writes `title` on footer buttons for that reason (ui-kit.mjs:110-114)."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R4750",
+     "measures": "yes",
+     "why": "Builds buttons with tipAttr and a tab bar, reads data-tooltip, title and the empty answer for a key with no words (scripts/tests-tier1.mjs:27592-27612)."
+    },
+    {
+     "test": "R4751",
+     "measures": "yes",
+     "why": "For each of 35 keys: words in both files within 23 words, and tipPlacement on the source of the function that draws the control, after the reader's own self-check; red on the review's planted ternary that names a key and draws nothing. A source read of placement, not a drawn window."
+    },
+    {
+     "test": "R7300",
+     "measures": "yes",
+     "why": "Stamped E56 (1.2.115): holds the census to no \"none needed\" row; it is the later, stricter form of E102's gate."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 95-tooltips-drawn",
+    "tier 2: every control in the module's own chrome has a name to be read out"
+   ],
+   "scenarios": [
+    "95-tooltips-drawn (ci): every window probe 08 opens, each tab pressed, every drawn control's data-tooltip, data-tooltip-text and title read, each key of DRAWN held to its English words on a control; and a card's close drawn recorded and not"
+   ],
+   "live": {
+    "items": 1,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E102-1",
+     "severity": "nit",
+     "title": "The \"Not now\" tooltip of the realization question names the Investigation window's \"Realization preview\"; that button reads \"Preview realization\" since 1.2.115",
+     "where": "lang/en.json:2088 and lang/pl.json:2178 (DRPG.Tips.Case.notNowTooltip); lang/en.json:7455 and lang/pl.json:9295 (DRPG.CaseRealize.preview)",
+     "what_happens": "E109 renamed the button (95bf8d12, 14.11.2026) and the tooltip written for E102 C6 kept the old name in both languages; the tooltip on the button itself (Case.realizationPreviewTooltip) names nothing and is unaffected.",
+     "failure_scenario": "A GM hovers \"Not now\" at a body: the tooltip sends them to \"Realization preview\" in the Investigation window, where the button is called \"Preview realization\".",
+     "confidence": "read",
+     "refutation_tried": "Searched both lang files for the old and the new words: the old stand only in this tooltip (and in the GM handbook, finding E57-1), the new only in the button's key. No detector compares a text's mention of a label with the label's key."
+    }
+   ],
+   "superseded_by": [
+    "the tooltip sweep of 1.2.115 (R7300, stamped E56; the owner's answer to Q-E57-8): it retired the census's \"none needed\" rows and added the Sweep family, so E102's gate stands in a stricter form",
+    "E104 for C7 (the planned Incident Remnant node's fields)"
+   ],
+   "grade": 9,
+   "grade_reasons": "Every promise the notes make is true of 1.2.118 and has a named test that is ok in the base run: the key counts at both tags (measured), the kit's helpers by behaviour (R4750, R4764, R6350), each family by placement (R4751-R4755, R4761, R6351-R6353), the words by three reviews' tests (R4760, R4762, R4763), the census by `check tooltips` and R7300. The later sweep made the goal stronger. Left: one nit (a tooltip naming a renamed button), the family tests read source for placement and scenario 95 draws under half the keys, and the one live check (how Foundry's tooltip shows, and over a disabled button) is unread.",
+   "missing_to_10": "LIVE-E102-01 read; DRPG.Tips.Case.notNowTooltip said with the button's present name; scenario 95 holding every key a window can draw, or the keys it cannot listed with the reason in its results."
+  }
+ ],
+ "not_established": [
+  "E25's plan and its list of 38 issues, and the planning-line plans of E71 and E57, are on a branch (plan-130) that is not in this repository: E25's promises are taken from the release notes and from docs/dev/e59/GAPS.md's reading of the plan; the S-numbered issue texts (S13-23, S01-25 ...) could not be read.",
+  "Whether look-freeze, style-freeze and style-sweep read 0 on b5a29e73: not run (rule 2); their baselines are of 14.11.2026.",
+  "Whether the consolidated sheets look the same on Foundry v14, whether its config windows carry the three class names, which Font Awesome face it resolves, and which of the twelve ids exist: LIVE-E55-01..04, none read (no hit for the ids in live-readings-e58.json or live-readings-other.json; docs/dev/e58/TRIAGE-9.2.md lists them as to do).",
+  "Whether any English literal reaches a screen from the 109 module scripts T13 does not read: only a rough read of sentence-like literals in the 20 that open a window or post a card through a helper; no screen literal found, none ruled out.",
+  "Whether the handbooks' rule numbers outside rules-parity's 53 rules agree with config.mjs on 1.2.118: one spot check only.",
+  "Whether each E102 tooltip is true of its code: about 200 texts were read as text, not each against its function.",
+  "The results of `node tools/check.mjs` css, text, rules and tooltips on b5a29e73: not run by this reader; the counts given for the CSS and the Polish stamps come from the repository's pure functions imported read-only (overriddenDeclarations, importantCount, colourLiterals; stale-pl's statusOf).",
+  "Tier 2 and scenario results (51, 95, 50, 62, 10, 63, 66, 74 and the tier-2 names under tests_to_join): to be joined.",
+  "The 25 drifted labels: three may be plain emphasis that once equalled a lang value rather than a quoted label; each of the other 22 was not opened in its window."
+ ]
+}

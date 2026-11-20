@@ -1,0 +1,1651 @@
+{
+ "reader": "controls-03-investigation-planner",
+ "read": [
+  {
+   "file": "scripts/investigation.mjs",
+   "lines_read": 2547
+  },
+  {
+   "file": "scripts/key-remnants.mjs",
+   "lines_read": 1319
+  },
+  {
+   "file": "scripts/case-realize.mjs",
+   "lines_read": 281
+  },
+  {
+   "file": "scripts/case-summary.mjs",
+   "lines_read": 126
+  },
+  {
+   "file": "scripts/case-view.mjs",
+   "lines_read": 497
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "lines_read": 556
+  },
+  {
+   "file": "scripts/case-layout.mjs",
+   "lines_read": 193
+  },
+  {
+   "file": "scripts/case-hints.mjs",
+   "lines_read": 66
+  },
+  {
+   "file": "scripts/pre-session-note.mjs",
+   "lines_read": 483
+  },
+  {
+   "file": "scripts/case-schema.mjs (28-514: the graph, the rows, the writes, Clear the plan)",
+   "lines_read": 487
+  },
+  {
+   "file": "scripts/live.mjs (1-695: keepLive, capture, restore, the drawn value)",
+   "lines_read": 695
+  },
+  {
+   "file": "scripts/ui-kit.mjs (60-444, 1000-1069, 1200-1355, 1500-1574: footer roles, tabs, wireKit, the help button, drpgWindow, drpgConfirm)",
+   "lines_read": 686
+  },
+  {
+   "file": "scripts/messenger-app.mjs (40-399, 1335-1385: the Note tab, the Observe card's opener)",
+   "lines_read": 411
+  },
+  {
+   "file": "scripts/utils.mjs (195-207, 333-341, 597-647, 1000-1055, 1307-1400: log and error, workingScene, placeRoomOptions, dialogContent, the picture picker)",
+   "lines_read": 223
+  },
+  {
+   "file": "scripts/mastermind.mjs (753-819: placeFinalRemnant)",
+   "lines_read": 67
+  },
+  {
+   "file": "scripts/remnants.mjs (3282-3352: removeRemnant)",
+   "lines_read": 71
+  },
+  {
+   "file": "scripts/gm-items.mjs (1469-1529: giveTruthBulletDialog)",
+   "lines_read": 61
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs (316-368: openDiveSets)",
+   "lines_read": 53
+  },
+  {
+   "file": "scripts/gm-bridge.mjs (128-146: the held fee card's hook)",
+   "lines_read": 19
+  },
+  {
+   "file": "audit/harness/lib/shim.mjs (1690-1800: the DialogV2 model)",
+   "lines_read": 111
+  },
+  {
+   "file": "scripts/tests-tier2.mjs (31405-31494, 31986-32060, 33960-34030: what the tests press)",
+   "lines_read": 236
+  },
+  {
+   "file": "scripts/tests-tier1.mjs (9093-9135: R3653)",
+   "lines_read": 43
+  },
+  {
+   "file": "docs/dev/owner-116/STATUS.md (220-262)",
+   "lines_read": 43
+  },
+  {
+   "file": "docs/dev/e59/WINDOWS.md (the count and the 13 rows of these files)",
+   "lines_read": 43
+  },
+  {
+   "file": "lang/en.json, lang/pl.json (the 69 whole keys the control rows name, each found in both files by script; the other labels were looked up the same way)",
+   "lines_read": 69
+  },
+  {
+   "file": "styles/*.css (scanned by script: 267 rules naming the dashboard's, the kit's and the note's classes, 5 of them hide; 11 more rules for the card, the help button and the small windows, none hides)",
+   "lines_read": 278
+  }
+ ],
+ "surfaces": [
+  {
+   "surface": "Investigation - the window's frame: header, view switch, footer (title \"Investigation\")",
+   "file": "scripts/investigation.mjs",
+   "opener": "openInvestigationDashboard:2206 (GM panel tile gm-panel.mjs:262; murder-rules.mjs:4205, 4235; game.drpg.investigationDashboard)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "? (\"Open the GM Handbook at section 14\")",
+     "key": "DRPG.Help.gm",
+     "kind": "button",
+     "selector": ".window-header > .drpg-help-button",
+     "handler": "scripts/ui-kit.mjs:1261 dressHelp (help row WINDOW_HELP.investigation, investigation.mjs:2289)",
+     "effect": "opens the handbook window on section 14 (handbooks.mjs openHandbooks)",
+     "gate": "any GM; the window itself refuses a player with \"Only a GM can do this.\" (2214-2217)",
+     "how_read": "code; test R6601 pins the row",
+     "themes": "no hiding rule found (scan of styles/*.css: 267 rules naming drpg-case-, drpg-key-, drpg-trace-, drpg-window-case, drpg-kit-footer, drpg-role-, drpg-mode-bar, drpg-tabs, drpg-messenger-note; the 5 that hide are [hidden] panes and fields, the svg edge layer and a node's face while its fields are open, none under a theme or narrow class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Map / Table",
+     "key": "DRPG.CaseMap.viewMap, DRPG.CaseMap.viewTable",
+     "kind": "toggle",
+     "selector": ".drpg-case-switch-bar button[data-drpg-mode=map|table]",
+     "handler": "scripts/ui-kit.mjs:1032 wireKit -> investigation.mjs:2300 onMode",
+     "effect": "leaving the Map writes the open nodes' changed fields (saveOpenNode), then the other view is drawn in place and kept on the GM's own User (flag investigationView)",
+     "gate": "any GM; a press on the view already shown does nothing",
+     "how_read": "test R3652 (tier 1 presses both)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Save",
+     "key": "DRPG.Assign.save",
+     "kind": "button",
+     "selector": "footer button[data-action=save] (primary)",
+     "handler": "investigation.mjs:2312 readDashboardForm -> 2439 placeFinalFromDashboard, 2458 applyDashboardSave:2482",
+     "effect": "writes every changed field where the world still holds what was drawn (Remnants, Key plan, case schema), places the Final Truth Remnant when its room is picked, closes the window",
+     "gate": "any GM; never disabled; a field the world moved under is refused and told in a warning that stays (2540-2545); a throw reopens the window with a permanent error (2459-2463)",
+     "how_read": "scenario 62 (presses it); test R1493; tier 2 \"the dashboard's Save with a change closes it\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "New Remnant",
+     "key": "DRPG.Investigation.newTraceTitle",
+     "kind": "button",
+     "selector": "footer button[data-action=newTrace]",
+     "handler": "investigation.mjs:2430-2437 -> runDashboardButton:2018 -> openNewTrace:104",
+     "effect": "writes the drawn form's changed fields, opens New Remnant, then opens the dashboard again",
+     "gate": "any GM",
+     "how_read": "test R1493 (presses it); test R91",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Issue Autopsy Truth Bullet",
+     "key": "DRPG.TruthBullet.autopsyTitle",
+     "kind": "button",
+     "selector": "footer button[data-action=autopsy]",
+     "handler": "investigation.mjs:2023 runDashboardButton -> gm-items.mjs issueAutopsyDialog",
+     "effect": "writes the drawn form's changed fields, opens the Autopsy window, then the dashboard again",
+     "gate": "any GM",
+     "how_read": "code; test R3967 (the bar's actions)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Body found",
+     "key": "DRPG.Chapter.bodyTitle",
+     "kind": "button",
+     "selector": "footer button[data-action=bodyFound].drpg-state-change",
+     "handler": "investigation.mjs:2028 runDashboardButton -> chapter.mjs openBodyDiscoveryDialog",
+     "effect": "writes the drawn form's changed fields, opens the discovery window, then the dashboard again",
+     "gate": "any GM; disabled while an Eclipse runs with the reason in its title (DRPG.Eclipse.bodyLocked), repainted in place by keepFresh (2377-2387)",
+     "how_read": "test R56 (pins the disabled wiring); test R309",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Preview realization",
+     "key": "DRPG.CaseRealize.preview",
+     "kind": "button",
+     "selector": "footer button[data-action=realize]",
+     "handler": "investigation.mjs:2035 runDashboardButton -> case-realize.mjs openRealization:92",
+     "effect": "writes the drawn form's changed fields, opens the realization's preview; what it did is the reopened dashboard's line (2283)",
+     "gate": "any GM",
+     "how_read": "code; test R3967",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Clear the plan",
+     "key": "DRPG.Investigation.clearPlan.button",
+     "kind": "button",
+     "selector": "footer button[data-action=clearPlan]",
+     "handler": "investigation.mjs:2039 runDashboardButton -> openClearPlan:2051",
+     "effect": "writes the drawn form's changed fields, asks the chapter, counts and asks, clears; says what it did on the reopened dashboard",
+     "gate": "any GM",
+     "how_read": "code; test R7350",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close (also the header's X and Escape)",
+     "key": "DRPG.Kit.close",
+     "kind": "button",
+     "selector": "footer button[data-action=close]; header X; Escape",
+     "handler": "ApplicationV2's own close -> investigation.mjs:2430-2434 saveDrawnForm:1800, offerFinalOnClose:2149",
+     "effect": "closes; every changed field of the drawn form is written; a Final Truth form with a room picked is asked about, not placed unasked",
+     "gate": "any GM",
+     "how_read": "test R4673; tier 2 \"planner autosave, the Table: ... written when the window closes by its X and by Close\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Enter in a one-line field",
+     "key": "literal",
+     "kind": "key",
+     "selector": "input[type=text] inside .drpg-case-live",
+     "handler": "the browser's implicit submission of the field's form (the kit's contract: the primary is the first submit, ui-kit.mjs header; investigation.mjs:2372-2375)",
+     "effect": "presses Save while the field belongs to the dialog's form; nothing once the region was redrawn",
+     "gate": "any GM",
+     "how_read": "code; a jsdom parse check of the two markups (no module code run)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale-state",
+     "detail": "after the first in-place redraw the region holds a real nested <form> (live.mjs:385-390 parses the markup of investigation.mjs:1066 / 1159 in a detached div), whose fields no longer belong to the dialog's form: finding 10 (suspected)"
+    }
+   ]
+  },
+  {
+   "surface": "Investigation - the Table view (tabs Remnants, Key Remnants, Final Truth Remnants, Who has what)",
+   "file": "scripts/investigation.mjs",
+   "opener": "caseHtml:1032 (drawn when the view is \"table\")",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Remnants / Key Remnants / Final Truth Remnants / Who has what",
+     "key": "DRPG.Investigation.tabTraces, .tabKeyRemnants, DRPG.Mastermind.finalRemnantsTitle, DRPG.Investigation.whoHasWhat",
+     "kind": "tab",
+     "selector": "nav.drpg-tabs button[data-drpg-tab-key=traces|key|final|who]",
+     "handler": "scripts/ui-kit.mjs:414 wireKitTabs (wired at investigation.mjs:1754, again after every redraw)",
+     "effect": "shows that pane; every pane stays in the form; the shown tab is carried across a redraw (live.mjs:507, 559)",
+     "gate": "any GM",
+     "how_read": "test R57; code",
+     "themes": "no hiding rule found (scan of styles/*.css: 267 rules naming drpg-case-, drpg-key-, drpg-trace-, drpg-window-case, drpg-kit-footer, drpg-role-, drpg-mode-bar, drpg-tabs, drpg-messenger-note; the 5 that hide are [hidden] panes and fields, the svg edge layer and a node's face while its fields are open, none under a theme or narrow class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Order (By room / Newest first)",
+     "key": "DRPG.Investigation.filterOrder",
+     "kind": "select",
+     "selector": "select[data-drpg-filter=order]",
+     "handler": "investigation.mjs:1998 wireCaseFilters",
+     "effect": "sets the reading and redraws the region in place; no row leaves",
+     "gate": "any GM",
+     "how_read": "tier 2 \"the case dashboard reads its traces three ways, and keeps the reading\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Left by",
+     "key": "DRPG.Investigation.filterPlayer",
+     "kind": "select",
+     "selector": "select[data-drpg-filter=player]",
+     "handler": "investigation.mjs:1998 wireCaseFilters",
+     "effect": "redraws the Remnants table with that author's rows only",
+     "gate": "any GM; options built from the Remnants themselves",
+     "how_read": "tier 2 \"the case dashboard reads its traces three ways, and keeps the reading\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "silent",
+     "detail": "a field typed in a row the new filter hides is dropped without a word: finding 12"
+    },
+    {
+     "label": "Room",
+     "key": "DRPG.Investigation.filterRoom",
+     "kind": "select",
+     "selector": "select[data-drpg-filter=room]",
+     "handler": "investigation.mjs:1998 wireCaseFilters",
+     "effect": "redraws the Remnants table with that room's rows only",
+     "gate": "any GM",
+     "how_read": "tier 2 \"the case dashboard reads its traces three ways, and keeps the reading\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "silent",
+     "detail": "as Left by: finding 12"
+    },
+    {
+     "label": "Chapter",
+     "key": "DRPG.Investigation.filterChapter",
+     "kind": "select",
+     "selector": "select[data-drpg-filter=chapter]",
+     "handler": "investigation.mjs:1998 wireCaseFilters; first value set by readTracesAs:422-426; read by mapChapterOf:1120",
+     "effect": "redraws the Remnants table for that chapter and picks the chapter the Map draws (its tooltip says both)",
+     "gate": "any GM; offers \"Every chapter\" and each chapter that has a Remnant",
+     "how_read": "scenario 62 (changes it); tier 2 as above",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "on a chapter with no Remnant of its own the window itself sets it to \"Every chapter\" at the Table's first draw, the Map then draws every chapter's Remnants, and the running chapter is not among the options: finding 7; it also drops typed rows it hides: finding 12"
+    },
+    {
+     "label": "A Remnant row's fields: Name, Player description, What analysis reveals, What it really is, Visibility, Faint, Tied to crime, Reinforced",
+     "key": "DRPG.Investigation.traceName ... DRPG.Remnant.reinforcedColumn",
+     "kind": "field-with-effect",
+     "selector": "[name=name.<row>|text.|analysis.|type.|vis.|faint.|crime.|reinf.]",
+     "handler": "investigation.mjs:1657 readCaseFields -> applyDashboardSave:2482",
+     "effect": "written by Save or by any close of the window, field by field, only where changed",
+     "gate": "any GM",
+     "how_read": "test R2067, R1288; tier 2 \"planner autosave, the Table\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A Remnant row's picture",
+     "key": "DRPG.Investigation.traceImage",
+     "kind": "button",
+     "selector": "img[data-drpg-portrait=<row>] + input[name=img.<row>]",
+     "handler": "scripts/utils.mjs:1307 wirePortraitPickers (investigation.mjs:1751)",
+     "effect": "opens Foundry's file picker; the pick goes to the hidden field Save writes",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Delete (a Remnant's row)",
+     "key": "DRPG.Investigation.deleteTrace",
+     "kind": "row-button",
+     "selector": "button[data-drpg-trace-delete=<row>]",
+     "handler": "investigation.mjs:1768 -> deleteTraceRow:1970 -> remnants.mjs removeRemnant:3312",
+     "effect": "asks in a window naming the Remnant, then removes its token and its ledger row",
+     "gate": "any GM; a Reinforced Remnant (every Key and Final Truth) is refused after the question with a notice, as the tooltip says",
+     "how_read": "tier 2 \"E44-T10 - Delete a Remnant from the dashboard\"; test R1337",
+     "themes": "no hiding rule; under Monokuma Legacy the Remnants table is 130 % of the view (components.css:3396) and Delete, its last column, is reached by the view's sideways scroll",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A Key row's fields: Name, Player description, What analysis reveals, Your note, Which Remnant, Planned room, Visibility, Left by, Picture",
+     "key": "DRPG.Investigation.traceName ... DRPG.CaseMap.field.img",
+     "kind": "field-with-effect",
+     "selector": "[name=keyname:<i>|keytext:|keyanalysis:|note:|token:|keyroom:|keyvis:|keyauthor:|keypicture:]",
+     "handler": "investigation.mjs:1697-1704 -> key-remnants.mjs saveKeyPlan:819",
+     "effect": "written by Save or any close; a placed row's words go onto its Remnant",
+     "gate": "any GM; the four planning fields only on a row not yet placed",
+     "how_read": "tier 2 \"planned Key slot holds every field\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Place (a Key row)",
+     "key": "DRPG.Investigation.place",
+     "kind": "row-button",
+     "selector": "button[data-drpg-key-place=<i>]",
+     "handler": "investigation.mjs:1757 -> key-remnants.mjs placeKeyRow:1260 -> placeInSlot:1216",
+     "effect": "asks the room and the visibility, places the Key Remnant with the words typed on the row and points the slot at it",
+     "gate": "any GM; drawn only on a row not on the map; past the opening roll's limit disabled until the override is ticked, the limit's line standing over the table (933-937)",
+     "how_read": "tier 2 \"a Key row's Place button puts its clue where its window says, with the words typed on the row\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Place more than the opening roll allows",
+     "key": "DRPG.Investigation.keyLimitOverride",
+     "kind": "toggle",
+     "selector": "input[name=keyOverride]",
+     "handler": "investigation.mjs:1732 wireKeyLimitOverride",
+     "effect": "enables the Place buttons past the limit; applied again after every redraw",
+     "gate": "any GM; drawn only once the chapter has a limit",
+     "how_read": "test R57",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Final Truth form: Room, Visibility, Left by, Name, Player description, What analysis reveals, Your note",
+     "key": "DRPG.Investigation.room ...",
+     "kind": "field-with-effect",
+     "selector": "[name=finalRoom|finalVis|finalAuthor|finalName|finalText|finalAnalysis|finalNote]",
+     "handler": "investigation.mjs:1611 readDashboardForm -> placeFinalFromDashboard:2167",
+     "effect": "Save places a Final Truth Remnant when a room is picked; with none it places none (the form's note says so); a close with a room picked asks first",
+     "gate": "any GM",
+     "how_read": "test R358; tier 2 \"planner autosave, the Table\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Investigation - the Map view (the case map, the planner)",
+   "file": "scripts/investigation.mjs, scripts/case-map.mjs, scripts/case-view.mjs",
+   "opener": "caseMapRegion:1130 -> case-map.mjs caseMapHtml:335, wired by wireMap:1823 -> case-map.mjs wireCaseMap:445",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Add deduction / Add counter / Add solution",
+     "key": "DRPG.CaseMap.addDeduction, .addCounter, .addSolution",
+     "kind": "button",
+     "selector": ".drpg-case-tools button[data-drpg-case-add=deduction|counter|solution]",
+     "handler": "case-map.mjs:455 -> investigation.mjs:1876 onAdd -> case-schema.mjs setCaseNode",
+     "effect": "adds the node to the drawn chapter's schema at once and opens it",
+     "gate": "any GM; a write that fails is logged to the console only (finding 8)",
+     "how_read": "test R3661 (press with a stand-in handler), R5334; code for the write",
+     "themes": "no hiding rule found (scan of styles/*.css: 267 rules naming drpg-case-, drpg-key-, drpg-trace-, drpg-window-case, drpg-kit-footer, drpg-role-, drpg-mode-bar, drpg-tabs, drpg-messenger-note; the 5 that hide are [hidden] panes and fields, the svg edge layer and a node's face while its fields are open, none under a theme or narrow class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Add a plan (Planned Remnant / Planned Final Truth / Planned Truth Bullet)",
+     "key": "DRPG.CaseMap.addPlan, DRPG.CaseMap.plan.*",
+     "kind": "select",
+     "selector": "select[data-drpg-case-add-plan]",
+     "handler": "case-map.mjs:463 -> investigation.mjs:1876 onAdd",
+     "effect": "adds that planned node at once; the select goes back to its first line",
+     "gate": "any GM",
+     "how_read": "test R5334",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Order in a column (By hand, By kind, By room, By state, fewest crossings)",
+     "key": "DRPG.CaseMap.sortLabel, DRPG.CaseMap.sort.*",
+     "kind": "select",
+     "selector": "select[data-drpg-case-sort]",
+     "handler": "case-map.mjs:462 -> investigation.mjs:1881 onSort -> setCaseMeta",
+     "effect": "writes the chapter's order at once and redraws",
+     "gate": "any GM; a write that fails is logged to the console only (finding 8)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "All open",
+     "key": "DRPG.CaseMap.allOpen",
+     "kind": "toggle",
+     "selector": "button[data-drpg-case-view]",
+     "handler": "case-map.mjs:459 -> investigation.mjs:1862 onView",
+     "effect": "writes every node's changed fields, flips the drawing (every node as its fields / one at a time), keeps it on the GM's User (flag caseMapFaces)",
+     "gate": "any GM",
+     "how_read": "test R7526; tier 2 \"owner-116: the planner draws every node open by default\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Chapter N (the overview's fold)",
+     "key": "DRPG.CaseMap.summaryTitle",
+     "kind": "toggle",
+     "selector": "details[data-drpg-case-overview] > summary",
+     "handler": "case-map.mjs:473 -> investigation.mjs:1871 onOverview",
+     "effect": "unfolds the counts, Check consistency, who has what, the Key limit's override and the Final Truth form; kept across redraws",
+     "gate": "any GM",
+     "how_read": "test R3661; code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Check consistency",
+     "key": "DRPG.CaseMap.checkCase",
+     "kind": "button",
+     "selector": "button[data-drpg-case-check]",
+     "handler": "case-map.mjs:472 -> investigation.mjs:1885 onCheck",
+     "effect": "redraws the region; the list is checkCase over the case as the stores hold it",
+     "gate": "any GM",
+     "how_read": "test R3661 (press with a stand-in handler); code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "it reads the stored case, not the fields open beside it; with every node open (the default) what was ticked or typed is not written until the GM leaves the Map: finding 14"
+    },
+    {
+     "label": "A node's face (its tile)",
+     "key": "DRPG.Tips.Case.nodeOnTheMapTooltip",
+     "kind": "tile",
+     "selector": "button.drpg-case-node[data-drpg-node]",
+     "handler": "case-map.mjs:509 -> investigation.mjs:1851 onPick",
+     "effect": "writes the node open before it, then opens this node's fields (a second press shuts them)",
+     "gate": "any GM; hidden while its fields are open and for every node while All open is on (components.css:3555, by design)",
+     "how_read": "test R3661, R3919",
+     "themes": "components.css:3555 hides a face with .is-editing in both themes, by design; no theme rule",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Not tied to the murder: N (the fold)",
+     "key": "DRPG.CaseMap.unrelated",
+     "kind": "toggle",
+     "selector": "button[data-drpg-case-fold]",
+     "handler": "case-map.mjs:495 -> investigation.mjs:1860 onFold",
+     "effect": "folds or unfolds the Remnants no line names; folded, their nodes and fields are not drawn",
+     "gate": "any GM; drawn only when such Remnants exist",
+     "how_read": "test R3651 (drawn); code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "silent",
+     "detail": "folding redraws without those nodes and writes nothing first: a field typed in one of them is dropped without a word: finding 12"
+    },
+    {
+     "label": "Move up / Move down (a node)",
+     "key": "DRPG.CaseMap.moveUp, DRPG.CaseMap.moveDown",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-case-move=-1|1]",
+     "handler": "case-map.mjs:500 -> investigation.mjs:1882 onMove -> moveCaseNode:1927",
+     "effect": "swaps the node with its neighbour in the column and sets the order to By hand",
+     "gate": "any GM; drawn on every node, never disabled",
+     "how_read": "tier 2 \"owner-116 ...\" presses Move down on a deduction and reads the focus only; test R3661 with a stand-in handler",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "dead",
+     "detail": "the handler reads another graph than the one drawn: a Key slot nobody has written, a planned Autopsy not sent and another chapter's Remnant are in no column of it, so the press does nothing and says nothing; other nodes swap inside the shorter column: finding 1"
+    },
+    {
+     "label": "Close (a node)",
+     "key": "DRPG.Panel.close",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-case-close]",
+     "handler": "case-map.mjs:499 -> investigation.mjs:1856 onClose -> saveOpenNode:1787",
+     "effect": "writes the node's changed fields, then shuts them",
+     "gate": "any GM; drawn only while All open is off",
+     "how_read": "tier 2 \"planned Final Truth holds every field ...\" and the planner autosave tests press it",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Remove from the case",
+     "key": "DRPG.CaseMap.removeNode",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-case-drop=<node>]",
+     "handler": "case-map.mjs:502 -> investigation.mjs:1883 onDrop -> dropMapNode:1944 -> case-schema.mjs dropCaseNode",
+     "effect": "asks, then drops the node's row (a tombstone every GM gets)",
+     "gate": "any GM; on a deduction, a counter, the solution and a planned Remnant, Final Truth or Truth Bullet",
+     "how_read": "code; test R3661 with a stand-in handler",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Place on the map (a planned Remnant)",
+     "key": "DRPG.CaseMap.placeOnMap",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-case-place=<chapter>:<node>]",
+     "handler": "case-map.mjs:504 -> investigation.mjs:1886 onPlace -> placeIncident:1903 -> openNewTrace:104",
+     "effect": "opens New Remnant filled in from the plan's stored row; the Remnant placed becomes the node",
+     "gate": "any GM",
+     "how_read": "code; tier 2 \"planned location ...\" calls placeIncident, not the button",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "filled in from the store, not from the node's fields as typed: finding 2; a false \"not on this scene\" notice when the plan's room is on another scene than the camera's: finding 13"
+    },
+    {
+     "label": "Place on the map (a planned Final Truth)",
+     "key": "DRPG.CaseMap.placeOnMap",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-case-place=<chapter>:<node>]",
+     "handler": "investigation.mjs:1906 placeIncident -> placePlannedFinal:2115 -> mastermind.mjs placeFinalRemnant:759",
+     "effect": "places the Final Truth Remnant at once with the stored plan's fields; asks the room when the stored plan has none",
+     "gate": "any GM",
+     "how_read": "code; tier 2 \"planned Final Truth holds every field ...\" calls placeIncident after the node and the window were closed",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "placed from the store without what was just typed in the node, and the typed fields then leave the window unwritten: finding 2"
+    },
+    {
+     "label": "Give a Truth Bullet (a planned Truth Bullet)",
+     "key": "DRPG.TruthBullet.give",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-case-place=<chapter>:<node>]",
+     "handler": "investigation.mjs:1907 placeIncident -> givePlannedBullet:2102 -> gm-items.mjs giveTruthBulletDialog:1469",
+     "effect": "opens Give a Truth Bullet on Write new, filled in from the stored plan; given, the plan is marked",
+     "gate": "any GM; still drawn on a plan already given, beside \"Given.\"",
+     "how_read": "code; tier 2 E104 test calls placeIncident",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "filled in from the store, not from the fields as typed: finding 2"
+    },
+    {
+     "label": "A schema or planned node's fields (Name, Note for the GMs, the planned kinds' fields, the Autopsy's name, words, note, \"Sent at\", \"Autopsies this chapter\")",
+     "key": "DRPG.CaseMap.field.*, DRPG.TruthBullet.*, DRPG.CaseMap.autopsy*",
+     "kind": "field-with-effect",
+     "selector": "[name^=\"case:<chapter>:<node>:\"]",
+     "handler": "investigation.mjs:1516 readSchemaForm -> applySchemaSave:1562 (through Save, a node's Close, leaving the Map, any close of the window)",
+     "effect": "written field by field where the store still holds what was drawn; a field moved meanwhile is refused and named",
+     "gate": "any GM",
+     "how_read": "tier 2 E104 tests; tier 2 planner autosave tests",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Trial mode (a deduction, counter or solution)",
+     "key": "DRPG.CaseMap.field.mode",
+     "kind": "select",
+     "selector": ".drpg-case-edit select[name$=\":mode\"]",
+     "handler": "investigation.mjs:1831-1843 (a change listener on the window, once)",
+     "effect": "shows the planned-minigame rows of the mode picked (question and answers, thesis, Logic Dive set)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale-state",
+     "detail": "after any redraw the select still shows the pick (live.mjs carries it) but the rows are drawn for the stored mode, so they hide again with what was typed in them: finding 5"
+    },
+    {
+     "label": "Rests on / Refutes (\"Ticked: n of m\")",
+     "key": "DRPG.CaseMap.field.inputs, .refutes, DRPG.CaseMap.chosenOf",
+     "kind": "toggle",
+     "selector": "details.drpg-case-fold-list > summary[data-drpg-chosen] and its checkboxes",
+     "handler": "native details; investigation.mjs:1833-1838 keeps the line in step with a tick",
+     "effect": "opens the list; a tick is written with the node's fields",
+     "gate": "any GM",
+     "how_read": "tier 2 \"owner-116 ...\" (ticks one, reads the line)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale-state",
+     "detail": "after a redraw the line counts the stored ticks while the boxes hold the GM's: finding 5"
+    },
+    {
+     "label": "Set (the Logic Dive set of a node)",
+     "key": "DRPG.Zones.picker.set",
+     "kind": "select",
+     "selector": ".drpg-case-edit select[name$=\":diveSet\"]",
+     "handler": "drawn by zoneRows:1498-1507 from diveSetStore; written with the node's fields",
+     "effect": "names the saved set the node plans",
+     "gate": "any GM; shown for the mode Logic Dive",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale-state",
+     "detail": "its options do not follow the sets: the window does not watch diveSetStore, and the button beside it refreshes nothing: finding 6"
+    },
+    {
+     "label": "Logic Dive sets...",
+     "key": "DRPG.Zones.picker.editSets",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-dive-sets]",
+     "handler": "investigation.mjs:1844-1847 -> trial-zones-ui.mjs openDiveSets:328",
+     "effect": "opens the Logic Dive sets window",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A Remnant's fields, picture and Delete on its node",
+     "key": "as the Table's",
+     "kind": "field-with-effect",
+     "selector": "the Table's own cells, by the same names (mapEditors:1275)",
+     "handler": "the Table's handlers (wireCase:1749)",
+     "effect": "as on the Table",
+     "gate": "any GM",
+     "how_read": "test R3653 (every Table field and row button has its place on the Map)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A Key slot's fields on its node (the group \"Slot N\")",
+     "key": "DRPG.CaseMap.slotNumber",
+     "kind": "field-with-effect",
+     "selector": ".drpg-case-edit-group [name=keyname:<i>|...]",
+     "handler": "investigation.mjs:1294-1303 mapEditors -> the Table's Save road",
+     "effect": "the running chapter's Key plan slot N, written as the Table writes it",
+     "gate": "any GM",
+     "how_read": "test R3653 under the \"Every chapter\" filter only; code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "on a Map drawn for another chapter the group stands on that chapter's slot N node and still holds, and writes, the running chapter's slot N: finding 3"
+    },
+    {
+     "label": "Place (a Key slot on its node)",
+     "key": "DRPG.Investigation.place",
+     "kind": "button",
+     "selector": ".drpg-case-edit button[data-drpg-key-place=<i>]",
+     "handler": "investigation.mjs:1757 -> key-remnants.mjs placeKeyRow:1260",
+     "effect": "as the Table's Place",
+     "gate": "any GM; past the opening roll's limit disabled, and on the Map the limit's line and its override stand inside the overview, drawn folded",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "silent",
+     "detail": "disabled with no reason at the button: its title is the Place tooltip: finding 11"
+    },
+    {
+     "label": "Place more than the opening roll allows; the Final Truth form (in the overview)",
+     "key": "DRPG.Investigation.keyLimitOverride; DRPG.Mastermind.finalRemnantsTitle",
+     "kind": "field-with-effect",
+     "selector": "details.drpg-case-overview [name=keyOverride], [name^=final]",
+     "handler": "investigation.mjs:1600 mapSummaryEditor; the Table's handlers",
+     "effect": "as on the Table",
+     "gate": "any GM; inside the folded overview",
+     "how_read": "test R3661 (drawn); code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "- / + / Fit to view (the camera)",
+     "key": "DRPG.CaseMap.zoomOut, .zoomIn, .zoomFit",
+     "kind": "button",
+     "selector": ".drpg-case-camera button[data-drpg-case-camera=out|in|fit]",
+     "handler": "case-map.mjs:481 -> case-view.mjs wireCaseCamera:379 zoomBy, fit",
+     "effect": "zooms about the middle, or fits the case to the view; this window's alone, nothing written",
+     "gate": "any GM",
+     "how_read": "test R3662",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Keys and pointer on the map: Escape, the arrows, + = - 0, the wheel, a drag, the middle button",
+     "key": "literal",
+     "kind": "key",
+     "selector": ".drpg-case-graph",
+     "handler": "case-map.mjs:516-540; case-view.mjs:429-474",
+     "effect": "Escape shuts and writes the open node (with All open on it goes on to the window, whose close writes); arrows walk the nodes; the rest moves the camera",
+     "gate": "any GM",
+     "how_read": "test R3662, R7527; code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "New Remnant (title \"New Remnant\")",
+   "file": "scripts/investigation.mjs",
+   "opener": "openNewTrace:104 (the footer's New Remnant; placeIncident:1915; game.drpg.newTrace)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Room, What it really is, Left by, Visibility, Part of this murder, Reinforced, Name, Player description, What analysis reveals, Your note",
+     "key": "DRPG.Investigation.room ...",
+     "kind": "field-with-effect",
+     "selector": "form fields room, type, author, vis, tied, reinforced, tname, ttext, tanalysis, note",
+     "handler": "read by the primary's callback (187-200)",
+     "effect": "none until Create",
+     "gate": "GM only (106)",
+     "how_read": "tier 2 \"the GM's New trace places the trace the window was told ...\"",
+     "themes": "no hiding rule found (scan of styles/*.css: 267 rules naming drpg-case-, drpg-key-, drpg-trace-, drpg-window-case, drpg-kit-footer, drpg-role-, drpg-mode-bar, drpg-tabs, drpg-messenger-note; the 5 that hide are [hidden] panes and fields, the svg edge layer and a node's face while its fields are open, none under a theme or narrow class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Create on the map",
+     "key": "DRPG.Investigation.createHere",
+     "kind": "button",
+     "selector": "footer button[data-action=ok] (primary)",
+     "handler": "investigation.mjs:187 -> 208-284",
+     "effect": "places the Remnant at a random spot of the room, writes its words, says \"{type} placed in {room}.\"",
+     "gate": "GM only; refusals told for an unknown kind, a kind Observe has no number for and a room with no region (210-222)",
+     "how_read": "tier 2 \"the GM's New trace places the trace ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "silent",
+     "detail": "opened from a plan with no room it starts on \"- pick a room -\"; Create then closes the window and says nothing (208): finding 4"
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "investigation.mjs:208",
+     "effect": "closes; nothing placed",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Delete the Remnant (question; title \"Delete the Remnant\")",
+   "file": "scripts/investigation.mjs",
+   "opener": "deleteTraceRow:1970",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Delete the Remnant",
+     "key": "DRPG.Investigation.deleteTraceTitle",
+     "kind": "button",
+     "selector": "footer button[data-action=yes] (destructive)",
+     "handler": "investigation.mjs:1976-1985 -> remnants.mjs removeRemnant",
+     "effect": "removes the token and the ledger row; a Reinforced one is refused with \"That Remnant is Reinforced, so it stays on the map.\"",
+     "gate": "GM only (1971); never the default",
+     "how_read": "tier 2 \"E44-T10 ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "investigation.mjs:1984",
+     "effect": "nothing goes",
+     "gate": "GM",
+     "how_read": "tier 2 \"E44-T10 ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Remove from the case (question; title \"Remove from the case\")",
+   "file": "scripts/investigation.mjs",
+   "opener": "dropMapNode:1944",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Remove from the case",
+     "key": "DRPG.CaseMap.removeNode",
+     "kind": "button",
+     "selector": "footer button[data-action=yes] (destructive)",
+     "handler": "investigation.mjs:1947-1956 -> case-schema.mjs dropCaseNode:450",
+     "effect": "drops the node's row",
+     "gate": "GM only (1945)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "investigation.mjs:1954",
+     "effect": "the node stays",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Clear the plan (two windows: the chapter, then the question; titles \"Clear the plan\", \"Clear the plan of chapter N?\")",
+   "file": "scripts/investigation.mjs",
+   "opener": "openClearPlan:2051",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Chapter",
+     "key": "DRPG.Investigation.clearPlan.which",
+     "kind": "select",
+     "selector": "select[name=chapter]",
+     "handler": "read by Next (2063)",
+     "effect": "names the chapter; the clock's is picked",
+     "gate": "GM only (2052)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Next",
+     "key": "DRPG.Investigation.clearPlan.next",
+     "kind": "button",
+     "selector": "footer button[data-action=next] (primary)",
+     "handler": "investigation.mjs:2062-2071",
+     "effect": "counts what the chapter's plan holds; with nothing to clear says so on the dashboard",
+     "gate": "GM",
+     "how_read": "code; test R7350",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel (first window)",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "investigation.mjs:2068",
+     "effect": "nothing cleared",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Clear",
+     "key": "DRPG.Investigation.clearPlan.clear",
+     "kind": "button",
+     "selector": "footer button[data-action=yes] (destructive)",
+     "handler": "investigation.mjs:2075-2087 -> case-schema.mjs clearChapterPlan:490",
+     "effect": "drops the chapter's Key slots, schema nodes and layout row; Remnants on the map stay; says \"Chapter N's plan is cleared.\"",
+     "gate": "GM; never the default",
+     "how_read": "test R7350",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel (the question)",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "investigation.mjs:2084",
+     "effect": "nothing cleared",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Final Truth Remnant's room (asked by a planned Final Truth with no room)",
+   "file": "scripts/investigation.mjs",
+   "opener": "placePlannedFinal:2115 (window at 2119)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Room",
+     "key": "DRPG.Investigation.room",
+     "kind": "select",
+     "selector": "select[name=room]",
+     "handler": "read by Place it (2124-2127)",
+     "effect": "names the room and its scene",
+     "gate": "GM",
+     "how_read": "tier 2 \"planned Final Truth holds every field ...\" (the window is asked, Cancel pressed)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Place it",
+     "key": "DRPG.Investigation.finalAskPlace",
+     "kind": "button",
+     "selector": "footer button[data-action=place] (primary)",
+     "handler": "investigation.mjs:2124-2141",
+     "effect": "places the Final Truth Remnant in the room picked",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "silent",
+     "detail": "left on \"Pick a room to place it\" it closes the window, places nothing and says nothing (2130): finding 4"
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "investigation.mjs:2130",
+     "effect": "nothing placed",
+     "gate": "GM",
+     "how_read": "tier 2 as above",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Place the Final Truth Remnant (asked when the dashboard closes with a room picked and no Save)",
+   "file": "scripts/investigation.mjs",
+   "opener": "offerFinalOnClose:2149",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Place it",
+     "key": "DRPG.Investigation.finalAskPlace",
+     "kind": "button",
+     "selector": "footer button[data-action=place] (primary, default)",
+     "handler": "investigation.mjs:2162-2164 -> placeFinalFromDashboard:2167",
+     "effect": "places it as Save would",
+     "gate": "GM",
+     "how_read": "tier 2 \"planner autosave, the Table ...\"; test R6350",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Not now",
+     "key": "DRPG.CaseRealize.notNow",
+     "kind": "button",
+     "selector": "footer button[data-action=later]",
+     "handler": "investigation.mjs:2162",
+     "effect": "nothing goes on the map",
+     "gate": "GM",
+     "how_read": "test R6350 (the word)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The realization's preview (title \"Case realization, chapter N\")",
+   "file": "scripts/case-realize.mjs",
+   "opener": "openRealization:92 (the footer's Preview realization; askAtBody:238)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Room (one a line a run would create)",
+     "key": "DRPG.CaseRealize.colRoom",
+     "kind": "select",
+     "selector": "select[name=\"room:<slot>\"]",
+     "handler": "read by Run (113-116)",
+     "effect": "the slot's room; \"- leave it -\" leaves the slot",
+     "gate": "GM only (93)",
+     "how_read": "tier 2 \"E97 C10: the realization's preview writes nothing; Run places ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Run realization",
+     "key": "DRPG.CaseRealize.run",
+     "kind": "button",
+     "selector": "footer button[data-action=run].drpg-state-change",
+     "handler": "case-realize.mjs:113 -> runRealization:127 -> key-remnants.mjs placeInSlot",
+     "effect": "places each slot with a room picked and marks it; never the default",
+     "gate": "GM; from the dashboard its answer is the reopened window's line",
+     "how_read": "tier 2 \"E97 C10 ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "silent",
+     "detail": "opened from the question at a body, its answer (\"Nothing was placed.\" with no room picked, or after a lost race) is dropped by the caller: finding 9"
+    },
+    {
+     "label": "Undo realization",
+     "key": "DRPG.CaseRealize.undo",
+     "kind": "button",
+     "selector": "footer button[data-action=undo] (destructive)",
+     "handler": "case-realize.mjs:120 -> confirmUndoRealization:181",
+     "effect": "goes to its question",
+     "gate": "GM; drawn only while a run's marks stand",
+     "how_read": "test R3967 (the footer's shape); tier 2 \"E97 C10 ...\" runs the undo",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close",
+     "key": "DRPG.Kit.close",
+     "kind": "button",
+     "selector": "footer button[data-action=close] (default)",
+     "handler": "case-realize.mjs:121",
+     "effect": "closes; nothing written",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Undo realization (question)",
+   "file": "scripts/case-realize.mjs",
+   "opener": "confirmUndoRealization:181",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Undo realization",
+     "key": "DRPG.CaseRealize.undo",
+     "kind": "button",
+     "selector": "footer button[data-action=yes] (destructive)",
+     "handler": "case-realize.mjs:186-192 -> undoRealization:157",
+     "effect": "deletes each marked Key Remnant nobody found and Monokuma did not reveal, frees its slot, says how many went and stayed",
+     "gate": "GM",
+     "how_read": "tier 2 \"E97 C10 ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "case-realize.mjs:190",
+     "effect": "nothing removed",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The case's realization (the question at a body)",
+   "file": "scripts/case-realize.mjs",
+   "opener": "askAtBody:227, from registerCaseAsk:211 on the body's hook",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Show the preview",
+     "key": "DRPG.CaseRealize.showPreview",
+     "kind": "button",
+     "selector": "footer button[data-action=preview]",
+     "handler": "case-realize.mjs:238 -> openRealization",
+     "effect": "opens the preview",
+     "gate": "the primary GM alone, once a chapter (askedAt written first, 229)",
+     "how_read": "code; test R6350 reads the footer",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Not now",
+     "key": "DRPG.CaseRealize.notNow",
+     "kind": "button",
+     "selector": "footer button[data-action=later] (default)",
+     "handler": "case-realize.mjs:239",
+     "effect": "nothing; not asked again this chapter, as its tooltip says",
+     "gate": "the primary GM",
+     "how_read": "test R6350",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The case's summary (the preview before it is sent)",
+   "file": "scripts/case-summary.mjs",
+   "opener": "showCaseSummary:65 (the trial console's button, trial-floor-ui.mjs:1555)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Send to everyone",
+     "key": "DRPG.CaseSummary.send",
+     "kind": "button",
+     "selector": "footer button[data-action=send].drpg-state-change",
+     "handler": "case-summary.mjs:92-108",
+     "effect": "marks the trial's summary sent, posts the one public card, says \"Summary sent.\"",
+     "gate": "GM only (66); before the window: \"Already sent for this trial.\" or \"The summary goes out only after the verdict.\" (78-79)",
+     "how_read": "scenario 63, 72 (answer the window); test R3916",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close",
+     "key": "DRPG.Kit.close",
+     "kind": "button",
+     "selector": "footer button[data-action=close] (default)",
+     "handler": "case-summary.mjs:92",
+     "effect": "nothing sent",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Create a Key Remnant here (from an Observe ruling card)",
+   "file": "scripts/key-remnants.mjs",
+   "opener": "openKeyRemnantHere:1116 (messenger-app.mjs:1367 ruleKeyRemnantHere; game.drpg.keyRemnantHere)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Room, Visibility, Left by, Name, Player description, What analysis reveals, Your note, Which planned clue is this?",
+     "key": "DRPG.Investigation.room ... DRPG.Investigation.whichSlot",
+     "kind": "field-with-effect",
+     "selector": "form fields room, vis, author, keyname, keytext, keyanalysis, note, slot",
+     "handler": "read by the primary (1187-1199)",
+     "effect": "none until Create",
+     "gate": "GM only (1117)",
+     "how_read": "code; test R3372 (the author select)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Create on the map",
+     "key": "DRPG.Investigation.createHere",
+     "kind": "button",
+     "selector": "footer button[data-action=ok] (primary)",
+     "handler": "key-remnants.mjs:1187 -> placeInSlot:1216",
+     "effect": "places the Key Remnant on the player's scene and hangs it on the slot picked; says \"Key Remnant placed in {room}.\"",
+     "gate": "GM; a room with no region is told (1033)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "key-remnants.mjs:1206",
+     "effect": "nothing placed",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Place this Key Remnant (a Key row's Place)",
+   "file": "scripts/key-remnants.mjs",
+   "opener": "placeKeyRow:1260 (window at 1284)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Room, Visibility",
+     "key": "DRPG.Investigation.room, DRPG.Investigation.visibility",
+     "kind": "select",
+     "selector": "select[name=room], select[name=vis]",
+     "handler": "read by Place (1298-1301)",
+     "effect": "start on the row's planned room and visibility",
+     "gate": "GM only (1261); no room on the scene, or a planned room gone, is told (1275, 1283)",
+     "how_read": "tier 2 \"planned location ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Place",
+     "key": "DRPG.Investigation.place",
+     "kind": "button",
+     "selector": "footer button[data-action=ok] (primary)",
+     "handler": "key-remnants.mjs:1298 -> 1307-1318 placeInSlot",
+     "effect": "places the clue in the row's slot with the words typed on the row",
+     "gate": "GM; a row another GM placed meanwhile is refused and told (1311-1313)",
+     "how_read": "tier 2 \"a Key row's Place button puts its clue where its window says ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "key-remnants.mjs:1307",
+     "effect": "nothing placed",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Sweep Truth Bullets (question) - no button opens it since E64-inv",
+   "file": "scripts/investigation.mjs",
+   "opener": "confirmSweepBullets:371 (scenario 62 and the suite call it; investigation.mjs:360-362 says so)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Sweep Truth Bullets",
+     "key": "DRPG.Panel.sweepBullets",
+     "kind": "button",
+     "selector": "footer button[data-action=yes] (destructive)",
+     "handler": "investigation.mjs:385-400 -> chapter.mjs sweepTruthBullets",
+     "effect": "sweeps the count it named and says how many went",
+     "gate": "GM only (372); with nothing to sweep it warns and asks nothing (379-382)",
+     "how_read": "scenario 62 (calls the function)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "investigation.mjs:396",
+     "effect": "nothing swept",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The held Key fee's card (a whisper to the GMs)",
+   "file": "scripts/key-remnants.mjs",
+   "opener": "chargeForUnfoundKeys:723 posts it; wireChargeHeld:790 wires it (gm-bridge.mjs:137)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Charge the Key fee",
+     "key": "DRPG.Case.chargeAgain",
+     "kind": "button",
+     "selector": ".drpg-call-actions button[data-drpg-key-charge]",
+     "handler": "key-remnants.mjs:792-800 -> askToChargeForUnfoundKeys:777 (keys.charge on the primary)",
+     "effect": "asks the primary's charge again; the button's row goes at the press; held again it posts a new card; once the fee is stamped it says \"The Key fee has already been charged for this trial.\"",
+     "gate": "a GM's browser, a GM's card (791); the card is whispered to the GMs",
+     "how_read": "test R7130; code",
+     "themes": "no hiding rule found (scan for drpg-call-actions, data-drpg-key-charge)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The pre-session note (the messenger window's Note tab)",
+   "file": "scripts/pre-session-note.mjs (the rules); scripts/messenger-app.mjs (the tab)",
+   "opener": "messenger-app.mjs DrpgMessengerApp._buildNote:293",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Chat / Note",
+     "key": "DRPG.Messenger.tabChat, DRPG.Note.tab",
+     "kind": "tab",
+     "selector": "nav.drpg-tabs button[data-drpg-tab-key=chat|note]",
+     "handler": "messenger-app.mjs:386-391 wireKitTabs onSwitch -> this.render()",
+     "effect": "draws the window again on that tab; the Note tab's box is drawn from the saved note",
+     "gate": "a player on their own thread, a GM on any player's",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-messenger-note, drpg-messenger-tab)",
+     "verdict": "silent",
+     "detail": "a note typed and not yet saved is dropped by a press of Chat, with nothing said: finding 15"
+    },
+    {
+     "label": "The note's box",
+     "key": "DRPG.Note.placeholder",
+     "kind": "field-with-effect",
+     "selector": "textarea.drpg-messenger-note-text",
+     "handler": "read by Save (341)",
+     "effect": "holds the note until Save; follows a newer note only while untouched (refreshNote:367)",
+     "gate": "both",
+     "how_read": "tier 2 \"a GM's Note tab waits for the GMs' notes, follows its note without losing what is typed ...\"",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Use the template",
+     "key": "DRPG.Note.useTemplate",
+     "kind": "button",
+     "selector": "button.drpg-messenger-note-template",
+     "handler": "messenger-app.mjs:328 -> pre-session-note.mjs noteTemplate:64",
+     "effect": "puts the seven questions in the box, in place of what is typed there (its tooltip says so)",
+     "gate": "drawn only while the saved note is empty",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Save",
+     "key": "DRPG.Note.save",
+     "kind": "button",
+     "selector": "button.drpg-messenger-note-save",
+     "handler": "messenger-app.mjs:338-355 -> pre-session-note.mjs saveNote:200 (a GM: writeNote:165; a player: sendDraft:243 -> note.save on the primary)",
+     "effect": "a GM writes the GMs' store and the player's copy; a player's note goes to the primary GM or is kept in this browser until one connects; the status line says which",
+     "gate": "both; held disabled while it runs; a newer note, a note too long and a failure are each told (342-345; pre-session-note.mjs:211, 218)",
+     "how_read": "scenario 61 (P5b), 33; tier 2 as above",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "surfaces": 18,
+  "controls": 87,
+  "ok": 68,
+  "dead": 1,
+  "throws": 0,
+  "mislabeled": 6,
+  "wrong_audience": 0,
+  "silent": 8,
+  "stale_state": 4,
+  "unknown": 0
+ },
+ "findings": [
+  {
+   "id": "controls-03-investigation-planner-1",
+   "severity": "minor",
+   "verdict": "dead",
+   "title": "Move up / Move down read another graph than the Map draws: nothing happens on an unwritten Key slot, an unsent planned Autopsy or another chapter's Remnant, and other nodes jump",
+   "surface": "Investigation - the Map view",
+   "control": "Move up / Move down",
+   "where": "scripts/investigation.mjs:1927-1940 (moveCaseNode), against 1146 (the graph drawn)",
+   "what_happens": "The Map draws caseGraph(chapter, { chapters, slots: the whole Key plan, autopsy: the chapter's count }) (1146). The button's handler builds caseGraph(chapter) with no options (1929): only the Key slots that have a stored row, no planned Autopsy unless it was sent, this chapter's Remnants only. A node missing from that graph is in no column, so the function returns at 1932, the caller redraws, and nothing is said. A node that is in it is swapped inside the shorter column, and every node of that column gets a manual place while the missing ones get none, so they sink under it. The buttons are drawn on every node and never disabled, at the column's ends too.",
+   "evidence": "const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });\n[...]\nasync function moveCaseNode(chapter, id, step) {\n    if (!id || !game.user?.isGM) return;\n    const graph = caseGraph(chapter);\n    const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });\n    const column = layout.columns.find(c => c.includes(id));\n    if (!column) return;",
+   "failure_scenario": "A GM on a fresh chapter presses Move down on \"Slot 1\" or Move up on the planned Autopsy: nothing moves and nothing is said; presses Move up on the second of two Remnants: both jump over the five slots.",
+   "expected": "the column as it is drawn (the function's own comment at 1923-1925 says so), and an end-of-column button that says it cannot move",
+   "confidence": "read",
+   "refutation_tried": "A slot gets a stored row only when a GM changed it (key-remnants.mjs:199-213; saveKeyPlan skips untouched slots, 830), so a new chapter's five slots have none. onMove hands the handler an id and a step, no graph (1882). nodeEditHtml draws no disabled button (case-map.mjs:285-290). No test measures a move's result: R3661 presses with a stand-in handler, tier 2 \"owner-116\" presses Move down on a deduction and reads the focus. The pure layout (case-layout.mjs, run alone on node shapes as graphOf builds them): drawn column key:0..key:4 | R1 | R2 | autopsy; the handler's column R1 | R2; Move on key:0 and autopsy: no column; Move up on R1: at the end; Move up on R2 writes R2:0, R1:1 and the drawn column becomes R2 | R1 | key:0..key:4 | autopsy.",
+   "probe": "game.drpg.investigationDashboard({ view: \"map\" }) on a chapter whose Key plan nobody wrote; press .drpg-case-edit[data-drpg-edit=\"key:0\"] [data-drpg-case-move=\"1\"] and .drpg-case-edit[data-drpg-edit=\"autopsy\"] [data-drpg-case-move=\"-1\"]; read case-schema.mjs caseRows(chapter).meta (unchanged) and the node order"
+  },
+  {
+   "id": "controls-03-investigation-planner-2",
+   "severity": "minor",
+   "verdict": "mislabeled",
+   "title": "Place on the map and Give a Truth Bullet act on the stored plan, not on the node's fields as typed; a planned Final Truth is placed without them and the typed fields are dropped",
+   "surface": "Investigation - the Map view",
+   "control": "Place on the map (planned Remnant, planned Final Truth); Give a Truth Bullet",
+   "where": "scripts/investigation.mjs:1886-1889 (onPlace), 1903-1919 (placeIncident), 2115-2141 (placePlannedFinal)",
+   "what_happens": "The press goes straight to placeIncident, which reads the plan's row from the GMs' store (1905). Nothing writes the node's fields first: a node is written at its Close, at a pick of another node, on leaving the Map and when the window closes, and with every node open (the default since 15.11.2026) there is no Close. So a room, a name or words typed in the node and not yet written are not in the New Remnant or Give window that opens, and a planned Final Truth is placed at once from the stored row: it asks for a room though one is picked in the node, and the Remnant gets none of the typed name, words, visibility or author. Once the plan points at its Remnant the planned node is no longer drawn, so the typed fields leave the window unwritten.",
+   "evidence": "onPlace: ref => {\n    const [chapter, id] = ref.split(\":\");\n    placeIncident(Number(chapter), id).then(() => refresh(), fail(\"place\"));\n}\n[...]\nconst row = caseNodeOf(caseRows(chapter).rows[id]);\nif (row?.kind === \"final\") return placePlannedFinal(chapter, id, row);",
+   "failure_scenario": "A GM adds a Planned Final Truth, picks its room, types its name and words and presses Place on the map: asked for the room again, the Final Truth Remnant stands on the map nameless, and the typed words are gone from the window.",
+   "expected": "the node's fields written first, as a node's Close does (saveOpenNode), or read as typed, as a Key row's Place reads its row (key-remnants.mjs:1315-1318)",
+   "confidence": "read",
+   "refutation_tried": "Looked for a write before the press: saveOpenNode is called at 1852, 1858, 1863, 2303 and the form is written at the window's close (2431), not at onPlace. The tier 2 tests of the planned kinds set the fields, press the node's Close, close the window and then call placeIncident (tests-tier2.mjs:32030-32037), so the button with unwritten fields is not pressed anywhere. The tooltips say \"with every field of this plan filled in\" and \"in its planned room, or asks for a room first\". docs/dev/owner-116/STATUS.md: with every node open the fields are written \"when the GM leaves the Map or switches\".",
+   "probe": "Map with every node open; pick \"Planned Final Truth\" in select[data-drpg-case-add-plan]; set [name=\"case:<ch>:<id>:room\"] and [name=\"case:<ch>:<id>:label\"]; press [data-drpg-case-place=\"<ch>:<id>\"]; read: the window drpg-window-final-room opens, and after placing remnantData(token).public.name is empty"
+  },
+  {
+   "id": "controls-03-investigation-planner-3",
+   "severity": "minor",
+   "verdict": "mislabeled",
+   "title": "On a Map drawn for another chapter, that chapter's Key slot nodes carry the running chapter's slot fields and its Place",
+   "surface": "Investigation - the Map view",
+   "control": "A Key slot's fields on its node (the group \"Slot N\"); Place",
+   "where": "scripts/investigation.mjs:1135-1146 (caseMapRegion), 1294-1303 (mapEditors)",
+   "what_happens": "The Map draws the chapter the Table's Chapter filter names. For a chapter that is not the clock's, the graph takes that chapter's stored Key slots (slots: null at 1146), so its Key Remnants and unplaced slots are nodes with a slot number. mapEditors then hangs the Key planner's cells on the node of each slot number, and those cells are built from keyPlan(), which is always the clock's chapter. So under chapter 2's \"Slot 1\" stand the Name, descriptions, note, Remnant picker, planned room and Place of chapter 3's slot 1; a Save or a close writes them to chapter 3's plan (and onto chapter 3's Remnant where that slot is placed), and Place puts a chapter-3 Key Remnant on the map.",
+   "evidence": "const plan = keyPlan();\n[...]\nconst graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });\n[...]\nconst slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]));\ncaseKeyCells({ plan, status, placed, limit }).forEach((c, i) => {\n    const id = slotNode.get(i);\n    if (!id) return;",
+   "failure_scenario": "A GM in chapter 3 sets the Table's Chapter filter to chapter 2 and opens the Map: under chapter 2's first Key Remnant the group \"Slot 1\" shows an empty name and a Place button; what they type there is saved as chapter 3's first clue.",
+   "expected": "no Key planner cells on another chapter's nodes, or that chapter's own",
+   "confidence": "read",
+   "refutation_tried": "Looked for a chapter guard in mapEditors and caseKeyCells: none; the slots are withheld from the graph for another chapter (1146) but the cells are not. Test R3653 compares the Table's and the Map's field names after setting the filter to \"Every chapter\" (tests-tier1.mjs:9118), where the Map draws the clock's chapter. The overview's Key limit line (mapSummaryEditor:1603) is the clock's chapter's as well.",
+   "probe": "with stored Key rows of chapter N-1 and the clock on N: game.drpg.investigationDashboard({ view: \"table\" }); set select[data-drpg-filter=\"chapter\"] to N-1 (change); press [data-drpg-mode=\"map\"]; read .drpg-case-live[data-drpg-chapter] (N-1) and the value of [name=\"keyname:0\"] against keyPlan().entries[0].name"
+  },
+  {
+   "id": "controls-03-investigation-planner-4",
+   "severity": "minor",
+   "verdict": "silent",
+   "title": "New Remnant opened from a plan with no room: Create on \"- pick a room -\" closes the window and says nothing; the Final Truth's room question does the same",
+   "surface": "New Remnant; Final Truth Remnant's room",
+   "control": "Create on the map; Place it",
+   "where": "scripts/investigation.mjs:119-121, 208 (openNewTrace); 2130 (placePlannedFinal)",
+   "what_happens": "placeIncident opens New Remnant with askRoom when the plan holds no room: the Room select starts on an empty option. The primary's callback hands the form back, the window closes, and the first check after it returns null for an empty room with no notice, while the three refusals after it each warn. Everything typed in the window is gone with it. The planned Final Truth's room window does the same at 2130.",
+   "evidence": "const roomOptions = (askRoom ? `<option value=\"\" selected>${esc(game.i18n.localize(\"DRPG.CaseMap.pickRoom\"))}</option>` : \"\") + rooms.map(r =>\n[...]\nif (!result || result === \"cancel\" || !result.room) return null;\nif (!REMNANT_TYPES[result.type]) {\n    ui.notifications.warn(game.i18n.localize(\"DRPG.Investigation.newTraceBadType\"));",
+   "failure_scenario": "A GM presses Place on the map on a planned Remnant with no room, fills in the words, forgets the room and presses Create on the map: the window closes, no Remnant is placed, nothing says why.",
+   "expected": "the press refused while the window stands (or a notice naming the room), as the other refusals of the same function are told",
+   "confidence": "read",
+   "refutation_tried": "Read every return of openNewTrace: 210, 215 and 221 warn, 208 does not. The comment at 119 calls it a refusal (\"which Create refuses\"). The button's tooltip says only \"canceled, nothing is placed\". From the footer's New Remnant the select has no empty option, so the road is the plan's alone.",
+   "probe": "case-schema.mjs setCaseNode(ch, \"incident-probe\", { kind: \"incident\", label: \"probe\" }); on the Map press [data-drpg-case-place=\"<ch>:incident-probe\"]; in the window drpg-window-newtrace press footer button[data-action=\"ok\"]; read: no new token, no notification"
+  },
+  {
+   "id": "controls-03-investigation-planner-5",
+   "severity": "minor",
+   "verdict": "stale-state",
+   "title": "After a redraw a node's planned-minigame rows and its \"Ticked: n of m\" line are drawn from the store while the select and the boxes hold the GM's unwritten picks",
+   "surface": "Investigation - the Map view",
+   "control": "Trial mode; Rests on / Refutes",
+   "where": "scripts/investigation.mjs:1496 (zoneRows), 1470 (foldedList), 1829-1843 (the listener); scripts/live.mjs:547-548 (restore)",
+   "what_happens": "Picking a Trial mode shows that mode's rows through a change listener on the window, and a tick updates the folded list's line the same way. Every redraw of the region draws the rows hidden unless the stored mode is theirs, and the line from the stored ticks; live.mjs then puts the GM's unwritten pick back by writing the field's value, which fires no change. So the select reads \"Straw Poll\" over hidden question and answer rows (what was typed in them is still held, out of sight), and the line reads \"Ticked: 0 of 12\" over ticked boxes. With every node open nothing writes a node until the GM leaves the Map, so any redraw in between does it: Add deduction, Check consistency, the fold, the order, a player's sheet changing.",
+   "evidence": "const row = (modes, label, field) => `<div data-drpg-zone-for=\"${modes.join(\" \")}\"${modes.includes(node.mode) ? \"\" : \" hidden\"}>${editRow(label, field)}</div>`;\n[...]\nconst select = event.target?.closest?.('.drpg-case-edit select[name$=\":mode\"]');\nif (!select) return;\nfor (const row of select.closest(\".drpg-case-edit\").querySelectorAll(\"[data-drpg-zone-for]\")) row.hidden = !row.dataset.drpgZoneFor.split(\" \").includes(select.value);\n[...]\nif (node.type === \"checkbox\" || node.type === \"radio\") node.checked = was.value;\nelse node.value = was.value;",
+   "failure_scenario": "A GM picks Scrum Debate on a deduction, types the question, then presses Add deduction: the first node still reads Scrum Debate but its question and answers are gone from view.",
+   "expected": "the rows and the line applied from the fields as they stand after a redraw, as wireKeyLimitOverride does for the Key limit (1732-1742, whose comment describes this trap)",
+   "confidence": "read",
+   "refutation_tried": "wireMap runs again after every redraw (2416) but its listener is added once and hears change only; nothing reads the selects' values after restore. The fields themselves are carried and written later, so no data is lost; the look is wrong until the mode is picked again or the node is written.",
+   "probe": "Map, every node open, a deduction: set select[name$=\":mode\"] to \"straw\" and dispatch change (rows [data-drpg-zone-for~=\"straw\"] shown); press [data-drpg-case-check]; read the select's value (straw) and the rows' hidden (true)"
+  },
+  {
+   "id": "controls-03-investigation-planner-6",
+   "severity": "nit",
+   "verdict": "stale-state",
+   "title": "The Logic Dive \"Set\" select of a node does not list a set made through the \"Logic Dive sets...\" button beside it until something else redraws the Map",
+   "surface": "Investigation - the Map view",
+   "control": "Set; Logic Dive sets...",
+   "where": "scripts/investigation.mjs:1498-1507 (zoneRows), 1844-1847 (the button), 2412 (the stores watched)",
+   "what_happens": "The select's options are read from diveSetStore when the region is drawn. The window redraws for six GM stores, and diveSetStore is not one of them; the button opens the sets window and does nothing when it closes. A set added, renamed or deleted there is not in the select until another redraw.",
+   "evidence": "const sets = Object.entries(diveSetStore.entries() ?? {}).filter(([, s]) => Array.isArray(s?.questions))\n[...]\nimport(\"./trial-zones-ui.mjs\").then(Z => Z.openDiveSets()).catch(err => error(\"The Logic Dive sets did not open\", err));\n[...]\nwatch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },",
+   "failure_scenario": "A GM planning a Logic Dive presses Logic Dive sets..., writes a set, closes that window and opens the Set select: the new set is not there.",
+   "expected": "the region redrawn when the sets change",
+   "confidence": "read",
+   "refutation_tried": "live.mjs listenFor (346-351) schedules a redraw only for the stores named; a GM store's write fires no updateSetting (live.mjs:335-345). Any other redraw (an actor or item update, a press of Check consistency) brings the set in.",
+   "probe": "Map, a deduction on mode Logic Dive; press [data-drpg-dive-sets], add a set, close; read the options of select[name$=\":diveSet\"] before and after a press of [data-drpg-case-check]"
+  },
+  {
+   "id": "controls-03-investigation-planner-7",
+   "severity": "minor",
+   "verdict": "mislabeled",
+   "title": "On a chapter with no Remnant of its own, one look at the Table sets the Chapter filter to \"Every chapter\"; the Map then draws every chapter's Remnants and the filter cannot name the running chapter",
+   "surface": "Investigation - the Table view; the Map view",
+   "control": "Chapter (filter); Map / Table",
+   "where": "scripts/investigation.mjs:422-426 (readTracesAs), 1120-1124 (mapChapterOf), 725-727 and 753 (the options)",
+   "what_happens": "The Map opened first draws the running chapter (the filter is null, read as \"this\"). The Table's first draw resolves the filter: the running chapter when it has a Remnant, else \"\" - the same value as a GM's own pick of \"Every chapter\". mapChapterOf reads \"\" as every chapter, so after one visit to the Table the Map holds every Remnant of the world beside this chapter's plan. The filter offers only chapters that have a Remnant, so the running chapter cannot be picked to go back; closing and opening the window on the Map is the only way.",
+   "evidence": "if (reading.chapter === null) {\n    const here = String(getClock().chapter);\n    reading.chapter = list.some(({ data }) => String(data.chapter ?? \"\") === here)\n        ? here : \"\";\n}\n[...]\nreturn reading.chapter && Number.isInteger(named) ? { chapter: named, chapters: \"this\" }\n    : { chapter: getClock().chapter, chapters: reading.chapter === \"\" ? \"all\" : \"this\" };",
+   "failure_scenario": "A GM planning chapter 3 before any Remnant of it exists opens Investigation on the Map, looks at the Table and comes back: the evidence column now also holds chapter 1's and 2's Key Remnants, and no filter option removes them.",
+   "expected": "the Map keeps drawing the running chapter until the GM picks another, and the filter can name the running chapter",
+   "confidence": "read",
+   "refutation_tried": "The filter's tooltip says it \"picks the chapter the Map draws\" and mapChapterOf's comment says a filter of every chapter draws every Remnant: an explicit pick is meant to do this. What is not said anywhere is the window making that pick itself. Key Remnants are reinforced and survive the chapter's sweep (investigation.mjs:951-953), so from the second chapter on there are older ones to draw.",
+   "probe": "clock on a chapter with no Remnant, older chapters' Remnants on a scene: game.drpg.investigationDashboard({ view: \"map\" }); count button[data-drpg-node]; press [data-drpg-mode=\"table\"], then [data-drpg-mode=\"map\"]; count again, and read the options of select[data-drpg-filter=\"chapter\"] on the Table"
+  },
+  {
+   "id": "controls-03-investigation-planner-8",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "A failed add, order, move, removal or placement on the Map is written to the console only, in the words written for the GM",
+   "surface": "Investigation - the Map view",
+   "control": "Add deduction / Add a plan / Order in a column / Move / Remove from the case / Place on the map",
+   "where": "scripts/investigation.mjs:1826 (fail), used at 1879-1888; scripts/utils.mjs:338-341 (error)",
+   "what_happens": "Each of the five handlers ends in .then(ok, fail(key)). fail hands a localized sentence (DRPG.CaseMap.failed.*, in both languages) to error(), which writes the console and the module's record; nothing reaches the GM's screen. It needs a rejected store write or a throw, so it is a failure's failure, but then the press simply does nothing.",
+   "evidence": "const fail = key => err => error(game.i18n.localize(`DRPG.CaseMap.failed.${key}`), err);\n[...]\nexport function error(...args) {\n    console.error(`${MODULE_ID} |`, ...args);\n    record(\"error\", args);\n}",
+   "failure_scenario": "A GM presses Add deduction while the store's write rejects: no node, no notice.",
+   "expected": "the sentence shown, as a failed node write is (ui.notifications.error at 1813)",
+   "confidence": "read",
+   "refutation_tried": "Compared with saveFieldsIn (1810-1815), which logs and notifies. The five sentences exist in lang/en.json and lang/pl.json and are used nowhere else (git grep DRPG.CaseMap.failed).",
+   "probe": "make caseSchemaStore.patch reject for one call, press [data-drpg-case-add=\"deduction\"], read ui.notifications and the console"
+  },
+  {
+   "id": "controls-03-investigation-planner-9",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "The realization run from the question at a body says nothing when it places nothing",
+   "surface": "The realization's preview",
+   "control": "Run realization",
+   "where": "scripts/case-realize.mjs:120-123 (the answer), 213 and 238 (the body's road)",
+   "what_happens": "openRealization answers a sentence for the dashboard's line. Opened from the question at a body, the caller drops it. A placement is still told by placeInSlot's own notice, but \"Nothing was placed.\" - Run with every line on \"- leave it -\", or a run that lost to another GM's - is told nowhere: the window closes.",
+   "evidence": "return ran ? F(\"DRPG.CaseRealize.ran\", { n: ran.placed }) : L(\"DRPG.CaseRealize.notRun\");\n[...]\nsetTimeout(() => { askAtBody(payload.chapter).catch(err => error(\"The case's question at a body failed\", err)); }, 0);\n[...]\nif (answer === \"preview\") return openRealization({ chapter });",
+   "failure_scenario": "The primary GM answers Show the preview at a body and presses Run realization without picking a room: the window closes and nothing says that nothing was placed.",
+   "expected": "the same line the dashboard's road shows",
+   "confidence": "read",
+   "refutation_tried": "From the footer's Preview realization the sentence is drawn on the reopened dashboard (investigation.mjs:2037, 2283). A slot placed is told by key-remnants.mjs:1244 on either road.",
+   "probe": "import case-realize.mjs askAtBody(chapter) on the primary with a Key slot to place; press [data-action=\"preview\"], then [data-action=\"run\"] with the selects on their first line; read ui.notifications"
+  },
+  {
+   "id": "controls-03-investigation-planner-10",
+   "severity": "nit",
+   "verdict": "stale-state",
+   "title": "Enter in a field presses Save only until the region's first redraw; after it the fields sit in a nested form with no submit button",
+   "surface": "Investigation - the window's frame",
+   "control": "Enter in a one-line field",
+   "where": "scripts/investigation.mjs:1066 and 1159 (the region's own <form>), 2372-2375 (the contract); scripts/live.mjs:385-390 (toElement)",
+   "what_happens": "The region's markup wraps its fields in a <form>. At the first render the content is parsed into the dialog's own form, the inner tag is dropped, and Enter in a one-line field presses the first submit button, Save. Every redraw in place parses the same markup in a detached div, where the <form> is kept, and puts it into the dialog: from then on the fields belong to the inner form, which has no submit button and more than one text field, so Enter does nothing. A filter, a node's pick, the view switch or any change of the world is a redraw.",
+   "evidence": "return `<div class=\"drpg-case-live drpg-case-view\" data-drpg-view=\"table\"><form>\n[...]\nfunction toElement(built) {\n    if (built instanceof HTMLElement) return built;\n    const holder = document.createElement(\"div\");\n    holder.innerHTML = String(built ?? \"\");\n    return holder.firstElementChild;\n}",
+   "failure_scenario": "A GM presses Enter in a Remnant's Name right after opening: the window saves and closes; after changing a filter, Enter in the same field does nothing.",
+   "expected": "one behaviour of Enter for the life of the window",
+   "confidence": "suspected",
+   "refutation_tried": "A parse check with the harness's jsdom (no module code run): first render 0 inner forms, the field's form is the dialog's; after a replaceWith of the markup parsed in a detached div 1 inner form, the field's form is the inner one, with no submit button. The first half rests on the harness's model of DialogV2 (shim.mjs:1741-1746: the content parsed into the dialog's form); Foundry 14's own first render was not read. The second half is the HTML parser's rule in any browser.",
+   "probe": "at a table: open Investigation, press Enter in a node's or a row's Name before anything redraws; open again, change select[data-drpg-filter] or press a node, press Enter in a Name"
+  },
+  {
+   "id": "controls-03-investigation-planner-11",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "On the Map a Key slot's Place past the opening roll's limit is disabled with no reason at the button; the limit's line and its override are inside the folded overview",
+   "surface": "Investigation - the Map view",
+   "control": "Place (a Key slot on its node)",
+   "where": "scripts/investigation.mjs:893-895 (the button), 1603-1605 (mapSummaryEditor); scripts/case-map.mjs:322-326 (the overview, drawn closed)",
+   "what_happens": "On the Table the limit's line (\"{used} of {limit} Key Remnants used this chapter\") and \"Place more than the opening roll allows\" stand over the table and the row is dimmed. On the Map the same line and box are part of the chapter's overview, a <details> drawn closed, and the slot's Place is only disabled: its title is the tooltip of an enabled Place, and no stylesheet rule names data-drpg-over-limit or drpg-key-limited.",
+   "evidence": "${here ? \"\" : `<button type=\"button\" name=\"place:${i}\" data-drpg-key-place=\"${i}\"${tipAttr(\"DRPG.Tips.Case.placeTooltip\", null, { title: true })}${\n    aria(\"DRPG.Investigation.place\")} class=\"drpg-key-place${overLimit ? \" drpg-key-limited\" : \"\"}\"${\n    overLimit ? \" disabled\" : \"\"}>${game.i18n.localize(\"DRPG.Investigation.place\")}</button>`}`",
+   "failure_scenario": "A GM whose opening roll gave three Key Remnants opens the Map: Place on slots 4 and 5 is grey, and nothing on the node says why or where to allow it.",
+   "expected": "the reason on the disabled button (its title), or the limit's line on the node",
+   "confidence": "read",
+   "refutation_tried": "git grep of styles/ for data-drpg-over-limit and drpg-key-limited: no rule. The overview's tooltip names Check consistency and the Final Truth form, not the Key limit.",
+   "probe": "with a case of 3 keys (key-remnants.mjs caseKeyCount): Map; read .drpg-case-edit-group[data-drpg-over-limit] [data-drpg-key-place] disabled and its title; read details.drpg-case-overview open (false)"
+  },
+  {
+   "id": "controls-03-investigation-planner-12",
+   "severity": "minor",
+   "verdict": "silent",
+   "title": "A filter on the Table and the fold on the Map redraw without the rows or nodes they hide, and a field typed there and not yet written is dropped without a word",
+   "surface": "Investigation - the Table view; the Map view",
+   "control": "Left by / Room / Chapter (filters); Not tied to the murder: N (the fold)",
+   "where": "scripts/investigation.mjs:1998-2004 (wireCaseFilters), 1860 (onFold); scripts/case-map.mjs:168-170, 185-194 (folded nodes are not drawn); scripts/live.mjs:530-549 (restore)",
+   "what_happens": "A filter or the fold sets the reading and asks for a redraw; neither writes anything first. The redraw carries a typed field to the field of the same name in the new markup, and a row the filter now hides, or a folded node, has none: its typed value is discarded. When the row is shown again it is drawn from the store. Save and the window's close read the form as it stands, so the edit is not written by them either. A node's pick, its Close and the All open switch write first; these two do not.",
+   "evidence": "control.addEventListener(\"change\", () => {\n    reading[control.dataset.drpgFilter] = control.value;\n    refresh();\n});\n[...]\nonFold: () => { reading.fold = !reading.fold; refresh(); },\n[...]\nfor (const node of element.querySelectorAll(\"input, textarea, select\")) {\n    const was = dirty.get(keyFor(node, element, named));\n    if (!was) continue;",
+   "failure_scenario": "A GM renames a Remnant on the Table, sets the Room filter to another room to compare, sets it back and presses Save: the old name stands and nothing said the edit was dropped.",
+   "expected": "the changed fields written before the redraw (as onPick and onView do), or the hidden rows' typed values kept",
+   "confidence": "read",
+   "refutation_tried": "The comment over wireCaseFilters (1989-1996) says half-typed fields survive a filter change: true of a field still drawn. The Order filter hides nothing. The owner's rule of 13.11.2026 (\"Nie, ma zapisywac\", investigation.mjs:1794-1799, 2336) is that a close never loses what was typed; these presses are not a close and lose it earlier. The tier 2 filter test types nothing before it filters.",
+   "probe": "Table: set [name=\"name.<row>\"] of a Remnant; set select[data-drpg-filter=\"room\"] to another room (change), then back to \"\"; read the field (the stored name). Map, every node open: type in a not-tied Remnant's Name, press [data-drpg-case-fold] twice, read the field"
+  },
+  {
+   "id": "controls-03-investigation-planner-13",
+   "severity": "nit",
+   "verdict": "mislabeled",
+   "title": "Place on the map warns that a planned room \"is not on this scene\" when it is on the plan's own scene and the GM is looking at another",
+   "surface": "Investigation - the Map view",
+   "control": "Place on the map (a planned Remnant)",
+   "where": "scripts/investigation.mjs:1912-1917 (placeIncident)",
+   "what_happens": "A plan keeps its room and the room's scene. The check before the window reads the rooms of the scene on the GM's screen, not of the plan's scene, and warns when the name is not among them; the window then opens on the plan's scene with the room picked.",
+   "evidence": "if (row.room && !allRooms(workingScene()).includes(row.room)) ui.notifications.warn(game.i18n.format(\"DRPG.Investigation.plannedRoomGone\", { room: row.room }));\n[...]\nconst token = await openNewTrace({ room: row.room, sceneId: row.scene, type, name: row.label, text: row.text, tied: row.tie ?? \"\",",
+   "failure_scenario": "In a world with two place scenes a GM viewing the school presses Place on the map on a Remnant planned for the annex: \"The planned room ... is not on this scene. Pick a room.\" appears over a window that has the room picked.",
+   "expected": "the check made on the plan's scene, as a Key row's Place makes it (key-remnants.mjs:1271-1283)",
+   "confidence": "read",
+   "refutation_tried": "openNewTrace takes the plan's scene first (112) and marks its room (121), so only the notice is wrong. With one place scene, or the camera on the plan's scene, the check is right.",
+   "probe": "a planned Remnant whose row holds room and scene of place scene A; view scene B; press its [data-drpg-case-place]; read the notice and select[name=room] in drpg-window-newtrace"
+  },
+  {
+   "id": "controls-03-investigation-planner-14",
+   "severity": "minor",
+   "verdict": "mislabeled",
+   "title": "Check consistency (and the map's lines and \"x/y\") read the stored case: with every node open, what the GM just ticked or typed is not in it until they leave the Map",
+   "surface": "Investigation - the Map view",
+   "control": "Check consistency",
+   "where": "scripts/investigation.mjs:1885 (onCheck), 1146-1157 (the graph and the check), 1787-1791 (when a node is written)",
+   "what_happens": "The button redraws the region; the list is checkCase over the graph built from the GMs' stores. With every node open, the default, a node's fields are written only when the GM leaves the Map, flips All open or closes the window. So a deduction whose \"Rests on\" boxes were just ticked still reads \"rests on nothing\" after the press, no line is drawn to it and its reach stays empty, and nothing on the Map says that the ticks are not counted yet.",
+   "evidence": "onCheck: () => { reading.overview = true; refresh(); },\n[...]\nconst canvas = root?.querySelector?.(\".drpg-case-canvas\");\nif (canvas?.dataset?.drpgAllOpen === \"1\") return saveFieldsIn(canvas);",
+   "failure_scenario": "A GM adds a deduction, ticks the two Remnants it rests on and presses Check consistency: the list still says the deduction rests on nothing, and no line joins it to the Remnants.",
+   "expected": "the open nodes' changed fields written before the check reads the case, as the All open switch does before it redraws",
+   "confidence": "read",
+   "refutation_tried": "docs/dev/owner-116/STATUS.md records the decision that with every node open the fields are written \"when the GM leaves the Map or switches\"; it says nothing of the check, the lines or the reach. With one node open at a time the node's Close writes it and the redraw after it is right.",
+   "probe": "Map, every node open: press [data-drpg-case-add=\"deduction\"]; tick one box of its .drpg-case-fold-list; press [data-drpg-case-check]; read .drpg-case-problems and svg path[data-drpg-edge]"
+  },
+  {
+   "id": "controls-03-investigation-planner-15",
+   "severity": "minor",
+   "verdict": "silent",
+   "title": "A pre-session note typed and not yet saved is dropped by a press of the Chat tab",
+   "surface": "The pre-session note (the messenger window's Note tab)",
+   "control": "Chat / Note",
+   "where": "scripts/messenger-app.mjs:386-391 (onSwitch), 304-307 (_buildNote)",
+   "what_happens": "A press of either tab sets the tab and renders the window. The Note tab is built again from the saved note, so what stood in its box unsaved is gone when the player comes back from Chat; nothing asks or says so. The note is saved by its Save button alone.",
+   "evidence": "wireKitTabs(this.element, {\n    onSwitch: key => {\n        this.tab = key;\n        this.render();\n    }\n});\n[...]\narea.value = context.note;",
+   "failure_scenario": "A player answers the seven questions, presses Chat to reread what the GM wrote, presses Note: the box holds the old note.",
+   "expected": "the typed text kept across the tabs, or a question before it is discarded",
+   "confidence": "read",
+   "refutation_tried": "refreshNote (367-378) keeps typed text when the note changes elsewhere, and the tier 2 test \"a GM's Note tab ... follows its note without losing what is typed\" covers that road, not a tab press. The window keeps noteSaid and noteShown only. A new chat message does not render the window (504). The tab is in messenger-app.mjs, outside this reader's file list; read here because the note is this reader's surface.",
+   "probe": "as a player: game.drpg.openMessenger(); press [data-drpg-tab-key=\"note\"]; type in textarea.drpg-messenger-note-text; press [data-drpg-tab-key=\"chat\"], then [data-drpg-tab-key=\"note\"]; read the textarea"
+  }
+ ],
+ "not_established": [
+  "No control was pressed in this pass (rule 2: no harness run). Every row is label -> element -> listener -> handler -> effect as read in source, with the tests and scenarios that press or pin it named from their text, not from a run of this pass.",
+  "Finding 10's first half: whether Foundry 14's DialogV2 drops a <form> inside its content at the first render, as the harness's model does (audit/harness/lib/shim.mjs:1741-1746). Reading foundry.applications.api.DialogV2#_renderHTML on 14.370, or Enter in a field of a freshly opened Investigation at a table, settles it.",
+  "Whether a mouse pick in a <select> inside the live region (the filters, the Map's order and Add a plan) arrives while live.mjs still holds the press (held, live.mjs:150-155, set at pointerdown and let go at pointerup): then the forced redraw would wait until the focus leaves the select. The tests dispatch change with no pointer events. One pick of the Chapter filter with a mouse in Chromium on a real Foundry settles it (LIVE-E44-02 is the open reading of that hold).",
+  "The windows the footer and the nodes open - Issue Autopsy Truth Bullet (gm-items.mjs), Body found (body.mjs), Give a Truth Bullet (gm-items.mjs), the Logic Dive sets (trial-zones-ui.mjs), the handbook - were read only as far as the opener; their own controls belong to other readers.",
+  "case-map.mjs also draws the Class Trial console's tick and start buttons (data-drpg-case-tick, data-drpg-case-start-node, 209-220); they are wired in the trial's files and were not read here.",
+  "Layout: that Delete under Monokuma Legacy is reached by the view's sideways scroll, that the camera's bar clears the nodes and that a node's fields fit were not measured here; the numbers quoted are the comments' (components.css:3377-3396, case-map.mjs:475-477).",
+  "docs/dev/e59/WINDOWS.md lists 13 rows for these files; the source at this checkout has 15 window calls in 14 opener functions: investigation.mjs openClearPlan (2056, 2075) is not in the table, and the table's lines (142, 384, 1903, 1932, 2027, 2062, 2196; 1115, 1248) are older than the source's (143, 385, 1947, 1976, 2119, 2154, 2288; 1151, 1284). Whether tools/e59/windows.mjs --check reports it stale was not run.",
+  "An Assistant GM on these windows (token create and delete, another user's flag on Foundry 14) was not read; scenario 17 is the harness's reading of that role.",
+  "Finding 3 and finding 7 need a world with Remnants of an earlier chapter; the harness world's seed was not read for whether it holds one."
+ ]
+}

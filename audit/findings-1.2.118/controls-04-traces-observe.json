@@ -1,0 +1,1506 @@
+{
+ "reader": "controls-04-traces-observe",
+ "read": [
+  {
+   "file": "scripts/observe.mjs",
+   "lines_read": 1316
+  },
+  {
+   "file": "scripts/frisk.mjs",
+   "lines_read": 672
+  },
+  {
+   "file": "scripts/remnants.mjs",
+   "lines_read": 685
+  },
+  {
+   "file": "scripts/remnant-ring.mjs",
+   "lines_read": 545
+  },
+  {
+   "file": "scripts/truth-bullets.mjs",
+   "lines_read": 459
+  },
+  {
+   "file": "scripts/analyze.mjs",
+   "lines_read": 341
+  },
+  {
+   "file": "scripts/action-analyze.mjs",
+   "lines_read": 493
+  },
+  {
+   "file": "scripts/action-observe.mjs",
+   "lines_read": 345
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "lines_read": 1025
+  },
+  {
+   "file": "scripts/cleanup-reshape.mjs",
+   "lines_read": 554
+  },
+  {
+   "file": "scripts/action-tamper.mjs",
+   "lines_read": 260
+  },
+  {
+   "file": "scripts/action-menus.mjs",
+   "lines_read": 439
+  },
+  {
+   "file": "scripts/ui-kit.mjs",
+   "lines_read": 400
+  },
+  {
+   "file": "scripts/ui-columns.mjs",
+   "lines_read": 48
+  },
+  {
+   "file": "scripts/live.mjs",
+   "lines_read": 610
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines_read": 550
+  },
+  {
+   "file": "scripts/call-gm.mjs",
+   "lines_read": 150
+  },
+  {
+   "file": "scripts/bridge-asks.mjs",
+   "lines_read": 66
+  },
+  {
+   "file": "scripts/action-pipeline.mjs",
+   "lines_read": 106
+  },
+  {
+   "file": "scripts/key-remnants.mjs",
+   "lines_read": 170
+  },
+  {
+   "file": "scripts/sheet-inventory.mjs",
+   "lines_read": 160
+  },
+  {
+   "file": "scripts/sheet-mode.mjs",
+   "lines_read": 75
+  },
+  {
+   "file": "scripts/trial.mjs",
+   "lines_read": 150
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "lines_read": 480
+  },
+  {
+   "file": "audit/harness/lib/shim.mjs",
+   "lines_read": 48
+  },
+  {
+   "file": "docs/dev/e59/WINDOWS.md",
+   "lines_read": 60
+  },
+  {
+   "file": "lang/en.json (355 keys named by the files looked up by script; all present in en and pl)",
+   "lines_read": 355
+  }
+ ],
+ "surfaces": [
+  {
+   "surface": "Observe's declaration window (title: the action's label, 'Observe'; question 'How are you looking?')",
+   "file": "scripts/action-observe.mjs (built by scripts/action-menus.mjs chooseVariant)",
+   "opener": "performObserve:51 -> askDeclaration:297 -> action-menus.mjs chooseVariant:167 -> actionWindow:303",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Sweep the room",
+     "key": "DRPG.Observe.general",
+     "kind": "tile",
+     "selector": "label.drpg-choice input[name=variant][value=general]",
+     "handler": "action-menus.mjs:255-262 (the primary's callback reads the checked row) -> action-observe.mjs:70 observeRanked:77",
+     "effect": "asks the primary GM for the easiest Remnant (requestObserveTarget), pays the action, rolls Eye, sends the total (settleObserveRoll:150 -> requestObserveResolve -> observe.mjs resolveObserve:693)",
+     "gate": "the character's owner or a GM; canAfford refuses before the window (action-observe.mjs:53; canAfford itself not read here)",
+     "how_read": "code; R3200; scenario 62 drives the road with the harness answering the window",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Look past the obvious",
+     "key": "DRPG.Observe.nonObvious",
+     "kind": "tile",
+     "selector": "input[name=variant][value=nonObvious]",
+     "handler": "action-observe.mjs:70 observeRanked:77",
+     "effect": "as Sweep, the hardest Remnant, and the room's secret project scored beside it (observe.mjs:197-199)",
+     "gate": "as above",
+     "how_read": "code",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Follow My Traces",
+     "key": "DRPG.Observe.followTraces",
+     "kind": "tile",
+     "selector": "input[name=variant][value=followTraces]",
+     "handler": "action-observe.mjs:70 observeRanked:77",
+     "effect": "as Sweep, the easiest of the character's own traces, else a random one (observe.mjs:267-270)",
+     "gate": "as above",
+     "how_read": "code",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Focus your gaze",
+     "key": "DRPG.Observe.specific",
+     "kind": "tile",
+     "selector": "input[name=variant][value=specific] (row carries drpg-gm-route and the GM chip)",
+     "handler": "action-observe.mjs:68 observeSpecific:119",
+     "effect": "pays, rolls Eye, then asks the GMs by card which Remnant the words point at (observe.mjs:228-240 -> call-gm.mjs askObserveByCard:396); an empty request is said and scored as a sweep (125)",
+     "gate": "as above; the row's hint says a GM picks",
+     "how_read": "code; R121; tier 2 'a GM's pick on an Observe card answers the player's focused gaze from the traces the primary reads again'",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Examine point of interest",
+     "key": "DRPG.Observe.anything",
+     "kind": "tile",
+     "selector": "input[name=variant][value=anything] (drpg-gm-route)",
+     "handler": "action-observe.mjs:63 observeAnything:198 -> ruleObserve:220",
+     "effect": "pays, rolls Eye, posts a ruling card to the GMs (callGm) with the request and the roll",
+     "gate": "as above",
+     "how_read": "code",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "What are you looking for?",
+     "key": "DRPG.Observe.requestPrompt",
+     "kind": "field-with-effect",
+     "selector": "label.drpg-specific-note[data-drpg-when='specific anything'] textarea[name=request]",
+     "handler": "action-menus.mjs:163 readRequestField, read at confirm (action-observe.mjs:344)",
+     "effect": "the sentence travels with the declaration to the GM's card",
+     "gate": "shown with the two GM rows only (action-menus.mjs:417-419 syncDetails)",
+     "how_read": "code",
+     "themes": "no theme rule; .drpg-specific-note[data-drpg-when] is display:none (danganronpa.css:5376) until its row is picked (5380-5389; in an action window .drpg-held-stack shows it, 17887, and drpg-unpicked hides it, 17871)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Details",
+     "key": "DRPG.Kit.details",
+     "kind": "toggle",
+     "selector": "button.drpg-action-details-toggle",
+     "handler": "action-menus.mjs:371-399 wireDetails (click, and Enter on it)",
+     "effect": "opens or shuts the briefing's fact box and writes the client setting actionDetailsOpen",
+     "gate": "everyone who opens an action window; tooltip DRPG.Tips.Actions.detailsTooltip",
+     "how_read": "code",
+     "themes": "no theme rule; the box, not the toggle, is visibility:hidden while shut (danganronpa.css:17865)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "action-menus.mjs:252-263 callback -> action-observe.mjs:343-344",
+     "effect": "answers { value, form }; performObserve takes the road of the picked row",
+     "gate": "the default; Enter presses it",
+     "how_read": "code; R4105",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel, data-action=cancel",
+     "handler": "action-menus.mjs:264, 269",
+     "effect": "answers 'cancel' -> null; nothing paid, nothing rolled",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The GM's Remnant picker for a focused gaze ('Observe - which Remnant?')",
+   "file": "scripts/observe.mjs",
+   "opener": "askWhichRemnant:607 (from chooseObserveTarget:243 for a GM's own Observe; from pickFromCard:402 for a card)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Which Remnant are they closest to?",
+     "key": "DRPG.Observe.whichRemnant",
+     "kind": "select",
+     "selector": "select[name=remnant]",
+     "handler": "observe.mjs:629 (read by the primary's callback)",
+     "effect": "names the candidate by its index; options are remnantPickLabel:592 (name, band and type, tied, subject, DC)",
+     "gate": "the GM who opened it",
+     "how_read": "code; R1008",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Pick this Remnant",
+     "key": "DRPG.Observe.pickConfirm",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "observe.mjs:627-630 -> 636-637",
+     "effect": "answers the candidate; a GM's own Observe is pended at once (pendObserve:336), a card's pick goes to the primary (askObservePick, bridge-asks.mjs:674 -> call-gm.mjs observePickOnPrimary:436 -> observe.mjs pickObserveTarget:371)",
+     "gate": "default; a pick the primary cannot find is told 'That Remnant can no longer be shown ...' and the card stays open",
+     "how_read": "code; tier 2 'a GM's pick on an Observe card answers the player's focused gaze from the traces the primary reads again'",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Refuse: nothing matches",
+     "key": "DRPG.Observe.pickRefuse",
+     "kind": "button",
+     "selector": "footer secondary, data-action=refuse (absent when opened from a card, observe.mjs:631)",
+     "handler": "observe.mjs:636 -> chooseObserveTarget:249",
+     "effect": "answers { ok: false, reason: 'refused' }; the roll already thrown goes to the GMs as a ruling card (action-observe.mjs:144)",
+     "gate": "a GM's own Observe only; tooltip says the action stays spent and the roll goes to the GMs",
+     "how_read": "code; R6355",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The Observe card in a player's thread ('Observe - focus your gaze')",
+   "file": "scripts/call-gm.mjs (handlers scripts/messenger-app.mjs; picker scripts/observe.mjs)",
+   "opener": "call-gm.mjs askObserveByCard:396 (posted by the primary on a player's Focus your gaze)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Pick a Remnant",
+     "key": "DRPG.Observe.cardPick",
+     "kind": "button",
+     "selector": "[data-drpg-call=pickObserveTrace]",
+     "handler": "messenger-app.mjs wireCallActions:724 -> claimCard -> rulePickObserveTrace:1104 -> observe.mjs pickFromCard:392",
+     "effect": "opens the picker on the pressing GM's browser, sends the pick to the primary, which checks it and answers the player; 'picked' and 'gone' settle the card",
+     "gate": "every GM (buttons are removed from a player's copy, messenger-app.mjs:735-738); all of the card's buttons are held while a press runs; no Remnant left warns 'No Remnant is left ...' (observe.mjs:399)",
+     "how_read": "code; R304; tier 2 'an Observe card's pick after its player stopped waiting or after another GM's or a Refuse is refused and told the GM'; scenario 62",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Refuse: nothing matches",
+     "key": "DRPG.Observe.pickRefuse",
+     "kind": "button",
+     "selector": "[data-drpg-call=refuseObserveTrace]",
+     "handler": "messenger-app.mjs ruleRefuseObserveTrace:1111 -> bridge-asks.mjs askObservePick:674 (refuse) -> call-gm.mjs:451-453",
+     "effect": "the player's ask is answered refused; their browser turns the roll into a ruling card",
+     "gate": "every GM; a late press is told 'Nobody is waiting on this Observe anymore ...'",
+     "how_read": "code; R304; the same tier 2 test",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The Observe ruling card (title 'Observe' or 'Observe - a question for the GM')",
+   "file": "scripts/action-observe.mjs (handlers scripts/messenger-app.mjs)",
+   "opener": "ruleObserve:220 -> callGm (a refused pick, an empty room, a point of interest)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Create a Key Remnant here",
+     "key": "DRPG.Bridge.keyRemnantHere",
+     "kind": "button",
+     "selector": "[data-drpg-call=keyRemnantHere] (data by, room, want, scene)",
+     "handler": "messenger-app.mjs ruleKeyRemnantHere:1363 -> key-remnants.mjs openKeyRemnantHere:1116",
+     "effect": "opens 'Create a Key Remnant here' prefilled with the room, the player's scene and words; a placed trace settles the card 'Handled by {name}.'; a closed window leaves the card open",
+     "gate": "every GM; nothing is posted to the observer by this handler (the card's own settled line is all they read)",
+     "how_read": "code; R304",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Reply",
+     "key": "DRPG.Bridge.reply",
+     "kind": "button",
+     "selector": "[data-drpg-call=reply]",
+     "handler": "messenger-app.mjs ruleReply:1127",
+     "effect": "opens 'Reply to {name}' (textarea, Send the ruling, Cancel); the words are posted to the player's thread and the card settles 'Answered'; empty words or Cancel leave it open",
+     "gate": "every GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Nothing was there.",
+     "key": "DRPG.Bridge.nothingThere",
+     "kind": "button",
+     "selector": "[data-drpg-call=observeMiss]",
+     "handler": "messenger-app.mjs ruleObserveMiss:1211 -> observe.mjs chargeObserveMiss:927",
+     "effect": "marks the miss's Sanity through the GMs' audit road, whispers the miss, posts the ruling line, settles the card",
+     "gate": "every GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The find's description window ('Observe: what the student sees')",
+   "file": "scripts/observe.mjs",
+   "opener": "describeFind:1179 (from createFind:1032, on the GM that scores the Observe: a first find, or a critical)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Hint for this finder alone",
+     "key": "DRPG.Observe.critHint",
+     "kind": "field-with-effect",
+     "selector": "textarea[name=critHint] (critical only, autofocus)",
+     "handler": "observe.mjs:1272 -> findTexts:1089",
+     "effect": "goes onto this finder's copy alone, never onto the trace",
+     "gate": "critical finds only",
+     "how_read": "code; R3960; R3955",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Name (what the player sees)",
+     "key": "DRPG.TruthBullet.name",
+     "kind": "field-with-effect",
+     "selector": "input[name=name] (readonly once the trace is described)",
+     "handler": "observe.mjs:1269 -> 1038-1047",
+     "effect": "written to the trace's public name (setRemnantPublicById) and marks the trace GM-edited",
+     "gate": "readonly, shown, when a name is already stored",
+     "how_read": "code; tier 2 E51-T12, E51-T13",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Description for the player",
+     "key": "DRPG.TruthBullet.playerText",
+     "kind": "field-with-effect",
+     "selector": "textarea[name=playerText]",
+     "handler": "observe.mjs:1270 -> 1042-1046",
+     "effect": "the trace's public description; every copy takes it",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "What analysis reveals",
+     "key": "DRPG.TruthBullet.analyzedText",
+     "kind": "field-with-effect",
+     "selector": "textarea[name=analyzedText]",
+     "handler": "observe.mjs:1271 -> 1045",
+     "effect": "the trace's lab reading, kept back from unanalysed copies",
+     "gate": "always; optional",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Give the Truth Bullet",
+     "key": "DRPG.Observe.describeConfirm",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "observe.mjs:1264-1275 -> createFind:1037-1081",
+     "effect": "writes the words to the trace, mints the finder's copy (mintFindCopy:1102), whispers the finder",
+     "gate": "the only button; closing the window still gives the bullet under the prefilled name (observe.mjs:1278-1280)",
+     "how_read": "code; tier 2 E51-T13",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The target's Frisk window ('Frisk request')",
+   "file": "scripts/frisk.mjs",
+   "opener": "openAskWindow:1121 (onFriskPacket:1067 on a frisk.ask the primary sent this user)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Refuse",
+     "key": "DRPG.Frisk.refuse",
+     "kind": "button",
+     "selector": "footer primary, data-action=refuse",
+     "handler": "frisk.mjs:1139 -> 1155-1157 requestFriskAnswer({ allow: false }) -> answerFrisk:880",
+     "effect": "the ask is refused; with the force setting on the searcher may then try to make them",
+     "gate": "the people who answer for the target, or the GMs for a character with no player (frisk.mjs:826-827); default; a close, Escape answers the same; the window's clock closes it with nothing sent (1144-1147, 1154)",
+     "how_read": "code; R623; R621; scenario 40 (friskAnswer)",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Let them look",
+     "key": "DRPG.Frisk.allow",
+     "kind": "button",
+     "selector": "footer secondary, data-action=allow",
+     "handler": "frisk.mjs:1140 -> 1156 requestFriskAnswer({ allow: true }) -> answerFrisk:893-895 -> endAsk 'shown'",
+     "effect": "the pockets as they were at the ask are listed to the searcher and the room",
+     "gate": "as above; tooltip says what is shown",
+     "how_read": "code; tier 2 'an open Frisk turned out in front of the room shows each witness the searcher's list ...'",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The searcher's force question ('Make them turn out their pockets')",
+   "file": "scripts/frisk.mjs",
+   "opener": "askToForce:1164 (performFriskOpenly:1260 after a refusal or no answer with a force open)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Leave it",
+     "key": "DRPG.Frisk.leave",
+     "kind": "button",
+     "selector": "footer primary, data-action=leave",
+     "handler": "frisk.mjs:1176 -> 1183 (false) -> requestFriskFollow with no roll (1280)",
+     "effect": "the ask ends as let go; the target and the room are told",
+     "gate": "the searcher; default; a close or the clock (1180) answers the same",
+     "how_read": "code; R623",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Make them",
+     "key": "DRPG.Frisk.force",
+     "kind": "button",
+     "selector": "footer secondary, data-action=force",
+     "handler": "frisk.mjs:1177 -> 1183 (true) -> 1264 rollTrait Body -> 1280 requestFriskFollow",
+     "effect": "throws Body on the ask's payment; the primary judges forced or forceFailed",
+     "gate": "the searcher; a GM's own force reads the gate first (gmForceShut:1207) and is told 'cannot be done now' when shut (1287)",
+     "how_read": "code; tier 2 'an open Frisk is forced only behind the searcher's own refused or unanswered ask ...'",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Analyze's picker (title: the action's label, 'Analyze')",
+   "file": "scripts/action-analyze.mjs (built by scripts/action-menus.mjs chooseVariant)",
+   "opener": "performAnalyze:75 -> askWhatToAnalyze:447 (skipped when the sheet's row button names a bullet, 105-110)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Identify a Truth Bullet",
+     "key": "DRPG.Analyze.analyseBullet",
+     "kind": "tile",
+     "selector": "input[name=variant][value=bullet]",
+     "handler": "action-analyze.mjs:519 -> performAnalyze:118, 165-166 analyseBullet:178",
+     "effect": "pays the chain's step, rolls Head, posts the roll card, asks the primary to score it (requestAnalyzeResolve -> analyze.mjs resolveAnalyze:55)",
+     "gate": "greyed with 'You have nothing left to analyze.' when no bullet can be analysed (463-464); a full price chain refuses before the window with its own line (88-92)",
+     "how_read": "code; R7122; scenario 62",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Ask for a hint",
+     "key": "DRPG.Analyze.askHint",
+     "kind": "tile",
+     "selector": "input[name=variant][value=hint] (drpg-gm-route)",
+     "handler": "action-analyze.mjs:516-517 -> performAnalyze:167 askForHint:248",
+     "effect": "pays, rolls Head, posts a ruling card with the thresholds to the GMs",
+     "gate": "not offered in a Class Trial (493, ANALYZE_TRIAL_FILTER:47); refused before the price when no GM is connected (135-139)",
+     "how_read": "code; tier 2 E70-T11",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Find Stash",
+     "key": "DRPG.Analyze.findStash",
+     "kind": "tile",
+     "selector": "input[name=variant][value=stash]",
+     "handler": "action-analyze.mjs:163 locateStash:312",
+     "effect": "pays, rolls Head, posts 'the room is gone over', asks the primary (requestStashSearch); a refusal hands the price back (366-369)",
+     "gate": "not offered in a Class Trial; never greyed elsewhere (by design, 472-475)",
+     "how_read": "code",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Find Passage",
+     "key": "DRPG.Analyze.findPassage",
+     "kind": "tile",
+     "selector": "input[name=variant][value=passage]",
+     "handler": "action-analyze.mjs:164 locatePassage:395",
+     "effect": "as Find Stash, against the passage threshold (requestPassageFind)",
+     "gate": "not offered in a Class Trial",
+     "how_read": "code",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Which Truth Bullet?",
+     "key": "DRPG.Analyze.whichBullet",
+     "kind": "select",
+     "selector": "select[name=bullet]",
+     "handler": "action-analyze.mjs:519",
+     "effect": "names the bullet the first row analyses; ignored by the other rows",
+     "gate": "drawn when the character holds an analysable bullet; shown with every row",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Analyze: what are you trying to find out? The GM sees this with your roll.",
+     "key": "DRPG.Action.gmPrompt",
+     "kind": "field-with-effect",
+     "selector": "label[data-drpg-when=hint] textarea[name=request]",
+     "handler": "action-analyze.mjs:510 (read for the hint alone)",
+     "effect": "travels on the hint's card",
+     "gate": "shown with Ask for a hint only",
+     "how_read": "code; R1103",
+     "themes": "no theme rule; .drpg-specific-note[data-drpg-when] is display:none (danganronpa.css:5376) until its row is picked (5380-5389; in an action window .drpg-held-stack shows it, 17887, and drpg-unpicked hides it, 17871)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "action-menus.mjs:252-263 -> action-analyze.mjs:508-519",
+     "effect": "answers the picked row; performAnalyze pays and rolls",
+     "gate": "default",
+     "how_read": "code; R4105",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel",
+     "handler": "action-menus.mjs:269 -> action-analyze.mjs:508, 113",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The hint's ruling card ('Ask for a hint')",
+   "file": "scripts/action-analyze.mjs (buttons scripts/action-pipeline.mjs gmRulingActions:1115; handlers scripts/messenger-app.mjs)",
+   "opener": "askForHint:248 -> callGm",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Reply",
+     "key": "DRPG.Bridge.reply",
+     "kind": "button",
+     "selector": "[data-drpg-call=reply]",
+     "handler": "messenger-app.mjs ruleReply:1127",
+     "effect": "the GM's words go to the player's thread; the card settles",
+     "gate": "every GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "No hint.",
+     "key": "DRPG.Bridge.noHelp",
+     "kind": "button",
+     "selector": "[data-drpg-call=searchMiss] (words=help)",
+     "handler": "messenger-app.mjs ruleSearchMiss:1185",
+     "effect": "posts the ruling line, keeps the price, settles the card",
+     "gate": "every GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Refuse the attempt",
+     "key": "DRPG.Bridge.refuseAttempt",
+     "kind": "button",
+     "selector": "[data-drpg-call=decline] (paid, grant, words=refused)",
+     "handler": "messenger-app.mjs ruleDecline:1285 -> refundOnCard:1271 -> price.mjs refundPrice",
+     "effect": "hands back the step the card says was paid, by the table's amounts, tells both sides, settles 'Turned down'",
+     "gate": "every GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The critical Analyze's hint card ('Critical Analyze')",
+   "file": "scripts/analyze.mjs",
+   "opener": "identify:243 -> callGm at 325-351 (on the GM that scored the Analyze)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Reply",
+     "key": "DRPG.Bridge.reply",
+     "kind": "button",
+     "selector": "[data-drpg-call=reply]",
+     "handler": "messenger-app.mjs ruleReply:1127",
+     "effect": "the hint goes to the player's thread",
+     "gate": "every GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Nothing more to add",
+     "key": "DRPG.Analyze.critNothingMore",
+     "kind": "button",
+     "selector": "[data-drpg-call=decline] (paid=none, words=more)",
+     "handler": "messenger-app.mjs ruleDecline:1285, 1296-1324",
+     "effect": "posts 'Nothing more to add' as a ruling, gives nothing back, settles 'Answered'",
+     "gate": "every GM",
+     "how_read": "code; tier 2 'the Analyze critical's hint card answers with nothing more to add, not a refusal and an action back'",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "A GM's card of a Remnant (the trace's sheet; title the trace's name or 'A Remnant')",
+   "file": "scripts/remnant-ring.mjs",
+   "opener": "showRemnantCard:228 on renderActorSheetV2 (195), gmRemnantCard:380, wireCardEditing:306",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Visibility",
+     "key": "DRPG.Investigation.visibility",
+     "kind": "select",
+     "selector": "select[data-drpg-band]",
+     "handler": "remnant-ring.mjs:313-326 -> remnants.mjs setRemnantFlags:2181",
+     "effect": "writes the band and gmBand on the trace's row; the copies keep theirs; a brief drpg-saved mark",
+     "gate": "any GM who holds the trace's row; a failure raises 'That did not save. See the console.'",
+     "how_read": "code; tier 2 E60-T8",
+     "themes": "no hiding rule found (scan for drpg-remnant, data-drpg-band, data-drpg-author, data-drpg-public)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "By (aria-label 'Left by (GMs only)')",
+     "key": "DRPG.Remnant.cardWho / DRPG.Remnant.authorLabel",
+     "kind": "select",
+     "selector": "select[data-drpg-author]",
+     "handler": "remnant-ring.mjs:330-355 -> remnants.mjs setRemnantAuthor:1259",
+     "effect": "writes sourceActor and sourceName on the row; replacing a name asks first ('Who left this Remnant': Replace / Cancel, 337-342), a closed or refused question puts the select back (343)",
+     "gate": "any GM",
+     "how_read": "code; R3370; R3372; R7177",
+     "themes": "no hiding rule found (scan for drpg-remnant, data-drpg-band, data-drpg-author, data-drpg-public)",
+     "verdict": "stale-state",
+     "detail": "With the question open, any watched event redraws the card (remnant-ring.mjs:252-257) and carries the unsaved pick onto the new select (live.mjs:481, 548); Cancel then resets the detached old select (343). Finding 1."
+    },
+    {
+     "label": "Replace (the question's yes)",
+     "key": "DRPG.Remnant.authorReplaceYes",
+     "kind": "button",
+     "selector": "drpgConfirm yes, data-action=yes",
+     "handler": "remnant-ring.mjs:337-346",
+     "effect": "the new author is written",
+     "gate": "primary; Cancel and a close answer no",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Name (what the player sees)",
+     "key": "DRPG.TruthBullet.name",
+     "kind": "field-with-effect",
+     "selector": "input[data-drpg-public=name]",
+     "handler": "remnant-ring.mjs:356-376 (blur) -> remnants.mjs setRemnantPublic:1428, markRemnantEdited:942",
+     "effect": "saved when the field is left; every copy takes the changed field; a brief drpg-saved mark",
+     "gate": "any GM; the card's note says it saves on leaving the field",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-remnant, data-drpg-band, data-drpg-author, data-drpg-public)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Description for the player",
+     "key": "DRPG.TruthBullet.playerText",
+     "kind": "field-with-effect",
+     "selector": "textarea[data-drpg-public=playerText]",
+     "handler": "remnant-ring.mjs:356-376",
+     "effect": "as the name",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-remnant, data-drpg-band, data-drpg-author, data-drpg-public)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "What analysis reveals",
+     "key": "DRPG.TruthBullet.analyzedText",
+     "kind": "field-with-effect",
+     "selector": "textarea[data-drpg-public=analyzedText]",
+     "handler": "remnant-ring.mjs:356-376",
+     "effect": "as the name; reaches analysed copies and the others' answer keys",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-remnant, data-drpg-band, data-drpg-author, data-drpg-public)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "A player's card of a Remnant ('A Remnant' or their own copy's name)",
+   "file": "scripts/remnant-ring.mjs",
+   "opener": "showRemnantCard:228 -> playerRemnantCard:454",
+   "audience": "player",
+   "controls": []
+  },
+  {
+   "surface": "The 'Clear Faint Remnants' question",
+   "file": "scripts/remnants.mjs",
+   "opener": "confirmClearFaint:2462 - no caller (git grep confirmClearFaint -- scripts audit/harness: the definition, one comment, one source-reading test)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Clear Faint Remnants",
+     "key": "DRPG.Panel.clearFaint",
+     "kind": "button",
+     "selector": "drpgConfirm destructive yes",
+     "handler": "remnants.mjs:2471-2484 -> clearFaintRemnants:3347",
+     "effect": "would delete every clearable Faint trace after the count",
+     "gate": "nobody: no control, tile, card or API name opens the window",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "dead",
+     "detail": "The window cannot be opened: its header says 'No button calls it since E64-inv' (remnants.mjs:2458-2460). Finding 3."
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "drpgConfirm no",
+     "handler": "remnants.mjs:2480",
+     "effect": "would answer no",
+     "gate": "nobody",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "dead",
+     "detail": "As above. Finding 3."
+    }
+   ]
+  },
+  {
+   "surface": "Tamper's menu (title 'Tamper'; question 'What are you doing to the evidence?'), the opener of the clean-up and reshape windows",
+   "file": "scripts/action-tamper.mjs",
+   "opener": "performTamper:186 -> chooseTamper:39 -> action-menus.mjs chooseVariant:167",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Erase a Trace",
+     "key": "DRPG.Tamper.cover",
+     "kind": "tile",
+     "selector": "input[name=variant][value=cover] with select[name=trace] ('Which Remnant', data-drpg-when=cover)",
+     "handler": "action-tamper.mjs runTamperChoice:129, 136-144 -> cleanup.mjs attemptCleanup:559",
+     "effect": "conceals if watched, pays the chain's step, rolls, asks the primary (requestCleanup)",
+     "gate": "greyed with 'You know of no Remnant in this room.' or 'Every Remnant you know of here is Reinforced ...' (56-57); the price and a watched full Sanity track refuse before the menu (195-206)",
+     "how_read": "code; tier 2 E16-T22",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Reshape a Trace",
+     "key": "DRPG.Cleanup.transformAction",
+     "kind": "tile",
+     "selector": "input[name=variant][value=reshape] (drpg-gm-route) with select[name=reshapeTrace]",
+     "handler": "action-tamper.mjs:146-158 -> cleanup-reshape.mjs askTransformChange:767 -> cleanup.mjs attemptCleanup (mode transform)",
+     "effect": "asks the new name and words first, then as Erase; a hit puts the words to a GM on a card",
+     "gate": "greyed as Erase; the hint says a GM approves and a refusal gives nothing back",
+     "how_read": "code; R121; scenario 62",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Misleading Trail",
+     "key": "DRPG.Tamper.frame",
+     "kind": "tile",
+     "selector": "input[name=variant][value=frame] with select[name=who] ('Who to frame')",
+     "handler": "action-tamper.mjs:160-162 -> cleanup.mjs attemptStageSix:1605",
+     "effect": "conceals, pays, rolls, asks the primary to plant a false trace",
+     "gate": "greyed with 'There is nobody left to frame.' when no candidate (79-80)",
+     "how_read": "code",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Move the Body",
+     "key": "DRPG.Cleanup.moveAction",
+     "kind": "tile",
+     "selector": "input[name=variant][value=body]",
+     "handler": "action-tamper.mjs:130-134 -> cleanup.mjs openMoveBodyDialog:2758",
+     "effect": "opens the room picker",
+     "gate": "drawn only for the killer of an incident in Stage 6 (86-92); greyed with 'The body is not in this room ...' when it lies elsewhere",
+     "how_read": "code",
+     "themes": "no theme rule; state rules only: an unpicked row's hint line is hidden (danganronpa.css:5149, 17893), under no theme class (scan for drpg-choice, drpg-variant)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "action-menus.mjs:252-263 -> action-tamper.mjs:251-259",
+     "effect": "answers the picked row and its select",
+     "gate": "default",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel",
+     "handler": "action-menus.mjs:269 -> action-tamper.mjs:253",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The clean-up picker ('Cleaning up')",
+   "file": "scripts/cleanup.mjs",
+   "opener": "openCleanupDialog:2632 - no sheet or panel control; game.drpg.cleanupDialog alone (api.mjs:934)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Which Remnant?",
+     "key": "DRPG.Cleanup.which",
+     "kind": "select",
+     "selector": "select[name=trace] (Reinforced options disabled, 2650-2653)",
+     "handler": "cleanup.mjs:2673",
+     "effect": "names the trace to scrub",
+     "gate": "the killer in Stage 6 (isCleaner:134; others are told which of four reasons, refuseCleanup:158); an empty or all-Reinforced room is said before the window (2637-2648)",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Cleanup.confirm",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "cleanup.mjs:2671-2674 -> 2681 attemptCleanup:559",
+     "effect": "the Stage 6 erase attempt on the picked trace",
+     "gate": "default; tooltip DRPG.Tips.Trial.scrubAtItTooltip",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel",
+     "handler": "cleanup.mjs:2680",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The body's destination ('Move the Body')",
+   "file": "scripts/cleanup.mjs",
+   "opener": "openMoveBodyDialog:2758 (Tamper's Move the Body row; game.drpg.moveBodyDialog)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Take it to",
+     "key": "DRPG.Cleanup.moveWhere",
+     "kind": "select",
+     "selector": "select[name=room] (near rooms, then an optgroup of rooms two away)",
+     "handler": "cleanup.mjs:2794",
+     "effect": "names the room; a far room is reached on a critical only, and the note under it says so (2787-2789)",
+     "gate": "the killer in Stage 6 standing with the body; 'The body is not in this room ...' and 'There is nowhere to take the body ...' are said before the window (2760-2772)",
+     "how_read": "code; R3957",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Cleanup.moveConfirm",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "cleanup.mjs:2792-2795 -> 2802 attemptStageSix('moveBody'):1605",
+     "effect": "pays, rolls Body, asks the primary to carry the body",
+     "gate": "default",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel",
+     "handler": "cleanup.mjs:2801",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The critical erase's question ('A clean job')",
+   "file": "scripts/cleanup-reshape.mjs",
+   "opener": "askTransform:178 (cleanup.mjs:705-708, on the roller's browser after a critical erase)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Call it",
+     "key": "DRPG.Cleanup.reshapeName",
+     "kind": "field-with-effect",
+     "selector": "input[name=name] (maxlength, autofocus)",
+     "handler": "cleanup-reshape.mjs:209, 229",
+     "effect": "the new name, bounded by plainText:292",
+     "gate": "always; Enter moves to the next field (enterMovesOn:259)",
+     "how_read": "code; tier 2 'Enter in a reshape's window moves to the next field and never erases, and an unfinished one asks again'",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "And it looks like",
+     "key": "DRPG.Cleanup.reshapeText",
+     "kind": "field-with-effect",
+     "selector": "textarea[name=text]",
+     "handler": "cleanup-reshape.mjs:210, 230",
+     "effect": "the new description",
+     "gate": "always",
+     "how_read": "code; the same tier 2 test",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "And this hard to spot",
+     "key": "DRPG.Cleanup.transformVisibility",
+     "kind": "select",
+     "selector": "select[name=visibility]",
+     "handler": "cleanup-reshape.mjs:211, 231",
+     "effect": "the band the reshaped trace takes",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Leave something else",
+     "key": "DRPG.Cleanup.transformChange",
+     "kind": "button",
+     "selector": "footer gmRoute, data-action=change",
+     "handler": "cleanup-reshape.mjs:206-213 -> 229-233",
+     "effect": "answers { name, text, visibility }; with a field empty it warns and opens again holding what was typed",
+     "gate": "first in the tree, so Enter never erases",
+     "how_read": "code; the same tier 2 test",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Erase it",
+     "key": "DRPG.Cleanup.transformErase",
+     "kind": "button",
+     "selector": "footer secondary, data-action=erase",
+     "handler": "cleanup-reshape.mjs:214-217 -> 227",
+     "effect": "answers null: the plain critical erase",
+     "gate": "tooltip DRPG.Tips.Sweep.Trial.reshapeEraseTooltip; a close answers the same",
+     "how_read": "code; the same tier 2 test",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The reshape's declaration ('Reshape a Trace')",
+   "file": "scripts/cleanup-reshape.mjs",
+   "opener": "askTransformChange:767 (action-tamper.mjs:152, before anything is paid)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Call it",
+     "key": "DRPG.Cleanup.reshapeName",
+     "kind": "field-with-effect",
+     "selector": "input[name=name]",
+     "handler": "cleanup-reshape.mjs:785, 797",
+     "effect": "the name the trace is to read",
+     "gate": "always",
+     "how_read": "code; the same tier 2 test",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "And it looks like",
+     "key": "DRPG.Cleanup.reshapeText",
+     "kind": "field-with-effect",
+     "selector": "textarea[name=text]",
+     "handler": "cleanup-reshape.mjs:786, 798",
+     "effect": "the description",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Cleanup.transformGo",
+     "kind": "button",
+     "selector": "footer gmRoute, data-action=go",
+     "handler": "cleanup-reshape.mjs:782-788 -> 797-801",
+     "effect": "answers { name, text }; an unfinished form warns and opens again",
+     "gate": "default",
+     "how_read": "code; the same tier 2 test",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel",
+     "handler": "cleanup-reshape.mjs:795",
+     "effect": "nothing paid, nothing rolled",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "The reshape card in the roller's thread ('A Remnant made to read differently')",
+   "file": "scripts/cleanup-reshape.mjs (handlers scripts/messenger-app.mjs)",
+   "opener": "proposeReshape:476 -> callGm (veiled)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Approve",
+     "key": "DRPG.Cleanup.reshapeApprove",
+     "kind": "button",
+     "selector": "[data-drpg-call=approveReshape] (data by, scene, trace, attempt)",
+     "handler": "messenger-app.mjs ruleApproveReshape:1077 -> bridge-asks.mjs askReshapeRuling:727 -> cleanup-reshape.mjs ruleReshape:730 -> applyReshapeRuling:596",
+     "effect": "on the primary: the row's proposal is claimed once (claimRuling:565) and written to the trace; the roller is whispered; the card settles 'Approved', or 'Taken back ...' for an attempt a Reroll replaced",
+     "gate": "every GM; a Reinforced trace and an already ruled card are told and leave the card open",
+     "how_read": "code; R92; tier 2 'a reshaped trace does not change until the GM says so'; scenario 62",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "stale-state",
+     "detail": "On a trace that is gone the ruling answers null (cleanup-reshape.mjs:612-616): the card keeps both buttons and each further press whispers the roller again. Finding 2."
+    },
+    {
+     "label": "Refuse",
+     "key": "DRPG.Cleanup.reshapeDecline",
+     "kind": "button",
+     "selector": "[data-drpg-call=declineReshape]",
+     "handler": "messenger-app.mjs ruleDeclineReshape:1087 -> askReshapeRuling -> declineReshapeRuling:677",
+     "effect": "claims the proposal, erases the trace where the critical bought an erase, whispers the roller, settles 'Turned down'",
+     "gate": "every GM",
+     "how_read": "code; tier 2 'the reshape card carries the attempt alone, and the ruling writes the proposal its row holds'; scenario 62",
+     "themes": "no hiding rule found (scan for drpg-call-action, data-drpg-call)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "A Truth Bullet's row on the character sheet (outside the reader's files; read for the Present button)",
+   "file": "scripts/sheet-inventory.mjs",
+   "opener": "buildBulletRow:871",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Present (tooltip 'Present this Truth Bullet: everyone sees it, and everyone else in the trial gets a copy.')",
+     "key": "DRPG.Trial.presentTooltip",
+     "kind": "row-button",
+     "selector": "button.drpg-row-present[data-drpg-row-action=present]",
+     "handler": "sheet-inventory.mjs addPresentButton:934, click 947-950 -> trial.mjs presentDialog:151",
+     "effect": "opens 'Present {name}'; refused with a line outside a trial, for the dead and while another speaker holds the floor (trial.mjs:154-186)",
+     "gate": "drawn only in a Class Trial for a living student not on the trial's list of the dead (sheet-mode.mjs:68, 89-91); held as aria-disabled with the floor's line as tooltip (paintPresentButton:960), repainted on the floor's setting (sheet.mjs:79-81)",
+     "how_read": "code; tier 2 'a dead student is offered no Present and their Objection is refused on the primary and told'; scenario 67",
+     "themes": "no hiding rule found (scan for drpg-row-present, drpg-tb-analyze, drpg-row-button)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Analyze (tooltip 'Analyze this Truth Bullet')",
+     "key": "DRPG.TruthBullet.analyzeTooltip",
+     "kind": "row-button",
+     "selector": "button.drpg-tb-analyze[data-drpg-row-action=analyze]",
+     "handler": "sheet-inventory.mjs:908-911 -> action-rolls.mjs performAction('analyze', { bulletId }) -> action-analyze.mjs performAnalyze:105-110",
+     "effect": "skips the picker and analyses this bullet",
+     "gate": "drawn only while the bullet can still be analysed this chapter (898) and for a living student's editable sheet (883)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-row-present, drpg-tb-analyze, drpg-row-button)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Share (the hand-over button of a bullet's row)",
+     "key": "not read",
+     "kind": "row-button",
+     "selector": "sheet-inventory.mjs addHandoverButton (line 891)",
+     "handler": "handover.mjs (not read)",
+     "effect": "hands a copy to somebody in the room",
+     "gate": "not drawn in a Class Trial (891)",
+     "how_read": "code (the call site only)",
+     "themes": "no hiding rule found (scan for drpg-row-present, drpg-tb-analyze, drpg-row-button)",
+     "verdict": "unknown",
+     "detail": "handover.mjs is outside this reader's files and was not traced."
+    }
+   ]
+  },
+  {
+   "surface": "The Present window ('Present {name}'; outside the reader's files)",
+   "file": "scripts/trial.mjs",
+   "opener": "presentDialog:151 (the row's Present)",
+   "audience": "both",
+   "controls": [
+    {
+     "label": "Show it with my Analyze result",
+     "key": "DRPG.Trial.presentWithAnalysis",
+     "kind": "toggle",
+     "selector": "input[type=checkbox][name=analysis] (drawn only when the bullet shows something an Analyze gave, 190, 239-243)",
+     "handler": "trial.mjs analysisChosen:246",
+     "effect": "the card and the copies carry the reading or not",
+     "gate": "checked by default",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Say something with it (optional)",
+     "key": "DRPG.Trial.comment",
+     "kind": "field-with-effect",
+     "selector": "textarea[name=comment]",
+     "handler": "trial.mjs:213",
+     "effect": "printed on the evidence card",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (plain fields of a kit window's body; scan for drpg-panel label rules with a hiding declaration: none)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Present",
+     "key": "DRPG.Trial.present",
+     "kind": "button",
+     "selector": "footer primary, data-action=present",
+     "handler": "trial.mjs:209-216 -> 225-232 requestPresent -> presentOnPrimary:377",
+     "effect": "the primary posts the card and hands every other participant a copy; the presenter is told 'presented'; a refusal is said by the bridge",
+     "gate": "default",
+     "how_read": "code; tier 2 'a Present made through the window tells the presenter, in a discussion and in a debate, and does not come to the front'",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel",
+     "handler": "trial.mjs:222",
+     "effect": "nothing shown",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Give a Truth Bullet (outside the reader's files; read as the Truth Bullets' window)",
+   "file": "scripts/gm-items.mjs",
+   "opener": "giveTruthBulletDialog:1469 (the GM panel's and the hub's road; the hub's own Give tab was not read)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "From a Remnant / Write a new one",
+     "key": "DRPG.TruthBullet.tabFromRemnant / DRPG.TruthBullet.tabWriteNew",
+     "kind": "tab",
+     "selector": "kitTabs keys existing, create",
+     "handler": "gm-items.mjs:1491-1497, wireBulletForm:1236 (wireKitTabs); read back by shownTab (1269)",
+     "effect": "the tab showing decides which fields Give reads",
+     "gate": "opens on Write a new one when no trace lies on any scene or a plan fills it (1497)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-window-bullet, drpg-window-autopsy, drpg-tabs)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Which Remnant",
+     "key": "DRPG.TruthBullet.pickRemnant",
+     "kind": "select",
+     "selector": "select[name=remnant]",
+     "handler": "gm-items.mjs:1247-1252 (change)",
+     "effect": "the name field follows the picked trace at once",
+     "gate": "From a Remnant tab",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-window-bullet, drpg-window-autopsy, drpg-tabs)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Recipient",
+     "key": "DRPG.Items.recipient",
+     "kind": "select",
+     "selector": "select[name=recipient]",
+     "handler": "gm-items.mjs:1257-1264 (change)",
+     "effect": "rebuilds the trace list with 'already held' marks for that student, keeping the selection; 'Everyone' gives to each living student (1508, giveToEveryone:1521)",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-window-bullet, drpg-window-autopsy, drpg-tabs)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Name, Type the player sees, What it really is, How hard it is to notice, Faint, Tied to the murder, Description, What analysis reveals, GM's note, Tell the player",
+     "key": "DRPG.TruthBullet.* / DRPG.Items.tellPlayer",
+     "kind": "field-with-effect",
+     "selector": "inputs of the two panes (names exName, exShown, name, realType, shown, visibility, faint, tied, playerText, analyzedText, gmNote, tell)",
+     "handler": "gm-items.mjs readBulletFields:1274",
+     "effect": "read at Give only",
+     "gate": "by tab",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-window-bullet, drpg-window-autopsy, drpg-tabs)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Give a Truth Bullet",
+     "key": "DRPG.TruthBullet.give",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "gm-items.mjs:1500 -> 1507-1509 giveBulletNow:1570 -> requestGiveBullet (the primary makes it)",
+     "effect": "makes the bullet in the receiver's queue on the primary, tells the GM 'gave', whispers the player when Tell is ticked; an empty name, a copy already held and a failure are each said",
+     "gate": "default",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel, data-action=cancel",
+     "handler": "gm-items.mjs:1507",
+     "effect": "nothing given",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "surface": "Issue Autopsy Truth Bullet (outside the reader's files)",
+   "file": "scripts/gm-items.mjs",
+   "opener": "issueAutopsyDialog:1619 (gm-panel.mjs:447, investigation.mjs:2024, murder-rules.mjs:3833)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Name, Description for the player, GM's note",
+     "key": "DRPG.TruthBullet.name / playerText / gmNote",
+     "kind": "field-with-effect",
+     "selector": "input[name=name], textarea[name=playerText], textarea[name=gmNote]",
+     "handler": "gm-items.mjs:1676-1684",
+     "effect": "read at Issue; prefilled from the chapter's next planned Autopsy (1651-1656)",
+     "gate": "GM only (1620-1623)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-window-bullet, drpg-window-autopsy, drpg-tabs)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Who receives it",
+     "key": "DRPG.TruthBullet.autopsyWho",
+     "kind": "toggle",
+     "selector": "input[type=checkbox][name=target] per student (the dead unticked)",
+     "handler": "gm-items.mjs:1682",
+     "effect": "the students who get the bullet",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan for drpg-window-bullet, drpg-window-autopsy, drpg-tabs)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Issue the Autopsy",
+     "key": "DRPG.TruthBullet.autopsyIssue",
+     "kind": "button",
+     "selector": "footer primary, data-action=ok",
+     "handler": "gm-items.mjs:1674-1685 -> 1697-1705 truth-bullets.mjs issueAutopsy:1043",
+     "effect": "creates an Autopsy bullet on each ticked student, marks a planned one sent, tells the count; nobody ticked is said",
+     "gate": "default",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "DRPG.Kit.cancel",
+     "kind": "button",
+     "selector": "footer close role cancel, data-action=cancel",
+     "handler": "gm-items.mjs:1691",
+     "effect": "nothing issued",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 3933 rules, for display:none / visibility:hidden / pointer-events:none on drpg-kit-footer, drpg-role-, form-footer, drpg-prompt, drpg-narrow: only footer.form-footer button[hidden], danganronpa.css:17034, under no theme class)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "surfaces": 23,
+  "controls": 87,
+  "ok": 82,
+  "dead": 2,
+  "throws": 0,
+  "mislabeled": 0,
+  "wrong_audience": 0,
+  "silent": 0,
+  "stale_state": 2,
+  "unknown": 1
+ },
+ "findings": [
+  {
+   "id": "controls-04-traces-observe-1",
+   "severity": "nit",
+   "verdict": "stale-state",
+   "title": "A Remnant card's By select keeps a replacement the GM cancelled when the card redraws under the question",
+   "surface": "A GM's card of a Remnant",
+   "control": "By (Left by) select and its 'Who left this Remnant' question",
+   "where": "scripts/remnant-ring.mjs:331-344 with 252-257; scripts/live.mjs:167-174, 481, 548",
+   "what_happens": "Changing the select on a trace that already names an author opens the question and waits on it (remnant-ring.mjs:337). The card is a live region that watches every item and token hook and the trace ledger (255), and focus is now in the question, so any such event redraws the card 120 ms later. The redraw reads the select as a field the GM changed, and puts the unsaved pick onto the new select (live.mjs:481, 548), which is wired afresh (256). Cancel then writes the old author back onto the old select, which is no longer in the window (343). The card shows the new author, the ledger holds the old one, and no change event is left to save or to put back.",
+   "evidence": "remnant-ring.mjs:255  watch: { items: true, tokens: true, stores: [remnantStore] },\nremnant-ring.mjs:337  const sure = await drpgConfirm({\nremnant-ring.mjs:343  if (sure !== true) { author.value = was; return; }\nlive.mjs:171  element.replaceWith(next);\nlive.mjs:172  restore(next, carried);\nlive.mjs:481  if (isDirty(node)) dirty.set(keyFor(node, element, named), { value: heldIn(node), drawn: drawnOf(node) });\nlive.mjs:548  else node.value = was.value;",
+   "failure_scenario": "During an investigation a GM picks another student in By, a player's token moves while 'Who left this Remnant' is open, the GM presses Cancel: the card goes on showing the student who was never saved, while Observe's Follow My Traces and Tamper read the old one.",
+   "expected": "remnant-ring.mjs:328-329: 'a closed or refused question puts the select back'.",
+   "confidence": "read",
+   "refutation_tried": "Looked for something that holds the region while the question is open: isEditing (live.mjs:375-382) asks for focus inside the region, which the question took; the press hold ends at the pointer's release (RELEASES). Checked that the select is carried: it has no name, key or id, so it is matched by its place in the region (keyFor, live.mjs:414-427), and the card's shape does not change between the two draws. Checked a later redraw: the new select is still dirty against the ledger's default, so each redraw carries the pick again. With no watched event during the question the Cancel works as written. Not run.",
+   "probe": "On the GM's page: open the sheet of a Remnant token whose row names an author (token.actor.sheet.render(true)); set select[data-drpg-author] to another student and dispatch 'change'; while the question stands call Hooks.callAll('updateToken', anyTokenDocument, {}) and wait 150 ms; press Cancel; compare document.querySelector('.drpg-remnant-card select[data-drpg-author]').value with remnantData(token).sourceActor."
+  },
+  {
+   "id": "controls-04-traces-observe-2",
+   "severity": "nit",
+   "verdict": "stale-state",
+   "title": "On a reshape card whose Remnant is gone, Approve can never settle the card and whispers the roller again at every press",
+   "surface": "The reshape card ('A Remnant made to read differently')",
+   "control": "Approve",
+   "where": "scripts/cleanup-reshape.mjs:611-617; scripts/messenger-app.mjs:1083-1084; scripts/cleanup-reshape.mjs:705-719",
+   "what_happens": "Approve asks the primary to rule (askReshapeRuling -> ruleReshape -> applyReshapeRuling). When the trace's token is gone the ruling claims nothing, warns the pressing GM 'That Remnant is gone, so there is nothing to reshape. The player is told.', whispers the roller 'The Remnant you were working on is already gone. The effort still cost you.' and answers null. The card's handler settles only on true or false, so the card keeps both buttons, enabled, and each further Approve sends the roller the same whisper again. The one press that closes the card is Refuse, whose whisper then says the Remnant 'reads as before', of a Remnant that no longer exists.",
+   "evidence": "cleanup-reshape.mjs:612  if (!data) {\ncleanup-reshape.mjs:613      tell(\"warn\", \"DRPG.Cleanup.reshapeRulingGone\");\ncleanup-reshape.mjs:614      if (actor) await whisperToOwner(actor, `<p>${\ncleanup-reshape.mjs:615          game.i18n.localize(\"DRPG.Cleanup.vanished\")}</p>`);\ncleanup-reshape.mjs:616      return null;\nmessenger-app.mjs:1083  if (applied === false) return settled(\"DRPG.Cleanup.reshapeVoided\");\nmessenger-app.mjs:1084  return applied ? settled(\"DRPG.Bridge.settledApproved\") : null;",
+   "failure_scenario": "A chapter's sweep or another clean-up removes the trace while a reshape waits; a GM presses Approve twice to clear the card: the roller reads 'already gone' twice, the card still stands with both buttons, and Refuse closes it with 'the Remnant reads as before'.",
+   "expected": "A ruling that can no longer be made ends its card, as an attempt a Reroll replaced does (messenger-app.mjs:1080-1083: 'false is a ruling that went through ... and the card says so').",
+   "confidence": "read",
+   "refutation_tried": "Checked that nothing marks the row ruled on this road: claimRuling is skipped when the trace is gone (cleanup-reshape.mjs:611), so a later press is not answered 'already ruled'. Checked that the card does not settle elsewhere: wireCallActions settles only on outcome.settled (messenger-app.mjs:771-774) and releases the buttons otherwise (783). The Reinforced refusal beside it (626-629) rightly leaves the card open, since a GM can lift it. The domain reader's hints name the same press (domain-case-b-traces, dead_controls).",
+   "probe": "In the harness: a successful Tamper reshape by a player (cleanup.attemptCleanup, mode 'transform'), then removeRemnant(token) on the GM, then press [data-drpg-call=approveReshape] on the card twice: count the roller's 'already gone' whispers and read that the card's settled flag is unset; then press [data-drpg-call=declineReshape] and read the roller's line."
+  },
+  {
+   "id": "controls-04-traces-observe-3",
+   "severity": "nit",
+   "verdict": "dead",
+   "title": "Two of the listed windows have no control that opens them: Clear Faint Remnants has no caller at all, Cleaning up only an API name",
+   "surface": "The 'Clear Faint Remnants' question; the clean-up picker ('Cleaning up')",
+   "control": "Clear Faint Remnants, Cancel (and the picker's Which Remnant?, Roll, Cancel)",
+   "where": "scripts/remnants.mjs:2462-2485; scripts/cleanup.mjs:2632-2682; scripts/api.mjs:934; docs/dev/e59/WINDOWS.md rows 89 and 168",
+   "what_happens": "confirmClearFaint draws a destructive question and clears the Faint traces, and nothing calls it: its own header says 'No button calls it since E64-inv', and the only other reads are a comment in investigation.mjs:358 and a tier 1 test that reads its source. Its two buttons can never be pressed. openCleanupDialog, the killer's picker, lost its sheet panel when Stage 6 became rows of the Tamper menu (action-tamper.mjs:129-158); it is reachable only as game.drpg.cleanupDialog, where it still works as read. Both are counted among the 162 windows.",
+   "evidence": "remnants.mjs:2458   * things\" is only a report. No button calls it since E64-inv: End the chapter\nremnants.mjs:2462  export async function confirmClearFaint({ tokens = null } = {}) {\ntests-tier1.mjs:43684  clearFaint: destructiveYes(fnSource(read2(\"remnants.mjs\"), \"confirmClearFaint\")),\napi.mjs:934  cleanupDialog: openCleanupDialog,",
+   "failure_scenario": "Nobody can press them: a reader of the window list, or a test of the footer contract, takes 'Clear Faint Remnants' for a live window of the GM's.",
+   "expected": "A window in docs/dev/e59/WINDOWS.md is one a person can open; R1230 holds the action family to 'no dead action code'.",
+   "confidence": "read",
+   "refutation_tried": "git grep -n confirmClearFaint -- scripts audit/harness: remnants.mjs:2462, investigation.mjs:358 (a comment), tests-tier1.mjs:43684 (source read). No import() of remnants.mjs names it, and api.mjs does not export it. git grep -n openCleanupDialog -- scripts: the definition, api.mjs:138 and 934, and comments; the handbooks do not name cleanupDialog.",
+   "probe": "git grep -n -E 'confirmClearFaint|openCleanupDialog|cleanupDialog' -- scripts docs/handbooks audit/harness/scenarios"
+  }
+ ],
+ "not_established": [
+  "Nothing was pressed or run: every row is a source reading at b5a29e73 (the audit branch adds papers and two probes only). The tests and scenarios named were found by git grep of the action or function name in scripts/tests-tier*.mjs and audit/harness/scenarios; their results are the base run's, not read here.",
+  "Whether a kit window's own <form> survives inside DialogV2's form on Foundry 14. The callbacks of the describe window, the Autopsy window and Create a Key Remnant here read fields by name off d.element.querySelector('form') (observe.mjs:1267-1272 f.name.value; gm-items.mjs:1677-1681; key-remnants.mjs:1188-1197), which reaches them only if the body's <form> was dropped when the content was parsed into the dialog's form, as the harness models it (audit/harness/lib/shim.mjs:1740-1745). utils.mjs dialogContent:1030 hands DialogV2 a detached div, in which the inner <form> exists. The owner's table sessions used these windows, which argues that it works; the reading that settles it: on v14, open Observe's describe window and run document.querySelector('.dialog form form') in the console (null: dropped).",
+  "Whether a trace's open GM card loses a half-typed field: showRemnantCard writes body.innerHTML on every renderActorSheetV2 (remnant-ring.mjs:245), outside live.mjs's focus rule, so a re-render of the trace's sheet while a GM types would drop the text; and a card closed with Escape while a field holds focus may fire no blur, so nothing is saved (356-376). Which updates re-render a token actor's sheet on v14, and whether Escape blurs first, need a real Foundry: type in 'What analysis reveals', have a player find that trace (its token is un-hidden), read the field; then type and press Escape, reopen, read the field.",
+  "A Frisk ask withdrawn before its window has drawn: withdrawAsk (frisk.mjs:1104-1111) finds no dialog to close, and the render callback then starts the full clock (1142-1148), so the window would stand for up to 60 s with two buttons that send nothing (1154). The gap is the window's render time; no road that cancels an ask that fast was found. Not measured.",
+  "A co-owner's Frisk window closes with 'The request is withdrawn.' when the other owner answered (frisk.mjs:887 with 1110), also when that answer was 'Let them look'; the target's own card follows. Read, not judged a finding.",
+  "The surface list names 'a Remnant's card and its ring's menu': remnant-ring.mjs and remnants.mjs hold no menu (grep -i 'menu|contextmenu|hud' in both: 0 lines). The ring is drawn, not pressed; a double-click on the token opens the card through Foundry's own sheet.",
+  "scripts/truth-bullets.mjs draws no window and no button (grep for drpgWindow, <button, addEventListener, data-action: 0 lines); it holds the guard that puts a player's edit of a bullet back and tells the GMs (onBulletWrite:1518, revertPlayerBulletEdit:1404). The Truth Bullets' windows and the Present button are in sheet-inventory.mjs, trial.mjs and gm-items.mjs, read at the lines given; the row's Share (handover.mjs), the hub's Give tab and Take a Truth Bullet were not read.",
+  "Seen in passing in gm-items.mjs, outside this reader's files: Give a Truth Bullet with an empty name, and Issue the Autopsy with nobody ticked, close the window first and warn after (1507-1509 with 1571-1574; 1691-1695), so every other typed field is lost; the reshape windows were changed to open again for the same reason (cleanup-reshape.mjs:164-167). For the reader of gm-items.mjs.",
+  "Create a Key Remnant here (key-remnants.mjs:1116-1209) was read only as the handler of the Observe card's first button; with no room in its select its primary closes with nothing said (1206), which the domain reader's hints already carry.",
+  "The Present row's held look is repainted on updateSetting of the floor alone (sheet.mjs:79-81), the class controls-01-trial-console-4 found for the console's first write in a world; whether sync.mjs applyFor(trialQueue) redraws the sheet on that first write was not read. A press on a stale button is refused by the window with the same line (trial.mjs:181-186).",
+  "Called by the handlers and not read here: action-pipeline.mjs canAfford, rollTrait, abort; actions.mjs spendAction; price.mjs quotePrice, payPrice, refundPrice; gm-bridge.mjs callGm, claimCard, settleCall; trait-ruling.mjs traitFor; cleanup.mjs concealFromWitnesses and chargeTamper (1394-1538); bridge-guards.mjs sayNotDone. A refusal inside them is taken as told on their callers' word.",
+  "Read in part, by outline and grep for controls: frisk.mjs 1-380, 660-767, 927-1040 (the primary's judgement); remnants.mjs outside the lines listed (the ledger, the migration, placement); cleanup.mjs 800-1540 and 1720-2555 (the GM's resolution); remnant-ring.mjs 545-859 (the ring's drawing); truth-bullets.mjs 1-1290 and 1730-1985. None of those parts builds a window, a button or a listener on one (grep).",
+  "A player's Remnant card has no control; whether it follows the owner's copy of the bullets' refs while open is the live-refresh pass's (the domain reader's stale_windows hint)."
+ ]
+}

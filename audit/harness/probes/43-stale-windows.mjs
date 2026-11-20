@@ -16,16 +16,24 @@
  * FRESH differing from step 1 says the window shows this change at all (`relevant`); LIVE equal to FRESH says it showed
  * it where it stood (`live`). A relevant change the standing window did not show is `stale`, with the place the two
  * readings first differ. The change is then taken back and the same three readings made again, so every change is read
- * twice (`apply`, `undo`). When a stale window had the focus inside it, the focus is taken out and it is read once more
- * (`afterBlur`): live.mjs holds a redraw while the focus is inside the region, so a window can be late by design
- * until the GM clicks elsewhere - that is written, not counted as live.
+ * twice (`apply`, `undo`).
+ *
+ * THE OWNER'S RULE (20.11.2026, relayed by the coordinator: "Zawsze odswiezamy okna od razu przy zmianie" - a window
+ * refreshes at once when something changes). live.mjs holds a redraw while the focus is inside the live region ("never
+ * redraw under the cursor"), so a window can be late by design until the GM clicks elsewhere; under the owner's rule
+ * that is a finding. So where a change was read `live` and the window has a field, the change is made once more with
+ * the focus put in the window's first field (`apply-focused`): `held-by-focus` when the standing window did not show
+ * it, with whether it showed it once the focus left (`releasedOnBlur`); `live-under-focus` when it did. And a stale
+ * window that had the focus inside it by itself is read once more after the focus is taken out (`stale-until-blur`).
+ * One change is a thing moved by hand rather than by the module's function: a Remnant's token moved to another room
+ * with a plain token update (`trace-moved`), the coordinator's example of 20.11 for the Planner.
  *
  * WHAT IT DOES NOT ASK, AND WHERE IT IS BLIND.
  * - It asserts nothing (probes/README.md).
  * - A change made on the GM's own client reaches its windows by the same hooks a change from another browser does for
  *   world settings and documents (Foundry tells every client), but a GM store's change from ANOTHER GM arrives by the
  *   stores' exchange instead: that road is scenario 61's and 97's, not this probe's.
- * - Thirteen changes, each one move of one thing: a window stale only for a change that is not among them reads clean.
+ * - Fourteen changes, each one move of one thing: a window stale only for a change that is not among them reads clean.
  * - A window that redraws itself with time (a stopwatch) differs between any two readings: each window is first read
  *   twice with nothing changed (`restless`), and a restless window's rows are to be read with that in mind.
  * - A row of probe 08 that builds state before its window and takes it away after can undo the change itself (a seed
@@ -98,6 +106,18 @@ const CHANGES = [
         undo: `const Rm = await import(R + "/scripts/remnants.mjs"); const t = globalThis.__probe43trace; delete globalThis.__probe43trace;
             if (t) { await Rm.dropRemnantSecret(t).catch(() => {}); await t.delete().catch(() => {}); }`,
         holds: `return globalThis.__probe43trace ? 1 : 0;` },
+    { id: "trace-moved", what: "a Remnant's token moved by hand to another room (a plain token update, no module function)",
+        setup: `const Rm = await import(R + "/scripts/remnants.mjs"); const Mv = await import(R + "/scripts/movement.mjs"); const ch = (await import(R + "/scripts/clock.mjs")).getClock().chapter;
+            const rooms = Mv.allRooms(canvas.scene); const like = canvas.scene.tokens.find(t => t.actorId) ?? null;
+            const a = Mv.positionIn(rooms[0], like), b = Mv.positionIn(rooms[1], like);
+            const t = a && b ? await Rm.placeRemnant({ type: "prep", visibility: "evident", x: a.x, y: a.y, scene: canvas.scene, chapter: ch, note: "probe 43 moved" }) : null;
+            if (t) await Rm.setRemnantPublic(t, { name: "Probe 43 moved trace", playerText: "A probe's trace, moved by hand." });
+            globalThis.__probe43moved = t ? { t, a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, rooms: [rooms[0], rooms[1]] } : null;`,
+        make: `const m = globalThis.__probe43moved; if (m) await m.t.update(m.b, { teleport: true, movementAction: "displace", animate: false });`,
+        undo: `const m = globalThis.__probe43moved; if (m) await m.t.update(m.a, { teleport: true, movementAction: "displace", animate: false });`,
+        teardown: `const Rm = await import(R + "/scripts/remnants.mjs"); const m = globalThis.__probe43moved; delete globalThis.__probe43moved;
+            if (m) { await Rm.dropRemnantSecret(m.t).catch(() => {}); await m.t.delete().catch(() => {}); }`,
+        holds: `const m = globalThis.__probe43moved; return m ? [m.t.x, m.t.y] : null;` },
     { id: "project", what: "a public project created (projects.mjs createProject)",
         make: `const P = await import(R + "/scripts/projects.mjs"); const made = await P.createProject({ name: "Probe 43 project" }); S.project = made?.id ?? null;`,
         undo: `const P = await import(R + "/scripts/projects.mjs"); if (S.project) await P.deleteProject(S.project);`,
@@ -156,7 +176,12 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
         await gmStoresIdle(); await T.restore(globalThis.__probe43snap); return true;`, 120000);
 
     const rows = [];
-    const totals = { windows: 0, opened: 0, readings: 0, relevant: 0, live: 0, stale: 0, staleUntilBlur: 0, confounded: 0, restless: 0, failed: 0 };
+    const totals = { windows: 0, opened: 0, readings: 0, relevant: 0, live: 0, stale: 0, staleUntilBlur: 0, confounded: 0, restless: 0, failed: 0,
+        focusedReadings: 0, heldByFocus: 0, liveUnderFocus: 0 };
+    /* The focus put in the window's first field a person could type in or pick from; false when it has none. */
+    const focusField = client => client.eval(`const P = globalThis.__probe42; const el = P?.app?.element;
+        const f = el ? [...el.querySelectorAll("input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])")].find(x => !x.closest("[hidden]")) : null;
+        if (!f) return false; f.focus(); return document.activeElement === f ? (f.name || f.id || f.tagName.toLowerCase()) : false;`, { timeout: 30000 });
     for (const w of windows) {
         const client = clients[w.client ?? "gm"];
         const row = { id: w.id, client: w.client ?? "gm", opener: (w.opener ?? `${w.module} ${w.call}`).slice(0, 160), readings: [] };
@@ -186,6 +211,11 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
         if (idle !== was || fresh0 !== was) { row.restless = diffOf(idle !== was ? idle : was, idle !== was ? was : fresh0); totals.restless++; }
         was = fresh0;
         for (const c of changes) {
+            if (c.setup) {
+                try { await onGm(`${c.setup} return true;`); await new Promise(r => setTimeout(r, WAIT)); await closeOnce(); await openOnce(); was = (await read(client)).state; }
+                catch (err) { row.readings.push({ change: c.id, step: "setup", verdict: "failed", why: String(err?.message ?? err).slice(0, 240) }); totals.failed++; continue; }
+            }
+            let appliedLive = false;
             for (const step of ["apply", "undo"]) {
                 const reading = { change: c.id, step };
                 try {
@@ -209,7 +239,7 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
                     else {
                         totals.relevant++;
                         if (!live.standing) { reading.verdict = "closed-itself"; }
-                        else if (live.state === fresh.state) { reading.verdict = "live"; totals.live++; }
+                        else if (live.state === fresh.state) { reading.verdict = "live"; totals.live++; if (step === "apply") appliedLive = true; }
                         else if (afterBlur !== null && afterBlur === fresh.state) { reading.verdict = "stale-until-blur"; reading.diff = diffOf(live.state, fresh.state); totals.staleUntilBlur++; }
                         else { reading.verdict = live.state === was ? "stale" : "partly"; reading.focusInside = live.focusInside; reading.diff = diffOf(afterBlur ?? live.state, fresh.state); totals.stale++; }
                     }
@@ -217,12 +247,40 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
                 } catch (err) { reading.verdict = "failed"; reading.why = String(err?.message ?? err).slice(0, 240); totals.failed++; }
                 row.readings.push(reading);
             }
+            /* The owner's rule: the same change with the focus in a field of the window (see the header). */
+            if (appliedLive) {
+                const reading = { change: c.id, step: "apply-focused" };
+                try {
+                    const field = await focusField(client);
+                    if (field) {
+                        reading.field = field;
+                        await onGm(`${c.make} return true;`);
+                        await new Promise(r => setTimeout(r, WAIT));
+                        const held = await read(client);
+                        totals.focusedReadings++;
+                        if (held.standing && held.state === was) {
+                            await blur(client);
+                            await new Promise(r => setTimeout(r, WAIT));
+                            reading.verdict = "held-by-focus"; reading.releasedOnBlur = (await read(client)).state !== was; totals.heldByFocus++;
+                        } else { reading.verdict = "live-under-focus"; totals.liveUnderFocus++; }
+                        await onGm(`${c.undo} return true;`);
+                        await new Promise(r => setTimeout(r, WAIT));
+                        await closeOnce(); await openOnce();
+                        was = (await read(client)).state;
+                        row.readings.push(reading);
+                    }
+                } catch (err) { reading.verdict = "failed"; reading.why = String(err?.message ?? err).slice(0, 240); totals.failed++; row.readings.push(reading); }
+            }
+            if (c.teardown) {
+                try { await onGm(`${c.teardown} return true;`); await new Promise(r => setTimeout(r, WAIT)); await closeOnce(); await openOnce(); was = (await read(client)).state; }
+                catch (err) { row.readings.push({ change: c.id, step: "teardown", verdict: "failed", why: String(err?.message ?? err).slice(0, 240) }); totals.failed++; }
+            }
         }
         await closeOnce();
         try { await putBack(); } catch (err) { row.putBack = `threw: ${String(err?.message ?? err).slice(0, 200)}`; }
         rows.push(row);
         const count = v => row.readings.filter(r => r.verdict === v).length;
-        note(w.id, `"${row.title}": ${row.readings.length} reading(s) - ${count("live")} live, ${count("stale") + count("partly")} stale, ${count("stale-until-blur")} stale until the focus left, ${count("not-shown")} not shown, ${count("confounded")} confounded, ${count("failed")} failed${row.restless ? "; restless" : ""}`);
+        note(w.id, `"${row.title}": ${row.readings.length} reading(s) - ${count("live")} live, ${count("stale") + count("partly")} stale, ${count("stale-until-blur")} stale until the focus left, ${count("held-by-focus")} held by the focus in a field, ${count("live-under-focus")} live under it, ${count("not-shown")} not shown, ${count("confounded")} confounded, ${count("failed")} failed${row.restless ? "; restless" : ""}`);
     }
     const changed = await onGm(`${dump} const diff = K.dumpDiff(globalThis.__probe43dump, d).map(x => x.unit); delete globalThis.__probe43dump; delete globalThis.__probe43snap; delete globalThis.__probe43; return diff;`);
     note("the world", changed.length ? `${changed.length} unit(s) differ after the last restore: ${changed.slice(0, 10).join(", ")}` : "the world dump is equal before and after");

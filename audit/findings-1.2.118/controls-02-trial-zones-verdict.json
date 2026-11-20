@@ -1,0 +1,1130 @@
+{
+  "reader": "controls-02-trial-zones-verdict",
+  "read": [
+    {
+      "file": "scripts/trial-zones-ui.mjs",
+      "lines_read": 564
+    },
+    {
+      "file": "scripts/trial-zones.mjs",
+      "lines_read": 458
+    },
+    {
+      "file": "scripts/verdict.mjs",
+      "lines_read": 1469
+    },
+    {
+      "file": "scripts/vote.mjs",
+      "lines_read": 1108
+    },
+    {
+      "file": "scripts/mask-gm.mjs",
+      "lines_read": 714
+    },
+    {
+      "file": "scripts/mastermind.mjs",
+      "lines_read": 848
+    },
+    {
+      "file": "scripts/trial-scene.mjs",
+      "lines_read": 779
+    },
+    {
+      "file": "scripts/ui-kit.mjs (neighbour: footerButtons, drpgWindow, drpgConfirm, toggle, wireKit, stepper)",
+      "lines_read": 700
+    },
+    {
+      "file": "scripts/zone-machine.mjs (neighbour: zoneStart, diveQuestion, zoneStep)",
+      "lines_read": 300
+    },
+    {
+      "file": "scripts/trial-floor-ui.mjs (neighbour: the bar, the footer, TRIAL_ACTIONS)",
+      "lines_read": 396
+    },
+    {
+      "file": "scripts/trial-floor.mjs (neighbour: FLOOR_OPS' zone rows, floorStep, barRefusal, renderTrialFloor)",
+      "lines_read": 200
+    },
+    {
+      "file": "scripts/live.mjs (neighbour: keepLive)",
+      "lines_read": 190
+    },
+    {
+      "file": "scripts/trial-progress.mjs (neighbour: RECORD_FIELDS, askRecord, recordOnPrimary)",
+      "lines_read": 120
+    },
+    {
+      "file": "scripts/despair.mjs (neighbour: monokumas, convertDespairToHope, creditHopeFromDespair)",
+      "lines_read": 100
+    },
+    {
+      "file": "scripts/season-setup.mjs (neighbour: the Save and holdSeasonSave)",
+      "lines_read": 95
+    },
+    {
+      "file": "scripts/bridge-table.mjs, bridge-asks.mjs, bridge-runs-acts.mjs, bridge-runs-records.mjs (neighbour: mask.reveal, trial.side, trial.keyword, trial.gm)",
+      "lines_read": 120
+    },
+    {
+      "file": "scripts/utils.mjs (neighbour: dialogContent, guardTextFields)",
+      "lines_read": 130
+    },
+    {
+      "file": "scripts/trial-prompt.mjs, voice-tile.mjs, monokuma.mjs, bridge-guards.mjs, spectator.mjs (neighbour: the thesis prompt, paintReveal, the rosters, notSpectator)",
+      "lines_read": 190
+    },
+    {
+      "file": "audit/harness/lib/shim.mjs (DialogV2's model)",
+      "lines_read": 60
+    },
+    {
+      "file": "lang/en.json, lang/pl.json (286 literal keys of the seven files resolved in both by script; 0 missing)",
+      "lines_read": 286
+    }
+  ],
+  "surfaces": [
+    {
+      "surface": "Hall zones window (the zone picker): 'Hall zones'",
+      "file": "scripts/trial-zones-ui.mjs",
+      "opener": "openZonePicker:279 (the console's mode buttons, trial-floor-ui.mjs:1548-1551; a case node's start, case-trial.mjs; game.drpg.openZonePicker)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Straw Poll / Logic Dive / Scrum Debate (Mode)",
+          "key": "DRPG.Floor.mode.straw, .dive, .scrum",
+          "kind": "toggle",
+          "selector": "input[type=radio][name=mode]",
+          "handler": "scripts/trial-zones-ui.mjs:294-304 paint (change listener on the window's root)",
+          "effect": "shows that mode's fields and hint, hides the others; the choice is read at Start",
+          "gate": "any GM; refused before the window opens outside a Class Trial, with no zones, or with another mode on the floor (zoneStartRefusal, trial-zones.mjs:234-239, told by a warning)",
+          "how_read": "code; tier 2 'planned minigames: a node's planned Logic Dive set and Straw Poll question start from the console's node button with the zones' window filled in ...'",
+          "themes": "no hiding rule found (grep drpg-zone-picker|drpg-zone-fields|drpg-zone-mode|data-drpg-dive in styles/*.css: no rule at all; the mode's fields are hidden by the hidden attribute alone, trial-zones-ui.mjs:296-298)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Set",
+          "key": "DRPG.Zones.picker.set",
+          "kind": "select",
+          "selector": "select[name=setId]",
+          "handler": "scripts/trial-zones-ui.mjs:301-302 paint",
+          "effect": "shows the chosen set's replay warning; the id is read at Start",
+          "gate": "drawn only when the store holds a set at the window's opening; else the line 'No Logic Dive set yet.'",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-zone-picker|drpg-zone-fields|drpg-zone-mode|data-drpg-dive in styles/*.css: no rule at all; the mode's fields are hidden by the hidden attribute alone, trial-zones-ui.mjs:296-298)",
+          "verdict": "stale-state",
+          "detail": "The options and the replay warnings are drawn once (pickerHtml reads diveSets() at :290) and the window has no live option; a set made, changed or deleted through the window's own 'Logic Dive sets...' button is not in the select until the picker is closed and opened again. Finding 5."
+        },
+        {
+          "label": "Logic Dive sets...",
+          "key": "DRPG.Zones.picker.editSets",
+          "kind": "button",
+          "selector": "[data-drpg-dive-edit]",
+          "handler": "scripts/trial-zones-ui.mjs:305",
+          "effect": "opens the sets' window (openDiveSets) beside the picker, which stays open",
+          "gate": "shown in the Logic Dive mode's fields; tooltip DRPG.Tips.Sweep.Trial.diveSetsTooltip; a failure to open is logged only",
+          "how_read": "code (no test presses it: git grep data-drpg-dive-edit in scripts/tests*.mjs and audit/harness: 0)",
+          "themes": "no hiding rule found (grep drpg-zone-picker|drpg-zone-fields|drpg-zone-mode|data-drpg-dive in styles/*.css: no rule at all; the mode's fields are hidden by the hidden attribute alone, trial-zones-ui.mjs:296-298)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Start",
+          "key": "DRPG.Zones.picker.start",
+          "kind": "button",
+          "selector": "footer primary, data-action=start",
+          "handler": "scripts/trial-zones-ui.mjs:310-316 (reads the form), :321-324, then scripts/trial-zones.mjs:261-296 startZone",
+          "effect": "closes the window, then asks the primary's floor step for the mode (floorStep 'straw' | 'scrum' | 'dive'); a refusal the machine would make is told by a warning (zoneArgsRefusal, R6909), a start that wrote no zone floor by DRPG.Zones.notStarted",
+          "gate": "any GM; always enabled; the first submit button, so Enter in a field presses it",
+          "how_read": "code; test R6909; tier 2 'planned minigames ...'; scenario 68 (starts through game.drpg, not this button)",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "silent",
+          "detail": "With Logic Dive picked and no set, :322 answers null without calling startLogicDive: the window closes, nothing starts, nothing is said (finding 4). Every other refusal is told, but only after the window has closed, so the question and answers typed are gone with it (the shape of finding 3)."
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "scripts/trial-zones-ui.mjs:321",
+          "effect": "closes; nothing written",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "Logic Dive sets (the list): 'Logic Dive sets'",
+      "file": "scripts/trial-zones-ui.mjs",
+      "opener": "openDiveSets:328 (the picker's button; the case dashboard, investigation.mjs:1846; game.drpg.openDiveSets)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Edit",
+          "key": "DRPG.Zones.dive.editor.edit",
+          "kind": "row-button",
+          "selector": "[data-drpg-dive-act=edit] in li[data-drpg-dive-set]",
+          "handler": "scripts/trial-zones-ui.mjs:347-354 (one click listener on [data-drpg-dive-list])",
+          "effect": "opens the set's editor; when it closes the list is drawn again in place",
+          "gate": "any GM; one per set",
+          "how_read": "code (no test presses it: git grep drpgDiveAct|data-drpg-dive-act in tests and harness: 0)",
+          "themes": "no hiding rule found (grep drpg-dive-editor|drpg-dive-sets|drpg-dive-question|drpg-dive-replay in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Delete",
+          "key": "DRPG.Zones.dive.editor.delete",
+          "kind": "row-button",
+          "selector": "[data-drpg-dive-act=delete]",
+          "handler": "scripts/trial-zones-ui.mjs:352, deleteDiveSet :226-234",
+          "effect": "asks 'Delete the set ...? This cannot be undone.', then drops the set from the GMs' store and redraws the list",
+          "gate": "any GM; one per set",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-dive-editor|drpg-dive-sets|drpg-dive-question|drpg-dive-replay in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "New set",
+          "key": "DRPG.Zones.dive.editor.new",
+          "kind": "button",
+          "selector": "footer secondary, data-action=new",
+          "handler": "scripts/trial-zones-ui.mjs:357, :361",
+          "effect": "closes the list and opens an empty editor; the list is not opened again after the save",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "ui-kit.mjs footerButtons (Foundry's own close)",
+          "effect": "closes",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "Logic Dive set editor: 'New Logic Dive set' / 'Edit a Logic Dive set'",
+      "file": "scripts/trial-zones-ui.mjs",
+      "opener": "editDiveSet:184",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Set name, Finding when solved, Question n, Zone A's answer, Zone B's answer (typing)",
+          "key": "DRPG.Zones.dive.editor.name, .conclusion, .question; DRPG.Zones.picker.a, .b",
+          "kind": "field-with-effect",
+          "selector": "input[type=text] of the form (17 at most)",
+          "handler": "scripts/trial-zones-ui.mjs:207-213 paint (input listener on the root)",
+          "effect": "each keystroke redraws the warning that a question or an answer names a student (namesIn)",
+          "gate": "any GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-dive-editor|drpg-dive-sets|drpg-dive-question|drpg-dive-replay in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Right answer: Zone A / Zone B",
+          "key": "DRPG.Zones.dive.editor.truth; DRPG.TrialScene.zoneA, .zoneB",
+          "kind": "toggle",
+          "selector": "input[type=radio][name='q<i>.truth']",
+          "handler": "read by readSetForm, scripts/trial-zones-ui.mjs:170-177",
+          "effect": "none until Save: the question's true side",
+          "gate": "any GM; never drawn outside this window (the GMs' store alone)",
+          "how_read": "code; test R3904 (no truth on the floor)",
+          "themes": "no hiding rule found (grep drpg-dive-editor|drpg-dive-sets|drpg-dive-question|drpg-dive-replay in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Save the set",
+          "key": "DRPG.Zones.dive.editor.save",
+          "kind": "button",
+          "selector": "footer primary, data-action=save",
+          "handler": "scripts/trial-zones-ui.mjs:216 (readSetForm), :221-222, saveDiveSet :138-152",
+          "effect": "closes the window, then judges the set (setRefusal :125-135): refused with a warning, or written to the GMs' store diveSets",
+          "gate": "any GM; always enabled; the first submit button, so Enter in any text field presses it; its tooltip names what a set needs",
+          "how_read": "code (no test presses it; R6910 reads replayWarning only)",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "stale-state",
+          "detail": "The button stays enabled whatever the form holds and the form is judged only after the window has closed: a set with no name, no question, a blank answer or an unmarked right answer is refused by a toast and what was typed is not kept. Finding 3."
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "scripts/trial-zones-ui.mjs:221",
+          "effect": "closes; nothing written",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "Delete a Logic Dive set (question): 'Delete a Logic Dive set'",
+      "file": "scripts/trial-zones-ui.mjs",
+      "opener": "deleteDiveSet:226",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Delete",
+          "key": "DRPG.Zones.dive.editor.delete",
+          "kind": "button",
+          "selector": "footer destructive, data-action=yes",
+          "handler": "scripts/trial-zones-ui.mjs:228-233",
+          "effect": "drops the set from the GMs' store",
+          "gate": "any GM; never the default (the destructive role)",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel (the default)",
+          "handler": "ui-kit.mjs drpgConfirm:1530-1543",
+          "effect": "answers false; nothing deleted",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "Findings window: 'Findings'",
+      "file": "scripts/trial-zones-ui.mjs",
+      "opener": "openFindings:392 (the console's 'Findings (n)' button, trial-floor-ui.mjs:1760; game.drpg.openFindings)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Edit",
+          "key": "DRPG.Zones.findings.edit",
+          "kind": "row-button",
+          "selector": "[data-drpg-finding-act=edit] in li[data-drpg-finding]",
+          "handler": "scripts/trial-zones-ui.mjs:401-413; editFinding, scripts/trial-zones.mjs:421-430",
+          "effect": "asks the new words in a one-field window, writes the trial record's findings (through the primary for another GM, trial-progress.mjs:525-533) and posts a public card with the old and the new words; the list is drawn again",
+          "gate": "any GM",
+          "how_read": "code; tier 2 'E73 C6: the GM's Findings - added, edited, confirmed and deleted, each on a public card, the record holding the list' (calls the functions, does not press the rows)",
+          "themes": "no hiding rule found (grep drpg-findings|drpg-finding in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Delete",
+          "key": "DRPG.Zones.findings.delete",
+          "kind": "row-button",
+          "selector": "[data-drpg-finding-act=delete]",
+          "handler": "scripts/trial-zones-ui.mjs:410; deleteFinding, scripts/trial-zones.mjs:433-441",
+          "effect": "takes the Finding off the record at once, with a public card; no question first (the tooltip says 'at once and tells the table')",
+          "gate": "any GM",
+          "how_read": "code; tier 2 'E73 C6 ...'",
+          "themes": "no hiding rule found (grep drpg-findings|drpg-finding in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Monokuma confirms",
+          "key": "DRPG.Zones.findings.confirm",
+          "kind": "row-button",
+          "selector": "[data-drpg-finding-act=confirm]",
+          "handler": "scripts/trial-zones-ui.mjs:411; confirmFinding, scripts/trial-zones.mjs:444-452",
+          "effect": "marks the Finding confirmed on the record and posts a public card",
+          "gate": "any GM; drawn disabled once confirmed, with the mark 'Monokuma confirms' beside the row and a title tooltip",
+          "how_read": "code; tier 2 'E73 C6 ...'",
+          "themes": "no hiding rule found (grep drpg-findings|drpg-finding in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Add a Finding",
+          "key": "DRPG.Zones.findings.add",
+          "kind": "button",
+          "selector": "footer secondary, data-action=add",
+          "handler": "scripts/trial-zones-ui.mjs:415, :417-421; addFinding, scripts/trial-zones.mjs:410-418",
+          "effect": "closes the list, asks the words, adds the Finding with a public card; the list is not opened again",
+          "gate": "any GM",
+          "how_read": "code; tier 2 'E73 C6 ...'",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "ui-kit.mjs footerButtons",
+          "effect": "closes",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "A Finding's words (one-field window): 'Add a Finding' / 'Edit'",
+      "file": "scripts/trial-zones-ui.mjs",
+      "opener": "askFindingText:381",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Save",
+          "key": "DRPG.Zones.findings.save",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "scripts/trial-zones-ui.mjs:385 (answers the field's text), :388, then :409 or :420",
+          "effect": "closes and hands the text to editFinding or addFinding",
+          "gate": "any GM; always enabled",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "silent",
+          "detail": "An empty field (and, on Edit, unchanged words) reaches editFinding / addFinding, which answer false / null with no notice (trial-zones.mjs:413, :426; trial-zones-ui.mjs:420); and :388 tells Save from Cancel by the string alone, so a Finding typed as the word cancel is read as Cancel. Finding 6."
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "scripts/trial-zones-ui.mjs:388",
+          "effect": "closes; nothing written",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "Side-pick window of a participant with no token in the hall: titled with the mode ('Straw Poll', 'Logic Dive', 'Scrum Debate')",
+      "file": "scripts/trial-zones-ui.mjs",
+      "opener": "offerSidePick:434 (onZoneFloor:557, from trial-floor.mjs renderTrialFloor:1814-1818 on every client)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Zone A: {answer}",
+          "key": "DRPG.Zones.pick.side",
+          "kind": "button",
+          "selector": "footer primary, data-action=a",
+          "handler": "scripts/trial-zones-ui.mjs:448, :454-457; bridge 'trial.side' (bridge-table.mjs:1421-1427); sideOnPrimary, scripts/trial-zones.mjs:346-362",
+          "effect": "asks the primary GM to keep the side on the floor (zone.picks); 'You stand in Zone A.' on a yes, the bridge's own words on a refusal",
+          "gate": "a connected player whose living student takes part and has no token in the hall, with no pick kept yet; a GM, a dead student's player and a Spectator are never offered it (trialParticipants, vote.mjs:567-592)",
+          "how_read": "code; scenario 68 (asks requestTrialSide from the page, does not draw the window; docs/dev/e73/STATUS.md:213 says the window is on no screenshot)",
+          "themes": "no hiding rule found (grep drpg-side-pick in styles/*.css: no rule at all)",
+          "verdict": "stale-state",
+          "detail": "The window comes once for `${mode}|${zone.openedAt}` and never again once a pick is kept; a Logic Dive keeps both across its questions, so the first pick is counted for every later question and no control changes it. Finding 1."
+        },
+        {
+          "label": "Zone B: {answer}",
+          "key": "DRPG.Zones.pick.side",
+          "kind": "button",
+          "selector": "footer secondary, data-action=b",
+          "handler": "the same road, side b",
+          "effect": "as Zone A",
+          "gate": "as Zone A",
+          "how_read": "code; scenario 68 (the road, not the press)",
+          "themes": "no hiding rule found (grep drpg-side-pick in styles/*.css: no rule at all)",
+          "verdict": "stale-state",
+          "detail": "As Zone A. Finding 1."
+        },
+        {
+          "label": "Cancel (and the header's close, Escape)",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "scripts/trial-zones-ui.mjs:454",
+          "effect": "closes; no side kept",
+          "gate": "as Zone A",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-side-pick in styles/*.css: no rule at all)",
+          "verdict": "silent",
+          "detail": "pickOpenFor was set at :441 before the window was drawn, so the window is not offered again in this mode, no other control asks 'trial.side', and nothing tells the player that their student now stands on neither side. Finding 2."
+        }
+      ]
+    },
+    {
+      "surface": "The trial console's controls whose handlers are these files' (drawn by trial-floor-ui.mjs; listed for the handler's half only)",
+      "file": "scripts/trial-zones.mjs, scripts/trial-scene.mjs, scripts/verdict.mjs, scripts/mastermind.mjs",
+      "opener": "manageClassTrial, trial-floor-ui.mjs:1586 (not this reader's window)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Count now",
+          "key": "DRPG.Floor.bar.count",
+          "kind": "button",
+          "selector": "button[data-drpg-bar=count]",
+          "handler": "trial-floor-ui.mjs:1081-1090 runBarOp, then scripts/trial-zones.mjs:299-303 countNow",
+          "effect": "the primary's floor step 'zoneCount': a Straw Poll counted, a Logic Dive question counted at once",
+          "gate": "drawn in the three zone modes; aria-disabled with the reason in its title, and the reason told on a press, when the phase is no vote - a Scrum Debate always, a Logic Dive's pause (barRefusal, trial-floor.mjs:1431-1442; 'Nothing to count now: you can count only a running vote.')",
+          "how_read": "code; scenario 68",
+          "themes": "not read here: the console's markup and CSS are trial-floor-ui.mjs's and its reader's",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Skip question",
+          "key": "DRPG.Floor.bar.skipQuestion",
+          "kind": "button",
+          "selector": "button[data-drpg-bar=skipQuestion]",
+          "handler": "trial-floor-ui.mjs:1081-1090, then scripts/trial-zones.mjs:306-310 skipQuestion",
+          "effect": "the primary's floor step 'zoneSkipQuestion': the set's next question, no answer kept; the set's end after the last",
+          "gate": "drawn in a Logic Dive only (barOpsFor, trial-floor-ui.mjs:906-908)",
+          "how_read": "code; scenario 68",
+          "themes": "not read here: the console's markup and CSS are trial-floor-ui.mjs's and its reader's",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Show the hall / Back to school",
+          "key": "DRPG.TrialScene.showHall, DRPG.TrialScene.backToSchool",
+          "kind": "button",
+          "selector": "footer data-action=showHall | backToSchool",
+          "handler": "trial-floor-ui.mjs:1576-1583, then scripts/trial-scene.mjs:964-981 showCourtroom / showSchool",
+          "effect": "the table taken into the hall (enterTrialScene :705) or out of it (leaveTrialScene :744), the phase unchanged",
+          "gate": "a GM in a running trial with a hall linked; each refusal told by a warning (trialDoorOpen :955-961; 'no way back' :976-978)",
+          "how_read": "code; test R437; scenario 41",
+          "themes": "not read here: the console's markup and CSS are trial-floor-ui.mjs's and its reader's",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "The verdict / Final Trial verdict",
+          "key": "DRPG.Vote.verdictTitle, DRPG.Mastermind.verdictTitle",
+          "kind": "button",
+          "selector": "footer data-action=verdict",
+          "handler": "trial-floor-ui.mjs:1562-1567, then scripts/verdict.mjs:68 openVerdictDialog or :1179 openFinalVerdictDialog",
+          "effect": "opens the verdict's window; a refusal (no GM, a verdict applied or running here, no Mastermind set) told by a warning",
+          "gate": "drawn only while it is the trial's next step (trial-floor-ui.mjs:1441-1443)",
+          "how_read": "code; test R340; tier 2 'the verdict's API in a Final Trial opens the Final Trial's window'",
+          "themes": "not read here: the console's markup and CSS are trial-floor-ui.mjs's and its reader's",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Finish the verdict",
+          "key": "DRPG.Vote.finishVerdict",
+          "kind": "button",
+          "selector": "footer data-action=finishVerdict",
+          "handler": "trial-floor-ui.mjs:1568-1571, then scripts/verdict.mjs:1106-1137 finishVerdict",
+          "effect": "runs the steps a stopped verdict had not done, on the verdict's runner; another GM is told whom to ask ('Only {name} can finish the verdict.'), a verdict not stopped 'This trial already has its verdict.'",
+          "gate": "drawn only while a verdict stands stopped (trial-floor-ui.mjs:1447-1450)",
+          "how_read": "code; tier 2 E42-T11 and E41-T2 (named in verdict.mjs:565, :1310)",
+          "themes": "not read here: the console's markup and CSS are trial-floor-ui.mjs's and its reader's",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Start the Final Trial / End the Final Trial",
+          "key": "DRPG.Mastermind.startFinalTrial, DRPG.Mastermind.endFinalTrial",
+          "kind": "button",
+          "selector": "footer data-action=toggleFinal",
+          "handler": "trial-floor-ui.mjs:1572-1575, then scripts/mastermind.mjs:440-486 toggleFinalTrialFlag",
+          "effect": "asks yes or no, then writes the clock's finalTrial flag; starting posts a public card",
+          "gate": "not drawn inside an ordinary trial; Start greyed with 'No Mastermind set...' as its tooltip while nobody is set (trial-floor-ui.mjs:1485-1487), and refused with the same words on a press (mastermind.mjs:445-448)",
+          "how_read": "code; test R1364",
+          "themes": "not read here: the console's markup and CSS are trial-floor-ui.mjs's and its reader's",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The ballot a player gets: 'Who did it?'",
+      "file": "scripts/vote.mjs",
+      "opener": "castBallot:781 (onBallotOpened:153 from a GM's 'vote.open' packet; askBallot:950 at load and when a primary GM is ready)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "A name per list ('Your vote', 'Name 1', 'Name 2')",
+          "key": "DRPG.Vote.who, DRPG.Vote.whoNth",
+          "kind": "toggle",
+          "selector": "input[type=radio][name='choice<i>']",
+          "handler": "scripts/vote.mjs:873-886 wireBallot (change listener on the root)",
+          "effect": "enables Cast once every list has a name; greys in the other lists the name checked in one",
+          "gate": "a connected player with a living student that takes part; never a GM (:154), a dead student's player or a Spectator (trialParticipants :567-592); nothing is checked when it opens",
+          "how_read": "code; scenarios 63, 18, 10 (cast ballots through the page)",
+          "themes": "no hiding rule found (grep drpg-ballot in styles/*.css: no rule; drpg-choice rules in danganronpa.css 5086-5301 and stained-glass.css 1950-4225 style the rows and radios in both themes, none hides them outside .drpg-variant-columns)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cast your vote",
+          "key": "DRPG.Vote.cast",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "scripts/vote.mjs:838-845 (reads the checked names), :859-864, sendBallot :897-924; bridge 'vote.cast'; recordBallot :186-213",
+          "effect": "sends the names to the primary GM, who records them in the GMs' store; the player reads 'Your vote is in.', the vote's 'moved on', the bridge's reason, or 'No GM has your vote yet...' (kept and sent again when a primary GM is ready)",
+          "gate": "disabled until every list has a name (wireBallot); one ballot window at a time (:815-818)",
+          "how_read": "code; tier 2 'a ballot naming one student twice or too many or of a round gone is refused and told', 'E51-T11 ...'; scenario 63",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "The header's close (no closing word in the footer)",
+          "key": "literal (Foundry's window close)",
+          "kind": "key",
+          "selector": "the window's X, Escape",
+          "handler": "scripts/vote.mjs:859-862",
+          "effect": "no vote sent; the player reads 'You closed the ballot without voting ... ask the GM to send it again.'",
+          "gate": "always; the GM's vote window lists who is still out and has 'Send another ballot'",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-ballot in styles/*.css: no rule; drpg-choice rules in danganronpa.css 5086-5301 and stained-glass.css 1950-4225 style the rows and radios in both themes, none hides them outside .drpg-variant-columns)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The verdict window (ordinary): 'The verdict'",
+      "file": "scripts/verdict.mjs",
+      "opener": "openVerdictDialog:68 (the console's verdict button; game.drpg.verdictDialog)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Who is executed if the table got it wrong / Who the Blackened really is",
+          "key": "DRPG.Vote.executedIfWrong, DRPG.Vote.executed, DRPG.Vote.blackened",
+          "kind": "select",
+          "selector": "select[name=executed], select[name=blackened]",
+          "handler": "read at the press by read, scripts/verdict.mjs:349-371",
+          "effect": "none until a verdict is pressed; a dead student is a disabled option, and one submitted anyway is refused and told (:364-369)",
+          "gate": "the Blackened's select only with no register; the executed select replaced by ticks when two accused are living",
+          "how_read": "code; tier 2 'the verdict window opens on the accused', 'a dead accused opens the verdict on nobody and only a living student can be executed'; test R1237",
+          "themes": "no hiding rule found (grep drpg-verdict-field in styles/*.css: danganronpa.css:4527 lays it out as a column, nothing hides it)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A tick per accused ('... tick one of the accused, or more')",
+          "key": "DRPG.Vote.executedEachIfWrong",
+          "kind": "toggle",
+          "selector": "input[type=checkbox][name=executedEach]",
+          "handler": "scripts/verdict.mjs:320-327 holdWrongWithoutTick (change listener on each tick)",
+          "effect": "holds 'They got it wrong' disabled while none is ticked; the ticked are the executed of a wrong verdict",
+          "gate": "drawn only when two or more accused students are living at the table (accusedChoices :294-299); the legend says to tick one or more",
+          "how_read": "tier 2 'E40-T8 - two accused, each on their own ...'; tests R7601, R7602, R7603; scenario 18",
+          "themes": "no hiding rule found (grep drpg-verdict-field in styles/*.css: danganronpa.css:4527 lays it out as a column, nothing hides it)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "They got it right",
+          "key": "DRPG.Vote.gotItRight",
+          "kind": "button",
+          "selector": "footer destructive, data-action=correct",
+          "handler": "scripts/verdict.mjs:233-234 read, :248-249, applyVerdict :480-521, runVerdict :628-669",
+          "effect": "writes the verdict's lock and record first, then its steps: the sentence, the public card, the survivors' Level Ups, the Overflow, the bets; the GMs get a summary naming any step that stopped",
+          "gate": "any GM; refused and told when a verdict is applied or running here (verdictRefusal :460-464); never the default",
+          "how_read": "code; tier 2 'Enter in the verdict window executes nobody'; scenario 63",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "They got it wrong",
+          "key": "DRPG.Vote.gotItWrong",
+          "kind": "button",
+          "selector": "footer destructive, data-action=wrong",
+          "handler": "scripts/verdict.mjs:237-238 read, then as above with the wrong verdict's steps (:559)",
+          "effect": "the sentence on the GM's pick, the card, the Blackened's waiting Level Up, the Despair pools, the Blackened's rule window, the Monocubs' card, the Overflow, the bets",
+          "gate": "as above; disabled while none of two accused is ticked, and a form submitted with none gives no verdict and says 'Tick at least one of the accused...' (:356-360)",
+          "how_read": "code; tier 2 E40-T8, 'a dead accused opens the verdict on nobody ...'; scenario 63",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel (the default and the first submit button)",
+          "handler": "scripts/verdict.mjs:241-242, verdictAnswer :261-263",
+          "effect": "closes; no verdict",
+          "gate": "always",
+          "how_read": "tier 2 'Enter in the verdict window executes nobody'; test R7603",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The Blackened's rule (a wrong verdict's step): 'The Blackened's new rule'",
+      "file": "scripts/verdict.mjs",
+      "opener": "askBlackenedRule:386 (verdictRule:965)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Introduce a new rule",
+          "key": "DRPG.Rules.addNew",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "scripts/verdict.mjs:409-410, :415-441",
+          "effect": "records the typed rule (rules.mjs addRule) and posts it as one of Monokuma's rules with no name; an empty text records nothing, and the GMs' summary then says no rule was recorded",
+          "gate": "the GM giving a wrong verdict whose Blackened lives",
+          "how_read": "code; tier 2 'the Blackened's rule window records nothing on Cancel (E21 C4) ...'; scenario 63",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel, data-action=skip",
+          "handler": "scripts/verdict.mjs:411",
+          "effect": "answers an empty text: nothing recorded, the summary says so",
+          "gate": "always",
+          "how_read": "tier 2 'the Blackened's rule window records nothing on Cancel (E21 C4) ...'",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The Final Trial's verdict window: 'Final Trial verdict'",
+      "file": "scripts/verdict.mjs",
+      "opener": "openFinalVerdictDialog:1179 (the console's verdict button in a Final Trial; every road to the ordinary verdict in a Final Trial, :82-83, :491-492; game.drpg.finalVerdictDialog)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Who did the vote accuse?",
+          "key": "DRPG.Mastermind.whoWasAccused",
+          "kind": "select",
+          "selector": "select[name=accused]",
+          "handler": "read at the press, scripts/verdict.mjs:1241-1249",
+          "effect": "names the accused in the GMs' summary only (finalSummary :1358-1370); the outcome is the button pressed",
+          "gate": "any GM",
+          "how_read": "code; tier 2 'E41-T1 - the Final Trial's window lists every student and opens on the accused ...'",
+          "themes": "no hiding rule found (grep drpg-verdict-field in styles/*.css: danganronpa.css:4527 lays it out as a column, nothing hides it)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "They named the Mastermind",
+          "key": "DRPG.Mastermind.correctlyNamed",
+          "kind": "button",
+          "selector": "footer destructive, data-action=correct",
+          "handler": "scripts/verdict.mjs:1238-1244, :1258-1259, applyFinalVerdict :1262-1279, giveFinalVerdict :1282-1317",
+          "effect": "the Final verdict's record and steps: the sentence kept in the GMs' store, the public card, the Final Trial's flag down, the Level Ups that waited, the bets, the pick cleared",
+          "gate": "any GM; refused and told by the one lock (verdictRefusal) and with no Mastermind set (:1189-1192); disabled when the Mastermind is already dead, with the reason in the window's note (alreadyDeadNote)",
+          "how_read": "code; tier 2 'E41-T2 - one lock for both verdicts ...'; test R340",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "They did not",
+          "key": "DRPG.Mastermind.notCorrectlyNamed",
+          "kind": "button",
+          "selector": "footer destructive, data-action=wrong",
+          "handler": "scripts/verdict.mjs:1245-1250, then as above",
+          "effect": "the reveal branch: nobody new executed",
+          "gate": "as above; always enabled",
+          "how_read": "code; tier 2 E41-T2",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel (the default)",
+          "handler": "scripts/verdict.mjs:1258",
+          "effect": "closes; nothing written",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The mask window on the hidden killer's browser: 'Stay hidden?'",
+      "file": "scripts/mask-gm.mjs",
+      "opener": "askReveal:631 (noticeOwnMask:707, on a token's redraw and at ready)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Reveal yourself",
+          "key": "DRPG.Mask.reveal",
+          "kind": "button",
+          "selector": "footer primary, data-action=reveal",
+          "handler": "scripts/mask-gm.mjs:641-642, :648, requestReveal :653-658; bridge 'mask.reveal' (bridge-table.mjs:285-292); revealMask :325-329, endMask :274-296",
+          "effect": "asks the primary GM to end the mask: the tokens' looks and the portrait put back, the microphone given back, the cast sent again; a refusal is told by the bridge",
+          "gate": "the player who owns the masked character; asked once a load for each mask; no closing word, the header's close keeps the mask",
+          "how_read": "code; tier 2 'E69-T7 - a killer behind a \"?\" on the GMs' record ...' (judges the bridge row, does not draw the window); the window is drawn in no test (git grep drpg-mask-ask in tests: 0)",
+          "themes": "no hiding rule found (grep drpg-mask-ask in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Stay hidden",
+          "key": "DRPG.Mask.stay",
+          "kind": "button",
+          "selector": "footer secondary, data-action=stay",
+          "handler": "scripts/mask-gm.mjs:643-644, :648-649",
+          "effect": "closes; the mask stands until the time of day ends, and the voice tile keeps its own Reveal yourself button (voice-tile.mjs:1189-1215, the same requestReveal)",
+          "gate": "as above",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-mask-ask in styles/*.css: no rule at all)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The Mastermind window: 'The Mastermind'",
+      "file": "scripts/mastermind.mjs",
+      "opener": "openMastermindDialog:593 (the GM panel's tile, gm-panel.mjs:381; Season setup's tile, season-setup.mjs:680; game.drpg.mastermindDialog)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Who is the Mastermind? / The Mastermind's room",
+          "key": "DRPG.Mastermind.whoIs, DRPG.Mastermind.lairLabel",
+          "kind": "select",
+          "selector": "select[name=who], select[name=lair]",
+          "handler": "read at Apply, scripts/mastermind.mjs:679-685",
+          "effect": "none until Apply",
+          "gate": "any GM; the room list is every place scene's rooms, and a stored room on no scene is kept as its own option (:632-638)",
+          "how_read": "code; tier 2 'the Mastermind window applied with another scene on screen keeps the lair it did not show'",
+          "themes": "no hiding rule found (grep drpg-window-mastermind|drpg-mm-live in styles/*.css: no rule at all; drpg-mini-button rules in danganronpa.css 4378-4399 style it, none hides it)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "The pool to take from, and the amount (- and +)",
+          "key": "DRPG.Monocub.giveHope (the legend); literal steps",
+          "kind": "stepper",
+          "selector": "select[name=donor]; .drpg-kit-stepper input[name=amount] and button[data-drpg-step]",
+          "handler": "ui-kit.mjs:856-897 wireStepper (wireKit at the render; chrome.mjs:146, :199 after each live redraw, in both themes); Enter in either presses Give (data-drpg-enter, utils.mjs guardTextFields)",
+          "effect": "sets what Give gives",
+          "gate": "drawn only when a Mastermind was set when the window opened",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-window-mastermind|drpg-mm-live in styles/*.css: no rule at all; drpg-mini-button rules in danganronpa.css 4378-4399 style it, none hides it)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Give Hope",
+          "key": "DRPG.Monocub.give",
+          "kind": "button",
+          "selector": "button[data-drpg-give]",
+          "handler": "scripts/mastermind.mjs:532-555 wireMastermindGive (wired at the render and after every live redraw, :696-706); convertDespairToHope, despair.mjs:810-842",
+          "effect": "turns the pool's Despair into the Mastermind's Hope now, the pool paying at the next time of day; the readout and the pools redraw in place",
+          "gate": "as above; an amount below 1, an empty pool, the darkening and a full Hope are each told by a notice; a gift is told with what the pool owes",
+          "how_read": "code (no test presses it in this window: the tier 2 hits for data-drpg-give are the Students window's)",
+          "themes": "no hiding rule found (grep drpg-window-mastermind|drpg-mm-live in styles/*.css: no rule at all; drpg-mini-button rules in danganronpa.css 4378-4399 style it, none hides it)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Apply",
+          "key": "DRPG.Panel.apply",
+          "kind": "button",
+          "selector": "footer primary, data-action=save",
+          "handler": "scripts/mastermind.mjs:666-686, :714-716, applyMastermindChoice :559-585",
+          "effect": "sets the Mastermind (and the room), moves the room alone, or clears both; each told by a notice, and the players' private door flags follow (notifyDoorAccess :151-165)",
+          "gate": "any GM",
+          "how_read": "code; tier 2 'the Mastermind window applied with another scene on screen keeps the lair it did not show'",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "silent",
+          "detail": "With nobody set before and '- nobody set -' left chosen, a room picked in the second select is not stored and nothing says so (:562-568 returns before the lair is read). Finding 7."
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "scripts/mastermind.mjs:714",
+          "effect": "closes; nothing written (a dismissal is told apart from a clear, :668-678)",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "Start or end the Final Trial (question): 'Start or end the Final Trial'",
+      "file": "scripts/mastermind.mjs",
+      "opener": "toggleFinalTrialFlag:440 (the console's footer)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Yes",
+          "key": "DRPG.Dialog.yes",
+          "kind": "button",
+          "selector": "footer primary, data-action=yes",
+          "handler": "scripts/mastermind.mjs:450-485",
+          "effect": "writes the clock's finalTrial flag (setFinalTrial :841-844), a notice to this GM, and on a start the public card 'THE FINAL TRIAL'",
+          "gate": "any GM; a start with no Mastermind is refused before the question (:445-448)",
+          "how_read": "code; test R1364",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel",
+          "handler": "scripts/mastermind.mjs:459",
+          "effect": "nothing written",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep footer.form-footer|drpg-kit-footer|drpg-role- with display: none: only footer.form-footer button[hidden], danganronpa.css:17034)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "Season setup's scenes part (the school, the trial hall, Zone A and Zone B, the hall on the room tile, who takes part, Prepare the hall): built and wired by trial-scene.mjs inside Season setup's window",
+      "file": "scripts/trial-scene.mjs",
+      "opener": "scenesTabHtml:1489 and wireScenesTab:1501, drawn by season-setup.mjs:1274 and wired at :1192; saved by Season setup's Save (applyScenesTab:1677)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "School",
+          "key": "DRPG.TrialScene.school",
+          "kind": "select",
+          "selector": "select[name='scenes:school']",
+          "handler": "scripts/trial-scene.mjs:1513-1523 redraw",
+          "effect": "redraws the part's warnings and holds Season setup's Save while both selects name one scene (the reason is also a line of the warnings box)",
+          "gate": "any GM",
+          "how_read": "code; test R120; scenario 41",
+          "themes": "no hiding rule found (grep drpg-scene-hall-room|drpg-scene-prepare in styles/*.css: components.css:2799-2801, layout only and scoped to .drpg-window-rooms)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Trial hall",
+          "key": "DRPG.TrialScene.hall",
+          "kind": "select",
+          "selector": "select[name='scenes:trial']",
+          "handler": "scripts/trial-scene.mjs:1536-1551",
+          "effect": "redraws who takes part, the two zone selects' options and the hall's three fields for the hall now chosen, then the warnings; holds Save when the hall is changed while a Class Trial runs",
+          "gate": "any GM; the hold's reason for a running trial is written on the disabled Save only (season-setup.mjs:1280-1290: aria-label and an empty data-tooltip), not in the warnings box - whether a table sees it is not established here",
+          "how_read": "code; test R120; scenario 41 (l1, l2 read the refusal)",
+          "themes": "no hiding rule found (grep drpg-scene-hall-room|drpg-scene-prepare in styles/*.css: components.css:2799-2801, layout only and scoped to .drpg-window-rooms)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Zone A / Zone B",
+          "key": "DRPG.TrialScene.zoneA, DRPG.TrialScene.zoneB",
+          "kind": "select",
+          "selector": "select[name='scenes:zoneA'], select[name='scenes:zoneB']",
+          "handler": "scripts/trial-scene.mjs:1535 redraw",
+          "effect": "redraws the zones' warnings (none, same, overlap, gap); stored on Save",
+          "gate": "greyed with no hall chosen; a title tooltip",
+          "how_read": "code; tier 2 'E73 C1: Zone A and Zone B picked in Room Setup's Scenes tab are stored in sceneRoles ...'",
+          "themes": "no hiding rule found (grep drpg-scene-hall-room|drpg-scene-prepare in styles/*.css: components.css:2799-2801, layout only and scoped to .drpg-window-rooms)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Choose a picture",
+          "key": "DRPG.Vault.imagePick",
+          "kind": "button",
+          "selector": "button[data-drpg-hall-picture]",
+          "handler": "scripts/trial-scene.mjs:1527-1533 wirePicture (wired again when the hall select redraws the fields, :1546-1549)",
+          "effect": "opens Foundry's file picker and writes the chosen path into the picture field; stored on Save, a path the module refuses is told then (setHallRoom :1388-1398)",
+          "gate": "greyed with no hall chosen",
+          "how_read": "code; test R583",
+          "themes": "no hiding rule found (grep drpg-scene-hall-room|drpg-scene-prepare in styles/*.css: components.css:2799-2801, layout only and scoped to .drpg-window-rooms)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A switch per character ('In the hall')",
+          "key": "DRPG.TrialScene.castWho",
+          "kind": "toggle",
+          "selector": "input[type=checkbox][name='cast:<actorId>']",
+          "handler": "read on Save by readCastPicker, scripts/trial-scene.mjs:1327-1336",
+          "effect": "none until Save: the changed ticks are stored (saveTrialCast) and the hall staged again",
+          "gate": "any GM",
+          "how_read": "code; test R120; scenario 41",
+          "themes": "no hiding rule found (grep drpg-scene-hall-room|drpg-scene-prepare in styles/*.css: components.css:2799-2801, layout only and scoped to .drpg-window-rooms)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Prepare the hall on Save / Also clear the hall's playlist / Also switch Proximity Voice Chat off in the hall",
+          "key": "DRPG.TrialScene.prepareOnSave, .preparePlaylist, .prepareVoice",
+          "kind": "toggle",
+          "selector": "input[name='scenes:prepare'], ['scenes:preparePlaylist'], ['scenes:prepareVoice']",
+          "handler": "read on Save, scripts/trial-scene.mjs:1573-1574; prepareTrialScene :1657-1663",
+          "effect": "on Save, one update of the hall's scene and the notice 'The trial hall {scene} is prepared.'",
+          "gate": "the two 'Also' switches do nothing unless the first is on; they stay enabled, and each one's tooltip says 'It takes effect only with the switch above on.'; the third is drawn only with that module active",
+          "how_read": "code; test R120",
+          "themes": "no hiding rule found (grep drpg-scene-hall-room|drpg-scene-prepare in styles/*.css: components.css:2799-2801, layout only and scoped to .drpg-window-rooms)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "surfaces": 16,
+    "controls": 60,
+    "ok": 52,
+    "dead": 0,
+    "throws": 0,
+    "mislabeled": 0,
+    "wrong_audience": 0,
+    "silent": 4,
+    "stale_state": 4,
+    "unknown": 0
+  },
+  "findings": [
+    {
+      "id": "controls-02-trial-zones-verdict-1",
+      "severity": "minor",
+      "verdict": "stale-state",
+      "title": "The side-pick window comes once for a whole Logic Dive: the first pick is counted for every later question and no control changes it",
+      "surface": "Side-pick window of a participant with no token in the hall",
+      "control": "Zone A: {answer} / Zone B: {answer}",
+      "where": "scripts/trial-zones-ui.mjs:437-441; scripts/zone-machine.mjs:221-233; scripts/trial-zones.mjs:58-62",
+      "what_happens": "offerSidePick draws the window once for the key `${floor.mode}|${zone.openedAt}` and never once zone.picks holds a side for the student. zone-machine.mjs diveQuestion puts a Logic Dive's next question on the floor through phase(), whose patch names the question, the answers, the counts and the set: openedAt and picks stay. sidesNow reads the kept pick for a student with no hall token, so the answer given to question 1 is counted on questions 2 to 5. The machine would take another pick (only the same side is refused, DRPG.Zones.samePick), but requestTrialSide has one caller, this window.",
+      "evidence": "    const key = `${floor.mode}|${zone.openedAt}`;\n    if (pickOpenFor === key) return;\n    const mine = trialParticipants().find(p => p.user.id === game.user.id);\n    if (!mine || hallTokenOf(mine.actor) || zone.picks?.[mine.actor.id]) return;\n    pickOpenFor = key;\n// zone-machine.mjs:232\n    return { floor: phase(floor, \"vote\", seconds, now, { question, answers, counts: null, set: { ...zone.set, index } }), cards: [...cards, told] };",
+      "failure_scenario": "A player whose student has no token in the hall picks Zone A on question 1 of a three-question Logic Dive; on questions 2 and 3 no window comes, the student is still counted in Zone A, and that one count can make the tie or the wrong majority that ends the set.",
+      "expected": "The window offered again at each new question (or a control to change the pick while the vote runs), or the picks cleared with the question.",
+      "confidence": "read",
+      "refutation_tried": "git grep requestTrialSide and 'trial.side' in scripts/ (one caller, offerSidePick; the bridge row and its run); read zone-machine.mjs phase() and diveQuestion for a reset of picks or openedAt (none; zoneStart alone sets both, :161); looked for another side control in the HUD and the Events panel by the request's name (none); docs/dev/e73/STATUS.md:24-25 and both handbooks say only that such a participant 'gets a window to pick a side'; no owner's decision for once a set was found.",
+      "probe": "Scenario 68's fixture with one participant's student left without a hall token: start a Logic Dive of two questions (game.drpg.startLogicDive), on that player's page press `.drpg-side-pick footer button[data-action=\"a\"]`, let question 1 be judged right, then read on that page `document.querySelector(\".drpg-side-pick\")` (by this reading: null) and on the GM `await game.drpg.zoneSides()` (the student still in a)."
+    },
+    {
+      "id": "controls-02-trial-zones-verdict-2",
+      "severity": "minor",
+      "verdict": "silent",
+      "title": "Cancel, the X or Escape on the side-pick window leaves the participant with no way to pick in that mode, and nothing says so",
+      "surface": "Side-pick window of a participant with no token in the hall",
+      "control": "Cancel (and the header's close)",
+      "where": "scripts/trial-zones-ui.mjs:441, :454",
+      "what_happens": "pickOpenFor is set before the window is drawn. A Cancel, the header's close or Escape answers 'cancel' or null and the function returns with no notice. Every later render of the floor finds pickOpenFor equal to the key and returns at :438, and no other control asks 'trial.side', so the student stands on neither side until the mode ends; a reload of the page, which clears the module's memory, is the one road back (read in the code). The ballot's same case tells the player and leaves the GM 'Send another ballot'.",
+      "evidence": "    pickOpenFor = key;\n// ... the window is drawn and waited for ...\n    if (asked !== \"a\" && asked !== \"b\") return;",
+      "failure_scenario": "A participant with no hall token presses Escape as the window opens during a Straw Poll: no notice, no window again, and the console lists their student under 'In neither zone' for that count.",
+      "expected": "A notice as the ballot's, and a way back: the window offered again, or a control of the player's or the GM's that opens it.",
+      "confidence": "read",
+      "refutation_tried": "Looked for a second caller of offerSidePick (onZoneFloor alone, :563), for a write that clears pickOpenFor (none), for a GM's resend like the vote's remind (none for the sides), and for a notice on this road (none; the only notice is DRPG.Zones.pick.done after a yes, :457).",
+      "probe": "On a token-less participant's page during a Straw Poll press `.drpg-side-pick footer button[data-action=\"cancel\"]`; move the floor from the GM (the bar's +30 s) so the floor renders again; read on the player's page `document.querySelector(\".drpg-side-pick\")` (null) and the notices shown (none)."
+    },
+    {
+      "id": "controls-02-trial-zones-verdict-3",
+      "severity": "minor",
+      "verdict": "stale-state",
+      "title": "Save the set judges the form after the editor has closed: an incomplete set is refused by a toast and everything typed is gone (Enter in any field presses Save)",
+      "surface": "Logic Dive set editor",
+      "control": "Save the set (the picker's Start has the same shape)",
+      "where": "scripts/trial-zones-ui.mjs:215-222, :138-144 (the picker: :310-324 with scripts/trial-zones.mjs:261-272)",
+      "what_happens": "The primary's callback only reads the form (readSetForm) and the window closes on that press; saveDiveSet then asks setRefusal and, for a set with no name, no question, a blank answer or an unmarked right answer, warns and answers null. The button is enabled whatever the form holds, and as the footer's first submit button it is what Enter in any of the 17 text fields presses. Nothing keeps what was typed: New set opens empty again and Edit opens the stored set. The picker's Start is judged the same way after its window closed (zoneArgsRefusal), with a question and two answers at stake.",
+      "evidence": "    if (!asked || asked === \"cancel\") return null;\n    return saveDiveSet(id, asked);\n// saveDiveSet, :140-144\n    const refused = setRefusal(set);\n    if (refused) {\n        ui.notifications.warn(refused);\n        return null;\n    }",
+      "failure_scenario": "A GM types a set's name and four questions, leaves one 'Right answer' unmarked (or presses Enter after the name), and the window closes on 'Mark the right answer of every question.': the set is not saved and the text is gone.",
+      "expected": "The refusal made while the window is open - Save held with the reason, as the ballot holds Cast and the verdict holds 'They got it wrong' - or the editor opened again with what was typed.",
+      "confidence": "read",
+      "refutation_tried": "Looked for a check inside the callback (readSetForm only reads), for `required` on the fields (none), for a reopening with the typed values after a refusal (editDiveSet hands back saveDiveSet's null; the list's handler only redraws the list, :351-353). The Save tooltip does name what a set needs (DRPG.Tips.Sweep.Trial.diveSetSaveTooltip), which warns and holds nothing. That a footer press closes a DialogV2 before the wait answers is the kit's statement (ui-kit.mjs:201-206) and the harness's model (shim.mjs:1732), not read off v14's source.",
+      "probe": "`await game.drpg.editDiveSet()` on the GM, type a name only, press `footer button[data-action=\"save\"]`: the window is gone, one warning notice, and `game.drpg.openDiveSets()` lists no new set."
+    },
+    {
+      "id": "controls-02-trial-zones-verdict-4",
+      "severity": "nit",
+      "verdict": "silent",
+      "title": "Start with Logic Dive picked and no set closes the window and says nothing",
+      "surface": "Hall zones window (the zone picker)",
+      "control": "Start",
+      "where": "scripts/trial-zones-ui.mjs:322",
+      "what_happens": "With no set in the store the Logic Dive fields draw 'No Logic Dive set yet.' and no select, so the callback reads setId as an empty string. openZonePicker then answers null without calling startLogicDive, whose own check would have said 'Pick a Logic Dive set.' (trial-zones.mjs:250). The window closes and no notice is shown.",
+      "evidence": "    if (asked.mode === ZONE_MODES.dive) return asked.setId ? startLogicDive(asked.setId) : null;",
+      "failure_scenario": "A GM picks Logic Dive with no set saved (or with the list stale, finding 5) and presses Start: the window closes, no mode starts, no notice.",
+      "expected": "Start held with its reason while Logic Dive has no set, or the warning DRPG.Zones.noSet.",
+      "confidence": "read",
+      "refutation_tried": "The body does say 'No Logic Dive set yet.' before the press, which is the only word on it; startZone's warnings are not reached on this road (trial-zones.mjs:261-277 is never called); the one test that opens the picker (tier 2 'planned minigames ...') has a set.",
+      "probe": "In a Class Trial with zones and an empty diveSets store: `game.drpg.openZonePicker(\"dive\")`, press `footer button[data-action=\"start\"]`; read the notices (none) and `game.settings.get(\"danganronpa-rpg\", \"trialQueue\")` (unchanged)."
+    },
+    {
+      "id": "controls-02-trial-zones-verdict-5",
+      "severity": "minor",
+      "verdict": "stale-state",
+      "title": "The picker's set list is drawn once: a set made, changed or deleted through its own 'Logic Dive sets...' button is not in the picker until it is opened again",
+      "surface": "Hall zones window (the zone picker)",
+      "control": "Set (and Start, which reads it)",
+      "where": "scripts/trial-zones-ui.mjs:287-290, :305 (pickerHtml :241-272 reads diveSets() once)",
+      "what_happens": "The button opens the sets' window beside the picker, which stays open with the select and the replay warnings it drew at its opening. openZonePicker passes no live option and nothing repaints the select when the store changes. A new set cannot be chosen, a deleted set can still be chosen (Start then finds no question and warns 'The mode did not start...'), and a set whose questions changed keeps its old count in the option.",
+      "evidence": "        body: pickerHtml({ mode: isZoneMode(mode) ? mode : ZONE_MODES.straw, plan }),\n// ...\n            root.querySelector(\"[data-drpg-dive-edit]\")?.addEventListener(\"click\", () => openDiveSets().catch(err => error(\"The Logic Dive sets did not open\", err)));",
+      "failure_scenario": "A GM opens Hall zones on Logic Dive, presses 'Logic Dive sets...', writes a set and saves it; back in the picker the text still reads 'No Logic Dive set yet.' (or only the older sets are listed), and Start does nothing (finding 4) or starts an older set.",
+      "expected": "The select and the warnings drawn again when the sets' window closes or the store changes, or the picker closed when the sets' window opens.",
+      "confidence": "read",
+      "refutation_tried": "Looked for `live:` in openZonePicker (none), for a hook or a store watch in the file that redraws the picker (none: paint only toggles `hidden` and the hint, :294-303), and for the picker closing on the button (the listener only opens the other window).",
+      "probe": "With an empty diveSets store open the picker on Logic Dive, press `[data-drpg-dive-edit]`, then 'New set', fill one valid question and save; read the picker's `select[name=\"setId\"]` (absent) and its text ('No Logic Dive set yet.')."
+    },
+    {
+      "id": "controls-02-trial-zones-verdict-6",
+      "severity": "nit",
+      "verdict": "silent",
+      "title": "Save on a Finding's words does nothing and says nothing for an empty field or unchanged words, and a Finding typed as the word cancel is read as Cancel",
+      "surface": "A Finding's words (one-field window)",
+      "control": "Save",
+      "where": "scripts/trial-zones-ui.mjs:385-388, :409, :420; scripts/trial-zones.mjs:412-413, :425-426",
+      "what_happens": "Save answers the field's text and Cancel answers its action, 'cancel', so askFindingText tells them apart by the string alone. An empty text is handed on: addFinding is not called (:420) and editFinding answers false for empty or unchanged words (:426), each with no notice, after the window has closed. A text of exactly 'cancel' is dropped at :388.",
+      "evidence": "    return typeof out === \"string\" && out !== \"cancel\" ? out : null;\n// trial-zones.mjs:426\n    if (!row || !words || words === row.text) return false;",
+      "failure_scenario": "A GM presses Edit on a Finding, clears the field and presses Save: the window closes, the Finding stands as it was, no card and no notice.",
+      "expected": "Save held while the field is empty, or a notice; Cancel told apart from a text by its own answer.",
+      "confidence": "read",
+      "refutation_tried": "Read the callback (`?? \"\"`: an empty field is a string, not a cancel), both callers' guards and the two writers for a notice on these roads (none; the public card is posted only after a write, trial-zones.mjs:400-404).",
+      "probe": "`game.drpg.openFindings()` with one Finding; press its `[data-drpg-finding-act=\"edit\"]`, empty the field, press `footer button[data-action=\"ok\"]`; read the record's findings, the chat and the notices (all unchanged)."
+    },
+    {
+      "id": "controls-02-trial-zones-verdict-7",
+      "severity": "nit",
+      "verdict": "silent",
+      "title": "Apply with nobody as the Mastermind and a room picked stores nothing and says nothing",
+      "surface": "The Mastermind window",
+      "control": "Apply",
+      "where": "scripts/mastermind.mjs:559-568",
+      "what_happens": "With no Mastermind set the window still offers 'The Mastermind's room'. Apply with '- nobody set -' returns before the room is read, though the GMs' record keeps the room apart from the pick (setMastermindLair :281-286). The window closes with no notice, and opened again the room reads '- no room -'.",
+      "evidence": "    const who = result.who ?? null;\n\n    if (!who) {\n        if (current) {\n            await clearMastermind();\n            ui.notifications.info(game.i18n.localize(\"DRPG.Mastermind.cleared\"));\n        }\n        return null;",
+      "failure_scenario": "A GM setting a season up picks the room first, leaves the Mastermind for later and presses Apply: nothing is stored and nothing tells them.",
+      "expected": "The room stored, or a line that a room needs a Mastermind first.",
+      "confidence": "read",
+      "refutation_tried": "Read setMastermindLair (the record can hold a room with no pick), the who select's tooltip ('Applying with nobody set clears the Mastermind', which says nothing of the room) and the room's note; no notice is posted on this road.",
+      "probe": "With no Mastermind set: `game.drpg.mastermindDialog()`, choose a room in `select[name=\"lair\"]`, press `footer button[data-action=\"save\"]`; read the notices (none), then open the window again and read the select ('- no room -')."
+    }
+  ],
+  "not_established": [
+    "Every reading here is the source's (and the tests' and scenarios' named per control); no harness run, probe or real Foundry was used by this reader. audit/gate/local-gate.json for 1.2.118 lists its 8 parts as not-run (no server), so the tier 2 tests cited are not a reading on a real Foundry for this commit.",
+    "Whether Foundry v14's DialogV2 keeps a `<form>` the content brings as a nested form. The module's windows write `<form>` in their bodies and hand DialogV2 a bare div (utils.mjs dialogContent); the harness's DialogV2 parses that into its own form (shim.mjs:1740-1745) and the kit's notes on Enter assume one form. verdict.mjs read (:350-363) asks the window's first form for `executed` and `blackened` by name, which resolves only if the fields belong to that form. A reading that settles it: on a real v14 open the verdict window and evaluate `document.querySelectorAll(\".application.drpg-panel form\").length` and `document.querySelector(\".application.drpg-panel form\").executed`.",
+    "The side-pick window, the Logic Dive sets list, the set editor's Save, the Findings rows and the mask question are pressed by no test, scenario or probe found (git grep of their selectors in scripts/tests*.mjs and audit/harness: 0 hits; docs/dev/e73/STATUS.md:213 for the side-pick window); findings 1-6 are source readings, each with the press that would confirm it.",
+    "Season setup's Save held by the scenes part when the trial hall is changed during a running trial: the reason is put on the disabled button as aria-label with an empty data-tooltip (season-setup.mjs:1280-1290) and is not a line of the warnings box (trial-scene.mjs:1513-1521 draws only the same-scene clash there). Whether Foundry's tooltip shows over a disabled button at a table is not read (ui-kit.mjs:112-114 says v14's tooltip over a disabled button was not tried); season-setup.mjs is another reader's file.",
+    "The mask question is asked from a token's redraw (refreshToken, mask-gm.mjs:692-695) or at ready: on a browser that draws no canvas, or shows a scene none of whose tokens is redrawn, when the question and the voice tile's button appear was not established (LIVE-E69-05's ground).",
+    "The Mastermind window's Give writes to the Mastermind read when the window opened (wireMastermindGive's `current`, mastermind.mjs:697), while the readout redraws from the record as it is now (:521-523): after another GM changes the pick under an open window the two differ. A two-GM road, belonging to the windows' refresh pass; not followed further.",
+    "trial-scene.mjs was read in part (640-789, 900-1019, 1210-1718 of 1718 lines: the doors, the scenes part and its Apply); its hall staging, cast store and token watches hold no control and were not read whole."
+  ]
+}

@@ -1,0 +1,405 @@
+{
+ "reader": "domain-case-b-traces",
+ "files_read": [
+  {
+   "file": "scripts/cleanup.mjs",
+   "lines": 3005,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/cleanup-reshape.mjs",
+   "lines": 803,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/remnants.mjs",
+   "lines": 3366,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/remnant-ring.mjs",
+   "lines": 859,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/remnant-icons.mjs",
+   "lines": 261,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/remnant-ghosts.mjs",
+   "lines": 60,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/key-remnants.mjs",
+   "lines": 1319,
+   "read": "whole"
+  }
+ ],
+ "neighbours_followed": [
+  "scripts/bridge-table.mjs (rows cleanup.traces 116-122, murder.cleanup 567-587, keys.charge 1154-1160, cleanup.ruling 1517-1529)",
+  "scripts/bridge-runs-acts.mjs (handleCleanupTraces 71-74, handleCleanup 911-974)",
+  "scripts/bridge-runs-records.mjs (handleRemnant 109-167, handleKeysCharge 736-739, handleReshapeRuling 899-903)",
+  "scripts/bridge-asks.mjs (askReshapeRuling 727-739, requestCleanableTraces 858-870, requestCleanup 1043-1057)",
+  "scripts/bridge-guards.mjs (as.id / as.text / as.gmFlag 1508-1520, the queue 1787-1826, REASON cannotFrame 342)",
+  "scripts/action-tamper.mjs (whole, 260 lines: chooseTamper, runTamperChoice, performTamper)",
+  "scripts/action-rolls.mjs (the action gate's incident branch 236-262)",
+  "scripts/reroll.mjs (replayRefusal 408-437, settleCleanup 1648-1719)",
+  "scripts/roll-draw.mjs (listedFor 1939-1987, cleanupStepOf 2010-2012)",
+  "scripts/sheet-audit.mjs (REFUNDS 216, itemsHeldNow 786-796, actorAsHeld / actorHeldNow 865-876, creditRefund 1070-1083, gmLedger 1618-1629, meansFindings 1715-1760, gainVerdict / coverOf 1769-1788, the flagged card 2564-2573)",
+  "scripts/resource-guard.mjs (WRITE_REASONS, JUDGED, stampOf 265-325)",
+  "scripts/incident-store.mjs (readCast 176-184, murderState 187-191, killerIds 1026-1031, knowsOfDeath 1233-1238, blackenedIds 1657-1670)",
+  "scripts/murder-rules.mjs (freshIncidentState's fields, spendFreeCleanup 2944-2949, the close's recordCaseKeys 3546-3549)",
+  "scripts/movement.mjs (locateActor / walkerOrBody / chosenPlace 3647-3683, sameRoom 3727-3734, isCorpseToken 1635-1638)",
+  "scripts/spectator.mjs (isCubToken, isMonocubCorpse 51-62), scripts/spectator-dead.mjs (the watcher's token, 215-242)",
+  "scripts/body-tile.mjs (header 1-45, followBody's hook 345)",
+  "scripts/observe.mjs (mintFindCopy 1102-1162)",
+  "scripts/visibility.mjs (applyToRemnantToken 709-724)",
+  "scripts/utils.mjs (whisperToOwner / whisperToGms 751-768)",
+  "scripts/messenger-app.mjs (the card buttons' claim 765-796, ruleApproveReshape / ruleDeclineReshape 1077-1094, ruleKeyRemnantHere 1363-1371)",
+  "scripts/call-gm.mjs (ask cards' expiry 76-84, 173-187)",
+  "scripts/gm-store.mjs (patch: undefined is ignored, 343-352)",
+  "scripts/gm-panel.mjs (nextStep's investigation branch 905-928), scripts/events.mjs (the GM's body line 630-648), scripts/investigation.mjs (caseKeyPanel 912-935, the facade's re-export 50-51), scripts/case-realize.mjs (realizationLines 41-45)",
+  "scripts/death.mjs (livingStudents / livingStudentsForGm 22-30)",
+  "scripts/config.mjs (KEY_REMNANTS 1358-1412, RESOLUTION_STRESS_COST 1452, MURDER_OPENING.keyRemnants 3689, CLEANUP 4482-4829)",
+  "scripts/settings.mjs (lockPlayerResources 3150-3159)",
+  "scripts/tests-tier2.mjs (the tests named in tests_near: 22463-22498, 23260-23340, 36670-36720, 41664-41720, 103693-103740), scripts/tests-tier1.mjs (R3950, 60226-60270), audit/harness/scenarios/30-security.mjs (7n', 3021-3049), 83-roll-integrity.mjs (L9, 491-546), 13-murder-signals.mjs (687-705)",
+  "lang/en.json and lang/pl.json (the DRPG.Cleanup.*, DRPG.Tamper.*, DRPG.Bridge.why.*, DRPG.Events.bodyMetaGm, DRPG.Panel.next* strings these files format)",
+  "docs/dev/e101/REVIEW.md (V3, lines 182 and 222), docs/handbooks/gm-handbook.en.md (249, 1197-1222), audit/findings-1.2.42/core.md (CORE-19)"
+ ],
+ "strengths": [
+  "One resolver behind both doors: the Stage 6 panel and the Tamper tile end in the same attemptCleanup / resolveCleanup, the door a packet's claim that only swaps one guard for another (scripts/cleanup.mjs:28-58, 1102-1107).",
+  "A price a packet says was paid comes back only as far as the GMs' credit holds it, on every road that gives anything back - a refusal, a critical, the free attempt (scripts/cleanup.mjs:2354-2367, paidBack).",
+  "The clean-up receipt is a GM store written before the attempt changes anything and counts only the attempt's own Sanity writes, so a Reroll survives an F5 and takes back no one else's marks (scripts/cleanup.mjs:1178-1193, 2233-2245; scripts/cleanup-reshape.mjs:45-68).",
+  "A reshape is a proposal: the words are kept on the attempt's row before the card exists and one synchronous claim rules it once, on the primary (scripts/cleanup-reshape.mjs:492-494, 565-579).",
+  "A player's words are cut at the boundary (tags, both angle brackets, runs, length) and escaped again where printed (scripts/cleanup-reshape.mjs:292-305, 397-399).",
+  "A player's Remnant packet is rebuilt from what the GM knows - who, where, Faint, tie, what it points at - and only band, action and words are taken from it (scripts/remnants.mjs:882-913).",
+  "The answer key is off the tokens: a token carries isRemnant and, while its incident runs, fromIncident; remnantData answers null on any browser that is not a GM's (scripts/remnants.mjs:551-556, 1930-1947).",
+  "One read of traces: every reader goes through a frozen ref built from the token and its row, and a row with no token is no ref (scripts/remnants.mjs:3207-3245).",
+  "The tie's three states and its wait for a death nobody has found are written and read through one pair of functions (scripts/remnants.mjs:1912-1914, 2394-2402, 2412-2416).",
+  "setRemnantPublic writes only the fields its caller named and sends the copies only what actually changed (scripts/remnants.mjs:1438-1457).",
+  "migrateRemnantToken reads the row back from storage before it strips anything from a token (scripts/remnants.mjs:2954-2962).",
+  "Rings, icons and names are drawn on each browser from what that browser may know; no document write, and a ring is kept while its frame key stands (scripts/remnant-ring.mjs:682-706; scripts/remnant-icons.mjs:169-192).",
+  "The Key fee is one rule, counted over the items the GMs hold after one wait, held when an answer key is missing, and charged on the primary whichever GM opened the trial (scripts/key-remnants.mjs:626-652, 720-727, 777-780).",
+  "setKeyPlan writes a slot's field only when it differs from what the window was drawn from, so two GMs' saves do not take each other back (scripts/key-remnants.mjs:193-216).",
+  "A failed cover roll is told to the owners of the witnesses in the room and the GMs, not the table (scripts/cleanup.mjs:1444-1467).",
+  "The body's reach is one function for the picker and the resolver, and the packet's room is held to it (scripts/cleanup.mjs:2723-2748, 1956-1958).",
+  "No function over 300 lines in the seven files, measured by espree over 511 functions; the four of 150-300 are placeRemnant (scripts/remnants.mjs:331, 262 lines), undoLastCleanup (scripts/cleanup.mjs:2082, 189), attemptCleanup (scripts/cleanup.mjs:559, 173) and resolveCleanup (scripts/cleanup.mjs:1082, 171)."
+ ],
+ "findings": [
+  {
+   "id": "domain-case-b-traces-1",
+   "domain": "CASE",
+   "severity": "major",
+   "category": "leak",
+   "title": "The GM scores a clean-up 3 lower for a body the roller's player may not know: the 1.2.110 V3 filter is skipped on the scoring road",
+   "where": "scripts/cleanup.mjs:811 and 1169-1172 (the verdict is scored with `held`); scripts/cleanup.mjs:451-453 (the filter asks `actor.testUserPermission`); scripts/sheet-audit.mjs:872-875 (`actorHeldNow` answers id, name, type and items only)",
+   "what_happens": "resolveCleanup scores the attempt with cleanupVerdict(held, ...), where `held` is sheet-audit.mjs actorAsHeld's stand-in: a plain object with id, name, type and items. cleanupVerdict calls cleanupDc(data.visibility, held), which calls freshSceneBonus({ actor: held }) and so unfoundBodyIn(chapter, undefined, held). There `actor.testUserPermission?.(user, \"OWNER\")` is undefined for every user, `players` is empty, and the GM counts its whole deaths store - the branch written for a character no player owns. The roller's own browser (the briefing, the list's `dc` from cleanableTracesForPlayer, the roll window) reads only the deaths that user may know, so with a body of this chapter unfound and unknown to the roller the window says N and the GM scores against N - 3. This is the state the 1.2.110 review's V3 described and commit 8a6d9bd8 was written to close.",
+   "evidence": "cleanup.mjs:1169  const held = await actorAsHeld(actor);\ncleanup.mjs:1172  const verdict = cleanupVerdict(held, data, { total, isCritical, withHope, mode });\ncleanup.mjs:811   const base = cleanupDc(data.visibility, held);\ncleanup.mjs:452   const players = (game.users ?? []).filter(user => !user.isGM && actor.testUserPermission?.(user, \"OWNER\"));\ncleanup.mjs:453   if (players.length) rows = Object.fromEntries(Object.entries(rows).filter(([id, row]) => players.some(user => knowsOfDeath(user, id, row))));\nsheet-audit.mjs:874  return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,\nsheet-audit.mjs:875      items: Object.assign([...items], { get: id => items.find(item => item.id === id) }) };",
+   "failure_scenario": "The GM closes a murder at night and nobody has found the body; next morning an uninvolved student Tampers an Evident trace they found: the window says 15, they roll 13, and the card says the Remnant is gone - a hit below the number shown, which tells that player a body of this chapter lies unfound.",
+   "expected": "One number on both browsers: scripts/cleanup.mjs:442-447 says a GM counts 'only the rows one of that character's players may know, by the same rule the copy is built by, so both browsers read one number', and docs/dev/e101/REVIEW.md V3 (line 222) records that as fixed.",
+   "fix_sketch": "Score the fresh scene with the actor document (keep `held` for the tool's tier only), or give actorHeldNow the document's testUserPermission; then drive the V3 test through resolveCleanup, not cleanupDc.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another caller that scores with the document: cleanupVerdict is the only scorer (cleanup.mjs:800-824) and resolveCleanup its only caller, with `held` since commit 0851a0a1 (E29 fix r2-H20), five weeks before V3. actorHeldNow (sheet-audit.mjs:872-876) builds the same plain object on every GM, primary or not. The incident branch does not hide it: with an incident running both sides give the -3, so the difference exists exactly between an incident's close and the discovery (bodyDiscovery() is false, no murderState). resolveStageSix does not use the fresh scene, so only Erase and Reshape are touched. The roller who does know of the body (the killer, a witness) reads the same number on both sides.",
+   "tests_near": "Tier 2 '1.2.110 V3 - a Tamper's fresh scene counts on the GM only the unfound bodies its roller's player may know' (scripts/tests-tier2.mjs:103693) and scenario 30-security's 7n' (audit/harness/scenarios/30-security.mjs:3021-3049) both call cleanupDc(visibility, <the actor document>); the test's note calls that 'the scoring's own road', but resolveCleanup hands cleanupDc the held stand-in, so neither reads what is scored. Tier 1 R3950 (scripts/tests-tier1.mjs:60226, 60269) asks freshSceneBonus by arguments and reads cleanupDc's text.",
+   "live_check": "One GM, one player P whose character is not in the incident: run an incident to a death, close it, do not discover the body, stay out of the Investigation; P Tampers a found trace bare-handed. Compare the roll window's number with 'against DC' on the GMs' Clean-up card: they should be equal."
+  },
+  {
+   "id": "domain-case-b-traces-2",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A critical cover roll clears a Sanity mark on the roller's own browser as a refund of nothing: the GMs' audit flags it, or it eats another payment's credit",
+   "where": "scripts/cleanup.mjs:1420-1421 and 2540-2546 (concealFromWitnesses -> restoreStress, reason \"refund\"); scripts/config.mjs:4826 (conceal.refundStress.critical: 1); scripts/sheet-audit.mjs:1776-1781 (a refund is covered by credit alone) and 1769-1773 (an uncovered Sanity gain is flagged)",
+   "what_happens": "With a witness in the room, attemptCleanup and attemptStageSix roll the cover first, on the roller's browser. On a critical the cover costs nothing (cost stays 0) and restoreStress then lowers the roller's Sanity marks by 1 through trustedWrite with reason \"refund\". On the primary GM a player's refund is covered only by credit a payment left in the last 30 minutes (REFUNDS, coverOf, CREDIT_KEPT_MS = TIMING.rerollWindowMinutes). The cover roll itself paid nothing, so with no recent Sanity payment the gain is uncovered and, with lockPlayerResources on (the default), goes out as a flagged write with Undo and Keep; with a recent payment it silently takes that payment's credit, which a Reroll's give-back of that payment would then find gone. The main roll's critical was moved off this pattern in T-1 and r2-G8 (handBack / paidBack hand back the step that paid, on the GM, as far as the GMs saw it paid); the cover roll's was not.",
+   "evidence": "cleanup.mjs:1420  const refund = hidden ? (def.refundStress?.[band] ?? 0) : 0;\ncleanup.mjs:1421  if (refund) await restoreStress(actor, refund);\ncleanup.mjs:2544  await trustedWrite(actor, {\ncleanup.mjs:2545      \"system.resources.stress.value\": Math.max(0, marks - amount)\ncleanup.mjs:2546  }, { reason: \"refund\" });\nsheet-audit.mjs:1778  if (REFUNDS.has(stamp.reason)) {\nsheet-audit.mjs:1779      const covers = Object.fromEntries(Object.entries(gains).map(([key, gain]) => [key, takeCredit(credit, key, gain)]));",
+   "failure_scenario": "A student carrying one Sanity mark since the morning Tampers in front of a classmate and rolls a critical on 'Hide what you are doing': the mark is cleared, and the GMs get a flagged-write card about that student's Sanity with Undo and Keep, for an outcome the module's own table gave.",
+   "expected": "A legal road raises nothing at the GMs' audit (the repository's trust-model rule file, trust-model.md, layer two; scenario 83's rule), and a give-back hands back what was paid: scripts/cleanup.mjs:2392-2396 records why the main roll stopped clearing 'a Sanity mark the attempt never made'.",
+   "fix_sketch": "Make the cover roll's give-back on the GM as the main roll's is (with the attempt's packet, through paidBack), or give nothing back where the cover cost nothing.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another cover of a refund-stamped gain in sheet-audit.mjs coverOf (1776-1788): REFUNDS take credit and nothing else; `rest`, `itemUse` and `call` are other reasons. gainVerdict (1769-1773) puts Hope back and flags Sanity under the lock, lists it without. settings.mjs:3156 registers lockPlayerResources true. restoreStress writes only when a mark stands (2542), so a roller with no marks is untouched. Whether the critical should clear a mark at all is the table's rule (config.mjs:4826) and is not questioned here; the write's place is. Not run: the road needs a roll forced critical on a player's page.",
+   "tests_near": "Tier 2 'a Tamper window closed after a landed concealment roll keeps its price ...' (scripts/tests-tier2.mjs:41664) lands a 30 with Hope, not a critical, on the GM's own browser. Scenario 83's L9 (83-roll-integrity.mjs:491-546) cleans up alone, so no cover roll is thrown. 13-murder-signals (687-705) reads the reason on the price's rise only. None drives a critical cover roll from a player's page.",
+   "live_check": "On the harness or a table: a player's character with 1 Sanity mark older than 30 minutes, a second student in the room; force the cover roll critical; read game.drpg.sheetWrites() and the GMs' chat for a flagged row on system.resources.stress.value."
+  },
+  {
+   "id": "domain-case-b-traces-3",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "leak",
+   "title": "A Tamper's result cards name the trace's real band and category to a roller who holds only an unanalysed copy",
+   "where": "scripts/cleanup.mjs:954-956 (the erase's line, whispered by report 2580-2592); scripts/cleanup-reshape.mjs:392-400 and 661-665 (the approved reshape's line); scripts/cleanup.mjs:788-790 (the reinforced refusal)",
+   "what_happens": "Through Tamper's door a trace is listed for a character who holds a copy of it, and since E05 C14 the list labels it by that copy's name and 'by nothing of the ledger' (cleanup.mjs:306-316), because the category is what an Analyze is paid for. The cards that follow the roll still print the ledger's reading: a successful erase whispers the roller 'The {visibilityLabel} {typeLabel} is gone.', an approved reshape whispers '{visibilityLabel} {typeLabel} now reads as ...', and a trace reinforced meanwhile is refused by the same two labels. The roller's own Truth Bullet keeps its answer key through the erase and the reshape, so the card hands them the category of a bullet they have not analysed.",
+   "evidence": "cleanup.mjs:954   done.push(game.i18n.format(\"DRPG.Cleanup.removed\", {\ncleanup.mjs:955       what: `${data.visibilityLabel} ${data.typeLabel}`\ncleanup.mjs:956   }));\ncleanup-reshape.mjs:392  done.push(game.i18n.format(\"DRPG.Cleanup.reshaped\", {\ncleanup-reshape.mjs:393      from: `${data.visibilityLabel} ${data.typeLabel}`,",
+   "failure_scenario": "An investigator who copied a trace and never analysed it erases it with Tamper and reads 'The Subtle Incident Remnant is gone.' - their neutral Truth Bullet is now known to be the incident's, with no Analyze.",
+   "expected": "Off Stage 6 a trace the character holds a copy of is named by that copy and by nothing of the ledger (scripts/cleanup.mjs:306-316, E05 C14, audit S05-14); Stage 6's killer keeps the whole label.",
+   "fix_sketch": "For a roller who is not Stage 6's cleaner, word these three lines with the copy's name (copyNamesOf) and keep band and category on the GMs' card.",
+   "confidence": "read",
+   "refutation_tried": "Checked who reads the card: whisperToOwner goes to the character's owners and the GMs (utils.mjs:751-758), veiled. Checked that the copy survives: an erase leaves copies (removeRemnant drops the row and the token only) and a reshape passes propagate: false (cleanup-reshape.mjs:390). The band alone is no news (a bullet shows its band, remnant-ring.mjs:482-501); the category is, until shownType leaves 'neutral'. An incident's own trace watched being made keeps its label by the comment's own rule, and a Key or a Final shows its kind on pickup, so the case is a Prep, Faint, Incident or Tamper trace found by somebody who was not in the incident. No owner's decision on the result cards was found in docs/dev, the handbooks or the release notes.",
+   "tests_near": "Tier 2 'Tamper names a trace of one's own by one's own copy, and the reshape card keeps its ruling for the GMs' (scripts/tests-tier2.mjs:36670) reads the list's row and reshapeCardParts only; no test reads the result card's words (git grep 'Cleanup.removed' over tests and scenarios: none).",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-b-traces-4",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "keyPlanStatus counts every plan slot as a Key Remnant: 'every planned Key Remnant has been found' never comes for a case of three or four, and the GM's line reads 'N of 5'",
+   "where": "scripts/key-remnants.mjs:131 (a plan always has at least five entries) and 525-533 (`missing`, and `entries.length` as the total); read by scripts/gm-panel.mjs:921-927, scripts/events.mjs:642-647, scripts/investigation.mjs:924-926",
+   "what_happens": "keyPlan() answers at least KEY_REMNANTS.scale.length = 5 entries whatever was written, and keyPlanStatus() reports `missing` as every entry not found - a slot nobody wrote and no trace stands on included. An opening on Despair gives a case four Key Remnants and a critical three (config.mjs:3689), and the realization leaves the slots at or past that limit unplaced as 'overLimit' (case-realize.mjs:45). So for such a case `missing` can never reach 0: the GM panel's next step stays 'The Investigation is running...' after the last Key is found, and the GM's body line on the Event card says for example '4 of 5 Key Remnants found' for a case whose four are all found. missingKeyRows in the same file already uses the other rule: a slot with nothing written and no trace is no Key Remnant (key-remnants.mjs:540-541, 555).",
+   "evidence": "key-remnants.mjs:131  const slots = Math.max(KEY_REMNANTS.scale.length, ...[...rows.keys()].map(slot => slot + 1));\nkey-remnants.mjs:532      missing: entries.filter(e => !e.found).length\ngm-panel.mjs:925   if (status?.entries?.length && status.missing === 0) {\ngm-panel.mjs:926       return { text: game.i18n.localize(\"DRPG.Panel.nextStartTrial\"), action: \"trial\" };\nevents.mjs:647     { found: status.foundAny, total: status.entries.length }, \"total\");",
+   "failure_scenario": "The killer's opening comes up with Despair, the GM places the case's four Key Remnants and the class finds all four: the panel never says 'Every planned Key Remnant has been found. Start the Class Trial', and the Event card tells the GM '4 of 5 Key Remnants found'.",
+   "expected": "docs/handbooks/gm-handbook.en.md:249: 'once every planned Key Remnant is found, start the Class Trial (Open the trial console)'; the case's own count is caseKeyCount (key-remnants.mjs:398-405).",
+   "fix_sketch": "Count as planned only the slots inside caseKeyCount that hold a trace or words (missingKeyRows' rule) and report that as the total.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether an unused slot can read as found: only a living finder of its trace or Monokuma's Reveal makes `found` (key-remnants.mjs:491-494). Checked whether the panel reaches the branch another way: nextStep's investigation branch has this one test (gm-panel.mjs:912-928). E109's D22 fixed the same miscount for the limit's line only (keyRowsUsed, key-remnants.mjs:153-161). The panel's 'N still to place' line above it is limit-aware (keysToPlace), so only the found side is off. For an opening with Hope and five placed the line does come.",
+   "tests_near": "None found: git grep for nextStartTrial and bodyMetaGm over scripts/tests*.mjs and audit/harness/scenarios finds nothing; the tier-2 tests that call keyPlanStatus read `found`, `placed` and `offPlan`.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-b-traces-5",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "leak",
+   "title": "A bystander's Misleading Trail aimed at the running incident's victim is refused with 'You cannot frame that student' - a name their own menu offered",
+   "where": "scripts/cleanup.mjs:1591-1596 (framingCandidates reads this browser's murderState) and 1778-1781 (the GM's refusal); scripts/incident-store.mjs:176-184 (a bystander's cast is {})",
+   "what_happens": "The Tamper tile's Frame row lists framingCandidates(actor) on the roller's browser: the living students but the roller, a Monokuma and murderState()?.victimId. A bystander's browser holds no cast, so the victim - alive in the opening or the fight, or dead and not yet published in Stage 6 - is on the list. The action gate locks the tiles only for the people in the fight (action-rolls.mjs:259), so the bystander pays the action, rolls, and the packet reaches resolveStageSix, where the same function runs on the GM with the whole cast, leaves the victim out and refuses. The bridge tells the roller 'You cannot frame that student.' and the step comes back. Nobody else the menu offers can be refused that way, so the refusal names the victim of an incident the bystander is kept out of.",
+   "evidence": "cleanup.mjs:1593  const victimId = murderState()?.victimId;\ncleanup.mjs:1594  return livingStudents()\ncleanup.mjs:1595      .filter(a => a.id !== actor?.id && a.id !== victimId && !isMonokuma(a));\ncleanup.mjs:1778  if (key === \"misleadingTrail\" && !(await framingCandidates(actor)).some(a => a.id === targetId)) {\ncleanup.mjs:1779      await refundStageSix(actor, \"cannotFrame\", price, grant, by);\ncleanup.mjs:1780      return { refused: \"that student cannot be framed\" };",
+   "failure_scenario": "While a murder runs in the Kitchen, a student elsewhere uses Tamper to frame a rival who happens to be its victim: after the roll they read 'You cannot frame that student.' and get their action back - and now know who is being killed, or already lies dead, before any body is found.",
+   "expected": "Who is in a running incident is kept from a bystander (incident-store.mjs:176-178; resource-guard.mjs:279-283 names this as E06's rule). The exclusion's own comment is about the killer: 'Framing the person lying dead in the room is a confession with extra steps' (cleanup.mjs:1587-1589).",
+   "fix_sketch": "On the GM, leave the victim out only for a roller who is in the incident's cast; let a bystander's trail at the victim stand like any other.",
+   "confidence": "read",
+   "refutation_tried": "Checked that a bystander can act while an incident runs: the gate refuses the nine tiles for WHY.incident, which is the fight's sides only (action-rolls.mjs:133-134, 259-262), and remnants.mjs:379-386 treats a witness's Search during an incident as ordinary. Checked the other reasons the GM's list can differ from the menu's: itself, a Monokuma and the published dead are the same on both browsers (livingStudents is the table's fact, death.mjs:23-25), so only the victim differs - or a student published dead while the dice were in the air. After the close murderState is null on the GM and the victim is listed again, so the window is the running incident. The refusal and the give-back are deliberate for the killer's road (E03, S05-40; E09 fix r2-G3).",
+   "tests_near": "Tier 2 'Stage 6's own refusals give the killer back the step they paid and no more' (scripts/tests-tier2.mjs:23260-23338) refuses the killer's trail at the killer themselves; no test sends a non-participant's trail at the victim.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-b-traces-6",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A Reroll puts an erased trace back hidden and unfound: its finders lose it from their maps and the row loses the find, the GM's words mark and the GM's band mark",
+   "where": "scripts/cleanup-reshape.mjs:101-138 (recreationDataFor keeps no hidden, foundAt, foundVia, incidentFound, gmEdited, gmBand); scripts/cleanup.mjs:2112-2127 (the put-back); scripts/remnants.mjs:535 and 651-654 (a placed trace is hidden, foundAt null)",
+   "what_happens": "A successful erase stores the trace's creation data in the receipt; a Reroll's undoLastCleanup places it again under its id with placeRemnant(data, { keepId: true }), which creates the token hidden (unless it is an incident's trace while its incident runs) and writes a fresh row with foundAt null. The receipt holds none of the found state, so a trace that had been found comes back hidden: visibility.mjs:713 leaves a hidden token to Foundry, and every holder of a copy stops seeing it. Nothing shows it to them again - mintFindCopy answers HELD for a holder before it reaches revealRemnantToFinder (observe.mjs:1104, 1149) - until a student with no copy finds it. The row also loses gmEdited (the next find whispers the GMs to describe a trace they already described) and gmBand. Through Tamper's door the eraser always holds a copy, so the roller is among those who lose it.",
+   "evidence": "cleanup.mjs:2118  const back = await placeRemnant(data, { keepId: true });\ncleanup.mjs:2126  await setRemnantSecret(back, { restored: true });\nremnants.mjs:535   hidden: !castSees,\nremnants.mjs:653   foundAt: null\ncleanup-reshape.mjs:110  _id: token.id,\ncleanup-reshape.mjs:111  x: token.x,\ncleanup-reshape.mjs:112  y: token.y,\ncleanup-reshape.mjs:113  sceneId: token.parent?.id ?? null,",
+   "failure_scenario": "A student erases a trace they had found, the roll is Rerolled into a miss: the card says the Remnant is still there, but its marker is gone from their map and from every other finder's, and the Traces tab reads it as never found.",
+   "expected": "scripts/cleanup.mjs:2075: 'Put the room back the way it was before this actor's last clean-up attempt.'",
+   "fix_sketch": "Keep hidden, foundAt, foundVia, incidentFound, gmEdited and gmBand in the receipt's `erased` and write them back (un-hide after the row is live).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a later un-hide: revealRemnantToFinder runs only where a new copy is made or a GM calls it (remnants.mjs:1577-1628; the API's revealRemnant), and retireIncidentTraces only hides. The comment at remnants.mjs:1595-1601 states the fact ('an erase's Reroll places it back hidden') while fixing what the next find did to the copies' words; it records no decision that hidden is wanted. The same put-back serves a declined reshape's erase (cleanup-reshape.mjs:710-711).",
+   "tests_near": "Tier 2 'a reshaped trace hidden again and found leaves the copies held' (scripts/tests-tier2.mjs:22463-22498) takes 'placed back hidden' as its starting state (a must) and then reveals the trace by hand; tier 2 at 22174-22201 holds the id and the live row of a trace put back. Neither asks what its finders see.",
+   "live_check": "LIVE: two players copy one trace; one erases it with Tamper, the GM Rerolls the roll into a miss; both players look for the marker on their maps."
+  },
+  {
+   "id": "domain-case-b-traces-7",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "Move the Body asks where the victim's walking token stands, not where the body lies",
+   "where": "scripts/cleanup.mjs:151-155 (bodyIsHere -> sameRoom(actor, victim)); scripts/movement.mjs:3647-3671 (locateActor answers a Monocub's walker unless asked for the body); scripts/cleanup.mjs:1970 (applyMoveBody then carries the corpse token)",
+   "what_happens": "bodyIsHere, asked on the killer's browser before Move the Body is paid and on the GM before it is resolved, compares the killer's room with locateActor(victim). For a victim who has become a Monocub that is the token it walks (walkerOrBody, body = false). applyMoveBody was taught the difference in the E62 C3b fix and picks the corpse (`!isCubToken(t)`), but its reach is still computed from the killer's room. So with the Monocub standing beside the killer the check passes and the corpse is teleported from wherever it lies on that scene into a room next to the killer; with the corpse beside the killer and the Monocub elsewhere the action is refused as 'the body is not here'. The other readers of a body's place ask for the body (events.mjs:625, body-tile.mjs:158).",
+   "evidence": "cleanup.mjs:151  export function bodyIsHere(actor) {\ncleanup.mjs:152      const victim = game.actors.get(murderState()?.victimId ?? \"\");\ncleanup.mjs:153      if (!victim) return false;\ncleanup.mjs:154      return sameRoom(actor, victim);\ncleanup.mjs:1970  const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id && !isCubToken(t)) ?? null;",
+   "failure_scenario": "The GM leaves Stage 6 open after the discovery and makes the victim a Monocub; the Monocub walks into the killer's room, the killer's Move the Body succeeds, and the corpse jumps from the far side of the school into the room next door.",
+   "expected": "scripts/cleanup.mjs:143-149: 'A body that cannot be placed is not here, and the action is refused before it is paid for'; movement.mjs:3661-3665: 'where it stands is the token it walks, where its body lies the other. `body` asks for the body'.",
+   "fix_sketch": "Compare the killer's place with locateActor(victim, { body: true }) (or body-tile.mjs bodyPlaceOf) in bodyIsHere.",
+   "confidence": "suspected",
+   "refutation_tried": "Read sameRoom and locateActor: no `body` is passed. A plain Spectator is another actor (spectator-dead.mjs), so only a Monocub victim has two tokens of the victim's actor. Not established: whether a GM can or does make the victim a Monocub while that incident is still open in Stage 6 - monocub.mjs has no test of the incident's state that I found, and the discovery can come while Stage 6 is open (destroyCleaningTools reads the running incident's killers, cleanup.mjs:2869-2872), but I did not trace the invitation's own conditions.",
+   "tests_near": "Tier 2 'Stage 6's own refusals ...' (23260-23338) and R3957 (bodyLanding) use a victim with one token; no test stands a Monocub victim in Stage 6.",
+   "live_check": "With Stage 6 still open after a discovery, make the victim a Monocub and walk it into the killer's room while the corpse lies in another; open the killer's Tamper menu and read whether Move the Body is offered, then roll it."
+  },
+  {
+   "id": "domain-case-b-traces-8",
+   "domain": "CASE",
+   "severity": "nit",
+   "category": "flow",
+   "title": "The erase road's one `refused` answer is not passed on by the bridge's run: the asker is answered as done",
+   "where": "scripts/cleanup.mjs:1208-1211 (resolveCleanup answers { refused }); scripts/bridge-runs-acts.mjs:973 against 938 (the Stage 6 road passes its own on, the erase road does not)",
+   "what_happens": "resolveCleanup refuses an attempt through Tamper's door whose packet claims no step it may and for which the GM finds no action to take, and answers { refused: 'nothing was carried out: no action was left to pay for it' }. handleCleanup tests only `!cleaned` on that road, so the object is read as an answer, nothing is returned, and the bridge replies ok; the same refusal from resolveStageSix is passed on two branches above. An honest browser reaches it only if the killer's Stage 6 begins while their Tamper menu, opened before it, is still open: the menu keeps viaAction true (action-tamper.mjs:235, 257) while chargeTamper, asked later, takes the killer's Sanity step (tamperPriceSkip), which validPrice does not accept on that door - the Sanity is spent on the roller's browser and no card says why nothing happened.",
+   "evidence": "cleanup.mjs:1208  if (viaAction && !paidStep) {\ncleanup.mjs:1209      await forgetAttempt(actorId);\ncleanup.mjs:1210      return { refused: \"nothing was carried out: no action was left to pay for it\" };\nbridge-runs-acts.mjs:938  if (result?.refused) return { refused: result.refused };\nbridge-runs-acts.mjs:973  if (!cleaned) return { refused: \"nothing was carried out: resolveCleanup cleaned nothing\" };",
+   "failure_scenario": "A console's Tamper packet with no price and no action left is answered ok and told nothing; in the rare honest crossing above, a killer loses a Sanity mark to an attempt that silently did not happen.",
+   "expected": "The repository's trust-model rule file (trust-model.md), step 3 of 'How to add a bridge action': a run 'refuses by returning { refused: \"<English reason>\" }' and 'never answers a done for nothing'.",
+   "fix_sketch": "In handleCleanup, pass `cleaned.refused` on as the Stage 6 branch does.",
+   "confidence": "read",
+   "refutation_tried": "Looked for an honest road that reaches line 1208 in ordinary play: the tile's browser pays an action and claims it (chargeTamper, payPrice with the Sanity step skipped), the killer's own Stage 6 says viaAction false, and the free attempt is taken before the test. Only a hand-written packet and the menu left open across the start of Stage 6 remain; the second is a timing I did not measure.",
+   "tests_near": "R164 holds a refusal's text to one REASONS code; nothing reads handleCleanup's answer for this text on the erase road (git grep 'no action was left to pay for it' over tests: the Stage 6 road's only).",
+   "live_check": ""
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "Stage 6's list hands the killer every trace in the room - other students' and reinforced Key Remnants included - with band and category.",
+   "source": "scripts/cleanup.mjs:164-171 and 237-239, 287-296 ('the guide opens the killer's eyes to the WHOLE room there, other people's traces included'; E03, 24.09.2026)"
+  },
+  {
+   "what": "The number to beat is shown in a Tamper's roll window before the dice.",
+   "source": "scripts/cleanup.mjs:206-213 (E16 part 2 C0, the owner's Q7 of 19.10: 'tak')"
+  },
+  {
+   "what": "Anybody else's Tamper costs 1 action and no Sanity, and with no action there is no Tamper; the killer's own Stage 6 costs 1 Sanity and no action.",
+   "source": "scripts/cleanup.mjs:1317-1322 (E64, the owner's answer of 12.11.2026) and 1484-1500 (D3, Dawid 17.09)"
+  },
+  {
+   "what": "The clean-up floor of 8, the fresh scene only with a killing, and the body carried two rooms on a critical are defaults taken and still marked 'owner to confirm'.",
+   "source": "scripts/cleanup.mjs:380-385, 415-423, 2715-2721; scripts/config.mjs:4487-4491, 4511-4516"
+  },
+  {
+   "what": "A reshape's decline gives nothing back, and a declined critical rewrite still erases.",
+   "source": "scripts/cleanup-reshape.mjs:466-470 and 692-704 (N-3, Dawid 21.09; review of stage D)"
+  },
+  {
+   "what": "A Reroll of a Misleading Trail or a moved body replays nothing: the trail or the body stands and the author's copy goes back.",
+   "source": "scripts/reroll.mjs:1654-1686 (E12; E70 C12, the owner's B1)"
+  },
+  {
+   "what": "A successful frame or body move hands its author a Truth Bullet of the trace it left.",
+   "source": "scripts/cleanup.mjs:1821-1828 (E70 C12, the owner's B1 of 27.10)"
+  },
+  {
+   "what": "An unfound trace is a hidden token every browser holds with its spot; a found one is un-hidden for everyone and hidden again per browser.",
+   "source": "scripts/remnants.mjs:561-566 (the owner's D38 = 1 of 03.11.2026; known-leaks S17-64) and 1566-1575"
+  },
+  {
+   "what": "The Remnant actor is OBSERVER by default and shows as one empty entry in a player's Actors directory.",
+   "source": "scripts/remnants.mjs:978-996 (B-F3-1)"
+  },
+  {
+   "what": "New traces are whispered to the GMs once a time of day; only a find of a trace no GM has written on is whispered at once.",
+   "source": "scripts/remnants.mjs:689-723 (E7; Dawid, 03.09)"
+  },
+  {
+   "what": "A band a GM changes on the card or the Traces tab does not mark the trace as edited by a GM.",
+   "source": "scripts/remnants.mjs:2196-2204 (E60 fix FG2; the owner's 'Domyslnie' of 03.11)"
+  },
+  {
+   "what": "The Key fee is charged per Monokuma, against min(4, the case's count), over the living finders; with an earlier chapter's case closed and none for the clock's chapter nothing is charged and the GMs are told.",
+   "source": "scripts/key-remnants.mjs:580-624, 689-711 (E09 C7, decision D14 option 1; trap 116); scripts/config.mjs:1389-1411"
+  },
+  {
+   "what": "Who left a trace is the GMs' information alone and reaches no token, item, card or copy.",
+   "source": "scripts/remnants.mjs:1243-1253 (E97 C1, the owner's Q1, Q2 and Q6 of 11.11)"
+  },
+  {
+   "what": "Bedrooms are never a destination for a carried body.",
+   "source": "scripts/cleanup.mjs:2700-2713 (Dawid, 29.08)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/cleanup.mjs:17-22",
+   "comment_says": "The threshold comes from 'a flag on a hidden token' and 'Their client picks a target and throws the dice; the number travels here'.",
+   "code_does": "The band lives in the GMs' ledger, not on the token (remnants.mjs:551-556), and the result is read off the GMs' record of a roll the GM drew: the bridge row is `rolled: { field: \"rollId\", actor: \"actorId\", kind: \"cleanup\" }` (bridge-table.mjs:577-578)."
+  },
+  {
+   "where": "scripts/cleanup.mjs:45-47, 548-551, 588-589, 1504-1506",
+   "comment_says": "Tamper's price on both roads is 'an action, or a Sanity mark when there is no action'.",
+   "code_does": "tamperPriceSkip (1316-1323) skips the Sanity step for everybody but Stage 6's cleaner since E64: an ordinary Tamper with no action left is refused, and validPrice (2288) takes no Sanity claim on that door."
+  },
+  {
+   "where": "scripts/cleanup.mjs:313-314",
+   "comment_says": "'only the running incident's own traces reach this list that way'",
+   "code_does": "The filter at 301-302 passes every trace of type incident in the room to a participant of the running incident (`t.data.type === \"incident\" && watched`), an earlier incident's tied trace in the same room included; cleanupRefusal (775) reads the same."
+  },
+  {
+   "where": "scripts/cleanup.mjs:1195-1197 and 1802-1807",
+   "comment_says": "A packet with no claim 'pays the Sanity here, as every packet used to' / 'then the Sanity is taken here, exactly as it was before'.",
+   "code_does": "chargeUnclaimed (2297-2304) takes an action through Tamper's door and the Sanity only on Stage 6's own road."
+  },
+  {
+   "where": "scripts/cleanup.mjs:826-858",
+   "comment_says": "Two indented blocks between cleanupVerdict and resolveTransformRoad; the first (G-20) says the rewrite is 'Checked before the removal' and 'Reinforced traces never get here: they are refused above, before the Sanity is spent'.",
+   "code_does": "The checks it describes are in resolveEraseRoad, 100 lines below (938-945); the price is paid on the roller's browser before the dice and given back by the refusal (783-791)."
+  },
+  {
+   "where": "scripts/cleanup.mjs:1748-1749",
+   "comment_says": "'the Tamper tile offers the trail alone (action-rolls.mjs, `attemptStageSix` with `viaAction`)'",
+   "code_does": "The call is action-tamper.mjs:162 since E41 C4; action-rolls.mjs holds no call of attemptStageSix."
+  },
+  {
+   "where": "scripts/cleanup.mjs:2585-2588",
+   "comment_says": "'a killer pays Sanity from the tile, and an investigator in Stage 6's window pays an action'",
+   "code_does": "Stage 6's window refuses anybody who is not its cleaner (openCleanupDialog, 2633; stageSixDef, 1566-1569)."
+  },
+  {
+   "where": "scripts/remnant-ring.mjs:302-303",
+   "comment_says": "'The window is 380 wide and has no footer'",
+   "code_does": "showRemnantCard sets the window to 480 (line 264, and the comment at 263 says '480 wide')."
+  },
+  {
+   "where": "scripts/remnants.mjs:1113",
+   "comment_says": "A doc comment 'Everything recorded on a Remnant, as a plain object.' stands alone above a section header.",
+   "code_does": "The function it describes, remnantData, is at line 1930; nothing follows the comment."
+  },
+  {
+   "where": "scripts/remnants.mjs:639-641",
+   "comment_says": "The row's `label` is 'Kept for the GM's own screens'.",
+   "code_does": "remnantData (1949-1997) does not return `label`, and no reader of a row's label was found in scripts/ (the migration's fill test at 2994-2997 apart)."
+  },
+  {
+   "where": "scripts/remnants.mjs:186-189",
+   "comment_says": "'the same leak `difficultyTag` exists to close on the finder's side'",
+   "code_does": "difficultyTag is gone (the block at 152-174 says so); git grep finds the name in these two comments only."
+  },
+  {
+   "where": "scripts/cleanup-reshape.mjs:275-277",
+   "comment_says": "'THIS IS THE ONLY FREE TEXT A PLAYER WRITES INTO THE WORLD in this module, so it is the only place that needs this'",
+   "code_does": "A player's Remnant packet's `note` and `subject` are kept in the ledger cut to 400 and 80 characters, without plainText (remnants.mjs:900-901); they are escaped where the GMs' cards print them."
+  },
+  {
+   "where": "scripts/tests-tier2.mjs:103693-103703 (beside finding 1)",
+   "comment_says": "The V3 test reads 'through the scoring's own road, `cleanupDc(visibility, actor)`'.",
+   "code_does": "The scoring hands cleanupDc the held stand-in, not the actor (cleanup.mjs:811, 1172)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 4,
+  "duplicated_helpers": [
+   "A ledger write repaints the icons twice: setRemnantSecret calls repaintRemnants itself (remnants.mjs:1239) and the clientSettingChanged hook calls it again for the same flush (remnants.mjs:1859-1863); setRemnantFlagsMany's note at 2287 already relies on the hook alone.",
+   "Names imported statically and again by import() inside functions of the same file: whisperToGms in remnants.mjs (static utils import at 22; import() at 258, 816, 839, 2087, 2345) and in cleanup.mjs (static at 86, shadowed at 1450); REMNANT_VISIBILITY_LABELS / REMNANT_TYPES in cleanup-reshape.mjs (static at 10, import() at 179 and 340); remnants.mjs's own exports in cleanup.mjs (static at 74; import() at 1016, 2114, 2125, 2144), cleanup-reshape.mjs (339) and key-remnants.mjs (1039).",
+   "The token's module flags read as `token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {}` four times in remnants.mjs (2778, 2843, 2935, 3089).",
+   "The four-band option list is built by bandOptions (remnants.mjs:604-608) and again by hand in key-remnants.mjs:1133-1135 and 1292-1293 and cleanup-reshape.mjs:187-190.",
+   "The eleven action names with a glyph are typed twice: GLYPH_ACTIONS (remnant-ring.mjs:277-278) and ACTION_ICONS (remnant-icons.mjs:52).",
+   "keyPlanStatus's `standing(id)` (key-remnants.mjs:486) walks every scene's refs for what sceneOfRemnant(id) (remnants.mjs:3277-3280) answers.",
+   "Two labellers of a trace's action, actionLabel (remnants.mjs:659-663) and actionLabelOf (681-684), which disagree on a project's (documented at 676-679)."
+  ],
+  "dead_code": [
+   "confirmClearFaint, scripts/remnants.mjs:2462 - `git grep -w confirmClearFaint -- scripts` finds its definition, a comment in investigation.mjs:358 and one test file; its own note says no button calls it since E64-inv. The drpgConfirm import at remnants.mjs:24 serves it alone.",
+   "archiveKeyPlan, scripts/key-remnants.mjs:227 - `git grep -w archiveKeyPlan -- scripts` finds the definition, the facade's re-export (investigation.mjs:51) and tests; nothing calls it.",
+   "GHOST_ALPHA's export, scripts/remnant-ghosts.mjs:18 - used in the file only (no importer in scripts/ or the tests).",
+   "The ledger row's `label`, written at scripts/remnants.mjs:450-455 and 641 (and by moveIntoLedger) - read by no screen found.",
+   "createKeyRemnant's `row.scale`, passed by placeInSlot (scripts/key-remnants.mjs:1217-1223) and never read in createKeyRemnant (1030-1092).",
+   "openCleanupDialog (scripts/cleanup.mjs:2632), revealRemnant (scripts/remnants.mjs:3302) and reportRemnants (scripts/remnants.mjs:2070) are reached from scripts/api.mjs alone (game.drpg), by no control."
+  ],
+  "magic_numbers": [
+   "The reshape's limits 60 and 400 are retyped as fallbacks beside CLEANUP.transformAction.limits nine times: cleanup.mjs:872-873, 939-940; cleanup-reshape.mjs:229-230, 240, 243, 638-639, 797-798.",
+   "A player's trace note and subject cut at 400 and 80 (remnants.mjs:900-901); an attempt's tag at 32 (cleanup-reshape.mjs:567).",
+   "remnant-ring.mjs: the saved mark's 1200 ms three times (321, 349, 370), the theme's 60 ms settle (162), the zoom step 0.18 and floor 0.05 (144-145), the card's 480 (264), the halo's blur `Math.max(6, seam * 6)` and padding `seam * 14` (789-791).",
+   "remnants.mjs: a quarter square for a trace's own spot (476) and spiralSpot's 25 and 8 (309); key-remnants.mjs: 24 tries in randomPointIn (999)."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Reshape card, Approve, scripts/cleanup-reshape.mjs:611-617 with messenger-app.mjs:1077-1085: on a trace that is gone the ruling answers null, the card stays open and every further press whispers the player 'already gone' again; Decline is the press that closes it.",
+   "Clean-up window (openCleanupDialog), scripts/cleanup.mjs:2632-2682: no sheet or panel control opens it since Stage 6's panel became rows of the Tamper menu (action-tamper.mjs:220-221); only game.drpg.cleanupDialog (api.mjs:934).",
+   "Clear Faint Remnants' confirm (confirmClearFaint), scripts/remnants.mjs:2462-2485: a window with no caller.",
+   "Create a Key Remnant here, scripts/key-remnants.mjs:1206-1208: with no room in the select the primary button closes the window and nothing is said (placeKeyRow warns noRooms at 1274-1277); and it has no 'placed meanwhile' test where placeKeyRow has one (1309-1314), so a slot another GM filled while the window stood open is repointed and the first token left off the plan.",
+   "Tamper menu, the road chosen at open: scripts/action-tamper.mjs:235 and 257 read Stage 6 before the menu opens and use it after it closes (see finding 8)."
+  ],
+  "stale_windows": [
+   "A player's Remnant card, scripts/remnant-ring.mjs:252-257: keepLive watches items, tokens and remnantStore, but the card reads myBulletForRemnant, which also depends on the owner's copy of the bullets' refs (the hook drpgBulletRefsChanged, remnant-icons.mjs:257-260); a card opened before that copy arrives keeps the 'Observe the room' placeholder until another item changes.",
+   "A GM's Remnant card, scripts/remnant-ring.mjs:245: every renderActorSheetV2 of the trace's sheet replaces the body's innerHTML outside keepLive's focus rule, so a re-render of the sheet (a token update of that trace) while a GM types drops the unsaved field; and each render sets the window back to 480 wide (264).",
+   "One-shot windows built from a reading at open and not redrawn: the Clean-up picker's trace list and `dc` (cleanup.mjs:2636-2681), Move the Body's rooms (2767-2802), the Tamper menu's erasable list (action-tamper.mjs:237-251), Create a Key Remnant here's open slots and rooms (key-remnants.mjs:1123-1144), a Key row's Place window (1266-1306; this one re-reads the plan at 1309).",
+   "The GM panel's next step and the Event card's Key line read keyPlanStatus (gm-panel.mjs:921, events.mjs:642): what they listen to was not traced here; the data is the keyPlan and bullets stores and every scene's trace tokens."
+  ]
+ },
+ "not_established": [
+  "Finding 2 and finding 6 were read, not run: a harness probe with a forced critical cover roll on a player's page, and one with a Reroll of a holder's erase, would settle each.",
+  "Whether a murder victim can be a Monocub while that incident is still open in Stage 6 (finding 7's precondition): the Monocub invitation's own conditions in monocub.mjs were not traced.",
+  "Whether two GMs pressing 'Charge the Key fee' on the held card at once both charge: chargeForUnfoundKeys reads the stamp at key-remnants.mjs:687 and writes it at 734 after `await keyFeeOf(now)`, and the keys.charge row has no queue (bridge-table.mjs:1154-1160); no test lands two asks in that wait, and I did not measure it.",
+  "Whether a RegionDocument on a scene that is not drawn answers `bounds` on Foundry 14 (key-remnants.mjs:956): if it does not, randomPointIn puts every Key Remnant placed on another scene at that scene's centre, outside the room its row names. Reading that settles it: game.scenes.find(s => !s.isView).regions.contents[0].bounds at a table.",
+  "How often document.body's class changes at a table: each change makes remnant-ring.mjs:156-163 drop the colour memo and redraw every ring whole 60 ms later.",
+  "Whether Foundry fires clientSettingChanged for this browser's own write of the ledger's key, which the double repaint in hygiene assumes from the comment at remnants.mjs:1853-1858.",
+  "How often the GM's HUD redraws the Event card that calls keyPlanStatus (events.mjs:642): each call walks every scene's traces and every living student's bullets.",
+  "What a real Foundry does when a token deleted a moment ago is created again under its id (placeRemnant's keepId): the file itself says it is not measured (remnants.mjs:414-420)."
+ ]
+}

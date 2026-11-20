@@ -1,0 +1,673 @@
+{
+ "reader": "old-1.2.42-despair",
+ "source": "audit/findings-1.2.42/despair.md: its 20 findings (DESP-01..DESP-20) and the 6 numbered items of 'Live checks recommended'; what the old report did with each from audit/AUDIT-1.2.42.md sections 2, 4, 5, 7 and 9",
+ "read": [
+  {
+   "file": "audit/findings-1.2.42/despair.md",
+   "lines": 281,
+   "of": 281,
+   "how": "whole file"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 369,
+   "of": 1666,
+   "how": "lines 5-128, 205-250, 479-484, 503-524, 577-597, 611-640, 680-725, 827-900, and every line naming DESP-, LIVE-E19, LIVE-E17-05 by grep"
+  },
+  {
+   "file": "scripts/calls.mjs",
+   "lines": 430,
+   "of": 931,
+   "how": "150-389, 405-594"
+  },
+  {
+   "file": "scripts/call-effects.mjs",
+   "lines": 288,
+   "of": 1422,
+   "how": "270-340, 858-925, 1025-1060, 1150-1200, 1240-1250, 1372-1422"
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "lines": 85,
+   "of": 579,
+   "how": "335-343, 425-500"
+  },
+  {
+   "file": "scripts/call-world.mjs",
+   "lines": 97,
+   "of": 731,
+   "how": "150-180, 455-520"
+  },
+  {
+   "file": "scripts/despair.mjs",
+   "lines": 679,
+   "of": 1341,
+   "how": "1-30, 128-160, 228-238, 286-535, 800-985, 1090-1180, 1186-1262"
+  },
+  {
+   "file": "scripts/despair-award.mjs",
+   "lines": 76,
+   "of": 333,
+   "how": "91-166"
+  },
+  {
+   "file": "scripts/overflow.mjs",
+   "lines": 365,
+   "of": 1354,
+   "how": "250-270, 318-432, 606-760, 1026-1040, 1296-1354"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "lines": 566,
+   "of": 1979,
+   "how": "800-866, 1100-1339, 1375-1480, 1540-1566, 1770-1895, and the function list by grep"
+  },
+  {
+   "file": "scripts/states.mjs",
+   "lines": 82,
+   "of": 670,
+   "how": "60-100, 355-395"
+  },
+  {
+   "file": "scripts/rules.mjs",
+   "lines": 106,
+   "of": 603,
+   "how": "1-30, 105-112, 300-334, 350-360, 374-382, 474-486"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": 98,
+   "of": 5646,
+   "how": "2690-2698, 3505-3570, 5320-5342, and the Call rows by grep (needsGm, grants, cost)"
+  },
+  {
+   "file": "scripts/bridge-runs-records.mjs",
+   "lines": 219,
+   "of": 943,
+   "how": "470-659, 666-694"
+  },
+  {
+   "file": "scripts/bridge-guards.mjs",
+   "lines": 94,
+   "of": 2163,
+   "how": "740-800, 1128-1160"
+  },
+  {
+   "file": "scripts/bridge-table.mjs",
+   "lines": 41,
+   "of": 1660,
+   "how": "960-1000"
+  },
+  {
+   "file": "scripts/bridge-asks.mjs",
+   "lines": 76,
+   "of": 1344,
+   "how": "474-520, 769-797"
+  },
+  {
+   "file": "scripts/assignments.mjs",
+   "lines": 61,
+   "of": 204,
+   "how": "40-100"
+  },
+  {
+   "file": "scripts/monokuma.mjs",
+   "lines": 23,
+   "of": 434,
+   "how": "323-345"
+  },
+  {
+   "file": "scripts/season-wipe.mjs",
+   "lines": 16,
+   "of": 959,
+   "how": "400-415"
+  },
+  {
+   "file": "scripts/world-secrets.mjs",
+   "lines": 13,
+   "of": 445,
+   "how": "84-96"
+  },
+  {
+   "file": "scripts/reroll.mjs",
+   "lines": 0,
+   "of": 2101,
+   "how": "the lines naming Despair by grep only (18-29, 665-680, 1021-1048)"
+  },
+  {
+   "file": "scripts/eclipse.mjs",
+   "lines": 0,
+   "of": 1502,
+   "how": "grep only: the free-placement comments (52, 66, 71, 114, 354, 1082) and noMovesLeft (1106)"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 55,
+   "of": 26270,
+   "how": "5546-5600, and headings by script for 8209, 8270, 20844, 21294"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": 58,
+   "of": 63672,
+   "how": "27165-27182, 38836-38875, and headings by script"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": 143,
+   "of": 104280,
+   "how": "18502-18520, 18560-18600, 64270-64286, 91836-91850, 91925-91975, and headings by script"
+  },
+  {
+   "file": "audit/harness/scenarios/40-flow.mjs",
+   "lines": 65,
+   "of": 2060,
+   "how": "376-440"
+  },
+  {
+   "file": "audit/harness/scenarios/30-security.mjs",
+   "lines": 40,
+   "of": 7184,
+   "how": "1196-1235"
+  },
+  {
+   "file": "audit/harness/scenarios/33-bridge-paths.mjs",
+   "lines": 29,
+   "of": 2401,
+   "how": "262-290, and A19's check line by grep"
+  },
+  {
+   "file": "audit/harness/scenarios/17-assistant.mjs",
+   "lines": 0,
+   "of": 852,
+   "how": "grep only: the lines naming Despair (6, 188)"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": 25,
+   "of": 745,
+   "how": "560-584"
+  },
+  {
+   "file": "docs/dev/e58/TRIAGE-9.2.md",
+   "lines": 32,
+   "of": 588,
+   "how": "1-32, and rows S7-10, S7-11, 59, 311 by grep"
+  },
+  {
+   "file": "docs/dev/e58/LOCAL-REPORT.md",
+   "lines": 0,
+   "of": 660,
+   "how": "grep only: line 432 (S7-10, S7-11 left), 506 (LIVE-E30-03), overflow and darkening"
+  },
+  {
+   "file": "docs/dev/e39/CALIBRATION.md",
+   "lines": 1,
+   "of": 151,
+   "how": "line 27 (LIVE-E30-03), and a grep for the hook's shape"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 0,
+   "of": 7534,
+   "how": "by key, by script: 30 keys of DRPG.Calls, Despair, Overflow, Eclipse, Monocub, Bridge, and a scan of every string of those sections carrying {count} or {left}"
+  },
+  {
+   "file": "lang/pl.json",
+   "lines": 0,
+   "of": 9375,
+   "how": "by key, by script: the twins of 7 of those keys"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-readings-e58.json, live-readings-other.json",
+   "lines": 0,
+   "of": 0,
+   "how": "searched by script for DESP-, S7-10, S7-11, LIVE-E17-05, LIVE-E05-07: only the 'not yet driven' note"
+  }
+ ],
+ "count_expected": 26,
+ "count_note": "grep -c of '### <ID> [severity' in despair.md gives 20. 'Live checks recommended' holds 6 numbered items, one item each as DESP-LC1..DESP-LC6. The file has no section 'Comments contradicting code'; its 'Hygiene metrics' ends with one unnumbered bullet of stale comments (rules.mjs, eclipse.mjs, config.mjs Rot, despair.mjs 12), settled in DESP-09, DESP-18, DESP-10 and DESP-03. 20 + 6 = 26 items. Scripts written (kept in the session scratchpad under agents/old-1.2.42-despair, none in the repository): rof.py and tof.py print the test heading that encloses a line of a tier file (used for 20 line numbers); inline scripts read keys of lang/en.json and lang/pl.json and searched the two live-readings JSON files; build.py assembled this file.",
+ "items": [
+  {
+   "id": "DESP-01",
+   "title": "A Hope Call that waits for the GM re-read the Hope after the ruling into `now` but wrote and printed the stale `held - cost`",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: `held = now`); shipped in tag v1.2.44, no tag v1.2.43 exists",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "calls.mjs:249-260 re-reads the Hope after the yes and sets `held = now`. Since E29 C8 the stale write has no road left: a player's Call that arms a roll (Experience and Ultimate both carry `grants`, config.mjs:2342-2343, 2380-2381) is paid on the primary GM from the Hope the GMs hold (calls.mjs:281 `gmPays`; bridge-runs-records.mjs:582-587), and a GM's own purchase subtracts from the `hope` read inside `meansWrite` (calls.mjs:287-290), never from `held`.",
+   "pinned_by": "scenario 40-flow, check 'gm: p1's Experience on Aiko is paid and armed by the GM after its yes - every write of her Hope and armed list the GM's' (40-flow.mjs:431): fails if the asker's browser writes the Hope again. No test found that moves the Hope during the wait itself.",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for another writer of `held - cost`: the only use left is the receipt's `left` (calls.mjs:325); the Reroll's card reads hopeHeld() after the GM's write (calls.mjs:372); the refund reads the Hope again (calls.mjs:314-317).",
+   "note": "Residual wording only: when the GM pays, the receipt prints `held - cost` from the reading taken before the arm (calls.mjs:260, 325) though the GM's answer carries the real `left` (bridge-runs-records.mjs:598), which `armCall` drops (call-effects.mjs:286-290). See new_observations."
+  },
+  {
+   "id": "DESP-02",
+   "title": "Breakdown and Wounded sounds never played (map keyed by `breakdown`/`wounded`, looked up by `drpgBreakdown`/`drpgWounded`), and `playSfx` ran on the primary GM alone",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: keyed by `STATES.*.id`); the second half (who hears it) was left then",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "states.mjs:363 keys the map by `STATES.breakdown.id` and `STATES.wounded.id`. Since E19 C6 (9cff6454, 19.10.2026) every browser decides for itself on its own `updateActor` hook (states.mjs:89-91) through `stateSoundsFor` (states.mjs:381-390): GMs and the student's owners, on arrival only, never another player. The catalogue hint (config.mjs:5329-5338) now matches.",
+   "pinned_by": "R826 (tier 1, tests-tier1.mjs:27172): who hears a state arrive, per case, and the two hooks read in states.mjs",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked whether the status could already be held when a non-primary browser runs the hook (it would silence the sound): the primary puts the status on only in answer to the same write (states.mjs:94-98), so the actor update reaches every browser first; states.mjs:369-371 says this order is read, not measured at a table.",
+   "note": "The audible result at a table is DESP-LC3, still unread: the harness has no audio."
+  },
+  {
+   "id": "DESP-03",
+   "title": "Three public cards printed the exact pool remainder, the overflow count and what was left in the overflow, which the player rail masked with '?'",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (cards without numbers), then a question of task 12; decision D3 of 13.09.2026, variant C: pool counts public, overflow masked (AUDIT-1.2.42.md 9.1, commit 12109493)",
+   "status": "decision",
+   "evidence_class": "S",
+   "evidence": "The code does what D3 says. Pool counts are drawn for everyone (despair.mjs:1194-1196, 1228-1233; header 12-13). The overflow's count stays masked for a player (despair.mjs:1129-1131) and is no longer in world data at all: a player's client reads 0 (overflow.mjs:258-259) and world-secrets.mjs:93-96 forbids `count` in the world setting. The cards keep the 1.2.43 shape: 'spent' with the pool's label and no remainder (despair.mjs:963-968, calls.mjs:528-530; en.json:636), 'overflowFed' and 'cardLeft' without a count (en.json:4198, 4279).",
+   "pinned_by": "R9 and scenario 72-canary hold the world-secret rule for the overflow's count (world-secrets.mjs:93-96); tier 2 'one Despair Call bought from the sheet posts one card, after its effect, with its price on it' (tests-tier2.mjs:20847) pins the card's price sentence",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Scanned en.json by script for Despair, Overflow and Calls strings carrying {count} or {left}: the ones found (Overflow.gmHint*, current*, clearAsk) are drawn for a GM only (despair.mjs:1142-1147; the Despair Flow tab).",
+   "note": "By decision: D3, the owner, 13.09.2026 (code comments 'D3, Dawid 13.09' at despair.mjs:1228). A later decision keeps one drop off the bar on purpose: Despair turned into Hope is owed and leaves the pool at the next time of day (E05 C12, despair.mjs:826-831)."
+  },
+  {
+   "id": "DESP-04",
+   "title": "Under the 'Despair' darkening the Hope hook deleted Hope a Monokuma had just bought: Fuel a Monocub and the Despair-to-Hope top-up took the Despair and reported a grant that did not land",
+   "old_severity": "major",
+   "old_state": "task 6, done on the branch (commit 5c66ffab, 12.09.2026); live check S7-10 left open",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Both roads refuse before anything is paid. The Call: `refusalBeforePaying` asks `overflowBlocksHope()` before the pool is touched (call-effects.mjs:905-906, called at calls.mjs:455-461). Both roads credit through one function since E37 C6 (1f6fcf89), which refuses under the darkening before it records a debt or writes Hope (despair.mjs:862-867); a darkening that begins while the picker is open ends in `NothingToDo` and the refund (call-effects.mjs:1039-1041, calls.mjs:496-504).",
+   "pinned_by": "tier 2 'E37-T6 - one road of Despair to Hope ... and both are refused under the Despair darkening' (tests-tier2.mjs:91836): under a stamped darkening a conversion grants 0, the Call is not bought, its effect fails, Hope 0, owed 0",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Followed every other road of Despair to Hope: the Monocub and Mastermind windows and Ask for Hope all end in `convertDespairToHope` -> `creditHopeFromDespair` (monocub.mjs:1548-1556); a Monocub's purse takes nothing in the darkening (monocub.mjs:818-819). Relief no longer offers Breath (config.mjs:2503-2510).",
+   "note": "One sibling shape is left on the Bounty (Despair owed, 0 Hope into the purse when claimed under the darkening): new_observations."
+  },
+  {
+   "id": "DESP-05",
+   "title": "A Monocub's Meddle spent the action and Hope on the player's browser, then the GM could refuse with a console warning only: no whisper, no refund; the same with no GM online",
+   "old_severity": "major",
+   "old_state": "task 2 (commit d079a1ec: every GM refusal reaches the player); the refund was not part of it",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Since E72 C1 (1d411650, 12.11.2026) the Monocub's browser pays nothing: `performCubAbility` asks the questions as a courtesy and sends the request (monocub.mjs:1119-1179), with no GM it says so and stops (1146-1152). The GM asks every condition again and only then takes the action and the Hope (`cubAbilityOnGm`, monocub.mjs:1285-1316); a refusal is logged and whispered to the Monocub, veiled, with 'You keep your action and Hope' (1286-1293).",
+   "pinned_by": "R3800 (tier 0, tests-tier0.mjs:8265): the executor writes no price and the GM-side run asks every condition before it spends; tier 2 'a Monocub's Confusion is paid on the GM after its conditions: one carried out takes one action and one Hope there, one refused takes nothing (E72 C1)' (tests-tier2.mjs:18558)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a move still paid before the GM's answer: every row (Confusion, Tinker, Redeem, Ask for Hope, Ghost Bet) goes through the one executor; a Bribe is paid on the Monocub's yes on the GM (calls.mjs:165-169).",
+   "note": "Between 1.2.44 and 1.2.109 the refusal was said but nothing came back (the state the tier 2 test at tests-tier2.mjs:18502 still describes in its name and comment: new_observations)."
+  },
+  {
+   "id": "DESP-06",
+   "title": "The target of a Meddle was whispered the Monocub's own sentence ('You inflict -1 on the player's next roll')",
+   "old_severity": "major",
+   "old_state": "task 10 in the plan; closed in the task 6+7 commit 5c66ffab (task 10's commit b708865c does not touch monocub.mjs or config.mjs)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Each tier and the critical carry a target-facing pair in the second person, anonymous (config.mjs:3534-3549), and `scoreMeddle` sends the target that sentence, veiled (monocub.mjs:1393-1394, 1457). The critical's 'nothing moved' case has its own target line (monocub.mjs:1403-1409).",
+   "pinned_by": "tier 2 'Confusion's lines tell the truth once (E15-T6)' (tests-tier2.mjs:83233) reads the target's card against `helpTarget`/`hinderTarget`",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked the fallback `?? text` (monocub.mjs:1394), which would hand the target the Monocub's line for a tier with no target pair: both thresholds and the critical have one today (config.mjs:3534-3549).",
+   "note": "The fallback itself is still there; a future tier added without a target pair would bring the old sentence back with no test naming it."
+  },
+  {
+   "id": "DESP-07",
+   "title": "`armedForYou` ('Another student spent Hope on you') was whispered for Monokuma's Obstacle or Approval and for a Monocub's Meddle too",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: three voices)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Both roads choose the sentence by kind: call-effects.mjs:304-324 on a GM's own arm (`armedByMonokuma` for Despair, `armedForYouBy`/`armedForYou` for Hope, `armedByNobody` otherwise, veiled) and bridge-runs-records.mjs:535-549 for an arm through the bridge. A Confusion passes `quiet` and sends only the target's own sentence (monocub.mjs:1414-1421). Strings: en.json:4185-4188.",
+   "pinned_by": "tier 2 'PV-DOORS-T2 - a Support's card names the student who spent the Hope, on the GM's road and on a player's, and Monokuma's and a Monocub's stay unnamed' (tests-tier2.mjs:102520); R1158 holds the inserted fragment's case",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked the second copy of the whisper the old report named in the bridge: it is `tellBeneficiary` now and takes the same kind test (bridge-runs-records.mjs:536, 542).",
+   "note": "Changed again by the owner's rule #9 of 13.11.2026: a student's Hope Call names the student who spent it (call-effects.mjs:307-311)."
+  },
+  {
+   "id": "DESP-08",
+   "title": "`Calls.grants.critical` still read 'an automatic critical' for the 6-Hope Loaded Die",
+   "old_severity": "minor",
+   "old_state": "task 6 texts; among the '34 ID closed under other names' (AUDIT-1.2.42.md section 9), read 'a loaded die (one die set to 12)' at v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "en.json:4162, 4170, 4178 read 'a Loaded Die (a die set to 12)' in each case form; pl.json has its twin. The key `critical` is unchanged, as the old note asked.",
+   "pinned_by": "none found for the claim; R1158 (tests-tier0.mjs:19966) holds the fragment's grammatical case in its host sentences",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the key in both language files by script; looked for a second label of the grant ('automatic critical') in en.json: none.",
+   "note": ""
+  },
+  {
+   "id": "DESP-09",
+   "title": "The New Rule picker said 'Twelve Despair buys a permanent change' (it costs 9), and three comments in rules.mjs gave old prices",
+   "old_severity": "minor",
+   "old_state": "task 6 texts; among the '34 ID closed under other names'; TEXT-02 in 2.2 names the same key",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "en.json:4192 formats `{cost}` and call-pickers.mjs:310 hands it `DESPAIR_CALLS.newRule.cost`. The three comments are rewritten without a number: rules.mjs:5 ('priced in DESPAIR_CALLS'), 109 ('the Motive Despair Call'), 353-355 ('has already taken its price').",
+   "pinned_by": "none found for the number; R1 holds that the key resolves, and R1157 (tests-tier0.mjs:19859) lists `Calls.newRuleNote` among the counted strings it reads",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped the Call files for a price written as a word: one sibling comment is left over the Motive picker (call-pickers.mjs:339, 'Nine Despair is three quarters of a pool'; Motive costs 6, config.mjs:2910). It was not one of the three the finding named (it stood at call-effects.mjs:902 in 1.2.42).",
+   "note": "The sibling comment is in new_observations."
+  },
+  {
+   "id": "DESP-10",
+   "title": "Rot's card and the config comment said items on their last point are ruined; the code never takes the last point",
+   "old_severity": "minor",
+   "old_state": "task 6 texts; among the '34 ID closed under other names'",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "en.json:4339 says 'each item loses up to {n} durability but never its last point, so nothing breaks' (pl.json twin read). The config comment says the same (config.mjs:2692-2693) and the code still skips anything with one point left (overflow.mjs:914-920).",
+   "pinned_by": "none found for the sentence; tier 2 'the Rot wears each student's things as the GMs hold them ...' (tests-tier2.mjs:43926) drives the Rot itself",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped config.mjs and overflow.mjs for 'last point': every remaining mention says it is spared (config.mjs:624, overflow.mjs:870-894).",
+   "note": ""
+  },
+  {
+   "id": "DESP-11",
+   "title": "Every Despair Call from the sheet posted two public cards, the first before the effect; after a refund the table still held a card for a Call that never happened",
+   "old_severity": "minor",
+   "old_state": "task 6, done on the branch (commit 5c66ffab)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "`spendDespairCallFor` passes `announce: false` (calls.mjs:473), returns before any card when the effect failed and the pool was handed back (calls.mjs:496-504), and posts one card after the effect with the price on it (calls.mjs:525-534). The bare API keeps its own card by default (despair.mjs:952-972), as the old note asked.",
+   "pinned_by": "tier 2 'one Despair Call bought from the sheet posts one card, after its effect, with its price on it (E40 item 4)' (tests-tier2.mjs:20847); R81 (tier 0, tests-tier0.mjs:4770), the same rule read from the source",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for another public card on the same road: the only extra one is veiled, to the GMs and a secret project's insiders (calls.mjs:539-546), and a Bounty posts none (calls.mjs:463-467).",
+   "note": ""
+  },
+  {
+   "id": "DESP-12",
+   "title": "Pools and the overflow were written as whole objects from each GM's local cache: two GM clients writing at once lose one write",
+   "old_severity": "minor (SUSPECTED)",
+   "old_state": "task 6 ('one GM writes the pools', commit 5c66ffab) recorded as done; that build did not work (see note); live check S7-11 left open",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "One writer on every road. A pool's change from a GM that is not the primary goes to the primary (despair.mjs:338-350, 424-432; bridge-asks.mjs:494-496), where read and write share one serial step (despair.mjs:345-349). Set, fill, zero and the roster ask the primary since E37 C7 (90e08659; despair.mjs:293-300, 449-507), and the overflow's count is added on the primary alone (overflow.mjs:347-373).",
+   "pinned_by": "R97 and R1202 (tier 0, tests-tier0.mjs:5546, 20841); tier 2 'Despair has one writer (E17-T8)' (tests-tier2.mjs:86586); scenario 33-bridge-paths A7 and A19, with a real second GM client (33-bridge-paths.mjs:282, 320)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a write of `despairPools` outside a step of DESPAIR_KEY: writePool, the fill and the zero are the only ones (despair.mjs:317, 458, 498), each inside `serialWrite`; a handover while a step waits is asked again in the step (despair.mjs:346, 455, 494).",
+   "note": "The repair the old report records as done did not work in tags v1.2.44 to v1.2.47: `adjustDespair` called `hasGm()`, which gm-bridge.mjs did not export at either tag, so the call threw into its catch and each GM still wrote locally (read at v1.2.44:scripts/despair.mjs 252-263; recorded at bridge-asks.mjs:485-489 and in R97's comment). It works since 3278cb5a (21.09.2026, first in tag v1.2.48). The non-primary GM's route does not wait for the primary's answer: new_observations. Never read at a table: DESP-LC1."
+  },
+  {
+   "id": "DESP-13",
+   "title": "A Reroll's point of Despair given back was refused when the pool belonged to an Assistant GM granted a pool (the bridge tested the Gamemaster role)",
+   "old_severity": "minor",
+   "old_state": "task 6, done on the branch (commit 5c66ffab)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The guard asks the pool roster, not the role: `guardDespairPool` passes any user in `monokumas()` (bridge-guards.mjs:1146-1151; despair.mjs:141-146 counts an opted-in Assistant). The road itself changed as well: since E08+E28 C8 a player's packet is refused outright (bridge-table.mjs:971-975) and the GM settles a Reroll's Despair itself through `awardRollDespair` -> `adjustDespair(monokuma.id, ...)` (reroll.mjs:1031-1038; despair-award.mjs:142-162), with `monokumaFor` reading the same roster (assignments.mjs:65-74).",
+   "pinned_by": "none found with an Assistant's pool as the target of `despair.adjust`; scenario 17-assistant C4 pins that a granted Assistant is in the roster on every client (17-assistant.mjs:188), scenario 33-bridge-paths A19 that it can grant itself a pool through the primary",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for another role test on the Despair roads: `monokumas()` is the only reader of the Gamemaster role there (despair.mjs:144), and it adds the opted-in Assistants.",
+   "note": "Half fixed, half replaced: the player's Reroll packet the finding described no longer exists."
+  },
+  {
+   "id": "DESP-14",
+   "title": "Contribution's picker fell back to every visible project when the player's room had none, so a student in an empty room could Contribute across the map",
+   "old_severity": "minor",
+   "old_state": "task 6, done on the branch (commit 5c66ffab)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The fallback list is Monokuma's alone: `away` is empty unless `kind` is 'despair' (call-pickers.mjs:475-477). The GM holds it as well: progress that names no roll must be a Hope Call's, paid for, and its character must stand in the project's room (bridge-guards.mjs:762-781).",
+   "pinned_by": "scenario 30-security, check 'progress naming no roll - +2 three times from another room, and a Contribution nobody paid for - is refused, told, and moves no bar' (30-security.mjs:1222); tier 2 'progress that names no roll is a Hope Call's, of its amount, paid for, once, in its room' (tests-tier2.mjs:16801)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Tried the old note's worry, a project with no room: `guardProjectRoom` passes it (bridge-guards.mjs:776) and the picker's list for the room comes from `projectsAvailableIn`, so abstract work stays reachable; no test of the picker's `kind` branch itself was found.",
+   "note": ""
+  },
+  {
+   "id": "DESP-15",
+   "title": "Public Announcement teleported every non-Monokuma character token, dead students' bodies included",
+   "old_severity": "minor",
+   "old_state": "task 6, done on the branch (commit 5c66ffab)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "`gatherEveryone` leaves out the dead unless they are Monocubs: call-world.mjs:497-502, read from the scene's documents and by `isDeadForGm`, so a death the table does not know yet is spared too.",
+   "pinned_by": "tier 2 'the gather tells each client where its token went' (tests-tier2.mjs:64278): the packet names exactly the living cast's and a Monocub's tokens, no Monokuma's and no body's",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked the callers that hand their own cast (the return from the trial, `only` and `held`, call-world.mjs:486-497) and the season reset's placement (season-wipe.mjs:520 reads the same rule): none moves a body.",
+   "note": ""
+  },
+  {
+   "id": "DESP-16",
+   "title": "The season reset left `killingGameRules` (stamped with last season's chapter) and `pendingGather` (an assembly that fires on the new season's first boundary)",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 as CORE-02/03/04 (AUDIT-1.2.42.md 2.2); among the '34 ID closed under other names'",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Both are groups of the reset's registry since E42 C3 (184f1385): rules.mjs:329-334 writes `[]`, call-world.mjs:175-180 writes `{}`, and both stand in RESET_STEPS (season-wipe.mjs:406-413). Ticked by default; a GM may untick 'rules' to carry them (the owner, R-1, 18.09, rules.mjs:323-327).",
+   "pinned_by": "R1256 (tier 0, tests-tier0.mjs:21268): every season setting has a clear; tier 2 E42-T6 (tests-tier2.mjs:93198) reads `killingGameRules` and `pendingGather` emptied after a reset",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that the registry is what the reset walks and not a second list: `wipeSeason` runs the registered entries in RESET_STEPS' order (season-wipe.mjs:400-413).",
+   "note": "The old note's second wish still holds for a carried rule: a rule kept across a reset has a `chapter` and no season (rules.mjs:380), and the GM's manager prints that chapter (rules.mjs:480-482). By the owner's default they vanish, so this is a nit of the opt-out only."
+  },
+  {
+   "id": "DESP-17",
+   "title": "While a darkening runs, neither the caption nor the GM tooltip said which of the effects was drawn",
+   "old_severity": "minor",
+   "old_state": "task 10 in the plan; closed in the task 6+7 commit 5c66ffab",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The badge names the effect for everyone: despair.mjs:1149-1158 appends `effectName` to 'Darkened - this time of day', and a darkening armed or waiting for the next time of day is named too (1159-1164). Despair Flow's Overflow tab says it in a sentence (en.json `Overflow.currentDrawn`).",
+   "pinned_by": "R1119 (tier 1, tests-tier1.mjs:37446): the caption's reading per stamp, a Rot among them",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the GM tooltip again: `gmHintActive` still names no effect (en.json `Overflow.gmHintActive`), but it sits on the same line as the badge that does, so the question 'what is the penalty right now' is answered on the bar.",
+   "note": ""
+  },
+  {
+   "id": "DESP-18",
+   "title": "'Both Eclipse crossings are used' under Darkness (one crossing), and two comments in eclipse.mjs naming Morning and Night as free-placement Eclipses",
+   "old_severity": "minor",
+   "old_state": "task 6 texts; among the '34 ID closed under other names'; listed as repaired in table 3.1 (AUDIT-1.2.42.md:292)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "en.json:4374 reads 'Your Eclipse crossings are used up, so your token stays where it was.' (pl.json twin read). The comments name the constant and say 'Night, today' (eclipse.mjs:52, 114, 1082); config.mjs:590 holds `[\"night\"]`.",
+   "pinned_by": "none found for the wording (R614, tests-tier1.mjs:23460, only compares the bridge's `eclipseSpent` sentence with this string)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped eclipse.mjs and config.mjs for 'two of the five' and 'Morning or Night': no hit.",
+   "note": ""
+  },
+  {
+   "id": "DESP-19",
+   "title": "Two doubled notifications: a Hope Call's time-out said 'nobody answered' twice, and a failed Call said 'paid for, but could not be applied' and then 'returned'",
+   "old_severity": "nit",
+   "old_state": "task 6 texts (commit 5c66ffab for the second pair)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Time-out: the caller says nothing when the bridge did not carry the ask out (calls.mjs:231-241); the bridge's own sentence is the one message, and `Calls.noRuling` is gone from en.json. Failure: `applyCall` no longer toasts, it returns `failed` and the caller refunds and says so once (call-effects.mjs:1404-1416; calls.mjs:314-322, 496-503).",
+   "pinned_by": "none found that counts the messages; R6903 (tests-tier1.mjs:38836) holds the refund sentence and that no price is kept for nothing",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a pair still said together: `spendDespairCallFor`'s catch toasts `effectFailed` and then the refund (calls.mjs:487-503), but `applyCall` catches its own branches, so that catch is reached only if its import fails.",
+   "note": "'Tell the GM' is gone from `Calls.effectFailed` (en.json: 'You paid for {call}, but its effect could not be applied.')."
+  },
+  {
+   "id": "DESP-20",
+   "title": "The pip tooltip and the public spend card printed the GM's account name instead of the pool's label",
+   "old_severity": "nit",
+   "old_state": "task 6 texts; among the '34 ID closed under other names'; DESP-03's repair in 2.1 names `poolLabel(user)` on the card",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Both use `poolLabel(user)`: the pip's tooltip and aria-label (despair.mjs:1242) and the spend card on both roads (despair.mjs:966; calls.mjs:529).",
+   "pinned_by": "tier 2 'one Despair Call bought from the sheet posts one card ...' builds its expected price sentence from `poolLabel` (tests-tier2.mjs:20883); none found for the tooltip",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped despair.mjs for `user.name`: what is left are console log lines (182, 836) and the fallback inside `poolLabel` itself (236).",
+   "note": ""
+  },
+  {
+   "id": "DESP-LC1",
+   "title": "Live check 1 (DESP-12): two GMs online, one rolling students (+1), the other paying Calls; compare the bar with the sum over a session",
+   "old_severity": null,
+   "old_state": "carried as section 7 item 11 (S7-11); its descendant in 9.2 is item 311, LIVE-E17-05",
+   "status": "open",
+   "evidence_class": "K",
+   "evidence": "Not read on a real Foundry: docs/dev/e58/LOCAL-REPORT.md:432 lists S7-11 as 'left, not yet driven', and TRIAGE-9.2.md:334 classes LIVE-E17-05 as checkable with no reading recorded. The code's answer is DESP-12 (one writer), which the harness holds with a second GM client (33-bridge-paths A7, A19).",
+   "pinned_by": "harness only: R97, R1202, tier 2 E17-T8, scenario 33-bridge-paths A7 and A19",
+   "still_wrong": "Nobody has compared the pools with the sum of awards and spends with two GMs on a real server.",
+   "severity_now": "minor",
+   "confidence": "suspected",
+   "refutation_tried": "Looked in LOCAL-REPORT.md and CALIBRATION.md for any reading of two GMs' Despair writes: none.",
+   "note": "What a table reading could still show is in new_observations (a non-primary GM's Call is applied without the primary's answer)."
+  },
+  {
+   "id": "DESP-LC2",
+   "title": "Live check 2 (DESP-04): only 'Despair' ticked in the overflow hat, fire it, Fuel a Monocub and the Monocub Hope top-up; does the pool drop while Hope stays",
+   "old_severity": null,
+   "old_state": "carried as section 7 item 10 (S7-10)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The code answers it: both roads refuse under the darkening before the pool or the debt moves (call-effects.mjs:905-906; despair.mjs:862-867), and tier 2 E37-T6 drives exactly this pair under a stamped darkening and reads pool, Hope and what is owed (tests-tier2.mjs:91925-91958).",
+   "pinned_by": "tier 2 E37-T6 (tests-tier2.mjs:91836)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a table reading to stand beside the test: LOCAL-REPORT.md:432 lists S7-10 as 'left, not yet driven'.",
+   "note": "Fixed by code and held headless; never read on a real Foundry."
+  },
+  {
+   "id": "DESP-LC3",
+   "title": "Live check 3 (DESP-02 after the fix): the player hears the state sound, not only the GM",
+   "old_severity": null,
+   "old_state": "not carried into section 7; no item of 9.2 names the state sounds (grep of the audit file for R826 and stateSoundsFor finds none)",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "The route the check names (a whisper carrying a sound) was not built: each browser plays it from its own `updateActor` hook (states.mjs:89-91, 381-390). R826 pins who is asked, on plain objects; whether a player's speakers ring is not measurable headless (no audio in the harness) and no table reading was found.",
+   "pinned_by": "R826 for who is asked; nothing for the sound itself",
+   "still_wrong": "Not read at a table: a student's player hearing Breakdown or Wounded as the state arrives.",
+   "severity_now": "nit",
+   "confidence": "suspected",
+   "refutation_tried": "Checked the one assumption the hook rests on: states.mjs:369-371 says the order of the two writes is read, not measured at a table.",
+   "note": "The check's wording is out of date (it names the whisper route); the question stands."
+  },
+  {
+   "id": "DESP-LC4",
+   "title": "Live check 4: `preUpdateActor` hands `changes.system.resources.hope.value` as an expanded object on v14 for a Daggerheart roll's own Hope grant (the Despair darkening relies on it)",
+   "old_severity": null,
+   "old_state": "not carried by name; LIVE-E30-03 (9.2 item 27) reads the same hook",
+   "status": "partly",
+   "evidence_class": "F",
+   "evidence": "Read on Foundry 14.370, 16.11.2026 (docs/dev/e39/CALIBRATION.md:27, LIVE-E30-03): `_preUpdate` runs before the `preUpdateActor` hook and an update the hook empties is not sent, which is what the darkening's hook does to a lone Hope rise (overflow.mjs:1328-1348). Not read: the shape of `changes` for a Daggerheart roll's Hope grant under a running darkening; with a flat key the `delete` at overflow.mjs:1344 would throw into the catch and the Hope would land.",
+   "pinned_by": "none on a real Foundry; headless the darkening's block is driven by tier 2 E51-T18 and E37-T6 on the harness's own model of the hook (audit/harness/README.md:567-582)",
+   "still_wrong": "Not read at a table: a roll with Hope during the Despair darkening leaving the roller's Hope unchanged.",
+   "severity_now": "minor",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for the word 'expanded' or 'nested' beside a Hope write in CALIBRATION.md and LOCAL-REPORT.md: only the harness README states the hook gets the update expanded, as its own model.",
+   "note": "Since E28 a drawn roll's Hope is credited by the GM's own write, so the hook that matters runs on the GM's browser."
+  },
+  {
+   "id": "DESP-LC5",
+   "title": "Live check 5: Public Announcement with a body on the map (DESP-15), and an assembly still pending across a season reset (DESP-16)",
+   "old_severity": null,
+   "old_state": "not carried into section 7 or 9.2",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The code answers both: the gather leaves a body where it lies (call-world.mjs:497-502) and the reset's 'assembly' group empties `pendingGather` (call-world.mjs:175-180; season-wipe.mjs:409).",
+   "pinned_by": "tier 2 'the gather tells each client where its token went' (tests-tier2.mjs:64278); R1256 and tier 2 E42-T6 (tests-tier2.mjs:93198)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a table reading of either: none found in LOCAL-REPORT.md.",
+   "note": "Held headless; never read on a real Foundry."
+  },
+  {
+   "id": "DESP-LC6",
+   "title": "Live check 6: fill the overflow while a Night Eclipse runs; the darkness applies to that Eclipse and to the night that follows, and the caption badge shows on player clients",
+   "old_severity": null,
+   "old_state": "not carried into section 7 or 9.2",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "By the code a counter that fills in an Eclipse arms the time of day that Eclipse opens (overflow.mjs:420-424, `armAhead`), and during an Eclipse that stamp is the one that reads as running (overflow.mjs:702-703), so it covers the Eclipse and the time of day after it; the badge is drawn from the public stamp on every client (despair.mjs:1149-1158). No table reading was found, and the Darkness effect cutting the crossings of an Eclipse already under way is the part only a table shows.",
+   "pinned_by": "R1119 for the stamp's reading and the caption (tests-tier1.mjs:37446); nothing at a table",
+   "still_wrong": "Not read at a table: a counter filled during a running Eclipse, its crossings, the night after, and the badge on a player's screen.",
+   "severity_now": "nit",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for an Eclipse with the overflow in LOCAL-REPORT.md and for a 9.2 item on it: only LIVE-E17-05 touches the pair, and it is unread.",
+   "note": ""
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "A GM that is not the primary buys a Despair Call without waiting for the primary's write",
+   "where": "scripts/despair.mjs:424-432, 925-928; scripts/bridge-runs-records.mjs:666-674; scripts/despair.mjs:315",
+   "what": "`routeToPrimary` sends the change with `void` and answers the expected pool at once, so `spendDespairCall` reads the Call as paid and its effect is applied whatever the primary answers. The primary writes `held + delta` floored at 0 with no price check, so two purchases inside one round trip, or a primary whose pool is lower than this browser's copy (a debt just settled), buy for less than the price; an unanswered request leaves the Call applied and the pool untouched (the asker is told the change was not carried out).",
+   "severity": "minor",
+   "confidence": "suspected"
+  },
+  {
+   "title": "A Bounty claimed under the Despair darkening, or by a Monocub at its Hope limit, pays 0 Hope while its Despair stays owed",
+   "where": "scripts/monocub.mjs:1835-1846, 818-819, 1821, 1870",
+   "what": "`claimBounty` drops the Bounty, then `addToPurse` takes 0 in the darkening or at the limit; the Monocub is told '0 Hope in your purse' and the posting pool still pays the Despair it owes, which only a lapse gives back. The purse's rule is written as intended (monocub.mjs:810); whether the Despair should stay owed then is not recorded anywhere I found.",
+   "severity": "minor",
+   "confidence": "suspected"
+  },
+  {
+   "title": "The overflow caption's comment still says the count is a world setting any player can read",
+   "where": "scripts/despair.mjs:1094-1103",
+   "what": "The comment calls the mask 'a courtesy rather than a secret: the counter is a WORLD setting'. Since E05 C12 the count is the GMs' record and a player's client reads 0 (overflow.mjs:258-259; world-secrets.mjs:93-96), so the mask is real and the comment contradicts the code.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "The Motive picker's comment prices the Motive at nine Despair",
+   "where": "scripts/call-pickers.mjs:339",
+   "what": "'Nine Despair is three quarters of a pool; a motive bought without a stated consequence ...' stands over the Motive's three questions; the Motive costs 6 (config.mjs:2910) and New Rule 9 (config.mjs:2921). The same class as the three comments DESP-09 named, in a fourth place.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "A Hope Call's receipt computes what is left from a reading taken before the GM's payment",
+   "where": "scripts/calls.mjs:260, 325; scripts/call-effects.mjs:286-290; scripts/bridge-runs-records.mjs:598",
+   "what": "When the primary GM pays (a Call that arms a roll), its answer carries the real `left`, but `armCall` returns only true and the whispered card prints `held - cost` from the asker's reading before the arm. A Hope that moves inside that round trip (a roll's grant) makes the card one off; the sheet is right.",
+   "severity": "nit",
+   "confidence": "suspected"
+  },
+  {
+   "title": "A tier 2 test's name and comment describe the Meddle as paid before the GM is asked",
+   "where": "scripts/tests-tier2.mjs:18502-18512",
+   "what": "'a target in another room is refused on the GM - said and not refunded' explains that 'this side cannot see that anything was paid, so a refund here would be Hope minted'. Since E72 C1 nothing is paid before the GM's conditions (monocub.mjs:1111-1117), so the reason given no longer matches the code the test drives.",
+   "severity": "nit",
+   "confidence": "read"
+  }
+ ],
+ "not_established": [
+  "Whether `changes` in `preUpdateActor` is nested for a Daggerheart roll's own Hope grant on v14 (DESP-LC4). Settled by: with the Despair darkening running on a real v14, `Hooks.once('preUpdateActor', (a, c) => console.log(JSON.stringify(c)))` on the browser that credits a roll's Hope, then the student's Hope before and after.",
+  "Whether two GMs' Despair writes over a session add up on a real server (DESP-LC1, LIVE-E17-05): LOCAL-REPORT.md:432 says not yet driven. Settled by the reading 9.2 item 311 describes.",
+  "Whether the Despair of a Bounty claimed for 0 Hope is meant to stay owed (new observation 2): no decision found in code comments or docs/dev/e72. Settled by the owner's word.",
+  "The base run's result for the tests named under pinned_by: I ran nothing (rule 2), so each pin is the test's source as read at b5a29e73, not its colour in this turn's run.",
+  "No tag v1.2.43 exists (git tag lists v1.2.42, then v1.2.44); 'fixed in 1.2.43' is the old report's wording, and the strings were read as fixed at v1.2.44."
+ ]
+}

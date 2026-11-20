@@ -1,0 +1,658 @@
+{
+ "reader": "old-1.2.42-items",
+ "source": "audit/findings-1.2.42/items.md: the 18 findings ITEM-01 to ITEM-18 and the 8 numbered checks of 'Live checks recommended'; their fate read in audit/AUDIT-1.2.42.md sections 2.2, 4, 5, 7, 9 and 9.1",
+ "read": [
+  {
+   "file": "audit/findings-1.2.42/items.md",
+   "lines": 378,
+   "lines_read": 378
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 1666,
+   "lines_read": 330,
+   "part": "lines 1-128, 221-248, 362-400, 465-478, 503-524, 577-640, 680-708; every line naming an ITEM id by grep (15 lines)"
+  },
+  {
+   "file": "scripts/inventory.mjs",
+   "lines": 1402,
+   "lines_read": 790,
+   "part": "100-230, 740-1402"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "lines": 1879,
+   "lines_read": 440,
+   "part": "25-45, 105-180, 340-505, 1715-1879"
+  },
+  {
+   "file": "scripts/use-items.mjs",
+   "lines": 1079,
+   "lines_read": 200,
+   "part": "toggleEquipped and what follows it (about 95 lines), 540-640"
+  },
+  {
+   "file": "scripts/stash-reach.mjs",
+   "lines": 848,
+   "lines_read": 290,
+   "part": "70-210, 440-470, 545-660"
+  },
+  {
+   "file": "scripts/vault-store.mjs",
+   "lines": 1605,
+   "lines_read": 370,
+   "part": "112-132, 268-335, 825-850, 935-975, 1005-1075, 1180-1215, 1360-1440, 1466-1480"
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "lines": 1399,
+   "lines_read": 82,
+   "part": "1035-1060, 1120-1175; grep of 'concealed'"
+  },
+  {
+   "file": "scripts/projects.mjs",
+   "lines": 2976,
+   "lines_read": 235,
+   "part": "76-84, 1900-1935, 2008-2030, 2060-2125, 2466-2482, 2650-2730"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "lines": 1759,
+   "lines_read": 260,
+   "part": "95-130, 618-660, 1195-1345, 1576-1600"
+  },
+  {
+   "file": "scripts/traps.mjs",
+   "lines": 1178,
+   "lines_read": 255,
+   "part": "183-215, 285-345, 503-640"
+  },
+  {
+   "file": "scripts/handover.mjs",
+   "lines": 1036,
+   "lines_read": 150,
+   "part": "147-190, 535-572, 955-1012"
+  },
+  {
+   "file": "scripts/tables-pools.mjs",
+   "lines": 1185,
+   "lines_read": 106,
+   "part": "225-330"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines": 1673,
+   "lines_read": 86,
+   "part": "925-1010; grep of the three item actions"
+  },
+  {
+   "file": "scripts/season-wipe.mjs",
+   "lines": 959,
+   "lines_read": 25,
+   "part": "490-505, 612-620; grep of stashesFound"
+  },
+  {
+   "file": "scripts/live.mjs",
+   "lines": 920,
+   "lines_read": 76,
+   "part": "60-135"
+  },
+  {
+   "file": "scripts/call-gm.mjs",
+   "lines": 1308,
+   "lines_read": 21,
+   "part": "940-960; grep of gmOnly"
+  },
+  {
+   "file": "scripts/sheet-audit.mjs",
+   "lines": 3405,
+   "lines_read": 42,
+   "part": "placeStands, 2275-2316"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": 5646,
+   "lines_read": 64,
+   "part": "676-708, 952-982"
+  },
+  {
+   "file": "scripts/api.mjs",
+   "lines": 1712,
+   "lines_read": 18,
+   "part": "275-292"
+  },
+  {
+   "file": "scripts/projects-map.mjs",
+   "lines": 1008,
+   "lines_read": 18,
+   "part": "375-392"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 26270,
+   "lines_read": 140,
+   "part": "by grep, then 5215-5270, 5840-5935"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": 63672,
+   "lines_read": 5,
+   "part": "by grep, then 28197-28199"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": 104280,
+   "lines_read": 260,
+   "part": "by grep, then 37690-37730, 43770-43800, 76870-76900, 77160-77200 and the test headings named in the items"
+  },
+  {
+   "file": "audit/harness/scenarios/61-gmstore-case.mjs",
+   "lines": 2739,
+   "lines_read": 33,
+   "part": "1118-1150"
+  },
+  {
+   "file": "audit/harness/scenarios/40-flow.mjs",
+   "lines": 2060,
+   "lines_read": 17,
+   "part": "140-156"
+  },
+  {
+   "file": "audit/harness/scenarios/65-season.mjs",
+   "lines": 1525,
+   "lines_read": 13,
+   "part": "628-640"
+  },
+  {
+   "file": "audit/harness/scenarios/13-murder-signals.mjs",
+   "lines": 1884,
+   "lines_read": 18,
+   "part": "1173-1190"
+  },
+  {
+   "file": "audit/harness/scenarios/30-security.mjs",
+   "lines": 7184,
+   "lines_read": 17,
+   "part": "2336-2352"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "lines_read": 0,
+   "part": "15 keys read by a script, a dozen lines by grep"
+  },
+  {
+   "file": "lang/pl.json",
+   "lines": 9375,
+   "lines_read": 0,
+   "part": "the same 15 keys checked present by the script; 2 lines by grep"
+  },
+  {
+   "file": "docs/dev/e58/LOCAL-REPORT.md",
+   "lines": 660,
+   "lines_read": 9,
+   "part": "428-436"
+  },
+  {
+   "file": "docs/dev/tips-115/STATUS-115.md",
+   "lines": 174,
+   "lines_read": 1,
+   "part": "line 125"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": null,
+   "lines_read": 4,
+   "part": "the rows of R105, R144, R354, R7301 by grep"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-readings-e58.json",
+   "lines": 996,
+   "lines_read": 0,
+   "part": "94 readings searched by a script for the items' subjects: 1 hit (a hand-over's refusal in Polish), none for a live check"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-readings-other.json",
+   "lines": 963,
+   "lines_read": 0,
+   "part": "searched by the same script: no hit"
+  },
+  {
+   "file": "v1.2.42:scripts/inventory.mjs, v1.2.42:scripts/gm-items.mjs (git show)",
+   "lines": null,
+   "lines_read": 60,
+   "part": "the overflow whisper and the Take window as they were"
+  }
+ ],
+ "count_expected": 26,
+ "count_note": "grep -c of '### <ID> [severity: ...]' gives 18 (ITEM-01 to ITEM-18). 'Live checks recommended' holds 8 numbered checks, added as ITEM-LC1 to ITEM-LC8: 18 + 8 = 26. The file has no section 'Comments contradicting code'; its 'Hygiene metrics' ends on one 'Stale comments' line naming three comments, settled inside ITEM-17 (reworded), ITEM-03 (gone) and ITEM-02 (the writer is gone; the comment beside the flag is stale in a new way, see new_observations), and counted as no item. Files were read by symbol, in part, not end to end: 'lines' is the file's length and 'lines_read' what this reader read of it.",
+ "items": [
+  {
+   "id": "ITEM-01",
+   "title": "preservedFlags did not carry durability wear, so every transfer (a copy made, the original deleted) handed a worn tool over as new",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: 'preservedFlags zachowuje wear'; commit 90c17021 of 12.09.2026, the first tag that holds it is v1.2.44 - this clone has no v1.2.43 tag)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/inventory.mjs:167-171: preservedFlags reads wearOf(item) and writes ITEM_FLAGS.wear on the copy. Since E35 every change of owner is one function, transferItem (inventory.mjs:1136), whose copy is made with extraFlags: preservedFlags(held) (:1267) and taken back when the piece no longer carries what the copy carries (carriedAs, :1194, :1312-1315). Its five callers are the five roads the finding named: handover.mjs:558 (loot) and :1001 (give), palm.mjs:698 (steal) and :877 (plant), stash-reach.mjs:550 (a stash rifled).",
+   "pinned_by": "tier 2 'a hand-over on transferItem keeps what the GMs hold of the item - broken, wear, roles, identity, kind, category and tier - ... (E35-T2, give)' (tests-tier2.mjs:77158), with its siblings for a body's loot (:77212) and for a steal, a rifle and a Plant (:77830); each fixture is a tier 3 Tool made with wear 2",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every caller of grantItem (10 sites) and of transferItem (5) in scripts/ outside the tests, looking for a copy road that skips preservedFlags: none - the other grantItem callers make new things (a Search's find, a GM's give, a key, a Truth Bullet, an improvised weapon, a Reroll's find), not copies of an owned item.",
+   "note": "The same function also carries a key's room since 22.09 (inventory.mjs:173-178)."
+  },
+  {
+   "id": "ITEM-02",
+   "title": "Room Setup's Bedrooms tab had a 'Stash hidden' column that wrote the legacy flag drpgVaultConcealed, which the Stashes list read back and undid in the same Apply: the box did nothing",
+   "old_severity": "major",
+   "old_state": "task 5 of AUDIT-1.2.42.md section 5 (commit e38d22a6, 12.09.2026, 'Items: the rules are enforced where they were being broken'; shipped in 1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The column is gone: room-setup.mjs holds the word 'concealed' only in the Stashes tab's matrix (:143, :1158-1160, written through setStash), and Apply's row write passes no concealment (room-setup.mjs:1049-1059). setVaultRoom has no such parameter any more (vault-store.mjs:1392-1395, :1409). The legacy flag is written nowhere but to false by the season reset's unconcealStashes (vault-store.mjs:1063-1070) and is still read as the fallback for a room with no stored list (stashesOn, :829-845). A leftover cell that was still built for every room and drawn in no tab went in 1.2.115 (commit 867f3e0b, docs/dev/tips-115/STATUS-115.md:125).",
+   "pinned_by": "R7301 (tier 1: every cell roomCells builds is a column of a tab; red at 071a3c19 on the leftover 'concealed' cell). No test was found that drives the Stashes tab's hidden cell through Apply and reads it back.",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git grep of drpgVaultConcealed and VAULT_FLAGS.concealed over scripts/ outside the tests: five lines, all in vault-store.mjs (:130 the name, :843 the fallback read, :1063 and :1070 the reset, :1474 the rename's list); no window writes it.",
+   "note": "A stale comment stands at vault-store.mjs:123-129: it says the legacy flag is 'read only through stashesIn's fallback', while unconcealStashes (:1063-1070) reads and clears it too and pieceData (:1474) carries it over a rename."
+  },
+  {
+   "id": "ITEM-03",
+   "title": "An indirect murder a player proposed, approved with 'Also visible to' left at '-', was sealed against everybody, its own proposer included; the trap armed anyway and the GM was told nothing",
+   "old_severity": "major",
+   "old_state": "task 5 of AUDIT-1.2.42.md section 5 (commit e38d22a6, 12.09.2026, 'Items: the rules are enforced where they were being broken'; shipped in 1.2.44); the precedence 'the proposer, whoever else is ticked' is the owner's answer of 21.09.2026 (commit a89672ca)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/projects.mjs:2098-2100: a hidden project's audience is the ticked viewers plus the owners of killerId ?? by, so the builder is always in. The approval window names the killer from the proposal first (projects-ui.mjs:1264 killerIdFor(result.viewers?.[0], start?.by), killerIdFor at :1576-1584 answers the proposer when there is one) and passes both by and killerId to createProject (:1306-1328).",
+   "pinned_by": "R105 (tier 0, 'a proposed murder is the proposer's, whoever else is ticked', which also reads the audience line of projects.mjs); tier 2 'a sealed project keeps its builder in and the rest of the table out' (tests-tier2.mjs:43773: createProject with indirectMurder and by alone, then canSee for the builder's player and for the others)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every caller of createProject (projects-ui.mjs:1306 the window, projects.mjs:2261 a repair, api.mjs:289 the console): the proposal's one road is the window, and the audience is built inside createProject, so no caller can leave the builder out of a hidden project that names by or killerId.",
+   "note": "The stale comment the finding named ('startProject fills this in properly') is gone from scripts/ (grep: no hit)."
+  },
+  {
+   "id": "ITEM-04",
+   "title": "The Gear rule 'one in a hand, at most one stowed' (LIMIT_GROUPS.gear.maxStowed) was asked in one place, putting a readied item down; every way a Gear arrives only counted the two slots, so two stowed Gear could be carried for good",
+   "old_severity": "major",
+   "old_state": "task 5 left it as a question; decision D4 of 13.09.2026 (AUDIT-1.2.42.md 9.1): option A, auto-ready on every way in, with a whisper to the owner (commit 12109493)",
+   "status": "decision",
+   "evidence_class": "S",
+   "evidence": "The code does what D4 chose. grantItem ends on keepGearShape for a carried arrival (inventory.mjs:918), which readies the arrival, or the working piece stowed beside a broken one, and whispers DRPG.Items.autoReadied to the owner (:963-1007, :999); retrieve asks the same on the way out of a stash (stash-reach.mjs:175-185, :203-204). Every owner change goes through grantItem (transferItem, inventory.mjs:1259). One amendment by the owner: an unseen Plant leaves the planted piece stowed and readies the victim's other piece without a word (E91 C8, D090, 12.11.2026; inventory.mjs:952-985).",
+   "pinned_by": "tier 2 'an improvised weapon goes into the killer's hand once: beside one stowed Gear the shape readies it ... (E14-T7, S08-36)' (tests-tier2.mjs:79967); 'retrieving a broken Gear beside one stowed never leaves two stowed (S08-36)' (:76986); the unseen Plant's two tests (:78050, :78122)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a way in that skips keepGearShape: its callers are grantItem and retrieve only (git grep), and the one hook on an item's creation that the module's limits own, preCreateItem (inventory.mjs:1323-1343), counts the slots and nothing else.",
+   "note": "Not established, and left as a question: an Item document that already carries the module's category flag and is created on a sheet by Foundry's own drop (a sidebar or compendium item) or by a GM's console passes preCreateItem's count and never reaches keepGearShape, so two stowed Gear could stand until the next arrival. Whether such a document exists outside sheets in a real world was not read."
+  },
+  {
+   "id": "ITEM-05",
+   "title": "stow did not clear the readied flag, and retrieve wrote only the place back, so an item came out of the stash still readied: two readied items, and the one check of ITEM-04 stepped past",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: 'stow() zdejmuje equipped'; commit 90c17021)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/stash-reach.mjs:117-124: stow's one write sets location, the stash's room and flags.<module>.equipped false. retrieve then runs the Gear shape rule (stash-reach.mjs:203-204), and readying anything puts every other readied carried item down (use-items.mjs toggleEquipped, the loop over readiedItems).",
+   "pinned_by": "none found that stows a readied item and reads the flag afterwards; tier 2's S08-12 test feeds the same three-key write to the GMs' audit as the legal stash write (tests-tier2.mjs:76892-76894)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for another road into a stash that keeps the flag: grantItem's overflow makes a new item with no readied flag (inventory.mjs:878-896), and a transfer's copy does not carry it (preservedFlags, :141-181).",
+   "note": "Not traced to its end: a player's console write of the place alone (location and stashRoom, no equipped) is judged by sheet-audit.mjs placeStands (:2275-2295), which does not ask the readied flag, so by that road an item could still lie in a stash readied. An honest sheet cannot make that write."
+  },
+  {
+   "id": "ITEM-06",
+   "title": "The GM-side handover checked ownership, room and death, but not that the item was on the giver's person: a stashed item could be given through the API or a hand-built packet; lootBody had the same gap",
+   "old_severity": "minor",
+   "old_state": "task 5 of AUDIT-1.2.42.md section 5 (commit e38d22a6, 12.09.2026, 'Items: the rules are enforced where they were being broken'; shipped in 1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/handover.mjs:971-981: giveItem reads the item as the GMs hold it and refuses a stashed one, before the Truth Bullet and key branches (so a stashed key is not copied either), telling the giver DRPG.Handover.stashed. lootBody refuses a stashed item at :545-550. The one road under both asks again: transferItem answers 'missing' unless the item is in a stash exactly when the mode is a rifle (inventory.mjs:1164).",
+   "pinned_by": "R144 (tier 0, 'five doors a console used, each shut on the side that writes': the stash test stands in giveItem before the key branch - a reading of the source). No driven test of a stashed item's give was found.",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the three copy roads that take no transferItem (a Truth Bullet's shareBullet, a key's shareKey, both reached only after the stash test at handover.mjs:976) and the packet's road (bridge-table.mjs's handover row runs giveItem): none passes the test.",
+   "note": ""
+  },
+  {
+   "id": "ITEM-07",
+   "title": "A Tier 0 item 'used creatively' sent the GM a ruling card with no button; the ruling could only be applied from the console (game.drpg.grantItemEffect), so the item was never consumed",
+   "old_severity": "major",
+   "old_state": "task 2 of AUDIT-1.2.42.md section 5 (commit d079a1ec, 12.09.2026); shipped in 1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/use-items.mjs:589-609: the card carries three actions, itemWorks, itemNoEffect and itemRefuse, with the actor's and the item's ids. scripts/messenger-app.mjs:938-962 runs them (wired at :1399-1401): Refuse writes back into the asker's thread, 'no effect' consumes, 'works' opens askItemEffect (:815) and applies grantItemEffect through ruleCreativeUse, which holds one ruling at a time and reads the item again before and after the window (use-items.mjs:1029, :1051).",
+   "pinned_by": "tier 2 'one creative ruling at a time on an item, held on the GM: a second card's Works while the first's window is open is turned away, and a card whose thing was used up, or put away while its window was open, gives nothing (E14-T7, S08-35)' (tests-tier2.mjs:79859, which presses the card's itemWorks button)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that the three action names reach a handler and that the item is looked up on the GM (messenger-app.mjs:939-941: actor.items.get(data.item), nothing done when it is gone).",
+   "note": ""
+  },
+  {
+   "id": "ITEM-08",
+   "title": "A trap's plant is keyed by room and outlived its project: after the project was deleted in the manager or the season reset, the next Search in the room still found the planted item; the trap ledger grew an orphan row a plant",
+   "old_severity": "minor",
+   "old_state": "task 5 of AUDIT-1.2.42.md section 5 (commit e38d22a6, 12.09.2026, 'Items: the rules are enforced where they were being broken'; shipped in 1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Both roads the finding named prune now. The manager's delete button calls deleteProject (projects-ui.mjs:498), one change { remove: true } (projects.mjs:2669-2673) carried out on the primary GM (projects.mjs:1698), whose step queues pruneTrapsFor(the ids that still have a row) (projects.mjs:1930), run right after it (projects.mjs:1600-1606); the season reset's clearAllProjects calls pruneTrapsFor(null) inside its step (projects.mjs:2717-2718). pruneTrapsFor drops every plant and ledger row of a project not kept (traps.mjs:597-615). Both stores are synced GM stores since E04, so the cut reaches every GM.",
+   "pinned_by": "none found that deletes a project and reads its plant gone (git grep of trapPlantStore, trapLedgerStore and pruneTrapsFor in the suite and the scenarios)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a way a project goes without pruneTrapsFor: the module's own delete and reset both prune; Daggerheart's own edit button is taken off the tray for a GM (projects-ui.mjs:122).",
+   "note": "takePlant itself still asks nothing of the project (traps.mjs:544-566): scenario 40-flow plants under a project id that is no project and its Search is handed the plant (40-flow.mjs:150). So a plant whose countdown was removed outside the module (Daggerheart's own Countdowns window, opened some other way) or planted from a console for no project would still be found; that road was not traced."
+  },
+  {
+   "id": "ITEM-09",
+   "title": "'I have found X's hiding place' (VAULT_FLAGS.found on the finder's actor) was never cleared: not by the season reset, not when the stash was removed in Room Setup",
+   "old_severity": "minor",
+   "old_state": "task 5 of AUDIT-1.2.42.md section 5 (commit e38d22a6, 12.09.2026, 'Items: the rules are enforced where they were being broken'; shipped in 1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The season reset's cast group stashesFound unsets the flag on every student and takes the concealment off their stashes (season-wipe.mjs:499-502, registered at :683; vault-store.mjs:1031-1038, :1055-1075). Removing a stash drops every finder's note of it, on that scene (setStash with present false, vault-store.mjs:952-962; forgetStashFound, :1012-1028).",
+   "pinned_by": "tier 2 'each cast group of the reset takes what its label says off one student and nothing else' (tests-tier2.mjs:63525; its stashesFound row at :63599); scenario 65-season check R6 (65-season.mjs:635)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the block the old fix put after a return (vault-store.mjs:952-955 says it never ran until 22.09): today it stands before the function's return and inside a try.",
+   "note": "stashesFound is one of the reset window's ticked groups (season-wipe.mjs:410), so a GM who unticks it keeps the notes by choice. A room's rename carries the notes (vault-store.mjs carryRoomOnSheets)."
+  },
+  {
+   "id": "ITEM-10",
+   "title": "The free rifle dialog said 'Free, and they will notice it is gone', while the owner was told only on a clumsy Search, never on the free road",
+   "old_severity": "minor",
+   "old_state": "task 5, item 8; counted in section 9 among the '34 ID closed under other names' (the sentence left lang/en.json in commit 5c66ffab, 12.09.2026)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The sentence is gone: DRPG.Vault.rifleNote reads 'It costs no action and no roll. A hidden stash you have not found has to be found first, with Analyze's Find Stash.' (lang/en.json:3222). And since 1.2.112, by the owner's decision of 13.11.2026, the free road does tell the owner: a reach that moved something while the owner was not in the room leaves a pending notice (stash-reach.mjs:582) that tellStashDisturbed delivers once when the owner next enters (stash-reach.mjs:611-653), in words that fit an open stash too (lang/en.json:3138 'Something has been moved in your stash ...'). The sheet's tooltip says so (lang/en.json:2333).",
+   "pinned_by": "tier 2 'a stash gone through while its owner was away is told to the owner once, when they next enter that room; one gone through before their eyes never is' (tests-tier2.mjs:79432)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the three texts a player meets on this road (rifleNote, the tooltip, the notice) against stealFromVault: none promises more or less than the code does.",
+   "note": "Polish says a little else: lang/pl.json:3430 reads 'Za darmo. Ukrytej skrytki nie ma na tej liscie, dopoki nie znajdziesz jej przez Find Stash w Analyze.' (quoted here without its Polish marks) - the same rule, said as 'not on this list'."
+  },
+  {
+   "id": "ITEM-11",
+   "title": "Three refusals about a full shared budget printed the category's plural ('Murder Weapons (2)') where capacityLabel would say 'Gear': the preCreateItem hook, retrieve and giveItem",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: refusals say 'Gear (2)' through capacityLabel; commit 90c17021)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "All three read capacityLabel now: inventory.mjs:1338-1341 (preCreateItem), stash-reach.mjs:170-173 (retrieve), handover.mjs:1003-1008 (a give refused into full hands) and, added since, :566-570 (a body's loot).",
+   "pinned_by": "none found that reads the label of these three refusals",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git grep of 'ITEM_CATEGORIES[...]?.plural' over scripts/ outside the tests: three hits - capacityLabel's own fallback (inventory.mjs:1375), a table's name (tables-pools.mjs:1067) and one message, below.",
+   "note": "One message of the same kind still names the category: the overflow whisper (inventory.mjs:843-847). It is not one of the three the finding named; see new_observations."
+  },
+  {
+   "id": "ITEM-12",
+   "title": "The GM's Take-away picker listed carried and stashed items in one flat list with no mark, and did not mark broken ones",
+   "old_severity": "minor",
+   "old_state": "task 10 by the list of AUDIT-1.2.42.md section 5 (commit b708865c in section 9's table); the lines themselves came in with the task 5 commit e38d22a6 (git log -S of the code's '(ITEM-12)' mark; its message: 'The Take-away picker says what is in the drawer and what is broken')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/gm-items.mjs:1773-1780: an option's label ends ' - in the stash' (DRPG.Items.inStash) for a stashed item and ' - Broken' (DRPG.Items.broken) for a broken one.",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that both keys exist in lang/en.json and lang/pl.json (a script read the two files: both present).",
+   "note": ""
+  },
+  {
+   "id": "ITEM-13",
+   "title": "The three give windows titled themselves 'Give an item to {actor}' from the argument, while the recipient select inside could be changed and won",
+   "old_severity": "nit",
+   "old_state": "task 10 by the list of section 5 (commit b708865c in section 9's table); the lines themselves came in with the task 5 commit e38d22a6 (git log -S of the code's '(ITEM-13)' mark; its message: 'the give windows stop naming a recipient the form may change')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The three titles are generic: gm-items.mjs:499 DRPG.Vault.giveKey ('Give a room key'), :1055 DRPG.Items.give ('Give an item'), :1487 DRPG.TruthBullet.give ('Give a Truth Bullet'). Since E101 the hub's own Give tab does the giving and has one title (:384).",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every 'title:' of gm-items.mjs: the three give windows and the hub are generic; one window still names its argument, below.",
+   "note": "The Take window has the same shape and was not part of the finding: see new_observations (gm-items.mjs:1790-1798)."
+  },
+  {
+   "id": "ITEM-14",
+   "title": "A GM who created an indirect murder from the panel with nobody under 'Also visible to', or ticked the manager's Indirect box, got a murder with no killer: the trap never armed and the finished project told nobody but the log",
+   "old_severity": "minor",
+   "old_state": "task 5 of AUDIT-1.2.42.md section 5 (commit e38d22a6, 12.09.2026, 'Items: the rules are enforced where they were being broken'; shipped in 1.2.44); the edit window's half closed later (E15 part 1 C1, 25.10.2026)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Create refuses: projects-ui.mjs:1264-1274 (no proposer and nobody ticked: DRPG.Project.needsKiller, nothing made). The edit window names a killer or refuses (:1211-1227). The manager's Indirect tick on a project with neither killer nor proposer is refused with the project's name and the rest of the row is still saved (:635-646, DRPG.Project.needsKillerNamed).",
+   "pinned_by": "tier 2 'projects keep what the GM chose in the GMs' windows and on the map (E15-T1): ... the edit names an indirect murder's killer or refuses it ...' (tests-tier2.mjs:82633); R105 (tier 0) for killerIdFor answering null from nothing",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a window road to a murder with nobody behind it: the three above are the only writers of indirectMurder from a window (git grep of needsKiller and of createProject's callers).",
+   "note": "Two things stand as the finding's pitfalls said. A GM's console call game.drpg.createProject({ indirectMurder: true }) with neither killerId nor by is not refused (api.mjs:282-289, projects.mjs:2008): the trap then arms nothing and the ready card is a log line (projects.mjs:2475-2480). And killerIdFor takes the first character a ticked user owns (projects-ui.mjs:1578-1581), so a user with two students names the first found."
+  },
+  {
+   "id": "ITEM-15",
+   "title": "refreshTableCopy, run at ready on every GM, renamed any table carrying the module's category and tier flags back to today's name, so a tier pool a GM renamed in the editor was renamed back next session",
+   "old_severity": "minor",
+   "old_state": "listed open in AUDIT-1.2.42.md section 4 and named in no task's list; closed in the task 5 commit e38d22a6 ('A tier pool a GM renamed on purpose keeps its name')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/tables-pools.mjs:284-291: a table is renamed only when its present name is one the module itself gave it under an older English wording (tableNameCandidates(..., { localized: false }).includes(table.name)); any other name is the GM's and is kept.",
+   "pinned_by": "tier 2 'a Search draws from the GM's item table whatever language each client is in, a renamed table is found by its flags, and the GM's ready renames no table to a translated name (E14-T12, ...)' (tests-tier2.mjs:80020; it runs refreshTableCopy twice and reads the made tables' names)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the whole function (tables-pools.mjs:253-311) for a second write of the name: one, behind the test above; the description is rewritten only when it still has the generated shape (:293-296).",
+   "note": "The old check asked for a live reading that RollTable.update({name}) keeps the flags; none was found recorded on a real Foundry, and the fix no longer depends on it."
+  },
+  {
+   "id": "ITEM-16",
+   "title": "The key hub listed the bedrooms of the scene the GM was looking at, and a shared key's description read its owner on that scene: with the dorms on another scene, 'no keys to give' and 'Owner: -'",
+   "old_severity": "minor",
+   "old_state": "task 5 of AUDIT-1.2.42.md section 5 (commit e38d22a6, 12.09.2026, 'Items: the rules are enforced where they were being broken'; shipped in 1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The key lists read every scene: giveKeyDialog and the hub's Give tab use allBedroomsAnywhere (gm-items.mjs:454-458, :371-379; vault-store.mjs:1189-1197). A granted or shared key names its owner from the scene the caller gives, else from any scene (vault-store.mjs:309-312 bedroomOwnerAnywhere; shareKey passes none, handover.mjs:160). The Take picker's 'own key' test reads every scene too (gm-items.mjs:1760-1761).",
+   "pinned_by": "none found for a key given or shared from another scene; R354 (tier 0) pins the same rule for the season reset's cast only",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git grep of workingScene() in vault-store.mjs, gm-items.mjs, handover.mjs, stash-reach.mjs, bedroom-keys.mjs and room-setup.mjs: only Room Setup reads it (room-setup.mjs:1228), a window that is about one scene.",
+   "note": "First scene wins when two scenes hold a bedroom of one name (vault-store.mjs:1182-1197), the known cost the finding's pitfall named."
+  },
+  {
+   "id": "ITEM-17",
+   "title": "grantItem's doc comment still said crime tools were capped at one and cleaning tools at two, after the shared two-slot Gear group replaced that",
+   "old_severity": "nit",
+   "old_state": "task 13 (AUDIT-1.2.42.md section 9: among the 25 small IDs closed there). The report names commit 7e40243 for task 13; the commit that holds this change is b888c066 of 13.09.2026, 'Task 13: the findings that had no task, and the tally corrected' (7e402433 is 'D8: the first text pass, and the decisions recorded')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/inventory.mjs:768-769: 'the carry limits (see LIMIT_GROUPS: one shared two-slot Gear group) are the rule'.",
+   "pinned_by": "none (a comment)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the comment against config.mjs LIMIT_GROUPS (gear: limit 2, maxStowed 1, config.mjs:952-978): it matches.",
+   "note": ""
+  },
+  {
+   "id": "ITEM-18",
+   "title": "The same recipient <option> builder was written five times in gm-items.mjs (and once in projects-ui.mjs)",
+   "old_severity": "nit",
+   "old_state": "task 13 (AUDIT-1.2.42.md section 9: among the 25 small IDs closed there). The report names commit 7e40243 for task 13; the commit that holds this change is b888c066 of 13.09.2026, 'Task 13: the findings that had no task, and the tally corrected' (7e402433 is 'D8: the first text pass, and the decisions recorded')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/gm-items.mjs:31-41: one recipientOptions(students, selectedId), called at :368, :494, :1051, :1480 and :1785; no other student option builder is left in gm-items.mjs or projects-ui.mjs (grep of the map-to-option pattern: the helper's own line only).",
+   "pinned_by": "none (hygiene)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "grep of '.map(a => `<option' in the two files: one hit, the helper.",
+   "note": ""
+  },
+  {
+   "id": "ITEM-LC1",
+   "title": "Live check 1 (ITEM-02): on a world whose regions predate E11, tick 'Stash hidden' on the Bedrooms tab only, Apply, reopen - expect the box unticked and the Stashes tab still 'open'",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject)",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "The box the check ticks does not exist: Room Setup has no 'Stash hidden' column (room-setup.mjs:1049-1051), and a stash's concealment is one cell of the Stashes tab (room-setup.mjs:153, :1137-1164). A region that predates the list still reads its legacy flag as the owner's one stash (vault-store.mjs:839-845).",
+   "pinned_by": "R7301 (tier 1)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "grep of 'concealed' in room-setup.mjs: the Stashes matrix only.",
+   "note": ""
+  },
+  {
+   "id": "ITEM-LC2",
+   "title": "Live check 2 (ITEM-03): as a player propose an indirect murder, approve from the card without touching 'Also visible to'; read the proposer's Work on Project list and the Daggerheart tray on their client",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers it: the proposer's owners are in the audience of the sealed project (projects.mjs:2098-2100), which is what both the module's lists (canSee) and the countdown's ownership (ownershipMap, projects.mjs:2111) read.",
+   "pinned_by": "tier 2 'a sealed project keeps its builder in and the rest of the table out' (tests-tier2.mjs:43773)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a recorded reading on a real Foundry in audit/findings-1.2.118/live-readings-e58.json and live-readings-other.json (a script searched the summaries): none about a proposed murder.",
+   "note": "The tray as drawn on a player's real client was not read at a table; only the ownership it is drawn from was read."
+  },
+  {
+   "id": "ITEM-LC3",
+   "title": "Live check 3 (ITEM-04/05): Search twice for a tool with nothing readied (two stowed, no warning); then ready one, stow the other, ready the first, retrieve - two fist badges on the sheet",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers both halves. The second tool found is put in the hand and its owner told (inventory.mjs:918, :990-1001). A stowed item loses its readied flag in the same write (stash-reach.mjs:122), readying one puts the others down (use-items.mjs toggleEquipped), and retrieve applies the shape rule (stash-reach.mjs:203-204), so one badge stands.",
+   "pinned_by": "tier 2 tests-tier2.mjs:79967 and :76986 for the shape; none found for the badge count on a sheet",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Same search of the recorded Foundry readings: none about Gear or a stash.",
+   "note": "A Search's find is granted on the roller's own browser (action-search.mjs:356), where keepGearShape and its whisper run as that player; read in the code, not at a table."
+  },
+  {
+   "id": "ITEM-LC4",
+   "title": "Live check 4 (ITEM-08): plant an item, delete the project in the manager, Search the room - the plant still comes out",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers it: the manager's delete ends on pruneTrapsFor with the ids that still have a row (projects.mjs:2669-2673, :1930), which drops the plant and its ledger row (traps.mjs:597-615); the Search then finds no plant (takePlant answers null, traps.mjs:547-549).",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Same search of the recorded Foundry readings: none about a plant.",
+   "note": "No test and no recorded run covers this exact sequence; the status rests on the read of the code."
+  },
+  {
+   "id": "ITEM-LC5",
+   "title": "Live check 5 (ITEM-15): rename a tier pool in the editor, reload as GM, read the sidebar name",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers it: at ready a table is renamed only from a name the module itself once gave it (tables-pools.mjs:290-291), so the GM's name stays.",
+   "pinned_by": "tier 2 E14-T12 (tests-tier2.mjs:80020)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Same search of the recorded Foundry readings: none about a renamed table.",
+   "note": ""
+  },
+  {
+   "id": "ITEM-LC6",
+   "title": "Live check 6 (ITEM-16): GM viewing scene B, dorms on scene A: Give / take items -> Give a key",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers it: the hub's key list and the key window read allBedroomsAnywhere (gm-items.mjs:371-379, :454-458), so the dorms' rooms are offered whatever scene is on screen, and the key's description names the owner from any scene (vault-store.mjs:309-312).",
+   "pinned_by": "none found for this window; R354 (tier 0) for the reset's use of the same list",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Same search of the recorded Foundry readings: none about a key given across scenes.",
+   "note": ""
+  },
+  {
+   "id": "ITEM-LC7",
+   "title": "Live check 7 (hub liveness): with the GM's item hub open, a player stows an item and takes one out - the 'Usables: 1/3' line and the 'in the stash' tag should follow",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers it: the hub's holdings are a keepLive region that watches items and actors (gm-items.mjs:148-155), keepLive's item hooks are createItem, deleteItem and updateItem (live.mjs:72), and stow and retrieve are item updates (stash-reach.mjs:118-124, :192-195). The region is rebuilt from the student the select names now (gm-items.mjs:139-141).",
+   "pinned_by": "none found that changes an item under the open hub and reads the holdings",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a test or a scenario reading '.drpg-holdings-live' after another client's write (git grep in the suite and the scenarios): none.",
+   "note": "Read in the code only. Not established: that the Give tab's own counts, drawn once from the student the hub opened on (gm-items.mjs:373-380), follow the same write - a question for the live-refresh pass."
+  },
+  {
+   "id": "ITEM-LC8",
+   "title": "Live check 8 (trap alert audience): on a two-account world confirm the gmOnly alert card does not appear in the killer's messenger thread",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/items.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no item of 9.2 was found for it (grep of the file for its subject); the trap's card on a real Foundry is row S7-6 of docs/dev/e58/LOCAL-REPORT.md:432, 'left, not yet driven'",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers it: the alert is sent with gmOnly (traps.mjs:323-328), and callGm files a gmOnly card in no thread (call-gm.mjs:951, owner null), so it is a card to the GMs in the chat log.",
+   "pinned_by": "scenario 30-security 7l2 ('a trap's alert card names the trap in the GMs' words, and nowhere in p2's copy of the card', 30-security.mjs:2336-2352); scenario 13-murder-signals reads the same card as the GMs' alone (:1173-1182)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a recorded reading on a real Foundry: LOCAL-REPORT.md:432 lists the firing trap as not driven.",
+   "note": "Which of the two scenarios reads the builder's own thread after the alert was not established; no Foundry reading exists."
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "The Take window still titles itself from the argument while its 'Take it from' select can be changed",
+   "where": "scripts/gm-items.mjs:1790-1798",
+   "what": "The hub's Take opens takeItemDialog(chosen) (gm-items.mjs:430); with no filter the title is DRPG.Items.takeFrom, 'Take an item from {actor}', built from the argument (:1790-1794), and the form's recipient select (:1797-1798) decides whose item is deleted (:1846-1847). A GM who changes the select reads one student's name in the title and takes from another. The same shape ITEM-13 closed for the three give windows.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "The overflow whisper names the item's category where the limit that was hit is the shared Gear's",
+   "where": "scripts/inventory.mjs:843-847 (lang/en.json:3135, lang/pl.json:3333)",
+   "what": "A find that does not fit goes to the stash with DRPG.Vault.overflowed, 'You cannot carry any more {category} ...', and {category} is ITEM_CATEGORIES[category].plural, not capacityLabel(category). A student carrying two Tools who finds a Murder Weapon is told they cannot carry any more Murder Weapons while they carry none. The refusals beside it (inventory.mjs:819, :851) use capacityLabel. The Polish line also adds 'on this scene' (the stash 'na tej scenie'), which the English does not say.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "The old report names the wrong commit for its task 13, and the wrong task for ITEM-12 and ITEM-13",
+   "where": "audit/AUDIT-1.2.42.md:632 (and :503 for the two ids)",
+   "what": "Section 9's table gives task 13 ('rozliczenie') the commit 7e40243; that commit is 'D8: the first text pass, and the decisions recorded', and the one that closed ITEM-17 and ITEM-18 is b888c066, 'Task 13: the findings that had no task, and the tally corrected' (git log -S of the two changes). ITEM-12 and ITEM-13 stand in task 10's list, while their lines came in with task 5's commit e38d22a6. A paper finding, not a code one.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "A comment on the legacy concealment flag no longer matches its readers",
+   "where": "scripts/vault-store.mjs:123-129",
+   "what": "The comment says drpgVaultConcealed is 'read only through stashesIn's fallback'; unconcealStashes reads and clears it at the season reset (vault-store.mjs:1063-1070) and pieceData carries it over a rename (:1474).",
+   "severity": "nit",
+   "confidence": "read"
+  }
+ ],
+ "not_established": [
+  "ITEM-04: whether an Item that already carries the module's category flag can be created on a sheet outside grantItem in a real world (a sidebar or compendium drop), which would pass preCreateItem's count and skip keepGearShape. A reading of a world's Items directory and of Daggerheart's drop handler would settle it.",
+  "ITEM-05: whether a player's console write of the place alone (no readied flag) leaves an item readied in a stash; sheet-audit.mjs placeStands does not ask the flag. A driven test of that write, then retrieve, would settle it.",
+  "ITEM-08: whether a countdown can still be removed outside the module's delete at a table (Daggerheart's own Countdowns window; the tray's edit button is removed for a GM at projects-ui.mjs:122). If it can, its plant stays, because takePlant asks nothing of the project.",
+  "ITEM-LC2, LC3, LC4, LC5, LC6, LC7, LC8: no reading on a real Foundry was found for any of the eight live checks; each status is what the code says, and LC7's is marked suspected because no test reads the open hub after another client's write.",
+  "No harness result is cited: the base run is made centrally and this reader ran nothing. Tests are named as what would fail, not as green."
+ ]
+}
