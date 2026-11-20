@@ -11,6 +11,7 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 | --- | --- | --- |
 | claude/trial-119 | cdcb27f9 | Dive and Scrum never close early; an empty camp's turn runs with no speaker; the Closing music plays from the speak step on |
 | claude/planlook-119 | 240a5d94 | the Planner's type colours, square routed arrows with a bundle and ports per source, the deduction/counter/solution kinds and the trial modes each in a distinct hue |
+| claude/sheet-119 | 54b4a756 (asm a086b3a5, 21:39Z) | any item can be thrown away except a Truth Bullet or a bedroom key (inventory.mjs onlyCopied); sheet-audit.mjs itemFindings no longer flags an honest discard of an unbroken item; R7906, S119-T7, scenario 40, 9.2 item 675 LIVE-S119-03. An owner request |
 | claude/sheet-119 | f5319776 | the effect pile; Hope/Despair applied after Dice So Nice everywhere |
 | claude/facilities-119 | 782baaa0 (asm de96c5be, 21:31Z) | the Facilities rows end on what the action gives (action-facilities.mjs effectWords/effectsWords, timed-effects.mjs timedWhat); the GM's text effect is named "a message from the GM"; R7843. An owner request |
 | claude/fog-119 | ef1a6064 (asm 5a0424c2, 21:34Z; comment fix caf01e3f) | the voice tile under the veil: visibility.mjs voiceVeiledHere, voice-tile.mjs personOf/channelCount, R7864, 9.2 item 690 LIVE-F119-03 - domain-comm-c-voice-1 |
@@ -24,7 +25,6 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 
 ## In progress (by Saturday 10:00, else 1.2.120)
 - C1 on claude/season-119: Reset the season is dead (controls-10-setup-config-1, domain-case-g-death-chapter-1, stages-17 E49-1); Season setup's Save writes the stale clock and safeword (controls-10-setup-config-2); the checklist's live rows (controls-10-setup-config-3), only if time allows.
-- S on sheet-119: discarding items that are not broken (an owner request, not a finding).
 - P on claude/sound-119: Sound > Effects add/remove per file (owner request); pushed, not merged, being reworked per the owner (21:34Z).
 
 ## Deferred to 1.2.120 (known; kept in the report as open)
