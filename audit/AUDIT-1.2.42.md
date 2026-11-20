@@ -1,5 +1,133 @@
 # Audyt Danganronpa RPG v1.2.42 - funkcje, treść, przepływ informacji, UX, higiena kodu
 
+**Audyt powtórzony:** 20.11.2026 · **Stan:** `b5a29e73` (`module.json` 1.2.118, gałąź `main`) · **Gałąź audytu:** `claude/audit-119` · **Zakres:** 271 skryptów (434 614 linii, z czego 13 plików testów i zestawu to 208 332), 7 arkuszy CSS (31 831 linii), `lang/en.json` 6 369 kluczy, `lang/pl.json` 7 456, 54 scenariusze harnessu, 105 etapów w `tools/stages.json`. Liczby zdjęte skryptem na tym commicie (`wc -l`, liczenie liści JSON), 20.11.2026.
+
+## Jak czytać ten plik (stan 20.11.2026)
+
+Plik ma dwie części. Numery sekcji 0-9 i numery pozycji w 9.2 zostają tam, gdzie były: wskazują na nie `CLAUDE.md`, podręczniki, testy, `audit/harness/README.md` i `node tools/check.mjs live`. Nic nie zostało przenumerowane.
+
+| Część | Sekcje | Co to jest | Stan |
+| --- | --- | --- | --- |
+| I. Audyt powtórzony na 1.2.118 | 10-18 (ta część, na górze pliku) | werdykt i oceny, metodyka, pomiary, rozliczenie starych pozycji, etapy, kontrolki, odświeżanie okien, nowe znaleziska, czego nie zmierzono | w toku: sekcja 11 (metodyka) jest gotowa, pozostałe są dopisywane w miarę pracy i dopóki ich tu nie ma, nic o nich nie twierdzę |
+| II. Raport 1.2.42 z 12.09.2026 | 0-9 | zapis tamtego audytu i poprawek 1.2.43-1.2.47, potem lista live checków 9.2 dopisywana przez każdy etap | zapis; adnotacje "Stan 1.2.118" dochodzą razem z sekcją 13 |
+
+Dlaczego nowa część stoi na górze i ma numery od 10: pierwszy ekran ma mówić, jaki jest stan dziś, a nie jaki był 12.09; numery 0-9 są zajęte i cytowane, więc nowe sekcje ich nie ruszają; a `check live` czyta 9.2 od nagłówka do następnego nagłówka `##`/`###`, więc w środku 9.2 nie może stanąć nic poza numerowanymi pozycjami - nowe sekcje nie mogą więc trafić ani do środka 9.2, ani bez szkody na sam koniec pliku za 450 KB listy, gdzie nikt by ich nie znalazł.
+
+## 11. Metodyka audytu powtórzonego
+
+Źródła metody: `audit/AUDIT-1.1.88.md`, `audit/AUDIT-1.2.13.md`, ten plik (sekcje 0-9) z surowymi znaleziskami w `audit/findings/` i `audit/findings-1.2.42/`, oraz `audit/README.md`. Tamte dwa raporty czytałem jako źródło i ich nie edytuję. Sekcja ma trzy zadania: zapisać, co robił oryginał (11.1), powiedzieć, co zmieniam i dlaczego (11.2), i ustalić słownik, którym mówi reszta części I (11.3-11.6).
+
+### 11.1 Metoda oryginału, odtworzona z trzech raportów
+
+Żaden z trzech raportów nie ma osobnego rozdziału o metodzie; jest tabela czterech kroków na górze tego pliku (sekcja "Metoda" raportu 1.2.42), akapit "Jak to było testowane" w 1.1.88 i jedno zdanie w nagłówku 1.2.13. Reszta metody jest w tym, jak raporty są zbudowane. Poniżej każdy krok z miejscem, z którego go odczytałem.
+
+| # | Co robił oryginał | Skąd to wiadomo |
+| --- | --- | --- |
+| 1 | **Zamrożony stan.** Data, commit, wersja z `module.json`, liczby zakresu (skrypty, linie, CSS, `en.json`). | nagłówki wszystkich trzech raportów; 1.2.13 "Liczby" |
+| 2 | **Audyt statyczny domenami, równolegle.** Dziewięć domen (CASE, COMM, CORE, DESP, ITEM, MAP, ROLL, TEXT, UI); każdy plik domeny przeczytany od początku do końca; każdy przepływ prześledzony do sąsiadów (bridge, utils, secret, settings); każdy klucz `DRPG.*` użyty w kodzie sprawdzony w `en.json` skryptem. 1.2.13 zrobił to samo jednym przebiegiem przez całe źródło, bez uruchamiania świata. | 1.2.42 "Metoda" krok 1; `findings-1.2.42/*.md` "Files read (with line counts)" i "Neighbours followed"; nagłówek 1.2.13 |
+| 3 | **Surowe znaleziska w stałej formie.** ID domeny z numerem; waga (`blocker`/`major`/`minor`/`nit`; w 1.2.13 P1-P3, w 1.1.88 KRYTYCZNY/WYSOKI/NISKI); kategoria (leak, bug, flow, ux, text, perf, hygiene); `CONFIRMED` albo `SUSPECTED`; Where / What happens / Evidence z cytatem kodu / szkic naprawy. Obok: mocne strony domeny, komentarze sprzeczne z kodem, zalecane live checki, pomiary higieny. | `findings-1.2.42/case.md` i pozostałe osiem; 1.2.13 sekcja A ("P1 psuje regułę lub bezpieczeństwo, P2 działa źle w konkretnej sytuacji, P3 brud") |
+| 4 | **Harness zamiast Foundry.** Atrapa Foundry v14 z kilkoma klientami naraz (GM i 2 graczy w 1.1.88, GM i 3 graczy w 1.2.42): boot, własny zestaw modułu, pełny przebieg zbrodni, prywatność rzutów między klientami, próby zapisu ponad uprawnienia i wstrzyknięcia HTML, potem scenariusze `40-flow` i `50-lang`. Awaria modułu to znalezisko, nie łatka w harnessie. | 1.1.88 "Jak to było testowane"; 1.2.42 sekcja 1 |
+| 5 | **Zestaw modułu przed i po.** `game.drpg.runTests({ tier: 2 })` na harnessie; porównywany jest zbiór porażek, nie sama liczba ("ten sam zestaw 13 przed i po"). | 1.2.42 "Metoda" krok 3; 9.3b punkt 2 (re-triage 12 akceptowanych porażek) |
+| 6 | **Wydanie i zależności przez sieć.** `releases/latest`, gałąź `main`, flagi `prerelease`, manifest instalacyjny. | 1.1.88 REL-001 |
+| 7 | **Analiza treści.** Cztery tabele: zdania mówiące co innego niż kod; dryf terminologii z liczbą kluczy na wariant; teksty za długie na swoje miejsce (skrypt długości); informacje GM-only, które docierały do gracza. | 1.2.42 sekcja 3; 1.2.13 sekcja F |
+| 8 | **Przepływ gry i UX**, osobno gracz i GM: ile powierzchni mówi o jednym zdarzeniu, ile drzwi prowadzi do jednego pytania, które okna migają. | 1.2.13 E1-E12; 1.2.42 sekcja 4 "Przepływ do GMa", "UX i wygląd" |
+| 9 | **Wydajność**: co biegnie co klatkę i co zapis, z zastrzeżeniem, że liczbę klatek mierzy tylko stół. | 1.2.13 D; 1.2.42 zadanie 9, 9.3b punkt 5 |
+| 10 | **Higiena kodu w liczbach**: rozmiary, funkcje ponad 300 linii, zduplikowane helpery, martwy kod, martwe klucze i selektory, magiczne liczby, komentarze sprzeczne z kodem. | 1.2.13 "Liczby", C1-C6; 1.2.42 sekcja 6 |
+| 11 | **Werdykt z ocenami.** Odpowiedzi wprost na pytania właściciela; oceny 0-10 (jedna w 1.1.88, sześć obszarów w 1.2.13, siedem pytań z briefu w 1.2.42) z kolumną "do 10/10 brakuje"; skala surowa ("10 znaczy: nie ma nic, co bym zmienił"). | sekcje "Werdykt" trzech raportów |
+| 12 | **"Co działa dobrze - nie ruszać"**, żeby poprawki nie zepsuły tego, co trzyma moduł. | 1.1.88; 1.2.13 G; 1.2.42 koniec sekcji 6 |
+| 13 | **Live checki.** Wszystko, czego harness nie rozstrzyga, z przepisem na odczyt przy stole (linia do konsoli, kroki, co ma wyjść). | 1.1.88 "Obszary wymagające żywego oka"; 1.2.42 sekcja 7 i 9.2 |
+| 14 | **Pytania do właściciela.** Miejsca, gdzie komentarz przeczy kodowi, i decyzje reguł z wariantami A/B, których kod nie rozstrzygnie. | 1.2.13 B; 1.2.42 zadanie 12 i 9.1 |
+| 15 | **Lista zadań do 10/10** w kolejności ryzyka dla rocznej kampanii, każde z celem, metodą i pułapkami. | 1.2.42 sekcja 5; 1.2.13 H |
+| 16 | **Korekta własna.** Znalezisko, które nie przetrwało czytania kodu, jest wycofane jawnie i zostaje w raporcie (LIVE-002 w 1.1.88; A11, A22 punkt trzeci i A23 w 1.2.13; "wcześniejsze zdanie było za mocne" w sekcji 9 tego pliku). Na koniec rozliczenie wszystkich ID skryptem (zadanie 13). | "Status after this review" w 1.1.88; "Co się zmieniło w samym audycie" w 1.2.13; sekcja 9 |
+
+Tę metodę powtarzam krok po kroku. Trzy rzeczy z oryginału zmieniam świadomie i mówię o nich w 11.6.
+
+### 11.2 Usprawnienia metody i dlaczego
+
+| # | Usprawnienie | Dlaczego (co poszło źle albo czego brakowało w oryginale) |
+| --- | --- | --- |
+| U1 | **Każde znalezisko jest przed zapisem sprawdzane przeciwnie**: osobny czytający dostaje samo twierdzenie i ma je obalić prawdziwym wywołującym, prawdziwym wejściem i odczytem kodu. Zostaje tylko to, czego nie obalił. | W oryginale `CONFIRMED` stawiał ten sam czytający, który znalazł. Cztery znaleziska trzeba było potem wycofać (LIVE-002, A11, A22 punkt trzeci, A23), a przegląd `docs/dev/audit-113/FINDINGS.md` sam podaje 9 podejrzeń na 32 pozycje. |
+| U2 | **Żadnego twierdzenia bez odczytu.** Każda pozycja niesie klasę dowodu (11.3) i miejsce: plik i linia na `b5a29e73`, nazwa testu albo scenariusza z wynikiem z tego przebiegu, albo commit. Czego nie da się zmierzyć bez stołu, jest zapisane jako niezmierzone, z live checkiem, który by to rozstrzygnął. | `CLAUDE.md`, "Measure, then say"; oba przykłady stamtąd (test, który nie mierzył niczego, i etykieta na kuble porażek, której nikt nie sprawdził) to błędy raportu, nie kodu. |
+| U3 | **Jedna tura bazowa harnessu, wspólna dla wszystkich czytających.** Lint, checki, bramka, tiery 0-1 i jeden pełny `npm test` na `b5a29e73`; wyniki leżą w jednym miejscu i czytający się na nie powołują, zamiast uruchamiać harness sami. Dodatkowe sondy idą po jednej. | Odczyty czasowe tieru 2 migają pod obciążeniem na 4 rdzeniach (`docs/dev/METHOD.md` sekcja 3), a dwóch czytających z dwoma różnymi przebiegami to dwa różne stany. Oryginał miał jednego czytającego i ten problem go nie dotyczył. |
+| U4 | **Stare pozycje rozliczane odczytem kodu, nie szukaniem ID.** Każda pozycja z 1.1.88, 1.2.13 i 1.2.42 dostaje status (11.3) z dowodem na dzisiejszym kodzie. | Skrypt rozliczeniowy z zadania 13 szukał ID w commitach i komentarzach i nie widział 34 pozycji zamkniętych pod innymi nazwami (sekcja 9); "zamknięte, bo commit wymienia ID" nie mówi też, czy poprawka przeżyła drogę z 1.2.43 do 1.2.118. |
+| U5 | **Przebieg etapów.** Każdy ze 105 wierszy `tools/stages.json` oceniany na najnowszej wersji: obietnica (notatki wydania, STATUS/ledger w `docs/dev/`, `touches`) kontra kod, kontra testy (wiersze rejestru R ostemplowane etapem i ich wynik w turze bazowej), kontra scenariusze, kontra live checki etapu w 9.2. Ocena, dowód oceny, czego brakuje. | Oryginał nie miał etapów. `docs/dev/METHOD.md` ("What the method does not catch") mówi wprost, że etap sprawdzony tylko własną metodą jest sprawdzony tylko nią. |
+| U6 | **Przebieg kontrolek** (prośba właściciela). Spis każdego przycisku i kontrolki każdego okna modułu, HUD-u, dodatków arkusza i kart czatu: etykieta -> handler -> skutek, u GM-a i u gracza, w obu motywach. Znaleziskiem jest kontrolka, która nic nie robi, rzuca wyjątkiem, robi co innego niż mówi etykieta, albo jest pokazana komuś, kto nie może jej użyć. Przy każdej zapisane, jak ją odczytałem (test, przebieg harnessu, ścieżka w kodzie). | Oryginał znajdował martwe przyciski przy okazji (COMM-02, COMM-07, ITEM-02), nie spisem. Dziś jest 162 okien w 165 miejscach (`docs/dev/e59/WINDOWS.md`) i przy okazji nie da się ich przejść. |
+| U7 | **Przebieg odświeżania okien** (prośba właściciela). Dla każdego okna, które pokazuje dane magazynu albo świata (ustawienia, flagi, dziennik, aktorzy, magazyny GM-a, sockety): czy przerysowuje się w miejscu, gdy te dane zmieni ktoś inny, czy dopiero po zamknięciu i otwarciu. Lista danych czytanych przez okno jest porównywana z listą, na którą okno nasłuchuje. | W 1.2.13 "okna GM odświeżają się na żywo" było mocną stroną stwierdzoną ogólnie; pojedyncze braki wychodziły przy stole (CASE-07 licznik głosów; przykład właściciela: Planer). |
+| U8 | **Jawna skala ocen z kotwicami** (11.4), ta sama dla siedmiu pytań z briefu i dla etapów. | Oceny oryginału nie miały zapisanych kryteriów; 8.5 nie dało się odtworzyć ani porównać między audytami. |
+| U9 | **Strażnik "zmierzono nic".** Każdy skrypt audytu i każdy czytający podaje, ile rzeczy przeczytał (plików, linii, kluczy, okien, pozycji); zero albo liczba niezgodna ze spisem to brak wyniku, a nie wynik zielony. | `CLAUDE.md`: `stackShapes` przeszło z zerem porażek, bo lista bloków była pusta. |
+| U10 | **Pokrycie wykazane, nie założone.** Lista plików z liczbą linii na czytającego i osobno lista plików, których nikt nie przeczytał w całości. | 97 skryptów i 90 tysięcy linii we wrześniu, 258 skryptów bez testów i 226 tysięcy linii dziś. "Każdy plik od początku do końca" przestało być oczywiste. |
+| U11 | **Odczyty z prawdziwego Foundry jako osobna klasa dowodu.** `docs/dev/e58/LOCAL-REPORT.md` i `docs/dev/e39/CALIBRATION.md` (Foundry 14.370 na maszynie właściciela, 16-17.11.2026) są wciągnięte do rozliczenia 9.2. Pozycję live zamyka tylko zapisany odczyt, nigdy rozumowanie. | We wrześniu żadnego odczytu z v14 nie było; dziś są, ale poza tym plikiem, więc 9.2 mówi "otwarte" o rzeczach już odczytanych. |
+| U12 | **Waga z jednozdaniowym scenariuszem awarii**: kto, co robi, co widzi. | Waga bez scenariusza jest opinią; ze scenariuszem da się ją podważyć. `docs/dev/METHOD.md` sekcja 5 wymaga tego od przeglądu etapu. |
+| U13 | **Ponowne sprawdzenie na końcu względem 1.2.119.** Obszary, które zmieniają linie poprawek (plan, wygląd planu, trial, mgła, dzień, arkusz), czytane jeszcze raz po wydaniu; jeśli wydania nie ma, pozycje, które mogą się z nim przesunąć, są oznaczone. | Audyt biegnie równolegle z sześcioma liniami poprawek; bez tego raport byłby nieaktualny w dniu oddania. |
+
+### 11.3 Słownik: statusy, wagi, pewność, klasy dowodu
+
+**Status starej pozycji** (znalezisko, zadanie, decyzja):
+
+- **naprawione** - dzisiejszy kod nie robi tego, co opisano, i wskazuję dlaczego (plik i linia, test, commit);
+- **częściowo** - część opisu już nie zachodzi, część zachodzi; obie części nazwane;
+- **otwarte** - zachodzi nadal na `b5a29e73`;
+- **nieaktualne** - rzecz, której dotyczyło, została usunięta albo zastąpiona, więc pytanie nie ma już przedmiotu (z nazwą tego, co ją zastąpiło).
+
+**Status live checka** (sekcja 7, 9.2, 9.3): **odczytane** (jest zapis odczytu na prawdziwym Foundry, z wynikiem: zgodne albo wada), **otwarte** (nikt nie odczytał), **częściowo** (odczytana część), **nieaktualne** (jak wyżej). Osobno zaznaczam, gdy tekst pozycji nie zgadza się już z kodem (nazywa funkcję, klucz, okno albo test, których nie ma).
+
+**Waga**, jak w `findings-1.2.42/`: `blocker` (psuje kampanię albo zdradza odpowiedź), `major` (psuje regułę, sesję albo pracę GM-a w zwykłej sytuacji), `minor` (działa źle w konkretnej sytuacji), `nit` (brud, tekst, kosmetyka). Każda z jednozdaniowym scenariuszem (U12).
+
+**Pewność**: **zmierzone** (przebieg: harness, Chromium albo zapis z prawdziwego Foundry), **przeczytane** (cała droga prześledzona w źródle i nieobalona w weryfikacji przeciwnej), **podejrzenie** (część drogi; nie jest znaleziskiem, tylko pytaniem z live checkiem). To zastępuje `CONFIRMED`/`SUSPECTED` oryginału.
+
+**Klasa dowodu**, podawana przy każdej pozycji:
+
+| Znak | Co to jest | Czego nie dowodzi |
+| --- | --- | --- |
+| H | przebieg harnessu z tej tury (jsdom, atrapa Foundry, 4-5 klientów) | układu, canvasu, fontów, dźwięku, prawdziwego serwera; założenia o v14 mają identyfikatory LIVE-E30 |
+| C | prawdziwy Chromium bez Foundry (sweepy z `audit/`) | zachowania Foundry; rysowanie jest programowe, więc koszt klatki to kształt, nie liczba ze stołu |
+| F | zapis odczytu z prawdziwego Foundry 14.370 (E58, E39), z datą | niczego poza tym, co wtedy odczytano; strony były headless, bez człowieka, bez LiveKit |
+| S | odczyt statyczny: plik i linia na `b5a29e73` | że kod tak działa po uruchomieniu; dlatego S przechodzi weryfikację przeciwną |
+| K | commit albo zapis w papierach etapu | stanu dzisiejszego, jeśli nie idzie z nim S albo H |
+
+### 11.4 Skala ocen
+
+Surowa jak w oryginale: 10 znaczy "nie ma nic, co bym zmienił". Ta sama skala dla siedmiu pytań z briefu 1.2.42 (żeby wiersze dało się porównać z ocenami z 12.09) i dla etapów.
+
+| Ocena | Znaczy | Dla etapu |
+| --- | --- | --- |
+| 10 | nic do zmiany i nic nieudowodnionego | każda obietnica ma nazwany test albo check zielony w turze bazowej, odczyt kodu nic nie znalazł, live checki etapu odczytane |
+| 9 | drobiazgi bez skutku przy stole | wszystko dowiezione; zostały najwyżej znaleziska `nit` albo live checki etapu jeszcze nieodczytane |
+| 8 | działa, z jednym-dwoma `minor` | obietnice dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma `minor` |
+| 7 | działa w zwykłej sytuacji, kilka `minor` albo jedna obietnica dowieziona w części | jak obok |
+| 6 | jedno `major` | jedna obietnica niedowieziona albo zepsuta przez późniejszy etap |
+| 5 i niżej | `blocker` albo kilka `major` | główny cel etapu nie zachodzi na 1.2.118 |
+
+Dwie reguły, żeby ocena nie mówiła więcej, niż zmierzono: etap, którego główna obietnica stoi na nieodczytanych live checkach, nie dostaje więcej niż 9; etap, którego nie dało się ocenić z repozytorium (brak papierów, brak testów z jego stemplem), dostaje "nie oceniono" z powodem, a nie liczbę.
+
+### 11.5 Przebiegi i ich kolejność
+
+| Krok | Co | Jak | Sekcja z wynikiem |
+| --- | --- | --- | --- |
+| K0 | Stan i tura bazowa | `npm run quick`, `node run-tests.mjs --tier 1`, jeden `npm test` na `b5a29e73`; liczby zakresu skryptem | 12 |
+| K1 | Rozliczenie starych pozycji | 1.1.88 (4 pozycje), 1.2.13 (A, B, C, D, E, F), 1.2.42 (152 ID z `findings-1.2.42/`, tabele 3.1-3.4, zadania 1-14, sekcja 6, sekcja 7, 9.1, 9.3), 9.2 (577 numerowanych pozycji, 18 pozycji B-, 7 znanych luk) | 13 i adnotacje w części II |
+| K2 | Audyt statyczny domenami | dziewięć domen oryginału, podzielone tak, żeby jeden czytający miał około 10 tysięcy linii; pliki od początku do końca, sąsiedzi wymienieni | 17 |
+| K3 | Etapy | 105 wierszy `tools/stages.json`, grupami po wydaniach | 14 |
+| K4 | Kontrolki | spis z `docs/dev/e59/WINDOWS.md` i z kodu; handler i skutek z kodu, podejrzane potwierdzane sondą | 15 |
+| K5 | Odświeżanie okien | dane czytane przez okno kontra to, na co nasłuchuje (`keepLive`, hooki, sockety); podejrzane potwierdzane sondą | 16 |
+| K6 | Treść | cztery tabele z sekcji 3 powtórzone na dzisiejszych plikach językowych i `config.mjs` | 17 |
+| K7 | Higiena i wydajność w liczbach | pomiary sekcji 6 powtórzone skryptem; liczniki pracy ze scenariuszy 81 i 86 | 12 |
+| K8 | Weryfikacja przeciwna | każde znalezisko z K2-K7 i każda zmiana statusu z K1 na "naprawione" | w statusie pozycji |
+| K9 | Oceny i werdykt | skala z 11.4 | 10 i 14 |
+| K10 | Ponowne sprawdzenie względem 1.2.119 | U13 | 18 |
+
+Nowe znaleziska dostają kolejne numery w swojej domenie (po CASE-15 idzie CASE-16 i tak dalej), a dla nowych przebiegów nowe przedrostki: `CTRL` (kontrolki), `REFR` (odświeżanie), `STG` (etap dowieziony inaczej, niż mówi jego zapis), `TEST` (zestaw, harness, bramka), `DOC` (podręczniki i papiery kontra kod). Nowe live checki dostają kolejne numery na końcu 9.2.
+
+### 11.6 Świadome odstępstwa od oryginału
+
+1. **Audyt nie naprawia.** Raport 1.2.42 był audytem i wydaniem naraz (krok 4 "Poprawki"). Tu są same znaleziska: równolegle pracuje sześć linii poprawek 1.2.119 i każda moja zmiana w kodzie zderzałaby się z nimi. Nie ruszam też testów, `tools/stages.json`, `module.json`, `CLAUDE.md` ani `.claude/`.
+2. **Krok 6 (wydanie przez sieć) zawężony.** Sprawdzam to, co widać z repozytorium i z jego historii (tagi, notatki, zapis bramki); nie tworzę wydania, PR ani waivera i ich nie ruszam.
+3. **Lista zadań (krok 15) bez szacunków w wieczorach.** Kolejność według ryzyka zostaje; szacunków nie podaję, bo nie mam czym ich zmierzyć.
+
+---
+
+## Część II - raport 1.2.42 z 12.09.2026 (zapis)
+
 **Data:** 2026-09-12 · **Stan wyjściowy:** `c5435db` (`module.json` 1.2.42) · **Wynik:** wydanie **1.2.43** na gałęzi `claude/module-qa-audit-localization-hg1lhu` (1.3.0 - Stained Update wyjdzie po ręcznej redakcji tekstów).
 
 **Zakres:** 97 skryptów (89 963 linie), 5 arkuszy CSS (20 490 linii), `lang/en.json` (2 859 linii), makra, workflow wydania.
