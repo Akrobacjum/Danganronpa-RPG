@@ -1,6 +1,5 @@
 {
  "reader": "domain-roll-b-actions",
- "checkout": "branch claude/audit-119 at d3d06ef4; `git diff --stat b5a29e73 -- scripts` empty, so scripts/ reads as main b5a29e73 (1.2.118)",
  "files_read": [
   {
    "file": "scripts/reroll.mjs",
@@ -103,7 +102,7 @@
    "read": "whole"
   }
  ],
- "count_note": "20 files, 9080 lines (wc -l), the list given and its total; each read start to end. No base-run.json and no probe-*.json were in audit/findings-1.2.118 when this file was written, so no test or scenario result is cited as a pass: tests are named from their source, their result not read. Lang check by script: 376 literal DRPG.* keys used in the 20 files, every one present in lang/en.json and lang/pl.json (a plural's .one/.other counted), plus the 7 dynamic prefixes (DRPG.Infiltrate.force.*, .pick.*, .row.*, DRPG.Facility.shut.*, DRPG.Murder.thresholdDefended.*, DRPG.Action.duality.*, DRPG.Reroll.infiltrate.*) resolved for every value the code can form (51 keys, both languages); the one key not found, DRPG.Action.murderConfirm, is named only in a comment that says it was deleted (action-murder.mjs:318-320).",
+ "count_note": "20 files, 9080 lines (wc -l), the list given and its total; each read start to end, on the audit branch whose scripts/ is byte for byte b5a29e73 (`git diff --stat b5a29e73 -- scripts` empty). No base-run.json and no probe-*.json were in audit/findings-1.2.118 when this file was written, so no test or scenario result is cited as a pass: tests are named from their source, their result not read. Lang check by script: 376 literal DRPG.* keys used in the 20 files, every one present in lang/en.json and lang/pl.json (a plural's .one/.other counted), plus the 7 dynamic prefixes (DRPG.Infiltrate.force.*, .pick.*, .row.*, DRPG.Facility.shut.*, DRPG.Murder.thresholdDefended.*, DRPG.Action.duality.*, DRPG.Reroll.infiltrate.*) resolved for every value the code can form (51 keys, both languages); the one key not found, DRPG.Action.murderConfirm, is named only in a comment that says it was deleted (action-murder.mjs:318-320).",
  "neighbours_followed": [
   "scripts/bridge-guards.mjs (createWaiter 1905-2040: a GM's `local` settles `{ ok: true, value }` with the handler's whole answer, 1947-1948; a player's answer is `packet.value`, 2029-2031; judge 1805-1820 sends `out.reply`, 1819; guardRollAuthor 1169-1185)",
   "scripts/bridge-asks.mjs (55-155: requestFacilityUse, requestDoorShut/Force/Pick, requestWatchDeclare, requestTailStart, requestEavesdrop, requestEchoes, requestDash and their `local` closures)",
@@ -114,7 +113,7 @@
   "scripts/sheet-audit.mjs (LEDGER 177-185, ledgerOf 505, meansHeld 925-933, meansMaxHeld 935-950, gmMeansWrite 994-1005, meansWrite 1007-1049, the paidBack note 1051-1062)",
   "scripts/action-project.mjs (projectExtrasHeld / sabotageExtrasHeld 694-704, the Work's noteRollContext 575-598, cost and refund 467-604)",
   "scripts/call-gm.mjs (askDynamicByCard 259-288) and scripts/messenger-app.mjs:873-881 (the card's Set the difficulty opens askDynamicDifficulty)",
-  "scripts/trait-ruling.mjs (listedTraits 137-141) and scripts/config.mjs (MURDER_OPENING's killer traits ~3686, ACTIONS.listen.variants 1736, MONOCUB.dispatchable 3481)",
+  "scripts/trait-ruling.mjs (listedTraits 137-141) and scripts/config.mjs (MURDER_OPENING's killer traits 3682-3686, ACTIONS.listen.variants 1736, MONOCUB.dispatchable 3481)",
   "scripts/search-tokens.mjs (claim 272-297)",
   "scripts/action-rest.mjs (performRest 32-43, the caller of useFacility)",
   "scripts/tests-tier2.mjs (E74-T7 at 102000, E74-T11 at 102300: the replays of a Dash, a room action and a pick, driven by settleInfiltrate) and scripts/tests-tier1.mjs (R290 at 11220, its census of maxima read in a GM's job)",
@@ -231,7 +230,7 @@
    "category": "hygiene",
    "title": "Direct Murder reads promptForNote's answer as an object whatever the opening lists: with one statistic listed the killer's sentence would be lost",
    "where": "scripts/action-murder.mjs:376-385; scripts/action-menus.mjs:513-537 (an object only when `traits` lists more than one, else a string)",
-   "what_happens": "performDirectMurder destructures `const { note, proposed } = await promptForNote(...)`. promptForNote answers `{ note, proposed }` only when the list has two or more statistics; otherwise it answers the sentence as a string, and destructuring a string gives `note` undefined, so the parked declaration would carry no sentence. Today MURDER_OPENING's killer lists body and hand (config.mjs ~3686), so the object road is the one taken; the other is latent until the table changes.",
+   "what_happens": "performDirectMurder destructures `const { note, proposed } = await promptForNote(...)`. promptForNote answers `{ note, proposed }` only when the list has two or more statistics; otherwise it answers the sentence as a string, and destructuring a string gives `note` undefined, so the parked declaration would carry no sentence. Today MURDER_OPENING's killer lists body and hand (config.mjs:3686), so the object road is the one taken; the other is latent until the table changes.",
    "evidence": "action-murder.mjs:376  const { note, proposed } = await promptForNote(actor, {\naction-menus.mjs:514  const propose = (traits ?? []).length > 1;\naction-menus.mjs:537  return typeof result === \"string\" ? result : \"\";",
    "failure_scenario": "After a config change that lists only Body for the killer's opening, a killer types how they mean to kill and the GM's card at the lights shows no sentence.",
    "expected": "One answer shape from promptForNote, or the caller reading both.",
@@ -350,7 +349,7 @@
   "dead_code": [
    "action-listen.mjs:51-52, 64: BUILT and the `notBuilt` branch (every variant is built); lang key DRPG.Infiltrate.notBuilt ('Not built yet.') read by nothing else.",
    "reroll.mjs:2000-2004: settleRemnant's `!drop` branch (every caller passes a drop).",
-   "action-pipeline.mjs:982-990 is live; no dead export found in the 20 files by grep of their exports against scripts/ (cutRerollAfter and forgetRollInHand are the suite's, said so)."
+   "No dead export found otherwise: cutRerollAfter (reroll.mjs:867) and forgetRollInHand (action-pipeline.mjs:372) are the suite's, and say so."
   ],
   "magic_numbers": [
    "action-pipeline.mjs:639 REPORT_CARD_MS 60_000; 619-623 rollOfSenderNaming's 1500 ms wait polled every 50 ms; 545-551 a claim's 128 / 400 characters; 671 twelve experiences of at most 128 characters.",

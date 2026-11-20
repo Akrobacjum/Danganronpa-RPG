@@ -95,7 +95,7 @@
      "holds": "yes",
      "test": "R203 (every cell, 36 of them, plus the caller's stage and the world half's method); 13-murder-signals 'opening' phase; LIVE-E06-01 partly read",
      "test_kind": "both",
-     "note": "LIVE-E06-01 on 14.370 (LOCAL-REPORT.md:481): nothing on the victim's page while the killer throws; after a Hope opening the incident look and one event card, no killer's name. One earlier run's card named the killer on the victim; not repeated in two runs and its dice not recorded (not_established). Since E69 C8 (1.2.113) a Hope or critical opening hides the killer from the victim ('someone'), so the notes' 'tells the victim everything' is narrowed by a later stage."
+     "note": "LIVE-E06-01 on 14.370 (LOCAL-REPORT.md:481): nothing on the victim's page while the killer throws; after a Hope opening the incident look and one event card, no killer's name. One earlier run's card named the killer on the victim; not repeated in two runs and its dice not recorded (not_established). Since E69 C8 (shipped 1.2.111, tools/stages.json) a Hope or critical opening hides the killer from the victim ('someone'), so the notes' 'tells the victim everything' is narrowed by a later stage."
     },
     {
      "promise": "While an incident runs, every private card that names somebody is veiled, whoever posts it; a private card's own facts travel with its words; a player's copy of a ruling card carries no GM-only line or button",
@@ -240,7 +240,7 @@
    "superseded_by": [
     "E32/E07 (1.2.66): the hidden stash's step a disadvantage die again; then the owner's decision of 13.11.2026 (feba55c3, 1.2.112): a Search reaches into no stash (R5468)",
     "E08+E28 C12a/C13 (1.2.67): a player's roll drawn and written on the primary GM, which ends the known leak 'roll-author' (private-rolls.mjs:33-42; 11-killer-secrecy.mjs:116)",
-    "E69 C8 (1.2.113): a Hope or critical opening hides the killer from the victim (mask-gm.mjs:5-21, per live-items-02 item 67)"
+    "E69 C8 (1.2.111): a Hope or critical opening hides the killer from the victim (mask-gm.mjs:5-21, per live-items-02 item 67)"
    ],
    "grade": 8,
    "provisional": "after L1",
@@ -404,7 +404,7 @@
    ],
    "superseded_by": [
     "E33 C7, C8 (1.2.69): the grid's drawn and faulted cases (tests-grid.mjs:44-72), part of today's 58",
-    "E68 C1 (1.2.114 line): R212 rewritten - the player proposes, the GM approves",
+    "E68 C1 (1.2.104): R212 rewritten - the player proposes, the GM approves",
     "the owner's stash rule of 13.11.2026 (feba55c3, 1.2.112): R214 and the hidden stash's die removed"
    ],
    "grade": 8,
