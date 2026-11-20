@@ -54,6 +54,7 @@ import { frameTraits, markTraitGlyphs, fitTraitRow, flashHope, injectActionBar, 
 import { paintPartyReserves, noteStepStart, onTunnelStep, redrawPassageSheets, saveBiography, tidySidebar, paintReserves, injectEquippedTools, noteEmptyExperience, injectKnownPassages, injectSafeword, tidyBiography } from "./sheet-sidebar.mjs";
 import { repaintPresentButtons, tidyInventoryTab, groupInventory } from "./sheet-inventory.mjs";
 import { forgetTamper, replaceEffectsTab, injectActionPanel } from "./sheet-actions.mjs";
+import { holdAppRenders } from "./dice-hold.mjs";
 export { sheetMode, rowGate, headerGate } from "./sheet-mode.mjs";
 export { wearMarkup, bulletBadges } from "./sheet-item.mjs";
 export { renderPlan, installRenderPlan, paintHopeGlyphs } from "./sheet-repaint.mjs";
@@ -72,6 +73,8 @@ export function registerSheetTweaks() {
     Hooks.on("renderPartySheet", (app, element) => {
         markFired("renderPartySheet");
         try { paintPartyReserves(app, element); } catch (err) { error("Could not draw the Party sheet's reserves", err); }
+        // Its members' Hope, which Daggerheart draws, waits for a roll's dice as the sheet's does (dice-hold.mjs, 1.2.119).
+        try { holdAppRenders(app, `party:${app.id}`); } catch (err) { error("Could not hold the Party sheet for a roll's dice", err); }
     });
     // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
     Hooks.on("drpgPassagesChanged", redrawPassageSheets);

@@ -55100,6 +55100,23 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson({ fullPool: true, giveBack: true, adjust: true, spill: true, redraw: true, seen: true }),
             "{the full pool's spill named; the Reroll's give-back off the Overflow stamped; adjustDespair's spill named; spillFrom's add stamped; the count's redraw held after the hook; the stamp seen on the hook}");
     }],
+    ["R7904 - the Party sheet waits for a roll's dice (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): sheet.mjs's `renderPartySheet` listener installs dice-hold.mjs `holdAppRenders` on the sheet, which holds a render that is not forced while dice fall here, and the actor update of the same turn is kept with the roll it named for it", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T5 measures the hold on a stand-in Party sheet; this holds the road, read off the
+         * source. Red at c2e5d6be: no holdAppRenders.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const hold = topLevelFunction(src("dice-hold.mjs"), "holdAppRenders") ?? "";
+        const seen = {
+            installed: /Hooks\.on\("renderPartySheet",[\s\S]{0,400}?holdAppRenders\(app, `party:\$\{app\.id\}`\)/.test(fnSource(src("sheet.mjs"), "registerSheetTweaks")),
+            forcedAtOnce: /if \(args\[0\] === true \|\| options\.force \|\| !anyDiceFalling\(\)\) return original\.apply\(this, args\);/.test(hold),
+            held: /holdPaint\(dice, name, \(\) => original\.apply\(this, args\)\)/.test(hold),
+            turnKept: /thisTurn = \{ actorId: actor\?\.id \?\? null, dice: /.test(fnSource(src("dice-hold.mjs"), "registerDiceHold"))
+        };
+        equal(stableJson(seen), stableJson({ installed: true, forcedAtOnce: true, held: true, turnKept: true }),
+            "{the Party sheet's hook installs the hold; a forced render, or one with no dice falling, at once; one held for the roll; the turn's update kept}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

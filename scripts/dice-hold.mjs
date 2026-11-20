@@ -164,6 +164,41 @@ export async function stampRollWrites(messageId, actorIds, write) {
     }
 }
 
+/** The actor update this turn on this browser, and the roll it named: { actorId, dice } or null (`holdAppRenders`). */
+let thisTurn = null;
+let turnMark = 0;
+
+/** A window's own `render`, held (`holdAppRenders`). */
+const HELD_RENDER = Symbol.for("drpgDiceHeldRender");
+
+/**
+ * A window that draws a student's Hope with no repaint of the module's - Daggerheart's Party sheet (sheet.mjs, at
+ * `renderPartySheet`), Foundry's token HUD (hud.mjs, at `renderTokenHUD`) - made to wait for a roll's dice (1.2.119; the
+ * owner's answer of 20.11.2026 to the places #11 left): an own `render` on the instance, installed once. While any roll's
+ * dice are falling here (`anyDiceFalling`), a render that is not forced is decided a microtask later: when an actor the
+ * window shows (`concerns`, any actor without one) was updated in the same turn under a roll's stamp, the render is held
+ * under `name` until that roll's dice have landed here (`holdPaint`); otherwise it runs then. Forced, or with no dice
+ * falling, it runs at once, as before. Which render of the window an actor's write asks for on v14 and Daggerheart 2.12
+ * is not read here (LIVE-S119-01); this holds whichever comes in that turn.
+ */
+export function holdAppRenders(app, name, concerns = null) {
+    if (!app || Object.hasOwn(app, "render")) return;
+    const original = Object.getPrototypeOf(app)?.render;
+    if (typeof original !== "function") return;
+    const render = function (...args) {
+        const options = args.find(arg => arg && typeof arg === "object") ?? {};
+        if (args[0] === true || options.force || !anyDiceFalling()) return original.apply(this, args);
+        queueMicrotask(() => {
+            const turn = thisTurn;
+            const dice = turn && (!concerns || concerns(turn.actorId)) ? turn.dice : null;
+            holdPaint(dice, name, () => original.apply(this, args));
+        });
+        return Promise.resolve(this);
+    };
+    render[HELD_RENDER] = true;
+    Object.defineProperty(app, "render", { configurable: true, writable: true, value: render });
+}
+
 /** While a roll's write of something not a document runs on this browser: a name (`overflow`) -> message id (`stampLocal`). */
 const LOCAL = new Map();
 /** What `LOCAL` held when the named change was heard (`noteLocalSeen`), read once by its redraw (`seenLocal`). */
@@ -246,5 +281,9 @@ export function registerDiceHold() {
         const id = options?.[DICE_OPTION];
         if (typeof id === "string" && id) LAST_ACTOR_DICE.set(actor.id, id);
         else LAST_ACTOR_DICE.delete(actor?.id);
+        // This turn's update, for the windows `holdAppRenders` holds; forgotten at the next task.
+        const mark = ++turnMark;
+        thisTurn = { actorId: actor?.id ?? null, dice: typeof id === "string" && id ? id : null };
+        setTimeout(() => { if (turnMark === mark) thisTurn = null; }, 0);
     });
 }

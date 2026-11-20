@@ -96718,6 +96718,58 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ start: true, held: 0, landed: 1, unnamed: 2 }),
             "{the caption's count at the start; what it shows over the start after a spill named by the roll while its dice fall; when they land; after a spill naming none}");
     }],
+    ["S119-T5 - the Party sheet a roll's write renders is drawn when this browser's dice of the roll have landed (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): with a stand-in Dice So Nice whose animation has not ended, a member's Hope write naming the roll leaves a Party sheet opened through the module's hook (`renderPartySheet`) unrendered, and renders it once, with the latest Hope, when the animation ends; a write naming no roll renders it at once", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. Daggerheart's Party sheet draws its members' Hope itself; the module holds the sheet's
+         * own render (dice-hold.mjs `holdAppRenders`, installed at its first render) - which roads of Daggerheart 2.12 or
+         * Foundry v14 render it after a member's write are not read here (LIVE-S119-01): the stand-in sits in the member's
+         * `apps`, which the harness's shim renders after a write, as Foundry renders a document's windows. Counted: the
+         * stand-in's own renders, with the member's Hope each drew. Put back: Hope, `game.dice3d`.
+         */
+        const [student] = cast(1);
+        must(student, "no student - this would measure nothing");
+        const HOPE = "system.resources.hope.value", OPT = "drpgDiceOf", ROLL = `s119t5roll${Date.now().toString(36)}`;
+        const hopeMax = Number(foundry.utils.getProperty(student, "system.resources.hope.max") ?? 6);
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+        const base = Math.min(hopeWas, hopeMax - 3);
+        let open = null;
+        const gate = new Promise(resolve => { open = resolve; });
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        const ownApps = !student.apps;
+        let drawn = 0, drew = null;
+        const Party = { render() { drawn++; drew = Number(foundry.utils.getProperty(student, HOPE) ?? 0); return Promise.resolve(this); } };
+        const app = Object.assign(Object.create(Party), { id: `s119t5-${Date.now().toString(36)}`, rendered: true, element: document.createElement("div") });
+        const write = async (changes, options = {}) => { await student.update(changes, options); await settle(); };
+        const read = {};
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            await write({ [HOPE]: base });
+            Hooks.callAll("renderPartySheet", app, app.element, {}, { isFirstRender: true });
+            student.apps[app.id] = app;
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: id => (id === ROLL ? gate : Promise.resolve(true)) } });
+            const H = await import("./dice-hold.mjs");
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            drawn = 0;
+            await write({ [HOPE]: base + 1 }, { [OPT]: ROLL });
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL });
+            read.held = drawn;
+            open(true);
+            await settle();
+            read.landed = [drawn, drew];
+            await write({ [HOPE]: base + 1 });
+            read.unnamed = [drawn, drew];
+        } finally {
+            open?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            if (student.apps) delete student.apps[app.id];
+            if (ownApps) delete student.apps;
+            await student.update({ [HOPE]: hopeWas }).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: 0, landed: [1, base + 2], unnamed: [2, base + 1] }),
+            "{the Party sheet's renders after two writes of the roll while its dice fall; [renders, the Hope drawn] when they land; after a write naming no roll}");
+    }],
     /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
     ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
         /*
