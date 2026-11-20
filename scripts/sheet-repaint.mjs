@@ -187,7 +187,9 @@ export function installRenderPlan(app) {
 
     const render = function (...args) {
         const root = this.element instanceof HTMLElement ? this.element : this.element?.[0];
-        const plan = this.document?.type === "character" && root ? renderPlan(args, { rendered: Boolean(this.rendered) }) : "render";
+        // A student's sheet on screen, read once (R3858 counts this file's character reads: one).
+        const sheet = Boolean(this.document?.type === "character" && root);
+        const plan = sheet ? renderPlan(args, { rendered: Boolean(this.rendered) }) : "render";
         if (plan === "repaint") {
             try {
                 /*
@@ -210,7 +212,7 @@ export function installRenderPlan(app) {
         /* AND A WRITE A REPAINT CANNOT DRAW (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): a roll's
            write that carries more than the repaintable resources - a flag, an item, armour - renders, and that render
            waits for the roll's dice as the repaint does, while any are falling here. Anything else renders now. */
-        if (this.document?.type === "character" && root && Boolean(this.rendered) && byUpdate(args) && anyDiceFalling()) {
+        if (sheet && Boolean(this.rendered) && byUpdate(args) && anyDiceFalling()) {
             owed.full = true;
             owed.args = args;
             return hold(this);
