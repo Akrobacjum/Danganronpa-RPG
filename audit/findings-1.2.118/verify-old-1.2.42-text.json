@@ -1,0 +1,351 @@
+{
+ "refuter": "verify-old-1.2.42-text",
+ "of": "old-1.2.42-text",
+ "scope_note": "Every item of status fixed (17), partly (1) and obsolete (2): 20; the file has only 2 open items (TEXT-LC2, TEXT-LC3), so the sample of 5 open is those 2 plus the 2 decision items (TEXT-14, TEXT-LC5) read the other way and TEXT-LC1 as a live item - 24 items in all; its 3 new_observations are all nit and were checked as well. No harness, npm, test, scenario or probe was run; base-run.json did not exist when read, so no pin's result is read.",
+ "checked": [
+  {
+   "ref": "TEXT-01",
+   "claim": "fixed: the frame-up row's hint takes {n} from CLEANUP.actions.misleadingTrail.threshold (15), the number the roll is scored against",
+   "verdict": "stands",
+   "why": "Read both sides: the tile's hint and the briefing's dcFrame format n from the same field, and the scorer in Stage Six reads def.threshold of that same row (less the tool's relief, floored), so the printed number and the scored one share one source. The Polish twin keeps {n}. No literal 18 in action-tamper.mjs or the hint. R84 is a source-text regex plus three reads of the English value (not a driven roll); its result was not read (no base-run.json).",
+   "evidence": [
+    "scripts/action-tamper.mjs:78 `hint: game.i18n.format(\"DRPG.Tamper.frameHint\", { n: CLEANUP.actions.misleadingTrail.threshold }),`",
+    "scripts/config.mjs:4767 `threshold: 15,` (CLEANUP.actions.misleadingTrail)",
+    "scripts/cleanup.mjs:1794-1795 `const threshold = atLeastFloor((def.threshold ?? 0) - relief); const success = isCritical || total >= threshold;`",
+    "lang/pl.json:5958 `\"frameHint\": \"Podłóż fałszywy Remnant ... przy wyniku {n}+; ...\"`",
+    "scripts/tests-tier0.mjs:4904-4909 R84 `ok(/n: CLEANUP\\.actions\\.misleadingTrail\\.threshold/.test(rolls), ...); ok(!/18/.test(hint), ...)`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-02",
+   "claim": "fixed: the New Rule dialog's note takes {cost} from DESPAIR_CALLS.newRule.cost (9)",
+   "verdict": "stands",
+   "why": "The one reader passes the Call's own cost; the Polish twin takes {cost} too; no 'twelve' or '12 Despair' beside the rule in lang/en.json, and the GM handbook's table says 9. No pin found that holds the number, as the reader says.",
+   "evidence": [
+    "scripts/call-pickers.mjs:310 `game.i18n.format(\"DRPG.Calls.newRuleNote\", { cost: DESPAIR_CALLS.newRule.cost })`",
+    "scripts/config.mjs:2921 `label: \"New Rule\", icon: \"fa-gavel\", cost: 9, ...`",
+    "lang/pl.json:4466 `\"newRuleNote\": \"{cost} Despair kupuje trwałą zmianę gry. ...\"`",
+    "docs/handbooks/gm-handbook.en.md:502 `| New Rule | 9 | Introduce one new killing game rule |`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-03",
+   "claim": "fixed: a direct murder's victim gets no 'A murder is under way' card at the opening, and is sent no cast",
+   "verdict": "stands",
+   "why": "Traced both halves: openingCard returns null for a non-GM without a seat of incidentSeats at the openingRoll row, and that row seats only the killer (and a third on their side) for a direct murder; castOwners builds its audience from incidentAudienceIds, which reads the same incidentSeats row, so the victim's browser holds no cast. The card's title key has one reader (events.mjs:182). Stronger than the reader says: a real-Foundry reading exists, LOCAL-REPORT.md:481 (item 67, LIVE-E06-01): on the victim's browser while the killer throws, no drpg-incident-here and no event panel (class F).",
+   "evidence": [
+    "scripts/events.mjs:171-172 `const seats = incidentSeats(cast, state, { stage: \"openingRoll\" }); if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;`",
+    "scripts/settings.mjs:3666 `if (stage === \"openingRoll\") seats = indirect ? [victim] : [killer, thirdKills ? third : null];`",
+    "scripts/incident-store.mjs:399-401 `export function incidentAudienceIds(...) { const ids = [ ...incidentSeats(state, state, { stage }), ...`",
+    "scripts/incident-store.mjs:454-456 `function castOwners(cast, state = null) { ... return new Set(incidentAudienceIds({ ...live, ...cast, indirect: ... }, { betrayal: true }));`",
+    "docs/dev/e58/LOCAL-REPORT.md:481 `| 67 (LIVE-E06-01) | measured, with a question | the victim's browser (PlayerOne) through the opening: while the killer throws, no drpg-incident-here, no event panel, no sound; ...`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-04",
+   "claim": "fixed: the Eclipse explainer no longer says 'move once, anywhere'; {reach} follows overflowCrossings(ECLIPSE_MOVES), and the darkening pitfall is covered",
+   "verdict": "weakened",
+   "why": "The main defect is gone (the sentence gives the connected-room reach and free placement at night). But the reader's 'the old pitfall (darkness lowers the allowance) is covered' does not hold: the old finding's pitfall was the darkening. Under the darkness Overflow, overflowCrossings(2) gives 1, so the sentence reads 'up to 1 connected room or anywhere at night' - while the same darkening pulls the Night Eclipse's free placement back to two crossings (freeBecomes: ECLIPSE_MOVES; overflowCrossings(null) answers 2). The clause 'or anywhere at night' is fixed text and is not taken back under the darkening, and eclipseExplanation is the only builder (phaseExplanation calls it with no argument while clock.eclipse). So in a darkened Night Eclipse the player's 'Where things stand' window promises free placement the movement code does not give, and understates the night's two crossings as one. A particular situation of the same class (the text overstates free placement): partly, minor. R1160 holds the number's road, not the night clause.",
+   "evidence": [
+    "lang/en.json:6497 `\"eclipse\": \"The lights are out. Everyone places their token, {reach} or anywhere at night, and nobody sees who went where. ...\"`",
+    "scripts/explain.mjs:125-126 `export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES) { return t(\"DRPG.Explain.phase.eclipse\", { reach: plural(\"DRPG.Explain.phase.eclipseReach\", { n: crossings }) }); }`",
+    "scripts/overflow.mjs:1116-1117 `if (allowance === null) return rule.freeBecomes ?? ECLIPSE_MOVES; return Math.max(rule.floor ?? 1, allowance - rule.by);`",
+    "scripts/config.mjs:2630-2632 `/** Eclipse crossings. Free placement is pulled back to the ordinary ECLIPSE_MOVES. */ darkness: { kind: \"state\", on: true, by: 1, floor: 1, freeBecomes: ECLIPSE_MOVES,`",
+    "scripts/eclipse.mjs:52-53 `ECLIPSE_FREE_PLACEMENT (Night, today) let you start anywhere on the map - unless the darkening has pulled that back to two crossings`",
+    "audit/findings-1.2.42/text.md:77 `**Pitfalls:** Overflow.what.darkness reduces the allowance; keep the sentence number-free or feed it from eclipseAllowance.`"
+   ],
+   "status_after": "partly",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "TEXT-05",
+   "claim": "fixed: createNote now names the Place button and a point 'somewhere inside the room'",
+   "verdict": "stands",
+   "why": "The note's one reader is the planner; the Place button is drawn per row only when the row is not on the map (the here branch draws none), and the placing road takes randomPointIn, whose centre is a fallback for missing bounds or a region too small for the inset. A key Remnant is reinforced by its type.",
+   "evidence": [
+    "lang/en.json:3076 `\"createNote\": \"Place puts a row's Key Remnant on the map at once, in the room you pick: reinforced, ... somewhere inside the room ... A row already on the map has no Place button.\"`",
+    "scripts/investigation.mjs:893 `${here ? \"\" : `<button type=\"button\" name=\"place:${i}\" data-drpg-key-place=\"${i}\"...`",
+    "scripts/key-remnants.mjs:980 `if (spanX <= 0 || spanY <= 0) return centre;`",
+    "scripts/key-remnants.mjs:1037 `const spot = randomPointIn(region, scene);`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-06",
+   "claim": "fixed: SFX_EVENTS.cleanupFailed's hint no longer says a Despair failure adds an Obvious trace",
+   "verdict": "stands",
+   "why": "The hint now states only which rolls play it and who hears it; both attach points put the sound on whisperToOwner's card to the roller. The Polish prose twin says the same. No 'Obvious trace' wording left outside comments.",
+   "evidence": [
+    "scripts/config.mjs:5326 `hint: \"A Tamper, Erase a Trace, Reshape a Trace, Misleading Trail or Move the Body roll misses. Heard by the player who rolled it.\",`",
+    "scripts/cleanup.mjs:1846-1849 `await whisperToOwner(actor, ... success ? {} : { flags: { [MODULE_ID]: { sfx: \"cleanupFailed\" } } });`",
+    "lang/pl.json:8392 `\"hint\": \"Rzut Tamper, Erase a Trace, ... kończy się pudłem. Słyszy tylko gracz, który rzucał.\"`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-07",
+   "claim": "fixed: killerChooses names two options (Health or Sanity)",
+   "verdict": "stands",
+   "why": "The dialog has two answers, the bridge sanitizes choice to oneOf('stress','hp'), the hit applies criticalAmount to the one chosen, and the summary line is pushed only when no choice arrived.",
+   "evidence": [
+    "lang/en.json:2867 `\"killerChooses\": \"Critical - the killer chooses where both points come off: Health or Sanity.\"`",
+    "scripts/murder-rules.mjs:925 `return picked === \"stress\" ? \"stress\" : \"hp\";`",
+    "scripts/murder-rules.mjs:2551-2555 `if (!choice) { done.push(game.i18n.localize(\"DRPG.Murder.killerChooses\")); return; } hit = { [choice]: def.damage?.criticalAmount ?? 2 };`",
+    "scripts/bridge-table.mjs:533 `choice: as.oneOf(\"stress\", \"hp\"),`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-08",
+   "claim": "fixed: the public tie card and the GM's verdict note both say 'unless the table settles it'",
+   "verdict": "stands",
+   "why": "Printed every tie/majority value of DRPG.Vote in both files: Vote.tied, Vote.noMajority (all plural forms) and Vote.tiedVerdictNote carry the clause in both languages; the public card draws tied/noMajority and the GM window the note. The player handbook and brochure say the same.",
+   "evidence": [
+    "lang/en.json:2444 `\"tied\": \"A tie. Unless the table settles it, that counts as a wrong vote.\"`",
+    "scripts/vote.mjs:1083-1086 `const sentence = noMajority ? plural(\"DRPG.Vote.noMajority\", ...) : tied ? game.i18n.localize(\"DRPG.Vote.tied\")`",
+    "scripts/verdict.mjs:207-208 `${tiedVote ? box(\"warning\", `${ game.i18n.localize(\"DRPG.Vote.tiedVerdictNote\")}`) : \"\"}`",
+    "docs/handbooks/player-handbook.en.md:905 `**A tie counts as a wrong vote** unless the table settles it.`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-09",
+   "claim": "partly: the room key has its own sentence; the giver of a duplicate Truth Bullet is again told the receiver already holds one (E71 B08 replaced 'Nothing changed hands.')",
+   "verdict": "stands",
+   "why": "Confirmed the regression by the commit: 34c76fe2 changed alreadyHasIt from 'Nothing changed hands.' (written in b888c066) to 'They already hold a Truth Bullet of this Remnant, so they get no second one.', and the whisper goes to the giver when mintCopy finds the receiver's copy. No owner decision found: the B08 batch entry has owner null and NEEDSCODE row 39 rules only on the unused placeholders. One addition: a Present mints quiet, so no whisper, but presentOnPrimary answers the presenter's browser { item, copies } ('reply' row), so the count of participants who got no fresh copy reaches the presenter's client as a number; it is not drawn (trial.mjs:226-231 reads only res.ok).",
+   "evidence": [
+    "git show 34c76fe2 -- lang/en.json `-      \"alreadyHasIt\": \"Nothing changed hands.\",` / `+      \"alreadyHasIt\": \"They already hold a Truth Bullet of this Remnant, so they get no second one.\",`",
+    "scripts/handover.mjs:354-358 `if (copy === HELD_COPY) { if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format(\"DRPG.Handover.alreadyHasIt\", {`",
+    "scripts/handover.mjs:152-153 `if (already) { await whisperToOwner(from, `<p>${game.i18n.format(\"DRPG.Handover.alreadyHasKey\", {`",
+    "docs/dev/e71/NEEDSCODE.md:76 `| 39 | DRPG.Handover.alreadyHasIt | -B08 | ... **ND** Not a defect: N2 keeps {who} and {name} out of this key; ...`",
+    "scripts/trial.mjs:447-448 `log(... copies handed out.); return { reply: { item: data.name, copies } };`"
+   ],
+   "status_after": "partly",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "TEXT-10",
+   "claim": "fixed: the Free Move cell's tooltip and label are i18n keys (now in the Students window)",
+   "verdict": "stands",
+   "why": "The cell reads DRPG.Actions.freeMoveAvailable / freeMoveSpent through L(); the old English literals appear only in comments.",
+   "evidence": [
+    "scripts/gm-students.mjs:123 `const moveWord = L(free ? \"DRPG.Actions.freeMoveAvailable\" : \"DRPG.Actions.freeMoveSpent\");`",
+    "scripts/gm-students.mjs:126-127 `+ ` role=\"img\" aria-label=\"${esc(moveWord)}\" data-tooltip=\"${esc(moveWord)}\"></i>``"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-11",
+   "claim": "fixed: the season report names Despair Flow and Breakdown, not 'GM Team' / 'Broken Down'",
+   "verdict": "stands",
+   "why": "Case-insensitive grep of lang/en.json for both old words: none. In scripts/ the only string hit is a console error line in gm-team-dialog.mjs. The pool row's fix line is a language key naming Despair Flow.",
+   "evidence": [
+    "scripts/diagnostics.mjs:1524 `roll(t(\"pool\"), unwatched, t(\"poolFix\"));`",
+    "lang/en.json:6204 `\"poolFix\": \"In the GM panel under Despair Flow, assign each of them a Monokuma by hand, ...\"`",
+    "scripts/gm-team-dialog.mjs:230 `error(\"Could not save the GM team panel\", err);` (console)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-12",
+   "claim": "fixed: visibility selects are labelled 'Visibility'; 'Difficulty' heads the Key plan's scale alone",
+   "verdict": "stands",
+   "why": "Investigation.difficulty has two readers, both the scale (column head and edit row); every band select in investigation.mjs, key-remnants.mjs and remnant-ring.mjs is labelled Investigation.visibility. The tooltip key's name (difficultyTooltip) is an identifier only.",
+   "evidence": [
+    "scripts/investigation.mjs:804 `{ key: \"scale\", label: L(\"DRPG.Investigation.difficulty\"), cls: \"case-scale\", lines: 2 },`",
+    "scripts/investigation.mjs:693 `vis: `<select name=\"vis.${key}\"${aria(\"DRPG.Investigation.visibility\")}${tipAttr(\"DRPG.Tips.Case.difficultyTooltip\")}>`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-13",
+   "claim": "fixed: '- create in -' is not a label; DRPG.Investigation.pickRoom is gone",
+   "verdict": "stands",
+   "why": "The key is absent from both language files (read by script) and no script names it; the room selects are labelled DRPG.Investigation.room.",
+   "evidence": [
+    "lang/en.json DRPG.Investigation.pickRoom: absent; DRPG.Investigation.room = \"Room\" (read by script)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-14",
+   "claim": "decision D1: thresholds printed on every briefing, 'beat N' in the roll window; the code does it",
+   "verdict": "stands",
+   "why": "D1 is recorded in AUDIT 9.1 with commit 5858b2a2; briefingFacts pushes thresholdFacts for every action and the roll window's title takes DRPG.Action.beat. Checked as the other way round (not 'fixed').",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:684 `| D1 | Progi widoczne | **A**, dynamicznie: każdy briefing drukuje progi ... okno rzutu mówi \"beat N\" | 5858b2a |`",
+    "scripts/action-briefing.mjs:229 `try { facts.push(...thresholdFacts(actor, actionKey, def)); } catch (err) { ... }`",
+    "scripts/action-pipeline.mjs:148 `const beat = game.i18n.format(\"DRPG.Action.beat\", { n: dc });`"
+   ],
+   "status_after": "decision"
+  },
+  {
+   "ref": "TEXT-15",
+   "claim": "fixed: tidyNote and Season.note gone; blackenedRuleIntro no longer cites the guide",
+   "verdict": "stands",
+   "why": "Both keys absent from lang/en.json and from scripts/; the intro reads as the GM's instruction with no reference to the guide.",
+   "evidence": [
+    "lang/en.json DRPG.Vote.blackenedRuleIntro = \"The Blackened walked out of this trial, and they get one new rule of their choosing with Monokuma's consent. Type what they asked for.\"",
+    "lang/en.json DRPG.Chapter.tidyNote, DRPG.Season.note: absent (read by script)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-16",
+   "claim": "fixed: the section is 'Diagnostics' and holds the failure log, the voice re-send and the case's back-up",
+   "verdict": "stands",
+   "why": "The section keyed 'fixes' is titled from DRPG.Panel.section.fixes = 'Diagnostics' and holds tiles that do repair (voice re-send) and inspect.",
+   "evidence": [
+    "lang/en.json:5189 `\"fixes\": \"Diagnostics\",`",
+    "scripts/gm-panel.mjs:319 `key: \"fixes\",`",
+    "scripts/gm-panel.mjs:481 `const title = esc(game.i18n.localize(`DRPG.Panel.section.${section.key}`));`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-17",
+   "claim": "obsolete: the Pre-season checks window is gone, its checks a slot under the Season checklist (E101 item 2, commit 206c85bc); the heading key went in commit 2883945f",
+   "verdict": "weakened",
+   "why": "The substance holds: fillMoreChecks fills a slot of the checklist with preSessionReport, and no script reads DRPG.Panel.seasonChecks or checksSetup. But both commits the item cites do not resolve in this repository (git rev-parse --verify fails for 206c85bc and 2883945f; git cat-file: 'Not a valid object name'). 2883945f is named only in d7a553b6's message ('2883945f deleted it as dead; it is back'), and no commit titled E101 item 2 is in the log (E101 item 1 is d449e0bd). The status stands on today's source, not on the cited commits.",
+   "evidence": [
+    "scripts/season-setup.mjs:1373-1377 `async function fillMoreChecks(root) { const slot = root?.querySelector(\"[data-drpg-season-more]\"); ... preSessionReport()`",
+    "git rev-parse --verify --quiet 206c85bc^{commit} -> exit 1; same for 2883945f",
+    "git show d7a553b6 (message) `R1334: docs/design/windows.md's M4 row ... names DRPG.Panel.seasonChecks ... 2883945f deleted it as dead; it is back`"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "TEXT-18",
+   "claim": "fixed: investigation.mjs's header keeps the guide's '3-8' only as a quotation, with the 2-4 ruling beside it",
+   "verdict": "stands",
+   "why": "Read the header and config: the comment says the range has since been ruled 2-4 (KEY_REMNANTS.suspectRange).",
+   "evidence": [
+    "scripts/investigation.mjs:7-9 `... do 3-8 graczy.\" (The suspect range has since been ruled 2-4: KEY_REMNANTS.suspectRange, which is what the planner prints. ...)`",
+    "scripts/config.mjs:1387 `suspectRange: [2, 4],`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-19",
+   "claim": "fixed: the legacy word is DRPG.Legacy.safeword, read only by the migration clause; Polish holds the same value",
+   "verdict": "stands",
+   "why": "One reader (migrate.mjs:1592); en and pl both MISIUBOMBO; DRPG.Safeword.word gone. As the reader says, nothing found refuses a later Polish translation: the namespace and the equal values are the guard.",
+   "evidence": [
+    "scripts/migrate.mjs:1592 `const legacy = String(game.i18n.localize(\"DRPG.Legacy.safeword\") ?? \"\").trim();`",
+    "lang/en.json:6085 / lang/pl.json:6534 `\"safeword\": \"MISIUBOMBO\"`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "TEXT-LC1",
+   "claim": "fixed (by source): the direct murder's victim sees no opening card; 'looked for a reading of this on a real Foundry ... and found none'",
+   "verdict": "weakened",
+   "why": "A live check is closed only by a recorded reading (11.2 U11), so 'fixed' is not its status. And the reading exists: LOCAL-REPORT.md:481 (item 67, LIVE-E06-01, real Foundry 14.370) records the victim's browser through the opening with no drpg-incident-here, no event panel and no sound, which agrees with the source. The reader's 'found none' is wrong. The HUD's incident row is not named in that reading; the red edges' class is. Status: read, agrees (F).",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:481 `| 67 (LIVE-E06-01) | measured, with a question | the victim's browser (PlayerOne) through the opening: while the killer throws, no drpg-incident-here, no event panel, no sound; ...`",
+    "audit/findings-1.2.118/live-readings-e58.json:800 `\"live_id\": \"LIVE-E06-01\",`"
+   ],
+   "status_after": "read (agrees)"
+  },
+  {
+   "ref": "TEXT-LC2",
+   "claim": "open: the giver of a duplicate bullet is told the receiver already holds one",
+   "verdict": "stands",
+   "why": "Same code as TEXT-09, read; no recorded reading on a real Foundry found under this subject (grep of LOCAL-REPORT.md for alreadyHasIt and the sentence: none). Sample of the open items, checked the other way: not fixed.",
+   "evidence": [
+    "lang/en.json:3591 `\"alreadyHasIt\": \"They already hold a Truth Bullet of this Remnant, so they get no second one.\",`",
+    "scripts/handover.mjs:355 `if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format(\"DRPG.Handover.alreadyHasIt\", {`"
+   ],
+   "status_after": "open",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "TEXT-LC3",
+   "claim": "open: whether the pixel font drives --drpg-tile-text to the 0.68 floor on a Monokuma sheet",
+   "verdict": "stands",
+   "why": "Sample of the open items, checked the other way: the floor and the longest-word fit stand; the two labels are unchanged; R1162 says the longest tile word is 'Contribution' (12), the length of 'Announcement'. A layout fact; no reading found. Not fixed, not settled.",
+   "evidence": [
+    "scripts/sheet-fit.mjs:273 `const TILE_TEXT_FLOOR = 0.68;`",
+    "scripts/sheet-fit.mjs:337 `const scale = Math.max(TILE_TEXT_FLOOR, room / needed).toFixed(3);`",
+    "scripts/config.mjs:2884 `label: \"Public Announcement\", icon: \"fa-bullhorn\", cost: 6, target: \"room\",`"
+   ],
+   "status_after": "open",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "TEXT-LC4",
+   "claim": "obsolete: the 47-character DRPG.Hud.roomTokens sentence is gone; the label is '{left}/{max} searches', the sentence a tooltip",
+   "verdict": "stands",
+   "why": "Read the room tile: the visible label and the aria-label both format roomTokens (short); the long form is roomTokensTooltip on the tooltip only. The 80% wrap question has lost its subject.",
+   "evidence": [
+    "lang/en.json:701 `\"roomTokens\": \"{left}/{max} searches\",`",
+    "scripts/room-tile.mjs:501 `: plural(\"DRPG.Hud.roomTokensTooltip\", { left, max }, \"left\");`",
+    "scripts/room-tile.mjs:515 `const words = textNode(\"span\", \"drpg-hud-room-tokens-label\", game.i18n.format(\"DRPG.Hud.roomTokens\", { left, max }));`"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "TEXT-LC5",
+   "claim": "decision D6: a seen sabotage is told to the room and the GMs, as seenCleaning is",
+   "verdict": "stands",
+   "why": "Both branches that post the key or the watched line whisper roomAudience (GMs, the actor's owners, the owners of everyone in the room); seenCleaning goes to the witnesses' owners and the GMs. D6 is in AUDIT 9.1 with 12109493. The SFX hint says the room hears it.",
+   "evidence": [
+    "scripts/action-project.mjs:1367-1369 `// The room, not the table (D6): ... whisper: roomAudience(actor),`",
+    "scripts/action-project.mjs:1236-1237 `content: `<p><em>${sabotageWatchedLine(actor, room, project)}</em></p>`, whisper: roomAudience(actor),`",
+    "scripts/cleanup.mjs:1452-1453 `const witnesses = othersInRoom(actor).flatMap(a => ownerIdsOf(a)); const recipients = Array.from(new Set([...witnesses, ...gmIds()]));`",
+    "audit/AUDIT-1.2.42.md:689 `| D6 | Nieudany sabotaż | **B**, tylko pokój i GM | 1210949 |`"
+   ],
+   "status_after": "decision"
+  },
+  {
+   "ref": "obs-1",
+   "claim": "nit: DRPG.Vault.stashesNote types '(16+)' where config's stashThreshold is 16",
+   "verdict": "stands",
+   "why": "Read: the note is a literal, equal to config today, drawn in Room setup; NEEDSCODE Q-NC-1 holds the family of typed numbers as kept. In passing: the Polish twin carries a sentence the English lacks ('Mastermind widzi każdą ukrytą skrytkę'), not judged here.",
+   "evidence": [
+    "lang/en.json:3144 `... with Analyze's Find Stash (16+), ...`",
+    "scripts/config.mjs:1619 `stashThreshold: 16,`",
+    "scripts/room-setup.mjs:498 `<p class=\"notes\">${game.i18n.localize(\"DRPG.Vault.stashesNote\")}</p>`"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "obs-2",
+   "claim": "nit: DRPG.Panel.seasonChecks is read by no script, kept for windows.md's M4 row; 'since E101 item 2 (206c85bc)'",
+   "verdict": "weakened",
+   "why": "The key has no reader in scripts/ and windows.md:45 and glossary.json:1436 still name it, as said. The commit cited (206c85bc) does not resolve here; d7a553b6 is the commit that put the key back for R1334.",
+   "evidence": [
+    "docs/design/windows.md:45 `| M4 | Pre-season checks | season-setup.mjs runPreSessionChecks, from Season setup | ... | DRPG.Panel.seasonChecks |`",
+    "git rev-parse --verify --quiet 206c85bc^{commit} -> exit 1"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "obs-3",
+   "claim": "nit: AUDIT-1.2.42.md:632 cites 7e40243 for task 13; the changes are in b888c066",
+   "verdict": "stands",
+   "why": "Read both commits: 7e402433 is 'D8: the first text pass', b888c066 is 'Task 13: the findings that had no task' and its diff holds alreadyHasKey added and alreadyHasIt -> 'Nothing changed hands.'.",
+   "evidence": [
+    "git show b888c066 -- lang/en.json `+      \"alreadyHasKey\": \"{who} already has a key to that room.\",` and `+      \"alreadyHasIt\": \"Nothing changed hands.\",`",
+    "audit/AUDIT-1.2.42.md:632 `| 13 - rozliczenie | 7e40243 | ...`"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 27,
+  "stands": 23,
+  "weakened": 4,
+  "refuted": 0
+ },
+ "not_established": [
+  "The result of every pin named by the reader (R84, R307, R203, R1160, R3969, R2067, R6904, R1162, R5471, R999, scenario 13-murder-signals, tier 2 E51-T3): base-run.json did not exist; each pin read from source only.",
+  "TEXT-04's residual: read, not seen on a screen. New live check: with the darkness Overflow on, open a Night Eclipse and read a player's 'Where things stand' window (expected by the rule: two crossings, no 'anywhere'); clients: GM and one player; theme: either; settles if the window says 'up to 1 connected room or anywhere at night' (defect) or names two crossings (no defect).",
+  "TEXT-09: whether the owner accepts that the giver is told; and whether the Present's reply { item, copies } reaching the presenter's browser (trial.mjs:448, row 'reply') is meant - a console read of the bridge answer gives how many participants got no fresh copy. Not drawn anywhere found; suspected, not a finding.",
+  "TEXT-LC1: the reading at LOCAL-REPORT.md:481 does not name the HUD's incident row by itself; that half rests on the source (incidentWitness at the openingRoll row).",
+  "obs-1: the Polish DRPG.Vault.stashesNote holds a sentence on the Mastermind the English lacks (lang/pl.json:3342 against lang/en.json:3144); seen in passing, not judged against the code."
+ ]
+}

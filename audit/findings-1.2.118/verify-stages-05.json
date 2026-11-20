@@ -1,0 +1,461 @@
+{
+ "refuter": "verify-stages-05",
+ "of": "stages-05",
+ "read": "stages-05.json whole; BRIEF.md; AUDIT-1.2.42.md 11.2-11.5; base-run.json; skip-baseline.json; v1.2.71.md, v1.2.72.md and v1.2.73.md where the promises stand; the cited source and test lines in gm-stores.mjs, gm-store.mjs, remnants.mjs, key-remnants.mjs, cleanup.mjs, cleanup-reshape.mjs, investigation.mjs, observe.mjs, chapter.mjs, clock.mjs, vote.mjs, verdict.mjs, trial-floor.mjs, relay-guard.mjs, bridge-guards.mjs, body.mjs, season-wipe.mjs, settings.mjs, projects-map.mjs, migrate.mjs, tests-tier0/2.mjs, 30-security.mjs, dh-relay.mjs, module.json, lang/en.json, R-REGISTRY.md rows R304-R378; nothing run",
+ "checked": [
+  {
+   "ref": "E09-1",
+   "claim": "Every load re-reads 'Not tied' rows against the world's first-load cut, so a case restored from another world loses its red herrings at the next load (minor)",
+   "verdict": "stands",
+   "why": "The road holds in today's source. settleTieStates runs at every GM's load after hydration and, once the case is marked, uses the stored cut whatever the caller passes; it moves every row with tiedToCrime false and a field stamp under the cut, with no guard for rows merged in later. The remnants store is a 'ledger' (not a 'record'), so restoreCase takes another world's rows when the GM confirms, and fileSection keeps every stamp not ahead of now + skew. caseMark is a world setting and caseFileOf carries only the GM stores, so the new world's cut stays. The tier-2 test 'the tie settle step runs once' (tests-tier2.mjs:55603) pins only same-world rows. One narrowing of the failure_scenario's second half: tieChapterTraces ties a trace only when sameSeason(data) holds, so the death ties a restored red herring only when the old world's season epoch equals the new one's (both 0 when neither world was ever reset); the silent move to undecided on the dashboard does not depend on that.",
+   "evidence": [
+    "scripts/gm-stores.mjs:2211-2216 `const cut = mark.tiesSettledAt ? mark.tiesSettledBefore : isPrimaryGm() ? before : null; ... if (row?.tiedToCrime === false && remnantStore.stampOf(key, \"tiedToCrime\") < cut) undecided[key] = { tiedToCrime: null };`",
+    "scripts/gm-stores.mjs:3007 `const marked = markUpgrade().then(() => markCaseSince()).then(() => settleTieStates());`",
+    "scripts/gm-stores.mjs:113 `kind: \"ledger\", split: [\"public\"], resetGroup: \"remnants\", backup: true, sync: true,`; :2453 `if (foreign && handle.spec.kind === \"record\" && !records.includes(name)) {`",
+    "scripts/gm-store.mjs:534-538 `const bound = now + skew ... if (!(s > bound)) return s;`",
+    "scripts/gm-stores.mjs:2238-2242 caseFileOf: `world, exportedAt, exportedBy, resetCuts, stores: sections` (no caseMark)",
+    "scripts/remnants.mjs:2338 `if (!data || data.tiedToCrime !== null || data.chapter !== chapter || !sameSeason(data)) continue;`",
+    "lang/en.json:7287 `\"otherWorld\": \"This file is the case of another world ({title}). Restore it here anyway.\"`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E09 grade",
+   "claim": "E09 graded 8, provisional after L1",
+   "verdict": "stands",
+   "why": "With promise 7 read as delivered (see 'E09 promise 7'), one minor finding (E09-1) and the main promise on open live checks, 11.4 gives 8 ('one ... has a minor') under the 9 cap. If promise 7 stayed 'partly' as the reader wrote it, the scale's row for 'one promise delivered in part' is 7 and 8 would not be allowed together with a minor; the number survives only on the reclassification. Two of the reader's reasons are now out of date: tier 2 has a verdict (green for every E09 test cited; base-run.json), and R304-R310 are in shard 1's green tiers 0-1. Scenario 62 still has no verdict (base-run.json pending: 'the ci scenarios one at a time'). The release-note line numbers in claim_sources and every promise's `source` are off (v1.2.71.md has 190 lines; 'Known gaps' is at 139, not 168; 'Checked' at 163, not 192; the dashboard's Save at 43-46, not 49-53), so the sources had to be re-found by text.",
+   "evidence": [
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-05.json was committed at 19:56Z in 00f2924f): suite_merge 'suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning' (shard 3/8), which passes alone; shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'. audit/harness/skip-baseline.json lists 27 env.* skips, none of them a test this file cites",
+    ".github/release-notes/v1.2.71.md:139 `## Known gaps`, :163 `## Checked`, :43 `- **The dashboard's Save writes only what you changed.**`"
+   ],
+   "grade_after": 8
+  },
+  {
+   "ref": "E09 promise 1",
+   "claim": "The dashboard's Save writes only what the GM changed; a field moved under the window is marked, not saved, and named",
+   "verdict": "stands",
+   "why": "investigation.mjs keeps the drawn values in the form and refuses a field changed under the window, naming each in a permanent warning; the three cited tier-2 tests exist at the lines given and are green in the base run.",
+   "evidence": [
+    "scripts/investigation.mjs:2544 `ui.notifications.warn(plural(\"DRPG.Investigation.savedOver\", { n: refused.length, list }), { permanent: true });`",
+    "scripts/tests-tier2.mjs:33135 `[\"a field changed under the window is marked and refused while the rest is saved\"`",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-05.json was committed at 19:56Z in 00f2924f): suite_merge 'suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning' (shard 3/8), which passes alone; shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'. audit/harness/skip-baseline.json lists 27 env.* skips, none of them a test this file cites"
+   ]
+  },
+  {
+   "ref": "E09 promise 2",
+   "claim": "A kind changed on the Traces tab pulls what depends on it",
+   "verdict": "stands",
+   "why": "The three tier-2 tests named exist at 30317, 30406, 30527 and are green in the base run; not skipped.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:30527 `[\"a trace retuned to Faint Remnant is Faint and a GM unticking a Faint Remnant's box is told it stays\"`"
+   ]
+  },
+  {
+   "ref": "E09 promise 3",
+   "claim": "A Key Remnant is placed by its row's Place button, not by Save",
+   "verdict": "stands",
+   "why": "The Save's comment and the Place button's test agree; test green in the base run.",
+   "evidence": [
+    "scripts/key-remnants.mjs:813-815 `NOTHING IS PLACED HERE (E09 C16, audit S05-28). ... a row's Place button does that now, at once (`placeKeyRow`). A Save writes words and pointers.`",
+    "scripts/tests-tier2.mjs:31034"
+   ]
+  },
+  {
+   "ref": "E09 promise 4",
+   "claim": "The Key fee is one rule, charged once on the primary, bar min(4, case count), living holders only",
+   "verdict": "stands",
+   "why": "keyFeeOf counts distinct Key copies held by living students, bar = min(unfoundBar, caseKeyCount); the charge is asked of the primary through keys.charge with onPrimary. Cited line numbers drift by a few lines (chargeForUnfoundKeys is at 683, the ask at 777-778). Tier-2 tests green in the base run.",
+   "evidence": [
+    "scripts/key-remnants.mjs:778 `const res = await bridgeRequest(\"keys.charge\", {}, { settle: \"reply\", onPrimary: true, local: () => chargeForUnfoundKeys() });`",
+    "scripts/key-remnants.mjs:640-641 `if (secret.realType !== \"key\" || !secret.remnantId || !living.has(actor.id)) continue;`"
+   ]
+  },
+  {
+   "ref": "E09 promise 5",
+   "claim": "Three tie states; a death ties only the undecided; copies learn it at the discovery",
+   "verdict": "stands",
+   "why": "tieChapterTraces skips any tiedToCrime other than null and any other season's trace; the tier-2 tests at 55013, 55140, 35422 exist and are green. E09-1 is a separate road (a restored row moved to undecided), not a break of this promise.",
+   "evidence": [
+    "scripts/remnants.mjs:2338 `if (!data || data.tiedToCrime !== null || data.chapter !== chapter || !sameSeason(data)) continue;`"
+   ]
+  },
+  {
+   "ref": "E09 promise 6",
+   "claim": "A reshape keeps copies held; one ruling, on the primary; a second refused and told who ruled",
+   "verdict": "stands",
+   "why": "claimRuling refuses a second ruling naming who ruled and writes `ruled` before any await (the patch's promise is returned, not awaited first).",
+   "evidence": [
+    "scripts/cleanup-reshape.mjs:572-577 `if (row.ruled) { ... return { refused: \"DRPG.Cleanup.alreadyRuled\", data: { name }, value: null }; } const marking = cleanupAttemptStore.patch(actorId, { ruled: { by, on: game.user.id, verdict } }, { ifLive: true });`"
+   ]
+  },
+  {
+   "ref": "E09 promise 8",
+   "claim": "A focused Observe is a card every GM sees; any GM picks; the primary checks; late picks refused and told",
+   "verdict": "stands",
+   "why": "pickObserveTarget and pickFromCard exist (observe.mjs:371, :392); the three tier-2 tests exist and are green.",
+   "evidence": [
+    "scripts/observe.mjs:392 `export async function pickFromCard({ rid, by, request = \"\" } = {}) {`",
+    "scripts/tests-tier2.mjs:23803"
+   ]
+  },
+  {
+   "ref": "E09 promise 9",
+   "claim": "The chapter's end counts what the sweep takes; the reveal reads as Analyze, Faint unread, Final kind only",
+   "verdict": "stands",
+   "why": "revealPlan, revealAllBulletTypes and sweepPlan exist (chapter.mjs:106, :139, :182) and are the first two steps of CHAPTER_END_STEPS; tests green.",
+   "evidence": [
+    "scripts/chapter.mjs:653-657 `export const CHAPTER_END_STEPS = [ { key: \"reveal\", ... revealAllBulletTypes() ... { key: \"sweep\", ... sweepTruthBullets()`"
+   ]
+  },
+  {
+   "ref": "E09 promise 10",
+   "claim": "The players' words made true; Enter in the reshape window never erases; a body that would not move leaves no trail",
+   "verdict": "stands",
+   "why": "The five tier-2 tests exist at the lines cited and are green; Enter is the form's submit in the harness, as the reader says.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:23600 `[\"Enter in a reshape's window moves to the next field and never erases, and an unfinished one asks again\"`"
+   ]
+  },
+  {
+   "ref": "E09 promise 11",
+   "claim": "R304 and R310 fail on a missing census row or a handbook out of step",
+   "verdict": "stands",
+   "why": "Rows R304 and R310 are stamped E09 in the registry and green in shard 1's tiers 0-1 run; their bodies were not re-read here.",
+   "evidence": [
+    "docs/dev/R-REGISTRY.md R304 `| E09 | an investigation road has a census row, and every row judges a roa...`; R310 `| E09 | the handbooks' Key fee, difficulty ladders, reshape and Tamper's t...`",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-05.json was committed at 19:56Z in 00f2924f): suite_merge 'suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning' (shard 3/8), which passes alone; shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'. audit/harness/skip-baseline.json lists 27 env.* skips, none of them a test this file cites"
+   ]
+  },
+  {
+   "ref": "E09 promise 7",
+   "claim": "'partly': a refused clean-up gives back what the GMs saw paid; two parts left by the notes' gaps",
+   "verdict": "weakened",
+   "why": "Today's paidBack makes the second gap a recorded decision, not an undelivered part: where this browser holds no mark of the student, a GM's own attempt still gets the named step back because 'a GM is trusted with their own', while a player's packet gets nothing and the GMs are told. The first gap (what a critical on the free attempt gives back) is a rules question the notes leave to the owner, not a give-back that fails. The reader did not re-read cleanup.mjs ('Neither was re-read here'), so 'partly' rests on the notes alone; read against the code, the promise as written holds and the two gaps belong under a decision and an open question.",
+   "evidence": [
+    "scripts/cleanup.mjs:2341-2344 `WHERE THIS BROWSER HOLDS NO MARK OF THE STUDENT ... The step named came back there ... It still does for a GM's own attempt - a GM is trusted with their own - ... A player's packet on a student gets nothing there, and the GMs are told what it claimed`",
+    "scripts/cleanup.mjs:2360-2364 `if (by && !game.users.get(by)?.isGM && actor.type === \"character\" && !isMonokuma(actor)) { ... whisperToGms(... \"DRPG.Cleanup.refundUnheld\" ...); return { ...named, amount: 0 }; }`",
+    ".github/release-notes/v1.2.71.md:141-144 `- What a critical on the free clean-up attempt gives back is a rules question not yet decided. - A GM's own clean-up resolved on a GM who is not the primary still gives back the step it names`"
+   ]
+  },
+  {
+   "ref": "E10 grade",
+   "claim": "E10 graded 8, provisional after L1",
+   "verdict": "stands",
+   "why": "With promise 8 read as delivered (one clause reversed by E79 C16, see 'E10 promise 8'), nothing found, and the notes' gaps that are defects in waiting (a row's Level Up given again when a GM leaves mid-verdict) standing as read code only, 11.4's 8 ('one holds only by code reading') under the 9 cap is allowed. Out of date in the reasons: tier 2 now has a verdict (every E10 test cited green, none skipped). Still open: scenario 63's verdict and all seven live checks. The reader's 'partly' on promise 8, kept with an 8, would have been one row above what the scale allows (7).",
+   "evidence": [
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-05.json was committed at 19:56Z in 00f2924f): suite_merge 'suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning' (shard 3/8), which passes alone; shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'. audit/harness/skip-baseline.json lists 27 env.* skips, none of them a test this file cites",
+    ".github/release-notes/v1.2.71.md:148-150 `- Two short gaps when a GM leaves mid-verdict (read in the code, not measured): a row's Level Up may be given again, and a new runner may press Finish before the first's last write lands.`"
+   ],
+   "grade_after": 8
+  },
+  {
+   "ref": "E10 promise 1",
+   "claim": "One console names the next step and counts the Blackened register",
+   "verdict": "stands",
+   "why": "Tier-2 tests at 47237 and 42566 exist and are green in the base run.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:47237 `[\"the trial console names the next step in every state of the trial\"`"
+   ]
+  },
+  {
+   "ref": "E10 promise 2",
+   "claim": "The doors into a trial: none in an Eclipse; setPhase refuses a second trial without confirmNewTrial",
+   "verdict": "stands",
+   "why": "setPhase refuses with DRPG.Floor.newTrialRefused unless confirmNewTrial; setClock refuses the trial in an Eclipse. One citation is wrong: clock.mjs:152 is E112's masks ending before the trial; the Eclipse refusal is at :248-249. The setClock road left unasked is a recorded choice (clock.mjs:58-61).",
+   "evidence": [
+    "scripts/clock.mjs:69-74 `if (key === \"classTrial\" && getClock().phase !== \"classTrial\" && !confirmNewTrial) { ... if (trialProgress().verdictApplied) { ui.notifications.warn(game.i18n.localize(\"DRPG.Floor.newTrialRefused\")); return null;`",
+    "scripts/clock.mjs:248-249 `if (trialEdge && next.phase === \"classTrial\" && next.eclipse === true) { ui.notifications.warn(game.i18n.localize(\"DRPG.Floor.eclipseFirst\"));`"
+   ]
+  },
+  {
+   "ref": "E10 promise 3",
+   "claim": "The vote survives a GM's reload; ballots in ballotStore; the primary checks each; a late player is handed a ballot",
+   "verdict": "stands",
+   "why": "ballotStore and verdictStore at gm-stores.mjs:771, :801; recordBallot, runVoteOp, askForBallot exist in vote.mjs (186, 359, 932; the reader's line numbers drift); tests green. A real F5 stays LIVE-E10-01.",
+   "evidence": [
+    "scripts/gm-stores.mjs:771 `export const ballotStore = defineGmStore({`",
+    "scripts/vote.mjs:932 `export function askForBallot(primary = primaryGmId()) {`"
+   ]
+  },
+  {
+   "ref": "E10 promise 4",
+   "claim": "The count needs a majority of issued ballots for every name",
+   "verdict": "stands",
+   "why": "countBallots is at vote.mjs:992 (not 967) and majorityOf at :688; R314 drives the pure count and is green in shard 1.",
+   "evidence": [
+    "scripts/vote.mjs:992 `export function countBallots(rows, { wanted = 1, issued = 0 } = {}) {`"
+   ]
+  },
+  {
+   "ref": "E10 promise 5",
+   "claim": "The verdict window opens on the accused; Cancel first and default; Enter executes nobody",
+   "verdict": "stands",
+   "why": "The window's buttons set default and close to cancel, and a cancel returns null; the tier-2 'Enter in the verdict window executes nobody' (27400) is green headless; Foundry's own DialogV2 stays LIVE-E10-02.",
+   "evidence": [
+    "scripts/verdict.mjs:241-245 `close: \"cancel\", default: \"cancel\" ... rejectClose: false`"
+   ]
+  },
+  {
+   "ref": "E10 promise 6",
+   "claim": "One verdict card; Finish the verdict does the rest without a second Level Up or card",
+   "verdict": "stands",
+   "why": "Tests at 27921, 27983, 28159, 28354 exist and are green; the two GM-leaves gaps the notes name stay read code only (LIVE-E10-04).",
+   "evidence": [
+    "scripts/tests-tier2.mjs:28354 `[\"a Finish posts no second verdict card and a player's message with the card's key holds none back\"`"
+   ]
+  },
+  {
+   "ref": "E10 promise 7",
+   "claim": "The class's Level Ups in one window; offers side by side; a pick the sheet cannot take refused",
+   "verdict": "stands",
+   "why": "Tests at 27731, 28721, 56175, 60625 exist and are green.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:60625 `[\"a Level Up pick the sheet cannot take is refused and told, and the offer stands\"`"
+   ]
+  },
+  {
+   "ref": "E10 promise 9",
+   "claim": "A Final Trial's verdict closes the record and takes the flag down; a reset counts the season",
+   "verdict": "stands",
+   "why": "verdict.mjs keeps the flag's comment and the three tests (63324, 63386, 63471) are green.",
+   "evidence": [
+    "scripts/verdict.mjs:1413-1415 `THE FLAG COMES DOWN WITH THE VERDICT (E10 C10, 1.2.71; audit S06-16).`"
+   ]
+  },
+  {
+   "ref": "E10 promise 10",
+   "claim": "R311 and R321 fail on a missing trial census row or a handbook out of step",
+   "verdict": "stands",
+   "why": "Both rows stamped E10 in the registry; green in shard 1's tiers 0-1.",
+   "evidence": [
+    "docs/dev/R-REGISTRY.md R311 `| E10 | a trial road has a census row, and every row judges a road`; R321 `| E10 | the handbooks' Class Trial says what the vote, the verdict, the Le...`"
+   ]
+  },
+  {
+   "ref": "E10 promise 8",
+   "claim": "'partly': the floor - server clock, Present turns into Objection in a debate, the dead neither present nor object, the Objection card on top, End this mode on the primary",
+   "verdict": "refuted",
+   "why": "The reader's 'partly' means 'not traced', not 'delivered in part'. The clause 'Present turns into Objection while a debate is open' was reversed on purpose by E79 C16 (1.2.79, the owner, 17.10.2026): the row is a Present in every mode, and the test pinning the promise was rewritten to read that; this belongs in superseded_by, where the reader does not list E79. Each other half has a named test, green in the base run: R319 (server time), 'a dead student is offered no Present and their Objection is refused on the primary and told' (45208), 'an Objection card is raised over the windows until it is touched' (45318); End this mode is a floor step written only on the primary (writeFloor returns unless isPrimaryGm) and E70's bar tests drive it (48183-48260). Holds: yes, one clause superseded by a decision.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:45164-45167 `E79 C16 (1.2.79; the owner, 17.10.2026): an Objection is raised with OBJECTION! on the trial bar and its Truth Bullet chosen after it, so the row is a Present in every mode of the trial and the debate changes nothing on it.`",
+    "scripts/trial-floor.mjs:366-367 `async function writeFloor(patch) { if (!isPrimaryGm()) return null;`",
+    "scripts/trial-floor.mjs:1557-1559 `export async function endMode() { if (!game.user.isGM || !barMay(\"endMode\")) return null; return floorStep(\"endMode\");`",
+    "scripts/tests-tier0.mjs:13264 `[\"R319 - the trial's clock and the time of day's stamps count the server's time, and a transition is written once\"`",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-05.json was committed at 19:56Z in 00f2924f): suite_merge 'suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning' (shard 3/8), which passes alone; shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'. audit/harness/skip-baseline.json lists 27 env.* skips, none of them a test this file cites"
+   ]
+  },
+  {
+   "ref": "E75 grade",
+   "claim": "E75 graded 8, provisional after L1",
+   "verdict": "stands",
+   "why": "All promises read in relay-guard.mjs as the markers say, nothing found; 8 rests on one promise holding by code reading only (the countdown packet a player's client sends is built by the test, not by Daggerheart's countdown field), which 11.4's row 8 names. The 9 cap applies (LIVE-E75-01 open). R343-R345 are green in shard 1's tiers 0-1. Scenario 30's part 8 still has no verdict (base-run.json pending). The quoted words of promise 1 are no longer today's (see 'E75 promise 1'), which does not move the grade.",
+   "evidence": [
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-05.json was committed at 19:56Z in 00f2924f): suite_merge 'suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning' (shard 3/8), which passes alone; shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'. audit/harness/skip-baseline.json lists 27 env.* skips, none of them a test this file cites",
+    "scripts/relay-guard.mjs:481-485 isCountdownAdd: `return payload?.action == null && Boolean(data) && typeof data === \"object\" && !Object.hasOwn(data, \"action\") && Array.isArray(data.data?.countdowns);`"
+   ],
+   "grade_after": 8
+  },
+  {
+   "ref": "E75 promise 1",
+   "claim": "A player's countdown from an action is refused; the primary reads 'Refused a Daggerheart change from <player>: new countdowns (<name>). Nothing was changed.'; the player is told 'This game leaves that change to the GM.'; counted under countdownsFromAction; a full GM's goes on",
+   "verdict": "weakened",
+   "why": "The behaviour holds: isCountdownAdd, judgeCountdownAdd's refusal under COUNTDOWN_ADD, reportRefusal's bucket status.refused[sub], the primary-only branch and forwardsUnjudged for a full GM. The words the reader marks as holding are the 1.2.72 notes', not today's: the GM's toast is DRPG.Relay.refused 'The module refused a Daggerheart change from {name}: {what}. Nothing changed.' and the player's refusal goes through tellRefused with reason 'relay', whose text is 'Only the GM can make that change.'. Neither quoted sentence exists in lang/en.json now.",
+   "evidence": [
+    "scripts/relay-guard.mjs:793 `return refuseAs(COUNTDOWN_ADD, \"refused\", `new countdowns (${names.join(\", \")})`);`",
+    "scripts/relay-guard.mjs:1161 `status.refused[sub] = (status.refused[sub] ?? 0) + 1;`; :1173 `ui.notifications?.warn(game.i18n.format(\"DRPG.Relay.refused\", ...))`; :1188 `tellRefused(sender.id, \"daggerheart\", null, \"relay\");`",
+    "lang/en.json DRPG.Relay.refused `The module refused a Daggerheart change from {name}: {what}. Nothing changed.`; DRPG.Relay.what.newCountdowns `new countdowns ({names})`",
+    "lang/en.json:4950 `\"relay\": \"Only the GM can make that change.\",`"
+   ]
+  },
+  {
+   "ref": "E75 promise 2",
+   "claim": "relayGuard() fingerprints the default branch whole; a changed default reads 'changed' and is named",
+   "verdict": "stands",
+   "why": "DEFAULT_LINE reads to the switch's }, fingerprintOf adds each default, and the state is 'changed' when the fingerprint is empty or anything is unreviewed; R344 green.",
+   "evidence": [
+    "scripts/relay-guard.mjs:156 `const DEFAULT_LINE = new RegExp(\"(?<![\\\\w$.])default\\\\s*:([^}]*)\", \"g\");`",
+    "scripts/relay-guard.mjs:247-248 `status.state = unnamed ? \"unnamed\" : (!status.fingerprint.length || status.unreviewed.length) ? \"changed\" : \"ok\";`"
+   ]
+  },
+  {
+   "ref": "E75 promise 3",
+   "claim": "A player's browser hands on only the eight reviewed names; any other name, or a request that is not an object, is not run",
+   "verdict": "stands",
+   "why": "On a player's client onRelay forwards only REVIEWED_NAMES; a non-object payload has no action and is dropped there. Under the backstop a non-object goes on, as the notes' gap says.",
+   "evidence": [
+    "scripts/relay-guard.mjs:428-434 `if (!game.user?.isGM) { ... if (REVIEWED_NAMES.has(action)) return forward(payload, senderId); debug(...); return; }`",
+    "scripts/relay-guard.mjs:356-358 `if (!payload || typeof payload !== \"object\") { debug(\"... goes on to Daggerheart's listener ...\"); return; }`"
+   ]
+  },
+  {
+   "ref": "E75 promise 4",
+   "claim": "The backstop clears a refused request's contents as well as its name",
+   "verdict": "stands",
+   "why": "disarm replaces both action and data.",
+   "evidence": [
+    "scripts/relay-guard.mjs:344-347 `export function disarm(payload) { if (!payload || typeof payload !== \"object\") return; payload.action = REFUSED; payload.data = { action: REFUSED };`"
+   ]
+  },
+  {
+   "ref": "E75 promise 5",
+   "claim": "A number or name the guard cannot read is judged, not thrown on",
+   "verdict": "stands",
+   "why": "textOf and numberOf never throw; R345 drives the leaves; green in shard 1.",
+   "evidence": [
+    "scripts/relay-guard.mjs:1071-1075 `function textOf(value) { if (typeof value === \"string\") return value; try { return String(value); } catch { ... } try { return Object.prototype.toString.call(value); } catch { return \"?\"; }`"
+   ]
+  },
+  {
+   "ref": "E75 promise 6",
+   "claim": "A scene's environments count as reordered only when every entry is a plain identifier",
+   "verdict": "stands",
+   "why": "sceneRefusal compares plain string lists only. R133's body was not read by either reader.",
+   "evidence": [
+    "scripts/relay-guard.mjs:656-660 `const plain = list => Array.isArray(list) && list.every(entry => typeof entry === \"string\"); ... return same ? null : `the environments of ${doc.name}, which is not a reordering`;`"
+   ]
+  },
+  {
+   "ref": "E75 promise 7",
+   "claim": "superseded: the harness's 2.10.11 relay and the unchanged manifest",
+   "verdict": "stands",
+   "why": "The relay copy is 2.12.8's since E76 and module.json now verifies Daggerheart 2.12.9 (commit aa697521), minimum still 2.6.5.",
+   "evidence": [
+    "audit/harness/lib/dh-relay.mjs:4 `Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25),`",
+    "module.json:20-23 `\"minimum\": \"2.6.5\", \"verified\": \"2.12.9\"`"
+   ]
+  },
+  {
+   "ref": "E11 grade",
+   "claim": "E11 graded 8, provisional after L1",
+   "verdict": "weakened",
+   "why": "The reader marks three promises 'partly' (1, 5, 9) and writes 'two promises are delivered in part' among the reasons; 11.4's row 7 is 'one promise delivered in part', so 8 is not a grade the scale gives on the reader's own readings. Two of the three fall here (promise 1's clause is E72's decision, promise 5's 'the rest still run' holds in today's chapter.mjs), but promise 9 stands as delivered in part: after a reset that keeps the Truth Bullets, a Key copy's chapter and the other readers the notes list are read by chapter alone, and key-remnants.mjs repeats that it is not closed. One promise in part gives 7. Tier 2 now has a verdict (every E11 test cited green); scenario 65 and all nine live checks remain open, so 7 is also provisional after L1.",
+   "evidence": [
+    "scripts/key-remnants.mjs:606-608 `The answer key itself names no season, so after a reset that wipes the Remnants and keeps the Truth Bullets a copy is still read by its chapter alone (read in the code, not closed here).`",
+    ".github/release-notes/v1.2.73.md:159-162 `- Still read by their chapter alone (read in the code): the trial's progress and its vote, a betrayal on offer, a Truth Bullet locked by a failed Analyze and the Traces tab's chapter filter, and, after a reset that clears the Remnants and keeps the Truth Bullets, the chapter a Key Remnant copy was found in.`",
+    "audit/AUDIT-1.2.42.md 11.4: `| 7 | ... | jak obok |` with `kilka minor albo jedna obietnica dowieziona w czesci`",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-05.json was committed at 19:56Z in 00f2924f): suite_merge 'suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning' (shard 3/8), which passes alone; shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'. audit/harness/skip-baseline.json lists 27 env.* skips, none of them a test this file cites"
+   ],
+   "grade_after": 7
+  },
+  {
+   "ref": "E11 promise 1",
+   "claim": "'partly': a body found once, by the primary; stamped per chapter and season; no re-announce; no execution; the dead are no finders, a Monocub still is",
+   "verdict": "refuted",
+   "why": "The reader's own note says 'One clause is superseded ... The rest holds.' The Monocub clause was reversed by E72 C3, a recorded decision (R348's title 'since E72 a Monocub neither (DC7: never)'), not left undelivered. The rest reads in today's body.mjs: discoveryHere refuses on a non-primary and names the primary; the tier-2 tests cited are green. Holds: yes, one clause superseded.",
+   "evidence": [
+    "scripts/body.mjs:176-180 `function discoveryHere() { if (isPrimaryGm()) return true; const name = game.users.get(primaryGmId())?.name ?? \"?\"; ui.notifications.warn(game.i18n.format(\"DRPG.Chapter.bodyPrimaryOnly\", { name })); return false;`",
+    "scripts/body.mjs:804 `// And the dead are not witnesses, a Monocub neither since E72 C3 (E11 C1; `witnessesOf`).`",
+    "docs/dev/R-REGISTRY.md R348 `| E11 | the dead are not witnesses, and since E72 a Monocub neither (DC7: ...`"
+   ]
+  },
+  {
+   "ref": "E11 promise 2",
+   "claim": "The order: publish kept deaths, gather, card with sound, pause music, hold; then the Prep question",
+   "verdict": "stands",
+   "why": "Tests at 64327, 64278, 65651 exist and are green; the music's pause and camera pans stay read code and calls (LIVE-E11-03).",
+   "evidence": [
+    "scripts/tests-tier2.mjs:64327 `[\"the discovery card comes before the Prep question\"`"
+   ]
+  },
+  {
+   "ref": "E11 promise 3",
+   "claim": "The GM's window marks a body announced this chapter; an unpublished death is not named and the GMs are told",
+   "verdict": "stands",
+   "why": "Tests at 65073 and 66033 exist and are green.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:66033 `[\"a body whose publication failed is named neither on the chat card nor in the hold and the GMs are told whose it is\"`"
+   ]
+  },
+  {
+   "ref": "E11 promise 4",
+   "claim": "The hold's words; only the Eclipse waits; the Next line's order",
+   "verdict": "stands",
+   "why": "Tests at 64216, 65306, 64147, 65493 exist and are green; R350 and R375 stamped E11.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:64216 `[\"during the hold the Eclipse is refused and a Search is not\"`"
+   ]
+  },
+  {
+   "ref": "E11 promise 6",
+   "claim": "The End of chapter window offers what it can do; a warning names typeless holders",
+   "verdict": "stands",
+   "why": "R357 stamped E11 and green; the greying itself is LIVE-E11-08.",
+   "evidence": [
+    "docs/dev/R-REGISTRY.md R357 `| E11 | the chapter end counts one thing once: a reveal with nothing to re...`"
+   ]
+  },
+  {
+   "ref": "E11 promise 7",
+   "claim": "Edit campaign asks before a chapter change or a trial; an hour correction calls off an assembly",
+   "verdict": "stands",
+   "why": "Tests at 64633, 64559, 65796 exist and are green.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:64633 `[\"Edit campaign asks before it changes the chapter or opens the trial and Cancel applies the rest\"`"
+   ]
+  },
+  {
+   "ref": "E11 promise 8",
+   "claim": "The season reset: one order, the incident first; groups as labelled; the cast's three choices; RESET exact; a lower-id GM stops it",
+   "verdict": "stands",
+   "why": "RESET_STEPS starts with the incident and holds 31 keys today (the reader's count is right); the typed word is compared exactly and the primary is checked again when the window closes. The cast's teleport stays LIVE-E11-07.",
+   "evidence": [
+    "scripts/season-wipe.mjs:406-413 `export const RESET_STEPS = Object.freeze([ \"incident\", \"seals\", ... \"placeCast\", \"preNotes\", \"cards\", \"chatRest\", \"clock\" ]);`",
+    "scripts/season-wipe.mjs:339 `if (typed.word !== word) {`"
+   ]
+  },
+  {
+   "ref": "E11 promise 9",
+   "claim": "'partly': last season's records carry their season; the notes' chapter-alone readers stand",
+   "verdict": "stands",
+   "why": "sameSeason reads the epoch on traces and the motive, its readers exist (remnants.mjs:2338, key-remnants.mjs:645), and the gap the notes declared is still written in key-remnants.mjs as not closed; 'partly' is right for the promise's own 'so after a reset last season's Chapter 1 is not read as this one'.",
+   "evidence": [
+    "scripts/settings.mjs:3582-3586 `export function sameSeason(record, epoch = seasonEpoch()) { if (!record) return false; if (record.epoch !== undefined && record.epoch !== null) return record.epoch === epoch;`",
+    "scripts/key-remnants.mjs:606-608 `... a copy is still read by its chapter alone (read in the code, not closed here).`"
+   ]
+  },
+  {
+   "ref": "E11 promise 10",
+   "claim": "Project tokens kept in step by the primary; a hand-deleted token stays deleted; the first load sweeps orphans",
+   "verdict": "stands",
+   "why": "syncProjectTokens, the deleteToken hook and the migrate clause exist; tests at 34900, 34854, 66441 green.",
+   "evidence": [
+    "scripts/projects-map.mjs:995 `Hooks.on(\"deleteToken\", (tokenDoc, options) => onProjectTokenDeleted(tokenDoc, options));`",
+    "scripts/migrate.mjs:954 `key: \"sweepOldProjectTokens\",`"
+   ]
+  },
+  {
+   "ref": "E11 promise 5",
+   "claim": "'partly': the chapter's end on the primary, kept to the state it opened on, nine ordered steps, a failed step named and the rest still run (except the morning), the phase read before each step",
+   "verdict": "refuted",
+   "why": "The reader keeps 'partly' because E42 C2 moved the steps onto runSteps with a world record and a Finish. Today's chapter.mjs still says, and runs, what the promise says: each step in its own try/catch, a failure named, the steps after it still run, the morning aside; E42's record and Finish add to that rather than take a part away. The nine steps are CHAPTER_END_STEPS; tests at 64462, 64497, 66385 are green. Holds: yes, extended by E42.",
+   "evidence": [
+    "scripts/chapter.mjs:622-623 `runChapterEnd` runs them in this order on steps.mjs `runSteps` (E42 C2), each in its own try/catch: a step that fails is logged and named, and the steps after it still run - the morning aside, which does not open over a trial that did not close.`",
+    "scripts/tests-tier2.mjs:64497 `[\"a chapter end step that fails is named and no morning opens over a trial that did not close\"`"
+   ]
+  }
+ ],
+ "counts": {
+  "checked": 43,
+  "stands": 37,
+  "weakened": 3,
+  "refuted": 3
+ },
+ "not_established": [
+  {
+   "what": "Scenarios 30-security part 8, 62-investigation, 63-class-trial and 65-season still have no verdict: base-run.json lists 'the ci scenarios one at a time' as pending. The reader's not_established items 1 and 2 are settled for tier 2 and tiers 0-1 by base-run.json (green for every test this file cites; XI07, the one red, is none of them), not for the scenarios.",
+   "live_check": "none - the pending scenario run settles it"
+  },
+  {
+   "what": "The release-note line numbers given as each promise's `source` in stages-05.json do not match the files (v1.2.71.md: Known gaps at 139 and Checked at 163, not 168 and 192; v1.2.73.md: the discovery at 43-49, not 34-41; last season's records at 117-119, not 131-134). The promises' texts match the notes; only the line numbers were re-found by text.",
+   "live_check": "none"
+  },
+  {
+   "what": "E09-1's second half (the death tying a restored red herring) needs the old world's season epoch to equal the new world's (tieChapterTraces asks sameSeason); whether a moved campaign keeps that is not recorded. The silent move to undecided does not depend on it.",
+   "live_check": "the reader's new live check for E09-1, with one more read: the clock's seasonStartedAt in both worlds"
+  },
+  {
+   "what": "The bodies of R133, R304-R306, R353 and most tier-2 tests were read by title only, by the reader and here; their green results in base-run.json are read from the merged totals and the skip list, not per line.",
+   "live_check": "none - a per-test results file settles it"
+  }
+ ]
+}
