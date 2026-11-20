@@ -1,0 +1,1163 @@
+{
+ "reader": "live-items-293",
+ "lines": "1167-1200",
+ "count_expected": 34,
+ "count_note": "34 numbered items read, 293-326, each whole; all 34 present and in order. Read beside them: live-readings-e58.json (94 readings), live-readings-other.json (73), live-readings-e58-delta.json (25), docs/dev/e58/TRIAGE-9.2.md:316-349 (the 34 rows), docs/dev/e58/LOCAL-REPORT.md:318-335, docs/dev/e39/CALIBRATION.md:82-135, docs/dev/e58/PERF-READINGS.md:1-160, docs/dev/e64/STATUS.md:40-46, and on claude/e58-local the two papers' added lines by grep for the 34 ids and numbers. No harness, test or probe was run; base-run.json was absent.",
+ "items": [
+  {
+   "n": "293",
+   "live_id": "LIVE-E18-01",
+   "stage": "E18",
+   "asks": "One GM and two players, both languages: a Call Experience card 'Otwarta do HH:MM' (five minutes, the GM's hour; a player in another time zone noted), the GM's yes arming the Call once the asker has it; an ask nobody answers ends on both sides; a dynamic action (three minutes) ruled and refused; a project proposal one card in A's thread only; with no GM each of the three says no GM is connected and nothing is spent; a co-owner reads a private Listen answer, an observer does not.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "Two quoted Polish words are not today's: the GM's button 'Stosuje się' is 'Zatwierdź' (lang/pl.json:4384 DRPG.Calls.approveYes; EN 'It applies' -> 'Approve', 2db3cb1c, E71 B06, 14.11.2026), and 'Nikt nie odpowiedział na czas - zapytaj jeszcze raz.' is 'Nikt nie odpowiedział na czas. Możesz zapytać jeszcze raz.' (lang/pl.json:5354 DRPG.Bridge.settledExpired; 6cc82c5a, E71 B12). 'Otwarta do {time}.' (:5347), 'Gracz już nie czekał.' (:5355) and 'Żaden GM nie jest połączony.' (:5300) stand. The headless line names scenario 76 for phase CO, which is scenario 61's.",
+   "fix": [
+    {
+     "old": "GM naciska \"Stosuje się\"",
+     "new": "GM naciska \"Zatwierdź\""
+    },
+    {
+     "old": "\"Nikt nie odpowiedział na czas - zapytaj jeszcze raz.\"",
+     "new": "\"Nikt nie odpowiedział na czas. Możesz zapytać jeszcze raz.\""
+    }
+   ],
+   "headless_half": "the five tier-2 tests the item names, each found by its title: scripts/tests-tier2.mjs:38452 (E18 C0), :38626 and :38685 (E18 C1), :40515 (E18 C2), :40930 (E18 C5); scenario 33 phase A17 (audit/harness/scenarios/33-bridge-paths.mjs:423); the item's 'scenariusze ... 76 (CO)': CO is scenario 61's phase (61-gmstore-case.mjs:116, :2436), and 76-passages.mjs holds no phase CO. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "Subjects read today: the card's clock and its end on the primary (scripts/call-gm.mjs:169-179 `expiryTimers`, :616 settledExpired with the GMs' settledGone), the Call's card button (scripts/calls.mjs:868). The item's 'scenariusze 33 (A17, C) i 76 (CO)': grep of 76-passages.mjs for a phase CO finds none; 61-gmstore-case.mjs:116 is 'CO (E18 C5): a private card to a student's owners'. The time-zone half (a player's clock in another zone) has no headless half at all.",
+   "l1": {
+    "what": "Call, dynamic action and project cards with one GM and two players, their clocks and their refusals with no GM, and the co-owner's read of a private answer",
+    "recipe": [
+     "GM, A and B logged in; A's page opened with a time zone 3 hours off the GM's (a Playwright timezoneId or the OS clock)",
+     "A buys Call Experience with a sentence; read the card's 'Open until' time on A and on the GM; GM presses Approve; read A's Hope before and after and whether the Call waits for A's next roll",
+     "A asks again; nobody answers for 5 min; read the card's end text on A and on the GM; then press Approve; read A's Hope",
+     "A describes a dynamic action; GM sets difficulty and statistic; read A's roll window; repeat with a refusal; read what was spent",
+     "A proposes a project; read A's and B's threads; GM rules once",
+     "GM leaves; A tries a Call, a dynamic action and a project; read each refusal and what was spent",
+     "Make B a co-owner of A's character and a third player an observer; A's character does Listen; read who holds the answer"
+    ],
+    "clients": "one GM, three players (A, B, an observer)",
+    "theme": "default",
+    "settles_if": "agrees: every card and refusal as the item says, Hope down once, nothing sent with no GM, the observer holds nothing; defect: a second card, Hope spent twice or on a late yes, a time shown in the wrong zone, or the observer reading the answer",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "294",
+   "live_id": "LIVE-E18-02",
+   "stage": "E18",
+   "asks": "Gamemaster G1, Assistant GM G2 and player A: G1's F5 mid-ask keeps one card whose yes still arms the Call; G1 leaving makes G2 primary with no reload and the ask resent (at most three times) to one card; the same for a dynamic action; two GMs on one card rule it once and the other reads who ruled; and the order of `userConnected` against `bridge.gmReady` for a reloading G1 (LIVE-E30-05, LIVE-E04-12).",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "Part (5)'s first half is read: on 14.370 a player's page got `userConnected(GM, true)` at +4.8 s and the GM module's `bridge.gmReady` at +10.5 s, about 5.7 s apart (live-readings-e58.json item 52, LIVE-E04-12: docs/dev/e58/LOCAL-REPORT.md:472; live-readings-other.json: docs/dev/e39/CALIBRATION.md:138-140, 16.11.2026), as the harness's ask paths allow; LIVE-E30-05's read (CALIBRATION.md:30) is of a page closing. That reading is a GM's first load, not an F5 of a primary mid-ask, and with one Gamemaster account; parts (1)-(4) and whether G1's expired cards end at its ready were not driven (the sandbox's Assistant account was a scratch one, CALIBRATION.md header).",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The Polish refusal quoted, 'Tę kartę już rozstrzygnięto (przez: {gm}).', is 'Ta karta jest już rozstrzygnięta przez GM-a {gm}.' (lang/pl.json:5357 DRPG.Bridge.alreadyRuled; 6cc82c5a E71 B12 replaced 'Tę kartę już rozstrzygnięto ({gm}).'); the English two stand (lang/en.json:5010-5011). The closing 'kolejność zdarzeń v14 jest w harnessie założona, nie zmierzona' is no longer all true: the order on a first load was measured on 16.11.2026.",
+   "fix": [
+    {
+     "old": "\"Tę kartę już rozstrzygnięto (przez: {gm}).\"",
+     "new": "\"Ta karta jest już rozstrzygnięta przez GM-a {gm}.\""
+    }
+   ],
+   "headless_half": "scenario 61 Y1, Y2 (audit/harness/scenarios/61-gmstore-case.mjs:2494-2526, `announceFirst` at :2052-2070) and CL1-CL3 (:2628-2630); tier-2 'a resent ask finds the card a GM posted for it by its mark and no other' (scripts/tests-tier2.mjs:40223) and 'two clicks on one card to the GMs rule it once' (:40639). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The claim refusals are named in scripts/call-gm.mjs:1109 (`claimCard`). The harness still calls `userConnected` once the client is ready (LOCAL-REPORT.md:472, CALIBRATION.md D10), so 61 Y2's `announceFirst` is the one place the measured order is modelled.",
+   "l1": {
+    "what": "A primary GM's F5 and departure during an open ask, with an Assistant GM taking over, and two GMs pressing one card",
+    "recipe": [
+     "Log in Gamemaster G1, Assistant GM G2 and player A",
+     "A buys Call Experience; G1 presses F5 before answering; after G1 is back count the cards in A's thread and press Approve on the one card; read whether the Call is armed",
+     "A asks again; G1 closes the world; read on G2 that it is primary with no reload; count A's resends (game.drpg debug log) and the cards; G2 approves; read the Call",
+     "Repeat step 3 with a dynamic action",
+     "A proposes a project; G1 and G2 press the same card within 100 ms; read the decision count, A's lines and the other GM's notice",
+     "On A's page log userConnected and bridge.gmReady with timestamps while G1 reloads; note whether G1's expired cards end at its ready"
+    ],
+    "clients": "a Gamemaster, an Assistant GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: one card throughout, one ruling, the yes kept across the handover, the second GM told who ruled; defect: two cards, a lost yes, a double ruling, or an expired card left open after G1's ready",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "295",
+   "live_id": "LIVE-E35-01",
+   "stage": "E35",
+   "asks": "A gives one of three Candy to B in the same room: A keeps 2, B gets 1, each sheet redraws once; a second piece stacks with the first on B (one entry, quantity 2); `game.drpg.sheetWrites()` gets no new row.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "headless_half": "tier-2 'a hand-over of a stack moves one piece ...' (E35-T3, scripts/tests-tier2.mjs:77290) and scenario 83 L12 (audit/harness/scenarios/83-roll-integrity.mjs:589-604). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "`sheetWrites` is still the API (scripts/api.mjs:155 from sheet-audit.mjs). The test title holds the item's 'pieces pile on one document of the taker's'.",
+   "l1": {
+    "what": "A stack handed over piece by piece between two players in one room",
+    "recipe": [
+     "A holds 3 Candy (one item, system.quantity 3); A and B in the same room",
+     "On the GM: const before = game.drpg.sheetWrites().length",
+     "A gives one Candy to B; read both inventories and count each sheet's renders (Hooks.on('renderCharacterSheet'))",
+     "A gives a second; read B's item count and quantity",
+     "On the GM: game.drpg.sheetWrites().length - before"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: A 2 then 1, B one entry of 1 then 2, one render each, no new sheetWrites row; defect: two entries on B, a row in sheetWrites, or a count that does not add up",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "296",
+   "live_id": "LIVE-E35-02",
+   "stage": "E35",
+   "asks": "A plants on B whose pockets are full, unseen and seen: the item stays with A, A reads the refusal, B gets nothing (no whisper, notice, sound or sheet redraw); a Gear planted into pockets holding one stowed weapon leaves two stowed (a default not settled by the owner).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "headless_half": "tier-2 E35-T6 (scripts/tests-tier2.mjs:77951, 'a Plant into full pockets is refused, seen or unseen ...') and E35-T7 (:78050). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The refusal reads as quoted, with typographic quotes round the item: '{who} has no room for “{item}”. It stays with you.' (lang/en.json:5578) / '{who} nie ma miejsca na „{item}”. Zostaje przy tobie.' (lang/pl.json:5990, DRPG.Steal.cardTheirHandsFull). E35-T7's title still describes the Gear going to the stash, not the hand, so the two-stowed default stands as the item says.",
+   "l1": {
+    "what": "A Plant into full pockets, unseen and seen, and a Gear planted beside a stowed one",
+    "recipe": [
+     "B's hands full; A and B in one room (a third player C there for the seen run)",
+     "A does Plant on B unseen; read A's message and B's whispers, notifications, AudioHelper.play calls and sheet renders",
+     "Repeat seen (C in the room)",
+     "B holds one stowed weapon; A plants a Gear; read B's stowed list"
+    ],
+    "clients": "one GM, three players",
+    "theme": "default",
+    "settles_if": "agrees: the item stays with A, A reads the refusal, B receives nothing either way, two stowed after the Gear; defect: any whisper, sound or redraw on B, or the item lost",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "297",
+   "live_id": "LIVE-E14-02",
+   "stage": "E14",
+   "asks": "Daily Life with items: a give across rooms refused, the same in a Class Trial and an Eclipse; a stashed key does not open another's bedroom, a key in hand does; a stash rifled twice in one time of day refused the second time; Palm waits for the GM's full reply (time it); a dead student's sheet has no Use, Discard or stash button for one who knows the death.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "Every quoted refusal but one was reworded by 6cc82c5a (E71 B12, 14.11.2026): notThere 'The character is not where it needs to be.' / 'Postać nie jest tam, gdzie trzeba.' -> 'Your character is not in the right place for that.' / 'Twoja postać nie jest we właściwym miejscu.'; cannotNow 'That cannot be done now.' / 'Teraz nie da się tego zrobić.' -> 'You can't do that right now.' (as the commit wrote it; lang/en.json:4947 reads 'You cannot do that right now.') / 'Teraz nie możesz tego zrobić.'; alreadyDone 'That has already been settled.' / 'To zostało już rozstrzygnięte.' -> 'That has already happened.' / 'To już się stało.' (lang/en.json:4944-4949, lang/pl.json:5291-5297). The key refusal stands in English (lang/en.json:3233) and reads 'Pokój {room} jest zamknięty, a ty nie masz do niego klucza.' in Polish (lang/pl.json:3441; the commit not traced). `deadToViewer` in sheet.mjs is gone: the sheet's mode is scripts/sheet-mode.mjs:41 `sheetMode` (E45 C1, moved by E54; R1470 forbids the old predicate outside it).",
+   "fix": [
+    {
+     "old": "\"The character is not where it needs to be.\" / \"Postać nie jest tam, gdzie trzeba.\"",
+     "new": "\"Your character is not in the right place for that.\" / \"Twoja postać nie jest we właściwym miejscu.\""
+    },
+    {
+     "old": "\"That cannot be done now.\" / \"Teraz nie da się tego zrobić.\"",
+     "new": "\"You cannot do that right now.\" / \"Teraz nie możesz tego zrobić.\""
+    },
+    {
+     "old": "\"Drzwi do: {room} są zamknięte. Nie masz tego klucza.\"",
+     "new": "\"Pokój {room} jest zamknięty, a ty nie masz do niego klucza.\""
+    },
+    {
+     "old": "\"That has already been settled.\" / \"To zostało już rozstrzygnięte.\"",
+     "new": "\"That has already happened.\" / \"To już się stało.\""
+    },
+    {
+     "old": "(sheet.mjs `deadToViewer`)",
+     "new": "(sheet-mode.mjs `sheetMode`)"
+    }
+   ],
+   "headless_half": "tier-2 E14-T1 (scripts/tests-tier2.mjs:78371), E14-T2 (:78781), E14-T3 (:78941), E14-T4 (:79154), E14-T5 (:79327), E14-T7 (:79623); E14-T6 is tier 1's R970 (scripts/tests-tier1.mjs:30703, the rifle's window, tagged E14-T6); scenarios 33 and 83 (83 L12-L16 at 83-roll-integrity.mjs:589). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "sheetMode reads the death as the viewer may know it (scripts/sheet-mode.mjs:53, `isDeadForGm` for an owner, `isDeceased` otherwise). The Palm timing (4) is the only part with no headless half that could stand in.",
+   "l1": {
+    "what": "The Daily Life item refusals, the stashed key, a stash rifled twice, Palm's reply time and a dead student's sheet",
+    "recipe": [
+     "GM and players A, B in Daily Life, in different rooms",
+     "A gives B an item; read the refusal; start a Class Trial and an Eclipse and repeat",
+     "A stashes the only key to C's bedroom and walks to that door; read the refusal; take the key in hand and walk again",
+     "A rifles B's stash twice in one time of day; read the second answer; advance the time of day and rifle again",
+     "Time A's Palm (Steal and Plant) from the click to the card (performance.now on A's page)",
+     "Kill a student (and a Monocub) known to A; open its sheet on A; read for Use, Discard and the stash button; try to loot its body as a player who does not know the death"
+    ],
+    "clients": "one GM, three players",
+    "theme": "default",
+    "settles_if": "agrees: each refusal in today's words, the stashed key opens nothing, the second rifle refused, the dead sheet without those buttons; defect: a give that goes through, a stashed key that opens, a second rifle granted or a body looted by one who does not know; the Palm time is a number to record",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "298",
+   "live_id": "LIVE-E14-01",
+   "stage": "E14",
+   "asks": "GM in English, player in Polish, a room table '<room> - Tier 1': Search draws from the room's table, never above the tier earned, and the card says what was drawn; the GM switching language keeps the tables found; a planted item Search could not hand over goes back to the room with a line to the GMs; screenshots of the item tables window, Create an item, Give, and the Room pools card in Stained Glass at 1366x768.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "S",
+   "text_stale": true,
+   "stale_detail": "The tab the item calls 'Room pools' is labelled 'Room tables' today (lang/en.json:5039 DRPG.Tables.tabRoomPools; it read 'Room pools' at cad376ef, 20.10.2026). The room table's name shape '<room> - Tier N' stands (scripts/tables-editor.mjs:749-754).",
+   "fix": [
+    {
+     "old": "także karta Room pools w Stained Glass",
+     "new": "także karta Room tables w Stained Glass"
+    }
+   ],
+   "headless_half": "tier-2 E14-T9 (scripts/tests-tier2.mjs:80579), E14-T10 (:80717), E14-T12 (:80020), E14-T13 (:80133), E14-T14 (:80215), E14-T16 (:80777); R972-R976 (docs/dev/R-REGISTRY.md:505-509; R974 lays out the windows by their rules, without a layout engine). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "E14-T11 and E14-T15 are tier 1's R972 and R973 (scripts/tests-tier1.mjs:30774, :30861, tagged so). The Chromium mock-up the item names (stage E14 part 2, c78) was not read in this pass.",
+   "l1": {
+    "what": "Search on a room's own table across languages, the planted item sent back, and four windows' layout",
+    "recipe": [
+     "GM's Foundry in English, a player's in Polish; make 'Library - Tier 1' with known entries; the player's character in the Library at Tier 1",
+     "The player Searches; read the card and the item (from the Library table, tier 1 at most)",
+     "The GM switches Foundry to Polish and back; the player Searches again",
+     "Fill the player's hands; plant an item for Search; Search; read where it goes and the GMs' line",
+     "Screenshot the item tables window, Create an item and the Give windows in both themes at 1366x768, and the Room tables tab in Stained Glass; type a refused name and shoot the line under the field"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: the room's table answers, never above the tier, names kept across the switch, the planted item back with a line, nothing past 768 px; defect: a world-pool item, a higher tier, a lost table after the switch, or a window cut off",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "299",
+   "live_id": "LIVE-E36-01",
+   "stage": "E36",
+   "asks": "Two GMs: GM2 saves a project change in the Project Manager while the primary presses + on that project in the Countdowns tray, then a player works on it: every change lands once, in one order, one completion card; the primary's F5 while GM2 waits gives GM2 'no answer' at once, not after three minutes; time GM2's change on a real server (`projectChangeMs` 30 s, chosen, not measured).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "headless_half": "tier-2 E36-T2 (scripts/tests-tier2.mjs:80983), E36-T9 (:81998), E36-T11 (:82162); scenarios 33 (A7) and 61. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "`projectChangeMs` is still 30000 (scripts/config.mjs:375), the clock of the change's ask (scripts/bridge-table.mjs:882). The 'three minutes' the item contrasts is the old patience; the 30 s is the ask's own.",
+   "l1": {
+    "what": "Two GMs changing one project at once, a player's Work after, the primary's F5 mid-change, and the change's round trip",
+    "recipe": [
+     "Two Gamemaster accounts (G1 primary, G2) and one player; a project with a goal",
+     "G2 edits the name in the Project Manager and saves while G1 presses + on the same row in the Countdowns tray",
+     "The player does Work on Project; read the bar, the name and the completion cards",
+     "G2 starts another change; G1 presses F5 at once; read on G2 when 'no answer' arrives and any later line that it landed",
+     "Time five of G2's changes from Save to the change seen on G1"
+    ],
+    "clients": "two Gamemasters, one player",
+    "theme": "default",
+    "settles_if": "agrees: the bar ends at the sum, G2's name, one completion card, G2 told at once on F5; defect: a change lost or doubled, two completion cards, or G2 waiting the whole 30 s; the round trip is a number to set beside 30 s",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "300",
+   "live_id": "LIVE-E36-02",
+   "stage": "E36",
+   "asks": "Daggerheart 2.10.5's Countdowns tray on a project row, both themes: - and + change the bar by 1 once and keep the token and colour; the row menu has Delete (project and token) and no Reveal or Hide, a plain countdown keeps all three; a player's + changes nothing; the menu is the module's when the tray was open before the world loaded and after a reload (`_getCountdownContextOptions` wrapped at init and ready).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The item is pinned to Daggerheart 2.10.5; module.json verifies 2.12.9 (minimum 2.6.5) and the sandbox runs 2.12.9 (the triage's row 300: 'on DH 2.12.9 not 2.10.5'). The wrap is a patch row today (scripts/patches.mjs:583-597, id countdown-row-menu, 'at init when the system has set its class, else at ready'); the tray code's own comments read 2.10.5's markup (scripts/projects-ui.mjs:153, :163, :221).",
+   "headless_half": "tier-2 E36-T4 (scripts/tests-tier2.mjs:81265; a row planted in 2.10.5's markup, guarded by projects-ui.mjs `guardTrayRows`, :82170). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "Whether 2.12.9's tray keeps 2.10.5's row markup and menu entry shape (`label`, `visible`, `onClick`) was not read in this pass; `game.drpg` patch probes (patches.mjs:592-595) answer `present`/`ours` at a table.",
+   "l1": {
+    "what": "The project row of Daggerheart's Countdowns tray on the Daggerheart build in use (2.12.9), its buttons and its menu",
+    "recipe": [
+     "A world on Daggerheart 2.12.9 with one project and one plain countdown; GM page",
+     "Press - and + on the project row; read the bar, its token and colour",
+     "Right-click the project row; list the entries; Delete it; read that the project and token are gone",
+     "Right-click the plain countdown; list the entries",
+     "A player with the tray open presses + on a project row; read the bar",
+     "Open the tray before the world finishes loading and again after F5; read the menu and the patch probe for countdown-row-menu"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: one step per click, Delete only on the project row and it takes the token, a player changes nothing, the module's menu both times; defect: two steps, Reveal or Hide on a project row, an orphan token, or Daggerheart's menu after a load",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "301",
+   "live_id": "LIVE-E15-01",
+   "stage": "E15",
+   "asks": "An indirect murder from A's proposal (Indirect murder ticked) through the GM's Approve and the trigger 'Somebody enters the room', Work's concealment then work with B in the room, a Contribution bought for A filling the bar and arming the trap with one GM confirmation, then B dragging their own token into the room: the trap card on the GM, 'Spring it', the murder window opening as indirect; note every card and who got it.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The trap card's button is 'Spring the trap' / 'Odpal pułapkę' (lang/en.json DRPG.Project.trapFire), not 'Spring it'. 'na próbę E82' names E82 as a rehearsal: tools/stages.json has no row E82 and docs/dev/e64/STATUS.md:43 (D193) records 'E82, not a stage'.",
+   "fix": [
+    {
+     "old": "Spring it",
+     "new": "Spring the trap"
+    }
+   ],
+   "headless_half": "scenario 13 part 6 (audit/harness/scenarios/13-murder-signals.mjs:34; the trap phase at :1159, the indirect resolution checked at :1440); the crossing there is a hook sent on the GM and the murder window answered from the queue, as the item says. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The trigger words stand (lang/en.json:6793 'Somebody enters the room'); the ticked box is DRPG.Project.indirect 'Indirect murder'. The real mouse drag is the part no harness does; LIVE-E39-11 (a mouse drag through rooms) is the same gap.",
+   "l1": {
+    "what": "An indirect murder end to end with a real token drag as its trigger",
+    "recipe": [
+     "GM, players A and B; A's character in a room",
+     "A proposes a project from the Projects tile with Indirect murder ticked; GM Approves and saves the trigger 'Somebody enters the room'",
+     "With B in the room, A does Work: read the concealment roll, the work roll, the bar and the trace",
+     "Buy a Contribution for A from A's sheet; read the concealment roll and that the trap arms with one GM confirmation",
+     "B drags their token into the room with the mouse (Playwright mouse.down/move/up on the canvas)",
+     "On the GM read the trap card, press Spring the trap, and read that the murder window opens as indirect; log every card with its recipients"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: one trap card on the GM after a real drag and an indirect murder window; defect: no card on a drag, a card to a player, two confirmations, or a direct murder window",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "302",
+   "live_id": "LIVE-E15-02",
+   "stage": "E15",
+   "asks": "Breach the Wall with A building, B behind the wall and C next door: a public breach names A to B, C hears a thud with no name, the bedroom's owner (or the GMs) get the room's card, the sound plays in both rooms and next to them, a move through the hole passes and through the rest of the wall is sent back; a secret breach names nobody; a lock and a seal stop nobody till the end of the time of day, a chained student still cannot pass; Close the breach on the Passages tab and a second GM give the same wall back (note v14's WallDocument `_stats` and defaults); the proposal window's three new kinds in both languages.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "'w zakładce Przejścia' - the Room Setup tab is 'Tajne przejścia' in Polish (lang/pl.json:3405 DRPG.Vault.tabPassages; 'Passages' in English), as live-items-09 found for item 278. 'Seal the passage' is 'Seal the Passage' (DRPG.Project.preset.sealPassage, the same in both files); 'Close the breach', 'Repair an item' and 'Zamknij wyłom' stand (lang/pl.json:790).",
+   "fix": [
+    {
+     "old": "Zamknij wyłom w zakładce Przejścia",
+     "new": "Zamknij wyłom w zakładce Tajne przejścia"
+    },
+    {
+     "old": "Seal the passage",
+     "new": "Seal the Passage"
+    }
+   ],
+   "headless_half": "tier-2 E15-T13 (scripts/tests-tier2.mjs:74009), E15-T14 (:74223), E15-T15 (:74432); tier 0's WALLS rows (scripts/tests-tier0.mjs:11508-11512); scenario 76 BR (audit/harness/scenarios/76-passages.mjs:127). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The seed's scenes have no walls (live-readings-e58-delta.json observation 'The seed's scenes have no walls', CALIBRATION.md:199-201 on claude/e58-local), so a sandbox run of this item has to draw its walls first; the sound's label stands (lang/pl.json:8323 'Ktoś przebija ścianę').",
+   "l1": {
+    "what": "Breach the Wall, public and secret, with its cards, sounds, the moves through and beside the hole, and Close the breach",
+    "recipe": [
+     "Draw a wall between two rooms (the seed has none); GM, A (builder), B behind the wall, C next door",
+     "A completes a public breach; read B's, C's, the bedroom owner's and the GMs' cards, and AudioHelper.play on each page",
+     "Move B through the hole, then through the wall beside it; read the GM audit's send-back",
+     "Repeat with a secret breach, A in another room",
+     "Breach into a GM-locked and a sealed room; move through; move a chained student",
+     "Close the breach on the Tajne przejścia tab, then from a second GM; dump the WallDocument (_stats and defaults) before and after",
+     "Open Propose a project as a player in both languages; open the GM's approval window for each of the three kinds"
+    ],
+    "clients": "two GMs, three players",
+    "theme": "default",
+    "settles_if": "agrees: names only where the item says, the hole passes and the wall sends back, the wall given back equal; defect: A's name to C or in a secret breach, a pass through the solid wall, or a wall that comes back different",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "303",
+   "live_id": "LIVE-E15-03",
+   "stage": "E15",
+   "asks": "Secret Passage on a real canvas: the proposal's 'Przez ścianę do' names the room as A knows it; the GM's 'Wskaż odcinek na ścianie' takes two clicks on the board, refuses another wall and Create before the pick; shared with B, A's Work completes it: a gap in the outline and a token passage for A and B, nothing for a third player; a real Reroll of the completing roll removes it for A and B and A's next roll removes the kept project.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "'na próbę E82': no stage E82 in tools/stages.json; docs/dev/e64/STATUS.md:43 records 'E82, not a stage'. The window's words stand (lang/pl.json:4771 'Wskaż odcinek na ścianie', :4775 'Przez ścianę do', :4848-4849 'Utwórz projekt').",
+   "headless_half": "tier-2 E15-T12 (scripts/tests-tier2.mjs:73681; the board's own view stands in for the pick, :73902) and scenario 76 SP (audit/harness/scenarios/76-passages.mjs:119, :2644; picking by the board's listeners, not a canvas). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The real Reroll is the part no harness throws; the GM-side Reroll is LIVE-E31-01's gap too (LOCAL-REPORT.md:614 on the branch, 'left').",
+   "l1": {
+    "what": "Secret Passage from proposal through a canvas pick, completion, and a real Reroll taking it back",
+    "recipe": [
+     "Draw a shared wall between A's room and another; GM, A, B, a third player C",
+     "A opens Propose a project, kind Secret Passage; read the 'Przez ścianę do' list",
+     "On the GM's approval press 'Wskaż odcinek na ścianie' and click twice on the board; also click another wall, and press Create before picking",
+     "Share with B; A's Work completes it; read the outline gap and the passage on A, B and C",
+     "The GM Rerolls the completing roll; read the passage on A and B; A rolls again; read whether the kept project is gone"
+    ],
+    "clients": "one GM, three players",
+    "theme": "default",
+    "settles_if": "agrees: the pick only on the shared wall, the passage for A and B only, gone after the Reroll; defect: a pick on any wall, C seeing it, or a passage left after the Reroll",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "304",
+   "live_id": "LIVE-E16-05",
+   "stage": "E16",
+   "asks": "Both themes at 1366x768, both languages: in an action window that asks for a statistic (Tamper, a general action with two), the caption 'Which statistic?' / 'Która statystyka?' over a full-width field showing 'Hand (+1)', its note under it; the Rest tile greyed with both reasons when no rest can be taken, its window both rows greyed with reasons and one Close button.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "S",
+   "headless_half": "tier-2 E16-T33 (scripts/tests-tier2.mjs:84975: the Rest window's two greyed rows and the tile's tooltip, without layout). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The caption is DRPG.Advance.whichTrait 'Which statistic?' / 'Która statystyka?' drawn in `label.drpg-trait-field` (scripts/action-menus.mjs:62-65; options 'Label (+n)' at :57); styles/danganronpa.css:5448 keeps the field at 100 %. A proposing window says DRPG.TraitRuling.proposeLabel 'Which statistic do you propose?' instead.",
+   "l1": {
+    "what": "The statistic caption and field width in an action window, and the greyed Rest tile and window",
+    "recipe": [
+     "A player at 1366x768, Stained Glass then Monokuma Legacy, English then Polish",
+     "Open Tamper and a general action with two statistics; screenshot the caption, the field and the note",
+     "Spend both rests' conditions; hover the Rest tile; screenshot the tooltip; open the Rest window and screenshot"
+    ],
+    "clients": "one player",
+    "theme": "both",
+    "settles_if": "agrees: caption above, field the row's width with 'Hand (+1)' whole, note under; both rest rows greyed with reasons and one Close; defect: a cut option, the caption beside the field, or a rest row offered",
+    "priority": "nit"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "305",
+   "live_id": "LIVE-E16-06",
+   "stage": "E16",
+   "asks": "On Daggerheart 2.10.5: (1) a d12 set to a non-default dice method, a Loaded Die bought and an action the GM does not draw: no 'freeCritUsed', no Free Critical where the die did not show 12 (`loadedDieHeld` reads the die the roll named), the Call spent anyway; whether Daggerheart's Roll keeps its config as `options`; (2) an Observe card from before 1.2.50 (no `.drpg-gm-only`) hides the GMs' sentence from the player, the GM still reads it, a card in another language is not matched.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the rows the triage marked F (305 is F: a pre-1.2.50 Observe card world) among the 113 'not checkable at this sandbox' (the same table at :475-483 on claude/e58-local, unchanged)",
+   "triage_class": "F",
+   "text_stale": true,
+   "stale_detail": "'Call jest zużyty i tak' is no longer the code's: since E64 D052 (6abe17d, docs/dev/e64/STATUS.md:44, owner confirmed 12.11.2026) a Loaded Die that did not hold is armed again for the next roll under a new nonce and the owner is whispered 'loadedDieBack' (scripts/call-effects.mjs:548; lang/en.json:4156 \"{name}'s Loaded Die did not work. It is ready again for the next roll.\"). The question about `options` changed shape on 2.12: a roll's config is a MoveContext that keeps only the properties it names (scripts/patches.mjs:342-354), and `loadedDieHeld` reads the mark from the result, `{ options: result }` or `result.roll` (scripts/forced-roll.mjs:91-99). The item is pinned to 2.10.5; module.json verifies 2.12.9.",
+   "fix": [
+    {
+     "old": "Call jest zużyty i tak",
+     "new": "Call wraca uzbrojony na następny rzut (E64 D052, \"loadedDieBack\")"
+    }
+   ],
+   "headless_half": "tier-2 E16-T35 (scripts/tests-tier2.mjs:85033; it swaps the harness shim's `mapRandomFace`, audit/harness/lib/shim.mjs:1284, not Foundry's method) and E16-T36 (:85090; the filter on three cards and in source, no old world). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The part (1) half needs no fixture and is K on the sandbox (the triage's own note, TRIAGE-9.2.md row 305). The freeCritUsed text is DRPG.Calls.freeCritUsed (lang/en.json:4155), whispered only where the die held (scripts/action-pipeline.mjs:293-321). The Observe GM line stands (lang/en.json:984 'Total {total}. Score it against the Observe table ...').",
+   "l1": {
+    "what": "A Loaded Die under a non-default dice method on Daggerheart 2.12.9, and an old Observe card's GM sentence on a player",
+    "recipe": [
+     "Configure Dice: set d12 to manual entry (or another non-default method)",
+     "A player buys a Loaded Die and takes an action the GM does not draw; enter a d12 face other than 12",
+     "Read the card for the freeCritUsed line, the outcome's Free Critical mark, and the owner's whisper and the Call's state after (loadedDieBack, armed again)",
+     "On a copy of a world with an Observe card from before 1.2.50, open the player's GM Chat thread and the chat tab; read whether the 'Total N. Score it ...' sentence shows on the player and on the GM; repeat with a card written in the other language"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: no Free Critical without a 12 and the Call armed again; the old sentence hidden from the player and shown to the GM; defect: a Free Critical on a non-12, the Call lost, or the sentence on the player",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "306",
+   "live_id": "LIVE-E17-06",
+   "stage": "E17",
+   "asks": "A real canvas, both themes, animations on: a player crossing several doors fast (two fog refreshes per move) never shows an unvisited room even for a fraction of a second; a scene switch during the player's fog dissolve leaves no raster, backdrop or drift on the new fogless scene (`canvasTearDown` calls `endDissolves`); `whyBlack()` after both: `dissolveGeneration` grew and the layer holds no fog sprite with a destroyed texture.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "S",
+   "headless_half": "R1003 (docs/dev/R-REGISTRY.md: fog.mjs `swapInFog` on a fake ticker), as the item says; no canvas headless. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "Subjects read today: scripts/fog.mjs:460-463 (`canvasTearDown` -> `endDissolves`), :2279 `endDissolves`, :2747 `dissolveGeneration` in the report, `whyBlack` (scripts/api.mjs:1472). The fog's raster held as a picture (LIVE-E88-06, item 328) is the same frames.",
+   "l1": {
+    "what": "Fog dissolves under a fast run of crossings and across a scene switch, frame by frame",
+    "recipe": [
+     "A player, animations on, reduced motion off, both themes",
+     "Record the screen (or a screenshot per animation frame) while the player crosses four doors in under 2 s",
+     "Start a crossing and have the GM switch to the trial scene mid-dissolve; screenshot the new scene",
+     "Run game.drpg.whyBlack() on the player after each; read dissolveGeneration and the layer's sprites"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: no frame shows an unvisited room, nothing of the fog on the new scene, the generation grew and no destroyed texture held; defect: a frame with an unvisited room, or a raster left on the trial scene",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "307",
+   "live_id": "LIVE-E17-01",
+   "stage": "E17",
+   "asks": "The stopwatch across a 10-minute pause with the primary's reload, across a session break of an hour, with no line in an Eclipse and its summary keeping a Search made before the pause; an Eclipse started and ended within five minutes takes back actions, Free Moves and seals with 'Taken back: ...', after five minutes nothing; whether five minutes (`TAKE_BACK_MS`) fits; (E17 fix p2-G1) a reload within a minute of unpausing loses no minutes; a new session on another computer with no GM note counts from `writtenAt`.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the rows the triage marked T (307 is K+T: the table judges whether five minutes fits) among the 113 'not checkable at this sandbox' (the same table at :475-483 on claude/e58-local, unchanged)",
+   "triage_class": "T",
+   "text_stale": true,
+   "stale_detail": "The taken-back message is not 'Taken back: ...' today: DRPG.Clock.takenBack reads 'Actions, Free Moves, what Sprint and Burst bought, Search Tokens, and seals are back as they were before this time of day began.' / 'Początek tej pory dnia jest cofnięty: ...' (lang/en.json, lang/pl.json). 'dla właściciela na próbie E82': no stage E82 (docs/dev/e64/STATUS.md:43).",
+   "headless_half": "tier-2 E17-T9 (scripts/tests-tier2.mjs:86956, the stopwatch) and E17-T10 (:87120). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "Constants read today: `TAKE_BACK_MS = 5 * 60_000` (scripts/clock.mjs:507), the beat store `clockBeat` (scripts/gm-stores.mjs:1247-1248), `writtenAt` (scripts/clock.mjs:212-214). Parts (1), (2), (5), (6) are scriptable on the sandbox (the triage's 'K+T'); only the judgement of five minutes needs a table.",
+   "l1": {
+    "what": "The HUD's minutes across a pause, a reload, a session break and a new browser, and the Eclipse take-back window",
+    "recipe": [
+     "GM and two players, mid time of day; note the HUD minutes on all three",
+     "Pause 10 min; reload the primary during it; unpause; read the minutes on all three",
+     "End the session without advancing; close the world for 60 min; reopen; read the minutes",
+     "Start an Eclipse from the chevron; within 5 min choose End without advancing; read actions, Free Moves, seals and the message; repeat after 6 min",
+     "Pause a few minutes, unpause, reload within a minute; read the minutes",
+     "End with the game running; open the next session in a fresh browser profile with no other GM; read how many minutes are lost against the last clock write"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: minutes continue from the shown number, the break adds nothing, take-back within 5 min only; defect: minutes jump or grow over a break, or a take-back after 5 min; the owner's word on whether 5 min fits",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "308",
+   "live_id": "LIVE-E17-02",
+   "stage": "E17",
+   "asks": "A player crossing a room boundary by a few pixels after a Free Move loses an action; the GM's 'Refund last crossing' in the Students window puts the token back, gives the action back, tells the player, a second click gives nothing; paid with an action then refunded after the time of day moved: the action back only up to the budget's maximum, Sprint back; on a slow player link the refund gives back what the crossing really cost.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The button reads 'Refund the last crossing' / 'Zwróć ostatnie przejście' (DRPG.Panel.refundCrossing; scripts/gm-students.mjs:153, :293 `refundButton`). Part (2) does not know E64 D059 (e42bbe0, docs/dev/e64/STATUS.md:45): a free Move taken before a time-of-day boundary comes back only in the time of day it was taken, and the player is told 'noPrice'. 'na próbie E82': no stage E82.",
+   "fix": [
+    {
+     "old": "**Refund last crossing**",
+     "new": "**Refund the last crossing**"
+    }
+   ],
+   "headless_half": "tier-2 E17-T6 (scripts/tests-tier2.mjs:86104, :86304; D059's step added to it). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The refund's put-back is `putBackWrite` (scripts/movement.mjs:3482-3495: `refundLastCrossing` writes through it with `diff: false`). Line L1 read after b5a29e73 that a put-back from a GM copy out of step was not written on 14.370 (live-readings-e58-delta.json, CALIBRATION.md:213, 221-222 on claude/e58-local, LIVE-E39-12 r5, outcome defect), and the module's header claim rests on the shim. That is the road this item's 'token wraca' takes; it is not a reading of this item.",
+   "l1": {
+    "what": "Refund the last crossing at a real table, across a time-of-day change and on a slow link",
+    "recipe": [
+     "GM and a player; the player takes a Free Move, then nudges the token a few pixels over a room boundary",
+     "Read the player's actions; the GM presses Refund the last crossing for that student in the Students window; read the token's position, the action, the player's message; press again",
+     "Pay a crossing with an action; advance the time of day; refund; read actions against the budget's maximum, Sprint and the free Move",
+     "Throttle the player's link (CDP Network.emulateNetworkConditions, 500 ms latency); cross and refund within 5 s; read what was given back"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: the token back where it stood, the cost back once and capped, the second click nothing; defect: the token not moved back (the put-back race read by L1), a double refund, or a refund above the maximum",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "309",
+   "live_id": "LIVE-E17-03",
+   "stage": "E17",
+   "asks": "On a two-floor v14 scene (Levels), a player's console moves their token up into a locked room: the primary's browser sends it back to the x, y, elevation and level it came from, the player reads the rule; does v14 take the send-back with `level` in one write.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged). Related, not this item: on 14.370 a player's own move up in place wrote `level` in one update and left elevation at 0 (CALIBRATION.md:105, :114, LIVE-E39-01, item 512, 16.11.2026); the send-back into a locked upper room was not driven.",
+   "triage_class": "K",
+   "headless_half": "tier-2 E17-T3 (scripts/tests-tier2.mjs:85585) and E17-T2 (:85266); tier 0 rows for movement.mjs `judgeArrival` and `sendBackRuleOf` (scripts/tests-tier0.mjs:10071-10072); the floors are the harness's model. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The send-back writes through `putBackWrite` with `diff: false` and `constrainOptions: { ignoreWalls: true }` (scripts/movement.mjs:1429, :3493). L1's later readings bear on it: ignoreWalls is honoured on 14.370 (CALIBRATION.md:196-220 on the branch, item 239) and a put-back from a copy out of step was not written (:213, :221-222, LIVE-E39-12, defect). Neither is a send-back across levels.",
+   "l1": {
+    "what": "A console move into a locked room on another floor and the primary's send-back with level and elevation",
+    "recipe": [
+     "A scratch scene with two Levels (Ground 0-10, Upper 10-20), a locked room region on Upper, the player's token on Ground",
+     "From the player's console: token.document.move({ x, y, level: '<Upper id>' }) into the locked room",
+     "On the GM log preUpdateToken and updateToken for the token; read the final x, y, elevation and level on the server and on the player",
+     "Read the player's notice",
+     "Repeat with the GM's copy out of step (updateSource) to see the put-back race"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: one write back to the old x, y, elevation and level and the rule told; defect: the token left upstairs, a level kept with old x/y, two writes, or nothing written",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "310",
+   "live_id": "LIVE-E17-04",
+   "stage": "E17",
+   "asks": "An incident's side dragging out before the crisis action comes back with the rule, may leave after Survive, Escape together or Finishing blow, after Averted eyes only a third party; a token dropped from the actors directory into a room the rules close disappears and the GM is whispered; a bystander's reload mid-incident shows the time of day of the incident's opening; Eclipse during a fight: chevron greyed with 'An incident is running - close it first.'",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged). Related, not this item: S7-9 read a bystander's HUD clock staying on the last public hour while the GM moved the hour, with no reload (live-readings-e58.json, LOCAL-REPORT.md:431, as-expected); part (3) is the reload case.",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The chevron's words are 'An incident is running. Close it first.' / 'Trwa incydent. Najpierw go zakończ.' (DRPG.Eclipse.incidentFirst), not 'An incident is running - close it first.'.",
+   "fix": [
+    {
+     "old": "*An incident is running - close it first.*",
+     "new": "*An incident is running. Close it first.*"
+    }
+   ],
+   "headless_half": "tier-2 E17-T2 (scripts/tests-tier2.mjs:85266), E17-T3 (:85585), E17-T10 (:87120). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The incident's leaving rule reads as the item says (lang/pl.json DRPG.Bridge.why.cannotLeave names Survive, Escape Together, Finishing Blow and Averted Eyes). The send-back goes through `putBackWrite` (see item 308's note on L1's put-back reading).",
+   "l1": {
+    "what": "Leaving an incident, a directory drop into a closed room, a bystander's reload mid-incident, and Eclipse during a fight",
+    "recipe": [
+     "GM and three players; open an incident with A and B; C outside",
+     "A drags out of the room before the crisis action; read the token and the message; after each crisis action try again",
+     "A player with the actors directory drops their own character's token into another's bedroom and behind a locked door; read the scene and the GM's whispers",
+     "C presses F5 mid-incident after the GM moved the hour; read C's HUD time of day",
+     "During the fight the GM hovers and presses the Eclipse chevron; read its state and tooltip"
+    ],
+    "clients": "one GM, three players",
+    "theme": "default",
+    "settles_if": "agrees: each move refused or allowed as the item says, the dropped token removed with a whisper, C's HUD on the opening's hour, the chevron greyed; defect: a side leaving early, a dropped token kept, C's HUD on the new hour, or an Eclipse starting",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "311",
+   "live_id": "LIVE-E17-05",
+   "stage": "E17",
+   "asks": "Gamemaster, Assistant GM and three players during an Eclipse: tokens move through two rooms while the GM clicks Despair pips, the Assistant changes the Despair bar and Feed the Overflow pours in: every click answers at once (no wait on another key of the queue), and the Despair, overflow and Eclipse crossing counts end exact.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged). Related, not this item: LIVE-E05-13 (item 65) read on 14.370 that a waypointed move in an Eclipse was charged by its ends only, a module defect fixed in 1.2.118 on the harness's model (live-readings-other.json, .github/release-notes/v1.2.118.md:99-109); the crossing counts here depend on that fix, which was not read at a table.",
+   "triage_class": "K",
+   "headless_half": "R992 (the one queue holds no click), tier-2 E17-T1 (scripts/tests-tier2.mjs:85167) and E17-T8 (:86586). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The overflow's Call is named as the item says (lang/en.json:4284, :4350 'Feed the Overflow').",
+   "l1": {
+    "what": "Concurrent Despair, overflow and Eclipse moves from five accounts, their latency and their sums",
+    "recipe": [
+     "Gamemaster, Assistant GM, three players; start an Eclipse",
+     "Players move tokens through two rooms (waypointed moves) while the GM clicks 10 Despair pips, the Assistant changes the bar 5 times and a player buys Feed the Overflow twice",
+     "Time each click to its answer on its own page",
+     "Read the final Despair pool, overflow and each student's Eclipse crossings against the click log"
+    ],
+    "clients": "a Gamemaster, an Assistant GM, three players",
+    "theme": "default",
+    "settles_if": "agrees: every click answered at once and every sum exact; defect: a click waiting on another's write, a lost or doubled pip, or a crossing miscounted",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "312",
+   "live_id": "LIVE-E17-07",
+   "stage": "E17",
+   "asks": "A Motive of one time of day, a direct murder open between A and B, C outside: the GM moves the clock twice; C's HUD time-of-day line and the Motive card in the Event panel stay as at the opening (a countdown, not Due), also after C's F5; A, B and the GM get a covered 'Motive due' card once; at the close the whole table gets one public card with sound and C's clock and Motive card catch up.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "Part (1)'s HUD line without a reload is read: S7-9 (live-readings-e58.json, docs/dev/e58/LOCAL-REPORT.md:431, 16.11.2026, Foundry 14.370, headless pages): with an incident open the GM moved the hour and the bystander's stopwatch and display clock stayed on the last public hour 4 s and 16 s after. Not read: the Motive card in the Event panel, C's F5, the Motive due card's count, and the closing card.",
+   "triage_class": "K",
+   "headless_half": "tier-2 E17-T10 (scripts/tests-tier2.mjs:87120; pure `shownClock` and `motiveCard` on the GM's browser); no scenario reloads a player, as the item says. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "Subjects read today: scripts/hud-elapsed.mjs:166 `shownClock`, :213; scripts/events.mjs:98 `motiveCard`; the due banner DRPG.Motive.dueBanner 'THE MOTIVE HAS COME DUE'.",
+   "l1": {
+    "what": "A bystander's clock and Motive card through an incident with two clock moves and a reload, and the Motive due and closing cards",
+    "recipe": [
+     "Set a Motive of one time of day; open a direct murder A-B; C outside",
+     "The GM advances the time of day twice; after each read C's HUD line and the Event panel's Motive card",
+     "C presses F5; read both again",
+     "Count the covered Motive due cards on A, B and the GM",
+     "Close the incident; read the public card and its sound on every page, and C's clock and Motive card"
+    ],
+    "clients": "one GM, three players",
+    "theme": "default",
+    "settles_if": "agrees: C frozen on the opening's hour and countdown also after F5, one Motive due each to A, B and the GM, one public card at the close; defect: C showing the new hour or Due mid-incident, or more than one Motive due card",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "313",
+   "live_id": "LIVE-E17-08",
+   "stage": "E17",
+   "asks": "The Mastermind chosen and applied, a public project in a room the Mastermind's character never stood in: the Mastermind's player sees its token on the map and its row in the Projects tray; the GM's project card ('Known by') does not list the Mastermind's player until the record does; a passage card (Secret Passage built, a breach heard) names the Mastermind's rooms by name, not 'Unexplored room 1'.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The GM card's column the item calls 'Known by' is 'Knows it is there' / 'Wie, że tu jest' (DRPG.Project.cardKnownBy). 'Unexplored room {n}' stands (lang/en.json:545).",
+   "fix": [
+    {
+     "old": "(*Known by*)",
+     "new": "(*Knows it is there*)"
+    }
+   ],
+   "headless_half": "R1000 (projects.mjs `hasStoodIn` answers every named room for the Mastermind; the Mastermind's answer forced) and R1005 (passages-gm.mjs `roomNamerFor`). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "scripts/projects.mjs:312 `hasStoodIn`; the passage cards' naming in scripts/passages-gm.mjs:576, :807, :2173.",
+   "l1": {
+    "what": "What the Mastermind's player sees of a public project and passages, and the GM's 'Knows it is there' list",
+    "recipe": [
+     "Choose and apply a Mastermind; make a public project in a room the Mastermind's character never entered",
+     "On the Mastermind's player read the map token and the Projects tray row",
+     "On the GM open the project card; read the Knows it is there list",
+     "Build a Secret Passage and a breach next to a room the Mastermind has not visited; read the card's room names on the Mastermind's player"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: token and row shown, not listed until recorded, rooms named; defect: the project hidden from the Mastermind, the player listed early, or 'Unexplored room' on a Mastermind's card",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "314",
+   "live_id": "LIVE-E17-09",
+   "stage": "E17",
+   "asks": "Both themes at 1366x768, both languages: the player's status bar in a Night Eclipse (Move one full foot, tooltip 'place anywhere'), in an Eclipse with a limit (a foot per crossing), a Monocub's 'Placement only', a dead non-Monocub student's single state row; nothing out of the column.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "S",
+   "text_stale": true,
+   "stale_detail": "The free placement draws two feet full, not one (scripts/player-status.mjs:379-380 `feet: 2, solid: true`; R997 'draws its two feet full'), and its tooltip is 'Place your token in any room' / 'Ustaw swój token w dowolnym pokoju' (DRPG.Actions.eclipseFreePlacement), not 'place anywhere'. A Monocub's tooltip is 'You cannot spend actions during an Eclipse.' / 'Podczas Eclipse nie wydajesz akcji.' (DRPG.Eclipse.placementOnly, :389-395), not 'Placement only'.",
+   "fix": [
+    {
+     "old": "wiersz Move to jedna pełna stopa z podpowiedzią *place anywhere*",
+     "new": "wiersz Move to dwie pełne stopy z podpowiedzią *Place your token in any room*"
+    },
+    {
+     "old": "u Monocuba *Placement only*",
+     "new": "u Monocuba *You cannot spend actions during an Eclipse.*"
+    }
+   ],
+   "headless_half": "R997 and R998 (the model `buildPlayerView`, scripts/player-status.mjs:213; the bar is not in the glass harness). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The owner's D197 (01.11.2026, player-status.mjs:372-373) keeps the Night Eclipse's free placement.",
+   "l1": {
+    "what": "The player's status bar in the Eclipse states and after death, at 1366x768",
+    "recipe": [
+     "A player at 1366x768, each theme and language",
+     "Night Eclipse: screenshot the bar and its Move tooltip",
+     "Eclipse with a crossing limit: screenshot",
+     "As a Monocub: screenshot and tooltip",
+     "As a dead student (not a Monocub): screenshot"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: the rows as today's code draws them and nothing outside the column; defect: a row cut off or a wrong state row",
+    "priority": "nit"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "315",
+   "live_id": "LIVE-E17-10",
+   "stage": "E17",
+   "asks": "A Short Rest taken in the time of day the chapter ends can be taken again in the new chapter at the same day and time of day; the same for a Long Rest in an unchanged session; in a world where a rest was taken before the update, it still counts as taken after it.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the rows the triage marked F (315 is F: a world with a rest taken before the update) among the 113 'not checkable at this sandbox' (the same table at :475-483 on claude/e58-local, unchanged)",
+   "triage_class": "F",
+   "headless_half": "R1002 (rest.mjs `restStamp` carries the chapter; pure objects, not a world). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "scripts/rest.mjs:135 `restStamp`, :156 reads both the stamp and `legacyRestStamp`, the second half's subject. Part (1) needs no fixture (the triage's 'Chapter-end rest part K').",
+   "l1": {
+    "what": "A rest across a chapter's end, and a rest stamped before the update",
+    "recipe": [
+     "A student takes a Short Rest in the time of day the chapter ends",
+     "End the chapter (day back to 1, same time of day); take the Short Rest again; read whether it is offered",
+     "The same with a Long Rest in an unchanged session",
+     "On a copy of a world with a rest taken before 1.2.87, at the same time of day after the update, open Rest; read whether it counts as taken"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: a new chapter offers the rest again, the old stamp still counts; defect: the rest refused in the new chapter, or a second rest allowed on an old world",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "316",
+   "live_id": "LIVE-E17-11",
+   "stage": "E17",
+   "asks": "GM and a player: in the player's console, the gap between the clock setting's change (`updateSetting`) and the GM's broadcast (`SYNC.clock`), and between writes of a series, at a time-of-day change and a run of Despair pips; the number to be written beside `COALESCE_MAX_WAIT_MS` (360 ms, a design number).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "headless_half": "R995 (the coalescer on a fake clock). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The constant stands as the item says: `COALESCE_MAX_WAIT_MS = COALESCE_MS * 3` with `coalesceMs: 120` (scripts/sync.mjs:234-246, scripts/config.mjs:439), and its comment names this item by number and LIVE id as the reading to be written there (sync.mjs:238-245). The sandbox is localhost, so its reading would not be a hosted server's (the triage's own row).",
+   "l1": {
+    "what": "The spread between the clock setting's change and the GM's broadcast, and within a burst of writes",
+    "recipe": [
+     "GM and a player on a hosted server (not localhost) if one exists, else the sandbox, noting which",
+     "On the player: Hooks.on('updateSetting', ...) and a listener on the module socket for SYNC.clock, each stamping performance.now()",
+     "The GM advances the time of day; then clicks 10 Despair pips quickly",
+     "Record the gap per event and between successive writes"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: the spread and the burst stay under 360 ms; defect: a broadcast later than 360 ms after its setting, so the coalescer runs twice; the number goes beside COALESCE_MAX_WAIT_MS",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "317",
+   "live_id": "LIVE-H84-01",
+   "stage": "H84",
+   "asks": "Three or more players with bedrooms: (a) the primary's reload sweep (`issueMissingKeys`) raced by Apply in Room Setup or Give a room key leaves each student one key (`serialWrite` in vault.mjs `grantBedroomKey`); with two Gamemasters a second key is a road H84 does not close - note whether it happens; (b) a rename the key move missed leaves the owner one key, renamed; a copy of another's key never becomes the owner's; (c) a thief whose own key is stashed takes a second and gets no copy, only the sentence; (d) a student with two keys to their own bedroom from before 1.2.88 ends with one, the GM told, copies held by others kept.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "`grantBedroomKey` is not in vault.mjs's code: since E41 C6 vault.mjs is a facade and the grant with its `serialWrite` step is scripts/vault-store.mjs:275-285 (bedroom-keys.mjs:24 names it so). `issueMissingKeys` is the API name of `reconcileBedroomKeys` (scripts/api.mjs:683).",
+   "fix": [
+    {
+     "old": "`serialWrite` w vault.mjs `grantBedroomKey`",
+     "new": "`serialWrite` w vault-store.mjs `grantBedroomKey`"
+    }
+   ],
+   "headless_half": "tier-2 'H84-01: one key per room ...' (scripts/tests-tier2.mjs:77520; one GM client). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The sentences the item expects exist: 'You already have a key to {room}. You still hold only one.' (DRPG.Handover.keyAlreadyHeld) for (c) and DRPG.Vault.keyDuplicatesTaken for (d); the tidy step is vault-store.mjs:313, :355-398, :463 (H84 fix G2). E64 D008 (8bf1aa5, docs/dev/e64/STATUS.md:46) later made every copy of a bedroom's key go with the room when the room changes owner; that is a different case from (d)'s copies of one's own key.",
+   "l1": {
+    "what": "One bedroom key per student through raced grants, a rename, a theft and old duplicates, with one and two Gamemasters",
+    "recipe": [
+     "GM and three players, each with an assigned bedroom",
+     "The primary presses F5 and, within 1 s of ready, presses Apply in Room Setup (and in another run Give a room key); count each student's Room Keys",
+     "With two Gamemasters, the second presses Apply during the primary's sweep; count",
+     "With the primary offline, a second GM renames a bedroom; the primary loads; count the owner's keys and their names",
+     "A thief with their own key stashed steals and loots a second key to that room; read the sentence and the inventory",
+     "Seed a student with two keys to their own bedroom; load the primary; count and read the GM's notice and others' copies"
+    ],
+    "clients": "two Gamemasters, three players",
+    "theme": "default",
+    "settles_if": "agrees: one key each in every case, the rename carried, the thief told, the duplicate taken; defect: two keys for a student (record whether only with two Gamemasters, the road H84 leaves open), or a copy becoming the owner's",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "318",
+   "live_id": "LIVE-H84-02",
+   "stage": "H84",
+   "asks": "In an Investigation with several traces: (a) a second Observe by the same character while the GM's describe window for the first is open does not target that trace (`observeCandidates`), one copy after; (b) a general Observe declared, its roll window closed and declared again offers the trace again; (b2) Focus your gaze while the first waits may hit the same trace, then (d) applies; (c) another player observing it gets their own copy; (d) a second success on a trace the character already holds gives 'Masz już Truth Bullet tego śladu.' and no second item. Note any two identical Truth Bullets and their road (Observe, hand-over, the GM's 'from a trace').",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The refusal reads 'You already hold a Truth Bullet of this Remnant.' / 'Masz już Truth Bullet z tego Remnantu, więc drugiej kopii nie dostajesz.' (DRPG.Observe.alreadyHeld), not 'Masz już Truth Bullet tego śladu.'.",
+   "fix": [
+    {
+     "old": "\"Masz już Truth Bullet tego śladu.\"",
+     "new": "\"Masz już Truth Bullet z tego Remnantu, więc drugiej kopii nie dostajesz.\""
+    }
+   ],
+   "headless_half": "tier-2 'H84-02: one trace, one Truth Bullet per character ...' (scripts/tests-tier2.mjs:77641). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "`observeCandidates` stands (scripts/observe.mjs:300). The two roads the item says do not pass this check have their own refusals today: a hand-over 'They already hold a Truth Bullet of this Remnant ...' (DRPG.Handover.alreadyHasIt) and the GM's grant '{actor} already holds ...' (DRPG.TruthBullet.alreadyGiven); whether two hand-overs at once both pass was not traced here.",
+   "l1": {
+    "what": "One Truth Bullet per character and trace across raced Observes, a re-declared Observe, Focus your gaze and a second player",
+    "recipe": [
+     "Investigation; GM and two players in one room with several traces",
+     "Player 1 Observes a nameless trace; while the GM's describe window is open, the same character Observes again; read the second target; close the window; count copies",
+     "Declare a general Observe, close the roll window, declare again; read whether the trace is offered",
+     "Focus your gaze while the first waits on the pick card; read the result and the refusal if it hits the same trace",
+     "Player 2 observes the same trace; count each character's copies",
+     "Hand over one trace's bullet twice at once to the same receiver, and grant one from the GM window; count"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: one copy per character per trace and the refusal said; defect: two identical bullets on one character (record the road)",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "319",
+   "live_id": "LIVE-H84-03",
+   "stage": "H84",
+   "asks": "With avclient-livekit, both themes at 1920x1080 and 1366x768: the voice tile's state word 'Połączono' / 'Łączenie' stands at the height of the buttons (the triage measured about 47 px lower before H84; the glass harness 46 px, after H84 0), also with the tile lifted (`--drpg-voice-lift`).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the rows the triage marked T (319 is T: a LiveKit server for a connected tile) among the 113 'not checkable at this sandbox' (the same table at :475-483 on claude/e58-local, unchanged)",
+   "triage_class": "T",
+   "headless_half": "R589 (the state word read at full ink in both themes) and the glass harness's `drpgVoiceParts` (audit/glass-harness.html:1040; a stand-in of LiveKit's panel, not v14's). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The words stand (lang/pl.json:6315-6317 DRPG.Voice.tile.state.connecting/connected); `--drpg-voice-lift` is set by scripts/glass.mjs:611, :665 and read in styles/components.css:2341.",
+   "l1": {
+    "what": "The voice tile's state word against the buttons, with a real LiveKit panel",
+    "recipe": [
+     "A table with avclient-livekit connected",
+     "Screenshot the voice tile at 1920x1080 and 1366x768 in both themes while connecting and connected",
+     "Lift the tile (open what sets --drpg-voice-lift) and shoot again",
+     "Measure the word's baseline against the buttons' centre in each shot"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: the word on the buttons' line (0 px) in every shot; defect: an offset like the 46-47 px read before H84",
+    "priority": "nit"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "320",
+   "live_id": "LIVE-H84-04",
+   "stage": "H84",
+   "asks": "Both themes at 1920x1080: on a project row of the Projects tray (`#countdowns`), -1 (`decreaseCountdown`, `fa-minus`) and +1, a hidden project's crossed eye and a looping project's arrows show Font Awesome's glyph, not an empty box or a VT323 letter; the header's fold button is the module's mask from pixel-icons.css and never lost its sign.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "S",
+   "headless_half": "the glass harness's `drpgTrayIcons` (audit/glass-harness.html:1138, :1187) reads the computed font; the harness has no Font Awesome file, so the glyph itself is not seen. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The buttons are Daggerheart's markup the module adds tooltips to (scripts/projects-tray.mjs:388 `decreaseCountdown`, DRPG.Project.trayLessTooltip); styles/stained-glass.css:1183 records the Chromium reading; styles/pixel-icons.css exists.",
+   "l1": {
+    "what": "The Projects tray row's icons under both themes",
+    "recipe": [
+     "GM at 1920x1080 with a hidden project and a looping one in the Countdowns tray",
+     "Screenshot the tray in Stained Glass and Monokuma Legacy",
+     "Zoom on -1, +1, the crossed eye, the loop arrows and the fold button"
+    ],
+    "clients": "one GM",
+    "theme": "both",
+    "settles_if": "agrees: every icon a Font Awesome glyph; defect: an empty box or a VT323 letter in either theme",
+    "priority": "nit"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "321",
+   "live_id": "LIVE-H84-05",
+   "stage": "H84",
+   "asks": "A proposes a public project in a room their character never stood in, the GM approves (also in another room): at once on A's browser the tray row, the hammer token and the private card 'Twój projekt ... jest w toku'; B sees neither and `projectMeta[id].sealedViewers` on B does not name A; after A's reload or a second device, both still there; a project approved before 1.2.88 is told to its proposer at the primary's first load on 1.2.88.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the rows the triage marked F (321 is F: the owner's world with a project approved before 1.2.88) among the 113 'not checkable at this sandbox' (the same table at :475-483 on claude/e58-local, unchanged)",
+   "triage_class": "F",
+   "headless_half": "tier-2 'a public project is known to whoever proposed it ...' (scripts/tests-tier2.mjs:67705) and scenario 66 E4 (audit/harness/scenarios/66-rooms.mjs:27, :381-386; red at the time with p2's sealedViewers [p1's id]). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The card's words stand (lang/pl.json:4942 DRPG.Project.proposerKnows 'Twój projekt „{name}” jest w toku w pokoju {room}. ...'); `sealedViewers` is written in scripts/projects-secrecy.mjs:493-538; `hasStoodIn` (projects.mjs:312) with its `myDiscoveredRooms` branch (fog.mjs:28, :1589-1612) is unmeasured on its own, as the item says. Only the pre-1.2.88 half needs the fixture.",
+   "l1": {
+    "what": "A public project known on its proposer's own browser and hidden from another player, and an old approval told",
+    "recipe": [
+     "GM, A and B; A proposes a public project in a room A's character never entered; the GM approves it in another room",
+     "On A read the tray row, the map token and the private card; on B read the tray, the map and game.settings.get('danganronpa-rpg', 'projectMeta')[id].sealedViewers",
+     "A reloads, then logs in from a second browser; read again",
+     "On a copy of the owner's world of 27.10 with a project approved before 1.2.88, load the primary on 1.2.118; read the proposer's card and view"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: A sees all three at once and after reload, B nothing and no id of A's; the old proposer told; defect: A blind to their own project, or A's id in B's sealedViewers",
+    "priority": "major"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "322",
+   "live_id": "LIVE-H84-06",
+   "stage": "H84",
+   "asks": "Both themes at 1366x768 and 1920x1080: the 'Wyczyść overflow' button on Despair Flow's Overflow tab is visible, readable and inside the window; pressed by a GM who is not the primary it asks first and after the yes the overflow is zero for everyone (the main pool and its caption).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "S",
+   "text_stale": true,
+   "stale_detail": "The button reads 'Wyzeruj Overflow' in Polish and 'Clear the Overflow' in English (lang/pl.json DRPG.Overflow.clear; drawn at scripts/overflow.mjs:1241). The GM handbook still names it as the item does: docs/handbooks/gm-handbook.pl.md:609 and :2145 '**Wyczyść overflow**'; the English handbook writes 'Clear the overflow' (gm-handbook.en.md:609, :2145).",
+   "fix": [
+    {
+     "old": "przycisk \"Wyczyść overflow\"",
+     "new": "przycisk \"Wyzeruj Overflow\""
+    }
+   ],
+   "headless_half": "tier-2 'a GM clears the overflow from Despair Flow's Overflow tab, asked first, on the primary ...' (H84-06, scripts/tests-tier2.mjs:86713; no look). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The confirm dialog's title is the same key (scripts/gm-team-dialog.mjs:132).",
+   "l1": {
+    "what": "The Clear the Overflow button's look, and a non-primary GM's clear",
+    "recipe": [
+     "Two GMs; overflow above zero",
+     "Open Despair Flow, Overflow tab at 1366x768 and 1920x1080 in both themes; screenshot",
+     "The non-primary GM presses the button; read the question; confirm",
+     "Read the overflow and the pool caption on every page"
+    ],
+    "clients": "two GMs, one player",
+    "theme": "both",
+    "settles_if": "agrees: the button whole inside the window, a question first, zero everywhere; defect: a cut button, no question, or a page still showing the old count",
+    "priority": "nit"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "323",
+   "live_id": "LIVE-E88-01",
+   "stage": "E88",
+   "asks": "On the GM's computer and the weakest player's, both themes, everyone standing, a player alone in a fogged room (GM handbook section 20): `await game.drpg.fps({ toChat: false })` prints the five-second window, the module's counters, the canvas filters and each suspect held for 60 frames; record it, check map, rings, fog, glass, pulse and ticker look the same after, and a second call during the run is refused.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "Read on the sandbox desktop, not at a table: fps({toChat: false}) kept for the GM and PlayerOne in both themes, 16.11.2026, Foundry 14.370, headed Chromium 141 on the owner's PC through WSLg (docs/dev/e58/PERF-READINGS.md:96-160, 231-357; live-readings-other.json item 323, outcome partial; live-readings-e58.json LIVE-E88-01, LOCAL-REPORT.md:354): 22-31 fps with four windows, 60 fps for the GM alone, the counters (fog.driftTick, fog.held.*, glass.pulseFrame) and each hold's difference. Not read: the weakest player's machine, a player alone in fog, the look after the run, and the second call's refusal (the paper records neither).",
+   "triage_class": "T",
+   "headless_half": "R1009 (the window runs and every hold comes back; milliseconds are jsdom's timer) and scenario 86 (counts per event). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The refusal is scripts/diagnostics.mjs:1978 ('fps() is already running in this browser - wait for it to finish.'); `fps` is `frameCost` (scripts/api.mjs:1510); the recipe is section 20.6 of both handbooks (gm-handbook.en.md:1913 'When the table lags', .pl.md:1913 'Gdy stół laguje'). LIVE-E88-04 (item 327) asks the before/after frame rates on the same machines.",
+   "l1": {
+    "what": "fps() on the table's real machines in the item's setting, the look after it, and a second call refused",
+    "recipe": [
+     "The GM's own computer and the weakest player's, each in both themes; everyone standing; one player alone in a fogged room",
+     "await game.drpg.fps({ toChat: false }) on each; save the output",
+     "Screenshot map, rings, fog, glass, pulse and ticker before and right after",
+     "Call game.drpg.fps() a second time while the first runs; read the answer"
+    ],
+    "clients": "one GM, the weakest player, others standing",
+    "theme": "both",
+    "settles_if": "agrees: output recorded, the screen the same after, the second call refused; defect: an effect left held after the run, or two runs at once",
+    "priority": "nit"
+   },
+   "duplicate_of": null,
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "324",
+   "live_id": "LIVE-E88-05",
+   "stage": "E88",
+   "asks": "The harness models a token's renderFlags since E88 C0 (gathered and flushed once a token per frame, refreshVisibility returning Foundry's own visible, a move one refresh, hidden and size one each). With `game.drpg.counters({ reset: true })` before and `counters()` after: (1) another player's single step - how many `refreshToken.*` on the GM and a player (the harness: 46 of 46 tokens, one each); (2) a drag across two squares - how many the slide gives; (3) GM hides and unhides a token - does it come back on the room's players' screens. Scenario 86's and R1009's numbers stand on this model.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the row among the 397 'left', K and S rows not yet driven or shot (the same table at :475-483 on claude/e58-local, 7875554f, unchanged)",
+   "triage_class": "K",
+   "text_stale": true,
+   "stale_detail": "The harness's number in (1) is not today's: since E88 C2 another player's step costs the browsers that do not own the token its own refresh alone (audit/harness/scenarios/86-frame-work.mjs:246, 'C2 - Botan's step costs ... his own refresh alone: no whole pass'); 46 was the whole pass of p1 at 6ae66c7f that E89 C1 removed for an own step too (:73-76, :253). The model is still client-entry.mjs's (audit/harness/client-entry.mjs:1319-1343, :1450).",
+   "fix": [
+    {
+     "old": "(harness: 46 na 46 tokenów, po jednym na każdy)",
+     "new": "(harness od E88 C2: odświeżenie samego przesuniętego tokenu, scenariusz 86 C2)"
+    }
+   ],
+   "headless_half": "scenario 86 (C2 at audit/harness/scenarios/86-frame-work.mjs:246, E89 C1 at :253, :291, :325) and R1009, both on the model this item would check. base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "`counters({ reset: true })` reads then zeroes (scripts/api.mjs:1511-1513; perf-counters.mjs:100 `reset`); the refreshToken counters are perf-counters.mjs:18 (visibility, ownRing, remnantRing, remnantIcons). The slide and the path are LIVE-E89-02/03 (86's header :66-67).",
+   "l1": {
+    "what": "How many refreshToken.* a real v14 runs for another player's step, a two-square drag, and a hide/unhide",
+    "recipe": [
+     "GM and two players on one scene with many tokens",
+     "game.drpg.counters({ reset: true }) on the GM and on a player",
+     "The other player steps one square inside their room; read game.drpg.counters() on both",
+     "Reset; the other player drags two squares; read",
+     "Reset; the GM hides and unhides a token in a player's room; read the counters and whether it is on that player's screen"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: one refresh of the moved token per listener (as 86 C2 models), the slide's count recorded, the token back after unhide; defect: a whole pass for another's step, or the token missing after unhide",
+    "priority": "nit"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  },
+  {
+   "n": "325",
+   "live_id": "LIVE-E88-02",
+   "stage": "E88",
+   "asks": "Both themes, the same frame before (1.2.88) and after E88 C1, at game zoom and one step closer: the rings' and the room outline's glow keep width, brightness and softness and scale with the map between zoom steps; with the map blur off the glow is unblurred; on a GM screen with many Remnants `counters()`: `live.byName` without `drpgOwnRingGlow` and `drpgRemnantRingGlow`, `halos.textures` one per frame shape, and fps() before and after; the isometric view too. The same shots cover LIVE-E88-06 and LIVE-E88-08.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "The counter half is read on the sandbox desktop (docs/dev/e58/PERF-READINGS.md:103, :115-116, :302, :314-315; 16.11.2026, Foundry 14.370, the GM in Stained Glass and Legacy): fps() prints 'Seams' light drawn once (E88 C1): 1 texture(s) worn by 3 ring(s)' and 'the ring halos' live filters: nothing of it here', i.e. no ring carries a live blur and one frame shape wears one texture. Three rings, not many Remnants; no screenshot of the glow before and after, no blur toggle, no isometric view. Neither digest names this item for that reading; the mapping is this reader's.",
+   "triage_class": "S",
+   "duplicate_of": null,
+   "headless_half": "R1010 and scenario 86 (a stand-in renderer that counts drawings; no pixels). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "Subjects read today: scripts/own-ring.mjs:114 and scripts/remnant-ring.mjs:64 (the two glow names), scripts/diagnostics.mjs:1954 `RING_HALOS`, :2045 the 'Seams' light' line; the blur setting 'Szkło rozmywa mapę' (lang/pl.json:407). The shots overlap items 328 (LIVE-E88-06) and 330 (LIVE-E88-08) by the item's own text.",
+   "l1": {
+    "what": "The glow of rings and room outlines before and after E88 C1, and the counters on a GM screen with many Remnants",
+    "recipe": [
+     "Two installs or a checkout at 1.2.88 and at 1.2.118 on one world; same scene, same camera",
+     "Screenshot the own ring, a student's, a Remnant's, a project's and the room outline at game zoom and one step closer, both themes",
+     "Toggle 'Glass blurs the map' off and shoot again",
+     "On a GM screen with 20 or more Remnants: await game.drpg.counters(); read live.byName and halos.textures; fps() before and after",
+     "Repeat the shots in the isometric view if the table uses it"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: the glow looks the same and scales with the map, no live ring blur, one texture per frame shape; defect: a thinner, dimmer or harder glow, or a live blur listed",
+    "priority": "nit"
+   },
+   "text_stale": false,
+   "stale_detail": "",
+   "subject_exists": true
+  },
+  {
+   "n": "326",
+   "live_id": "LIVE-E88-03",
+   "stage": "E88",
+   "asks": "With avclient-livekit and voice per room, proximity-voice-chat off, the owner and a player with verbose logs (handbook section 20, step 6): (1) after each drop copy every 'Voice:' line and note doors, passages, corridors, an Eclipse and a second window of one account; (2) a crossing through a door square or an undrawn corridor is one 'Voice: the connect for ... (connect N on this page)' line, and the primary's `counters()` shows `voice.gap` and `voice.gap.kept` equal; a step into the doorway and back connects nothing; (3) a player in a doorway when the primary reloads or changes: at the next send ('Re-send everybody's voice room') the player goes to the main room, as before E88, and back on entering a room; (4) Eclipse and Class Trial as before.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (a script over the three for the id and the item number found none); docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026) counts the rows the triage marked T (326 is T: a real LiveKit server and audio drops) among the 113 'not checkable at this sandbox' (the same table at :475-483 on claude/e58-local, unchanged)",
+   "triage_class": "T",
+   "text_stale": true,
+   "stale_detail": "The GM panel's button the item quotes as 'Wyślij wszystkim ponownie ich pokój głosowy' is 'Napraw głos' / 'Fix voice' today (DRPG.Panel.voiceReset, scripts/gm-panel.mjs:331; it read 'Re-send everybody's voice room' on 27.10.2026). The Debug line stands (scripts/voice-client.mjs:644 'Voice: the connect for \"...\" took N ms (connect N on this page).').",
+   "fix": [
+    {
+     "old": "\"Wyślij wszystkim ponownie ich pokój głosowy\"",
+     "new": "\"Napraw głos\""
+    }
+   ],
+   "headless_half": "R1015 (a token outside every room keeps its voice room) and scenario 75 phase I's gap checks (audit/harness/scenarios/75-voice-tile.mjs:1157-1236: Gym -> gap -> Dorm B one send and one connect, Dorm B -> gap -> Dorm B none, the counters `voice.gap` and `voice.gap.kept`). base-run.json was not on the branch when read (20.11.2026); the result of each named test or scenario was not read",
+   "note": "The counters are counted in scripts/voice.mjs:152, :192. Part (3)'s main-room fallback is 'read in code, not run' by the item's own words.",
+   "l1": {
+    "what": "Voice drops and the voice room per crossing on a real LiveKit, with the primary's counters",
+    "recipe": [
+     "A table with avclient-livekit, voice per room, proximity-voice-chat off; the owner and one player with verbose console logs and the module's detailed logs on",
+     "Play normally; after each audio drop copy every 'Voice:' line with its time and note what was happening (doors, corridor, Eclipse, a second window)",
+     "The player crosses through a door square into the next room; count 'Voice: the connect for' lines; read voice.gap and voice.gap.kept on the primary",
+     "Step into the doorway and back; count connects",
+     "Stand in the doorway; the primary reloads; press Fix voice; read the player's room, then walk in",
+     "Run an Eclipse and a Class Trial with a token in a doorway"
+    ],
+    "clients": "the owner as GM, one player (more for drops)",
+    "theme": "default",
+    "settles_if": "agrees: one connect per crossing, none for the step and back, the counters equal, main room then back in (3); defect: two connects per crossing, a connect for the step and back, or drops that line up with crossings",
+    "priority": "minor"
+   },
+   "duplicate_of": null,
+   "subject_exists": true
+  }
+ ],
+ "observations": [
+  "Count: lines 1167-1200 of audit/AUDIT-1.2.42.md hold 34 numbered items, 293 to 326, each number once and in order, with no block header between them (a script over the lines: 34 matches of '^N. ', equal to range(293, 327)). Each item's LIVE id occurs once in the whole paper (a script over every line).",
+  "Readings: none of the three digests holds a reading made for any of the 34. Three items are partly read from readings made for something else or kept in a cited paper: 294 by LIVE-E04-12's order of userConnected and bridge.gmReady (CALIBRATION.md:138-140), 312 by S7-9's bystander clock (LOCAL-REPORT.md:431), 325 by the 'Seams' light' and ring-halo lines of fps() in PERF-READINGS.md (a mapping of this reader's, not the paper's); 323 is partly read as live-readings-other.json says. All four are headless or headed Playwright pages on the owner's sandbox, no person and no second machine.",
+  "The triage (docs/dev/e58/TRIAGE-9.2.md:316-349) classes the 34 K 20, S 7, F 3 (305, 315, 321), T 4 (307, 319, 323, 326). Its T for 323 is not the outcome: 323's sandbox half was read. Its F for 305, 315 and 321 covers only one half of each; the other half is K by the triage's own notes.",
+  "Line L1's readings after b5a29e73 (live-readings-e58-delta.json) touch this chunk only through the put-back road: `putBackWrite` (scripts/movement.mjs:3482-3495) carries `sendBack`, `refundLastCrossing` and the bridge's send-back, the roads of items 308, 309 and 310, and on 14.370 a put-back from a GM copy out of step was not written (LIVE-E39-12 r5, outcome defect; CALIBRATION.md:213, 221-222 on claude/e58-local) while `ignoreWalls` was honoured (item 239, as-expected). The header's 'every coordinate it names sent whatever the copy holds' rests on the D4 shim. None of the three items was driven.",
+  "Text drift: 19 of the 34 items (293, 294, 297, 298, 300, 301, 302, 303, 305, 307, 308, 310, 313, 314, 317, 318, 322, 324, 326) quote a label, a refusal, a file or a harness number that today's code no longer has (text_stale true). Most are E71's text sweep of 14.11.2026 (6cc82c5a B12 the bridge's refusals, 2db3cb1c B06 the Calls), which changed strings the list quotes without sweeping the list; the others are file moves (vault.mjs -> vault-store.mjs, sheet.mjs `deadToViewer` -> sheet-mode.mjs `sheetMode`), E64's orphan decisions D052 and D059 (12.11.2026), E88 C2 and E89 C1's harness counts, and the Daggerheart build (2.10.5 named, 2.12.9 verified).",
+  "Items 301, 303, 307 and 308 send the reading to 'a rehearsal E82' ('na próbę E82'). tools/stages.json has no row E82, and docs/dev/e64/STATUS.md:43 (D193) records 'E82, not a stage' for another promise made to it. The four items have no stage to wait for.",
+  "The ids are not in their own order: LIVE-E14-02 (297) before -01 (298); LIVE-E17-06 (306) before -01; LIVE-E88-05 (324) between -01 and -02. LIVE-H84-04 asks H84-05 and LIVE-H84-05 asks H84-04 (items 320, 321): the LIVE numbers and the H84 finding numbers do not match.",
+  "A handbook beside a renamed button: the Polish GM handbook names the overflow's button '**Wyczyść overflow**' (docs/handbooks/gm-handbook.pl.md:609, :2145) while the window draws 'Wyzeruj Overflow' (lang/pl.json DRPG.Overflow.clear; scripts/overflow.mjs:1241); the English handbook writes 'Clear the overflow' against 'Clear the Overflow'. A GM looking for the handbook's word on the Overflow tab does not find it. Severity nit (text); confidence read (both strings quoted from today's files; a later rename of either was not looked for).",
+  "Item 305's 'the Call is spent anyway' and item 308's part (2) were written before E64's orphan decisions D052 (6abe17d: a Loaded Die that did not hold is armed again, 'loadedDieBack') and D059 (e42bbe0: a free Move refunded only in its own time of day). A reading made by the item's text would call the decided behaviour a defect."
+ ],
+ "not_established": [
+  "Whether Daggerheart 2.12.9's Countdowns tray keeps the row markup and menu entry shape 2.10.5 had (items 300, 320): the module's comments read 2.10.5 (projects-ui.mjs:153-221) and no reading on 2.12.9 names the row menu. New live check: the patch probe countdown-row-menu (patches.mjs:592-595) and a right-click on a project row on 2.12.9.",
+  "Whether two hand-overs of one trace's Truth Bullet to one receiver at once both pass (item 318's last sentence): not traced in this pass. New live check: two simultaneous hand-overs, count the receiver's copies."
+ ]
+}
