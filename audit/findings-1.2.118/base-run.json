@@ -81,9 +81,333 @@
   "reading": "passes alone (7 passed: XI07 and its setup checks); the shard-3 failure depends on the order or the load of the shard - a test-suite finding (TEST), not a module leak"
  },
  "pending": [
-  "shard 3 again in the same order",
-  "the ci scenarios one at a time (node run-all.mjs scenarios)",
-  "probes 42 and 43"
+  "probes 42 and 43, rerun from 23:03Z after the follow-up job was stopped at its time limit during probe 42"
  ],
- "first_session": "its npm test beside ten readers: lint 416 files 0, check 25 green, gate 37/37, tiers 0-1 1776/0/16 twice, 01-runtests RED on its 6480 s timeout, twelve scenarios green (00, 10-15, 17-21), stopped at 2 h in 30-security (first-session/README.md)"
+ "first_session": "its npm test beside ten readers: lint 416 files 0, check 25 green, gate 37/37, tiers 0-1 1776/0/16 twice, 01-runtests RED on its 6480 s timeout, twelve scenarios green (00, 10-15, 17-21), stopped at 2 h in 30-security (first-session/README.md)",
+ "scenarios": {
+  "command": "node run-all.mjs scenarios (every scenario whose layers include ci, one at a time; 84 is local-gate only and was not run)",
+  "started": "2026-11-20T21:31:34.046Z",
+  "finished": "2026-11-20T22:42:00.900Z",
+  "verdict": "green",
+  "counts": "52/52 green",
+  "seconds": 4227,
+  "per_scenario": [
+   {
+    "name": "00-boot",
+    "status": "green",
+    "counts": "52/52 passed, 0 expected red, 0 failed",
+    "seconds": 27
+   },
+   {
+    "name": "10-murder",
+    "status": "green",
+    "counts": "45/45 passed, 0 expected red, 0 failed",
+    "seconds": 42
+   },
+   {
+    "name": "11-killer-secrecy",
+    "status": "green",
+    "counts": "15/15 passed, 0 expected red, 0 failed",
+    "seconds": 10
+   },
+   {
+    "name": "12-social",
+    "status": "green",
+    "counts": "29/29 passed, 0 expected red, 0 failed",
+    "seconds": 21
+   },
+   {
+    "name": "13-murder-signals",
+    "status": "green",
+    "counts": "87/87 passed, 0 expected red, 0 failed",
+    "seconds": 70
+   },
+   {
+    "name": "14-quiet",
+    "status": "green",
+    "counts": "8/8 passed, 0 expected red, 0 failed",
+    "seconds": 7
+   },
+   {
+    "name": "15-held",
+    "status": "green",
+    "counts": "40/40 passed, 0 expected red, 0 failed",
+    "seconds": 67
+   },
+   {
+    "name": "17-assistant",
+    "status": "green",
+    "counts": "47/47 passed, 0 expected red, 0 failed",
+    "seconds": 138
+   },
+   {
+    "name": "18-trial",
+    "status": "green",
+    "counts": "94/94 passed, 0 expected red, 0 failed",
+    "seconds": 42
+   },
+   {
+    "name": "19-standing-cast",
+    "status": "green",
+    "counts": "9/9 passed, 0 expected red, 0 failed",
+    "seconds": 46
+   },
+   {
+    "name": "20-crit-hope",
+    "status": "green",
+    "counts": "7/7 passed, 0 expected red, 0 failed",
+    "seconds": 14
+   },
+   {
+    "name": "21-masked-killer",
+    "status": "green",
+    "counts": "21/22 passed, 1 expected red, 0 failed",
+    "seconds": 28
+   },
+   {
+    "name": "30-security",
+    "status": "green",
+    "counts": "302/304 passed, 2 expected red, 0 failed",
+    "seconds": 514
+   },
+   {
+    "name": "33-bridge-paths",
+    "status": "green",
+    "counts": "89/90 passed, 1 expected red, 0 failed",
+    "seconds": 201
+   },
+   {
+    "name": "34-case-seal",
+    "status": "green",
+    "counts": "17/17 passed, 0 expected red, 0 failed",
+    "seconds": 36
+   },
+   {
+    "name": "40-flow",
+    "status": "green",
+    "counts": "89/89 passed, 0 expected red, 0 failed",
+    "seconds": 115
+   },
+   {
+    "name": "41-trial-scene",
+    "status": "green",
+    "counts": "52/52 passed, 0 expected red, 0 failed",
+    "seconds": 169
+   },
+   {
+    "name": "50-lang",
+    "status": "green",
+    "counts": "45/45 passed, 0 expected red, 0 failed",
+    "seconds": 8
+   },
+   {
+    "name": "51-lang-mixed",
+    "status": "green",
+    "counts": "38/38 passed, 0 expected red, 0 failed",
+    "seconds": 15
+   },
+   {
+    "name": "60-ledger",
+    "status": "green",
+    "counts": "19/19 passed, 0 expected red, 0 failed",
+    "seconds": 12
+   },
+   {
+    "name": "61-gmstore-case",
+    "status": "green",
+    "counts": "114/114 passed, 0 expected red, 0 failed",
+    "seconds": 357
+   },
+   {
+    "name": "62-investigation",
+    "status": "green",
+    "counts": "52/52 passed, 0 expected red, 0 failed",
+    "seconds": 44
+   },
+   {
+    "name": "63-class-trial",
+    "status": "green",
+    "counts": "79/79 passed, 0 expected red, 0 failed",
+    "seconds": 112
+   },
+   {
+    "name": "65-season",
+    "status": "green",
+    "counts": "58/60 passed, 2 expected red, 0 failed",
+    "seconds": 83
+   },
+   {
+    "name": "66-rooms",
+    "status": "green",
+    "counts": "77/77 passed, 0 expected red, 0 failed",
+    "seconds": 165
+   },
+   {
+    "name": "67-trial-modes",
+    "status": "green",
+    "counts": "52/53 passed, 1 expected red, 0 failed",
+    "seconds": 59
+   },
+   {
+    "name": "68-trial-zones",
+    "status": "green",
+    "counts": "42/42 passed, 0 expected red, 0 failed",
+    "seconds": 70
+   },
+   {
+    "name": "69-day-boards",
+    "status": "green",
+    "counts": "8/8 passed, 0 expected red, 0 failed",
+    "seconds": 31
+   },
+   {
+    "name": "70-movement",
+    "status": "green",
+    "counts": "11/11 passed, 0 expected red, 0 failed",
+    "seconds": 34
+   },
+   {
+    "name": "71-sheet",
+    "status": "green",
+    "counts": "42/42 passed, 0 expected red, 0 failed",
+    "seconds": 59
+   },
+   {
+    "name": "72-canary",
+    "status": "green",
+    "counts": "163/166 passed, 3 expected red, 0 failed",
+    "seconds": 64
+   },
+   {
+    "name": "73-notice-history",
+    "status": "green",
+    "counts": "32/32 passed, 0 expected red, 0 failed",
+    "seconds": 44
+   },
+   {
+    "name": "74-room-tile",
+    "status": "green",
+    "counts": "46/46 passed, 0 expected red, 0 failed",
+    "seconds": 82
+   },
+   {
+    "name": "75-voice-tile",
+    "status": "green",
+    "counts": "42/42 passed, 0 expected red, 0 failed",
+    "seconds": 67
+   },
+   {
+    "name": "76-passages",
+    "status": "green",
+    "counts": "118/119 passed, 1 expected red, 0 failed",
+    "seconds": 209
+   },
+   {
+    "name": "78-death-map",
+    "status": "green",
+    "counts": "38/38 passed, 0 expected red, 0 failed",
+    "seconds": 42
+   },
+   {
+    "name": "79-death-sounds",
+    "status": "green",
+    "counts": "12/12 passed, 0 expected red, 0 failed",
+    "seconds": 39
+   },
+   {
+    "name": "81-render-budget",
+    "status": "green",
+    "counts": "33/33 passed, 0 expected red, 0 failed",
+    "seconds": 51
+   },
+   {
+    "name": "83-roll-integrity",
+    "status": "green",
+    "counts": "111/111 passed, 0 expected red, 0 failed",
+    "seconds": 197
+   },
+   {
+    "name": "86-frame-work",
+    "status": "green",
+    "counts": "105/105 passed, 0 expected red, 0 failed",
+    "seconds": 178
+   },
+   {
+    "name": "87-messenger-sound",
+    "status": "green",
+    "counts": "36/36 passed, 0 expected red, 0 failed",
+    "seconds": 65
+   },
+   {
+    "name": "88-flow-length",
+    "status": "green",
+    "counts": "27/27 passed, 0 expected red, 0 failed",
+    "seconds": 72
+   },
+   {
+    "name": "89-proposal-card",
+    "status": "green",
+    "counts": "12/12 passed, 0 expected red, 0 failed",
+    "seconds": 13
+   },
+   {
+    "name": "91-old-keys-ignored",
+    "status": "green",
+    "counts": "10/10 passed, 0 expected red, 0 failed",
+    "seconds": 8
+   },
+   {
+    "name": "92-old-keys-honoured",
+    "status": "green",
+    "counts": "10/10 passed, 0 expected red, 0 failed",
+    "seconds": 8
+   },
+   {
+    "name": "93-spectator",
+    "status": "green",
+    "counts": "18/18 passed, 0 expected red, 0 failed",
+    "seconds": 27
+   },
+   {
+    "name": "94-dead-spectator",
+    "status": "green",
+    "counts": "19/19 passed, 0 expected red, 0 failed",
+    "seconds": 25
+   },
+   {
+    "name": "95-tooltips-drawn",
+    "status": "green",
+    "counts": "4/4 passed, 0 expected red, 0 failed",
+    "seconds": 136
+   },
+   {
+    "name": "96-late-sequence",
+    "status": "green",
+    "counts": "8/8 passed, 0 expected red, 0 failed",
+    "seconds": 32
+   },
+   {
+    "name": "97-two-gms",
+    "status": "green",
+    "counts": "20/20 passed, 0 expected red, 0 failed",
+    "seconds": 38
+   },
+   {
+    "name": "98-chaos",
+    "status": "green",
+    "counts": "9/9 passed, 0 expected red, 0 failed",
+    "seconds": 19
+   },
+   {
+    "name": "99-actions",
+    "status": "green",
+    "counts": "19/19 passed, 0 expected red, 0 failed",
+    "seconds": 217
+   }
+  ]
+ },
+ "shard3_again": {
+  "command": "DRPG_SUITE_SHARD=3/8 node run-all.mjs suite, the same order, after the eight shards",
+  "result": "green, 716 s (21:31:34Z): grid XI07 passed this time"
+ }
 }
