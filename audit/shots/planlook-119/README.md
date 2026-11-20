@@ -20,3 +20,11 @@ Not shown: the hover and focus highlight (the sweep does not hover; R7823 holds 
 - `gutter100-round{2,3}-<theme>-{crowd,shotcase}.png`: the gutter between Evidence and Deductions at 100% (a crop of the
   1920x1080 Fit to view shot taken at device scale 2.5, where the fit is 0.4: one image pixel a canvas pixel) - where the
   owner's photo was taken.
+
+## Round 4 (claude/planlook-119, the commit after d921c9cf; before = round 3, d921c9cf)
+
+- `round{3,4}-<theme>-<size>-modes{,-view,-fit}.png`: probe 08's `investigation--map-modes`, the shot case with its
+  deductions in three Class Trial modes (Nonstop Debate, Testimony, Panic Round) and one with none. Round 3 draws every
+  deduction cyan; round 4 in its mode's colour, its lines too.
+- `modes100-round{3,4}-<theme>.png`: the Deductions column and the gutter to the Solution at 100% (a crop of the
+  1920x1080 Fit to view shot at device scale 2.5).
