@@ -1,0 +1,996 @@
+{
+  "reader": "live-digest-e58",
+  "read": [
+    {
+      "file": "docs/dev/e58/LOCAL-REPORT.md",
+      "lines": 660
+    },
+    {
+      "file": "docs/dev/e58/TRIAGE-9.2.md",
+      "lines": 20
+    },
+    {
+      "file": "audit/AUDIT-1.2.42.md",
+      "lines": 185
+    }
+  ],
+  "readings": [
+    {
+      "item": "75",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:12",
+      "date": "16.11.2026, 22:10 local (stopped 01:45)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Run 1: `runTests({ tier: 2, confirmed: game.world.id })` on the GM with the three players logged in wrote to the world until 22:42 and then nothing for three hours; stopped at 01:45 with no result. The restore put back Fear, Aiko's system, four actors' flags, one extra token and four tokens' places, its second pass `[]`. The heading at line 10 files this under items 75, 153 and 475 together; for item 75's own ask (AUDIT 9.2 line 906, LIVE-E32-01: which grid cases are skipped and what time they add) the paper names no grid case and no grid time.",
+      "defect": ""
+    },
+    {
+      "item": "153",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:12",
+      "date": "16.11.2026, 22:10 local (stopped 01:45)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Run 1: `runTests({ tier: 2, confirmed: game.world.id })` on the GM with the three players logged in wrote to the world until 22:42 and then nothing for three hours; stopped at 01:45 with no result. The restore put back Fear, Aiko's system, four actors' flags, one extra token and four tokens' places, its second pass `[]`. The heading at line 10 files this under items 75, 153 and 475 together; item 153 (AUDIT 9.2 line 1006, LIVE-E75-05) asks for 0 failed on Foundry 14.369 with Daggerheart 2.10.11, and the sandbox is 14.370 with 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "475",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:12",
+      "date": "16.11.2026, 22:10 local (stopped 01:45)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Run 1: `runTests({ tier: 2, confirmed: game.world.id })` on the GM with the three players logged in wrote to the world until 22:42 and then nothing for three hours; stopped at 01:45 with no result. The restore put back Fear, Aiko's system, four actors' flags, one extra token and four tokens' places, its second pass `[]`. The heading at line 10 files this under items 75, 153 and 475 together; AUDIT 9.2 gives the number 475 to two items (LIVE-E93-01 at line 1437, LIVE-E76-01 at line 1442), the tier 2 ask being LIVE-E76-01's, which names Daggerheart 2.12.8 where the sandbox runs 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "75",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:17",
+      "date": "17.11.2026, 01:47 local",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Run 2, the GM's console recorded and a watcher on it: quiet at 02:19:14, the watcher fired at 02:26:05 (6.8 min quiet) with Daggerheart's roll window \"Eye Roll: Aiko Hoshino\" open on the GM, waiting on Roll. Slices then named the hang as tests 130 and 131 (line 42). The heading at line 10 files this under items 75, 153 and 475 together; for item 75's own ask (AUDIT 9.2 line 906, LIVE-E32-01: which grid cases are skipped and what time they add) the paper names no grid case and no grid time.",
+      "defect": ""
+    },
+    {
+      "item": "153",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:17",
+      "date": "17.11.2026, 01:47 local",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Run 2, the GM's console recorded and a watcher on it: quiet at 02:19:14, the watcher fired at 02:26:05 (6.8 min quiet) with Daggerheart's roll window \"Eye Roll: Aiko Hoshino\" open on the GM, waiting on Roll. Slices then named the hang as tests 130 and 131 (line 42). The heading at line 10 files this under items 75, 153 and 475 together; item 153 (AUDIT 9.2 line 1006, LIVE-E75-05) asks for 0 failed on Foundry 14.369 with Daggerheart 2.10.11, and the sandbox is 14.370 with 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "475",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:17",
+      "date": "17.11.2026, 01:47 local",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Run 2, the GM's console recorded and a watcher on it: quiet at 02:19:14, the watcher fired at 02:26:05 (6.8 min quiet) with Daggerheart's roll window \"Eye Roll: Aiko Hoshino\" open on the GM, waiting on Roll. Slices then named the hang as tests 130 and 131 (line 42). The heading at line 10 files this under items 75, 153 and 475 together; AUDIT 9.2 gives the number 475 to two items (LIVE-E93-01 at line 1437, LIVE-E76-01 at line 1442), the tier 2 ask being LIVE-E76-01's, which names Daggerheart 2.12.8 where the sandbox runs 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "75",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:79",
+      "date": "17.11.2026 03:40-07:10 UTC, at 3bfb45a8",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Tier 2 as one `runTests({ only: [name] })` per test, 1565 tests, a probe pressing Roll on the GM after 30 s: 1183 passed, 361 failed, 19 skipped; test 701 hung and test 1267 gave no result (1564 rows). The median test 3.7 s, the 95th percentile 17.1 s, the slowest without a press 157.4 s (line 97). The heading at line 10 files this under items 75, 153 and 475 together; for item 75's own ask (AUDIT 9.2 line 906, LIVE-E32-01: which grid cases are skipped and what time they add) the paper names no grid case and no grid time.",
+      "defect": ""
+    },
+    {
+      "item": "153",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:79",
+      "date": "17.11.2026 03:40-07:10 UTC, at 3bfb45a8",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Tier 2 as one `runTests({ only: [name] })` per test, 1565 tests, a probe pressing Roll on the GM after 30 s: 1183 passed, 361 failed, 19 skipped; test 701 hung and test 1267 gave no result (1564 rows). The median test 3.7 s, the 95th percentile 17.1 s, the slowest without a press 157.4 s (line 97). The heading at line 10 files this under items 75, 153 and 475 together; item 153 (AUDIT 9.2 line 1006, LIVE-E75-05) asks for 0 failed on Foundry 14.369 with Daggerheart 2.10.11, and the sandbox is 14.370 with 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "475",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:79",
+      "date": "17.11.2026 03:40-07:10 UTC, at 3bfb45a8",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Tier 2 as one `runTests({ only: [name] })` per test, 1565 tests, a probe pressing Roll on the GM after 30 s: 1183 passed, 361 failed, 19 skipped; test 701 hung and test 1267 gave no result (1564 rows). The median test 3.7 s, the 95th percentile 17.1 s, the slowest without a press 157.4 s (line 97). The heading at line 10 files this under items 75, 153 and 475 together; AUDIT 9.2 gives the number 475 to two items (LIVE-E93-01 at line 1437, LIVE-E76-01 at line 1442), the tier 2 ask being LIVE-E76-01's, which names Daggerheart 2.12.8 where the sandbox runs 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "75",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:204",
+      "date": "17.11.2026 10:58-14:47 UTC, at ea8013e0",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "The rerun, one test per call and no probe press: 1286 passed, 259 failed, 20 skipped of 1565; 16 tests left the world changed, 123 pass that did not and 20 fail that passed. The fifteen-minute limit fired once, on test 357. The heading at line 10 files this under items 75, 153 and 475 together; for item 75's own ask (AUDIT 9.2 line 906, LIVE-E32-01: which grid cases are skipped and what time they add) the paper names no grid case and no grid time.",
+      "defect": ""
+    },
+    {
+      "item": "153",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:204",
+      "date": "17.11.2026 10:58-14:47 UTC, at ea8013e0",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "The rerun, one test per call and no probe press: 1286 passed, 259 failed, 20 skipped of 1565; 16 tests left the world changed, 123 pass that did not and 20 fail that passed. The fifteen-minute limit fired once, on test 357. The heading at line 10 files this under items 75, 153 and 475 together; item 153 (AUDIT 9.2 line 1006, LIVE-E75-05) asks for 0 failed on Foundry 14.369 with Daggerheart 2.10.11, and the sandbox is 14.370 with 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "475",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:204",
+      "date": "17.11.2026 10:58-14:47 UTC, at ea8013e0",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "The rerun, one test per call and no probe press: 1286 passed, 259 failed, 20 skipped of 1565; 16 tests left the world changed, 123 pass that did not and 20 fail that passed. The fifteen-minute limit fired once, on test 357. The heading at line 10 files this under items 75, 153 and 475 together; AUDIT 9.2 gives the number 475 to two items (LIVE-E93-01 at line 1437, LIVE-E76-01 at line 1442), the tier 2 ask being LIVE-E76-01's, which names Daggerheart 2.12.8 where the sandbox runs 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "75",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:272",
+      "date": "17.11.2026 15:27-19:23 UTC, at d5907e1b with the ownership fix",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "The third run, before the dialog, `active` and form fixes: 1326 passed, 214 failed, 26 skipped of 1566; test 1267 lost the runner's `evaluate` again (3 of 3) and 357 ran to the limit. Line 282: \"Module defects found so far: none\" - everything read was the tests', the harness's or Foundry's own. The heading at line 10 files this under items 75, 153 and 475 together; for item 75's own ask (AUDIT 9.2 line 906, LIVE-E32-01: which grid cases are skipped and what time they add) the paper names no grid case and no grid time.",
+      "defect": ""
+    },
+    {
+      "item": "153",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:272",
+      "date": "17.11.2026 15:27-19:23 UTC, at d5907e1b with the ownership fix",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "The third run, before the dialog, `active` and form fixes: 1326 passed, 214 failed, 26 skipped of 1566; test 1267 lost the runner's `evaluate` again (3 of 3) and 357 ran to the limit. Line 282: \"Module defects found so far: none\" - everything read was the tests', the harness's or Foundry's own. The heading at line 10 files this under items 75, 153 and 475 together; item 153 (AUDIT 9.2 line 1006, LIVE-E75-05) asks for 0 failed on Foundry 14.369 with Daggerheart 2.10.11, and the sandbox is 14.370 with 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": "475",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:272",
+      "date": "17.11.2026 15:27-19:23 UTC, at d5907e1b with the ownership fix",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "The third run, before the dialog, `active` and form fixes: 1326 passed, 214 failed, 26 skipped of 1566; test 1267 lost the runner's `evaluate` again (3 of 3) and 357 ran to the limit. Line 282: \"Module defects found so far: none\" - everything read was the tests', the harness's or Foundry's own. The heading at line 10 files this under items 75, 153 and 475 together; AUDIT 9.2 gives the number 475 to two items (LIVE-E93-01 at line 1437, LIVE-E76-01 at line 1442), the tier 2 ask being LIVE-E76-01's, which names Daggerheart 2.12.8 where the sandbox runs 2.12.9 (paper line 602).",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:34",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): the two Meddle tests (positions about 981-982 of 1565) run alone on the sandbox failed in 2 s, \"Cannot read properties of undefined (reading 'length')\" - Daggerheart 2.12.9's `D20RollDialog` reads `this.config.costs.length` and the kit's `rollWindow` config had none; headless both passed. At the fixed tree both pass on the sandbox, 6.5 s and 5.4 s (line 200).",
+      "defect": "A defect of the suite's kit, not of the module's rules: its roll window config lacked `costs`. Fixed in e50d3c47 (the kit) with df3fe865 (the harness's window reads `costs.length`); 23 failures of the whole run carried this message (line 103)."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:42",
+      "date": "17.11.2026 (02:08-02:38 UTC)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): slices in `SCENARIOS`' order found the hang - tests 130 and 131 each alone went 90 s quiet with the GM's \"Eye Roll: Aiko Hoshino\" open. Daggerheart's `configure` resolves only when its window closes on a press of Roll, which the harness's glue window made by itself and nobody makes on a real page; in the whole run twelve tests waited on that window until the probe's press (line 84).",
+      "defect": "A test defect in the paper's words (red is the hang itself, 2 of 2 on the sandbox). Fixed in e6ffd08a (`pressingRoll`; green on the sandbox with no probe press, line 191); the harness's glue stopped pressing Roll in f7effd79 and 65554625, with a player at each harness browser in 175d580d (line 249)."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:62",
+      "date": "17.11.2026 02:27-02:36 UTC",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): tests 75-112 run as a slice: 33 passed, 11 failed (the runner's own checks included) - two throws of \"Cannot redefine property: TOKBOTAN00000000\", and drawn-roll tests reading other numbers than expected (15 where 13; `[[],7]` against `[[0],13]`; Fear 0 -> 1 left by one). The paper at that point: not triaged yet.",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:136",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): Foundry v14 writes into the options object a token move is given (client/documents/token.mjs:1742 and :2009, `options._movement`, not configurable), so one options object passed to two moves of the same token throws \"Cannot redefine property: <token id>\" - 45 of the first 85 failures and 152 of the whole run (line 102). The module's own token moves each pass a fresh object literal; the harness's shim modelled `movement` alone, so headless never threw.",
+      "defect": "A test defect and a gap in the harness's shim, not the module's: tests-tier2.mjs kept 61 shared move options. Fixed in a6b25c51 (a fresh options object per move; the shim writes `_movement` as v14 does) and 100c4018 (two E17 tests)."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:104",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): 10 failures of the whole run read \"You may only push instances of User to the Users collection\" - tests that put a made-up GM object into `game.users`, which v14's collection refuses. Still on the list to read after the third run (line 285: 180, 181, 1267 and others).",
+      "defect": "The tests', by the paper's attribution; the paper records no fix."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:108",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): in the whole run 2 failures read \"Cannot assign to read only property 'saveDataToFile'\" and 2 \"Cannot assign to read only property 'format' of object '#<Localization>'\" - tests writing over what v14 has made read-only. Not read one by one.",
+      "defect": "The tests', by the paper's attribution; the paper records no fix. (The 4 \"setting 'length'\" failures on the same line are the dialog queue's, line 225.)"
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:111",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): at least 21 failures were tests that script their dice with `globalThis.__forceRoll`, which only the harness reads, so at a table Daggerheart threw real dice. The red-first check of the seam built for it was red on the sandbox five runs of six (the sixth [7,3], one time in 144 for real dice) and green three of three with the seam (line 220); a recorder on each player's page through the whole third run logged no duality roll evaluated there (line 268).",
+      "defect": "The tests' and the runner's, not the module's: tier 2 had no way to set its dice on a real Foundry. Fixed in d5907e1b; R7563, which that commit broke, mended in eceb1b25 (line 252)."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:117",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): test 96 \"the trait the GM picked: another one is flagged\" passed and left Daggerheart's Fear 0 -> 2: its draws are real dice at a table, and tier 2's `snapshot`/`restore` kept the module's settings and Despair pools but not `daggerheart.ResourcesFear`.",
+      "defect": "The runner's (tier 2's restore), in the paper's words. Fixed in de8156d8 (a new test \"tier 2's restore puts Daggerheart's Fear back as it found it\", red [0,1,1], green [0,1,0], read headless; line 185)."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:121",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): test 701 \"no module window is wider than the cap, and they open on the centre\" hung: it took the first open window matching `.application.dialog[class*=\"drpg-\"]`, on this sandbox \"Daggerheart is newer than the verified version\" (2.12.9 against 2.12.8), and waited on the settings window it had opened. After the fix it ran green on the sandbox alone in 4.8 s with that warning and \"The case on this browser\" open (line 188).",
+      "defect": "The test's. Fixed in db8273fb (red: the hang on the sandbox, twice)."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:209",
+      "date": "17.11.2026 (the rerun)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "mixed",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): the fifteen-minute limit of ea8013e0 fired once on a real page - test 357 \"a use in a fight is carded veiled whoever makes it, and names nobody\", \"timed out: still running after 900 s ...\" - and the runner wrote the three windows open on that browser, the list ea8013e0 had left unmeasured. Test 357 ran to the limit again in the third run: it queues no answer and leans on the harness pressing an unanswered window's default button (line 257).",
+      "defect": "Test 357 leans on a harness behaviour a real page does not have (the paper's reading, line 257); the paper records no fix for it."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:214",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): measured on Aiko: `update({ \"ownership.<user>\": ForcedDeletion })`, nested, and `ownership.-=<user>` each left the entry; a ForcedReplacement of the whole ownership removed it; a module flag deleted the same way, dotted and nested, went. Tests 604 and 610 passed and left an owner, and tests 707-731 then counted the players wrong; the module never deletes an owner.",
+      "defect": "The tests' put-backs, not the module's. Fixed in 867653ee (the eight put-backs write the ownership whole; red through the shim's `keepOwners`). The paper adds, for the coordinator, that the root instruction file's rule \"Delete a key with `forcedDeletion()` or `unsetFlag`\" holds for flags and not for an ownership entry on v14."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:224",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): `__dialogAnswers` is the harness's queue; at a table `__dialogAnswers.length = 0` threw \"Cannot set properties of undefined\" (the four open-Frisk tests that left tokens, 179-184) and test 357 waited on its confirm. The seam built for it (line 254): its red-first check red on the sandbox twice (\"this page holds no __dialogAnswers\"), green three of three with the seam, and the four tests no longer throw nor leave tokens (180 and 181 then throw the User message, 179 and 184 fail on their readings).",
+      "defect": "The tests' and the runner's. Fixed in 7881daee (R7566, R7567, six mutants); test 357 is not mended by it."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:229",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): test 1267 run alone - Playwright's `evaluate` of `runTests` loses its context about 2 s in, with no navigation, crash or close recorded, all four pages at /game and the GM page's `performance.timeOrigin` the same before and after; run detached it had not finished after 600 s. The paper withdraws its earlier words that the test takes the GM's page away; what it waits on is not read.",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:259",
+      "date": "17.11.2026, evening",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): v14 keeps a User's `active` as its own data property (read on the sandbox); two trial tests deleted it and PlayerTwo then PlayerThree read as not connected for the rest of the session. After the fix, on the sandbox tests 731-749: all four connected throughout, both tests pass, 742-749 pass where they were skipped.",
+      "defect": "The tests' (the harness's User reads `active` through a prototype getter, so it was green headless). Fixed in 76a582d4; making the shim hold `active` as v14 does is proposed, not built."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:265",
+      "date": "17.11.2026, evening",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): a browser's form refuses a property named as one of its controls; six tests threw \"Failed to set a named property ... on 'HTMLFormElement'\" (185, 1070, 1071, 1074, 1183, 1311) on the sandbox. With the fix none throws it, four pass, 185 and 1183 fail on their readings.",
+      "defect": "A test helper's. Fixed in 2adc9fef."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:275",
+      "date": "17.11.2026, evening",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "defect",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): about 20 failures (13 counted after the rerun under \"the tunnel was not made\", line 234) - on v14 every scene has at least one level (a new scene: `defaultLevel0000`, \"Level\", read on the sandbox), the module refuses an end that names no floor when the scene has floors, and the fixtures ask for ends with `level: null`. The module's own tool sends the floor on screen, so a GM drawing at a table is not refused.",
+      "defect": "The tests' and the harness's (the paper's own heading). Proposed, not built: the shim gives a new scene v14's default level and the fixtures name a floor; the refusal's words \"none on a scene with no floors\" name a case v14 does not have."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:190",
+      "date": "17.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; tier 2 driven from the GM's page",
+      "outcome": "in-progress",
+      "summary": "Inside the tier 2 section (heading: items 75, 153, 475; no item named for this reading alone): with `pressingRoll` and no probe press the twelve roll-window tests ran through on the sandbox, 8 passed and 113, 128, 131 and 229 failed as they had with the probe's press - \"Aiko Hoshino's system.rules.dualityRoll.defaultHopeDice could not be set\", the Call's experience not on the roll, the Support's die not put on, the Loaded Die not loaded. Test 229 is \"E112 - an armed Loaded Die loads the murder's opening roll ...\"; the paper names no cause for the four here (131 and 229 stand in its list of dice-scripting tests, line 113).",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": "LIVE-E53-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:342",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC, the seed's small flat scene; AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, Playwright 1.56.1's Chromium 141.0.7390.37 headed, at 80dfaf06",
+      "outcome": "not-checkable",
+      "summary": "`node audit/live/perf-baseline.mjs --probe --stage E53`: attempt 3 appended to audit/perf-baseline.json, status stays not-measured - could not run: \"the world copy: DRPG_FIXTURES is not set\" and \"a browser drawing on a GPU at 1366x768: ... SwiftShader\" (its own headless Chromium). `--run` stays refused. (AUDIT 9.2 gives LIVE-E53-01 the number 561, line 1586; the paper names the id only.)",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": "LIVE-E53-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:343",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC, the seed's small flat scene; AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, Playwright 1.56.1's Chromium 141.0.7390.37 headed, at 80dfaf06",
+      "outcome": "partial",
+      "summary": "Headless `chrome://gpu` hung (no reading). Headed on WSLg it reads \"WebGL: Hardware accelerated*\" while the page's renderer is \"ANGLE (Mesa, llvmpipe ...)\" - software; with Mesa's d3d12 driver the renderer is \"D3D12 (AMD Radeon(TM) Graphics)\" and with `MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA` \"D3D12 (NVIDIA GeForce RTX 4080 SUPER)\". The paper: the renderer string is the check, not the label.",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": "LIVE-E53-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:344",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC, the seed's small flat scene; AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, Playwright 1.56.1's Chromium 141.0.7390.37 headed, at 80dfaf06",
+      "outcome": "partial",
+      "summary": "Four accounts in four headed windows, `perf()` then `fps({ toChat: false })` on the GM and PlayerOne: Stained Glass about 43 ms a frame (23 fps), fps()'s median 50 ms, p95 50.1 ms, every frame over 33 ms; Monokuma Legacy about 34 ms (29 fps), median 33.4 ms; each effect held alone moved the frame by -2.2 to +3.4 ms. The paper: these are the browser's (four windows, one in front), and none of it becomes a budget (line 351).",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": "LIVE-E53-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:345",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC, the seed's small flat scene; AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, Playwright 1.56.1's Chromium 141.0.7390.37 headed, at 80dfaf06",
+      "outcome": "partial",
+      "summary": "The GM alone in one focused window, both themes: 300 frames in 5 s, 60 fps, median 16.7 ms, p95 16.8 ms, none over 33 ms; the blur, the pulse and the canvas each held changed the frame by at most 0.15 ms. A high-end desktop on the seed's small flat scene, not the 1366x768 laptop on the largest isometric map the budget names (line 351).",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": "LIVE-E53-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:346",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC, the seed's small flat scene; AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, Playwright 1.56.1's Chromium 141.0.7390.37 headed, at 80dfaf06",
+      "outcome": "partial",
+      "summary": "From run 1: a window reaches the screen in 86.7 ms (Stained Glass) and 69.9 ms (Legacy), median of six; one recut of the glass 6.1-7.2 ms; `roomOfActor` 0.1 ms, `othersInRoom` 0.13-0.19 ms; the fog repainted p95 33-51 ms (2-3 repaints); a chat card p95 0.1-0.4 ms; a student's ring p95 0.1-1.9 ms. No roll drawn and no canvas drawn since load in that window, so those lines read \"none\".",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": "LIVE-E33-05",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:354",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC, the seed's small flat scene; AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, Playwright 1.56.1's Chromium 141.0.7390.37 headed, at 80dfaf06",
+      "outcome": "partial",
+      "summary": "The paper names this id beside LIVE-E53-01 and LIVE-E88-01 as still not measured (the owner's own Chrome on Windows, the largest isometric map, the weakest player's machine). What was read instead is `perf()` on the sandbox desktop (lines 344 and 346), where no roll was drawn in that window, so the drawn roll's lines read \"none\". (AUDIT 9.2 number 129, line 969.)",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": "LIVE-E88-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:354",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC, the seed's small flat scene; AMD Ryzen 9 9900X, 31.6 GB RAM in WSL2, NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, Playwright 1.56.1's Chromium 141.0.7390.37 headed, at 80dfaf06",
+      "outcome": "partial",
+      "summary": "The paper names this id beside LIVE-E53-01 and LIVE-E33-05 as still not measured at a table. What was read instead is `fps()` on the sandbox desktop: with four windows a median of 50 ms (Stained Glass) and 33.4 ms (Legacy), with the GM alone in one focused window 60 fps, median 16.7 ms, in both themes (lines 344-345). (AUDIT 9.2 number 323, line 1197.)",
+      "defect": ""
+    },
+    {
+      "item": "553",
+      "live_id": "LIVE-E112-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:366",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC sandbox, Daggerheart 2.12.9, Isometric 14.0.6; headless pages of the GM, PlayerOne (the victim), PlayerTwo (a bystander) and PlayerThree (the killer); real dice on the drawn road, a probe pressing Roll; no LiveKit server, the microphone blocked",
+      "outcome": "defect",
+      "summary": "A drawn opening with real dice (Chie on Aiko in Dorm A; Hope 8 / Fear 5, total 23): while it waited, Chie's token was `hidden` and `veiled` and not drawn on the victim's canvas, and the killer's own browser drew it. With token vision switched on for the run, the veiled token was no vision source for its owner (`_isVisionSource()` false) and PlayerThree's canvas saw from Aiko's token instead. Hearing (LiveKit): not checkable here.",
+      "defect": "On v14 the veiled killer has no vision of their own and sees from the victim's eyes: Foundry 14.370 drops a hidden token as its owner's vision source, and every player observes every character (the module's ownership default 2). Open in the paper: not fixed there, two roads proposed and not built (line 371). AUDIT 9.2 item 554's text (line 1572) says that since E112v the veil no longer writes Foundry's `hidden`; whether that closes this reading is not established from this paper."
+    },
+    {
+      "item": "556",
+      "live_id": "LIVE-E112-04",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:367",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC sandbox, Daggerheart 2.12.9, Isometric 14.0.6; headless pages of the GM, PlayerOne (the victim), PlayerTwo (a bystander) and PlayerThree (the killer); real dice on the drawn road, a probe pressing Roll; no LiveKit server, the microphone blocked",
+      "outcome": "partial",
+      "summary": "After the Hope opening, on the victim's browser Chie's token reads name `?`, `texture.src` and `ring.subject.texture` `modules/danganronpa-rpg/icons/mask-unknown.svg`, the drawn mesh's texture that file, its nameplate `?`, the portrait the same file; the bystander's browser holds the same (not drawn: another room) and the killer's too. The Forge half of the item: not checkable here.",
+      "defect": ""
+    },
+    {
+      "item": "557",
+      "live_id": "LIVE-E112-05",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:368",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC sandbox, Daggerheart 2.12.9, Isometric 14.0.6; headless pages of the GM, PlayerOne (the victim), PlayerTwo (a bystander) and PlayerThree (the killer); real dice on the drawn road, a probe pressing Roll; no LiveKit server, the microphone blocked",
+      "outcome": "in-progress",
+      "summary": "With the client setting `enableOcclusionTokenSilhouette` \"gpu\" and a scratch tile flagged `OccludingTile` over the Gym (Daichi, hidden from PlayerOne), the silhouette layer (`OcclusionTokens`) existed and held no sprite; the control - the tile over Aiko, whom PlayerOne sees - held none either. So nothing was built for the module to hide and its hiding was not exercised (Isometric 14.0.6, the academy not flagged isometric); the paper's result: left, not settled.",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:386",
+      "date": "16.11.2026, evening",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "mixed",
+      "summary": "No item named: a sweep against the seed after the E112 runs found the GM's Despair pool `{GM: 3}`, Daggerheart's `ResourcesFear` 3, Aiko's Stress 6, the \"DRPG Project\" actor and 19 cards the probes left, all put back. Not put back: PlayerOne's `preSessionNote` flag (`{written: true}`, from step 6's fuzz) - a GM's ForcedDeletion of it applied, and a fresh GM's load read it back about 22 s later with a newer `modifiedTime`; where the module keeps that note was not found (question 9, line 313).",
+      "defect": ""
+    },
+    {
+      "item": "534",
+      "live_id": "LIVE-E43-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:400",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "mixed",
+      "summary": "audit/harness/lib/fuzz.mjs `fuzz`, unchanged, driven against the sandbox by a runner outside the repository: scenario 30's four checks all pass in 59 s - 108 table actions in their shapes (756 packets) and 54 other packet names in three (162), 673 refused each with a code of the closed list, every awaited request answered, no exception on any of the four browsers. Limit: the write log is the GM page's hooks, not the server's.",
+      "defect": "Found later (line 474): one of the fuzz's six `note.save` writes landed after lib/fuzz.mjs's put-back had read the flag clear, leaving PlayerOne's note flag behind - a race in the harness library's put-back, not the module's; listed as found and not fixed (line 335)."
+    },
+    {
+      "item": "535",
+      "live_id": "LIVE-E43-02",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:401",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "A secret project (PlayerOne in on it, PlayerTwo not): Daggerheart's world setting `Countdowns` names it `???` on every browser, the GM's too; no world setting holds the name or the description; the bystander's Countdowns window reads \"No projects yet.\" and its DOM holds neither. Seen: Daggerheart's tooltip on the GM's and the member's window, \"This countdown is hidden to players except PlayerOne, PlayerThree, PlayerTwo\" - every player, from the module's one-level map; it names no secret, but tells the member the bystanders are in.",
+      "defect": ""
+    },
+    {
+      "item": "536",
+      "live_id": "LIVE-E43-03",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:402",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "A public project in the Gym, which Aiko had not found: PlayerOne opens its token's card (\"A project / You do not know what this is.\") and walks Aiko in with it open; the card redraws as the project's (its name, description, Progress 0 / 4, Room Gym) without reopening, in Stained Glass and Monokuma Legacy, English and Polish.",
+      "defect": ""
+    },
+    {
+      "item": "537",
+      "live_id": "LIVE-E40-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:403",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "partial",
+      "summary": "The primary GM's start: nothing on the console; `game.drpg.checkState()` returned `{ ok: true, problems: [] }` on a world that had seen several murders opened and ended and projects made and removed, but no chapter played; `null` on a player's browser. The paper's result: measured on this world, the item open - it asks for a world played through a chapter.",
+      "defect": ""
+    },
+    {
+      "item": "S7-4",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:417",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "v14 delivers every message to every browser: PlayerOne's console held all 13 the GM held, GM-only whispers among them. Of the module's secret cards a player reads the alias (null) and the whisper list; the content is the placeholder `-` and the words stay on the GM's browser (CASE-03).",
+      "defect": ""
+    },
+    {
+      "item": "S7-5",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:418",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "A real thread message (messenger.mjs `sendMessage`) to PlayerTwo: its document holds `<p class=\"notes\" data-drpg-secret>-</p>`; the words reached PlayerTwo alone, by `secret.card` (PlayerOne's socket heard nothing), and PlayerOne holds them nowhere - document, drawn card or socket (COMM-03).",
+      "defect": ""
+    },
+    {
+      "item": "15",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:419",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "PlayerTwo's canvas sampled each frame while Aiko walked from Dorm A into the Cafeteria: hidden in the corridor (last hidden at x 588), first drawn at x 1155 where her right half crosses the Cafeteria's edge (1200), never drawn further left (MAP-02; one row of the paper for items 15 and S7-7). Limit: headless drew 33 frames in 9 s, so a flash shorter than about 0.27 s between samples is not excluded.",
+      "defect": ""
+    },
+    {
+      "item": "S7-7",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:419",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "PlayerTwo's canvas sampled each frame while Aiko walked from Dorm A into the Cafeteria: hidden in the corridor (last hidden at x 588), first drawn at x 1155 where her right half crosses the Cafeteria's edge (1200), never drawn further left (MAP-02; one row of the paper for items 15 and S7-7). Limit: headless drew 33 frames in 9 s, so a flash shorter than about 0.27 s between samples is not excluded.",
+      "defect": ""
+    },
+    {
+      "item": "17",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:420",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "The action is registered (\"Safeword: stop the scene\") with no default key; bound to F9 and pressed with no sheet open on PlayerOne's page it opened the Safeword window (Stop the scene, the default, then Cancel), and Cancel posted nothing (COMM-11). Seen on the way: the probe sent the key twice and two windows opened - a fast double press opens two.",
+      "defect": ""
+    },
+    {
+      "item": "18",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:421",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "partial",
+      "summary": "A `system.daggerheart` listener on the GM got PlayerOne's packet with the sender's id as its second argument (`USERP10000000000`); `relayGuard().refused` stayed empty (no `unknownSender`), state `ok`. The packet was an action Daggerheart's switch ignores; a Hope roll's own packet - the check the item itself names (AUDIT line 837) - was not read. The paper's result word: measured.",
+      "defect": ""
+    },
+    {
+      "item": "19",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:422",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "`game.socket.listeners`, `off`, `on` and `prependAny` are functions on 14.370; `relayGuard().state` reads `ok`.",
+      "defect": ""
+    },
+    {
+      "item": "20",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:423",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; a second GM logged in for this reading",
+      "outcome": "as-expected",
+      "summary": "With two GMs, the non-primary one saving Configure Ownership on Aiko (\"All Players: Owner\"): `updateActor` reached the primary with `options.noHook === true`, `closeDocumentOwnershipConfig` fired on the window's GM, and `ownership.default` went back to 2. The harness's reading of `noHook` differs (CALIBRATION.md, D9).",
+      "defect": ""
+    },
+    {
+      "item": "22",
+      "live_id": "LIVE-E39-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:424",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "mixed",
+      "summary": "The paper marks item 22 measured as LIVE-E39-01's move (CALIBRATION.md section 3): one update per route with every grid step in `options._movement[id].passed.waypoints`, where the harness's shim had `options.movement` (line 513). The triage header says the same of item 22 (docs/dev/e58/TRIAGE-9.2.md:19).",
+      "defect": ""
+    },
+    {
+      "item": "23",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:425",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "mixed",
+      "summary": "v14's toasts are not escaped but sanitised: `<b>`, `<img>`, `<a>` kept as elements; `onerror`, `javascript:` and `<script>` removed (a failing image's handler did not run). A name PlayerOne gave its own character with markup in it was stored as typed and drawn as markup in a GM toast (`DRPG.Anonymity.blocked`), its handler stripped; an `<img>` in a name makes a GM's browser fetch its address. The paper: not a defect by this reading, a question for the coordinator (question 6, line 307; default: left as it is).",
+      "defect": ""
+    },
+    {
+      "item": "S7-1",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:427",
+      "date": "16.11.2026, evening (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "Today's road: a Search proposing Hand posts the GM a ruling card open for five minutes; the action is not spent while it waits, and left unanswered PlayerOne was told the pick \"was not carried out. The GM did not answer in time. You keep your act[ion]\", actions 3, the room's tokens untouched, the search ended. Seen: 3.6 min past its time PlayerOne's notice copy of the card still read \"Awaiting a ruling. Open until 09:27 PM.\"; two earlier runs measured nothing of an unanswered GM and are not counted.",
+      "defect": ""
+    },
+    {
+      "item": "S7-2",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:428",
+      "date": "16.11.2026, evening (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "defect",
+      "summary": "Proposing Hand, approved on the GM: PlayerOne's Daggerheart window holds the statistic locked (`trait` finesse, Daggerheart's Hand, disabled) and the private result card reads \"Search · Dorm A · 25 · needed 8 / 12 / 18 · Tier 3 · 25 critical 12+12+Hand +1\" (ROLL-06; the item itself measured). The ruling card of a player's thread also reaches the GM's chat log with enabled Approve, Change to and Refuse buttons that do nothing: a real mouse click on the GM's visible copy changed nothing in 20 s, with no error.",
+      "defect": "A module defect: dead ruling buttons on the chat-log copy of a thread's ruling card on a GM's browser - gm-bridge.mjs wires the log's copy only for a card carrying `callCard`, which only a card with no thread has; the ruling works in the messenger. Found and not fixed in the paper (line 335); a proposal, not built."
+    },
+    {
+      "item": "S7-3",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:429",
+      "date": "16.11.2026, evening (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "v14's chat-bar mode is `core.messageMode` (not `core.rollMode`); set to \"self\" on PlayerOne, the roll window takes \"self\" and locks it; a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM, moved the GM's Despair pool from `{}` to `{GM: 1}` and Daggerheart's Fear with it (ROLL-14). Three earlier rolls had no Fear (3/3, 12/1, 12/5).",
+      "defect": ""
+    },
+    {
+      "item": "S7-8",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:430",
+      "date": "16.11.2026, evening (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "PlayerOne pressed the safeword twice (`game.drpg.safeword()`, \"Stop the scene\" each time): one public card \"THE SCENE IS STOPPED ...\", the second press a \"+1\" on PlayerOne's notice and no second card, the game paused; the 1.2.43 \"already had a safeword\" text is gone (CORE-13). Not read: how the GMs are told who (no GM-only card appeared).",
+      "defect": ""
+    },
+    {
+      "item": "S7-9",
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:431",
+      "date": "16.11.2026, evening (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "An incident open (a drawn opening), PlayerTwo a bystander with its stopwatch \"not started\": the GM moved the hour (`advanceTimeOfDay`, morning to noon, the setting noon on PlayerTwo too) and the stopwatch stayed as it was 4 s and 16 s after - the display clock frozen on the last public hour for an outsider, as the CORE-06 fix intends.",
+      "defect": ""
+    },
+    {
+      "item": "44",
+      "live_id": "LIVE-E04-04",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:453",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "partial",
+      "summary": "Playwright's offline mode did not close the GM page's WebSocket (nothing measured); `game.socket.disconnect()` then `connect()` from the GM's console did - `connect` again 10 s later with no reload - and the write PlayerOne made meanwhile (a user flag) never reached the GM's copy (null 12 s after the reconnect). So v14 sends no missed documents on a reconnect and a GM back that way holds stale data until a reload; a real network loss and the GM stores' exchange (two GMs) were not read. The paper: a question for the coordinator, not a module defect (question 8, line 311).",
+      "defect": ""
+    },
+    {
+      "item": "31",
+      "live_id": "LIVE-E30-06",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:457",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; a scratch Assistant account (role 3), deleted after",
+      "outcome": "as-expected",
+      "summary": "Scenario 17's B1, C2 and C3 replayed: B1 - PlayerOne's Hope through Daggerheart's relay (`DhGMUpdate`, Aiko 2 to 1) written once, by the GM, and read 1 on both GMs; C2 - the Assistant's relay request for role 4 left it at 3; C3 - its relay request for a new User made none (5 before and after), each refusal a line in the GM's log alone. Step 3 had held this id not checkable (line 509).",
+      "defect": ""
+    },
+    {
+      "item": "37",
+      "live_id": "LIVE-E31-03",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:458",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "partial",
+      "summary": "PlayerOne's statistic ask (Search, Hand) reached the GM and the GM's page closed 2 s later: one notice at 183 s - `TIMING.rulingMs` (180 s) after the ask - \"... The GM did not answer in time. You keep your action and your Hope.\"; the search settled, the action kept. Not read: a GM back before that clock and the ask sent again once with the same id (the paper: measured, its first half; the item's text, AUDIT line 862, names a sabotage ask).",
+      "defect": ""
+    },
+    {
+      "item": "39",
+      "live_id": "LIVE-E31-05",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:459",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "live.mjs `handOff` on a DialogV2, three times each way: the work ran 14-19 ms after the hand-off with motion on and 16-20 ms with the module's `reducedMotion` on, the window gone each time; the same window closed plainly took 624 ms with motion on and 18 ms with it reduced. The hand-off does not wait for the closing transition.",
+      "defect": ""
+    },
+    {
+      "item": "40",
+      "live_id": "LIVE-E31-06",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:460",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "PlayerOne's module language Polish, the GM's English: its `requestGiveItem` of Botan's comb answered `{refused, reason: notYours}`; PlayerOne's toast in Polish (\"... nie została wykonana. Dotyczy postaci, którą nie grasz.\") and the GM's log in English, \"Refused a \"handover.item\" request over the socket from PlayerOne: sender does not own the character giving it away.\"",
+      "defect": ""
+    },
+    {
+      "item": "48",
+      "live_id": "LIVE-E04-08",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:461",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "partial",
+      "summary": "An incident open, the GM's browser closed and a fresh one logged in without any of the seed's storage: no \"The case on this browser\" window - `gmStoreHealth()` missing 0; E111's copy of the case on the server filled the new browser's 67 module stores by itself and the stage `incident` carried, so the road the item describes (a warning, Restore) is not reached on a browser change. Seen: the new browser's cast differed in one field (`deniedToVictim` [] against [\"roleReversal\"]); finishing the incident there was not driven.",
+      "defect": ""
+    },
+    {
+      "item": "51",
+      "live_id": "LIVE-E04-11",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:471",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; two tabs of one browser as the GM",
+      "outcome": "as-expected",
+      "summary": "Two tabs of one browser as the GM (a second tab with the session opens /game and is ready): a trace placed from each - both rows in the shared store (`gmRemnants`, `gmTraceDigest`) on both tabs, both tokens on the map; nothing lost.",
+      "defect": ""
+    },
+    {
+      "item": "52",
+      "live_id": "LIVE-E04-12",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:472",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "On PlayerOne's page as the GM's page loaded: `userConnected(GM, true)` (active already) at +4.8 s, `bridge.gmReady` at +10.5 s - the hook comes about 5.7 s before the GM's module is ready - then the answers to the player's asks (fog rows, passages, offers, the mastermind door, the cast, notes, cubs); `primaryGmId` the GM. The harness calls the hook once the client is ready (CALIBRATION.md, D10), so v14's order is not the harness's.",
+      "defect": ""
+    },
+    {
+      "item": "61",
+      "live_id": "LIVE-E05-09",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:473",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "utils.mjs `replaceFlag` on PlayerTwo: `{keep, gone, nested}` replaced whole by `{only: 3}`, the same on a player's browser; `forcedDeletion()` on a message's module flags removed one key and kept the other. Put back.",
+      "defect": ""
+    },
+    {
+      "item": "62",
+      "live_id": "LIVE-E05-10",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:474",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "With no GM online PlayerOne's `saveNote` answered \"kept\"; a GM logged in from a fresh browser held the note (`gmNotes`, `noteFor`) within 15 s and the user's flag was written. Found on the way: step 6's fuzz had left PlayerOne's note flag behind (the put-back race recorded on item 534's row).",
+      "defect": ""
+    },
+    {
+      "item": "63",
+      "live_id": "LIVE-E05-11",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:475",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "mixed",
+      "summary": "avclient-livekit 0.6.8 registers `liveKitConnectionSettings` at world scope (a player's browser reads it), `config: false`, default `{}`, its server types `custom` and `tavern`; voice.mjs `liveKitSecretWarning` warns for custom with a secret and not for Tavern with one. The module's note that the first GM to connect gives the world `serverType: \"custom\"` was not seen: the value stays `{}` after several GM logins (A/V off in this world; question 11, line 318).",
+      "defect": ""
+    },
+    {
+      "item": "64",
+      "live_id": "LIVE-E05-12",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:476",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "as-expected",
+      "summary": "A scratch unlinked token of Aiko on the Annex: `lastAction` written through its synthetic actor landed in the token's delta, the base actor untouched; `dropRollBookmarks()` returned `{ dropped: 1 }` and the delta's module flags were `{}` after. A deletion on the delta's path works on 14.370.",
+      "defect": ""
+    },
+    {
+      "item": "68",
+      "live_id": "LIVE-E06-02",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:477",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "partial",
+      "summary": "The GM's drawn roll of the killer's opening (a Hope opening, Daggerheart 2.12.9) as PlayerTwo's (a bystander's) console holds it: no id, name or uuid of the killer's actor anywhere in its JSON; speaker `{ actor: null, alias: \"Monokuma\" }`; title \"Duality Roll\" (the item's text, AUDIT line 896, asks for an empty title); no `trait`, effects, bonus effects, experiences or modifier labels. Not read: the Reroll half, whether `options.data` is empty, Daggerheart 2.6.5.",
+      "defect": ""
+    },
+    {
+      "item": "65",
+      "live_id": "LIVE-E05-13",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:478",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "defect",
+      "summary": "An Eclipse started (Noon, 2 crossings each), PlayerOne moving Aiko through `TokenDocument#move` with waypoints: Dorm A to the Hall by a waypoint in the Cafeteria came as one `updateToken` on the GM, the route record `[\"Hall\", \"Dorm A\"]`, one crossing spent, the card naming the scene's room as the item asks. Then Dorm A to the Storage by waypoints in the Cafeteria and the Hall ended in the Storage, a third room on an allowance of two - the Cafeteria never counted, the route record `[\"Storage\", \"Dorm A\"]`.",
+      "defect": "A module defect: the Eclipse's limit is passed by one room when a single move's first leg crosses a room (a route is one update, its passed waypoints under `options._movement`). Open in the paper: not fixed there, handed with this reading to the line working on CALIBRATION.md's D4; a mouse drag was not driven (the API's move)."
+    },
+    {
+      "item": "70",
+      "live_id": "LIVE-E06-04",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:479",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "partial",
+      "summary": "On PlayerTwo, a bystander, while PlayerOne's Search ran: the veiled ruling card and Foundry's stub of the GM's drawn roll each reached `ui.chat.notify`; the private result card did not. No `AudioHelper.play` on PlayerTwo and no dot element found by the probe's selector in v14's sidebar: the dot and the sound themselves were not read, and the roller without Dice So Nice was not driven.",
+      "defect": ""
+    },
+    {
+      "item": "71",
+      "live_id": "LIVE-E06-05",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:480",
+      "date": "16.11.2026 (pass 2)",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "mixed",
+      "summary": "The card drawn under Daggerheart's template: with a GM listening the GM's card reached PlayerOne in 53-61 ms, one card, its header the GM's (\"GM 5s ago\", the GM's avatar - by the module's design, in the paper's words); with no GM online PlayerOne's browser made its own card in 54-59 ms, class `drpg-safeword-unsigned`, its header hidden. Not driven: a GM's F5 mid-press; and the item's text (AUDIT line 899) asks for a header with no avatar and no name, where this reading records the GM's.",
+      "defect": ""
+    },
+    {
+      "item": "67",
+      "live_id": "LIVE-E06-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:481",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages",
+      "outcome": "mixed",
+      "summary": "The victim's browser through the opening: while the killer throws, no `drpg-incident-here`, no event panel, no sound; after a failed opening the same, but its chat shows three veiled cards placed for everybody (placeholder `-`) and Foundry's stub \"Duality Roll · GM privately rolled some dice\" (question 7, line 309); after a Hope opening one event card \"Face to face / Aiko Hoshino / your turn\" and no \"Chie\" anywhere on the page or in its store. One earlier run's card read \"Face to face Chie Mori against ...\" on the victim (its dice not recorded, not repeated in two runs since); no sounds captured - the seed has no murder playlist.",
+      "defect": ""
+    },
+    {
+      "item": "25",
+      "live_id": "LIVE-E30-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:504",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "mixed",
+      "summary": "On 14.370 `-=` deletes and `==` replaces (actor and token flags), each with v14's deprecation warning; the harness's shim had ignored them by default (one row of the paper for both ids). Done there: the harness's default reading made \"honoured\" (lib/operators.mjs), 00-boot's check rewritten red first; the paper's question 2 (line 298) notes that the repository's instruction files still said a `-=key` removes nothing.",
+      "defect": ""
+    },
+    {
+      "item": "477",
+      "live_id": "LIVE-E76-03",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:504",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "mixed",
+      "summary": "On 14.370 `-=` deletes and `==` replaces (actor and token flags), each with v14's deprecation warning; the harness's shim had ignored them by default (one row of the paper for both ids). Done there: the harness's default reading made \"honoured\" (lib/operators.mjs), 00-boot's check rewritten red first; the paper's question 2 (line 298) notes that the repository's instruction files still said a `-=key` removes nothing.",
+      "defect": ""
+    },
+    {
+      "item": "26",
+      "live_id": "LIVE-E30-02",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:505",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "mixed",
+      "summary": "`ForcedDeletion.create()` gives a new instance each call (the shim: one shared); `_del` is an instance and `_replace` a function (as the shim); a ForcedReplacement keeps its value under `OPERATOR_VALUE` with its keys copied onto it and has no `.replacement`. Both differences fixed in the shim, red first (00-boot); also read (line 553): Daggerheart 2.12.9 still calls `_del()`, which throws on v14.",
+      "defect": ""
+    },
+    {
+      "item": "27",
+      "live_id": "LIVE-E30-03",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:506",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "mixed",
+      "summary": "Order, instances, emptied and refused updates are as the shim; but v14 diffs an update on the client (hooks get the changed keys, a no-op is not sent) and the shim does not. Proposed (D3), not built.",
+      "defect": ""
+    },
+    {
+      "item": "29",
+      "live_id": "LIVE-E30-04",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:507",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "as-expected",
+      "summary": "An Assistant cannot raise itself (refused, error toast), writes a world setting, and changes another user's role up to 3: as the shim. The writer's own copy of another User lagged behind its resolved update (3 times) - put as a question (D8).",
+      "defect": ""
+    },
+    {
+      "item": "30",
+      "live_id": "LIVE-E30-05",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:508",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "mixed",
+      "summary": "`userConnected(user, false)` arrives with `active` already false: as the shim. A role change logs the user out (the page goes to /join), and the shim logs nobody out - proposed (D6), not built.",
+      "defect": ""
+    },
+    {
+      "item": "32",
+      "live_id": "LIVE-E30-08",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:510",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "not-checkable",
+      "summary": "The sandbox's versions were read - Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, LiveKit 0.6.8 - while audit/harness/versions.json holds the table's (6.2.9, 14.0.2, 0.6.8) and was not changed. The item asks for the table's own Data folder (The Forge): not checkable here (line 450).",
+      "defect": ""
+    },
+    {
+      "item": "33",
+      "live_id": "LIVE-E30-09",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:511",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "as-expected",
+      "summary": "The seven sheets, in module.json's order, each `@import` in layer `modules`; `--drpg-window-max` 1400px: as the shim.",
+      "defect": ""
+    },
+    {
+      "item": "34",
+      "live_id": "LIVE-E30-10",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:512",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "as-expected",
+      "summary": "The drawn tier 2 window: the world named, Cancel first and focused, Enter cancels, the world unchanged (shot e30-10-tier2-dialog.png): as the shim's configuration check.",
+      "defect": ""
+    },
+    {
+      "item": "512",
+      "live_id": "LIVE-E39-01",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:513",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "mixed",
+      "summary": "One update per route with every grid step in `options._movement[id].passed.waypoints` (the shim: `options.movement`), `_regions` in the changes, `preMoveToken`/`moveToken`; Levels an embedded `Level` collection with `{bottom, top, base}`, `Region.levels` and `includedInLevel` as the shim; a level change leaves elevation; Regions have `ownership` (the shim: none). The differences are proposed (D4, D5, D7), not built in the paper.",
+      "defect": ""
+    },
+    {
+      "item": "274",
+      "live_id": "LIVE-H81-03",
+      "where": "docs/dev/e58/LOCAL-REPORT.md:514",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "partial",
+      "summary": "The module's own placing options reach every client's hooks; v14's own displacement carries `teleport: true` in `updateToken` only, `movementAction` never; the paper: \"read; the module's guard holds where it runs\". This row gives the update options (the item's part (d), AUDIT line 1148); the drags of its parts (a)-(c) and the region teleport of (f) are not in this paper's row, and CALIBRATION.md was not read by this reader.",
+      "defect": ""
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:518",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "defect",
+      "summary": "No item named (found by step 3's readings; LIVE-E30-10 is the tier 2 window): `game.drpg.runTests({ tier: 2 })` would have errored on v14 before its first test - scripts/tests-kit.mjs `worldDump` and tests-tier2.mjs's restore snapshot destructured `game.collections` as `[name, collection]` pairs (\"collection is not iterable\" read on 14.370). The shim's `game.collections` was a plain Map, so headless never saw it.",
+      "defect": "The suite's kit and tier 2's restore (under scripts/), with the shim's Map. The paper says fixed, red first: 00-boot's new check, both readers on `entries()`, green (tier 2 \"E39-T1\" ran). It names no commit in that paragraph; line 349 dates step 3's tree at 80dfaf06."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:523",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "defect",
+      "summary": "No item named: the live runner's guesses met a real v14 - the join form's selectors and the seeder's empty-world rule (step 1, lines 603-607), the seeder writing the seed's documents but not its world settings (`daggerheart.Automation`), and the parts' browsers lacking the storage the harness's browsers hold, so every GM login opened \"The case on this browser\".",
+      "defect": "The audit/live runner's, not the module's. The paper says each was mended (`--settings-only`, foundry.mjs `seededLogin`, the rule in audit/live/world-empty.mjs); no commit named in that paragraph."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:529",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "defect",
+      "summary": "No item named (found while driving a Search for S7-2): on 14.370 `game.user` is null at `init` and `i18nInit`, so the four registrations made at `init` threw \"Cannot read properties of null (reading 'isGM')\" at lockpick-gm.mjs:216, facility-uses.mjs:122, eavesdrop-gm.mjs:326 and timed-effects.mjs:405. After any load a player's browser held no copy of its lock-pick passes, used room actions, eavesdrops or timed effects until the next change sent one; on the sandbox after the fix no registration failure on the GM or a player.",
+      "defect": "A module defect, on every real v14. The paper says fixed, red first: each ask moved to `ready`, 00-boot 37/37, mutants 4/4 killed. It names no commit in that paragraph (git log: 80dfaf06, \"Step 3: the harness calibrated against Foundry 14.370; a player's start asks again; L9 waits for the turn\")."
+    },
+    {
+      "item": null,
+      "live_id": null,
+      "where": "docs/dev/e58/LOCAL-REPORT.md:552",
+      "date": "16.11.2026",
+      "environment": "Foundry 14.370 on the owner's PC (WSL2), world drpg-qa-gate from the harness's seed, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric 14.0.6, the LiveKit module 0.6.8 with A/V off; Playwright 1.56.1's headless Chromium 141 pages (a GM and three players), no person at the pages; the item-by-item readings are in docs/dev/e39/CALIBRATION.md, which the paper points to (line 500)",
+      "outcome": "mixed",
+      "summary": "No item named: Playwright 1.56.1's Chromium 141 draws Foundry's error notification \"unsupported on Chromium version less than 146\" on every page (in `__notifications` as an error; question 10, line 315); Daggerheart 2.12.9 still calls `_del()`, which throws on v14 (the system's line 9154), and its `DhpChatMessage.renderHTML` throws on a message whose author was deleted (build line 42439). None of the three is the module's.",
+      "defect": ""
+    }
+  ],
+  "not_run": [
+    "No reading in this paper is a person's at a table: every page is Playwright's, and the sandbox has no microphone or camera, no LiveKit server, no second machine, no real people, no The Forge and no fixtures (TRIAGE-9.2.md:4-6; LOCAL-REPORT.md:8 writes what only the owner can give - a password, eyes on a screen - as not run).",
+    "Step 4's own tally (LOCAL-REPORT.md:323-331, over 565 rows): 397 rows left - K and S rows not yet driven or shot; 113 not checkable at this sandbox (96 marked T, item 47, and 16 marked F - each needs real people, a real LiveKit, The Forge, a second machine, a real GPU at a table, a phone, the owner's own install or a fixture world); 8 closed by their own text (S7-14, 21, 41, 213, 448, 449, 450, 451) with no reading taken. The T and F reasons are the triage readers', not re-read item by item (line 329).",
+    "S7-6, S7-10, S7-11 and 16: left, not yet driven - a trap that fires, the overflow hat with a Monocub, two GMs' Despair writes in a race, a trial's sticky cards (line 432).",
+    "S7-12, S7-13 and 24: left, shots not yet taken (line 433).",
+    "S7-1: two earlier runs pressed the window's default (Eye), which approves itself; they measured nothing of an unanswered GM and are not counted (line 427).",
+    "28 (LIVE-E30-07), 46 (LIVE-E04-06), 50 (LIVE-E04-10): not checkable here - each needs a fixture world (an old world copy, a saved browser store, a v1.1.0 world); DRPG_FIXTURES unset on purpose (line 449).",
+    "32 (LIVE-E30-08): the table's own Data folder (The Forge) not checkable here; only the sandbox's versions were read (lines 450, 510).",
+    "36 (LIVE-E31-02), 42 (LIVE-E04-02), 43 (LIVE-E04-03), 45 (LIVE-E04-05): not checkable here - a real server's network latency, two GMs with campaign data on The Forge or a LAN, the table's own browser store, Firefox and Foundry's desktop app (line 451).",
+    "47 (LIVE-E04-07): not checkable here - a second world and Setup > Duplicate World, the setup screen this line does not open (line 454).",
+    "49 (LIVE-E04-09): left, waits for a copy world - a refused reset is safe, an accepted one wipes the sandbox's only world (lines 455, 463).",
+    "35 (LIVE-E31-01) and 38 (LIVE-E31-04): left - a GM-side Reroll of each listed action; a plant whose answer comes late (line 462).",
+    "44 (LIVE-E04-04): Playwright's offline mode did not close the socket (nothing measured that way); a real network loss and the GM stores' exchange with two GMs not read (line 453).",
+    "37 (LIVE-E31-03): a GM back before the ruling clock, and the ask sent again once with the same id, not read (line 458).",
+    "48 (LIVE-E04-08): finishing the incident on the new browser not driven; the warning-and-Restore road is not reached since E111 (line 461).",
+    "18: a Hope roll's own packet not read (line 421). S7-8: how the GMs are told who pressed the safeword not read (line 430). 15 and S7-7: a flash shorter than about 0.27 s between samples not excluded (line 419).",
+    "68 (LIVE-E06-02): the Reroll half, whether `options.data` is empty, and Daggerheart 2.6.5 not read (line 477).",
+    "70 (LIVE-E06-04): the chat dot and the sound themselves not read; the roller without Dice So Nice not driven (line 479).",
+    "71 (LIVE-E06-05): a GM's F5 mid-press not driven (line 480).",
+    "67 (LIVE-E06-01): no sounds captured - the seed has no murder playlist (line 481).",
+    "65 (LIVE-E05-13): a mouse drag not driven - the reading used the API's move (line 478).",
+    "63 (LIVE-E05-11): the voice module's world default not read with A/V on (lines 475, 318-319).",
+    "Group 3 (items 51-75, in progress) has rows for 51, 52, 61, 62, 63, 64, 65, 67, 68, 70 and 71 only; it has no row for 53-60, 66, 69 or 72-74 (an absence in the table at lines 469-481, not a sentence of the paper).",
+    "E40's season wipe on a copy world: not run - the sandbox holds one world, a copy needs Foundry's Duplicate World on the setup screen and the owner's server launching it (lines 404, 296-297).",
+    "537 (LIVE-E40-01): the item asks for a world played through a chapter; this world had none, so the item stays open (line 403).",
+    "LIVE-E112-01 (553): hearing over LiveKit not checkable here (line 366); the two roads proposed for the killer's vision not built (lines 371-379); how long the opening's invitation takes after a GM's login not measured (line 384).",
+    "LIVE-E112-04 (556): the Forge half not checkable here (line 367).",
+    "LIVE-E112-05 (557): left, not settled - nothing was built for the module to hide; next an isometric scene with the tile flagged through Isometric's own settings (line 368).",
+    "Step 7's table has rows for LIVE-E112-01, -04 and -05 only; it has no row for LIVE-E112-02 (The Forge) or LIVE-E112-03 (the Loaded Die in a real roll window) - an absence, not a sentence of the paper (lines 364-369).",
+    "LIVE-E53-01, LIVE-E33-05, LIVE-E88-01: still not measured - the owner's own Chrome on Windows, the largest isometric map and the weakest player's machine (line 354); `perf-baseline.mjs --run` stays refused (no fixture world, the probe's browser draws in software), headless `chrome://gpu` hung with no reading, and no roll or canvas was drawn in the measured window, so those lines of perf() read \"none\" (lines 342-346).",
+    "Tier 2 on the sandbox (items 75, 153, 475): runs 1 and 2 as one call went quiet 32 min in and gave no result (lines 12-28); every later run is one test per call, and the paper records no single-call run that finished and no run at the tree with the dialog, `active` and form fixes (the third run was before them, line 272).",
+    "Tier 2, still to read after the third run: 1054, 1067 and 1089, the made-up User objects (180, 181, 1267 and others), the five Reroll tests (\"Failed data migration for DhpChatMessage\"), 357's default button, 735, 762, 185, 1183, 179, 184 (lines 284-286); the 20 that fail where they passed not read one by one (line 208); what test 1267 waits on not read (line 233); `visibilityState` not recorded and the background-throttling flags not used (lines 27, 31-32).",
+    "Items 75, 153 and 475 against their own texts in AUDIT 9.2: no grid case and no grid time is named for 75 (LIVE-E32-01, AUDIT line 906); 153 (LIVE-E75-05, line 1006) names Foundry 14.369 with Daggerheart 2.10.11 and LIVE-E76-01 (number 475, line 1442) names Daggerheart 2.12.8, while every run here is 14.370 with 2.12.9 (LOCAL-REPORT.md:602) - an absence read off the paper, not its sentence.",
+    "The local gate itself: only its dry run is recorded - all eight parts `not-run`, reason `dry-run`, no drill listed, verdict incomplete and unsigned (DRPG_GATE_KEY not set), nothing written (line 573).",
+    "Step 3: LIVE-E30-06 and -07 not checkable at that step (06 was read later as item 31, 07 needs fixtures; line 509); the shim proposals D3-D10 none built (lines 303-305); the other ci scenarios not run locally (line 566); why the collections change moved scenario 83's timing not explained (line 550).",
+    "Step 1: no harness test drives the runner's `login` - it needs a real server (line 605)."
+  ]
+}
