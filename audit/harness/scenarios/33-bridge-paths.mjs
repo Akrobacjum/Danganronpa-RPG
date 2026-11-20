@@ -1789,10 +1789,11 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     /* E93-A. A ROOM ACTION OF THE FACILITIES TILE, FROM p1'S OWN PAGE (E93 C3, 12.11.2026; the owner's audit entry E93 (2)-(5)).
        The legal control of `facility.use`: in Aiko's room (Dorm A) the GM sets one action of its own (Eye, beat 10, one
        Sanity) and a completed project's (one Hope, an action, one time of day), and p1 uses each as its window would
-       (action-facilities.mjs `useFacility`): the GM's paid on p1's browser and rolled, drawn by the GM on Aiko's Eye; the
-       project's paid by the GM. Read: the rows p1's window offers, each answer, Aiko's actions, Sanity and Hope after each,
-       whether p2's browser holds the GM's action closed, the project's second use (refused, alreadyDone) and the GM's log
-       of refusals. Put back: the room's actions, the project, Aiko's numbers, the closed list, the uses and the trace. */
+       (action-facilities.mjs `useFacility`): the GM's paid on p1's browser and rolled, drawn by the GM on Aiko's Eye;
+       the project's paid by the GM. Read: the rows p1's window offers and what each says it gives (A2, 1.2.119), each
+       answer, Aiko's actions, Sanity and Hope after each, whether p2's browser holds the GM's action closed, the
+       project's second use (refused, alreadyDone) and the GM's log of refusals. Put back: the room's actions, the
+       project, Aiko's numbers, the closed list, the uses and the trace. */
     phase("a room action of the Facilities tile", { flow: "facility" });
     const e93a = { setup: await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const P = ${projects};
         const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
@@ -1813,6 +1814,11 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const aiko = game.actors.get("${IDS.aiko}");
         const now = () => { const r = aiko.system.resources; return [r.actions.value, r.stress.value, r.hope.value]; };
         const rows = (await A.facilityRows(aiko)).map(r => [r.value, Boolean(r.disabled)]);
+        // What each row says it gives (1.2.119, the owner's 20.11.2026), in p1's own words: its hint ends on the effects.
+        const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        const gives = { tea: plural("DRPG.Facility.gives.sanity", { n: 1 }), soup: plural("DRPG.Facility.gives.hope", { n: 1 }) };
+        const hints = (await A.facilityRows(aiko)).map(r => [r.value, String(r.hint ?? "")]);
+        const said = { tea: hints.find(([v]) => v === "gm:A19tea")?.[1] ?? "", soup: hints.find(([v]) => v.startsWith("project:"))?.[1] ?? "", gives };
         globalThis.__forceRoll = { hope: 9, fear: 3 };
         let tea = null;
         try { tea = await A.useFacility(aiko, "gm:A19tea"); } finally { delete globalThis.__forceRoll; }
@@ -1823,7 +1829,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const afterSoup = now();
         const again = await A.useFacility(aiko, "project:${e93a.setup?.soup ?? ""}");
         await new Promise(r => setTimeout(r, 400));
-        return { rows, tea: tea?.success ?? null, afterTea, soup: soup?.success ?? null, afterSoup, again: again?.success ?? null, last: now() };`,
+        return { rows, said, tea: tea?.success ?? null, afterTea, soup: soup?.success ?? null, afterSoup, again: again?.success ?? null, last: now() };`,
         { timeout: 60000 });
     await settle(600);
     e93a.p2 = await p2.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); return F.closedNow().has(F.gmActionKey("${IDS.scene}", "Dorm A", "A19tea"));`);
@@ -1853,6 +1859,13 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             // Two traces: the GM's action's and, since the owner's answer to Q-E93-6 (12.11.2026), the project's action's.
             && e93a.back?.rows === 2 && e93a.back?.placed === 2,
         JSON.stringify(e93a), { flow: "facility" });
+    // 1.2.119 (the owner's report of 20.11.2026, R7843): each row says what its action gives. Red at b5a29e73: the GM's
+    // row ended "{trait}, beat {dc}" and the project's "From the project ... · {life}", neither naming an effect.
+    const said = e93a.p1?.said ?? {};
+    check("E93-A2: on p1's Facilities window the GM's action's row ends on what it gives (+1 Sanity) and the completed project's on its own (+1 Hope)",
+        typeof said.tea === "string" && Boolean(said.gives?.tea) && said.tea.endsWith(said.gives.tea)
+            && typeof said.soup === "string" && Boolean(said.gives?.soup) && said.soup.endsWith(said.gives.soup),
+        JSON.stringify(said), { flow: "facility" });
 
     /* E93-B. A SECRET PROJECT'S ROOM ACTION, TO ITS INSIDERS ALONE (the owner's DRPG-D1 answer, 12.11.2026: "Dostaja").
        A secret project in Aiko's room (Dorm A), p1 let in on it and p2 not, given an action and completed by the GM. p1's

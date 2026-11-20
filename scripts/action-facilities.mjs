@@ -23,7 +23,7 @@
  * the Overflow's word through overflow.mjs's own static readers. The sheet imports this file statically since.
  */
 
-import { TRAITS } from "./config.mjs";
+import { TRAITS, FACILITIES } from "./config.mjs";
 import { plural } from "./utils.mjs";
 import { actionsLeft, canPayFor, spendAction, refundAction } from "./actions.mjs";
 import { locateActor } from "./movement.mjs";
@@ -34,6 +34,7 @@ import { useRowOf } from "./facility-uses.mjs";
 import { allProjects, standsAtProject, canSee } from "./projects.mjs";
 import { overflowFacilityStates, overflowFacilityToll } from "./overflow.mjs";
 import { restVariants } from "./rest.mjs";
+import { timedWhat } from "./timed-effects.mjs";
 
 /** The refusals after which nothing was carried out, so a GM's action's price comes back (`useFacility`). */
 const NOTHING_DONE = new Set(["alreadyDone", "actionBlocked", "notThere"]);
@@ -47,6 +48,38 @@ export function priceLine(cost, left) {
     return cost > 0 ? plural("DRPG.Action.willCost", { n: cost, left }) : game.i18n.localize("DRPG.Action.costsNothing");
 }
 
+/*
+ * WHAT A ROOM ACTION GIVES, IN WORDS (1.2.119; the owner's report of 20.11.2026: "Opisy kafli akcji gma w facilities
+ * dalej nie zawieraja efektu danej akcji wybranej przez gma w zakladce facilities w room setup"). F118 gave the rows
+ * their price; a GM's action still read "{trait}, beat {dc}" and a project's its project and time left, with nothing of
+ * the effects the GM chose. Each effect is said whole, before it is used: its amount, the statistic or name a timed one
+ * carries and what ends it (the timed kinds in timed-effects.mjs `timedWhat`'s words, the sheet's badges', with
+ * DRPG.Facility.until), and who it falls on when that is not the user (DRPG.Facility.scope). Each is a nominative phrase
+ * standing alone, so a list of them needs no case from a host; they are joined by "; " (a timed one holds a comma of its
+ * own) and the first letter raised. The GM's text is said as "a message from the GM": it is whispered at the use
+ * (facilities-gm.mjs `applyEffects`), and the row is read before it. An action with no effect says so. R7843.
+ */
+
+/** One effect of a room action in words (facilities.mjs `cleanEffect`'s shape), or "" for a kind the list does not hold. */
+export function effectWords(effect) {
+    const rule = FACILITIES.effects[effect?.kind];
+    if (!rule) return "";
+    const what = rule.untils
+        ? game.i18n.format("DRPG.Facility.timedBadge", { what: timedWhat(effect), until: game.i18n.localize(`DRPG.Facility.until.${effect.until}`) })
+        // A count before a countable noun is a plural family (R1157), as facilities-gm.mjs `applyEffects` reads its lines.
+        : game.i18n.has(`DRPG.Facility.gives.${effect.kind}.other`) ? plural(`DRPG.Facility.gives.${effect.kind}`, { n: Number(effect.n) || 1 })
+            : game.i18n.format(`DRPG.Facility.gives.${effect.kind}`, { n: Number(effect.n) || 1 });
+    if (rule.once || !effect.scope || effect.scope === "self") return what;
+    return game.i18n.format("DRPG.Facility.givesScoped", { what, who: game.i18n.localize(`DRPG.Facility.scope.${effect.scope}`) });
+}
+
+/** A room action's effects in words, joined, its first letter raised; "No effect" for none. */
+export function effectsWords(effects) {
+    const said = (Array.isArray(effects) ? effects : []).map(effectWords).filter(Boolean).join("; ")
+        || game.i18n.localize("DRPG.Facility.givesNothing");
+    return said.charAt(0).toLocaleUpperCase(game.i18n.lang) + said.slice(1);
+}
+
 /** The Overflow's word on room actions, read where it lives. */
 function overflowNow() {
     return { states: overflowFacilityStates(), toll: overflowFacilityToll() };
@@ -54,10 +87,10 @@ function overflowNow() {
 
 /**
  * The room's actions as rows of the Facilities window (action-menus.mjs `chooseVariant`): the GM's first, then the
- * completed projects', each with its price, its source and, for a project's, its time left; greyed with the reason
- * where the Overflow shuts it, a GM's action is closed this time of day, or the actions do not cover the price. A
- * project's own per-person limit is the GM's to say: this browser does not hold who used what. Synchronous since fix
- * line 113f (the file's header): the sheet's tile reads these rows as it draws.
+ * completed projects', each with its price, its source, for a project's its time left, and what it gives (`effectsWords`,
+ * 1.2.119); greyed with the reason where the Overflow shuts it, a GM's action is closed this time of day, or the actions
+ * do not cover the price. A project's own per-person limit is the GM's to say: this browser does not hold who used what.
+ * Synchronous since fix line 113f (the file's header): the sheet's tile reads these rows as it draws.
  */
 export function facilityRows(actor) {
     const place = locateActor(actor);
@@ -66,7 +99,8 @@ export function facilityRows(actor) {
     const closed = closedNow();
     const left = actionsLeft(actor);
     const rows = [];
-    const priced = (cost, hint) => `${priceLine(cost, left)} · ${hint}`;
+    // The price, the source and what the action gives (1.2.119, `effectsWords`).
+    const priced = (cost, hint, gives) => `${priceLine(cost, left)} · ${hint} · ${gives}`;
     for (const action of roomActions(place.scene, place.room)) {
         const cost = facilityCost("gm", null, toll);
         const shut = facilityShut("gm", states);
@@ -76,7 +110,7 @@ export function facilityRows(actor) {
         rows.push({
             value: `gm:${action.id}`, icon: "fa-door-open", label: action.label,
             hint: priced(cost, game.i18n.format("DRPG.Facility.gmHint", {
-                trait: TRAITS[action.trait]?.label ?? action.trait, dc: action.dc })),
+                trait: TRAITS[action.trait]?.label ?? action.trait, dc: action.dc }), effectsWords(action.effects)),
             disabled: Boolean(why), why: why ?? ""
         });
     }
@@ -92,7 +126,7 @@ export function facilityRows(actor) {
             : plural("DRPG.Facility.timesLeft", { n: timesLeft });
         rows.push({
             value: `${PROJECT_PREFIX}${project.id}`, icon: "fa-screwdriver-wrench", label: facility.label,
-            hint: priced(cost, game.i18n.format("DRPG.Facility.projectHint", { project: project.name, life })),
+            hint: priced(cost, game.i18n.format("DRPG.Facility.projectHint", { project: project.name, life }), effectsWords(facility.effects)),
             disabled: Boolean(why), why: why ?? ""
         });
     }

@@ -3955,6 +3955,34 @@
       },
       "gmHint": "{trait}, beat {dc}",
       "projectHint": "From the project {project} · {life}",
+      "gives": {
+        "health": {
+          "one": "+{n} Health",
+          "other": "+{n} Health"
+        },
+        "sanity": {
+          "one": "+{n} Sanity",
+          "other": "+{n} Sanity"
+        },
+        "hope": {
+          "one": "+{n} Hope",
+          "other": "+{n} Hope"
+        },
+        "freeMove": "+{n} Free Move",
+        "searchToken": "the room's Search Tokens +{n}",
+        "overflowDown": "Despair in the Overflow -{n}",
+        "text": "a message from the GM",
+        "advantage": "advantage on the next roll",
+        "durability": "+{n} durability on the most worn thing",
+        "endWounded": "an end to Wounded",
+        "endBreakdown": "an end to Breakdown",
+        "projectProgress": {
+          "one": "+{n} progress to the room's oldest unfinished project",
+          "other": "+{n} progress to the room's oldest unfinished project"
+        }
+      },
+      "givesScoped": "{what} ({who})",
+      "givesNothing": "no effect",
       "forGood": "for good",
       "projectLine": "{action} in Facilities, {life}",
       "notLive": {

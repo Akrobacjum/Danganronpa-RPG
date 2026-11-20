@@ -21006,6 +21006,56 @@ const INVARIANTS = [
             "the room actions' rows build their own price line instead of asking `priceLine`");
     }],
 
+    ["R7843 - a Facilities row says what its action gives (the owner, 1.2.119: \"Opisy kafli akcji gma w facilities dalej nie zawieraja efektu danej akcji wybranej przez gma w zakladce facilities w room setup\"): action-facilities.mjs `effectsWords` words an action's effects - each whole, its amount, its statistic or name, how long it lasts and who it falls on, several joined, none said as \"No effect\", the GM's own text never shown before its use - and `facilityRows` ends both kinds of row, a GM's action's and a completed project's, on it; every kind of config.mjs FACILITIES.effects has its words in English and Polish", async () => {
+        /*
+         * 1.2.119, the owner's report of 20.11.2026: F118 (1.2.118) gave the window its price line, and the GM's action's row
+         * still read "Costs 1 action. You have 3. · Agility, beat 12" with nothing of what the GM had chosen for it in Room
+         * Setup's Facilities tab; a project's row read its project and its time left alone. Read here: a GM's action with two
+         * effects (a timed statistic for the user, Sanity for everyone present), a project's with one (an Experience until
+         * the day ends), no effects, the GM's text; the words of every kind in both files; and the rows' source. The rows
+         * themselves, on a player's browser, are scenario 33's (its room action part). Red at b5a29e73: no `effectsWords`.
+         */
+        const A = await import("./action-facilities.mjs");
+        ok(typeof A.effectsWords === "function", "action-facilities.mjs has no `effectsWords`: a Facilities row cannot say what its action gives");
+        if (typeof A.effectsWords !== "function") return;
+        const { FACILITIES, TRAITS } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const trait = Object.keys(TRAITS)[0];
+        const L = key => game.i18n.localize(key), Fm = (key, data) => game.i18n.format(key, data);
+        const cap = text => text.charAt(0).toLocaleUpperCase(game.i18n.lang) + text.slice(1);
+        const two = A.effectsWords([{ kind: "traitBonus", n: 1, trait, until: "timeOfDay", scope: "self" }, { kind: "sanity", n: 2, scope: "present" }]);
+        const one = A.effectsWords([{ kind: "experience", n: 2, label: "R7843 Cooking", until: "day", scope: "self" }]);
+        const parts = {
+            trait: Fm("DRPG.Facility.timed.traitBonus", { n: 1, trait: TRAITS[trait].label }), timeOfDay: L("DRPG.Facility.until.timeOfDay"),
+            sanity: plural("DRPG.Facility.gives.sanity", { n: 2 }), present: L("DRPG.Facility.scope.present"),
+            experience: Fm("DRPG.Facility.timed.experience", { n: 2, label: "R7843 Cooking" }), day: L("DRPG.Facility.until.day")
+        };
+        const has = (text, keys) => keys.filter(k => !text.toLowerCase().includes(String(parts[k]).toLowerCase()));
+        // One sample of every kind, cleaned as the store keeps it (facilities.mjs `cleanEffect`).
+        const { cleanEffect } = await import("./facilities.mjs");
+        const samples = Object.keys(FACILITIES.effects).map(kind => cleanEffect({ kind, n: 2, text: "R7843 whispered words", label: "R7843 name", trait, scope: "present" }));
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = (code, key) => key.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), lang[code]);
+        const unworded = [];
+        for (const kind of Object.keys(FACILITIES.effects)) {
+            const key = FACILITIES.effects[kind].untils ? `DRPG.Facility.timed.${kind}` : `DRPG.Facility.gives.${kind}`;
+            // A string, or a plural family (R1157) with its `other`.
+            for (const code of ["en", "pl"]) if (typeof words(code, key) !== "string" && typeof words(code, `${key}.other`) !== "string") unworded.push(`${code} ${key}`);
+        }
+        const each = samples.map(effect => [effect?.kind ?? null, A.effectsWords([effect])]);
+        const rows = fnSource(stripComments(new Map(await otherSources()).get("action-facilities.mjs") ?? ""), "facilityRows");
+        equal(stableJson({
+            two: has(two, ["trait", "timeOfDay", "sanity", "present"]), twoJoined: two.split("; ").length,
+            one: has(one, ["experience", "day"]), none: [A.effectsWords([]), A.effectsWords(undefined)],
+            blank: each.filter(([, w]) => !w || /DRPG\./.test(w)).map(([k]) => k), secret: each.filter(([, w]) => w.includes("R7843 whispered")).map(([k]) => k),
+            unworded, rows: [/effectsWords\(action\.effects\)/.test(rows), /effectsWords\(facility\.effects\)/.test(rows)]
+        }), stableJson({
+            two: [], twoJoined: 2, one: [], none: [cap(L("DRPG.Facility.givesNothing")), cap(L("DRPG.Facility.givesNothing"))],
+            blank: [], secret: [], unworded: [], rows: [true, true]
+        }), "{two: the parts a GM's action of two effects does not name; twoJoined: its effects; one: the parts a project's of one does not name; none: no effects; blank: kinds worded empty or as a key; secret: kinds whose words show the GM's text; unworded: keys missing in a file; rows: [the GM's row, the project's row] end on effectsWords}");
+    }],
+
     ["R3981 - game.drpg.a11y() lists a nameless control while it is on the page and not after its window is gone (gaps, 12.11.2026; the E99 line's full tier-2 run): a11y.mjs `a11yReport` names a nameless control of a module window standing in the page, and once that window is removed counts its kind on the line of kinds met only in windows since closed, and no longer as a control that carries no name", async () => {
         /*
          * Gaps, 12.11.2026 (the coordinator: tier 2's "every control in the module's own chrome has a name" failed after
