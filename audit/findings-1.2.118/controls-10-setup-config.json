@@ -132,7 +132,7 @@
           "key": "DRPG.Clock.* (gm-campaign.mjs campaignRows:136-193)",
           "kind": "fields",
           "selector": "fieldset.drpg-setup-campaign [name=campaignName|chapter|phase|day|session|timeOfDay]",
-          "handler": "read on Save by readSeasonForm:973 -> gm-campaign.mjs readClockForm (:80-95)",
+          "handler": "read on Save by readSeasonForm:973 -> gm-campaign.mjs readClockForm (:82-97)",
           "effect": "handed to applyCampaignForm (gm-campaign.mjs:256), which writes all six through setClock (:347-361)",
           "gate": "any GM",
           "how_read": "code; tier 2 'E49-A1e - Season setup's Save writes what Edit campaign's Apply writes' (tests-tier2.mjs:69266) writes them from one fresh clock, result not read in this pass",
@@ -142,11 +142,11 @@
         },
         {
           "label": "Also refill actions and search tokens (box)",
-          "key": "DRPG.Clock.reset",
+          "key": "DRPG.Panel.alsoReset",
           "kind": "checkbox",
           "selector": "fieldset.drpg-setup-campaign input[name=reset]",
           "handler": "readClockForm",
-          "effect": "only when ticked: resetAllActions and SearchTokens.reset (gm-campaign.mjs:370-376)",
+          "effect": "only when ticked: resetAllActions and SearchTokens.reset (gm-campaign.mjs:379-384)",
           "gate": "any GM",
           "how_read": "code",
           "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
@@ -158,7 +158,7 @@
           "key": "DRPG.Clock.morningLine",
           "kind": "textarea",
           "selector": "textarea[name=morningLine]",
-          "handler": "readSeasonForm:984",
+          "handler": "readSeasonForm:982",
           "effect": "kept on this browser in morningLineDraft (client setting) before the clock is written (:1247-1249)",
           "gate": "any GM",
           "how_read": "code",
@@ -171,7 +171,7 @@
           "key": "DRPG.Season.safeword",
           "kind": "text field",
           "selector": "input[name=safeword]",
-          "handler": "readSeasonForm:982",
+          "handler": "readSeasonForm:980",
           "effect": "written only when it differs from the setting as it stands (:1255-1258)",
           "gate": "any GM",
           "how_read": "code; R1125 reads the form",
@@ -317,7 +317,7 @@
           "selector": "li.drpg-check-row > button[data-drpg-action=do]",
           "handler": "wireSetupSteps:1047, one listener per list -> step.open(step.missing()) (steps():268-689)",
           "effect": "the step's window, awaited; then the checklist closes and comes back built from the world with the draft and the scroll (handOff), and what opened is raised (raiseOpened:794)",
-          "gate": "any GM; a row with nothing to open draws no button (setupRows:114-118)",
+          "gate": "any GM; a row with nothing to open draws no button (setupRows:937-961, the action at :953-957)",
           "how_read": "code; each opener named exists (gm-students.mjs openWhoIsAliveDialog via gm-panel.mjs:35, gm-items.mjs:331, gm-team-dialog.mjs:240, room-setup.mjs:1200 with tab 'bedrooms' at :385, enforced.mjs:944); R1514 for the raise",
           "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
           "verdict": "ok",
@@ -377,9 +377,9 @@
         },
         {
           "label": "Show on map (a finding's row)",
-          "key": "DRPG.Fog.showOnMap",
+          "key": "DRPG.Fog.check.showOnMap",
           "kind": "button",
-          "selector": "[data-drpg-check-out] button",
+          "selector": "[data-drpg-check-out] button[data-drpg-show-at]",
           "handler": "fog-diagnostics.mjs wireShowOnMap (wired at :1036-1037)",
           "effect": "pans to the finding",
           "gate": "any GM",
@@ -390,9 +390,9 @@
         },
         {
           "label": "Set them to Observer (the anonymity line of the further checks)",
-          "key": "DRPG.Anon.fix",
+          "key": "DRPG.Anonymity.audit.fix",
           "kind": "button",
-          "selector": "[data-drpg-season-more] [data-drpg-anon]",
+          "selector": "[data-drpg-season-more] [data-drpg-anon-fix]",
           "handler": "anonymity.mjs wireAnonymityFix (fillMoreChecks:1373-1386)",
           "effect": "the anonymity audit's own fix, drawn again in place",
           "gate": "any GM",
@@ -538,14 +538,14 @@
       "surface": "Reset the season (title \"Reset the season\")",
       "file": "scripts/season-wipe.mjs",
       "opener": "resetSeason:206 - its one door was Season setup's Reset the season, which does not reach it (finding 1); no game.drpg entry (api.mjs: no hit)",
-      "audience": "gm, the primary GM alone (:220-224, again after the window :352-356)",
+      "audience": "gm, the primary GM alone (:223-227, again after the window :350-354)",
       "controls": [
         {
           "label": "A group's tick (one per RESET_GROUPS entry, by section)",
-          "key": "DRPG.Season.reset* group labels",
+          "key": "the group labels (season-wipe.mjs groupLabel)",
           "kind": "checkbox",
           "selector": "[name=wipe.<group>]",
-          "handler": "render listener :331-336 on .drpg-reset-groups change",
+          "handler": "render listener :313-320 on .drpg-reset-groups change",
           "effect": "strikes the group's row out of 'This goes' in place (resetGoesHtml); read at Reset by tickedIn",
           "gate": "primary GM",
           "how_read": "code; R353, R1255 read resetGoesHtml",
@@ -558,7 +558,7 @@
           "key": "DRPG.Season.resetCastStay, .resetCastBedroom, .resetCastPoint",
           "kind": "radio",
           "selector": "[name=castTo]",
-          "handler": "castChoiceIn:170 at Reset",
+          "handler": "castChoiceIn:172 at Reset",
           "effect": "the plan's cast (placeCast step)",
           "gate": "primary GM; One room disabled with no room on any map",
           "how_read": "code",
@@ -585,7 +585,7 @@
           "kind": "text field",
           "selector": "[name=confirm]",
           "handler": "the Reset callback",
-          "effect": "compared exactly with the word (:345-351)",
+          "effect": "compared exactly with the word (:339-343)",
           "gate": "primary GM",
           "how_read": "code",
           "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
@@ -597,10 +597,10 @@
           "key": "DRPG.Season.resetButton",
           "kind": "button (destructive)",
           "selector": "footer button[data-action=reset]",
-          "handler": "callback :339-343, then :345-380 wipeSeason(plan)",
+          "handler": "callback :323-327, then :339-372 wipeSeason(plan)",
           "effect": "the wipe, in RESET_STEPS order",
           "gate": "primary GM; refused when another browser became primary meanwhile, told",
-          "how_read": "code; scenario 65 U1 named at :350",
+          "how_read": "code; scenario 65 U1 named at :344-349",
           "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
           "verdict": "ok",
           "detail": ""
@@ -623,15 +623,15 @@
         "reads": [
           "resetTallies() at :233 (counts of every group)",
           "rememberedExceptions, unfinishedGroups (the reset's record)",
-          "the GMs online (:262)",
-          "every scene's rooms for One room (castPoints:154)"
+          "the GMs online (:267)",
+          "every scene's rooms for One room (castPoints:159)"
         ],
         "listens": [
-          "none: the ticks redraw the list from the tallies taken at open (:331-336)"
+          "none: the ticks redraw the list from the tallies taken at open (:313-320)"
         ],
         "verdict": "stale",
         "gaps": [
-          "the tallies and the offline GMs' line are taken once (:233, :262): a Remnant placed or a GM connecting while the window stands is not shown (the primary check is asked again at :352, so the write is guarded; only the counts are stale)"
+          "the tallies and the offline GMs' line are taken once (:233, :267): a Remnant placed or a GM connecting while the window stands is not shown (the primary check is asked again at :350, so the write is guarded; only the counts are stale)"
         ],
         "focus_rule": "nothing redraws but the list beside the ticks"
       }
@@ -660,9 +660,9 @@
           "key": "DRPG.Diagnose.showAgain",
           "kind": "button (secondary)",
           "selector": "footer button[data-action=again:<id>]",
-          "handler": "openReport :2337-2344 -> requirements.mjs showSystemWarningAgain:327",
+          "handler": "openReport :2336-2343 -> requirements.mjs showSystemWarningAgain:327",
           "effect": "the silence emptied and the newer-Daggerheart window asked again; the report comes back without that silence's line",
-          "gate": "a GM in practice (only a GM sets the silence: requirements.mjs:351)",
+          "gate": "a GM in practice (only a GM is shown the window that sets the silence: requirements.mjs:371)",
           "how_read": "code; R1552",
           "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
           "verdict": "ok",
@@ -707,7 +707,7 @@
           "key": "-",
           "kind": "panel opener",
           "selector": "#drpg-hud",
-          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:454)",
           "effect": "opens this explainer, one at a time",
           "gate": "any user",
           "how_read": "code; R3463",
@@ -754,7 +754,7 @@
           "key": "-",
           "kind": "panel opener",
           "selector": "#drpg-despair",
-          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:454)",
           "effect": "opens this explainer, one at a time",
           "gate": "any user",
           "how_read": "code; R3463",
@@ -801,7 +801,7 @@
           "key": "-",
           "kind": "panel opener",
           "selector": "#drpg-player-status",
-          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:454)",
           "effect": "opens this explainer, one at a time",
           "gate": "any user",
           "how_read": "code; R3463",
@@ -848,7 +848,7 @@
           "key": "-",
           "kind": "panel opener",
           "selector": "#countdowns",
-          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:452)",
+          "handler": "registerExplainers:485-511; a control inside the panel is left to itself (INTERACTIVE:454)",
           "effect": "opens this explainer, one at a time",
           "gate": "any user",
           "how_read": "code; R3463",
@@ -967,7 +967,7 @@
           "key": "DRPG.SettingsWindow.sections.*",
           "kind": "button",
           "selector": "[data-drpg-section]",
-          "handler": "wireSections:315-325 -> showSection",
+          "handler": "wireSections:334-344 -> showSection",
           "effect": "shows that pane, the others hidden; the window keeps one size (holdSectionHeight)",
           "gate": "any user",
           "how_read": "code; R3420, R4059",
@@ -980,9 +980,9 @@
           "key": "DRPG.Settings.<key>.name",
           "kind": "toggle / select / stepper",
           "selector": "[data-drpg-setting] [name]",
-          "handler": "settingRowHtml:186-209; read at Save",
+          "handler": "settingRowHtml:188-209; read at Save",
           "effect": "written at Save only when it differs from the setting as it stands (saveSettings:408-437)",
-          "gate": "any user; a row of the other theme's is disabled with its reason as the row's title, following the Theme select before Save (syncTheme:369-378)",
+          "gate": "any user; a row of the other theme's is disabled with its reason as the row's title, following the Theme select before Save (syncTheme:368-377)",
           "how_read": "code; R3530, R4102",
           "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
           "verdict": "ok",
@@ -993,7 +993,7 @@
           "key": "DRPG.SettingsWindow.scaleNow",
           "kind": "read-out",
           "selector": "[data-drpg-scale-note]",
-          "handler": "render :467-471",
+          "handler": "render :469-474",
           "effect": "follows the field before Save",
           "gate": "any user",
           "how_read": "code",
@@ -1053,7 +1053,7 @@
         "verdict": "stale",
         "gaps": [
           "messengerSound is also written at once by the Sound window's box (sfx.mjs:727-731); with both windows open the gear's row keeps the old value and its Save writes it back (finding 4)",
-          "the volume sliders are also the Sound window's (sfx.mjs:723): the other window's slider does not follow"
+          "the volume sliders are also the Sound window's (sfx.mjs:722): the other window's slider does not follow"
         ],
         "focus_rule": "nothing redraws"
       }
@@ -1095,7 +1095,7 @@
           "key": "DRPG.GiveBack.menuLabel",
           "kind": "button",
           "selector": "[data-drpg-give-back]",
-          "handler": "wireSections:319-324 -> enforced.mjs openGiveBackFoundry:944",
+          "handler": "wireSections:338-343 -> enforced.mjs openGiveBackFoundry:944",
           "effect": "opens Give back's own window with its gates",
           "gate": "SETTINGS_MODIFY, then enforced.mjs's own",
           "how_read": "code",
@@ -1179,7 +1179,7 @@
     {
       "surface": "Daggerheart's character settings, dressed (the wrench in a sheet's header)",
       "file": "scripts/dh-settings.mjs",
-      "opener": "Daggerheart's own (openSettings in the sheet header); dressed on renderApplicationV2 (registerDhSettings:211-222)",
+      "opener": "Daggerheart's own (openSettings in the sheet header); dressed on renderApplicationV2 (registerDhSettings:213-222)",
       "audience": "the character's owners and the GMs (Daggerheart's)",
       "controls": [],
       "refresh": {
@@ -1187,7 +1187,7 @@
           "the actor (Daggerheart's ActorSheetV2)"
         ],
         "listens": [
-          "Foundry's document sheet re-render on the actor's update; the dressing is idempotent and runs on every render (dressCharacterSettings:113-135)"
+          "Foundry's document sheet re-render on the actor's update; the dressing is idempotent and runs on every render (dressCharacterSettings:111-135)"
         ],
         "verdict": "live",
         "gaps": [],
@@ -1205,7 +1205,7 @@
           "key": "DRPG.Tables.tabTierPools, .tabRoomPools, .tabNewItem",
           "kind": "tab",
           "selector": "nav.drpg-tabs",
-          "handler": "wireKitTabs with buttons per tab (:1724-1737)",
+          "handler": "wireKitTabs with buttons per tab (:1724-1738)",
           "effect": "shows the pane and its footer buttons (Install on Tier pools, Create table on Room pools, Add an item on Add an item; Close always)",
           "gate": "any GM",
           "how_read": "code",
@@ -1218,7 +1218,7 @@
           "key": "-",
           "kind": "button",
           "selector": "[data-drpg-pool-pane] .drpg-tables-list [data-drpg-table]",
-          "handler": "wirePoolPane:1514-1522 -> show",
+          "handler": "wirePoolPane:1516-1523 -> show",
           "effect": "writes the fields changed on screen (flush), then draws that table's entries",
           "gate": "any GM",
           "how_read": "code",
@@ -1293,7 +1293,7 @@
         },
         {
           "label": "Place (which pools hold it)",
-          "key": "DRPG.Tables.place",
+          "key": "DRPG.Tables.placeTooltip (title)",
           "kind": "button",
           "selector": "[data-drpg-place]",
           "handler": "wirePaneRows :1316-1330 -> placeResultDialog:583",
@@ -1306,7 +1306,7 @@
         },
         {
           "label": "Remove (x)",
-          "key": "DRPG.Tables.drop",
+          "key": "DRPG.Tables.removeItem (title)",
           "kind": "button",
           "selector": "[data-drpg-drop]",
           "handler": "wirePaneRows :1334-1338 -> dropResult:543",
@@ -1348,7 +1348,7 @@
           "key": "DRPG.Tables.addItem",
           "kind": "button (primary)",
           "selector": "footer button[data-action=add]",
-          "handler": "callback readNewItemForm:1081 -> :1771-1785 addItemFrom",
+          "handler": "callback readNewItemForm:1081 -> :1770-1784 addItemFrom",
           "effect": "the item made in the pools picked, the window drawn again",
           "gate": "any GM; shown on Add an item's tab",
           "how_read": "code",
@@ -1374,7 +1374,7 @@
           "key": "DRPG.Tables.installAction",
           "kind": "button (destructive)",
           "selector": "footer button[data-action=install]",
-          "handler": "action 'install' :1759-1762 -> installTables:80",
+          "handler": "action 'install' :1749-1752 -> installTables:80",
           "effect": "installs the missing pools, or asks Keep mine / Delete and rebuild when all are present; the window comes back",
           "gate": "any GM",
           "how_read": "code",
@@ -1409,7 +1409,7 @@
           "a table or an entry changed in Foundry's own RollTable sheet (Install ends on the sidebar's tables tab: openTablesTab:1788), by another GM's Item tables window, or a table created or deleted in the sidebar - the lists, counts and rows stay as drawn (finding 8)",
           "the count beside a table after its own Remove (tables-editor.mjs:1337)"
         ],
-        "focus_rule": "no redraw from outside; the window's own redraws (a table picked) write the fields changed first (flush:1477-1495)"
+        "focus_rule": "no redraw from outside; the window's own redraws (a table picked) write the fields changed first (flush:1486-1500)"
       }
     },
     {
@@ -1621,7 +1621,7 @@
     {
       "surface": "The safeword's confirmation (title \"Safeword\")",
       "file": "scripts/safeword.mjs",
-      "opener": "safewordDialog:387 (the sheet's Stop, the keybinding registerSafeword:430-436, game.drpg.safeword)",
+      "opener": "safewordDialog:387 (the sheet's Stop, the keybinding registerSafeword:427-439, game.drpg.safeword)",
       "audience": "any user",
       "controls": [
         {
@@ -1629,7 +1629,7 @@
           "key": "DRPG.Safeword.stopIt",
           "kind": "button (GM's road)",
           "selector": "footer [data-action=yes]",
-          "handler": "answer true -> callSafeword (:409-419)",
+          "handler": "answer true -> callSafeword (:398-418)",
           "effect": "the GMs told who and where; the card posted (by the primary GM, or by the caller with no GM); the game paused by the primary GM",
           "gate": "any user",
           "how_read": "code; R297, R1369",
@@ -1674,7 +1674,7 @@
           "key": "DRPG.Monocub.inviteAccept",
           "kind": "button (primary)",
           "selector": "footer [data-action=accept]",
-          "handler": "requestCubAnswer -> answerMonocubOffer:458 on the primary GM",
+          "handler": "requestCubAnswer -> answerMonocubOffer:459 on the primary GM",
           "effect": "the Rule taken and the student made a Monocub; refused by the bridge when no invitation is open any more",
           "gate": "the owner",
           "how_read": "code",
@@ -1792,7 +1792,7 @@
     {
       "surface": "A newer Daggerheart",
       "file": "scripts/requirements.mjs",
-      "opener": "announceNewerSystem:372 (at ready; again from Diagnostics' Show again)",
+      "opener": "announceNewerSystem:370 (at ready; again from Diagnostics' Show again)",
       "audience": "gm",
       "controls": [
         {
@@ -1800,8 +1800,8 @@
           "key": "DRPG.Requirements.newerSystemSilence",
           "kind": "checkbox",
           "selector": "[name=silence]",
-          "handler": "callback :404-406",
-          "effect": "the silence written for this version on this browser (:410)",
+          "handler": "callback :406-408",
+          "effect": "the silence written for this version on this browser (:413)",
           "gate": "GM",
           "how_read": "code",
           "themes": "no hiding rule found (scan of styles/*.css: 396 rules whose selector names drpg-window-season*, drpg-setup, drpg-season, drpg-reset, drpg-check*, drpg-diagnose, drpg-explain*, drpg-handbook, drpg-book-launcher, drpg-settings*, drpg-window-tables, drpg-table*, drpg-place, drpg-safeword, drpg-cub-invite, drpg-cub-bribe, drpg-requirements, drpg-window-newer-system, drpg-dh-*, drpg-window-foundry-report, drpg-window-start-here, drpg-window-install-tables, drpg-window-delete-table, drpg-room-filter, drpg-day-summary, drpg-gmp-button, drpg-season-tiles; 9 hide something, none under a theme class or narrow.css; listed where they touch a control)",
@@ -1877,7 +1877,7 @@
       "failure_scenario": "A GM opens Season setup in the Morning to set the safeword, leaves it open, steps the clock to Afternoon on the HUD, then presses Save: the clock goes back to Morning with no question and the table's Afternoon is undone.",
       "expected": "the window redraws its fields from the clock and the safeword when they change (the owner's rule of 20.11.2026), or Save writes only the fields the GM changed",
       "confidence": "read",
-      "refutation_tried": "Looked for a guard against a stale form: readClockForm reads every select (gm-campaign.mjs:80-95); the patch takes them all; setClock compares nothing to the form's origin. The only questions are the chapter's (:308-312) and the trial's entry (:321-334); a phase moving out of the trial and a time of day moving back ask nothing. Looked for a live region: openSeasonSetup (season-setup.mjs:1121-1262) calls no keepLive, keepFresh or Hooks.on; Edit campaign's own window (gm-campaign.mjs openClockDialog:204) has none either (git grep keepLive in gm-campaign.mjs: 0). Season setup is not modal (drpgWindow modal defaults to false, ui-kit.mjs:1301), so the HUD and the console stay usable under it. The tier 2 test E49-A1e (tests-tier2.mjs:69266) writes from one fresh clock and does not move the clock under an open window. base-run.json is not present.",
+      "refutation_tried": "Looked for a guard against a stale form: readClockForm reads every select (gm-campaign.mjs:82-97); the patch takes them all; setClock compares nothing to the form's origin. The only questions are the chapter's (:308-312) and the trial's entry (:321-334); a phase moving out of the trial and a time of day moving back ask nothing. Looked for a live region: openSeasonSetup (season-setup.mjs:1121-1262) calls no keepLive, keepFresh or Hooks.on; Edit campaign's own window (gm-campaign.mjs openClockDialog:204) has none either (git grep keepLive in gm-campaign.mjs: 0). Season setup is not modal (drpgWindow modal defaults to false, ui-kit.mjs:1301), so the HUD and the console stay usable under it. The tier 2 test E49-A1e (tests-tier2.mjs:69266) writes from one fresh clock and does not move the clock under an open window. base-run.json is not present.",
       "probe": "Open Season setup; from the console setClock({ timeOfDay: <the next one> }); press Save; read getClock().timeOfDay (expected the new one; read in source: the one drawn at open)"
     },
     {
@@ -1903,7 +1903,7 @@
       "title": "Both settings windows draw every setting once and their Save writes a stale row back over a change made elsewhere while they stood open",
       "surface": "This browser's settings; The game's settings",
       "control": "Save",
-      "where": "scripts/settings-window.mjs:186-209 (a row's value read at open), 408-437 (saveSettings), 445-523 (no listener)",
+      "where": "scripts/settings-window.mjs:188-209 (a row's value read at open), 408-437 (saveSettings), 445-523 (no listener)",
       "what_happens": "Neither window has a live region or a hook. saveSettings compares each drawn field with the setting as it stands at Save (:426), not with the value drawn, so a field the GM never touched but whose setting changed meanwhile differs and is written: the old value replaces the new one. On a GM's Game settings this is any world setting another GM changed in their own window; on this browser's window it is the messenger sounds, which the Sound window's box writes at once (sfx.mjs:727-731), and its volume sliders, which follow only their own window.",
       "evidence": "const value = fieldValue(field, reg);\nif (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;\nawait game.settings.set(MODULE_ID, key, value);\nwritten.push(key);",
       "failure_scenario": "Two GMs have Game settings open; one turns Force private rolls off and saves, the other changes Room visibility and saves: Force private rolls is on again, and neither window said so.",
@@ -1925,7 +1925,7 @@
       "failure_scenario": "A dead student's player is reading the invitation when the GM withdraws it; the window stays, the player presses Accept the Rule and is told the request was refused.",
       "expected": "the window closes (live.mjs closeOpen) or redraws when the copy no longer carries the invitation or the offer",
       "confidence": "read",
-      "refutation_tried": "Searched for a closer: git grep for drpg-cub-invite and drpg-cub-bribe finds the two drpgWindow calls only; no closeOpen. answerMonocubOffer returns null with no invitation (:458-461), which the bridge turns into a refusal told in the player's language (trust model, E31). Also noticed, not written as its own finding: a window closed with no answer is forgotten (:509, :1596) and opened again at the next copy that reaches this browser, which tellCubOwners sends on every patch of the row (:285-291) - sooner than 'the next load' the comment at :506-508 says; how often a dead student's row is patched before the answer is not read. base-run.json is not present.",
+      "refutation_tried": "Searched for a closer: git grep for drpg-cub-invite and drpg-cub-bribe finds the two drpgWindow calls only; no closeOpen. answerMonocubOffer returns null with no invitation (:459-463), which the bridge turns into a refusal told in the player's language (trust model, E31). Also noticed, not written as its own finding: a window closed with no answer is forgotten (:509, :1596) and opened again at the next copy that reaches this browser, which tellCubOwners sends on every patch of the row (:285-291) - sooner than 'the next load' the comment at :508 says; how often a dead student's row is patched before the answer is not read. base-run.json is not present.",
       "probe": "As the player of a dead student invited by a GM (game.drpg's Monocub offer), keep the invitation open, run cancelMonocubOffer on the GM, then read whether .drpg-cub-invite is still on the player's page"
     },
     {
@@ -1973,7 +1973,7 @@
       "failure_scenario": "A GM removes two entries from 'Kitchen' and reads the list: it still says 14 items where the table holds 12, until the window is opened again.",
       "expected": "Remove updates the count as Place does, and the window listens for its tables' changes",
       "confidence": "read",
-      "refutation_tried": "show(table) redraws bodyEl only (wirePoolPane:1497-1508); the count is the list's [data-drpg-table-count] cell, written by poolListHtml at open and by Place's loop. No keepLive in the file (git grep: 0). base-run.json is not present.",
+      "refutation_tried": "show(table) redraws bodyEl only (wirePoolPane show:1502-1513); the count is the list's [data-drpg-table-count] cell, written by poolListHtml at open and by Place's loop. No keepLive in the file (git grep: 0). base-run.json is not present.",
       "probe": "Open Item tables on a room pool, press a row's [data-drpg-drop], read the list's [data-drpg-table-count] against table.results.size"
     },
     {
@@ -1983,13 +1983,13 @@
       "title": "Add an item refused for a missing name or pool reopens the window empty: the description, picture, tier, roles and ticks typed are gone, unsaid",
       "surface": "Item tables",
       "control": "Add an item",
-      "where": "scripts/tables-editor.mjs:1771-1778",
+      "where": "scripts/tables-editor.mjs:1770-1778",
       "what_happens": "The two refusals warn and reopen through openItemTables({ preset }), which draws the Add an item pane from the preset alone (newItemPaneHtml:892), so the window comes back on the first tab (no preset) with every field of the form empty. The warning names the missing part; it does not say the rest was dropped.",
       "evidence": "if (!action.name) {\n    ui.notifications.warn(game.i18n.localize(\"DRPG.Tables.needsName\"));\n    return reopen(\"drpg-window-tables\", () => openItemTables({ preset }));\n}\nif (!action.tables.length) {\n    ui.notifications.warn(game.i18n.localize(\"DRPG.Tables.needsTable\"));\n    return reopen(\"drpg-window-tables\", () => openItemTables({ preset }));\n}",
       "failure_scenario": "A GM types a description, picks a picture and ticks three room pools, forgets the name and presses Add an item: the window comes back on Tier pools and the form is blank.",
       "expected": "the typed form carried back, as Create table carries its refused name (poolError) and Season setup its draft",
       "confidence": "read",
-      "refutation_tried": "Create table's refusal does carry the name back (createPoolFrom -> poolError, :1739-1756); the Add path has no such carrier. The needsTable case needs a category and tier with no installed pool and no room ticked, so it is rarer than needsName. base-run.json is not present.",
+      "refutation_tried": "Create table's refusal does carry the name back (createPoolFrom -> poolError, :1753-1769); the Add path has no such carrier. The needsTable case needs a category and tier with no installed pool and no room ticked, so it is rarer than needsName. base-run.json is not present.",
       "probe": "Open Item tables on Add an item, fill the description and tick a room pool, leave the name empty, press Add an item, read [name=newText] and the ticks on the window that comes back"
     }
   ],
