@@ -17115,6 +17115,51 @@ const INVARIANTS = [
             + "rows, and every writer refuses D and C | Escape: hidden, prevented, unheard by the window, collapsed, the focus on the speaker | Tab "
             + "wraps forward and back]");
     }],
+    ["R7864 - while the opening's veil hides the killer from this player, the voice tile neither counts, lists nor draws them; the GM's tile does", async () => {
+        /*
+         * 1.2.119 line F; the auditor's finding domain-comm-c-voice 1 (audit/findings-1.2.118/domain-comm-c-voice.json,
+         * kept in verify-domain-comm-c-voice.json on claude/audit-119). While a direct murder's opening waits, the veil
+         * hides the killer's token from the victim (visibility.mjs `tokenShownTo`) and the killer stays in the room's
+         * voice channel, hearing it (E112's design; their microphone is held, voice.mjs `micHold` "veiled"). The tile
+         * counted every remote participant (`channelCount`) and named each in 'Who you hear' (`paintList`), so the
+         * victim's tile showed one more and listed the killer with their portrait. Now the watch asks `veiled(user)` -
+         * visibility.mjs `voiceVeiledHere`, the map's own rule, on the screen's tile - and a participant it answers
+         * true for is nobody here. Two accounts of this world in a stand-in Room (`voiceTileRig`), D the veiled killer:
+         * a player's tile (count, rows, the portrait while D speaks), then the GM's (`gm` true, `veiled` the default,
+         * which answers no on a GM's browser). On b5a29e73 the player's tile read the count 2, both rows, and D drawn.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, both in the channel");
+        const V = await import("./voice-tile.mjs");
+        const VIS = await import("./visibility.mjs");
+        ok(typeof VIS.voiceVeiledHere === "function", "visibility.mjs has no voiceVeiledHere - the tile cannot ask the map's rule about the veil");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const settings = { client: { users: {} }, get: () => undefined, set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+        const read = rig => {
+            V.paintControls(rig.watch);
+            V.openVoiceList(rig.watch);
+            V.paintList(rig.watch);
+            const rows = [...rig.watch.list.querySelectorAll(".drpg-voice-row")].map(row => row.dataset.userId === d.id ? "D" : row.dataset.userId === b.id ? "B" : "?");
+            const count = rig.tile.querySelector(".drpg-voice-count")?.textContent ?? null;
+            return { count, rows: rows.sort() };
+        };
+        const player = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => false, veiled: user => user?.id === d.id });
+        const gmRig = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => true });
+        try {
+            const pRoom = player.makeRoom([b.id, d.id]);
+            V.attachRoom(player.clientOf(pRoom), player.watch);
+            const before = read(player);
+            player.speak(pRoom, [d.id]);
+            player.advance(50);
+            const shownWhileD = player.watch.shown === d.id ? "D" : player.watch.shown;
+            V.attachRoom(gmRig.clientOf(gmRig.makeRoom([b.id, d.id])), gmRig.watch);
+            const onGm = read(gmRig);
+            equal(JSON.stringify([before, shownWhileD, onGm]), JSON.stringify([{ count: "1", rows: ["B"] }, null, { count: "2", rows: ["B", "D"] }]),
+                "[the player's tile with D veiled, who it draws while D speaks, the GM's tile]");
+        } finally {
+            for (const rig of [player, gmRig]) { try { V.closeVoiceList?.(rig.watch); V.detachRoom?.(rig.watch); } catch { /* the rig's own */ } }
+        }
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
