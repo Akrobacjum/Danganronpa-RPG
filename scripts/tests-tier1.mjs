@@ -10081,8 +10081,9 @@ const INVARIANTS = [
             next: ["scrum", "openDebate"]
         }), "{verdicts: 4:2, 2:5, 4:3, 3:3, 0:0; found: [floor, Finding, split, card, sound]; split: [Finding, split, card]; early: the clock not out; seconds; next: after a split, after a Finding}");
     }],
-    ["R3907 - Logic Dive's judgement (E73 C4; TR3 = 2, TR27, TR32 = 2): `diveVerdict` 5:1 right, 4:3 wrong, 3:3 and 0:0 a tie; the machine's vote counted early only once everybody stands on one side after the grace, a count's 5 s pause with the count on the floor, right going on to the next question, the last one right the set's Finding (its conclusion), a wrong answer and a tie ending the set with no Finding, Skip question no answer kept, End this mode the question it stopped at", async () => {
-        /* E73 C4, 12.11.2026. Pure. Red at 4077664: no zone-machine.mjs. */
+    ["R3907 - Logic Dive's judgement (E73 C4; TR3 = 2, TR27, TR32 = 2): `diveVerdict` 5:1 right, 4:3 wrong, 3:3 and 0:0 a tie; the machine's vote counted at its clock's end however the sides stand (since 1.2.119, R7840), a count's 5 s pause with the count on the floor, right going on to the next question, the last one right the set's Finding (its conclusion), a wrong answer and a tie ending the set with no Finding, Skip question no answer kept, End this mode the question it stopped at", async () => {
+        /* E73 C4, 12.11.2026. Pure. Red at 4077664: no zone-machine.mjs. Changed on purpose in 1.2.119 (the owner's #4, R7840):
+           everybody on one side at 20 s closed the vote until then; `early` is refused now, and the judgement reads the count at 61 s. */
         const M = await import("./zone-machine.mjs").catch(() => null);
         must(M && typeof M.diveVerdict === "function", "there is no zone-machine.mjs diveVerdict");
         const sides = (a, b) => ({ a: Array.from({ length: a }, (_, i) => `a${i}`), b: Array.from({ length: b }, (_, i) => `b${i}`) });
@@ -10090,21 +10091,22 @@ const INVARIANTS = [
         const tooSoon = M.zoneStep(start.floor, { type: "due" }, { now: 5000, sides: sides(6, 0), participants: 6 });
         const notAll = M.zoneStep(start.floor, { type: "due" }, { now: 20_000, sides: sides(5, 0), participants: 6 });
         const early = M.zoneStep(start.floor, { type: "due" }, { now: 20_000, sides: sides(6, 0), participants: 6 });
-        const judged = (a, b, truth) => M.zoneStep({ ...early.floor, zone: { ...early.floor.zone, counts: { a, b } } }, { type: "due" }, { now: 26_000, truth, conclusion: "The door was locked from inside" });
+        const counted = M.zoneStep(start.floor, { type: "due" }, { now: 61_000, sides: sides(6, 0), participants: 6 });
+        const judged = (a, b, truth) => M.zoneStep({ ...counted.floor, zone: { ...counted.floor.zone, counts: { a, b } } }, { type: "due" }, { now: 67_000, truth, conclusion: "The door was locked from inside" });
         const solved = judged(5, 1, "a");
         const stopped = M.zoneStep(start.floor, { type: "endMode" }, { now: 1000 });
         equal(stableJson({
             verdicts: [M.diveVerdict({ a: 5, b: 1 }, "a"), M.diveVerdict({ a: 4, b: 3 }, "b"), M.diveVerdict({ a: 3, b: 3 }, "a"), M.diveVerdict({ a: 0, b: 0 }, "a")],
-            early: [tooSoon.refused ?? null, notAll.refused ?? null, early.floor?.zone?.phase, early.floor?.seconds, stableJson(early.floor?.zone?.counts)],
+            early: [tooSoon.refused ?? null, notAll.refused ?? null, early.refused ?? null, counted.floor?.zone?.phase, counted.floor?.seconds, stableJson(counted.floor?.zone?.counts)],
             solved: [solved.floor, solved.dive?.outcome, solved.zoneRecord?.finding?.text, solved.cards.map(c => c.key)],
             wrong: [judged(4, 3, "b").dive?.outcome, Boolean(judged(4, 3, "b").zoneRecord)], tie: [judged(0, 0, "a").dive?.outcome, judged(0, 0, "a").cards.map(c => c.sfx)],
             stopped: [stopped.dive?.outcome, stopped.dive?.index]
         }), stableJson({
             verdicts: ["right", "wrong", "tie", "tie"],
-            early: ["DRPG.Floor.round.notDue", "DRPG.Floor.round.notDue", "pause", 5, stableJson({ a: 6, b: 0 })],
+            early: ["DRPG.Floor.round.notDue", "DRPG.Floor.round.notDue", "DRPG.Floor.round.notDue", "pause", 5, stableJson({ a: 6, b: 0 })],
             solved: [null, "solved", "The door was locked from inside", ["DRPG.Zones.dive.right", "DRPG.Zones.dive.solved"]],
             wrong: ["wrong", false], tie: ["tie", ["answerWrong"]], stopped: ["stopped", 1]
-        }), "{verdicts; early: [before the grace, not everybody, everybody: the pause, 5 s, the count]; solved: [floor, outcome, Finding, cards]; wrong; tie: [outcome, sound]; stopped: [outcome, question]}");
+        }), "{verdicts; early: [everybody at 5 s, not everybody at 20 s, everybody at 20 s, the clock's end at 61 s: the pause, 5 s, the count]; solved: [floor, outcome, Finding, cards]; wrong; tie: [outcome, sound]; stopped: [outcome, question]}");
     }],
     ["R3908 - Scrum Debate's turns (E73 C5; the plan's 3:2 40 s, 4:3 37.5 s, 8:7 and 10:5 20 s): `scrumTurnSeconds` and `scrumTurns`; the setup's end fixes 2 x the larger camp's turns, the smaller camp first, the camps in turn and each camp's speakers in rotation from the camp as it stands; an empty camp ends it with the other camp's answer as a Finding; after the last turn the camps are told and no Finding made", async () => {
         /* E73 C5, 12.11.2026. Pure. Red at 4077664: no zone-machine.mjs. */
@@ -10163,6 +10165,71 @@ const INVARIANTS = [
             clock: { phase: "speak", seconds: 40, camps, holder: "x1", side: "a", turns: 6 },
             emptied: { floor: null, refused: null, finding: "In" }, emptyAtSides: { floor: null, refused: null, finding: "In" }
         }), "{config: conferSeconds; start: [phase, s]; confer: the Sides' end; early: Confer's due before its clock with a camp gone; plus: seconds left after +30 s at 60 s in; sidesSet: Skip in Sides; over: Skip in Confer; clock: Confer's clock with Zone B now the larger; emptied: Zone B empty at Confer's end; emptyAtSides}");
+    }],
+    ["R7840 - a Logic Dive question always runs its full clock (the owner, 1.2.119: \"chcialbym by ruszenie tokenami w logic dive nie skracalo czasu do konkluzji glosowania\"): zone-machine.mjs `zoneStep`'s `due` before the vote's 60 s is refused however the tokens stand - everybody on one side at 11 s, at 30 s and at 59 s - and the clock's end counts the sides as they stand then (the 5 s pause with that count); config.mjs's dive row has no `earlyAfterSeconds`, trial-zones.mjs exports no `zoneEarly`, and the primary's heartbeat (trial-floor.mjs `isDue`) moves a zone mode by its clock alone", async () => {
+        /* Pure (zone-machine.mjs), then the config and two sources read (1.2.119, line T #4). Red at b5a29e73: everybody on one side past 10 s closed the question. */
+        const { TRIAL } = await import("./config.mjs");
+        const M = await import("./zone-machine.mjs");
+        const T = await import("./trial-zones.mjs");
+        const sides = (a, b) => ({ a: Array.from({ length: a }, (_, i) => `a${i}`), b: Array.from({ length: b }, (_, i) => `b${i}`) });
+        const start = M.zoneStart(null, { type: "zone", mode: "dive", question: "Q", answers: { a: "A1", b: "B1" }, set: { id: "S", index: 0, total: 1 } }, { now: 0 }).floor;
+        const due = (ms, a, b) => M.zoneStep(start, { type: "due" }, { now: ms, sides: sides(a, b), participants: a + b });
+        const read = r => r.refused ?? [r.floor?.zone?.phase ?? null, r.floor?.seconds ?? null, stableJson(r.floor?.zone?.counts ?? null)];
+        const isDue = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText)), "isDue");
+        equal(stableJson({
+            early: [due(11_000, 6, 0), due(30_000, 0, 6), due(59_000, 6, 0)].map(read), clock: read(due(60_000, 4, 2)),
+            count: read(M.zoneStep(start, { type: "count" }, { now: 20_000, sides: sides(3, 3), participants: 6 })),
+            config: Object.keys(TRIAL.modes.zones.dive).sort(), zoneEarly: Object.keys(T).includes("zoneEarly"), heartbeat: [isDue.length > 0, /zoneEarly|unanimous/.test(isDue)]
+        }), stableJson({
+            early: ["DRPG.Floor.round.notDue", "DRPG.Floor.round.notDue", "DRPG.Floor.round.notDue"], clock: ["pause", 5, stableJson({ a: 4, b: 2 })],
+            count: ["pause", 5, stableJson({ a: 3, b: 3 })],
+            config: ["maxQuestions", "pauseSeconds", "seconds"], zoneEarly: false, heartbeat: [true, false]
+        }), "{early: due at 11, 30 and 59 s with everybody on one side; clock: due at 60 s; count: the GM's Count now at 20 s (unchanged); config: the dive row's keys; zoneEarly: whether trial-zones.mjs exports it; heartbeat: [isDue read, it names an early close]}");
+    }],
+    ["R7841 - a Scrum Debate never closes early (the owner, 1.2.119: \"Zmieniamy tak jak logic dive, tez po piatku\"): in the turns a camp emptied by a crossing ends nothing - `due` before a turn's clock is refused; at the turn's end the other camp's turn comes as before; a turn that falls to the empty camp runs its clock with no speaker and the table is told (`DRPG.Zones.scrum.noSpeaker`), the GM's Skip passes it with no speaker named; a camp filled again is given its turn; after the last turn a camp empty then gives the other camp's answer as the Finding (`DRPG.Zones.scrum.empty`), both empty or both standing no Finding; the Sides' and Confer's ends by their clock are unchanged", async () => {
+        /* Pure (zone-machine.mjs), then trial-zones.mjs read (1.2.119, line T #5). Red at b5a29e73: Zone B emptied in the turns ended the Scrum at once with Zone A's answer. */
+        const M = await import("./zone-machine.mjs");
+        const camps = { a: ["x1", "x2", "x3"], b: ["y1", "y2"] };
+        const crossed = { a: ["x1", "x2", "x3", "y1", "y2"], b: [] };
+        const start = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "In", b: "Out" } }, { now: 0 }).floor;
+        const confer = M.zoneStep(start, { type: "due" }, { now: 46_000, sides: camps }).floor;
+        const turn1 = M.zoneStep(confer, { type: "due" }, { now: 167_000, sides: camps }).floor;
+        const read = r => (r?.floor ? { phase: r.floor.zone.phase, turn: r.floor.zone.turn, side: r.floor.zone.side, holder: r.floor.holderId ?? null, seconds: r.floor.seconds,
+            cards: (r.cards ?? []).map(c => [c.key, c.words?.zone ?? null]) }
+            : { floor: r && "floor" in r ? r.floor : "refused", refused: r?.refused ?? null, finding: r?.zoneRecord?.finding?.text ?? null, cards: (r?.cards ?? []).map(c => c.key) });
+        const step = (floor, type, at, sides) => M.zoneStep(floor, { type }, { now: at, sides });
+        const out = { early: [step(turn1, "due", 177_000, crossed), step(turn1, "due", 206_000, crossed)].map(read) };
+        let r = step(turn1, "due", 207_000, crossed);   // turn 1 (Zone B, y1) over: Zone A's turn 2
+        const turn2 = r.floor;
+        out.turn2 = read(r);
+        r = step(r.floor, "due", 247_000, crossed);      // turn 3 falls to Zone B, empty
+        out.turn3 = read(r);
+        out.turn3early = read(step(r.floor, "due", 250_000, crossed));
+        const skipped = step(r.floor, "skip", 250_000, crossed);   // the GM's Skip on the turn with nobody
+        out.skipped = read(skipped);
+        r = step(skipped.floor, "due", 290_000, crossed);          // turn 5, Zone B still empty
+        out.turn5 = read(r);
+        r = step(r.floor, "due", 330_000, crossed);                // turn 6, Zone A's last
+        const atEnd = r.floor;
+        out.end = { empty: read(step(atEnd, "due", 370_000, crossed)), both: read(step(atEnd, "due", 370_000, { a: [], b: [] })),
+            standing: read(step(atEnd, "due", 370_000, camps)) };
+        // A camp filled again before its turn: y2 back in Zone B at turn 3's start.
+        out.back = read(step(turn2, "due", 247_000, { a: ["x1", "x2", "x3", "y1"], b: ["y2"] }));
+        const T = await import("./trial-zones.mjs");
+        out.heartbeat = Object.keys(T).includes("zoneEarly");
+        equal(stableJson(out), stableJson({
+            early: [{ floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] }, { floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] }],
+            turn2: { phase: "speak", turn: 2, side: "a", holder: "x1", seconds: 40, cards: [] },
+            turn3: { phase: "speak", turn: 3, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "B"]] },
+            turn3early: { floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] },
+            skipped: { phase: "speak", turn: 4, side: "a", holder: "x2", seconds: 40, cards: [] },
+            turn5: { phase: "speak", turn: 5, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "B"]] },
+            end: { empty: { floor: null, refused: null, finding: "In", cards: ["DRPG.Zones.scrum.empty"] },
+                both: { floor: null, refused: null, finding: null, cards: ["DRPG.Zones.scrum.over"] },
+                standing: { floor: null, refused: null, finding: null, cards: ["DRPG.Zones.scrum.over"] } },
+            back: { phase: "speak", turn: 3, side: "b", holder: "y2", seconds: 40, cards: [] },
+            heartbeat: false
+        }), "{early: due 10 s and 39 s into turn 1 with Zone B emptied; turn2: turn 1's clock out; turn3: Zone B's turn with nobody; turn3early: due 3 s into it; skipped: the GM's Skip on it; turn5; end: after the last turn with Zone B empty, both empty, both standing; back: y2 back in Zone B at turn 3; heartbeat: whether trial-zones.mjs exports zoneEarly}");
     }],
     ["R5911 - the camps' voice rooms (the owner's 13.11.2026): while the camps confer, voice.mjs `placeVoices` sends each camp member's account to its camp's LiveKit room (voice-client.mjs `SCRUM_ROOMS`) and never the other camp's; a GM, a Monokuma's GM, an account with no character and a player in neither camp (the dead, a latecomer) stay in the trial's room; with no camps (Confer over) or outside the trial nobody is moved by them; `voiceTargets` hands the floor's `conferCamps` only in the trial", async () => {
         /* Plain objects, nothing written or sent (as R815). Red at ceb9e9c8: no `camps` fact, no SCRUM_ROOMS. */
@@ -61994,7 +62061,8 @@ const INVARIANTS = [
         const floor = (mode, extra = {}) => ({ active: true, mode, holderId: "O", ...extra });
         const scrum = phase => floor("scrum", { zone: { phase } });
         const floors = { debate: floor("debate"), objection: floor("objection"), rebuttal: floor("rebuttal"), testimony: floor("testimony"),
-            panic: floor("panic"), closing: floor("closing"), straw: floor("straw"), dive: floor("dive"),
+            // The Closing's own state waits for a confirmed speaker since 1.2.119 (R7842): read in its `speak` phase.
+            panic: floor("panic"), closing: floor("closing", { closing: { phase: "speak", step: 2 } }), straw: floor("straw"), dive: floor("dive"),
             sides: scrum("setup"), confer: scrum("confer"), speak: scrum("speak") };
         const ask = mapped => Object.fromEntries(Object.entries(floors).map(([k, f]) => [k, Mu.trialMusicState(f, "classTrial", { mapped })]));
         const read = { all: ask(() => true), none: ask(() => false) };
@@ -62012,6 +62080,22 @@ const INVARIANTS = [
                 closing: "trial.discussion", straw: "trial.debate", dive: "trial.debate", sides: "trial.debate", confer: "trial.debate", speak: "trial.debate" },
             rows: [], words: []
         }), "{all: each floor's state with every own state mapped; none: with none mapped (as before); rows: own states with no MUSIC_STATES row; words: rows with no English or Polish label}");
+    }],
+    ["R7842 - the Closing Argument's music starts only once its speaker is confirmed (the owner, 1.2.119: \"Muzyka closing argument niech zaczyna sie dopiero po zatwierdzeniu speakera.\"): music-states.mjs `ownModeState` gives the Closing no state of its own while the players volunteer (`volunteer`) or the GM confirms or picks the speaker (`choice`), so `trialMusicState` plays the trial's discussion there even with `trial.closing` mapped; from the confirmed speaker's turn (`speak`) and in the GM's decision after an Objection at them (`decide`) it plays `trial.closing` when mapped and the discussion when not; an Objection at the speaker plays the Objection's music either way", async () => {
+        /* Pure over floors and a `mapped` handed in (1.2.119, line T #9). Red at b5a29e73: `trial.closing` in every phase of the Closing once mapped. */
+        const Mu = await import("./music-states.mjs");
+        const closing = phase => ({ active: true, mode: "closing", holderId: phase === "speak" ? "S" : null,
+            closing: { phase, step: 2, count: 1, speakerId: phase === "speak" ? "S" : null, chain: [] } });
+        const objected = { active: true, mode: "objection", holderId: "D", targetId: "S", closing: { phase: "speak", step: 3, count: 1, speakerId: "S", chain: [] } };
+        const floors = { volunteer: closing("volunteer"), choice: closing("choice"), speak: closing("speak"), decide: closing("decide"),
+            bare: { active: true, mode: "closing", holderId: null }, objection: objected };
+        const ask = mapped => Object.fromEntries(Object.entries(floors).map(([k, f]) => [k, Mu.trialMusicState(f, "classTrial", { mapped })]));
+        const own = Object.fromEntries(Object.entries(floors).map(([k, f]) => [k, Mu.ownModeState(f)]));
+        equal(stableJson({ own, all: ask(() => true), none: ask(() => false) }), stableJson({
+            own: { volunteer: null, choice: null, speak: "trial.closing", decide: "trial.closing", bare: null, objection: null },
+            all: { volunteer: "trial.discussion", choice: "trial.discussion", speak: "trial.closing", decide: "trial.closing", bare: "trial.discussion", objection: "trial.objection" },
+            none: { volunteer: "trial.discussion", choice: "trial.discussion", speak: "trial.discussion", decide: "trial.discussion", bare: "trial.discussion", objection: "trial.objection" }
+        }), "{own: the Closing's own state by phase (bare: a Closing floor with no phase); all: the state played with every own state mapped; none: with none mapped}");
     }],
     ["R7106 - the trial's sounds, one for one moment (E110 part 3, 14.11.2026; the coordinator's survey of 1.2.113): sfx.mjs `floorSounds` plays \"Nonstop Debate opens\" only when the floor that opens is a debate - not a Testimony, a Panic Round (its own start alone), a zone mode or the Closing - and \"your turn\" for a Scrum Debate speaker's player at each turn as for a round's; a Truth Bullet copy yields to Monokuma's Reveal and to a Present, and a Despair Call's sound to the Motive's, the New Rule's and the Public Announcement's", async () => {
         /* Pure over frames of the floor, then the catalogue read. Red at 98f60442: no floorSounds, no yields. */

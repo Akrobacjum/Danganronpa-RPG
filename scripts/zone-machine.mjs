@@ -17,8 +17,9 @@
  *          thirds of those counted is a Finding ("The class thinks: {answer}"), anything less a split ("The class is
  *          split: A {a}, B {b}") whose next step is Scrum Debate (`zoneRecord.strawPoll.split`).
  *   dive   Logic Dive, one question of a set at a time (`set { id, index, total }`). `vote` for 60 s - closed early by
- *          Count now, or once everybody taking part stands on one side after `earlyAfterSeconds` - then `pause` 5 s with
- *          the count on the floor, then the judgement against the truth the step hands in (`ctx.truth`, never on the
+ *          the GM's Count now alone; since 1.2.119 never by where the tokens stand (the owner: "chcialbym by ruszenie
+ *          tokenami w logic dive nie skracalo czasu do konkluzji glosowania"; until then everybody on one side after 10 s
+ *          closed it, R7840) - then `pause` 5 s with the count on the floor, then the judgement against the truth the step hands in (`ctx.truth`, never on the
  *          floor): right -> the next question (`ctx.next`) or, after the last, the set's Finding; wrong, or a tie (0:0
  *          too), ends the set and shows no truth (TR3, TR27). Skip question goes on with no answer kept.
  *   scrum  Scrum Debate, three phases in the owner's order (13.11.2026, after a table on 1.2.112: "a moment to pick
@@ -29,8 +30,11 @@
  *          `conferCamps`); an empty camp at the Sides' end ends it as before. Confer's end - the clock or Skip - opens
  *          `speak`: 2 x the larger camp's turns, the smaller camp first, the camps in turn and each camp's speakers in
  *          rotation, `scrumTurnSeconds` each, counted from the camps as they stand at Confer's end; anybody may cross
- *          (each turn's speaker is taken from the camp as it stands then); an empty camp ends it, the other camp's
- *          answer a Finding; after the last turn the camps are told and no Finding is made (TR3 = 2).
+ *          (each turn's speaker is taken from the camp as it stands then). Since 1.2.119 nothing in the turns ends it
+ *          early (the owner: "Zmieniamy tak jak logic dive"; until then a camp emptied ended it at once, R7841): a turn
+ *          that falls to an empty camp runs its clock with no speaker, the table told, and every turn is held; after the
+ *          last turn a camp empty then makes the other camp's answer a Finding, else the camps are told and no Finding is
+ *          made (TR3 = 2). An empty camp at the Sides' or Confer's end - a phase's own clock or Skip - still ends it.
  * Every end - its own, End this mode, the vote's opening - leaves no floor; the trial's discussion follows, and the
  * step puts every participant's hall token back on its stand (trial-zones.mjs `returnToStands`).
  */
@@ -168,13 +172,6 @@ export function zoneStart(floor, event, ctx = {}) {
     }, cards: [] };
 }
 
-/** Whether everybody counted stands on one side and nobody taking part is left out: Logic Dive's early close. */
-export function unanimous(sides, participants) {
-    const c = countsOf(sides);
-    const total = Math.max(Number(participants) || 0, 0);
-    return total > 0 && (c.a === total || c.b === total);
-}
-
 /** A Straw Poll counted: its Finding or its split, the floor ended. */
 function strawCount(floor, ctx) {
     const zone = zoneOf(floor);
@@ -232,25 +229,34 @@ function diveQuestion(floor, next, now, cards = []) {
     return { floor: phase(floor, "vote", seconds, now, { question, answers, counts: null, set: { ...zone.set, index } }), cards: [...cards, told] };
 }
 
-/** Scrum Debate's next turn: turn `turn` of the camp it falls to, its next speaker as the camp stands now. */
+/**
+ * Scrum Debate's next turn: turn `turn` of the camp it falls to, its next speaker as the camp stands now. After the last
+ * turn the camps as they stand then decide: one camp empty, the other's answer is the Finding; else no Finding (both
+ * standing, or both empty). A turn that falls to an empty camp runs its `turnSeconds` with no speaker (`holderId` null,
+ * the camp's rotation kept) and the table is told; the GM's Skip passes it as any turn (1.2.119, R7841).
+ */
 function scrumTurn(floor, ctx, now, cards = []) {
     const zone = zoneOf(floor);
     const turn = Number(zone.turn) || 0;
     const counts = countsOf(ctx.sides);
     if (turn >= (Number(zone.turns) || 0)) {
+        const empty = ["a", "b"].filter(side => counts[side] === 0);
+        if (empty.length === 1) return scrumEmpty(floor, empty[0], counts, cards);
         return over([...cards, card(floor.mode, "DRPG.Zones.scrum.over", { a: String(counts.a), b: String(counts.b) })]);
     }
-    const empty = ["a", "b"].find(side => counts[side] === 0);
-    if (empty) return scrumEmpty(floor, empty, counts, cards);
     const side = turn % 2 === 0 ? zone.first : other(zone.first);
     const members = ctx.sides[side];
+    if (!members.length) {
+        const told = card(floor.mode, "DRPG.Zones.scrum.noSpeaker", { zone: side.toUpperCase() });
+        return { floor: phase(floor, "speak", zone.turnSeconds, now, { turn: turn + 1, side }, { holderId: null }), cards: [...cards, told] };
+    }
     const spoke = Number(zone.spoke?.[side]) || 0;
     const speaker = members[spoke % members.length];
     return { floor: phase(floor, "speak", zone.turnSeconds, now, { turn: turn + 1, side, spoke: { ...zone.spoke, [side]: spoke + 1 } },
         { holderId: speaker }), cards };
 }
 
-/** A camp emptied: the Scrum ends, the other camp's answer the Finding. */
+/** A camp empty where the Scrum ends (the Sides', Confer's or the last turn's end): the other camp's answer the Finding. */
 function scrumEmpty(floor, empty, counts, cards = []) {
     const zone = zoneOf(floor);
     const won = other(empty);
@@ -335,9 +341,9 @@ function zoneDue(floor, ctx, now, { skip = false } = {}) {
 
 /**
  * WHAT A ZONE MODE'S FLOOR BECOMES AFTER `event` (floor-machine.mjs `nextFloor` hands it every event on such a floor).
- * `ctx`: `now`; `sides` { a, b } (actor ids, the step's `sidesNow`); `participants` how many take part; for Logic Dive's
- * judgement `truth`, `next`, `conclusion`. Events: `due` (the clock, or early: Logic Dive's unanimity after its grace,
- * Scrum's empty camp), `count` (Count now), `skip`, `skipQuestion`, `adjust` { seconds }, `pick` { actorId, side },
+ * `ctx`: `now`; `sides` { a, b } (actor ids, the step's `sidesNow`); for Logic Dive's judgement `truth`, `next`,
+ * `conclusion`. Events: `due` (the phase's clock run out; before it, refused whatever the sides - no zone mode closes
+ * early on where the tokens stand since 1.2.119, R7840, R7841), `count` (Count now), `skip`, `skipQuestion`, `adjust` { seconds }, `pick` { actorId, side },
  * `thesis` { actorId, text }, `endMode`, `end`.
  */
 export function zoneStep(floor, event = {}, ctx = {}) {
@@ -348,22 +354,9 @@ export function zoneStep(floor, event = {}, ctx = {}) {
     const sides = { a: Array.isArray(ctx.sides?.a) ? ctx.sides.a : [], b: Array.isArray(ctx.sides?.b) ? ctx.sides.b : [] };
     const c = { ...ctx, sides };
     switch (type) {
-        case "due": {
-            const left = leftOf(floor, now);
-            if (left > 0) {
-                // Early only where the mode closes early: Logic Dive's vote, everybody on one side past the grace;
-                // a Scrum turn whose camp has emptied (or the other's).
-                const grace = Number(cfg().dive?.earlyAfterSeconds) || 10;
-                const ran = (now - (Number(floor.startedAt) || 0)) / 1000;
-                if (floor.mode === ZONE_MODES.dive && zone.phase === "vote" && ran >= grace && unanimous(sides, ctx.participants)) return zoneDue(floor, c, now);
-                const counts = countsOf(sides);
-                if (floor.mode === ZONE_MODES.scrum && zone.phase === "speak" && (counts.a === 0 || counts.b === 0)) {
-                    return scrumEmpty(floor, counts.a === 0 ? "a" : "b", counts);
-                }
-                return { refused: "DRPG.Floor.round.notDue" };
-            }
+        case "due":
+            if (leftOf(floor, now) > 0) return { refused: "DRPG.Floor.round.notDue" };
             return zoneDue(floor, c, now);
-        }
         case "count":
             if (zone.phase !== "vote") return { refused: "DRPG.Zones.noCount" };
             return zoneDue(floor, c, now);

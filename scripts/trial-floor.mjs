@@ -64,7 +64,7 @@ import { trialParticipants, trialProgress, verdictStopped, verdictRunner } from 
 import { MODES, nextFloor, modeSecondsOf, overruleTarget, leftAt, isRoundMode, closingOf, closingTimed, closingRecordAfter } from "./floor-machine.mjs";
 import { isZoneMode, zoneOf } from "./zone-machine.mjs";
 // The zone modes' reads around their rows (E73): static, and no cycle - trial-zones.mjs reads this file by `import()`.
-import { zoneCtxOf, zoneEarly, afterZoneStep, conferNotice, zoneFloorEnded, snapshotStands, diveStartEvent, zoneCardWords } from "./trial-zones.mjs";
+import { zoneCtxOf, afterZoneStep, conferNotice, zoneFloorEnded, snapshotStands, diveStartEvent, zoneCardWords } from "./trial-zones.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
@@ -1686,8 +1686,9 @@ function isDue(floor) {
     if (floor.mode === FLOOR_MODES.debate) return false;
     // The Closing waits for the GM in its choice and its decision (E70 C8): no clock runs there.
     if (floor.mode === FLOOR_MODES.closing && !closingTimed(floor)) return false;
-    // A zone mode moves early too (E73): Logic Dive's unanimity past its grace, a Scrum camp emptied.
-    if (isZoneMode(floor.mode)) return secondsLeft(floor) <= 0 || zoneEarly(floor);
+    // A zone mode moves by its clock alone since 1.2.119 (R7840, R7841): until then Logic Dive's vote closed once
+    // everybody stood on one side past 10 s, and a Scrum turn once a camp emptied (trial-zones.mjs `zoneEarly`).
+    if (isZoneMode(floor.mode)) return secondsLeft(floor) <= 0;
     return floor.mode === FLOOR_MODES.objection && floor.pending ? msLeft(floor) <= 0 : secondsLeft(floor) <= 0;
 }
 

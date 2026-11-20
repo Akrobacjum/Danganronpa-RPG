@@ -731,6 +731,7 @@
       "controlFailed": "Zegar się nie przesunął. Zobacz Dziennik debugowania.",
       "nowPlaying": "Gra u ciebie: {track}.",
       "rewindEclipse": "Trwa Eclipse. Najpierw je zakończ.",
+      "trialNoSpeaker": "Nikt nie mówi",
       "trialSpeaks": "Mówi {name}"
     },
     "Passage": {
@@ -1534,6 +1535,7 @@
         "begins": "Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po {seconds} s, a tura {turns} jest ostatnia.",
         "over": "Scrum Debate dobiegła końca. W Strefie A policzono {a}, w Strefie B {b}.",
         "empty": "Strefa {zone} jest pusta. Klasa uważa: {answer}.",
+        "noSpeaker": "W Strefie {zone} nikt nie stoi, więc ta tura mija bez mówcy.",
         "thesis": "Teza Strefy {zone}: {text}"
       },
       "panel": {
@@ -2665,7 +2667,7 @@
       "intro": "Wybierz playlistę dla każdego stanu.",
       "howOrder": "Jak działa kolejność",
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie używa playlist Eclipse.",
-      "trialNote": "Wyższy wiersz ma pierwszeństwo. Tryb bez własnej playlisty gra jak dotąd: Rebuttal muzykę Objection, tryb stref muzykę Debaty, Testimony, Panic Round i Closing Argument muzykę Dyskusji.",
+      "trialNote": "Wyższy wiersz ma pierwszeństwo. Tryb bez własnej playlisty gra jak dotąd: Rebuttal muzykę Objection, tryb stref muzykę Debaty, Testimony, Panic Round i Closing Argument muzykę Dyskusji. Własna playlista Closing Argument zaczyna grać, gdy GM zatwierdzi mówcę.",
       "incidentNote": "Morderstwo słyszą tylko jego uczestnicy i GM-owie.",
       "fadeNote": "Wyciszenie ustawiasz w Fade Duration playlisty. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
       "when": "Kiedy",
