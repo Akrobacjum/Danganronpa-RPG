@@ -606,7 +606,7 @@ No darkening ever takes you below 1 action, 1 Eclipse crossing, or 1 Search Toke
 **Durability.** Every roll with Despair made using a tool costs it one point, whether or not the work succeeded, and at zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll (Hope, Despair, or a critical), and its row says **Single use** instead of showing pips. A usable is used once, whatever its tier: using it breaks it, or takes one piece from a stack, and a used usable is Broken too.
 
 > [!WARNING]
-> A Broken item stays in your inventory, in its slot, useless and still evidence. You have two ways out, and neither costs an action: **throw it away** (a Shadow roll decides how obvious the Remnant is, and the Remnant stays in the room) or put it in your **stash**. Not during a Class Trial: the button is grayed there, and its tooltip says *Nothing can be thrown away during the Class Trial.*
+> A Broken item stays in your inventory, in its slot, useless and still evidence. You have two ways out, and neither costs an action: **throw it away** (a Shadow roll decides how obvious the Remnant is, and the Remnant stays in the room) or put it in your **stash**. Not during a Class Trial: the button is grayed there, and its tooltip says *Nothing can be thrown away during the Class Trial.* Anything else you carry can be thrown away the same way, broken or not, with the same roll and the same Remnant; a Truth Bullet and a bedroom key cannot.
 
 ### Categories and what you can carry
 

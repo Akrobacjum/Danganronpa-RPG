@@ -96832,6 +96832,61 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ held: 0, landed: [1, base + 2], unnamed: [2, base + 1], forced: 1 }),
             "{the HUD's renders after two writes of the roll while its dice fall; [renders, the Hope drawn] when they land; after a write naming no roll; a forced render while another roll's dice fall}");
     }],
+    ["S119-T7 - an item that is not broken can be thrown away the way a broken one is, and what the module only copies cannot (1.2.119; the owner, 20.11.2026: \"Dodajmy mozliwosc wyrzucania przedmiotu tez wtedy gdy nie jest broken\"): on a student's sheet drawn by the module's own hook, a whole Tool's row offers the Discard, lit, with the discard's tooltip, and a bedroom key's row offers none; `discardBroken` of the whole Tool goes to the question (answered no here: nothing rolled or thrown), and of the key is refused before any question, with the reason warned", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. On f5319776 the Discard was drawn for a broken item alone (sheet-inventory.mjs
+         * `addDiscardButton`) and `discardBroken` refused any other with DRPG.Items.discardOnlyBroken; the GMs' audit stood a
+         * discard's delete on its ticket only for a broken item (sheet-audit.mjs `itemFindings`), which scenario 40's day
+         * drives from a player's browser. The road itself - the question, the Shadow roll, the trace, the ticket - is the
+         * broken item's, unchanged; what the module copies and never moves (inventory.mjs `onlyCopied`: a Truth Bullet, a
+         * bedroom key) keeps no button and is refused. Windows answered "no" and counted; the items, the windows and the
+         * warnings put back.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to hold the items");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const [actor] = cast(1);
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(DialogV2, "confirm"), wait: Object.getOwnPropertyDescriptor(DialogV2, "wait") };
+        const warnOwn = Object.getOwnPropertyDescriptor(ui.notifications, "warn"), warn = ui.notifications.warn;
+        const asked = { n: 0 }, warned = [];
+        const read = {};
+        let whole = null, key = null, sheet = null;
+        const buttonOf = item => {
+            const b = sheet.element.querySelector(`[data-item-uuid="${item.uuid}"] [data-drpg-row-action="discard"]`);
+            return b ? [b.getAttribute("aria-disabled") === "true", b.dataset.tooltip ?? null] : null;
+        };
+        try {
+            whole = await INV.grantItem(actor, { name: "SUITE S119-T7 a whole lockpick", category: "tool", tier: 1, override: true, quiet: true });
+            key = await INV.grantItem(actor, { name: "SUITE S119-T7 a key", category: "bedroomKey", tier: null, override: true, quiet: true,
+                extraFlags: { [BEDROOM_KEY_FLAG]: "SUITE S119-T7 room" } });
+            must(whole && !INV.isBroken(whole) && key, "the whole tool or the key was not made - this would measure nothing");
+            await settle();
+            sheet = drawnSheet(actor);
+            must(sheet.element.querySelector(`[data-item-uuid="${whole.uuid}"]`) && sheet.element.querySelector(`[data-item-uuid="${key.uuid}"]`),
+                "the sheet drew no row for the tool or the key - this would measure nothing");
+            read.buttons = { whole: buttonOf(whole), key: buttonOf(key) };
+            DialogV2.confirm = async () => { asked.n += 1; return false; };
+            DialogV2.wait = async () => { asked.n += 1; return null; };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            const count = game.messages.size;
+            const a = await U.discardBroken(actor, whole);
+            read.whole = [a ?? null, asked.n, warned.length, Boolean(actor.items.get(whole.id)), game.messages.size - count];
+            const b = await U.discardBroken(actor, key);
+            read.key = [b ?? null, asked.n, warned.includes(game.i18n.localize("DRPG.Items.discardNever")), Boolean(actor.items.get(key.id))];
+        } finally {
+            for (const [k, was] of Object.entries(own)) { if (was) Object.defineProperty(DialogV2, k, was); else delete DialogV2[k]; }
+            if (warnOwn) Object.defineProperty(ui.notifications, "warn", warnOwn); else delete ui.notifications.warn;
+            sheet?.remove();
+            for (const item of [whole, key]) { try { await actor.items.get(item?.id ?? "")?.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            buttons: { whole: [false, game.i18n.localize("DRPG.Items.discardTooltip")], key: null },
+            whole: [null, 1, 0, true, 0], key: [null, 1, true, true]
+        }), "{the Discard on the whole tool's row [greyed, tooltip] and on the key's; the whole tool's discard [answer, windows asked so far, warnings, still held, messages]; the key's [answer, windows asked so far, the reason warned, still held]}");
+    }],
     /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
     ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
         /*

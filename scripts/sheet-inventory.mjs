@@ -11,7 +11,7 @@ import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { stashRoomsFor, openStashesHere, stashItemsIn } from "./vault.mjs";
 import { murderState, sideOf } from "./murder.mjs";
-import { isStashed, categoriesInGroup, isBroken, countInGroup } from "./inventory.mjs";
+import { isStashed, categoriesInGroup, isBroken, countInGroup, onlyCopied } from "./inventory.mjs";
 import { isEquipped, isUsable, usedCreatively, isEquippable, noDiscardNow } from "./use-items.mjs";
 import { sceneOfActor, roomOfActor } from "./movement.mjs";
 import { GM_ROUTE_CLASS, error } from "./utils.mjs";
@@ -590,7 +590,9 @@ function addDiscardButton(li, item, app) {
     // A corpse throws nothing away. Same gate as the Use button, a Monocub
     // included: the trace was laid at the Monocub's token, not at the body (S08-30).
     if (!rowGate(app)) return;
-    if (!isBroken(item)) return;
+    // Any item, broken or not (1.2.119; the owner, 20.11.2026), at the same price - the roll and the trace - but what
+    // the module only copies (inventory.mjs `onlyCopied`: a Truth Bullet, a bedroom key).
+    if (onlyCopied(item)) return;
     // The stash is the OTHER answer, not a place to act from: something already
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;

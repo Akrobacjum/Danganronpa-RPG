@@ -33,7 +33,7 @@ import { MODULE_ID, USABLE_EFFECTS, USABLE_KINDS, EQUIPPABLE, STARTING, BROKEN_I
     ITEM_CATEGORIES, LIMIT_GROUPS }
     from "./config.mjs";
 import { usableKindFor } from "./tables.mjs";
-import { ITEM_FLAGS, isStashed, isBroken, breakItem, wearItem, durabilityOf, servesAs }
+import { ITEM_FLAGS, isStashed, isBroken, onlyCopied, breakItem, wearItem, durabilityOf, servesAs }
     from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 // Only to answer "is there a murder to be tidying up after" - see
@@ -863,10 +863,16 @@ export function noDiscardNow(clock = getClock()) {
 }
 
 /**
- * Get rid of a broken item, somewhere, and leave the trace of having done it.
+ * Get rid of an item, somewhere, and leave the trace of having done it.
  *
- * The only route out of an inventory for something that has been used up, apart
- * from putting it in your own stash. Free - no action is charged, for the same
+ * ANY ITEM, BROKEN OR NOT (1.2.119; the owner, 20.11.2026: "Dodajmy mozliwosc wyrzucania przedmiotu tez wtedy gdy nie
+ * jest broken"). Until then a broken one alone: a general delete would have let a killer make the murder weapon cease
+ * to exist for free. It is not free now either, broken or whole - the question, the Shadow roll, the trace left on the
+ * map, and on the primary GM the ticket the trace writes, which the delete stands on (sheet-audit.mjs `itemFindings`).
+ * What the module only copies is refused (inventory.mjs `onlyCopied`). The name stays: the bridge's text guards and the
+ * scenarios call it by it.
+ *
+ * The way out of an inventory apart from putting a thing in your own stash. Free - no action is charged, for the same
  * reason using an item is not: the guide charges actions for finding, making
  * and hiding things, and dropping a broken screwdriver in a bin is none of the
  * three. What it costs is not an action, it is a Remnant.
@@ -890,8 +896,8 @@ export async function discardBroken(actor, item) {
         return null;
     }
 
-    if (!isBroken(item)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Items.discardOnlyBroken"));
+    if (onlyCopied(item)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Items.discardNever"));
         return null;
     }
     // From your hands. A thing in the stash is already put away, and throwing it

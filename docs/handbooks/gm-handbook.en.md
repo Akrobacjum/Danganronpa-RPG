@@ -888,7 +888,7 @@ A creative use of a Tier 0 usable is not a roll: it reaches you as a card with *
 
 **Durability.** A roll that lands with Despair, a success or a failure, takes one point off the item in the student's hand when the roll used it: a Tool on project work or sabotage, a Cleaning Tool on a clean-up, a Murder Weapon on a swing. A critical never takes a point. The point that empties the item breaks it. A Tier 0 item is single use instead: any roll that used it breaks it, with Hope or Despair, a critical, a success or a failure, and the sheet shows it as **Single use** instead of a durability track. A Reroll of an incident action gives the Tier 0 item back with the action, and the replay spends it again. An item with no tier recorded counts as Tier 0. The Rot darkening wears everything by one but never takes the last point.
 
-A broken item stays in its slot and stays broken wherever it goes next. Its holder gets rid of it by stashing it or by throwing it away, a Shadow roll that always leaves a Remnant: a Tamper Remnant in an Investigation or a Class Trial, or when a side of the running incident throws it, and a Prep Remnant otherwise. A player's own sheet cannot mend it; **Repair an item**, a project (section 11.2), makes a broken or worn usable or gear item whole.
+A broken item stays in its slot and stays broken wherever it goes next. Its holder gets rid of it by stashing it or by throwing it away, a Shadow roll that always leaves a Remnant: a Tamper Remnant in an Investigation or a Class Trial, or when a side of the running incident throws it, and a Prep Remnant otherwise. Since 1.2.119 any item but a Truth Bullet or a bedroom key is thrown away the same way, broken or not, at the same price. A player's own sheet cannot mend it; **Repair an item**, a project (section 11.2), makes a broken or worn usable or gear item whole.
 
 ### 10.2 Item tables
 
@@ -1280,7 +1280,7 @@ Before the discovery, the victim's own sheet shows the dead panel with *Nobody h
 | **Faint** | doubtful, a kind of its own with its own Observe column. Faint is also a mark: a Prep Remnant left by a Search's tool, a Sabotage or a Misleading Trail carries it, and you can mark any Remnant Faint on the Remnants tab; a marked Remnant keeps its own kind and is found and analyzed at that kind's DC. When you tick it in **End the chapter** (section 16), the chapter's end clears every Faint Remnant that is neither tied to the murder nor reinforced, and a Truth Bullet with the mark survives the chapter's sweep |
 | **Prep** | left while somebody was gathering tools or preparing something |
 | **Incident** | left during the murder itself |
-| **Tamper** | left by cleaning. A Broken item thrown away leaves one too: during the Investigation, while an incident runs when the thrower is on one of its sides, and from the moment the chapter's body is found until its trial ends. At any other time a thrown-away Broken item leaves a Prep Remnant |
+| **Tamper** | left by cleaning. An item thrown away leaves one too: during the Investigation, while an incident runs when the thrower is on one of its sides, and from the moment the chapter's body is found until its trial ends. At any other time a thrown-away item leaves a Prep Remnant |
 | **Autopsy** | handed out, never found by Observe |
 | **Final Truth** | one per chapter, points at the Mastermind, reinforced |
 
