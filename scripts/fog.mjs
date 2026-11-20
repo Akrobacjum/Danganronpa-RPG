@@ -1513,7 +1513,8 @@ function ownSection(section) {
  * the GM's map still lit rooms the players had not found). Room setup's Fog tab has a column for each student
  * (monokuma.mjs `studentActors`: no Monokuma, no character put out of the class, no Spectator), and its Hide all
  * unticks those columns; a row of any other character - a Spectator's from before it was one, a character's put out
- * of the class, a Monokuma's from before the flag - was counted here and had no box to untick. Headless on b5a29e73,
+ * of the class, a Monokuma's from before the flag, an actor deleted since - was counted here and had no box to untick
+ * (the owner's record read at the table that day: 13 rows on the scene, 12 with no column, 7 of them deleted actors'). Headless on b5a29e73,
  * Hide all and Apply left ["Gym", "Hall"] lit, a not-in-class character's row and the Monokuma's (R7862; scenario 97
  * J). Now only a student's row counts: what the tab shows is what this map shows. Nothing is deleted, so a character
  * made a student again brings its rooms back. `students` is the suite's (R7862); a GM's browser reads the world's.

@@ -19630,12 +19630,14 @@ const INVARIANTS = [
          * GM's map, read every character's row but the Mastermind's, so a row with no column - a Spectator's from before
          * it was one, a character's put out of the class, a Monokuma's from before the flag - stayed lit, out of the GM's
          * reach. On b5a29e73 this read the not-in-class row's and the Monokuma's rooms (`ledgerRooms` took no `students`).
+         * The owner's record at the table on 20.11.2026 held 13 rows on the scene, 12 with no column: four characters out of
+         * the class and seven ids of actors deleted since (`GONE` below), whose rows nothing removes.
          * Read on a ledger of the suite's own; then which students the GM's fog asks, off the source.
          */
         const F = await import("./fog.mjs");
         const J = v => JSON.stringify(v);
         const scene = { id: "R7862SCENE" };
-        const ledger = { [scene.id]: { S1: ["R7862 Hall"], S2: ["R7862 Gym"], NIC: ["R7862 Lab"], MK: ["R7862 Pool"], MM: ["R7862 Roof"] } };
+        const ledger = { [scene.id]: { S1: ["R7862 Hall"], S2: ["R7862 Gym"], NIC: ["R7862 Lab"], MK: ["R7862 Pool"], MM: ["R7862 Roof"], GONE: ["R7862 Attic"] } };
         const read = students => [...F.ledgerRooms(scene, { ledger, mastermindId: "MM", students: new Set(students) })].sort();
         equal(J([read(["S1", "S2", "MM"]), read(["S1"]), read(["S1", "S2", "NIC"]), read([])]),
             J([["R7862 Gym", "R7862 Hall"], ["R7862 Hall"], ["R7862 Gym", "R7862 Hall", "R7862 Lab"], []]),

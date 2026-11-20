@@ -383,6 +383,8 @@ export async function run(api) {
         const scene = game.scenes.get("${IDS.scene}"), chie = game.actors.get("${IDS.chie}");
         await F.setDiscovery(scene, { actorId: chie.id, rooms: ["Gym"], value: true });
         await F.setDiscovery(scene, { actorId: "ACTORMONOKUMA000", rooms: ["Hall"], value: true });
+        // An actor deleted since: seven of the thirteen rows at the owner's table on 20.11.2026 were such ids.
+        await F.setDiscovery(scene, { actorId: "ACTORGONE97J0000", rooms: ["Storage"], value: true });
         await M.setNotInClass(chie, true);
         await new Promise(r => setTimeout(r, 600));
         return { rows: Object.keys((${imp("settings.mjs")}).discoveryLedger()["${IDS.scene}"] ?? {}).length };`, { timeout: 60000 });
@@ -405,9 +407,9 @@ export async function run(api) {
     const reloadedJ = await gm.eval(MAP);
     const onP1J = await p1.eval(LEDGER);
     await gm.eval(`await (${imp("monokuma.mjs")}).setNotInClass(game.actors.get("${IDS.chie}"), false); return true;`, { timeout: 60000 });
-    const fogged = map => ["Cafeteria", "Dorm A", "Gym", "Hall"].every(room => map?.shading?.[room] === "fog");
-    check("J1: after Hide all and Apply on Room setup's Fog tab, gm's map lights no room - its record and its shading, at once and after gm's reload - though a character out of the class and the Monokuma hold rows; p1's copy is empty too (1.2.119 line F)",
-        setJ.rows >= 3 && beforeJ.lit.length > 0 && applied > 0
+    const fogged = map => ["Cafeteria", "Dorm A", "Gym", "Hall", "Storage"].every(room => map?.shading?.[room] === "fog");
+    check("J1: after Hide all and Apply on Room setup's Fog tab, gm's map lights no room - its record and its shading, at once and after gm's reload - though a character out of the class, the Monokuma and a deleted actor hold rows; p1's copy is empty too (1.2.119 line F)",
+        setJ.rows >= 4 && beforeJ.lit.length > 0 && applied > 0
             && afterJ.lit.length === 0 && fogged(afterJ) && reloadedJ.lit.length === 0 && fogged(reloadedJ) && onP1I.length > 0 && onP1J.length === 0,
         J({ setJ, beforeJ, applied, afterJ, reloadedJ, onP1J }));
 
