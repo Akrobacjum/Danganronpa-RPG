@@ -1,0 +1,57 @@
+{
+ "refuter": "verify-domain-core-c-boot-settings",
+ "of": "domain-core-c-boot-settings",
+ "checked": [
+  {
+   "ref": "domain-core-c-boot-settings-1",
+   "claim": "game.drpg.migrate({ force: true }) on a stamped world whose safeword is the default writes MISIUBOMBO and tells the GMs it was already the world's; the same pass gives back Bedroom stashes a GM removed.",
+   "verdict": "stands",
+   "why": "Read the whole road. force skips the since gate (1671); inPlay is Boolean(from), true on any stamped world (1659); keepOldSafeword's only guards are the unstamped-and-not-in-play return (1586), a non-default current value (1590) and a legacy word equal to the default (1593); the setting's registered default is DEFAULT_SAFEWORD 'Safe Word' (settings.mjs:2092, 1210), so any world whose GM never typed a word reaches the write (1595) and the whisper DRPG.Safeword.kept ('This world already has the safeword ... so that word stays', en.json:6101; pl.json:6550 the same). DRPG.Legacy.safeword is MISIUBOMBO in both files (en.json:6085, pl.json:6534). For the stash half: bedroomStashGaps counts a Bedroom whose stored list lacks its owner (vault-store.mjs:1000-1008), which is what a GM's removal leaves, and the clause's note says this is why it is gated once (migrate.mjs:1028-1030); force ignores that gate, and vault-store.mjs:1503 restates 'Never at a load ... (TRAP 76: a stash the GM removed stays removed)'. Looked for a refutation: no other guard in the clause or in migrate1_2_0; api.mjs:734-735 passes the options straight; the tier-2 test that forces bedroomStashes a second time (tests-tier2.mjs:67382) runs right after the first seeded, so it finds nothing to do and does not drive a stash removed between the two runs; the safeword test (tests-tier2.mjs:56560) drives only unstamped worlds. Two places send a GM to the forced pass as the repair: the handbook (gm-handbook.en.md:1897, pl.md:1897, 'Running it twice changes nothing the second time') and a tier-1 failure message (tests-tier1.mjs:4930). Severity minor holds: it needs a GM to run the repair by hand, and the GM is whispered the word, so it is visible and reversible in Season setup.",
+   "evidence": "scripts/migrate.mjs:1659 'const inPlay = wasInPlay ?? Boolean(from);'; :1671 'if (!force && from && !foundry.utils.isNewerVersion(clause.since, from)) {'; :1586 'if (!from && !wasInPlay) return null;'; :1590 'if (current && current !== DEFAULT_SAFEWORD) return null;'; :1595 'await setSetting(SETTINGS.safeword, legacy);'; scripts/settings.mjs:2092 'default: DEFAULT_SAFEWORD,'; lang/en.json:6085 '\"safeword\": \"MISIUBOMBO\"'; scripts/tests-tier1.mjs:4930 '\"answers to that name - run game.drpg.migrate1_2_0({ force: true })\"'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-core-c-boot-settings-2",
+   "claim": "Game settings never redraws while open, and its Save writes back every row whose drawn value differs from the stored one, undoing another GM's change made meanwhile.",
+   "verdict": "stands",
+   "why": "openGameSettingsWindow (settings-window.mjs:490-523) builds the columns once and its render callback wires sections and heights only; wideWindow is drpgWindow with a fixed body (ui-columns.mjs:65-67), no keepLive. Grepped scripts/ for updateSetting and clientSettingChanged listeners and for the window's class names: no listener closes, redraws or patches drpg-window-game-settings (the only hits for the class are its own alreadyOpen and classes lines, 491 and 500). saveSettings compares each field with game.settings.get now (426), not with the value drawn, so a row another user changed reads as different and is written back with its onChange; the dice look row does the same through diceLookWrites, which compares the choice with the stored settings (settings.mjs:1472-1481). lockPlayerResources is a row of the privacy section (settings-window.mjs:91). Two users who may modify settings is a case the module supports (mayModifyWorld reads SETTINGS_MODIFY, settings-window.mjs:124-130). No test drives a save over a value changed after open: the two tier-2 window tests (tests-tier2.mjs:99628, 99706) cover save, no-change and cancel only. Severity: by the owner's rule (BRIEF, D-A1) a window that never redraws is a stale_state finding; the scenario needs two GMs with the window open between sessions, a particular situation, and controls-10-setup-config-4 rates the same window minor, so minor is kept.",
+   "evidence": "scripts/settings-window.mjs:426 'if (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;'; :427 'await game.settings.set(MODULE_ID, key, value);'; :514-520 'render: (event, dialog) => { const root = dialog.element; wireSections(root); holdSectionHeight(root); ...'; scripts/ui-columns.mjs:65-66 'export function wideWindow(...) { return drpgWindow({ ...rest, width, body: columnsHtml(columns) }); }'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-core-c-boot-settings-3",
+   "claim": "forgetMonokumaWalks, motiveTimer and keepOldSafeword answer null on a failed read-back, so the runner stamps the world against the file's own rule to throw.",
+   "verdict": "stands",
+   "why": "Each returns null after error() (migrate.mjs:375-378, 461-464, 1599-1602); the runner counts only a truthy result (1682) and only a throw reaches report.failed; error() is console.error plus the debug record (utils.mjs:338-341), no notification. The rule to throw is at migrate.mjs:80-85. Nit kept: old clauses, a rare failure.",
+   "evidence": "scripts/migrate.mjs:376-377 'error(\"Could not clear the Monokuma rows from the discovery ledger\"); return null;'; :462-464 'if (!Number.isFinite(check.remaining)) { error(\"The motive record could not be given a timer\"); return null;'; :1682 'if (result) {'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-core-c-boot-settings-4",
+   "claim": "Document language offers 'Not set yet' as a saveable choice, which empties the world's document language until the primary GM's next ready.",
+   "verdict": "stands",
+   "why": "The registration's choices include \"\" (settings.mjs:1742); controlHtml draws every choice as an option (settings-window.mjs:174-177); fieldValue accepts it because it is a key of choices (390); saveSettings writes it when the stored value differs (426). documentLanguage() then answers \"\" (settings.mjs:4206-4213), worldLocalize falls back to the page's language (utils.mjs:175), and seedDocumentLanguage writes again only at the primary GM's ready while empty (i18n.mjs:135, 145-147). The E66 note (settings.mjs:1739-1741) explains the choice for Foundry's default check, not a GM saving it. Nit kept.",
+   "evidence": "scripts/settings.mjs:1742 'choices: { \"\": \"DRPG.Help.documentLanguageUnset\", ...LANGUAGES },'; scripts/settings-window.mjs:390 'return reg.choices && !Object.hasOwn(reg.choices, v) ? undefined : v;'; scripts/i18n.mjs:146 'if (!game.user?.isGM || !isPrimaryGm() || documentLanguage()) return false;'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Game settings / Document language ('Not set yet', listed under hints_for_other_passes.dead_controls)",
+   "claim": "The 'Not set yet' choice is a dead control.",
+   "verdict": "refuted",
+   "why": "It is not dead: choosing it and saving writes \"\" to the setting through game.settings.set (settings-window.mjs:426-427), and after the save the setting is indeed not set, so the label says what it does; it is not mislabeled either. What it does is the ux nit of finding 4, not a dead control; a controls pass should not count it under dead.",
+   "evidence": "scripts/settings-window.mjs:427 'await game.settings.set(MODULE_ID, key, value);'; lang/en.json:1883 '\"documentLanguageUnset\": \"Not set yet\"'",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 5,
+  "stands": 4,
+  "weakened": 0,
+  "refuted": 1
+ },
+ "not_established": [
+  "No test result is claimed: audit/findings-1.2.118/base-run.json did not exist when read, and probe-42.json / probe-43.json were absent; the harness was not run (the brief's rule).",
+  "Finding 2's write-back is read, not run: a two-GM harness probe (one GM holding Game settings open while the other saves lockPlayerResources, then the first saving) would measure it.",
+  "Finding 1's whisper and the sheets' redraw after a forced pass were read in source only; whether a real table's GM reads the forced pass as safe from the handbook alone is not measurable here."
+ ]
+}
