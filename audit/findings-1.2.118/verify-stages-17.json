@@ -1,0 +1,234 @@
+{
+ "refuter": "verify-stages-17",
+ "of": "stages-17",
+ "scope": "2 findings of severity minor or above (E49-1, E49-2), 4 grades, 24 promises marked holds 'yes' or 'no' (E48 7, E49 8, E63 5, E76 4). Not checked: E49 promise 2 ('partly'), E76 promises 2 and 4 ('superseded', a value outside the brief's set, noted under E76 grade), E63-1 (nit). Read: season-setup.mjs 1130-1216, ui-kit.mjs 1301-1345, settings-window.mjs 1-40 and 395-530, ui-columns.mjs 65-67, gm-panel.mjs 298-318, events.mjs 1074-1102, popup.mjs 740-782 and 915-922, death.mjs 98-112 and 655-695, body-tile.mjs 60-76, 220-245, 270-347, clock.mjs 1025-1066, migrate.mjs 1036-1060, 1200-1224, 1720-1740, relay-guard.mjs 510-516, 812-858, dice-sync.mjs 538-548, 715-732, 780-816, roll-draw.mjs 136-175, 196-210, operators.mjs 100-130, dh-settings.mjs 9-27 and 65-72, danganronpa.css 8108-8127; git grep for each caller named; base-run.json and the central shard logs 1/8-8/8 (01-runtests.log) by grep for every R row and tier-2 title cited.",
+ "checked": [
+  {
+   "ref": "E49-1",
+   "claim": "Reset the season inside Season setup does nothing: the press closes the window, the wait answers null and the null check returns before resetAsked is read.",
+   "verdict": "stands",
+   "why": "Read the order on b5a29e73 myself. drpgWindow returns foundry DialogV2.wait(config) (ui-kit.mjs:1344) with rejectClose: false, so a close made by dialog.close() answers null. The reset listener sets resetAsked and closes; the code after the wait tests endAsked, then returns on !result, and only then reads resetAsked, so the reset line is unreachable from the press. Looked for another road: resetSeason is called only at season-setup.mjs:1215 outside the tests (git grep in scripts/); api.mjs:814 opens Season setup, not the reset; gm-panel.mjs:305-309 says the tile is gone since A1d. The tests that name the line read it as text (tests-tier1.mjs:20694 a regular expression over the source; R4055 at :20336-20350 matches /data-drpg-reset-season/ and /resetSeason\\(\\)/), no test presses the button (git grep for drpg-reset-season finds only season-setup.mjs and R4055's querySelector on drawn HTML). lang/en.json:3341 sends the GM to this button at a season's last chapter. Major holds: the one door to an action a GM needs once a season is dead and says nothing.",
+   "evidence": "scripts/season-setup.mjs:1200-1203 'dialog.element.querySelector(\"[data-drpg-reset-season]\")?.addEventListener(\"click\", ev => { ev.preventDefault(); resetAsked = true; dialog.close();'; :1210 'rejectClose: false'; :1213-1215 'if (endAsked) return endTheChapter(...); if (!result || result === \"close\") return null; if (resetAsked) return (await import(\"./season-wipe.mjs\")).resetSeason();'; scripts/ui-kit.mjs:1344 'return DialogV2.wait(config);'",
+   "severity_after": "major"
+  },
+  {
+   "ref": "E49-2",
+   "claim": "Both settings windows draw once, and Save writes a drawn value back over a setting changed elsewhere while the window stood open.",
+   "verdict": "stands",
+   "why": "saveSettings compares each field's value with game.settings.get at Save, not with the value drawn, so an untouched field whose setting another GM changed differs and is written back. wideWindow passes no live option (ui-columns.mjs:65-66) and neither opener passes one; settings-window.mjs has no keepLive, updateSetting or clientSettingChanged (grep). The same reading was upheld by verify-controls-10-setup-config.json for controls-10-setup-config-4. Minor holds: it needs two GMs (or two windows) open at once.",
+   "evidence": "scripts/settings-window.mjs:426 'if (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;' then 'await game.settings.set(MODULE_ID, key, value);'; scripts/ui-columns.mjs:65-66 'export function wideWindow({ columns = [], width = WIDE.width, ...rest } = {}) { return drpgWindow({ ...rest, width, body: columnsHtml(columns) });'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E48 grade",
+   "claim": "E48 graded 8, provisional after L1.",
+   "verdict": "stands",
+   "why": "Allowed by 11.4: anchor 8 takes a stage whose promises are delivered but one holds only by a reading of the source; the gold and hour promise (promise 3) is held by R3410-R3412, which read the served sheets' text, and the chrome icons' size in a real frame is the notes' own Known gap. Every R row cited is ok in shard 1/8 (R3333-R3339, R3345-R3349, R3410-R3412, R3440, R3460-R3465, R3500-R3508, R3511, R3522, R3596), and base-run's shards 6-8, which the reader had not, give E48-K6 ok in shard 8: all five E48 tier-2 titles are now green. That would argue for 9 if the static reading were not counted; 8 is within the scale either way. Two live items unread keeps it provisional.",
+   "evidence": "shard 8/8 01-runtests.log: '  ok    E48-K6 - the character sheet scrolls to its last row in both themes'; AUDIT-1.2.42.md 11.4 row 8 'obietnice dowiezione, ale jedna trzyma sie tylko odczytem kodu albo ma minor'",
+   "grade_after": 8
+  },
+  {
+   "ref": "E48 promise 1",
+   "claim": "The glyphs come from one source (tools/glyphs.json, glyph-map.mjs) under one prefix --drpg-pix-.",
+   "verdict": "stands",
+   "why": "The three tools files exist; styles/pixel-icons.css holds 538 --drpg-pix- names; R3333 and R3349 are ok in shard 1/8.",
+   "evidence": "tools/glyphs.json, tools/glyph-map.mjs, tools/chrome-icons.mjs present; shard 1/8 '  ok    R3333 -', '  ok    R3349 -'"
+  },
+  {
+   "ref": "E48 promise 2",
+   "claim": "Stained Glass wears the one set on every keyed element on the 24 grid; Legacy keeps its icons.",
+   "verdict": "stands",
+   "why": "R3334-R3339, R3347, R3348 and R3596 all ok in shard 1/8; the registry rows say what each reads (R3339 the 24 grid, R3348 Legacy's masks recorded at 7b5b4da9). Read on harness pages, as the reader says.",
+   "evidence": "docs/dev/R-REGISTRY.md row R3339 'every drawing Stained Glass wears is on the 24 grid; Monokuma Legacy keeps its 12- and 8-grid ones'; shard 1/8 '  ok    R3347', '  ok    R3348'"
+  },
+  {
+   "ref": "E48 promise 3",
+   "claim": "Gold means Hope alone; the hour colours panes and decorations, never a control; the hours a neutral ramp.",
+   "verdict": "stands",
+   "why": "R3410-R3412 ok in shard 1/8; they read stylesheet text with HOUR_KEPT exceptions, so the promise holds as the rule is written, not as a screen shows it - which the reader says.",
+   "evidence": "docs/dev/R-REGISTRY.md row R3412 'no served sheet reads --drpg-glass-accent or an hour token in a rule outside tests-css.mjs HOUR_KEPT'; shard 1/8 '  ok    R3410', '  ok    R3411', '  ok    R3412'"
+  },
+  {
+   "ref": "E48 promise 4",
+   "claim": "Forced colours keep every state; the a11y watch; the Event panel one steady region while it holds cards; reduced motion and a theme switch leave nothing running.",
+   "verdict": "stands",
+   "why": "events.mjs removes the panel only with no cards or no window, and otherwise keeps the standing element (the 'ONE REGION, REWRITTEN IN PLACE' block and 'existing ??'); R3440, R3461-R3463 ok in shard 1/8; E48-K4 and E48-K5 ok in the tier-2 shards.",
+   "evidence": "scripts/events.mjs:1085 'if (!cards.length) { existing?.remove(); return; }'; :1102 'const panel = existing ?? Object.assign(document.createElement(\"div\"), { id: WIDGET_ID, className: \"drpg-events\" });'"
+  },
+  {
+   "ref": "E48 promise 5",
+   "claim": "The GM's manual mic lock wears its own drawing with no blocked stroke over it.",
+   "verdict": "stands",
+   "why": "components.css draws the lock badge for is-gm-blocked and, under Stained Glass, takes the ::after stroke off; R3460 and R3511 ok in shard 1/8. Scenario 75's result not read (base-run lists the ci scenarios as pending).",
+   "evidence": "styles/components.css:2144 'body.drpg-theme-stained-glass .drpg-voice-mic.is-gm-blocked::after { content: none; }'; :1386 '.drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock { display: inline-block; }'"
+  },
+  {
+   "ref": "E48 promise 6",
+   "claim": "A critical's notice cuts in alone and says what happened, the name only for its owner and a GM; reduced motion stills it.",
+   "verdict": "stands",
+   "why": "critLine names the actor only for a GM or the owner, else the action title; cutCritical sets 'still' under reduced motion and plays nothing; it is called only where tone is critical. Both E48-K7 titles ok in the tier-2 shards. One citation is loose: R3465 is about Hope on the status strip, not the notice.",
+   "evidence": "scripts/popup.mjs:746 'const who = actor && (game.user.isGM || actor.isOwner) ? actor.name : null;'; :771-774 'const still = reducedMotion(); card.dataset.drpgCut = still ? \"still\" : \"cut\"; if (still) return;'; :918-919 'const critical = tone === \"critical\"; if (critical) body.prepend(critLine(...))'"
+  },
+  {
+   "ref": "E48 promise 7",
+   "claim": "Monokuma Legacy to parity: the tab, the Calls' frames, the 11 px floor, tiles at most 110 px, the sheet's scroll, the notice ground, the voice tile clear.",
+   "verdict": "stands",
+   "why": "R3500-R3508 and R3522 ok in shard 1/8 (R3508 is stamped E49 in the registry, not E48); E48-K6 is ok in shard 8/8, which the reader could not see; sheetBandFoot exists. The sheet's tab on Daggerheart 2.12 was restored by E100 (R4110 ok in shard 1/8).",
+   "evidence": "scripts/window-scale.mjs:123 'export function sheetBandFoot() {'; shard 8/8 '  ok    E48-K6 -'; shard 1/8 '  ok    R4110'"
+  },
+  {
+   "ref": "E49 grade",
+   "claim": "E49 graded 6.",
+   "verdict": "stands",
+   "why": "11.4 row 6 is 'one major' and 'one promise not delivered or broken by a later stage'; E49-1 is both and stands. Not lower: controls-10-setup-config-2 (major, upheld) is Season setup's Save writing the clock fields as drawn, but that Save is Edit campaign's read and write (readSeasonForm over gm-campaign.mjs readClockForm and applyCampaignForm) moved into the window by A1e, not code E49 wrote, so it is not a second major of this stage. The three tier-2 titles the reader could not join are now read: both settings-window saves ok (shards 6 and 7), the outline on a real canvas skipped by baseline (shard 8, env.canvas).",
+   "evidence": "shard 6/8 '  ok    the DRPG Settings window saves as Foundry's form did'; shard 7/8 '  ok    the game's settings window saves as this browser's does'; shard 8/8 '  skip  the standing outline's light is drawn again when the hour turns, on a real canvas'; audit/harness/skip-baseline.json:29 (probe env.canvas)",
+   "grade_after": 6
+  },
+  {
+   "ref": "E49 promise 1",
+   "claim": "Every module setting config: false; one button in Configure Settings, DRPG Settings; values under the same keys.",
+   "verdict": "stands",
+   "why": "No 'config: true' in scripts/ outside comments and no computed config value (grep 'config:' minus 'config: false' finds only api.mjs's DRPG table and comments); registerMenu at settings.mjs:1996; R3420 and R3530-R3532 ok in shard 1/8.",
+   "evidence": "scripts/settings.mjs:1996 'game.settings.registerMenu?.(MODULE_ID, SETTINGS_MENU, {'; shard 1/8 '  ok    R3420'"
+  },
+  {
+   "ref": "E49 promise 3",
+   "claim": "Season setup the one place a season is set up: Edit campaign at its top, the tiles, Reset the season inside it; the checklist a window of its own - holds 'no'.",
+   "verdict": "weakened",
+   "why": "The Reset part fails as E49-1 says, and that is enough for the grade. But 'no' overstates the whole: Edit campaign at the top, the tile row (pinned: seasonTilesHtml) and openSeasonChecklist stand, and R3580-R3587 (ok, shard 1/8) and E49-A1e (ok) hold them. 'partly', with the Reset part named as broken, is the reading the source supports.",
+   "evidence": "scripts/season-setup.mjs:1160-1165 'body: `<form> ${campaignFieldsHtml(clock, safeword())} ... ${seasonResetPart()} </form>`, pinned: seasonTilesHtml(SEASON_TILES, tileHtml),'; :1213-1215 (as E49-1)"
+  },
+  {
+   "ref": "E49 promise 4",
+   "claim": "The GM panel's tiles one height with their icon in their label's ink; its four moves; its top centred.",
+   "verdict": "weakened",
+   "why": "The one test that measures 'one height' is skipped headless by baseline (env.layout) and the Chromium sweep that measured it was not re-run; R3406, R3540-R3544 and R2080 read parts other than the height. buildSections exists (gm-panel.mjs:474) but the source alone cannot show the tiles' height. Not confirmed from source.",
+   "evidence": "audit/harness/skip-baseline.json:31 'the panel's tiles in a row are one height and each icon and label reads in every state ... LIVE-E49-01'; shard 5 '  skip  the panel's tiles in a row are one height'"
+  },
+  {
+   "ref": "E49 promise 5",
+   "claim": "The wrench's character settings window: Scars, Proficiency, Max Evasion Increase hidden and kept on save; Polish labels; a glyph for each of the six statistics.",
+   "verdict": "stands",
+   "why": "SETTINGS_FIELDS marks system.scars, system.proficiency and system.evasion unused; R3550-R3556 and R3590-R3595 ok in shard 1/8; the tier-2 'keeps a hidden field's value through a save' ok in shard 3. Read on 2.6.5 stand-ins while module.json verifies Daggerheart 2.12.9, as the reader says.",
+   "evidence": "scripts/dh-settings.mjs:68-70 'Object.freeze({ name: \"system.scars\", used: null }), ... \"system.proficiency\", used: null ... \"system.evasion\", used: null'; module.json daggerheart compatibility verified '2.12.9'"
+  },
+  {
+   "ref": "E49 promise 6",
+   "claim": "'Details' in every action window: every fact line in one box, opened and shut without the window changing size, remembered per player and computer.",
+   "verdict": "weakened",
+   "why": "The box, DETAILS_ROWS and the client setting actionDetailsOpen are in the source and R3380-R3385 are ok; but the 'without the window changing size' half has one test, E49-A8-T1, skipped headless by baseline (env.layout), and its Chromium measure was not re-run. That half is not confirmed.",
+   "evidence": "scripts/action-menus.mjs:338 'const DETAILS_ROWS = \"<!--drpg-details-rows-->\";'; scripts/settings.mjs:1686 'game.settings.register(MODULE_ID, SETTINGS.actionDetailsOpen, {'; audit/harness/skip-baseline.json:30 'E49-A8-T1 - Details opens without moving the window' (env.layout)"
+  },
+  {
+   "ref": "E49 promise 7",
+   "claim": "Fields fill their column, one select for a pool's category, Passages' five buttons in their cell, the Event panel as tall as its cards; the sheet's two feet, the turn line, another player's maxima a '?'.",
+   "verdict": "weakened",
+   "why": "The DOM halves hold (moveFeetHtml at sheet-header.mjs:365; R3346, R3483-R3489, R3520 ok in shard 1/8), but the layout halves - a field filling its column, five buttons in a cell, the panel's height - were measured only by the notes' Chromium sweep, not re-run and not readable from source. 'yes' rests on half the promise.",
+   "evidence": "scripts/sheet-header.mjs:365 'export function moveFeetHtml(slots) {'; shard 1/8 '  ok    R3346', '  ok    R3520'; the reader's own note: 'Layout halves measured in Chromium by the notes; not re-run.'"
+  },
+  {
+   "ref": "E49 promise 8",
+   "claim": "The curtain, the room outline, the messenger and the chat log in one style; the module's chat card (chatCard).",
+   "verdict": "stands",
+   "why": "base.css loads first in module.json; R3480-R3482, R3490, R3510, R3521, R3430-R3436 ok in shard 1/8. The canvas test the reader could not join is now read: skipped in shard 8 by baseline (env.canvas), so the outline's redraw on a real canvas stays unmeasured, as R3430 reads it headless.",
+   "evidence": "module.json styles[0] 'styles/base.css'; shard 8/8 '  skip  the standing outline's light is drawn again when the hour turns, on a real canvas'"
+  },
+  {
+   "ref": "E49 promise 9",
+   "claim": "Foundry's combat tracker and Daggerheart's effects display hidden for every user; no picture on a project.",
+   "verdict": "stands",
+   "why": "The rule names the combat tab, its pane, its popout and #effects-display; R3577 and R3578 ok in shard 1/8.",
+   "evidence": "styles/danganronpa.css:8121-8127 '#hotbar, #sidebar-tabs button.ui-control[data-tab=\"combat\"], ... #combat-popout, #effects-display,'"
+  },
+  {
+   "ref": "E63 grade",
+   "claim": "E63 graded 7, provisional after L1.",
+   "verdict": "weakened",
+   "why": "The reasons given do not meet anchor 7 (several minor, or one promise delivered in part): the reader's own promises are all 'yes', its one finding is a nit, and LIVE-E63-01's defect was answered by fix-113h, so on 1.2.118 the tile rule holds. Three of the four reasons are now gone or weaker: the trial's-end test ok in shard 7, the fence test ('a suite's trial end leaves the table's bodies') ok in shard 8, 'becoming a Monocub lays no body' ok in shard 6. On those reasons the scale gives 8. 7 still stands, for a reason the reader did not give: promise 4's 'the season's reset' part is unreachable on 1.2.118, because the only door to the reset is E49-1's dead button; the removal code (death.mjs clearSeasonDeaths) is intact but no road reaches it, which is a promise delivered in part. Kept at 7 on that ground; if E49-1 is counted only against E49, 8.",
+   "evidence": "shard 7/8 '  ok    the Class Trial's end takes every body off the map (E63 C2'; shard 8/8 '  ok    a suite's trial end leaves the table's bodies (E63 C2'; shard 6/8 '  ok    becoming a Monocub lays no body (E63 C0'; scripts/season-setup.mjs:1214-1215 (E49-1)",
+   "grade_after": 7
+  },
+  {
+   "ref": "E63 promise 1",
+   "claim": "Every death the table knows leaves a body tile where the token lies, an execution too; the GM told of a body with nowhere to lie outside the Class Trial.",
+   "verdict": "stands",
+   "why": "markDeceased calls leaveBody with the record it wrote; isBodyDeath is true for any record; noTokenWarns is false only in the Class Trial; killCharacter's public road and publishDeath both go through markDeceased (death.mjs:213, :531) and the Students window's (gm-students.mjs:626). R3400, R3401 ok in shard 1/8; the tier-2 test ok in shard 4.",
+   "evidence": "scripts/death.mjs:108 'await leaveBody(actor, { record });'; scripts/body-tile.mjs:64-66 'export function isBodyDeath(record) { return Boolean(record); }'; :72-74 'return record?.phase !== \"classTrial\";'"
+  },
+  {
+   "ref": "E63 promise 2",
+   "claim": "A death the GMs keep leaves none until it is known.",
+   "verdict": "stands",
+   "why": "killCharacter's kept road calls recordSecretDeath, not markDeceased; the body is laid only when publishDeath runs markDeceased. Tier-2 'a kept death leaves no body until it is the table's' ok in shard 5.",
+   "evidence": "scripts/death.mjs:195 'record = await recordSecretDeath(actor, { keepBullets, phase });'; :213 'record = await markDeceased(actor, { phase, cause, chapter, silent });'; :531 'const record = await markDeceased(actor, {'"
+  },
+  {
+   "ref": "E63 promise 3",
+   "claim": "The tile follows the corpse's token until the student is a Monocub.",
+   "verdict": "stands",
+   "why": "followBody runs after updateToken on the moving GM's browser for a corpse token (isCorpseToken), moving the current death's tile on the same scene; registered at module.mjs:256. R3402, R3403 ok; the tier-2 'body follows its corpse token, not its Monocub' ok in shard 3.",
+   "evidence": "scripts/body-tile.mjs:328-333 'if (!game.user?.isGM || userId !== game.user.id) return null; ... if (!actor || !isCorpseToken(tokenDoc)) return null;'; scripts/module.mjs:256 'safely(\"the body with its corpse\", registerBodyFollow);'"
+  },
+  {
+   "ref": "E63 promise 4",
+   "claim": "Every body tile goes when a Class Trial ends, after the sentence; a student's at a revive or the season's reset.",
+   "verdict": "weakened",
+   "why": "The trial's end and the revive hold in source and test (removeBodyTiles(null) after executeAtExit; the retry branch; reviveCharacter; tier 2 ok in shards 7 and 8). The season's reset part holds as code (clearSeasonDeaths) but no caller reaches it on 1.2.118: resetSeason is called only from season-setup.mjs:1215, behind E49-1's null check. The two-GM order is a stated gap (LIVE-E63-03). 'yes' holds for two of the three roads.",
+   "evidence": "scripts/clock.mjs:1031-1043 'await executeAtExit(); ... await removeBodyTiles(null);'; scripts/death.mjs:661 'await removeBodyTiles(actor.id);'; scripts/season-setup.mjs:1214-1215 'if (!result || result === \"close\") return null; if (resetAsked) return (await import(\"./season-wipe.mjs\")).resetSeason();'"
+  },
+  {
+   "ref": "E63 promise 5",
+   "claim": "A 1.2.104 world's open case gets its bodies once, on the primary, removing nothing, reported by name.",
+   "verdict": "stands",
+   "why": "The clause returns notPrimary off the primary, and the runner then writes no version stamp, so the primary's next load runs it; layOpenCaseBodies only lays and answers laid and none by name; R3405 ok, the tier-2 test ok in shard 2.",
+   "evidence": "scripts/migrate.mjs:1054 'if (!isPrimaryGm()) return { notPrimary: true };'; :1725-1728 'if (report.notPrimary.length || !primaryAtStart || !isPrimaryGm()) { ... log(\"Migration: stamp NOT written, because this GM is not the primary.\", report); return report; }'; :1219 'for (const actor of owed) (await leaveBody(actor) ? laid : none).push(actor.name);'"
+  },
+  {
+   "ref": "E76 grade",
+   "claim": "E76 graded 8, provisional after L1.",
+   "verdict": "stands",
+   "why": "Within anchor 8: no finding, R3600-R3606 ok in shard 1/8, and R3601 holds its promise only against published typings (a static pin). Not 9: LIVE-E76-01 was read and is a defect (tier 2 on 14.370 with Daggerheart 2.12.9 about 206 failed in each theme, part of it the sandbox's state, not split), and the save's real handler is measured only on the harness copy. A form fault, not a grade fault: promises 2 and 4 carry holds 'superseded', a value outside the brief's set (yes|partly|no|unread); by the source both hold in their revised form, so 'yes' with the revision noted, or 'partly' against the 1.2.106 text, is the reading.",
+   "evidence": "live-readings-e58-delta.json item 75/153/475 'Stained Glass 3091 passed, 206 failed, 72 skipped ... Monokuma Legacy 3084 passed, 207 failed'; audit/findings-1.2.118/BRIEF.md 'promises [{promise, source, code, holds (yes|partly|no|unread)'",
+   "grade_after": 8
+  },
+  {
+   "ref": "E76 promise 1",
+   "claim": "A player's save judged the same way in either shape - sender owns the token, total a number - and the one judged total forwarded in both shapes.",
+   "verdict": "stands",
+   "why": "judgeSave refuses a token the sender does not own, reads saveTotal when the key exists else result.roll.total, drops a non-finite total, and forwards saveTotal and result.roll.total with the same rounded number. R3600 ok in shard 1/8.",
+   "evidence": "scripts/relay-guard.mjs:822-823 'if (!token?.actor?.testUserPermission?.(sender, \"OWNER\")) { return refuseAs(sub, \"refused\", ...'; :833-837 'const modern = Object.hasOwn(inner, \"saveTotal\"); const claimed = modern ? inner.saveTotal : inner.result?.roll?.total; ... if (claimed === undefined || claimed === null || !Number.isFinite(total))'; :851-852 'saveTotal: Math.round(total), isCritical, result: { roll: { total: Math.round(total), isCritical } }'"
+  },
+  {
+   "ref": "E76 promise 3",
+   "claim": "With One dice look for the table on, DSN's saved marker written with the look to every user below full GM, offline too; a full GM's own never; off, nothing.",
+   "verdict": "stands",
+   "why": "isForced is role below GAMEMASTER; the sweep filters every forced user, online or not, who does not hold the look with both marks; the put-back the same for one user; enforcing() gates both. R3603 and R940 ok in shard 1/8. A user past the fuse (stopped) is left, which the promise does not mention but which is the fuse's design.",
+   "evidence": "scripts/dice-sync.mjs:542-543 'export function isForced(user) { return Boolean(user) && user.role < CONST.USER_ROLES.GAMEMASTER;'; :719 'const SAVED_MARK = Object.freeze({ appearance: true, sfx: true });'; :793-794 'const behind = game.users.filter(u => isForced(u)).filter(u => !stopped(u.id) && !holdsTableLook(u, look));'"
+  },
+  {
+   "ref": "E76 promise 5",
+   "claim": "What the passages' cut leans on in Foundry's sweep is pinned to 14.370 as its published typings declare it.",
+   "verdict": "stands",
+   "why": "The promise is about typings and R3601 is exactly that pin; ok in shard 1/8. What the runtime does is LIVE-E76-06, as the reader says.",
+   "evidence": "docs/dev/R-REGISTRY.md row R3601 'a passage's cut leans on Foundry's sweep only as 14.370 declares it'; shard 1/8 '  ok    R3601'"
+  },
+  {
+   "ref": "E76 promise 6",
+   "claim": "(E76b) The module's roll marks carried through 2.12's MoveContext; a 2.12 roll's outcome filled where 2.10 wrote it; a critical read off config.evaluated.",
+   "verdict": "stands",
+   "why": "roll-marks.mjs is 87 lines exporting carryMarks, adoptMarks and fillRollFacts; the draw calls adoptMarks on preRollDuality and inside drawnBuild; reviewTraitRoad passes a MoveContext that keeps the event. R3604-R3606 ok in shard 1/8. The card, Hope, Calls and Reroll at a table are not read (LIVE-E76-04 partly).",
+   "evidence": "scripts/roll-marks.mjs:32 'export function carryMarks(options = {}) {', :45 'export function adoptMarks(config) {', :68 'export function fillRollFacts(config) {'; scripts/roll-draw.mjs:199 'Hooks.on(`${CONFIG.DH?.id ?? \"daggerheart\"}.preRollDuality`, config => { adoptMarks(config); });'"
+  }
+ ],
+ "counts": {
+  "checked": 30,
+  "stands": 24,
+  "weakened": 6,
+  "refuted": 0
+ },
+ "not_established": [
+  "base-run.json is now on the branch, with all eight shards: the reader's seven 'not in shards 1-5' tier-2 titles read as E48-K6 ok (8/8), the two settings-window saves ok (6/8, 7/8), the outline on a real canvas skipped by baseline (8/8, env.canvas), the trial's end ok (7/8), the fence test ok (8/8), 'becoming a Monocub lays no body' ok (6/8). The merged suite is RED on one test of another stage (grid XI07, shard 3; passes alone). Every scenario the reader names (17, 33, 71, 75, 83, 91, 92) is still pending in base-run.json and was not read.",
+  "That a Foundry 14.370 DialogV2.wait answers null when the dialog is closed by its own close() with rejectClose false is read from Foundry's API as the module uses it everywhere (the End the chapter press before it relies on the same), not from v14's source in this checkout; a press of Reset the season at a table, or a tier-2 test that presses it, would settle E49-1 as measured. New live check: in Season setup press Reset the season and read whether the reset's own window opens.",
+  "Whether controls-10-setup-config-2's stale Save should count against E49 (A1e moved Edit campaign into Season setup) or only against Edit campaign's older code was decided here from where the read and write live (gm-campaign.mjs), not from a diff of A1e, whose commits are not all objects in this shallow clone."
+ ]
+}

@@ -1,0 +1,166 @@
+{
+ "refuter": "verify-live-items-327",
+ "of": "live-items-327",
+ "checked": [
+  {
+   "ref": "356",
+   "claim": "LIVE-E51-02 partly, result defect: the owner's table reading of 01.11.2026 on 1.2.96 (the chain, the hour's colour on the line); the colour's change at the hour's turn unread",
+   "verdict": "stands",
+   "why": "The reading exists in the digest and on the paper line, names this item, and is on 1.2.96 at a real table on Foundry 14.365 - after E51 C3 shipped (E51: 1.2.94, 31.10.2026, tools/stages.json), so it is a reading of what the item asks, not of the report it came from. It reads the first half (the chain, the colour reaches the drawing) and the paper says the second half (the change at the hour's turn) was not read: partly is right. The defect at the reading is the token-ruler row's false alarm, which the item itself asks to read ok; fixed in 1.2.97 (E37 C4b, R1203), as the probe's comment says. The digest writes outcome 'mixed' where the reader writes 'defect'; either fits, since the row the item asks about did fail then. The reader's note that owner-116 changed HourTokenRuler after the reading is confirmed, and refreshTokenRulers is where the reader says.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:1230 'Odczyt właściciela (01.11.2026, 1.2.96, Foundry 14.365 ...): łańcuch CONFIG.Token.rulerClass to TokenRulerIsometric > HourTokenRuler > ... a linia ruchu żetonu ma kolor pory dnia ... Zmiana koloru przy zmianie pory dnia nie została jeszcze odczytana.'",
+    "audit/findings-1.2.118/live-readings-other.json item 356: 'outcome': 'mixed', 'date': '01.11.2026'",
+    "tools/stages.json E51: version 1.2.94, shipped 2026-10-31",
+    "scripts/patches.mjs:643-650 'THE MODULE'S CLASS ANYWHERE IN THE CHAIN (E37 C4b, 01.11.2026; the owner's table, 1.2.96 on Foundry 14.365) ...'",
+    "docs/dev/owner-116/STATUS.md:183 'fog-doorways.mjs: HourTokenRuler keeps visible and asks one predicate on every write of it (setRulerShown)'",
+    "scripts/fog-doorways.mjs:1934-1941 'export function refreshTokenRulers() { ... token.renderFlags.set({ refreshRuler: true }) ...'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "357",
+   "claim": "LIVE-E51-03 partly, result defect: the owner's screenshots of 11.10 and 31.10.2026 (light patches past the walls) are a part of the item read",
+   "verdict": "weakened",
+   "why": "The sight exists, but both screenshots are from before the fix the item checks (E51 fix FG3, first in 1.2.94, shipped 31.10.2026); they are the report the item was written from and the item's text already carries them as background ('na mapie z poprawek z 11.10 i 31.10'). What the item asks - a shot on 1.2.94 or later showing where the light ends - has no reading in any digest or paper (the reader says so itself, and its observation 1 says none of the three is the reading the item asks for). Under 11.3, 'częściowo' is 'odczytana część' of the item; no part of what it asks was read. The first-session refuters weakened items 236 and 268 - the two the reader cites as its precedent - to open on the same ground. 'Result: defect' reads as a live defect at the table on code that has since changed.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:1231 'na mapie z poprawek z 11.10 i 31.10 (zrzuty właściciela; na zrzucie z 31.10 plamy światła ...) ... wejść postacią do tego pokoju i zrobić zrzut na 1.2.94'",
+    "audit/findings-1.2.118/live-readings-other.json item 357: 'Fixed in 1.2.94 (E51 fix FG3 ...) ... no screenshot after the fix is recorded.'",
+    ".github/release-notes/v1.2.94.md:144-150 'What the drawing looks like is LIVE-E51-03, whose text names the owner's screenshots of 11.10 and 31.10.'",
+    "docs/dev/e58/TRIAGE-9.2.md:380 '| 357 | LIVE-E51-03 | F | Needs owner's map with diagonal room boundaries |'",
+    "audit/findings-1.2.118/verify-first-session/live-items-07.json ref 236: 'A pre-fix report is not a part of the item read on a recent enough module ... the same rule makes this open.'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "358",
+   "claim": "LIVE-E51-04 partly, result defect: the owner's session notes of 27.10.2026 (a character token doubled after the investigation started) are a part of the item read",
+   "verdict": "weakened",
+   "why": "The note of 27.10 exists, but it is the report the item was written from (E51-35, 'notatki z sesji 27.10'), not a reading of what the item asks: the console list with _stats.createdBy before and after the start, and who made the second token. No digest or paper holds that list; the reader says so ('the console reading the item asks for ... is not recorded anywhere'). Nothing of the item's own check was read, so by 11.3 it is open, as 236 and 268 were made open by their refuters. The text_stale point on 'Go investigate' is confirmed: no lang string, and the GM panel's 'Start the Investigation' is the step.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:1232 'LIVE-E51-04 - podwojony żeton postaci po rozpoczęciu śledztwa (E51 C5; E51-35, notatki z sesji 27.10): ... dla każdej postaci wypisać jej żetony ... z _stats.createdBy'",
+    "audit/findings-1.2.118/live-readings-other.json item 358: 'Not reproduced and not fixed ... the item's console line with _stats.createdBy is the reading still asked for.'",
+    "git grep 'Go investigate' b5a29e73 -- lang scripts: no hit; only audit/harness/scenarios/62-investigation.mjs:897 'as the murder window's \"Go investigate\" does'",
+    "lang/en.json:5155 '\"goStartInvestigationButton\": \"Start the Investigation\"'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "333",
+   "claim": "LIVE-E70-05 open: no reading of a muted player's console write of permissions.BROADCAST_AUDIO",
+   "verdict": "stands",
+   "why": "No digest row names the item or its id; TRIAGE files it K; LOCAL-REPORT counts it among the 397 left; v1.2.90.md:209 says not tried. The nearest real-Foundry reading, CALIBRATION.md:29 (LIVE-E30-04), is an Assistant's own role write refused by the server - a role 3 user and the role field, not a player's permissions field; it supports the model the item assumes but does not read it. The reader did not cite it; worth naming beside 228 as a neighbour, not a reading.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:356 '| 333 | LIVE-E70-05 | K | Player console game.user.update({\"permissions.BROADCAST_AUDIO\":true}) ...'",
+    "docs/dev/e39/CALIBRATION.md:29 'game.user.update({role: 4}) from its console: refused by the server, \"User CALIB Assistant lacks permission to update User [id]\"'",
+    ".github/release-notes/v1.2.90.md:209 '- **LIVE-E70-05** (item 333, not tried yet)'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "344",
+   "claim": "LIVE-E89-03 open: how many updateToken a dragged path with two waypoints delivers is unread; the API route of CALIBRATION is related only",
+   "verdict": "stands",
+   "why": "CALIBRATION section 3 read PlayerOne's own route through TokenDocument#move with a waypoint on 14.370: one update, pending.waypoints empty, method 'api', on the mover, the GM and a bystander. That is close to what the item asks, but the paper itself says the mouse drag the item names was not read ('A drag by mouse (method: \"dragging\", where pending may hold the rest of a route) was not read'). The reader names this reading in its note and keeps the item open: right.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:93 '| updates per route | **one**: preMoveToken and preUpdateToken once on the mover ...'",
+    "docs/dev/e39/CALIBRATION.md:95 'pending.waypoints empty; method: \"api\"'",
+    "docs/dev/e39/CALIBRATION.md:129-130 'A drag by mouse (method: \"dragging\", where pending may hold the rest of a route) was not read: a canvas drag through Playwright on this sandbox is the next reading.'",
+    ".github/release-notes/v1.2.91.md:197 '344 LIVE-E89-03 (how many updateToken one dragged path delivers)'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "348",
+   "claim": "LIVE-E90-01 open: the owner's table after 1.2.93 (serverTime, stores, restart, clocks) unread; the fault itself read at item 41",
+   "verdict": "stands",
+   "why": "The only reading touching it is item 41's of 31.10.2026, before the 1.2.93 fix, and its digest says no reading of 348 is recorded. No serverTime or gmStoreStatus reading appears in either copy of LOCAL-REPORT or CALIBRATION (grep: none). TRIAGE T (The Forge, the owner's world).",
+   "evidence": [
+    "audit/findings-1.2.118/live-readings-other.json item 41: 'What is left for the table is LIVE-E90-01 (item 348), for which no reading is recorded.'",
+    "docs/dev/e58/TRIAGE-9.2.md:371 '| 348 | LIVE-E90-01 | T | The Forge server restart, owner's world data, two machines' clocks |'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "349",
+   "claim": "LIVE-E50-01 open: ui.activeWindow against the messenger window unread",
+   "verdict": "stands",
+   "why": "No digest row; no 'activeWindow' or messenger-window reading in LOCAL-REPORT (either copy) or CALIBRATION (grep). The one messenger reading on the sandbox (S7-5, a thread message's secret) is another question. TRIAGE K; v1.2.94.md lists it as a question for v14.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:372 '| 349 | LIVE-E50-01 | K | openMessenger(id); compare ui.activeWindow to instance ...'",
+    ".github/release-notes/v1.2.94.md:329-330 '349, LIVE-E50-01: on v14, is ui.activeWindow the messenger window after it opens ...'",
+    "origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:570 '| S7-5 (COMM-03) | measured | a real thread message (messenger.mjs sendMessage) ...'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "352",
+   "claim": "LIVE-E50-03 open: the Music slider against Foundry's playlist volume unread",
+   "verdict": "stands",
+   "why": "No digest row; no volume or globalPlaylistVolume reading in the papers (grep). TRIAGE K; v1.2.94.md lists it.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:375 '| 352 | LIVE-E50-03 | K | Set module Music 50; read core globalPlaylistVolume ...'",
+    ".github/release-notes/v1.2.94.md:337-338 '352, LIVE-E50-03: the Music slider at 50 in the module and in Foundry's playlist sidebar read the same number'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 1",
+   "claim": "No digest holds a reading for 31 of 34; the three it holds (356-358) are each before the item's fix or still undiagnosed, and none is the reading the item asks for",
+   "verdict": "weakened",
+   "why": "Right for 357 and 358 (and that sentence is why both should be open, not partly). Wrong for 356: its reading (01.11.2026, 1.2.96) is after E51 C3 shipped in 1.2.94 and reads the item's own first half (the chain and the colour on the drawn line); the reader's own item 356 treats it as the item's reading. The sentence also contradicts the reader's 'partly' on 357 and 358.",
+   "evidence": [
+    "tools/stages.json E51: version 1.2.94, shipped 2026-10-31",
+    "audit/AUDIT-1.2.42.md:1230 'Odczyt właściciela (01.11.2026, 1.2.96 ...)'"
+   ],
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation 4 (and the evidence of items 327, 328)",
+   "claim": "The sandbox's fps() runs in PERF-READINGS are on one post-E88 build, 'a high-end desktop with software WebGL (LOCAL-REPORT.md:343)'",
+   "verdict": "weakened",
+   "why": "That they settle none of 327, 328, 330 holds (one build, no before run, no shot). But 'software WebGL' is wrong: LOCAL-REPORT:343 says the first renderer was llvmpipe (software), and with Mesa's d3d12 driver and the NVIDIA adapter the page read the RTX 4080 SUPER through WSLg; PERF-READINGS' header says the runs drew on that hardware. Item 328's 'on a desktop with software rendering' carries the same slip. Statuses are not changed by it.",
+   "evidence": [
+    "docs/dev/e58/PERF-READINGS.md:10-13 'WebGL renderer read in the page: \"ANGLE (Microsoft Corporation, D3D12 (NVIDIA GeForce RTX 4080 SUPER), OpenGL 4.6)\" - hardware, through WSLg's D3D12 translation'",
+    "docs/dev/e58/LOCAL-REPORT.md:343 'with MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA: \"D3D12 (NVIDIA GeForce RTX 4080 SUPER)\" - the GPU, through WSLg's D3D12 translation'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 5",
+   "claim": "E71's text sweep reworded strings that items 339 and 342 quote; the list was not swept; gm-handbook.pl.md still carries 'Wylosowano:' once (nit)",
+   "verdict": "stands",
+   "why": "Spot check: 25423c19 is E71 B10a/B11 of 14.11.2026; 'Wylosowano' has no hit in lang/pl.json and one in docs/handbooks/gm-handbook.pl.md. The three old-English comments were not each re-read here.",
+   "evidence": [
+    "git show 25423c19: 'E71 B10a and B11 (line C): the vote, the verdict, the Class Trial and its floor' (Sat Nov 14 2026)",
+    "docs/handbooks/gm-handbook.pl.md:1555 '... losuje się jeden zgłoszony: *Wylosowano: name. Zgłoszeni: names.*'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 6",
+   "claim": "Item 358 names a 'Go investigate' button that no lang file has held; the step is the GM panel's 'Start the Investigation'",
+   "verdict": "stands",
+   "why": "git log -S 'Go investigate' -- lang finds nothing; git grep finds only scenario 62's comment; the key and its use are where the reader says.",
+   "evidence": [
+    "audit/harness/scenarios/62-investigation.mjs:897 'as the murder window's \"Go investigate\" does (clock.mjs setPhase)'",
+    "scripts/gm-panel.mjs:1053 'startInvestigation: \"DRPG.Panel.goStartInvestigationButton\",'"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 12,
+  "stands": 8,
+  "weakened": 4,
+  "refuted": 0
+ },
+ "status_changes": [
+  "357 partly -> open: the only sights (11.10, 31.10.2026) predate fix FG3 of 1.2.94; no shot after it is recorded",
+  "358 partly -> open: the 27.10.2026 notes are the report the item came from; the createdBy reading it asks for is recorded nowhere"
+ ],
+ "not_established": [
+  "Whether the colour of item 356 still reaches the drawn line on 1.2.118 after owner-116's change of HourTokenRuler: not read anywhere (agrees with the reader).",
+  "Observations 2, 3, 7, 8, 9 and the 26 open items not sampled were not re-checked; they carry no severity of minor or above.",
+  "Whether the reader's 'result' word for 356 should be 'mixed' (the digest's) rather than 'defect': a vocabulary choice, left as written."
+ ]
+}

@@ -1,0 +1,110 @@
+{
+ "refuter": "verify-live-items-395",
+ "of": "live-items-395",
+ "checked": [
+  {
+   "ref": "395",
+   "claim": "LIVE-E22-04 (the Safeword window) is partly read, agrees: two L1 readings of 16.11.2026 on 14.370 opened it on a player's page by the keybinding and by game.drpg.safeword().",
+   "verdict": "stands",
+   "why": "Both readings exist at the lines cited on b5a29e73's copy (and at :572 and :582 on origin/claude/e58-local), both on Foundry 14.370 with the module at 1.2.116 (the sandbox's base ff3e12e5), both on PlayerOne's page and both about this window: the key opened it with 'Stop the scene' as the default before Cancel, and safeword() was pressed through 'Stop the scene'. They were taken for COMM-11 and CORE-13, not for this item, and the reader says so. `git diff --stat ff3e12e5 b5a29e73 -- scripts/safeword.mjs scripts/ui-kit.mjs` prints nothing; lang/*.json changed but no Safeword key (the diff greps empty for 'safeword'), styles changed but no line names safeword, a footer or a button; monokuma.mjs's 4 added lines are noteOwnWrite calls, not the import the key waits on. So the part read carries to 1.2.118. The parts listed as not read (the sheet's door, Enter, the screen order, contrast, a GM's screen, theme, Polish, delay) are indeed absent from both readings. The stale label is right: 968a0a27 changed stopIt 'Zatrzymaj' -> 'Zatrzymaj scenę'.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:420 \"| 17 (COMM-11) | measured | ... bound to F9 and pressed with no sheet open on PlayerOne's page, it opened the Safeword window (Stop the scene, the default, then Cancel); Cancel posted nothing\"; :430 \"| S7-8 (CORE-13) | measured | PlayerOne pressed the safeword twice (`game.drpg.safeword()`, \\\"Stop the scene\\\" each time)\"; :3-4 \"made from origin/main at ff3e12e5 (1.2.116 ...)\"; scripts/safeword.mjs:399-402 \"gmRoute: [{ action: \\\"yes\\\", ... }], close: { role: \\\"cancel\\\", action: \\\"no\\\", ... }, default: \\\"yes\\\"\"; lang/pl.json:6542 \"\\\"stopIt\\\": \\\"Zatrzymaj scenę\\\"\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "409",
+   "claim": "LIVE-E23-08 (Foundry's toasts under Stained Glass) is partly read, defect: the owner's console line on 1.2.101, 09.11.2026, read the list's parent as an id-less flex row; fixed in 1.2.102 (R3100); nothing of 1.2.102+ read.",
+   "verdict": "stands",
+   "why": "The reading is in the item's own text (AUDIT line 1306), in the release notes of 1.2.102 and in R3100's comment, dated 09.11.2026 on 1.2.101. The part it settles - whether the list stands in `#ui-top`'s flex column (the item's last ask) - is a fact of Foundry's page, not of the module's rules, so it carries past the fix; the rest (the line on 1.2.102+, core's position, the tile's look, the ancestor chain) is unread as the reader says. The fix is in today's sheet: the placement selector is `#ui-top > #notifications`. One caveat the file does not state: the owner's v14 build on 09.11 is not written anywhere (the sandbox's 14.370 is 16.11's).",
+   "evidence": "audit/AUDIT-1.2.42.md:1306 \"Odczyt właściciela na 1.2.101 (09.11.2026): rodzic listy nie ma id i jest wierszem flex (linia niżej dała `[\\\"\\\", \\\"flex\\\", \\\"row\\\", \\\"static\\\"]`...)\"; .github/release-notes/v1.2.102.md:187-189 \"09.11.2026, item 1 read at the table (1.2.101, v14): the console line gave `[ \\\"\\\", \\\"flex\\\", \\\"row\\\", \\\"static\\\" ]` ... neither `#ui-top` nor `#ui-right` is the parent\"; styles/stained-glass.css:2234 \"body.drpg-theme-stained-glass #ui-top > #notifications {\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "428",
+   "claim": "LIVE-E24-11 (the project description's width) is partly read, defect: the owner's 09.11 screenshot showed the field about a third of the window.",
+   "verdict": "weakened",
+   "why": "The screenshot is real and about this window, but it is the report the item was written from, not a reading of what the item asks. It was taken on the code before E24 C6 (337318cf, 09.11 00:53 UTC, shipped in 1.2.101 at 05:09 UTC; R1492 calls the state it shows 'Red at 52955be4'), so on 1.2.100's markup, which has since been replaced twice (E24 C6's own label column, then E47-C6's formGrid row). The item asks for the fixed field's width with Foundry's stylesheet; nothing of that is recorded, as the reader itself writes. Unlike 409, no part of the old reading is a fact of Foundry that carries to today's markup. Under 11.3 a part read must be a reading of the item's subject; the subject of this reading is gone. Status: open, the screenshot kept as the item's origin; result n/a.",
+   "evidence": "scripts/tests-tier1.mjs:49976-49986 \"The owner, 09.11.2026: \\\"Opis okna projects - za waskie\\\", with a screenshot of Edit project: the Description textarea about a third of the window ... Red at 52955be4: a row, centred, no width.\"; scripts/projects-ui.mjs:814-817 \"A ROW OF THE KIT'S `formGrid` SINCE E47-C6 ... Until then a label of its own drawn as a column (`drpg-description-field`, E24 C6 ...)\"; git log: \"337318cf Mon Nov 9 00:53:13 2026 ... E24-C6: the project's description takes the form's width\", \"e5315636 2026-11-09 05:09:16 ... 1.2.101 - the version\"; audit/findings-1.2.118/live-readings-other.json item 428 \"Not seen with Foundry's own stylesheet.\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "420",
+   "claim": "LIVE-E24-07 (a sheet step that throws) is open: no reading found.",
+   "verdict": "weakened",
+   "why": "A reading the file missed: L1's tier-2 run 2 on 14.370 (1.2.116) recorded, among the GM's open windows when it hung, the toast 'Parts of the character sheet failed to draw: tidyBiography. A newer Daggerheart may be why' - the module's step-failure notice (DRPG.SheetNotes.failedSteps, requirements.mjs:345-348, primary GM only, permanent), naming the step, listed once while another toast is listed three times; none of the three players' pages held it. Its source is not named in the paper: runTests({ tier: 2 }) runs tiers 0-2 (tests.mjs:354 `t <= tier`), and R1456 plants a throwing tidyBiography and passes the warn through to the real ui.notifications, so it is most likely R1456's own plant on a stand-in root at a real Foundry; if not, it is a real failure of tidyBiography on Daggerheart 2.12.9 (then a defect for items 417/418). Either way the GM-side notice with the step's name was seen at a table. Not read: the other injections drawing, 'once' as a count, the console error, the player's side on a real sheet. The reader searched by item number and id, which does not find it.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:23-24 \"toasts \\\"1 death is still known only to the GMs ...\\\" three times and \\\"Parts of the character sheet failed to draw: tidyBiography. A newer Daggerheart may be why\\\"; **PlayerOne** - \\\"Stay hidden?\\\" ...\"; lang/en.json:4243 \"\\\"failedSteps\\\": \\\"Parts of the character sheet failed to draw: {steps}. A newer Daggerheart may be why; see the console (F12).\\\"\"; scripts/requirements.mjs:345 \"if (!names?.length || sheetStepNotice.told || !isPrimaryGm()) return false;\"; scripts/tests-tier1.mjs:49000 \"ui.notifications.warn = (message, ...rest) => { told.push(String(message)); return realWarn?.call(ui.notifications, message, ...rest); };\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "398",
+   "claim": "LIVE-E21-06 (the kit's Close on action \"close\" answers null or \"close\" on v14) is open.",
+   "verdict": "stands",
+   "why": "No digest entry names it; L1's fifth run read tiers 0-1 at a table (where R4673 would answer it) but names none of the 36/31 failures, and no results file with names is on origin/claude/e58-local (its local-gate.json holds no R or E-T names). SURVEY-close-action.md says the premise is assumed on v14. The stale headless line is real: the shim models the dispatch since 13.11.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:306-307 \"Tiers 0-1 at a table, read for the first time ...: Stained Glass 36 failed, 5 skipped; Monokuma Legacy 31 failed, 15 skipped. ... Not read yet\"; docs/dev/gaps/SURVEY-close-action.md:10 \"**On v14 this is assumed, not measured**: LIVE-E21-06\"; audit/harness/lib/shim.mjs:1785 \"if (target?.dataset?.action === \\\"close\\\") return this.close();\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "405",
+   "claim": "LIVE-E23-04 (a window the game waits on stays above the sheet) is open.",
+   "verdict": "stands",
+   "why": "Searched the b5a29e73 and origin copies of LOCAL-REPORT.md and CALIBRATION.md for z-index, bringToFront, raise and render(true): no hit; run 2's open-window list says only 'no page in front', a statement about browser pages, not about window order. The digests hold nothing for LIVE-E23-04.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:26-27 \"Which page was in front: none - each a headless page in its own browser context, no page in front\"; grep -n -i \"z-index\\|bringToFront\" over both papers on both refs: no lines",
+   "status_after": "open"
+  },
+  {
+   "ref": "410",
+   "claim": "LIVE-E23-09 (the pause on the clock) is open.",
+   "verdict": "stands",
+   "why": "The one candidate is run 2's 'The world \"On hold\" (paused) on all four'. It cannot place the words: the module localises Foundry's own GAME.Paused to 'On hold' and the clock's stamp reads the same key, so the line may be Foundry's centred caption, the clock's stamp or both; it reads nothing of the clock's height, the cut or the campaign line. Not a reading of the item's ask; open holds, with that line worth a note for L1.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:25-26 \"The world \\\"On hold\\\" (paused) on all four.\"; lang/en.json:2-3 \"\\\"GAME\\\": { \\\"Paused\\\": \\\"On hold\\\"\"; scripts/hud.mjs:385 \"stamp.textContent = game.i18n.localize(\\\"GAME.Paused\\\");\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "424",
+   "claim": "LIVE-E45-01 (the sheet repainted after a write on every client; v14's renderContext and renderData) is open.",
+   "verdict": "stands",
+   "why": "No hit for renderContext, renderData, repaint or flicker in either paper on either ref, nor in the three digests; the delta's 25 readings are tier-2 runs, put-back probes, walls and the cast.",
+   "evidence": "grep -n -i \"renderContext\\|renderData\" over docs/dev/e58/LOCAL-REPORT.md and docs/dev/e39/CALIBRATION.md on b5a29e73 and origin/claude/e58-local: no lines; audit/findings-1.2.118/live-readings-e58-delta.json: 25 readings, none naming E45 or the sheet's repaint",
+   "status_after": "open"
+  },
+  {
+   "ref": "414",
+   "claim": "LIVE-E24-01 (token bars and the HUD fields as a reserve) is open.",
+   "verdict": "stands",
+   "why": "No hit for getBarAttribute, token bar or Sanity bar in either paper on either ref; L1's map readings (MAP-02's frame sampling) read a token's visibility, not its bars.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:419 \"| 15, S7-7 (MAP-02) | measured | PlayerTwo's canvas sampled each frame while Aiko walked ... hidden in the corridor\" (visibility only); grep -n -i \"getBarAttribute\\|token bar\" over both papers on both refs: no lines",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation: comment against code (ui-kit.mjs:120-122, tests-tier2.mjs:31506)",
+   "claim": "Two comments still say the harness's DialogV2 does not model the close dispatch; it does since 13.11.2026.",
+   "verdict": "stands",
+   "why": "Both comments read as quoted; shim.mjs's _onSubmit closes on a footer press of \"close\" and its own comment dates that to 13.11.2026 and R4673; R4673's comment says 'the harness's DialogV2 models it since this test'.",
+   "evidence": "scripts/ui-kit.mjs:121-122 \"The harness's DialogV2 does not model that dispatch, so a callback there passes every test and fails at a table\"; scripts/tests-tier2.mjs:31506 \"The harness's DialogV2 does not model that dispatch, so this test does\"; audit/harness/lib/shim.mjs:1779 \"A FOOTER PRESS ON \\\"close\\\" CLOSES THE WINDOW (13.11.2026; ... R4673)\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation: handbook ids swapped (player-handbook.pl.md:1099, handbook-facts.player-handbook.en.json)",
+   "claim": "The Polish handbook and the facts file give the '?' for Sanity to LIVE-E24-01 and the token's bar to LIVE-E24-03, the other way round from the items.",
+   "verdict": "stands",
+   "why": "Item 414 (LIVE-E24-01) is the token's bars ('inny gracz nie widzi paska Sanity'), item 416 (LIVE-E24-03) the Party sheet ('drugi gracz nie widzi cudzego Sanity'); the Polish line and facts s17.p4.f1/f2 pair them the other way; the English line cites both ids together.",
+   "evidence": "docs/handbooks/player-handbook.pl.md:1099 \"że inny gracz widzi **?** w miejscu twojego Sanity (LIVE-E24-01), że nie widzi paska Sanity na twoim tokenie (LIVE-E24-03)\"; docs/handbook-facts.player-handbook.en.json:2564 \"That another player sees no Sanity bar on your token has not yet been checked at a table (LIVE-E24-03).\"",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 11,
+  "stands": 9,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "status_changes": [
+  "428 partly -> open: the only record is the owner's 09.11 screenshot of the pre-fix markup (before 337318cf, 1.2.100's); the fixed field with Foundry's stylesheet, the item's whole ask, is unread",
+  "420 open -> partly: LOCAL-REPORT.md:23-24 records the GM's step-failure toast naming tidyBiography on 14.370 (most likely R1456's own plant during tier 2's run of tier 1); the rest of the ask unread"
+ ],
+ "not_established": [
+  "The source of the tidyBiography toast in L1's run 2 (LOCAL-REPORT.md:23-24): R1456's planted throw, or a real failure of the biography step on Daggerheart 2.12.9. The paper does not say; if the second, items 417, 418 and 426 part F have a defect reading. New live check: on a fresh load at the sandbox, open a student's sheet as GM before any test and read whether DRPG.SheetNotes.failedSteps appears.",
+  "The Foundry v14 build at the owner's table on 09.11.2026 (item 409's reading) is not recorded.",
+  "Whether the 'On hold' words seen on all four pages in run 2 (LOCAL-REPORT.md:26) were the clock's stamp or Foundry's own caption (item 410).",
+  "The reader's other 26 open items were not each re-searched here; five open items plus 414 were (398, 405, 410, 414, 420, 424)."
+ ]
+}

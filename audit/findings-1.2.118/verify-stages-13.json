@@ -1,0 +1,317 @@
+{
+ "refuter": "verify-stages-13",
+ "of": "stages-13",
+ "scope_note": "stages-13 holds no finding of severity minor or above (its four findings, E66-1, E41-1, E41-2, E42-1, are nits); the four nits are checked as well because the grades rest on them. Checked: every promise marked holds yes (29) or no (1), the four grades and the four nits. Read: the reader's file whole, BRIEF.md, AUDIT-1.2.42.md 11.2-11.4, base-run.json and the eight shard result files by script, and the code at each cited place (boundary.mjs:90-152 and :236-560, despair.mjs:290-450 and :795-902, verdict.mjs:440-532 and :1179-1345, steps.mjs:30-135, chapter.mjs:838-870 and :1005-1080, price.mjs:240-340, settings.mjs:1160-1215 and :4148-4215, day-summary.mjs:60-142, utils.mjs:60-120 and :560-600, sync.mjs:455-492, patches.mjs:625-660, season-wipe.mjs:680-700 and :815-905, and single lines elsewhere). Nothing run but read-only grep, wc, git grep and short python and node over source and result files.",
+ "checked": [
+  {
+   "ref": "E66 promise 1",
+   "claim": "Numbers, lists, dates and plural forms go through pageLanguage-based helpers; a declined reload keeps the page's language",
+   "verdict": "stands",
+   "why": "listOf, localeFormat and plural all read pageLanguage(), which answers the built-in language set at init before the live setting; the only other Intl format outside utils.mjs is requirements.mjs:245, the listed allowance. R1150-R1152, R1165 pass in shard 1/8.",
+   "evidence": "scripts/settings.mjs:4187-4189: 'export function pageLanguage() { return builtIn ?? moduleLanguage(); }'; scripts/utils.mjs:573: 'form = new Intl.PluralRules(pageLanguage()).select(n);'; scripts/tests-text.mjs:2529-2533 LOCALE_ALLOWED requirementsContent, stage E66"
+  },
+  {
+   "ref": "E66 promise 3",
+   "claim": "documentLanguage is a world setting, empty by default, seeded once by the primary GM while empty",
+   "verdict": "stands",
+   "why": "seedDocumentLanguage returns early unless GM, primary and the setting empty; the choices hold \"\" as the default. The 'nothing writes a document in it yet' half is superseded by E57 C3, as the reader says (settings.mjs:1728-1732 comment).",
+   "evidence": "scripts/i18n.mjs:145-147: 'if (!game.user?.isGM || !isPrimaryGm() || documentLanguage()) return false; await setSetting(SETTINGS.documentLanguage, pageLanguage());'; scripts/settings.mjs:1742-1743: 'choices: { \"\": \"DRPG.Help.documentLanguageUnset\", ...LANGUAGES }, default: \"\"'"
+  },
+  {
+   "ref": "E66 promise 4",
+   "claim": "One name per action, option and Call in both languages; Remnant in both; T28 at 0",
+   "verdict": "stands",
+   "why": "The cited labels stand at the cited lines; DRPG.Remnant.tokenName is 'Remnant' in both lang files (read by script); the English names appear in pl.json. T28's count is the reader's log citation, not re-read. R1161, R1162 pass.",
+   "evidence": "scripts/config.mjs:4054: 'side: \"killer\", label: \"Strike\"'; :4078 'label: \"Pin Them Down\"'; lang/en.json and lang/pl.json DRPG.Remnant.tokenName = \"Remnant\" (python read)"
+  },
+  {
+   "ref": "E66 promise 5",
+   "claim": "No 'przerzu' left in pl.json or the Polish handbooks",
+   "verdict": "stands",
+   "why": "grep -ci over lang/pl.json and the six docs/handbooks/*.md files gives 0 in each (seven files, as the reader counts).",
+   "evidence": "grep -ci przerzu: lang/pl.json:0, docs/handbooks/gm-handbook.pl.md:0, player-brochure.pl.md:0, player-handbook.pl.md:0 (and the three .en.md:0)"
+  },
+  {
+   "ref": "E66 promise 6",
+   "claim": "Counts pick the right plural form; 534 keys end .one or .other in en.json; the crisis hindrance card names actions",
+   "verdict": "stands",
+   "why": "Recounted by script: 534 keys (267 .one, 267 .other). plural() falls back to 'other' when a form is missing. E66-T1, unread by the reader, passes in shard 8/8 of the base run, so the hindrance half is now joined.",
+   "evidence": "scripts/utils.mjs:588-589: 'const picked = game.i18n.has(`${key}.${form}`) ? form : \"other\"; return game.i18n.format(`${key}.${picked}`, data);'; audit/findings-1.2.118/base-run.json: shards 2/8-8/8 green, 3/8 red only on grid XI07; the central shard files results-suite-{1..8}/01-runtests.json read by script: all 52 registry rows and all 29 tier-2 tests of the four stages outcome pass"
+  },
+  {
+   "ref": "E66 promise 7",
+   "claim": "Rule numbers are filled from the rule tables where the text is made; the Indirect Murder estimate reads 4 to 5",
+   "verdict": "stands",
+   "why": "indirectCostText derives fewest and actions from INDIRECT_MURDER.subProjects and the lowest project band plus the alone bonus; proseOf fills from PROSE_NUMBERS through fillProse. R1159, R1160, R1163 pass.",
+   "evidence": "scripts/murder-ui.mjs:900-905: 'const perWork = Math.max(1, (Number(lowest?.progress) || 0) + (Number(INDIRECT_MURDER.concealIntent?.aloneBonus) || 0)); ... fewest: works(p => Math.min(...p)), actions: plural(\"DRPG.Unit.actionGen\", ...'"
+  },
+  {
+   "ref": "E66 promise 8",
+   "claim": "Strike's failure text no longer promises an Obvious Remnant on a critical",
+   "verdict": "stands",
+   "why": "The failure sentence names only Hope and Despair outcomes; the failure branch reads failureRemnant?.[band] where band is hope or despair, so the critical key is unreachable.",
+   "evidence": "scripts/config.mjs:4072-4073: 'failure: \"Nothing on a Hope failure. On Despair you still take {stress} Sanity off them and \" + \"leave an Evident Remnant.\"'; scripts/murder-rules.mjs:1866-1868: 'a critical is always a success, so this branch sees `hope` and `despair` and nothing else'"
+  },
+  {
+   "ref": "E66 promise 9",
+   "claim": "A trace named 'Trace' or 'Ślad' by an older build still reads as not described",
+   "verdict": "stands",
+   "why": "neutralWords adds both legacy words to the current and fallback localisations; isNeutralName tests the trimmed name against them. Line numbers are one off (1382, 1384) but the code is the one cited. E66-T3 passes in shard 3/8.",
+   "evidence": "scripts/remnants.mjs:1382: 'const LEGACY_NEUTRAL_WORDS = Object.freeze([\"Trace\", \"Ślad\"]);'; :1391-1392 isNeutralName"
+  },
+  {
+   "ref": "E66 promise 12",
+   "claim": "A give-back is whispered only when the refund went through",
+   "verdict": "stands",
+   "why": "Each branch of refundPrice calls tellRefund only after the write: the action branch on ok, the Hope branch after the landed test (a not-landed Hope returns false before it). The comment records the one deliberate case (true with nowhere to go). E66-T2 passes in shard 2/8.",
+   "evidence": "scripts/price.mjs:266-268: 'const ok = await refundAction(actor, receipt.amount, receipt); if (ok && !quiet) await tellRefund(actor, receipt); return Boolean(ok);'; :283-293 'if (!landed) { ... return false; } if (!quiet) await tellRefund(actor, receipt);'"
+  },
+  {
+   "ref": "E66 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Allowed by 11.4: every promise is in the code and every test of the stage now passes in the base run (E66-T1 included, shard 8/8), one nit, LIVE-E66-01 and -02 unread (cap 9). Against 9 the reader puts the drawn sheet's lang and the drawn tile fit, which a source-reading test (R1153) and a longest-word test (R1162) hold - 'one promise holds only by code reading' is the scale's 8. A 9 could be argued once those count as the unread live checks alone; the reader's choice is within the scale, so not changed.",
+   "evidence": "audit/AUDIT-1.2.42.md 11.4 row 8: 'obietnice dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma minor'; audit/findings-1.2.118/base-run.json: shards 2/8-8/8 green, 3/8 red only on grid XI07; the central shard files results-suite-{1..8}/01-runtests.json read by script: all 52 registry rows and all 29 tier-2 tests of the four stages outcome pass",
+   "grade_after": 8
+  },
+  {
+   "ref": "E66-1",
+   "claim": "Strike and six other failure tables keep an unreachable critical key; the comment counts three where seven stand (nit)",
+   "verdict": "stands",
+   "why": "Below minor; checked because it feeds the grade. grep gives seven failureRemnant rows with a critical key (3991, 4075, 4087, 4099, 4134, 4161, 4209) against the comment's 'Three entries'.",
+   "evidence": "scripts/murder-rules.mjs:1868-1869: 'Three entries in config.mjs carry a `critical` key in their FAILURE tables'; scripts/config.mjs:4075: 'failureRemnant: { despair: \"evident\", critical: \"obvious\" }'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E37 promise 1",
+   "claim": "A readiness round before a GM's press moves the clock or the Eclipse; Not connected counts as Done; goes on by itself; confirm past the others; no round before Stage 6, in a trial or with nobody to ask",
+   "verdict": "stands",
+   "why": "toggleEclipse and nextTimeOfDay both call askReadiness before any move; roundReading reads an inactive user as 'away' and leaves it out of notDone; roundWindow closes itself on 'ready' and asks confirmGo (noFirst, Wait default) when notDone > 0; openRoundOnPrimary opens no round unless roundAllowed and a connected player exists. E37-T3 and E37-T9 pass (shards 5/8, 6/8).",
+   "evidence": "scripts/boundary.mjs:300: 'status: !user.active ? \"away\" : ...'; :303 'const notDone = rows.filter(row => row.status === \"wait\" || row.status === \"none\").length;'; :343 'if (await roundAllowed(clock) && users.some(user => user.active)) {'; :316-320 roundAllowed"
+  },
+  {
+   "ref": "E37 promise 2",
+   "claim": "readyRound written only by the primary, in a step of READY_KEY; open and end GM only; answer from a known sender about that sender",
+   "verdict": "stands",
+   "why": "Every write of SETTINGS.readyRound in boundary.mjs is inside serialWrite(READY_KEY) behind isPrimaryGm(); answerOnPrimary writes only answers[sender.id] and refuses a sender who plays no asked student. The bridge rows are gmOnly for ready.open and ready.end and knownSender, senderNotSpectator for ready.answer. Line numbers drift by a few (open 360, answer 378, end 404, clear 414).",
+   "evidence": "scripts/boundary.mjs:366-367: 'if (!game.user.isGM || !isPrimaryGm() || !sender) return { refused: ... }; return serialWrite(READY_KEY, async () => {'; :375 'if (!roundUsers().some(user => user.id === sender.id)) return { refused: \"the sender plays no student the round asks\" };'; scripts/bridge-table.mjs:1471 'guards: [gmOnly(\"only a GM opens a readiness round\")]', :1486 'guards: [knownSender, senderNotSpectator]'"
+  },
+  {
+   "ref": "E37 promise 3",
+   "claim": "One road for the Eclipse: the chevron and Do it call toggleEclipse; a start asks E17's question; an end asks the placement table only when a student has not crossed",
+   "verdict": "stands",
+   "why": "The only callers of toggleEclipse outside boundary.mjs are hud.mjs:1324-1325 and gm-panel.mjs:404; the start calls askEclipse first; the end calls placementTable only when some row has moved 0. E37-T2 passes in shard 4/8.",
+   "evidence": "scripts/hud.mjs:1324-1325: 'const { toggleEclipse } = await import(\"./boundary.mjs\"); await toggleEclipse();'; scripts/gm-panel.mjs:404: 'eclipse: { key: \"eclipse\", run: () => import(\"./boundary.mjs\").then(m => m.toggleEclipse()) }'; scripts/boundary.mjs:117 'if (rows.every(s => s.moved > 0)) {'"
+  },
+  {
+   "ref": "E37 promise 4",
+   "claim": "The day summary at every end of a time of day, none for a rewind, a new season or chapter or an Eclipse's end, none on a bystander",
+   "verdict": "stands",
+   "why": "registerDaySummary sums up on the clock's hooks; sumUp returns before showing when clockHiddenHere(murderState()); summaryWindow's header lists the cases that give none. E37-T4 (shard 7/8) and E37-T10 (2/8) pass.",
+   "evidence": "scripts/day-summary.mjs:91: 'if (clockHiddenHere(murderState())) return;'; :135-139 '- Nothing else: a move out of an Eclipse ..., a rewind ..., a new season or chapter ...'"
+  },
+  {
+   "ref": "E37 promise 5",
+   "claim": "The sync bus is one frozen table; one visibility pass for a clock move, none for a pause; a Despair write renders Monokuma sheets only",
+   "verdict": "stands",
+   "why": "KIND_REFRESH is frozen; the clock row runs visibility only when 'moved'; the despair row is bar, monokumaSheets, hud. Scenario 81's base-run result is still not in base-run.json (pending), so the render counts are not joined.",
+   "evidence": "scripts/sync.mjs:475-476: '[SYNC.clock]: Object.freeze([\"assembly\", \"bar\", \"hud\", \"sheets\", \"eclipse\", onlyWhen(\"visibility\", \"moved\"), ...'; :492 '[SYNC.despair]: Object.freeze([\"bar\", \"monokumaSheets\", \"hud\"]),'"
+  },
+  {
+   "ref": "E37 promise 6",
+   "claim": "Every GM road of Despair is written on the primary; another GM asks it; with no primary connected it writes there",
+   "verdict": "stands",
+   "why": "setDespair, adjustDespair, fillAllDespair, zeroAllDespair and the roster ask the primary when primaryElsewhere() and ask again inside the step; primaryElsewhere is false with no other active primary. The five bridge rows are gmOnly. E37-T8 passes in shard 7/8.",
+   "evidence": "scripts/despair.mjs:376-380: 'function primaryElsewhere() { if (!game.user?.isGM || isPrimaryGm()) return false; const primary = game.users.get(primaryGmId() ?? \"\"); return Boolean(primary?.active && primary.id !== game.user.id); }'; scripts/bridge-table.mjs:1022 'guards: [gmOnly(\"only a GM sets a Despair pool\"), guardDespairPool]'"
+  },
+  {
+   "ref": "E37 promise 7",
+   "claim": "Converting Despair to Hope gives what fits and refuses only an empty pool; Fuel a Monocub credits the same way; the card names the pool privately",
+   "verdict": "stands",
+   "why": "Read whole (the reader read the head only): convertDespairToHope trims to min(amount, spendable) and refuses on held <= 0; creditHopeFromDespair trims to the room under the maximum and whispers veiled with poolLabel; call-effects.mjs:1034-1039 is the Call's road through the same function. It also refuses under the darkening and on a full receiver, both older rules. E37-T6 passes in shard 4/8.",
+   "evidence": "scripts/despair.mjs:820-823: 'const held = spendableDespair(monokumaUserId); if (held <= 0) { ui.notifications.warn(...\"DRPG.Despair.poolEmpty\"...); return 0; }'; :887-889 'await whisperToOwner(actor, ..., { veiled: true });'; scripts/call-effects.mjs:1039 'await creditHopeFromDespair(choice.target, call.grantsHope,'"
+  },
+  {
+   "ref": "E37 promise 9",
+   "claim": "The Move briefing says what the next room takes, in takeMove's order",
+   "verdict": "stands",
+   "why": "nextCrossingPrice reads free, sprint, then burst or action; takeMove takes the free Move, then a Sprint, then spendAction, which answers burst or action. moveLine switches on it. R1200 passes.",
+   "evidence": "scripts/actions.mjs:367-372: 'if (hasFreeMove(actor)) return \"free\"; if (freeMovesLeft(actor) > 0) return \"sprint\"; if (freeActionsLeft(actor) > 0) return \"burst\"; return actionsLeft(actor) >= 1 ? \"action\" : null;'; scripts/action-briefing.mjs:112 'switch (nextCrossingPrice(actor)) {'"
+  },
+  {
+   "ref": "E37 promise 11",
+   "claim": "The token-ruler contract row reads the whole class chain",
+   "verdict": "stands",
+   "why": "Read in patches.mjs (the reader had not): the probe finds HourTokenRuler anywhere in classChain(Ruler) and names a class over it, failing only with none of the module's in the chain. R1203 passes.",
+   "evidence": "scripts/patches.mjs:652-655: 'const chain = classChain(Ruler); const at = chain.indexOf(\"HourTokenRuler\"); if (at < 0) return { present: true, ours: false, ... }; return { present: true, ours: true, ...'"
+  },
+  {
+   "ref": "E37 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Allowed by 11.4. Every tier-2 test of the stage now passes in the base run (shards 2-7), so the reader's 'seven not joined' no longer holds, but nothing it cited against 9 changes: two promises the stage's own ledger marks partial rest on harness models (render budget's stand-in sheets, Daggerheart's countdown write), and the main promise stands on five unread live items (cap 9). The stash half was retired by the owner's later rule, not broken. Scenario 81 is still not in the base run.",
+   "evidence": "audit/AUDIT-1.2.42.md 11.4 (the two caps); audit/findings-1.2.118/base-run.json: shards 2/8-8/8 green, 3/8 red only on grid XI07; the central shard files results-suite-{1..8}/01-runtests.json read by script: all 52 registry rows and all 29 tier-2 tests of the four stages outcome pass; base-run.json 'pending': 'the ci scenarios one at a time'",
+   "grade_after": 8
+  },
+  {
+   "ref": "E41 promise 1",
+   "claim": "Nine facades over 35 new files; vault.mjs and tables.mjs hold no code",
+   "verdict": "stands",
+   "why": "Stripped of comments and export-from lines by node, vault.mjs and tables.mjs leave an empty string; each of the 35 wave-2 files named in .claude/rules/code.md exists. The API surface claim was not re-read. R1235, R1238, R1239 pass.",
+   "evidence": "node over scripts/vault.mjs and scripts/tables.mjs: remainder \"\"; scripts/vault.mjs 41 lines, 4 'export {' lines; scripts/tables.mjs 26 lines, 2"
+  },
+  {
+   "ref": "E41 promise 3",
+   "claim": "The clean-up: no generic default, an inherited key refused, a Search's draw a frozen list of steps with injectable rng and tables",
+   "verdict": "stands",
+   "why": "performAction takes ACTIONS' own keys by Object.hasOwn and refuses the rest with DRPG.Action.unknown before a switch with no default; DRAW_STEPS is frozen and drawItem takes rng and tables. R1230-R1234, R1240 pass.",
+   "evidence": "scripts/action-rolls.mjs:299-302: 'const def = actionKey === \"dynamic\" ? dynamicDef() : (Object.hasOwn(ACTIONS, actionKey) ? ACTIONS[actionKey] : null); if (!def) { ui.notifications.error(...\"DRPG.Action.unknown\"...'; scripts/tables-pools.mjs:973 'export const DRAW_STEPS = Object.freeze([', :992 'rng = Math.random, tables = game.tables'"
+  },
+  {
+   "ref": "E41 promise 4",
+   "claim": "One owner of the verdict; the Final verdict writes its lock first, so a second GM's browser cannot give it again",
+   "verdict": "weakened",
+   "why": "Holds for a second press after the first record write lands: verdictRefusal reads verdictRunning and trialProgress().verdictApplied, giveFinalVerdict writes the record before anything else, and E41-T2 (pass, shard 2/8) drives a second GM reading the record in the card's seam. It is not a compare-and-set: setTrialProgress on a GM that is not the primary asks the primary to spread the patch, and recordOnPrimary does not refuse a verdictApplied already true, so two GMs pressing within one round trip both pass verdictRefusal. No test drives that; it is not in the notes' Known gaps. A question, not a finding (two GMs giving the Final verdict at the same moment).",
+   "evidence": "scripts/verdict.mjs:460-463: 'if (verdictRunning || trialProgress().verdictApplied) return \"DRPG.Vote.verdictAlreadyApplied\";'; :1321-1322 'const record = { stage: \"applying\", final: true, ... }; await setTrialProgress({ verdictApplied: true, verdict: record });'; scripts/trial-progress.mjs:496 'if (typeof patch !== \"function\" && !isPrimaryGm()) return askRecord(\"patch\", { patch }, ...);'"
+  },
+  {
+   "ref": "E41 promise 6",
+   "claim": "One card and one GM summary builder for both verdicts",
+   "verdict": "stands",
+   "why": "verdictCardContent and verdictSummaryContent are the two exported builders in verdict.mjs; E41-T3 passes in shard 3/8.",
+   "evidence": "scripts/verdict.mjs:804: 'export function verdictCardContent({ banner, lines = [], flags = null, tone = \"\" }) {'; :818 'export function verdictSummaryContent({ title, summary, lines = null, warning = \"\" }) {'"
+  },
+  {
+   "ref": "E41 promise 7",
+   "claim": "holds 'no': the Sound window's sfx side and E41-15's rows were carried to E73, which shipped without them",
+   "verdict": "weakened",
+   "why": "The facts stand: docs/dev/e73/STATUS.md and v1.2.108.md name neither E41-15 nor E41-16 nor the Sound window (grep), E73 was the trial zones stage, and sfx.mjs:12-13 and sound-panel.mjs:21 still say 'carried to E73'. But what E41 promised was the hand-off itself - its own notes say E41-15 partial and E41-16 not built at ship time - so the promise that fails is the follow-up stage's, and what is wrong today in E41's own text is three stale comments (E41-2, a nit). 'no' reads as an undelivered E41 deliverable, which the 11.4 scale would grade 6; 'partly' (hand-off made, never picked up) matches the reader's own grade reasons.",
+   "evidence": ".github/release-notes/v1.2.97.md:188-189: 'The ledger: 26 rows, 24 answered headless, 1 partial (E41-15: the Effects tab stays in sfx.mjs), 1 not built (E41-16).'; :244-245 'Carried to E73 (... \"planned\": \"1.2.98\" ...)'; scripts/sound-panel.mjs:21: 'E41-16 is carried to E73,'; grep -i 'E41|sound|sfx|C9b' docs/dev/e73/STATUS.md: no hit"
+  },
+  {
+   "ref": "E41 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "stands",
+   "why": "With promise 7 read as partly (the hand-off made and never picked up) the grade sits on 11.4's 7, 'one promise delivered in part'. Had the reader's 'no' stood as an undelivered E41 promise, the scale would give 6, and the reader's file does not reconcile the two; this check settles it at partly. All 11 registry rows and all four tier-2 tests now pass in the base run (E41-T1, E41-T4 in shards 8/8, 4/8); scenarios 33, 63, 30 are not in base-run.json.",
+   "evidence": "audit/AUDIT-1.2.42.md 11.4 rows 7 and 6; audit/findings-1.2.118/base-run.json: shards 2/8-8/8 green, 3/8 red only on grid XI07; the central shard files results-suite-{1..8}/01-runtests.json read by script: all 52 registry rows and all 29 tier-2 tests of the four stages outcome pass",
+   "grade_after": 7
+  },
+  {
+   "ref": "E41-1",
+   "claim": "Four files of the module stand over 1500 lines where the code map names three (nit)",
+   "verdict": "weakened",
+   "why": "Below minor; checked because it feeds the grade. As written the title is wrong: 46 non-test module files stand over 1500 lines (config.mjs 5646, fog.mjs 4833, ...), and the stage's bound was for its own wave-2 files. Scoped to those files the count holds - tables-editor.mjs 1795, hud.mjs 1717, bridge-table.mjs 1660, vault-store.mjs 1605 - and no check reads a length. Severity stays nit; the wording needs the scope.",
+   "evidence": "wc -l over scripts/*.mjs without tests-*: 46 files over 1500; .claude/rules/code.md:137-138: 'Three files stand over the stage's 1500 lines: tables-editor.mjs (1668) ...'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E41-2",
+   "claim": "E41-16 and E41-15's rows carried to E73, which shipped without them; three places still name E73 (nit)",
+   "verdict": "stands",
+   "why": "Below minor; checked because promise 7 rests on it. Confirmed: no paper of E73 names the carried work and the comments still point at it.",
+   "evidence": "scripts/sfx.mjs:12-13: 'and E41-16 * is carried to E73.'; .claude/rules/code.md:137 '(sound-panel.mjs's row; E41-16, carried to E73)'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E42 promise 1",
+   "claim": "One runner: each step in try/catch, a throw or false failed, the record saved after each step, a done step not run again; one report used by both verdicts and the chapter's end",
+   "verdict": "stands",
+   "why": "runSteps skips record.done keys, catches a throw and a false as failed, awaits save after each step and fails on a throwing save; stepsReport is called by verdict.mjs:653 and chapter.mjs:995. R1250-R1252 pass.",
+   "evidence": "scripts/steps.mjs:69: 'if (current.done.includes(key)) continue;'; :86-92 'const said = await step.run(context); if (said === false) outcome = \"failed\"; ... } catch (err) { ... outcome = \"failed\"; }'; :96 'if (save) await save(current, { key });'"
+  },
+  {
+   "ref": "E42 promise 2",
+   "claim": "Both verdicts stop and finish the same way; Level Ups given once; the Final outcome stays out of the world's record until its card",
+   "verdict": "stands",
+   "why": "The Final verdict's first write is a record naming nobody and no outcome; the outcome goes to the GMs' store (keepFinalOutcome). E42-T1, -T2, -T3, -T10, -T11, unread by the reader, all pass in the base run (shards 5/8 to 8/8). The real closed tab remains LIVE-E42-02.",
+   "evidence": "scripts/verdict.mjs:1321: 'const record = { stage: \"applying\", final: true, by: game.user.id, at, done: [], failed: [] };'; :1328-1329 'await verdictStore.patch(RECORD, { finalOutcome: { at, executed: Boolean(executed) } });'; audit/findings-1.2.118/base-run.json: shards 2/8-8/8 green, 3/8 red only on grid XI07; the central shard files results-suite-{1..8}/01-runtests.json read by script: all 52 registry rows and all 29 tier-2 tests of the four stages outcome pass"
+  },
+  {
+   "ref": "E42 promise 3",
+   "claim": "A stopped End of chapter is kept; End the chapter asks Finish, Drop the rest or Cancel (default); Finish runs on the primary, refused in another phase",
+   "verdict": "stands",
+   "why": "askStoppedEnd offers finish and drop with cancel the default; finishChapterEnd goes through chapterEndHere (primary only) and the one queue; finishEndNow refuses when endHeldPhase does not hold. E42-T4, -T5, -T12 pass.",
+   "evidence": "scripts/chapter.mjs:1019-1021: 'if (!game.user.isGM || !chapterEndHere()) return null; const run = chapterEnds.then(() => finishEndNow({ drop }));'; :1054-1056 'if (!stands) { ui.notifications.warn(...\"DRPG.Chapter.finishPhaseMoved\"...'; :1072 'default: \"cancel\"'"
+  },
+  {
+   "ref": "E42 promise 5",
+   "claim": "A registry of season state, each group one entry by its owner; season-reset.mjs a leaf",
+   "verdict": "stands",
+   "why": "registerSeasonState at season-reset.mjs:76; its one import is season-exceptions.mjs. The reader's '32 calls' counts the declaration: 31 calls stand outside season-reset.mjs (git grep). R1254, R1255, R1258 pass.",
+   "evidence": "scripts/season-reset.mjs:53: 'import { RESET_GROUPS } from \"./season-exceptions.mjs\";'; scripts/season-wipe.mjs:686 'registerSeasonState({ group: \"clock\", clear: clearSeasonClock, settings: [SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd] });'"
+  },
+  {
+   "ref": "E42 promise 6",
+   "claim": "Every world setting has a lifetime; 20, 11 and 40 today; the reset clears gmAssignments, readyRound and chapterEnd",
+   "verdict": "stands",
+   "why": "Counted from the three arrays: 20 season, 11 campaign, 40 table. gmAssignments is cleared by assignments.mjs's registry entry, readyRound and chapterEnd by the clock entry. R1256 passes; E42-T7 and E42-T9 pass (shards 5/8, 4/8).",
+   "evidence": "scripts/settings.mjs:1162-1167 SEASON_SETTINGS (20 keys); scripts/assignments.mjs:204: 'registerSeasonState({ group: \"assignments\", ..., settings: [SETTINGS.gmAssignments] });'"
+  },
+  {
+   "ref": "E42 promise 7",
+   "claim": "The trial record's fields stand in one table with their lifetime",
+   "verdict": "stands",
+   "why": "TRIAL_RECORD is declared where cited; R1257 passes. Equality to 1.2.96's was not re-read (no 1.2.96 tree in the checkout).",
+   "evidence": "scripts/trial-progress.mjs:339: 'export const TRIAL_RECORD = Object.freeze({'"
+  },
+  {
+   "ref": "E42 promise 8",
+   "claim": "chapterEnd written inside the end's queue; seasonReset behind isPrimaryGm()",
+   "verdict": "stands",
+   "why": "Every write of SETTINGS.chapterEnd is in chapter.mjs (857, 906, 935, 1036), inside chapterEnds runs reached through chapterEndHere or clearChapterEndRecord's primary check; the one write of SETTINGS.seasonReset is writeRecord, which returns unless isPrimaryGm(). R1259 passes, with its own source-reading limit (E42 Open 51).",
+   "evidence": "scripts/season-wipe.mjs:823-825: 'if (!isPrimaryGm() || JSON.stringify(next) === JSON.stringify(written)) return; try { await game.settings.set(MODULE_ID, SETTINGS.seasonReset, next);'; scripts/chapter.mjs:855 'if (!game.user.isGM || !isPrimaryGm()) throw new Error(...)'"
+  },
+  {
+   "ref": "E42 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "stands",
+   "why": "Allowed by 11.4's 7: the reset promise is partly delivered by the stage's own account (no stepsReport in season-wipe.mjs; writeRecord's catch lets a failed record write pass), and the main promise rests on LIVE-E42-02 (cap 9). All thirteen tier-2 tests now pass in the base run, so the 'nine not joined' no longer holds, but that does not touch the partial promise. Scenario 65 is not in base-run.json.",
+   "evidence": "scripts/season-wipe.mjs:826-829: 'try { await game.settings.set(...SETTINGS.seasonReset, next); written = next; } catch (err) { error(\"Season reset: could not write its record\", err); }'; grep stepsReport scripts/season-wipe.mjs: none; audit/findings-1.2.118/base-run.json: shards 2/8-8/8 green, 3/8 red only on grid XI07; the central shard files results-suite-{1..8}/01-runtests.json read by script: all 52 registry rows and all 29 tier-2 tests of the four stages outcome pass",
+   "grade_after": 7
+  },
+  {
+   "ref": "E42-1",
+   "claim": "R1252's name says six keys; the table and the body hold seven (nit)",
+   "verdict": "stands",
+   "why": "Below minor; checked because it feeds the grade. The name holds 'six keys in order'; the body's FINAL list and verdict.mjs:585 hold seven with finalBets.",
+   "evidence": "scripts/tests-tier0.mjs:21071: 'const FINAL = [\"finalSentence\", \"finalCard\", \"finalClose\", \"finalExecution\", \"finalLevelUps\", \"finalBets\", \"mastermind\"];'; scripts/verdict.mjs:585 the same seven",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 38,
+  "stands": 35,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "Two GMs giving the Final (or the ordinary) verdict within one round trip: the record write is not a compare-and-set on the primary, so both may pass verdictRefusal. Read in source only; no test drives two simultaneous presses.",
+   "l1": {
+    "what": "Two GMs press the Final verdict's 'They named the Mastermind' within a second of each other",
+    "recipe": [
+     "A GM and a second GM in a Final Trial with a Mastermind picked",
+     "Both open the Final verdict window",
+     "Both press the same verdict button as close together as they can",
+     "Count the public banners and read trialProgress().verdict on each"
+    ],
+    "clients": "two GMs",
+    "theme": "default",
+    "settles_if": "agrees: one banner, the second refused with verdictAlreadyApplied; defect: two banners or two records",
+    "priority": "minor (a question until read)"
+   }
+  },
+  {
+   "what": "Scenarios 81, 33, 63, 30 and 65 named by the reader's tests_to_join: base-run.json lists the ci scenarios as pending, so none is joined here either.",
+   "l1": null
+  },
+  {
+   "what": "E41's API surface claim (tools/api-surface.json gains only finishChapterEnd) and E42's TRIAL_RECORD 'equal to 1.2.96's' were not re-read against a 1.2.96 tree (not in the checkout).",
+   "l1": null
+  },
+  {
+   "what": "T28's and T20's counts are the reader's citations of the npm test log; the log was not re-read here.",
+   "l1": null
+  }
+ ]
+}

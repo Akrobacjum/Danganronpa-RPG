@@ -1,0 +1,263 @@
+{
+ "refuter": "verify-stages-15",
+ "of": "stages-15",
+ "method": "U1: each finding of severity minor or above (3; E96-1 is a nit, not checked), each of the four grades and each promise marked holds 'yes' (25; none is marked 'no') re-read in today's source at b5a29e73 and joined to the base run's eight shard logs (the reader read shards 1-4; 5-8 were there when this was written). Nothing run.",
+ "checked": [
+  {
+   "ref": "E24-1",
+   "claim": "A Background held unsaved at the sheet's close, after another write of it, is not saved, and the notice asks for a field no longer on screen (minor)",
+   "verdict": "stands",
+   "why": "Traced again: the close hook calls saveBiography(app); a GM's write of the Background while the player types re-renders the player's sheet, tidyBiography keeps the held text and does not move its base (it sets _drpgBiographyBase only when nothing is held), so at the close held.base differs from the stored text and the save returns null after the warning. No caller saves after the close (callers: the focusout, the tab's click, the close). The tests do not pin the opposite: E24-T2 (ok, shard 7/8 - the reader thought it had not run) drives a close with no other write of the Background and a GM's Hope write only; scenario 71 I drives the conflict with the sheet open and saves by a tab click. Minor holds: the text waits on the app object and comes back on a reopen of the same sheet in the same page.",
+   "evidence": "scripts/sheet.mjs:93-94 'The backstory typed and not yet saved goes with the close (E24 C2) ... try { saveBiography(app); }'; scripts/sheet-sidebar.mjs:1027-1031 'if (held.base !== undefined && held.base !== now && next !== now) { app._drpgBiography = { ...held, base: now }; ui.notifications?.warn(...biographyChanged); return null; }'; sheet-sidebar.mjs:1093 'if (!held) app._drpgBiographyBase = stored;'; lang/en.json:509 '...click outside the field again to save it over theirs.'; tests-tier2.mjs:96077 'E24-T2 - ... typed into a student's sheet and the sheet closed by its X, it is saved, once'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E24-2",
+   "claim": "The reserve's field does not follow Lock player resources while a sheet is open (minor, duplicate of controls-06-items-sheet-11)",
+   "verdict": "stands",
+   "why": "Re-traced rather than taken by reference: the field is decided by sheetMode(...).reserveField at a render; the setting's only onChange toggles drpg-resources-locked, whose rules (danganronpa.css:1504-1517, 5886-5888) do not name .drpg-reserve-field; lockPlayerResources is not in sync.mjs SETTING_KINDS, and no updateSetting listener that renders sheets names it (hud.mjs:231 redraws the HUD only). The GMs' audit judges the write, so only the screen is wrong; minor fits.",
+   "evidence": "scripts/settings.mjs:3158 'onChange: value => document.body.classList.toggle(\"drpg-resources-locked\", Boolean(value))'; scripts/sheet-mode.mjs:113-120 'get reserveField() { ... return !game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);'; scripts/sheet-sidebar.mjs:158 'const editor = sheetMode(actor, user, { app }).reserveField;'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E45-1",
+   "claim": "A second GM's open sheet keeps the Level Up button lit after a player's take (minor, duplicate of controls-06-items-sheet-9)",
+   "verdict": "stands",
+   "why": "dropOffer returns at once off the primary and renders only the primary's own sheet; the offers store (a client setting gmOffers) has no onChange, and the only clientSettingChanged listeners near the sheet name remnantSecrets (sheet.mjs:123-125) or the mastermind and backed-up stores for the health check (gm-stores.mjs:3015, 3041). The notes list the same edge as known (v1.2.101.md 322). The press reads the store afresh, so minor fits.",
+   "evidence": "scripts/level-up.mjs:256-257 'export async function dropOffer(actorId, offerId) { if (!isPrimaryGm()) return false;'; :274 'game.actors.get(actorId)?.sheet?.render(false);'; scripts/sheet.mjs:123-125 'Hooks.on(\"clientSettingChanged\", key => { if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetTamper(); });'; .github/release-notes/v1.2.101.md:321 'A second GM holding a student's sheet keeps the lit Level Up button after a player's take until it renders.'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E23 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "stands",
+   "why": "The scale's 7 allows 'one promise delivered in part', and P1 is that today: E23-04 (texture in the moving band at least 80 % of rest) stays unmet on the layout turn, and a later paper the reader did not cite confirms it was still red at 1.2.109 (39 % at 1600x900, 'waits on the owner'). The cap of 9 for the unread LIVE-E23-01 holds. One caution on the reasons: reason (1), the break at the table on 1.2.101, is history mended by E96 on 1.2.102; P9 holds on 1.2.118, so it should not weigh on today's grade - but the grade does not need it. The shard results the grade cites hold (E23-T1, E23-T2 ok in shard 3/8; R1385 skipped as skip-baseline.json:12 lists).",
+   "evidence": "docs/dev/e62/STATUS.md:68-71 'holds every turn of the clock above E23-04's 80 % bar ... The one reading under the bar is the **layout** turn (the room tile hidden) at 1600x900, both roles: 39 % in the square at 256,256'; .github/release-notes/v1.2.102.md:219-221 'The layout turn's line stays red, on 1.2.101 and on 1.2.102 alike'; results-suite-3/01-runtests.log:16345 'ok    E23-T1 - the track band at the table'",
+   "grade_after": "7"
+  },
+  {
+   "ref": "E24 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "stands",
+   "why": "Two minors that stand (E24-1, E24-2) and three promises in part (P5, P10, P11 - E24-27 not met whole, v1.2.101.md 303-304) sit inside the scale's 7; nothing reaches the 6 of an undelivered promise. Corrections that do not move the number: E24-T2 ran ok in shard 7/8 and E24-T3 ok in shard 8/8 (the reader read only shards 1-4 and wrote 'not in the shards that ran'), so half of missing_to_10's 'E24-T2 and E24-T3 ... joined to the base run' is done; P4 stays unread by the reader (R1489 is ok, a source-kind test), which leaves one promise of the grade unchecked from code.",
+   "evidence": "results-suite-7/01-runtests.log:21309 'ok    E24-T2 - the backstory at the table (E24 C2, E24-17; S17-39)'; results-suite-8/01-runtests.log:20681 'ok    E24-T3 - a GM marks a student \"Not in the class\" on its sheet's header'; .github/release-notes/v1.2.101.md:303-304 '**E24-27** (DARK-FIRST): \"Who you hear\", the \"Voice\" fieldset and the narrow description window not read on a light page.'",
+   "grade_after": "7"
+  },
+  {
+   "ref": "E45 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "One minor (E45-1) that stands gives the scale's 8; the main promise's dependence on v14's render arguments (LIVE-E45-01, -02) caps it at 9. One reason is stale: E45-T2 was not missing from the base run - it ran ok in shard 6/8 - so 'held at 8' now rests on E45-1 alone, which is enough. Scenario 71 had not run when checked (the scenarios log stops at 60-ledger), so that half of the reason holds.",
+   "evidence": "results-suite-6/01-runtests.log:18590 'ok    E45-T2 - a resource write repaints an open sheet without a render, and a write cut before it leaves the next render whole'; scripts/sheet-repaint.mjs:132-134 'Two shapes are known: `render(options)` ... and `render(false, options)` ... (v13's `ClientDocument#render(force, context)`, as remembered'",
+   "grade_after": "8"
+  },
+  {
+   "ref": "E96 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "With one nit and unread live checks alone the scale would allow 9, so the 8 needs a promise held only by a reading; there is one: P2's 'no orange mark' depends on the pseudo-element and layering of core's own stylesheet, which is not in the repository, and R3101 reads only the module's rule (the notes say the fix assumes both). P1 is the same shape (the stand-in with the owner's parent did not reproduce the moved column). The reader's wording ('guards, not mends of a cause seen') is near that anchor rather than on it, but the number is one the scale allows.",
+   "evidence": ".github/release-notes/v1.2.102.md:214-215 'which pseudo-element v14 draws its own mark in, and whether core's rule is layered and without `!important`, was not read (no core stylesheet here); the fix assumes both'; styles/stained-glass.css:4159-4161 '...input:is([type=\"checkbox\"], [type=\"radio\"])::after { content: none; }'",
+   "grade_after": "8"
+  },
+  {
+   "ref": "E23 promise 2",
+   "claim": "The track band stays one line when nothing plays",
+   "verdict": "stands",
+   "why": "paintTrackLine marks the band is-empty and never removes it; R122, R1388 ok, R1385 skipped by the baseline, E23-T1 ok in shard 3/8. The band's height is a layout reading the headless run cannot make, as the reader says.",
+   "evidence": "scripts/hud.mjs:109 'export function paintTrackLine(hud, now = nowPlayingHere())'; :128 'band.classList.add(\"is-empty\");'; skip-baseline.json:12 'R1385 ... \"probe\": \"env.layout\"'"
+  },
+  {
+   "ref": "E23 promise 3",
+   "claim": "The phase stamp names the Eclipse; a pause is stamped On hold over the campaign line",
+   "verdict": "stands",
+   "why": "Both branches are in renderHud's code as cited; R1386, R1387 ok; GAME.Paused is the module's own key in both lang files.",
+   "evidence": "scripts/hud.mjs:337 'const phaseText = clock.eclipse === true ? eclipseLabel(clock) : phaseLabel(clock.phase);'; :380-385 'if (game.paused) { ... stamp.textContent = game.i18n.localize(\"GAME.Paused\"); campaign.classList.add(\"is-paused\");'; lang/en.json:3 '\"Paused\": \"On hold\"'"
+  },
+  {
+   "ref": "E23 promise 4",
+   "claim": "The Projects tray's rows on one line with a fade; the GM's minus and plus say what they do",
+   "verdict": "stands",
+   "why": "markTrayMore at the cited line; the two tooltips are drawn from both lang files; R1391, R1431, R1433 ok.",
+   "evidence": "scripts/projects-tray.mjs:388 'for (const [action, key] of [[\"decreaseCountdown\", \"DRPG.Project.trayLessTooltip\"], [\"increaseCountdown\", \"DRPG.Project.trayMoreTooltip\"]])'; :416 'export function markTrayMore(root)'"
+  },
+  {
+   "ref": "E23 promise 7",
+   "claim": "The narrow layout leaves the board visible; desk to stack and back keeps the rail and the card",
+   "verdict": "stands",
+   "why": "markNotices and the DESK homes are where cited; R1398-R1401, R1421, R1422 ok. Held on stand-in columns, which the reader says.",
+   "evidence": "scripts/narrow.mjs:315 'export function markNotices(tile)'; :366-368 'const DESK = { \"drpg-hud\": () => [byId(\"ui-left-column-1\", \"ui-top\", \"ui-middle\"), \"prepend\"], \"drpg-despair\": ...'"
+  },
+  {
+   "ref": "E23 promise 8",
+   "claim": "A window the game waits on stays over the sheet, and nothing else does",
+   "verdict": "stands",
+   "why": "One class, PROMPT_CLASS, added by drpgWindow({ prompt: true }), is what stacking.mjs keeps on top; R1404 ok, E23-T2 ok in shard 3/8. Foundry's raising order is the harness's model (LIVE-E23-04), as said.",
+   "evidence": "scripts/stacking.mjs:55 'export const KEEP_ON_TOP = `.application.${PROMPT_CLASS}`;'; scripts/ui-kit.mjs:1311 '...(prompt ? [PROMPT_CLASS] : [])'"
+  },
+  {
+   "ref": "E23 promise 10",
+   "claim": "Reduced motion is one mechanism, body.drpg-reduced-motion",
+   "verdict": "stands",
+   "why": "motion.mjs puts the one class on the body and a grep of styles/*.css finds one prefers-reduced-motion query, in motion.css; R1410, R1413, R1432 ok.",
+   "evidence": "scripts/motion.mjs:163 'const REDUCED_CLASS = \"drpg-reduced-motion\";'; :557 'export function registerMotion()'; styles/motion.css:117 '@media (prefers-reduced-motion: reduce) {' (the only match in styles/*.css)"
+  },
+  {
+   "ref": "E23 promise 11",
+   "claim": "The corner's buttons stay tilted through every redraw",
+   "verdict": "stands",
+   "why": "blockTurns is where cited; R1382 ok.",
+   "evidence": "scripts/glass-blocks.mjs:80 'export function blockTurns(b, px, py, turn, rectOf)'"
+  },
+  {
+   "ref": "E23 promise 12",
+   "claim": "Under Monokuma Legacy: the players list without the panel look, token frames in bone, a drop-down of its own",
+   "verdict": "stands",
+   "why": "The #players rules and frameColour are where cited; R1466-R1468 ok. Read on the module's cascade only; the token frames on a real map are not measured, as the reader says.",
+   "evidence": "styles/danganronpa.css:14053-14054 '#players .players-list, #players #players-inactive {'; scripts/own-ring.mjs:267 'export function frameColour(whose, glass = glassOn(), read = cssColour)'"
+  },
+  {
+   "ref": "E24 promise 1",
+   "claim": "Health and Sanity read as what is left through one helper, everywhere",
+   "verdict": "stands",
+   "why": "reserveFrom/reserveView are the one helper and the sheet, the tracker line, the token bars and the Party sheet all call reserveView; R1441 (census), R1442, R1446, R1447, R1449 ok; E24-T1 ok in shard 2/8.",
+   "evidence": "scripts/character.mjs:312-316 'export function reserveFrom(marks, max) { ... const left = Math.min(top, Math.max(0, top - marked));'; scripts/murder-ui.mjs:405 'const hp = reserveView(victim, \"hitPoints\", user), sanity = reserveView(victim, \"stress\", user);'; scripts/states.mjs:510 'const view = reserveView(doc.actor, key, user);'"
+  },
+  {
+   "ref": "E24 promise 2",
+   "claim": "Sanity is private to its owner and the GMs on every view the module draws",
+   "verdict": "stands",
+   "why": "reserveView gives shown false for stress unless GM or OWNER; the bar returns null, the tracker uses a line without Sanity, the row reads '?'. R1445, R1484 ok. A view change only - the document still reaches every browser, which the code's own comment states.",
+   "evidence": "scripts/character.mjs:333-334 'const own = Boolean(user?.isGM) || Boolean(actor?.testUserPermission?.(user, \"OWNER\")); return { key, ...reserveOf(actor, key), shown: key !== \"stress\" || own };'; scripts/states.mjs:511 'if (!view.shown) return null;'; lang/en.json:1861 '\"reserveOf\": \"{name} has {hp} of {hpMax} Health left.\"'"
+  },
+  {
+   "ref": "E24 promise 6",
+   "claim": "Mark / Unmark as Monokuma and Not in the class on the sheet's header; marking a player's character asks, Cancel the default",
+   "verdict": "stands",
+   "why": "The controls are on the header; the directory menu hook is gone (grep finds getActorContextOptions only in comments); markFromSheet asks with a destructive yes, and the kit makes the closing word the default for a destructive question. R1486 ok.",
+   "evidence": "scripts/monokuma.mjs:419-428 'export async function markFromSheet(actor) { if (playedByAPlayer(actor)) { ... yes: { role: \"destructive\", ... }, no: \"cancel\"'; scripts/ui-kit.mjs:1541 ': { destructive: [answer], close, default: close.action };'"
+  },
+  {
+   "ref": "E24 promise 7",
+   "claim": "Not in the class leaves the class's lists, read as the GMs hold the flag; a Call never targets one",
+   "verdict": "stands",
+   "why": "guardArmOtherCharacter reads studentActors({ held: flagsHeldNow }) and refuses a target outside it; the flag is among the GM-only flags the audit puts back. R1453, R1454, R1494, R1495 ok; E24-T3 ok in shard 8/8 (the reader thought it had not run).",
+   "evidence": "scripts/bridge-guards.mjs:1045 'if (!target || studentActors({ held: flagsHeldNow }).some(a => a.id === target.id)) return null;'; scripts/sheet-audit.mjs:165 '\"swungWeapon\", \"betrayalWindow\", \"monokuma\", \"notInClass\", ...'"
+  },
+  {
+   "ref": "E24 promise 8",
+   "claim": "The module's own state icons; the dead icon follows Daggerheart's setting at once",
+   "verdict": "stands",
+   "why": "The cited functions exist and the updateSetting hook calls automationChanged; R1487, R1488, R1496, R1461 ok. v14's setting document shape is LIVE-E24-13, as said.",
+   "evidence": "scripts/states.mjs:80 'Hooks.on(\"updateSetting\", setting => automationChanged(setting));'; :619 'export function ownDeadIcon(effects, automation)'; :649 'export async function reimageStates('"
+  },
+  {
+   "ref": "E24 promise 9",
+   "claim": "One sheet step at a time; Loadout left; empty Experience said; both tags of an item in hand",
+   "verdict": "stands",
+   "why": "SHEET_STEPS and runSheetSteps are where cited (runSheetSteps is not exported, which does not matter); the step functions exist; R1456-R1460 ok.",
+   "evidence": "scripts/sheet.mjs:151 'export const SHEET_STEPS = ['; :187 'function runSheetSteps(ctx) {'; scripts/sheet-fit.mjs:19 'export function leaveLoadoutTab(app, element)'; scripts/sheet-sidebar.mjs:575 'export function noteEmptyExperience('"
+  },
+  {
+   "ref": "E24 promise 12",
+   "claim": "The Safe Word's width, the Experience badges, a project's description, the dashboard's Save closes it",
+   "verdict": "stands",
+   "why": "Each has its tier-1 test ok (R1490-R1493); descriptionField and the dashboard's Save button exist as cited (the field at :819, not :806-829 as quoted from live-items-429.json - the function starts at 819).",
+   "evidence": "scripts/projects-ui.mjs:819 'export function descriptionField(value = \"\")'; scripts/investigation.mjs:2311 'action: \"save\", label: game.i18n.localize(\"DRPG.Assign.save\")'; R-REGISTRY.md:855 'R1493 ... Save pressed on the drawn window answers null with no copy of the window left'"
+  },
+  {
+   "ref": "E45 promise 1",
+   "claim": "sheetMode, computed once a render, is the one gate of the sheet, the strip, Objection, the tile and the redaction",
+   "verdict": "stands",
+   "why": "sheetMode and its fields are where cited; R1470's census and R1471-R1475 ok; E45-T1 ok in shard 3/8.",
+   "evidence": "scripts/sheet-mode.mjs:41 'export function sheetMode(actor, user = game.user, { app = null, editable, facts = {} } = {})'; :126-127 'export function modeOf(app) { return RENDER_MODES.get(app) ?? sheetMode(...)'"
+  },
+  {
+   "ref": "E45 promise 2",
+   "claim": "A resource-only write is repainted in place; anything else renders; nothing laid before the write",
+   "verdict": "stands",
+   "why": "renderPlan accepts only the two known shapes with renderContext updateActor and repaintable keys, else 'render'; installRenderPlan falls back to the original on a throw. R1476-R1479 ok, and E45-T2 ran ok in shard 6/8 (the reader wrote 'not in the shards that ran').",
+   "evidence": "scripts/sheet-repaint.mjs:138-146 'export function renderPlan(args, { rendered = true } = {}) { ... if (options.force || options.parts !== undefined || options.renderContext !== \"updateActor\") return \"render\";'; :170-177 'try { settle(root, () => repaintInPlace(...)); return Promise.resolve(this); } catch (err) { error(...the sheet renders...) }'; results-suite-6/01-runtests.log:18590 'ok    E45-T2'"
+  },
+  {
+   "ref": "E45 promise 4",
+   "claim": "The harness renders a document's open windows after a write, named unconfirmed; scenario 71 drives the sheet",
+   "verdict": "stands",
+   "why": "renderApps and the LIVE-E45-01 entry exist; 71-sheet declares layers ci. R1482, R1483 ok - they hold existence and names, not results, as the reader says; scenario 71 had not run in the base run when checked.",
+   "evidence": "audit/harness/client-entry.mjs:1887 'function renderApps(doc, renderContext, renderData, options) {'; audit/harness/lib/versions.mjs:107 '\"LIVE-E45-01\",'; audit/harness/scenarios/71-sheet.mjs:54 'export const layers = [\"ci\"];'"
+  },
+  {
+   "ref": "E96 promise 1",
+   "claim": "Foundry's toast placement applies only under #ui-top; the plate stays wherever the list stands",
+   "verdict": "stands",
+   "why": "The placement rule's selector is '#ui-top > #notifications'; the plate rules name '#notifications .notification' with no parent; R3100 ok (source). Whether the table is whole is LIVE-E23-08's 1.2.102 line, unread.",
+   "evidence": "styles/stained-glass.css:2234 'body.drpg-theme-stained-glass #ui-top > #notifications {'; :2240 'body.drpg-theme-stained-glass #notifications .notification {'"
+  },
+  {
+   "ref": "E96 promise 2",
+   "claim": "The glass's checkbox and radio: flex none, the state colour variable, ::after content none",
+   "verdict": "stands",
+   "why": "All three declarations are in the one definition; R3101 ok (source). The effect against core's own mark is unread (see the E96 grade).",
+   "evidence": "styles/stained-glass.css:4151-4152 'flex: none; --checkbox-checked-color: var(--drpg-sg-check, var(--drpg-glass-accent));'; :4159-4161 '...::after { content: none; }'"
+  },
+  {
+   "ref": "E96 promise 3",
+   "claim": "DRPG.Reserve.leftRow reads '{n} / {max}' in both languages; the handbooks say '3 / 4'",
+   "verdict": "stands",
+   "why": "Both keys read so; grep of docs/handbooks finds no 'Left:' and four handbooks with '3 / 4'. R3102 ok.",
+   "evidence": "lang/en.json:2749 '\"leftRow\": \"{n} / {max}\",'; lang/pl.json:2887 '\"leftRow\": \"{n} / {max}\",'"
+  },
+  {
+   "ref": "E96 promise 5",
+   "claim": "overflow-x: clip on the kit window's body; a guard, not a mend of a cause seen",
+   "verdict": "stands",
+   "why": "The rule is there with its own comment saying the scroll was not reproduced; R3103 ok (source).",
+   "evidence": "styles/components.css:298-303 '.application.drpg-ui.drpg-panel .drpg-kit-body { ... overflow: auto; overflow-x: clip;'"
+  },
+  {
+   "ref": "E96 promise 6",
+   "claim": "Health #ff4a26 and Sanity #2ec4b6 in both themes' tokens",
+   "verdict": "stands",
+   "why": "Both token pairs read so; R3104, R1444 ok.",
+   "evidence": "styles/danganronpa.css:68-69 '--drpg-res-health: #ff4a26; --drpg-res-sanity: #2ec4b6;'; styles/stained-glass.css:158-159 '--drpg-sg-res-health: #ff4a26; --drpg-sg-res-sanity: #2ec4b6;'"
+  },
+  {
+   "ref": "E96 promise 7",
+   "claim": "The recolour a true crossfade: each pair isolated, the new look added with plus-lighter",
+   "verdict": "stands",
+   "why": "glassTurn builds each pair with isolation:isolate and gives the new look mix-blend-mode plus-lighter; R3120 ok on a stand-in. plus-lighter outside Chromium is unread, as said.",
+   "evidence": "scripts/glass.mjs:2970 'pair.style.cssText = TURN_LAYER + ... + \"px;isolation:isolate;\";'; :2977 'n.style.cssText += \"mix-blend-mode:plus-lighter;\";'"
+  },
+  {
+   "ref": "E96 promise 8",
+   "claim": "The voice tile on its own pane, then at the middle of the right side",
+   "verdict": "stands",
+   "why": "settleVoice carries the owner's ask and centres the turned box on H / 2 within y0 and the floor; R3121, R3122 ok on stand-ins. The owner's 1.2.101 picture was not reproduced, as the reader says.",
+   "evidence": "scripts/glass-blocks.mjs:41-43 'THE MIDDLE OF THE RIGHT SIDE (E96 C4, 09.11.2026; ... \"Srodek prawej strony\")'; :49 'export function settleVoice(b, W, { px, py, cs, sn }, floor, H = Infinity, wall) {'"
+  }
+ ],
+ "counts": {
+  "checked": 32,
+  "stands": 32,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "corrections": [
+  "E24-T2 ran ok in shard 7/8, E24-T3 ok in shard 8/8 and E45-T2 ok in shard 6/8; stages-15 says of all three 'not in the shards that ran' (it read shards 1-4). None changes a grade; E45's 'held at 8' now rests on E45-1 alone.",
+  "E23-04 is confirmed still unmet by a paper later than those the reader read: docs/dev/e62/STATUS.md:68-71 (1.2.109), the layout turn at 39 % of rest at 1600x900.",
+  "E23's grade reason (1), the break at the table on 1.2.101, was mended by E96 and is not a defect on 1.2.118; it should not weigh on the grade, which P1's partial delivery carries alone."
+ ],
+ "not_established": [
+  {
+   "what": "Whether Foundry v14 hands back the same sheet object on a reopen, which decides whether E24-1's held text survives a close and a reopen in the same page",
+   "live": "new live check: type a Background on a player's sheet, have the GM change it, close the player's sheet by its X, reopen it from the Actors directory and read the field; then reload and read again"
+  },
+  {
+   "what": "E24 promise 4 (a roll's card never names Breakdown) was not read from code by the reader nor here; R1489 is ok, a source-kind test",
+   "live": "LIVE-E24-10"
+  },
+  {
+   "what": "Scenario 71-sheet, which carries E24 and E45 promises, had not run in the base run when this was written (scenarios.log ends at 60-ledger)",
+   "live": "the base run's scenario pass, then node run-all.mjs scenarios --only 71-sheet's result"
+  }
+ ]
+}

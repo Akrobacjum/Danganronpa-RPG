@@ -1,0 +1,155 @@
+{
+ "refuter": "verify-live-items-463",
+ "of": "live-items-463",
+ "checked": [
+  {
+   "ref": "463 (LIVE-E63-01)",
+   "claim": "partly read, defect: the owner's '3 tokens' report at a table on 1.2.112 reads the body tile's subject; changed in 1.2.113.",
+   "verdict": "weakened",
+   "why": "The report exists and is dated (13.11.2026, 1.2.112), and it is about the tile, but only as the notes read it afterwards: the owner saw 'a third, inactive token', and the code and the notes name that as the body tile. It was made on the build whose tile 1.2.113 replaced (alpha 0, no picture of its own, the caption moved onto the corpse's token). The item asks which of the two is drawn on top and whether the caption reads beside the dead overlay. On 1.2.118 none of that has been read at a table: there is no tile picture to compare and the caption has moved. The reader's own stale_detail says the 'which is on top' half has no object any more. That leaves a reading of a subject that no longer exists in that form, not a part read on a recent enough module. Every line reference the reader quotes checks out. The report is in no digest (live-readings-other.json's only E106 body row, at :865, is the Monocub report).",
+   "evidence": "scripts/body-tile.mjs:33-35 \"THE TILE IS DATA, NOT A PICTURE (the owner's report of 13.11.2026 at a table on 1.2.112: \\\"Killing a character makes 3 tokens appear: the body, the Spectator and... a third, inactive token\\\"\"; :95 \"alpha: 0,\"; :369-372 drawBodyMark \"takeOffMarks(tile); return null;\"; .github/release-notes/v1.2.113.md:23-25 \"the body tile (the third thing the owner saw at the table, drawn with the token's picture) is now laid unseen, its caption moved to the corpse\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "475 first (LIVE-E93-01)",
+   "claim": "partly read, defect: the init registrations threw on 14.370 (facility-uses.mjs:122 among them), so a player's browser held no uses copy after a load; fixed in 1.2.117.",
+   "verdict": "weakened",
+   "why": "The reading is real and dated: the four registrations threw at init, facility-uses.mjs:122 among them, it was fixed in 1.2.117 and measured clean after the fix. But it is a startup reading of the copy's first ask, and it names no 9.2 item (the reader says so in its note). It measures none of the item's three asks: how long until the other browsers grey the row, whether a second payer is refused and refunded, and whether the Subtle trace is placed. A defect in a mechanism the item depends on, already fixed, does not make the item partly read. With nothing of the item's own measure read, the status is open, with this reading kept as history.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:529-532 \"A player's browser asked for nothing at its start, on every real v14 ... '... the room actions' uses' ... at lockpick-gm.mjs:216, facility-uses.mjs:122\"; docs/dev/e39/CALIBRATION.md:50 \"four registrations at `init` threw on `game.user.isGM`\"; scripts/facility-uses.mjs:121-127 \"Hooks.once(\\\"ready\\\", () => { if (!game.user?.isGM) askForUses(); });\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "476 first (LIVE-E93-02)",
+   "claim": "partly read, defect: the owner's world on 1.2.115/1.2.116 - a completed project's action did not stand because the clock had been set back before its completion; built on in 1.2.117.",
+   "verdict": "weakened",
+   "why": "The papers record the owner's probe (16.11.2026, 1.2.116, 'Porządki'). It is about a state the item does not ask about: a clock set back before the completion. The module's rule held there (the action was not live); the defect was that nothing said why, and 1.2.117 answered it with the GM's why-line and a restamp. The item's own three states are unread on a real Foundry: the action present in the morning with '1 time of day left', gone at noon, and 'For good' kept until the chapter's end. The reader concedes 'the item's own sequence ... is not read at all'. live-readings-other.json:705 says the report 'Names no 9.2 item', and :706 says the 1.2.117 fix was 'Not run on a real Foundry'. No part of what the item asks has been read.",
+   "evidence": "docs/dev/e53/STATUS.md:29 \"the owner's probe of 16.11.2026 on their world (1.2.116): project \\\"Porządki\\\", public, complete, room Dorm, its action of one day completed at day 3 morning, the clock then at day 1 morning, so `facilityLive` was false and nothing said why\"; audit/findings-1.2.118/live-readings-other.json:705 \"Names no 9.2 item (the nearest is LIVE-E93-02 ...)\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "475 second (LIVE-E76-01)",
+   "claim": "partly read, defect: on 14.370 with Daggerheart 2.12.9 the load was not clean on 1.2.116 (fixed in 1.2.117), relayGuard read 'ok', and tier 2 never reached 0 failed in the runs 3-5.",
+   "verdict": "stands",
+   "why": "I confirmed each part. The load: CALIBRATION.md:50 and LOCAL-REPORT.md:529-532. The relay guard: LOCAL-REPORT.md:421-422, items 18 and 19, state 'ok'. Tier 2: the third run at LOCAL-REPORT.md:272 (1326/214/26), the fourth on the branch at :359-365 (1372/187/18 of 1577), the fifth on the branch at :298-305 (3091/206 and 3084/207). The branch paper says no module defect in each batch (:284, :349, :398), and :252 says an incident's cast stood in the GM stores through runs 4, 5 and round 0. module.json gives Foundry verified 14.365 and Daggerheart verified 2.12.9, and v1.2.117.md:120-122 records the raise without a full gate. 179c2644 differs from b5a29e73 in 15 non-test scripts (20 runtime files with lang, module.json and css), so the reader's '15' counts scripts only. Its point stands either way: no run was on b5a29e73's tree.",
+   "evidence": "/tmp copy of origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:304-305 \"Stained Glass 3091 passed, 206 failed, 72 skipped, 227 min; Monokuma Legacy 3084 passed, 207 failed, 82 skipped\"; docs/dev/e58/LOCAL-REPORT.md:422 \"| 19 | measured | `game.socket.listeners`, `off`, `on`, `prependAny`: functions; `relayGuard().state` `ok` |\"; module.json:8 \"\\\"verified\\\": \\\"14.365\\\"\", :22 \"\\\"verified\\\": \\\"2.12.9\\\"\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "477 second (LIVE-E76-03)",
+   "claim": "partly, agrees: -= deleted and == replaced on 14.370, but one level up from the item's path (flags.<scope>.-=key, not flags.<scope>.<key>.-=field).",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:20 records `flags.danganronpa-rpg.-=calibA` and `==calibD`, both a key directly under the scope, with 'Fields other than flags not read'. The item's path is `flags.<scope>.<klucz>.-=pole` (AUDIT:1446), one level deeper. Keeping it partly where the triage and the digests say read is stricter than they are, and the papers bear it out. The harness default is 'honoured' since 16.11 (CALIBRATION.md:20 verdict column; LOCAL-REPORT.md:504).",
+   "evidence": "docs/dev/e39/CALIBRATION.md:20 \"`update({\\\"flags.danganronpa-rpg.-=calibA\\\": null})` on each ... deleted on both ... Fields other than flags not read\"; audit/AUDIT-1.2.42.md:1446 \"czy zapis `{\\\"flags.<scope>.<klucz>.-=pole\\\": null}` usuwa pole\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "478 second (LIVE-E76-04)",
+   "claim": "partly, agrees: on 14.370 with Daggerheart 2.12.9 a player's Search was drawn by the GM with its total and critical (S7-2, S7-3); the warning's absence, Hope and Calls against a GM's roll, the Reroll and 2.12.8 not read.",
+   "verdict": "stands",
+   "why": "S7-3 (LOCAL-REPORT.md:429) says outright that a player's Search was 'drawn by the GM'. S7-2 (:428) gives the window with the statistic locked and the result card with its critical, but does not itself say who drew it. The reader's 'S7-2 ... drawn by the GM' leans on S7-3 for that and is right taken together. The roll's road files (roll-draw.mjs, roll-marks.mjs, action-pipeline.mjs) are unchanged since 16.11. The one later patches.mjs change between 179c2644 and b5a29e73 is the token-sight patch, not a roll. The warning's absence follows from the code: when the seam is not 'ok', registerRollDraw warns and returns before wrapping (roll-draw.mjs:201-205), so a roll drawn by the GM implies the seam read 'ok'. That is an inference from code, not a reading, so partly is right.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:429 \"a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM: the GM's Despair pool `{}` to `{GM: 1}`\"; scripts/roll-draw.mjs:202-205 \"if (decided.state !== \\\"ok\\\") { seam = decided; warn(`Rolls are not drawn by the GM on this Daggerheart ...`); return; }\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "469 (LIVE-E49-02), open",
+   "claim": "open: no reading of the DRPG Settings window on v14; test 701 touched only the Look window.",
+   "verdict": "stands",
+   "why": "Neither paper (b5a29e73 or branch) nor CALIBRATION has a hit for 'DRPG Settings', 'Configure Settings', 'SettingsConfig' or 'reloadConfirm'. Test 701 opens openLookDialog (scripts/tests-tier2.mjs:46750, :46778), not the DRPG Settings menu.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:121-125 \"Test 701 ... `await opening` waits for the settings window it opened\"; scripts/tests-tier2.mjs:46750 \"const { openLookDialog } = await import(\\\"./look.mjs\\\");\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "472 (LIVE-E49-07), open",
+   "claim": "open: no reading of the Remnants' icons after a scene change.",
+   "verdict": "stands",
+   "why": "No paper has a reading. The one real-Foundry touch I found, which the reader did not cite: R3436 was skipped on the sandbox because `loadTexture` cannot be stood in for (env.replaceable). That is a skip, not a reading, so open holds.",
+   "evidence": "origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:275-276 \"`env.replaceable` says so and the test skips - R814, R3436, ... (the backup's `saveDataToFile`, the icons' `loadTexture`)\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "480 (LIVE-E76-06), open",
+   "claim": "open: the delta's 'every ... Secret Passage test passes' does not move a token through a passage or release a drag.",
+   "verdict": "stands",
+   "why": "The branch paper's :366-368 is a group pass of tier-2 tests, not named one by one. No tier-2 test uses PassageMovePolygon or clipPassages (grep: only fog-doorways.mjs, passages.mjs, tiers 0 and 1). The Secret Passage tests (E15-T12, :73681; E15-T16, :74791) are about the project. CALIBRATION.md on the branch says a mouse drag was not read (:129-130). E76's STATUS:62 sends the drag to this item.",
+   "evidence": "origin/claude/e58-local:docs/dev/e39/CALIBRATION.md:129-130 \"A drag by mouse (`method: \\\"dragging\\\"` ...) was not read: a canvas drag through Playwright on this sandbox is the next reading\"; docs/dev/e76/STATUS.md:62 \"LIVE-E76-06 carries the drag\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "486 (LIVE-E97-05), open",
+   "claim": "open: no reading that the author fields stay off a player's browser.",
+   "verdict": "stands",
+   "why": "No hit for 'leftBy', 'sourceName' or 'sourceActor' in either paper or CALIBRATION. The 'author' hits (branch :648, :706) are about deleted message authors.",
+   "evidence": "origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:648 \"author (the scratch Assistant, deleted) no longer exists\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "489 (LIVE-E99-04), open; text stale",
+   "claim": "open; the 'sent' mark moved from a GM store to the trial record.",
+   "verdict": "stands",
+   "why": "No reading of an Assistant GM's Show summary. The Assistant readings (LIVE-E30-04, LIVE-E30-06; branch :609, :659) are about roles and scenario 17, not the summary. The stale claim is confirmed: case-summary.mjs marks `summaryShown` in the trial record.",
+   "evidence": "scripts/case-summary.mjs:62 \"Until the round of 12.11 the mark was a row of the GMs' ticks store per chapter\"; :95 \"await setTrialProgress({ summaryShown: at });\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "491 (LIVE-E73-01), open",
+   "claim": "open: no reading of a zone's testPoint with elevation or a hole on v14.",
+   "verdict": "stands",
+   "why": "No hit for 'testPoint', 'zone' or 'Straw' in either paper or CALIBRATION.",
+   "evidence": "grep -i 'testPoint\\|zone\\|Straw' over both LOCAL-REPORT.md copies and both CALIBRATION.md copies: no lines",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation: count (34 items, 475-478 doubled)",
+   "claim": "AUDIT 1414-1466 hold 34 items, 30 numbers, 475-478 twice.",
+   "verdict": "stands",
+   "why": "Read lines 1410-1467: 463-474, then 475-478 (LIVE-E93-01..03, LIVE-E69-04) at 1437-1440, then 475-478 again (LIVE-E76-01..04) at 1442-1448, then 479-492.",
+   "evidence": "audit/AUDIT-1.2.42.md:1437 \"475. **LIVE-E93-01\"; :1442 \"475. **LIVE-E76-01\"",
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation: ids that point the wrong way (nit)",
+   "claim": "style-sweep.mjs:977 names LIVE-E49-06; e99 STATUS:68 numbers items 481-483; v1.2.105 names ids with no 9.2 row.",
+   "verdict": "stands",
+   "why": "All three confirmed. AUDIT has no row for LIVE-E49-06, -E48-03, -E49-03 or -E49-A8 (git grep on b5a29e73: none).",
+   "evidence": "audit/style-sweep.mjs:977 \"(`needs(env.layout)`, LIVE-E49-06).\"; docs/dev/e99/STATUS.md:68 \"AUDIT 9.2 items 481-483 (LIVE-E99-01, -04, -05\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation: verified raised for Daggerheart, not Foundry; local gate all not-run",
+   "claim": "module.json Foundry verified 14.365, Daggerheart 2.12.9 raised in 1.2.117 with no full gate; local-gate.json for 1.2.118 all not-run.",
+   "verdict": "stands",
+   "why": "module.json:8 and :22. v1.2.117.md:120-122. local-gate.json is bound to ec1478d5 (1.2.118), and its 8 status fields all read not-run.",
+   "evidence": ".github/release-notes/v1.2.117.md:120-122 \"`verified` goes from 2.12.8 to 2.12.9 (aa697521). This departs from release rule 6 ... given after being told that no full gate ran on 2.12.9\"",
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation: papers cited but not in the repository; tier-2 per-test lines of the fifth run not kept",
+   "claim": "No E63/E49/E48 papers in any commit; the fifth run gives totals only.",
+   "verdict": "stands",
+   "why": "`git log --all -- docs/dev/e63 docs/dev/e49 docs/dev/e48` prints nothing. The branch paper's :298-305 gives totals per theme and names no failing test of that run.",
+   "evidence": "origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:304 \"**Totals (tiers 0-2, as `runTests({ tier: 2 })` runs them)**\"",
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation: text gone stale (13 items), spot-checked 477 first, 483, 489",
+   "claim": "483's Polish label changed; 489's mark moved; 477 first's 390 px was dropped on 11.11.",
+   "verdict": "stands",
+   "why": "lang/pl.json:9295 reads 'Podejrzyj realizację', not 'Podgląd realizacji'. 489 is confirmed above. AUDIT:1410 records that 390 px was dropped on 11.11. The other 10 stale claims were not checked one by one.",
+   "evidence": "lang/pl.json:9295 \"\\\"preview\\\": \\\"Podejrzyj realizację\\\",\"; audit/AUDIT-1.2.42.md:1410 \"390 px skreślone 11.11 - właściciel zrezygnował z telefonów\"",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 17,
+  "stands": 14,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  "Whether v14 draws a Tile at alpha 0 to nobody, a GM included (item 463's remaining question, LIVE-E95-01): nothing read on 1.2.113 or later.",
+  "Whether the field one level down (`flags.<scope>.<key>.-=field`) behaves as the scope-level key read on 14.370 (item 477 second): not read; the module never writes the operator (R152), so this bears only on the harness's model.",
+  "Which tier-2 tests of the fifth run on 14.370 failed: the paper gives totals only, so the tier-2 halves of 468, 470, 475 first and 476 first have no result on a real Foundry.",
+  "The observations carry no severity of their own, so none was minor or above. I checked their factual claims instead. Of the 13 stale-text claims I read 3; the other 10 were not checked one by one.",
+  "Six open items checked for a missed reading (469, 472, 480, 486, 489, 491), one more than the five asked; the other 22 open items were not searched again."
+ ]
+}
