@@ -1,0 +1,89 @@
+{
+ "what": "the audit base run (K0, method U3) on b5a29e73 (1.2.118), run on claude/audit-119 whose only changes are under audit/ (the two probes are new files and are linted)",
+ "date": "2026-11-20",
+ "machine": "4 cores, beside 6-12 reader agents (load 1.1-2.3); timings are not idle timings",
+ "quick": {
+  "source": "npm test, started 19:20Z, stopped in its suite stage at 19:25Z because the first session's full run beside readers timed out in 01-runtests",
+  "lint": "418 files, 0 problem(s)",
+  "check": "25 part(s), all green",
+  "gate": "verify-gate self-test: 37/37 cases hold"
+ },
+ "suite_shards": [
+  {
+   "shard": "1/8",
+   "verdict": "green",
+   "seconds": 2233.3,
+   "line": "22/22 passed, 0 expected red, 0 failed; suite 1781 passed, 0 failed, 16 skipped, 0 red  maxRSS MB: gm 4655 p1 325 p2 235 p3 235 cluster 68",
+   "failed": []
+  },
+  {
+   "shard": "2/8",
+   "verdict": "green",
+   "seconds": 698.2,
+   "line": "9/9 passed, 0 expected red, 0 failed; suite 230 passed, 0 failed, 2 skipped, 0 red  maxRSS MB: gm 589 p1 448 p2 346 p3 356 cluster 63",
+   "failed": []
+  },
+  {
+   "shard": "3/8",
+   "verdict": "RED",
+   "seconds": 755.1,
+   "line": "8/9 passed, 0 expected red, 1 failed; suite 229 passed, 1 failed, 1 skipped, 0 red  maxRSS MB: gm 725 p1 423 p2 344 p3 323 cluster 60",
+   "failed": [
+    {
+     "name": "grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning",
+     "message": "[I2] - I2 at step 5 (act K finishingBlow): PlayerTwo's copy names the killer Aiko Hoshino, the model's null; I2 at step 5 (act K finishingBlow): PlayerThree's copy names the killer Aiko Hoshino, the model's null [windows closed unanswered: Which statistic?]"
+    }
+   ]
+  },
+  {
+   "shard": "4/8",
+   "verdict": "green",
+   "seconds": 640.1,
+   "line": "9/9 passed, 0 expected red, 0 failed; suite 230 passed, 0 failed, 1 skipped, 0 red  maxRSS MB: gm 646 p1 421 p2 341 p3 340 cluster 64",
+   "failed": []
+  },
+  {
+   "shard": "5/8",
+   "verdict": "green",
+   "seconds": 641.7,
+   "line": "9/9 passed, 0 expected red, 0 failed; suite 228 passed, 0 failed, 3 skipped, 0 red  maxRSS MB: gm 666 p1 429 p2 335 p3 340 cluster 64",
+   "failed": []
+  },
+  {
+   "shard": "6/8",
+   "verdict": "green",
+   "seconds": 641.0,
+   "line": "9/9 passed, 0 expected red, 0 failed; suite 230 passed, 0 failed, 1 skipped, 0 red  maxRSS MB: gm 682 p1 414 p2 324 p3 339 cluster 62",
+   "failed": []
+  },
+  {
+   "shard": "7/8",
+   "verdict": "green",
+   "seconds": 661.6,
+   "line": "9/9 passed, 0 expected red, 0 failed; suite 230 passed, 0 failed, 1 skipped, 0 red  maxRSS MB: gm 657 p1 406 p2 329 p3 326 cluster 62",
+   "failed": []
+  },
+  {
+   "shard": "8/8",
+   "verdict": "green",
+   "seconds": 676.3,
+   "line": "9/9 passed, 0 expected red, 0 failed; suite 229 passed, 0 failed, 2 skipped, 0 red  maxRSS MB: gm 663 p1 442 p2 343 p3 341 cluster 62",
+   "failed": []
+  }
+ ],
+ "suite_merge": "suite-merge: 8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red: RED",
+ "xi07_alone": {
+  "command": "node run-tests.mjs --tier 2 --only XI07",
+  "result": [
+   "run-tests: tiers 0-2, only \"XI07\": 1 tests ran, 16 s wall",
+   "run-tests: 7 passed, 0 failed, 0 skipped, 0 red"
+  ],
+  "reading": "passes alone (7 passed: XI07 and its setup checks); the shard-3 failure depends on the order or the load of the shard - a test-suite finding (TEST), not a module leak"
+ },
+ "pending": [
+  "shard 3 again in the same order",
+  "the ci scenarios one at a time (node run-all.mjs scenarios)",
+  "probes 42 and 43"
+ ],
+ "first_session": "its npm test beside ten readers: lint 416 files 0, check 25 green, gate 37/37, tiers 0-1 1776/0/16 twice, 01-runtests RED on its 6480 s timeout, twelve scenarios green (00, 10-15, 17-21), stopped at 2 h in 30-security (first-session/README.md)"
+}
