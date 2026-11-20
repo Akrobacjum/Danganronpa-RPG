@@ -1,0 +1,89 @@
+{
+ "refuter": "verify-controls-10-setup-config",
+ "of": "controls-10-setup-config",
+ "checked": [
+  {
+   "ref": "controls-10-setup-config-1 (and Season setup / Reset the season, verdict dead)",
+   "claim": "Reset the season in Season setup closes the window and never opens the reset, and no other road starts a reset.",
+   "verdict": "stands",
+   "why": "The press sets resetAsked and calls dialog.close(); drpgWindow returns DialogV2.wait(config) with no close option of its own and the window passes rejectClose: false, so a close with no button resolves null (the module's own model of it: the harness shim's 'dismissed (rejectClose: false -> null)', and live.mjs's note that close() resolves the opener's wait). Line 1214 returns null on !result before 1215 reads resetAsked; End the chapter works only because 1213 reads its flag first. Other roads looked for: git grep of resetSeason / season-wipe.mjs imports over scripts/ outside tests finds only the facade re-export (season-setup.mjs:74) and the call at :1215; the GM panel's tile is gone (gm-panel.mjs:305-308, a comment); api.mjs reaches openSeasonSetup only (api.mjs:814); module.mjs imports offerStartHere alone. The tests that name it are source-text regexes (tests-tier1.mjs:20350, 20693-20694: they pin that the line exists, not that it is reached); every scenario and tier-2 test calls resetSeason() directly, never through the button. Severity: the season's only reset door does nothing, said to nobody - major holds.",
+   "evidence": "scripts/season-setup.mjs:1200-1204 'dialog.element.querySelector(\"[data-drpg-reset-season]\")?.addEventListener(\"click\", ev => { ev.preventDefault(); resetAsked = true; dialog.close(); });'; :1213-1215 'if (endAsked) return endTheChapter(...); if (!result || result === \"close\") return null; if (resetAsked) return (await import(\"./season-wipe.mjs\")).resetSeason();'; scripts/ui-kit.mjs:1344 'return DialogV2.wait(config);'; audit/harness/lib/shim.mjs DialogV2.wait comment 'dismissed (`rejectClose: false` -> null)'; scripts/gm-panel.mjs:305 '// RESET THE SEASON IS NO TILE SINCE E49 A1d'; scripts/api.mjs:814 'openTrialCast: () => import(\"./season-setup.mjs\").then(m => m.openSeasonSetup())'",
+   "severity_after": "major"
+  },
+  {
+   "ref": "controls-10-setup-config-2",
+   "claim": "Season setup's Save writes all six clock fields and the safeword as drawn at open, undoing a time step, a trial started or another GM's change made meanwhile.",
+   "verdict": "stands",
+   "why": "The window has no live option and nothing closes or redraws it: git grep of 'drpg-window-season' outside tests finds only its own alreadyOpen and classes lines; closeOpen is called for two other classes only (murder-rules.mjs:3637, 4607); no updateSetting / clientSettingChanged hook in scripts/ touches it. readSeasonForm spreads readClockForm, which reads every field from the form (gm-campaign.mjs:82-93); applyCampaignForm asks only on a chapter change and on entering the Class Trial (:308-334) and then writes the whole patch through setClock (:347-361), which merges the patch over the clock as it stands (clock.mjs:157-158 'const next = { ...before, ...patch }'), so a drawn value wins over a newer one. Leaving the Class Trial asks nothing, and reconcilePhase from classTrial ends the floor, shuts the vote and runs executeAtExit (clock.mjs:999-1034). The safeword is compared with the setting at Save, not with the value drawn (season-setup.mjs:1255). No test was found pinning the opposite. Severity: an ordinary GM action (stepping the clock with a setup window open) is undone without a word, and the owner's redraw rule (D-A1) is not met by this surface at all - major holds.",
+   "evidence": "scripts/gm-campaign.mjs:85-91 'campaignName: form.campaignName.value.trim(), chapter: ..., day: ..., phase: form.phase.value, session: ..., timeOfDay: form.timeOfDay.value'; :347-361 'const patch = { campaignName: result.campaignName, chapter, day: result.day, phase, session: result.session, timeOfDay: result.timeOfDay }; ... await setClock(patch);'; scripts/clock.mjs:158 'const next = { ...before, ...patch };'; :999-1000 'async function reconcilePhase(from, to) { if (from === \"classTrial\") {'; scripts/season-setup.mjs:1255-1256 'if (result.safeword !== safeword()) { await setSetting(SETTINGS.safeword, result.safeword);'",
+   "severity_after": "major"
+  },
+  {
+   "ref": "controls-10-setup-config-3",
+   "claim": "The Season checklist's rows are built once and redraw only after a press of one of its own rows.",
+   "verdict": "stands",
+   "why": "openSeasonChecklist reads steps() once (:1323-1325) and passes no live option; its only redraws are wireSetupSteps' round trip (:1047-1100, on its own rows) and Check rooms' repaintStep of the rooms row (:1027). git grep finds no other caller of repaintStep and no hook or closeOpen for 'drpg-window-season-checklist'. Despair Flow and The Mastermind are in the same SEASON_TILES row (gm-panel.mjs:377-386) and wireSeasonTiles leaves the windows standing (season-setup.mjs:1103-1119). Minor holds: the view is stale, nothing is written from it.",
+   "evidence": "scripts/season-setup.mjs:1323 'const list = steps();'; :1325 'const outstanding = list.filter(s => !s.done && !s.optional).length;'; :1027 'repaintStep(dialog.element.querySelector(\\'li.drpg-check-row[data-drpg-key=\"rooms\"]\\'), steps().find(s => s.key === \"rooms\"));'; scripts/gm-panel.mjs:377-386 SEASON_TILES 'gmTeam' ... 'mastermind' ... 'seasonChecklist'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-10-setup-config-4",
+   "claim": "Both settings windows draw each setting once, and Save writes a drawn value back over a change made elsewhere meanwhile.",
+   "verdict": "stands",
+   "why": "settingRowHtml reads the stored value at draw (settings-window.mjs:192); wideWindow is drpgWindow with no live (ui-columns.mjs:65-67) and neither opener passes one; no updateSetting or clientSettingChanged hook in scripts/ redraws these classes (the hooks found are in dice-sync, voice-tile, gm-stores, player-status, remnant-ring, observe, passages-gm). saveSettings compares each field with game.settings.get at Save (:426), so an untouched field whose setting changed meanwhile differs and is written. forcePrivateRolls and roomVisibility are both in the privacy section (:91); messengerSound is in the client sound section (:85) and the Sound window writes it at once (sfx.mjs:727-731). Minor holds: it needs two windows or two GMs open at once.",
+   "evidence": "scripts/settings-window.mjs:192 'const stored = isDiceLook(key) ? diceLookChoice() : game.settings.get(MODULE_ID, SETTINGS[key] ?? key);'; :425-427 'const value = fieldValue(field, reg); if (value === undefined || value === game.settings.get(MODULE_ID, key)) continue; await game.settings.set(MODULE_ID, key, value);'; scripts/sfx.mjs:727-730 'messengerBox?.addEventListener(\"change\", () => { setSetting(SETTINGS.messengerSound, messengerBox.checked)'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-10-setup-config-5",
+   "claim": "A Monocub invitation or Bribe window stays open after the invitation is withdrawn or the offer is answered or lapses, and its Accept is then refused.",
+   "verdict": "stands",
+   "why": "receiveCubs only deletes the actor from invitationsShown when the copy no longer holds the invitation (monocub.mjs:322-323); it closes nothing. Neither 'drpg-cub-invite' nor 'drpg-cub-bribe' is named anywhere in scripts/ outside its own window (git grep), and closeOpen is called for two other classes only. cancelMonocubOffer patches the row and closes no window (:441-446). answerMonocubOffer answers null with no open invite (:457), and the bridge row monocub.answer is answer 'reply' (bridge-table.mjs:600-606), so the player is told a refusal; the sheet's panel draws its own Accept and Refuse for the same offer (sheet-actions.mjs:363-384). Minor holds: a particular timing, refused and told, nothing wrong written.",
+   "evidence": "scripts/monocub.mjs:321-325 'for (const [actorId, row] of Object.entries(cubCopy.read() ?? {})) { if (row?.invited) openInvitation(game.actors.get(actorId)); else invitationsShown.delete(actorId); ...'; :441-445 'export async function cancelMonocubOffer(actor) { ... await patchCubRow(actor.id, { invite: null }); ... return true; }'; :457 'if (!actor || !cubRowOf(actor)?.invite) return null;'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-10-setup-config-6",
+   "claim": "The four panel explainers read where things stand once and never redraw.",
+   "verdict": "stands",
+   "why": "explain.mjs has no keepLive, live option, Hooks.on or closeOpen (grep of live|Hooks.on|keepLive|closeOpen finds only two comment words), and no other file names 'drpg-explain'. Nit holds: a read-out beside a panel that is live.",
+   "evidence": "scripts/explain.mjs:49-57 'function explainer(title, body) { return drpgWindow({ title, classes: [\"drpg-panel\", \"drpg-explain\"], body: ..., footer: { close: \"close\" }, rejectClose: false }); }'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-10-setup-config-7",
+   "claim": "Copy report says nothing on the page when the copy throws.",
+   "verdict": "stands",
+   "why": "The catch calls error(), which is console.error plus record() (utils.mjs:338-341), and the loop continues to the next round of the same window. Whether v14's copy throws off a secure context is the reader's own not_established item. Nit holds.",
+   "evidence": "scripts/diagnostics.mjs:2327-2335 'if (action === \"copy\") { try { await copy(text); notify(localize(\"DRPG.Diagnose.copied\")); } catch (err) { error(\"Could not copy the report\", err); } continue; }'; scripts/utils.mjs:338-341 'export function error(...args) { console.error(`${MODULE_ID} |`, ...args); record(\"error\", args); }'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-10-setup-config-8",
+   "claim": "Item tables' Remove leaves the table's count one too high, and outside changes are not drawn.",
+   "verdict": "stands",
+   "why": "The drop branch calls dropResult then show(table); show redraws the name and the body only (tables-editor.mjs:1502-1513), and only the Place branch rewrites the [data-drpg-table-count] badges (:1324-1328). dropResult deletes and normalizes, touching no badge (:543-553). Nit holds.",
+   "evidence": "scripts/tables-editor.mjs:1334-1337 'const drop = ev.target.closest(\"[data-drpg-drop]\"); if (drop) { ... if (await dropResult(table, drop.dataset.drpgDrop)) show(table); return; }'; :1324-1327 'for (const button of root.querySelectorAll(\"[data-drpg-table]\")) { ... if (t && badge) badge.textContent = t.results.size; }'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-10-setup-config-9",
+   "claim": "Add an item refused for a missing name or pool reopens the window with the form empty.",
+   "verdict": "stands",
+   "why": "Both refusals reopen through openItemTables({ preset }), where preset is the opener's own argument, not the form just read; nothing of the action (description, picture, roles, ticks) is passed back. The newPool refusal beside it passes poolError, so the module does carry state back on another branch. Nit holds.",
+   "evidence": "scripts/tables-editor.mjs:1770-1777 'if (!action.name) { ui.notifications.warn(...\"DRPG.Tables.needsName\"); return reopen(\"drpg-window-tables\", () => openItemTables({ preset })); } if (!action.tables.length) { ... return reopen(\"drpg-window-tables\", () => openItemTables({ preset })); }'",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 9,
+  "stands": 9,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 1 rests on Foundry v14's DialogV2.wait resolving null for a window closed by dialog.close() with rejectClose false; read as the kit, the harness shim and live.mjs's notes assume it, not on v14's source. New live check: open Season setup as GM, press Reset the season, see whether the reset's window opens.",
+  "No harness, test, scenario or probe was run; audit/findings-1.2.118/base-run.json, probe-42.json and probe-43.json did not exist when this file was written, so no result is cited.",
+  "The four nits (6-9) were checked as well, beyond the task's floor of minor and above; the one dead control (Season setup / Reset the season) is finding 1 and is counted once."
+ ]
+}
