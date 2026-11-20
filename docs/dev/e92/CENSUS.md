@@ -46,7 +46,6 @@ ones.
 | gm-team-dialog.mjs:258 | assigning characters to accounts | character here: the GM gives the account its Spectator |
 | gm-team-dialog.mjs:424 `despairFlowMarkup` (E101, merged in r112 13.11) | the same list, for the suite's read of the window (R4051) | character here, as :258 |
 | hud.mjs:1384 | the GM's Monokuma | character here |
-| mask-gm.mjs `maskDirectory` (1.2.119, 20.11.2026) | the Actors list's rows a mask dresses in the "?" on a player's browser | character here: a Spectator's row wearing the "?" with the rest names nobody |
 | monocub.mjs:99, 105, 742 | the Monocubs; the dead who may become one; the dead's roster (742 went with the old Monocubs window, E72 C6, merged 12.11 into 1.2.110) | character here: a Spectator never dies (no State on its row, C1) |
 | monokuma.mjs:12 | a comment | - |
 | monokuma.mjs:37, 81 | the Monokumas; every character's id (the audit's waits) | character here |

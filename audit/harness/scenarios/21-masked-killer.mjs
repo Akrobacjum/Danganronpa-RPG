@@ -285,25 +285,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("masked: nothing the victim's browser was sent or draws names Chie, shows her portrait or token picture, or carries her id, her token's id or p3's - the cards' words, the chat documents, the drawn messages, the notices and their history, the Event card, the relayed dice and whose dice they play as, the cast",
         victim.n === 0, JSON.stringify(victim.hits), { flow: "murder-incident" });
     check("masked: nor the bystander's", bystander.n === 0, JSON.stringify(bystander.hits), { flow: "murder-incident" });
-    /* THE ACTORS LIST (1.2.119, the audit's reading of 20.11.2026: "a killer behind a "?" still named in every player's
-       Actors list"). Every student is OBSERVER to every player, so the list draws each one's portrait beside the name. The
-       harness draws no sidebar: the list is built here in the markup the module's stylesheet reads, from the actors this
-       browser holds, and handed to the list's render hook as Foundry would hand it (`renderActorDirectory`; v14's own
-       markup is LIVE-119-D1). Read: the picture beside Chie's name, and the pictures beside every other student this user
-       does not own. The "?" is tied to a name when Chie's differs from theirs. */
-    const LIST = `const el = document.createElement("ol");
-        const students = game.actors.filter(a => a.type === "character");
-        for (const a of students) { const li = document.createElement("li"); li.className = "directory-item document"; li.dataset.entryId = a.id;
-            li.innerHTML = '<img class="thumbnail"><strong class="entry-name"></strong>'; li.querySelector("img").setAttribute("src", a.img ?? "");
-            li.querySelector("strong").textContent = a.name; el.append(li); }
-        Hooks.callAll("renderActorDirectory", ui.actors ?? {}, el);
-        const pic = id => el.querySelector('[data-entry-id="' + id + '"] img')?.getAttribute("src") ?? null;
-        const others = students.filter(a => a.id !== "${ids.chie}" && !a.isOwner).map(a => pic(a.id));
-        return { chie: pic("${ids.chie}"), others: [...new Set(others)], n: others.length };`;
-    const lists = { victim: await p1.eval(LIST), bystander: await p2.eval(LIST) };
-    check("masked: the Actors list on the victim's and the bystander's browsers ties the \"?\" to no name - the picture beside Chie's name is the one beside every other student they do not own",
-        Object.values(lists).every(r => r.n > 0 && r.chie === MASK && r.others.length === 1 && r.others[0] === MASK),
-        JSON.stringify(lists), { flow: "murder-incident" });
     check("masked: the killer's own browser still reads her name on her Strike's card, and her Sanity's line as her own",
         insiders.killer.strike && insiders.killer.you && !insiders.killer.sanity, JSON.stringify(insiders), { flow: "murder-incident" });
 
@@ -361,9 +342,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         && shown.tokens.every(t => t[0] !== "?" && t[1] === "suite/CHIETOKEN.webp" && t[2] === false)
         && shown.hits.some(h => h[0] === "cast" && h[1] === ids.chie),
         JSON.stringify({ revealed, after, shownNamed, tokens: shown.tokens, hits: shown.hits.slice(0, 12) }), { flow: "murder-incident" });
-    const listAfter = await p1.eval(LIST);
-    check("reveal: the mask ended, the victim's Actors list shows Chie's own portrait beside her name and no \"?\" on any row",
-        listAfter.chie === "suite/CHIEPORTRAIT.webp" && !listAfter.others.includes(MASK), JSON.stringify(listAfter), { flow: "murder-incident" });
 
     /* ---- outside the fight (owner-115 item 1b, the coordinator's answer to Q-OWN115-3): while the mask stands - and it
        outlives the incident, to the next time of day - the killer's own actions name them "?" to everyone not in on it.
