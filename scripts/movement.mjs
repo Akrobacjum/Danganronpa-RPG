@@ -1055,7 +1055,14 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
     const mover = game.users?.get(userId) ?? null;
     const actor = tokenDoc.actor;
     let now = null, honoured = null;
-    if (!actor || actor.type !== "character") now = standingHere(tokenDoc);
+    /* A SPECTATOR WALKS AS NOBODY HERE (1.2.119 line F; the auditor's finding domain-map-b-movement-1, kept by its refuter,
+       audit/findings-1.2.118/verify-urgent-2.json). Its token was judged as a student's: in an Eclipse counted
+       (`eclipseSighting`), its crossing recorded (`noteCrossing`) and settled for Keep Watch, which whispered "{name} comes
+       into {room}" - for a kept death's watcher (spectator-dead.mjs), the victim's name. Scenario 93 "ghost" read, on
+       19a04e88, the Eclipse's `seen` 1 and a crossing row of Chie's. It stands where it stands, as a token of no character
+       does: no rule, no count, no record. Read off the flag the GMs hold (sheet-audit.mjs `flagsHeldNow`), not the
+       document's: a player's own write of the flag on their student is put back there, and walks no freer here. */
+    if (!actor || actor.type !== "character" || (judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor).getFlag?.(MODULE_ID, FLAGS.spectator)) now = standingHere(tokenDoc);
     else if ((revert && !mover?.isGM) || sentBack) {
         const spot = positionOf(tokenDoc);
         const accepted = !sendBackRefusal(spot, { scene: tokenDoc.parent, history: recentPositions(tokenDoc.id) });
