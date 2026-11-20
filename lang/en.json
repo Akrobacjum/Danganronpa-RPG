@@ -7035,6 +7035,10 @@
       }
     },
     "GmStore": {
+      "cutAhead": {
+        "one": "The GM store \"{store}\" holds a reset {n} minute ahead of this computer's clock. It was made on a GM computer whose clock ran ahead. What this browser writes now is kept above it. Check the date and time on every GM's computer.",
+        "other": "The GM store \"{store}\" holds a reset {n} minutes ahead of this computer's clock. It was made on a GM computer whose clock ran ahead. What this browser writes now is kept above it. Check the date and time on every GM's computer."
+      },
       "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back it up now (GM panel, Diagnostics, The case: Back up).",
       "syncTimedOut": "The GM store did not hear from {names}. It carries on with what this browser holds, and their copy is merged when it arrives.",
       "claimFailed": {

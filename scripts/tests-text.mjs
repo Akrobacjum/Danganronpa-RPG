@@ -2339,7 +2339,7 @@ function callSpans(lx, blank, re) {
    never a bucket: what a screen shows moves into lang/. */
 export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/gm-store.mjs sectionProblem": { n: 9, why: "why a packet's or a backup's section is refused, written to a GM's console (gmsRefusal's warn) and the case file's refusal; no window shows it (C12-FINDINGS.md)" },
-    "scripts/gm-store.mjs createGmStoreEngine": { n: 1, why: "the second piece of the claim's `env.text?.(key) ?? \"...\"` fallback, for an engine built with no text function; the module's stores are built with one (C12-FINDINGS.md)" },
+    "scripts/gm-store.mjs createGmStoreEngine": { n: 3, why: "the second piece of the claim's `env.text?.(key) ?? \"...\"` fallback, for an engine built with no text function; the module's stores are built with one (C12-FINDINGS.md); and the two pieces of `tellAhead`'s, the same fallback (1.2.119 line F, DRPG.GmStore.cutAhead)" },
     "scripts/movement-audit.mjs auditMove": { n: 6, why: "an exempt move's `why` and a ledger row's `verdict`: the rows game.drpg.passages.audit() answers in the console (auditRows); the player is told by DRPG.Bridge.why, the GMs by DRPG.Movement" },
     "scripts/trial-floor.mjs modeCensus": { n: 3, why: "the faults of the modes' start table, read by tier 1 alone" },
     "scripts/trial-progress.mjs TRIAL_RECORD": { n: 8, why: "each record field's writer (`by`), a note in the table that R1257 reads; no screen" },

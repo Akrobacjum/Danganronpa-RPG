@@ -748,7 +748,7 @@ A room the lists and the walls leave with no neighbor has no door out. A room th
 
 ### 9.2 Fog and discovery
 
-While **Rooms decide what players can see** is on, one layer of fog lies over the whole scene, in three states: the room you stand in is clear; a room you have visited shows through a veil; everything else, including any patch of map outside every region, is full fog. During an Eclipse even the room you stand in is only veiled. Discovery is **per character**: a room is discovered when the character's token first crosses into it (with a sound for the student who walked in), and it survives sessions. A GM sees a lighter fog: every room the class has discovered is clear, and rooms nobody has found yet, with any space outside every room, sit under the veil. The Mastermind sees every room as visited, and the rooms the Mastermind walks into do not count for your fog, nor do those they found before they were chosen. On a scene of several floors the fog draws the floor on screen by this same rule (section 9.4).
+While **Rooms decide what players can see** is on, one layer of fog lies over the whole scene, in three states: the room you stand in is clear; a room you have visited shows through a veil; everything else, including any patch of map outside every region, is full fog. During an Eclipse even the room you stand in is only veiled. Discovery is **per character**: a room is discovered when the character's token first crosses into it (with a sound for the student who walked in), and it survives sessions. A GM sees a lighter fog: every room the class has discovered is clear, and rooms nobody has found yet, with any space outside every room, sit under the veil. The class is the students of Room setup's **Fog** tab: what a Monokuma, a Spectator, a character out of the class or a deleted character walked into counts for nobody, so the tab shows exactly what your map lights, and **Hide all** with **Apply** clears your map whole. A character you put back into the class brings the rooms it found back onto your map. The Mastermind sees every room as visited, and the rooms the Mastermind walks into do not count for your fog, nor do those they found before they were chosen. On a scene of several floors the fog draws the floor on screen by this same rule (section 9.4).
 
 For the fog to work a scene needs Foundry's own vision off:
 
@@ -762,6 +762,8 @@ The Season checklist's rooms row names a scene with rooms that is not ready. Set
 
 > [!WARNING]
 > A scene with rooms and Foundry vision still on renders as a **black screen for players** on v14 and gives no reason. It is the most common "it is broken" report.
+
+**A reset ahead of your computer's clock.** Each GM's browser stamps what it writes by its own computer's clock. A season reset made on a GM computer whose clock runs ahead is stamped ahead of everyone else's. What is written after it is kept, and the GM is told once, in a notice that stays up: *The GM store "discovery" holds a reset n minutes ahead of this computer's clock.* Check the date and time on every GM's computer. A room lost to such a reset before the notice came is not given back: tick it again on Room setup's **Fog** tab (section 9.1).
 
 **Token visibility** (**Players only see who is in their room**) works on the tokens themselves, so doorways, archways and wall-less maps do not leak. A revealed Remnant is visible only to the people who have found it themselves.
 

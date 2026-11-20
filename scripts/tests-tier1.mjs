@@ -6964,6 +6964,82 @@ const INVARIANTS = [
             "with no reset in the clock the claim's rows did not stand - the first half measured nothing");
     }],
 
+    ["R7860 - a write made after a reset whose cut runs ahead of this browser's clock is kept, and the cut is told", async () => {
+        /*
+         * The owner's item #2 of 1.2.119 (20.11.2026): the GM's fog stopped showing the rooms the players found, and F5
+         * did not bring them back. On The Forge `game.time.serverTime` is an uptime (config.mjs `epochClock`, E90), so
+         * every GM browser stamps on its own `Date.now()`; a season reset made on a GM machine whose clock runs ahead
+         * writes its cut (`resetCuts.discovered`, season-exceptions.mjs `resetCutPatch`) ahead of every other GM's
+         * clock. Each GM raises its watermark to that cut (`applyCuts`), and `observe` holds the hybrid clock at ten
+         * minutes ahead of now (`TIMING.gmStoreSkewMs`), so until 1.2.119 every real write - a room walked into - was
+         * stamped under the cut and cut by it on the spot (`writeFields`), in memory and in storage: on b5a29e73 this
+         * read `[[], ...]`. Driven on an engine built with fakes: a clock two hours behind the cut, storage in a Map,
+         * then a second engine on the same storage for the reload.
+         */
+        const G = await import("./gm-store.mjs");
+        const NOW = 1_795_000_000_000, CUT = NOW + 2 * 3_600_000;
+        const store = new Map(), told = [];
+        const flushes = [];
+        const engine = () => G.createGmStoreEngine({
+            selfId: () => "R7860GM", isGM: () => true, isPrimary: () => true, worldId: () => "R7860WORLD",
+            activeGmIds: () => ["R7860GM"], primaryGmId: () => "R7860GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => NOW,
+            timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+            clock: () => ({ resetCuts: { discovered: CUT } }), log: { warn: () => {}, error: () => {}, debug: () => {} },
+            notify: (level, text) => told.push([level, text]), text: (key, data) => `${key} ${JSON.stringify(data)}`
+        });
+        const spec = { name: "r7860", key: "r7860Key", kind: "ledger", resetGroup: "discovered", sync: true, backup: false };
+
+        const first = engine();
+        const ledger = first.define(spec);
+        await first.open();
+        await Promise.all(flushes);
+        await ledger.patchMany({ "S/A": { Cafeteria: true } });
+        await ledger.patch("S/B", { Hall: true });
+        await Promise.all(flushes);
+        equal(JSON.stringify([Object.keys(ledger.entries()).sort(), ledger.cleared()]), JSON.stringify([["S/A", "S/B"], CUT]),
+            "a room written after a reset whose cut runs two hours ahead of this browser's clock was cut on the spot");
+        const toldHere = told.filter(([level, text]) => level === "warn" && /DRPG\.GmStore\.cutAhead/.test(text) && /r7860/.test(text));
+        equal(toldHere.length, 1, `the cut ahead of the clock was not told to the GM once (${JSON.stringify(told)})`);
+        ok(/"n":120\b/.test(toldHere[0]?.[1] ?? ""), `the notice did not say how far ahead the cut runs: ${toldHere[0]?.[1]}`);
+
+        const reload = engine();
+        const again = reload.define(spec);
+        await reload.open();
+        await Promise.all(flushes);
+        equal(JSON.stringify(again.get("S/A")), JSON.stringify({ Cafeteria: true }), "the room was gone after a reload");
+        equal(told.filter(([, text]) => /DRPG\.GmStore\.cutAhead/.test(text)).length, 2, "the reloaded browser did not say the cut once as it opened");
+    }],
+
+    ["R7861 - a player's copy takes the GM's rows written above a reset whose cut runs ahead of the player's clock", async () => {
+        /*
+         * The player's half of R7860 (1.2.119 line F). Once the GM's writes are stamped above a cut that runs ahead
+         * (gm-store.mjs `stampOver`), the GM sends a player those rows at those stamps (fog.mjs `sendStoreTo`). The copy
+         * capped every incoming stamp at ten minutes ahead of the player's own clock and then refused what it read as no
+         * newer than the cut (`receiveCopy`): on b5a29e73 a copy offered rows at the cut plus one and then plus two took
+         * neither, so the player's map, read from its copy after a reload, lost every room found since that reset (scenario
+         * 60 phase 7 read the player's rows empty). Driven on a player's engine built with fakes: its clock two hours
+         * behind the cut, storage in a Map.
+         */
+        const G = await import("./gm-store.mjs");
+        const NOW = 1_795_000_000_000, CUT = NOW + 2 * 3_600_000;
+        const store = new Map();
+        const player = G.createGmStoreEngine({
+            selfId: () => "R7861P", isGM: () => false, isPrimary: () => false, worldId: () => "R7861WORLD",
+            activeGmIds: () => ["R7861GM"], primaryGmId: () => "R7861GM", senderIsGM: () => false, userName: u => u, send: () => {},
+            storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => NOW, timers: { set: fn => { void Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({ resetCuts: { discovered: CUT } }), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const copy = player.defineCopy({ name: "r7861", key: "r7861Key", from: "r7861store", resetGroup: "discovered" });
+        const first = await copy.receive({ rows: ["Cafeteria"] }, { "": CUT + 1 });
+        const second = await copy.receive({ rows: ["Cafeteria", "Hall"] }, { "": CUT + 2 });
+        const stale = await copy.receive({ rows: ["before the reset"] }, { "": CUT - 1 });
+        equal(JSON.stringify([first, second, stale, copy.read()]), JSON.stringify([true, true, false, { rows: ["Cafeteria", "Hall"] }]),
+            "a copy did not take the GM's rows written above a cut ahead of its clock in order, or took one from before the cut");
+    }],
+
     ["R179 - a world that was in play keeps its safeword", async () => {
         /*
          * E04 C11, 26.09.2026; audit S01-14. The clause that keeps a world's old safeword
@@ -19590,7 +19666,7 @@ const INVARIANTS = [
         const J = v => JSON.stringify(v);
         const scene = { id: "R563SCENE" };
         const rows = { MM: ["R563 Lab", "R563 Gym"], S1: ["R563 Hall"] };
-        const read = (more, mm) => [...F.ledgerRooms(scene, { ledger: { [scene.id]: { ...rows, ...more } }, mastermindId: mm })].sort();
+        const read = (more, mm) => [...F.ledgerRooms(scene, { ledger: { [scene.id]: { ...rows, ...more } }, mastermindId: mm, students: new Set(["MM", "S1"]) })].sort();
         equal(J([read({}, "MM"), read({ MM: [...rows.MM, "R563 Pool"] }, "MM"), read({ S1: [...rows.S1, "R563 Pool"] }, "MM"), read({}, null), read({}, "S1")]),
             J([["R563 Hall"], ["R563 Hall"], ["R563 Hall", "R563 Pool"], ["R563 Gym", "R563 Hall", "R563 Lab"], ["R563 Gym", "R563 Lab"]]),
             "[the Mastermind's old row, the Mastermind entering a new room, a student entering one, nobody the Mastermind, another student the Mastermind]");
@@ -19611,6 +19687,34 @@ const INVARIANTS = [
         const none = [...F.myCurrentRooms({ tokens: [placeable(doc, false)], gm: false })];
         equal(J([all, mine, none]), J([[...new Set(roomNames(here))].sort(), [roomOfToken(doc)], []]),
             "[the Mastermind's discovered rooms, the current room under their own token beside another's, under nobody's own]");
+    }],
+    ["R7862 - the GM's fog counts the rows of the students the Fog tab offers, so Hide all clears the GM's map", async () => {
+        /*
+         * The owner's item #2 of 1.2.119, as restated on 20.11.2026: "mi jako gmowi podświetla pokoje nieodkryte przez
+         * graczy po hide all w zakładce fog" - after Hide all on Room setup's Fog tab the GM's map still lit rooms the
+         * players had not found. The Fog tab draws one column per student (monokuma.mjs `studentActors`: no Monokuma, no
+         * character not in class, no Spectator), and Hide all with Apply unticks those columns' cells; `ledgerRooms`, the
+         * GM's map, read every character's row but the Mastermind's, so a row with no column - a Spectator's from before
+         * it was one, a character's put out of the class, a Monokuma's from before the flag - stayed lit, out of the GM's
+         * reach. On b5a29e73 this read the not-in-class row's and the Monokuma's rooms (`ledgerRooms` took no `students`).
+         * The owner's record at the table on 20.11.2026 held 13 rows on the scene, 12 with no column: four characters out of
+         * the class and seven ids of actors deleted since (`GONE` below), whose rows nothing removes.
+         * Read on a ledger of the suite's own; then which students the GM's fog asks, off the source.
+         */
+        const F = await import("./fog.mjs");
+        const J = v => JSON.stringify(v);
+        const scene = { id: "R7862SCENE" };
+        const ledger = { [scene.id]: { S1: ["R7862 Hall"], S2: ["R7862 Gym"], NIC: ["R7862 Lab"], MK: ["R7862 Pool"], MM: ["R7862 Roof"], GONE: ["R7862 Attic"] } };
+        const read = students => [...F.ledgerRooms(scene, { ledger, mastermindId: "MM", students: new Set(students) })].sort();
+        equal(J([read(["S1", "S2", "MM"]), read(["S1"]), read(["S1", "S2", "NIC"]), read([])]),
+            J([["R7862 Gym", "R7862 Hall"], ["R7862 Hall"], ["R7862 Gym", "R7862 Hall", "R7862 Lab"], []]),
+            "[the students S1, S2 and the Mastermind; S1 alone; NIC back in the class; nobody a student]: a row with no column on the Fog tab counted on the GM's map");
+        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText).then(stripComments);
+        const lr = fnSource(fog, "ledgerRooms");
+        ok(/students\s*=\s*studentIds\(\)/.test(lr) && /students\.has\(actorId\)/.test(lr),
+            "ledgerRooms does not default to the world's students, the Fog tab's columns (studentIds)");
+        const ids = fnSource(fog, "studentIds");
+        ok(/studentActors\(\)/.test(ids), "studentIds does not read monokuma.mjs studentActors, the roster the Fog tab draws");
     }],
     ["R573 - the GMs' overlay follows the floor: drawn again for another floor of the scene it shows that floor's passages and the ones on no floor, and no other floor's or scene's; and a floor switched is a new canvas, on which the overlay draws every layer again from the camera", async () => {
         /*
