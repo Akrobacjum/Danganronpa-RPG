@@ -34,7 +34,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion, markFired } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
 
 /**
@@ -709,6 +709,7 @@ export function maskDirectory(root, { actorOf = id => game.actors?.get?.(id) ?? 
 /** At ready: the primary's end at a new time of day, the GMs' and Spectators' names, the killer's question, the list. */
 export function registerMasks() {
     Hooks.on("renderActorDirectory", (app, html) => {
+        markFired("renderActorDirectory");
         try { maskDirectory(html); } catch (err) { error("Could not draw the Actors list behind the mask", err); }
     });
     Hooks.on("drpgTimeOfDayChanged", () => {
