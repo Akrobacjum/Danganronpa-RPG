@@ -290,8 +290,8 @@
     ],
     "verdict": "partial",
     "gaps": [
-     "The Note tab's dot (_buildTabs:269-283) is drawn at render; refreshNote returns at once on the Chat tab (368) and touches no dot on the Note tab: finding 7",
-     "The title (211-215) and the participants line (236) read game.users once: a GM who joins the world or a renamed player shows only after a re-render (no updateUser or createUser hook): finding 7"
+     "The Note tab's dot (_buildTabs:269-283) is drawn at render; refreshNote returns at once on the Chat tab (368) and touches no dot on the Note tab: finding 3",
+     "The title (211-215) and the participants line (236) read game.users once: a GM who joins the world or a renamed player shows only after a re-render (no updateUser or createUser hook): finding 3"
     ],
     "focus_rule": "Bubbles are appended, replaced and removed one by one (483-513), so a half-typed message in the box stays; the Note tab's box takes another browser's change only while it still holds what it was drawn with (373-376). A tab press renders the whole window and drops an unsent chat message (finding 7)."
    }
