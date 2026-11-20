@@ -30,10 +30,10 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
 import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
-import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf, zoneStart } from "./zone-machine.mjs";
+import { ZONE_MODES, isZoneMode, zoneOf, zoneStart } from "./zone-machine.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { isPrimaryGm, serialWrite, serverNow, error, esc } from "./utils.mjs";
+import { isPrimaryGm, serialWrite, error, esc } from "./utils.mjs";
 
 /** The floor as stored, for the readers here that may not import trial-floor.mjs (it imports this file). */
 function storedFloor() {
@@ -70,14 +70,14 @@ export function sidesNow({ floor = storedFloor(), participants = null, hall = tr
 }
 
 /**
- * What a zone mode's rows read on the primary in the step (zone-machine.mjs `zoneStep`'s `ctx`): the sides, how many
- * take part, whether the zones are there, and for a Logic Dive question its truth, the set's next question and its
+ * What a zone mode's rows read on the primary in the step (zone-machine.mjs `zoneStep`'s `ctx`): the sides, whether
+ * the zones are there, and for a Logic Dive question its truth, the set's next question and its
  * conclusion, off the GMs' store - handed to the machine, never written to the floor.
  */
 export function zoneCtxOf(floor) {
     const participants = trialParticipants();
     const sides = sidesNow({ floor, participants });
-    const ctx = { sides: { a: sides.a, b: sides.b }, participants: participants.length, zonesReady: zonesReady() };
+    const ctx = { sides: { a: sides.a, b: sides.b }, zonesReady: zonesReady() };
     const zone = zoneOf(floor);
     if (floor?.mode === ZONE_MODES.dive && zone?.set?.id) {
         const set = diveSetStore.get(zone.set.id) ?? null;
@@ -90,27 +90,6 @@ export function zoneCtxOf(floor) {
         ctx.conclusion = typeof set?.conclusion === "string" ? set.conclusion : null;
     }
     return ctx;
-}
-
-/**
- * Whether a zone floor should move before its clock runs out, as the primary's heartbeat asks every second (trial-floor.mjs
- * `isDue`): Logic Dive's vote with everybody on one side past its grace, or a Scrum turn whose camp has emptied. The
- * machine judges again in the step.
- */
-export function zoneEarly(floor) {
-    const zone = zoneOf(floor);
-    if (!zone) return false;
-    if (floor.mode === ZONE_MODES.dive && zone.phase === "vote") {
-        const ran = (serverNow() - (Number(floor.startedAt) || 0)) / 1000;
-        if (ran < (Number(TRIAL.modes.zones.dive.earlyAfterSeconds) || 10)) return false;
-        const participants = trialParticipants();
-        return unanimous(sidesNow({ floor, participants }), participants.length);
-    }
-    if (floor.mode === ZONE_MODES.scrum && zone.phase === "speak") {
-        const counts = countsOf(sidesNow({ floor }));
-        return counts.a === 0 || counts.b === 0;
-    }
-    return false;
 }
 
 /** The participants' hall tokens' places now: `{ tokenId: { x, y } }`, the stands a zone mode gives back. */

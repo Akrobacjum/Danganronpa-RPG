@@ -4385,20 +4385,20 @@ export const TRIAL = {
          */
         closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 },
         /*
-         * THE ZONE MODES (E73, 12.11.2026; the plan's goal and C3-C5; zone-machine.mjs). Straw Poll: `seconds` of standing
-         * in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, closed early once everybody
-         * stands on one side after `earlyAfterSeconds` (chosen here, so stands left in one zone do not close a question at
-         * its first second), then `pauseSeconds` with the count shown before the judgement; a set holds 1 to
-         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form (Sides), `conferSeconds` for each camp to talk
-         * apart in a voice room of its own (Camps confer; the owner's 13.11.2026 order, 120 s the coordinator's default),
-         * then 2 x the larger camp's turns of
-         * `budgetSeconds` / turns, held to `minTurn`-`maxTurn` (3:2 40 s, 4:3 37.5 s, 8:7 20 s); a thesis up to
-         * `thesisLength`. The texts' lengths: `questionLength`, `answerLength`. Chosen from the plan, not measured at a
-         * table (LIVE-E73-02).
+         * THE ZONE MODES (E73, 12.11.2026; the plan's goal and C3-C5; zone-machine.mjs). Straw Poll: `seconds` of
+         * standing in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, counted when
+         * they run out or at the GM's Count now - never earlier because of where the tokens stand (the owner, 1.2.119;
+         * `earlyAfterSeconds`, 10, closed a question once everybody stood on one side until then) - then `pauseSeconds`
+         * with the count shown before the judgement; a set holds 1 to `maxQuestions`. Scrum Debate: `setupSeconds` for
+         * the camps to form (Sides), `conferSeconds` for each camp to talk apart in a voice room of its own (Camps
+         * confer; the owner's 13.11.2026 order, 120 s the coordinator's default), then 2 x the larger camp's turns of
+         * `budgetSeconds` / turns, every turn held to its clock since 1.2.119 (an empty camp's with no speaker), held
+         * to `minTurn`-`maxTurn` (3:2 40 s, 4:3 37.5 s, 8:7 20 s); a thesis up to `thesisLength`. The texts' lengths:
+         * `questionLength`, `answerLength`. Chosen from the plan, not measured at a table (LIVE-E73-02).
          */
         zones: {
             straw: { seconds: 45 },
-            dive: { seconds: 60, pauseSeconds: 5, earlyAfterSeconds: 10, maxQuestions: 5 },
+            dive: { seconds: 60, pauseSeconds: 5, maxQuestions: 5 },
             scrum: { setupSeconds: 45, conferSeconds: 120, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
             questionLength: 200, answerLength: 80
         }

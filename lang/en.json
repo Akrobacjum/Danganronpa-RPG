@@ -716,6 +716,7 @@
       "trialClockTooltip": "How long this part of the debate has left.",
       "trialEveryone": "Everyone",
       "trialVersus": "vs {who}",
+      "trialNoSpeaker": "Nobody speaks",
       "trialSpeaks": "{name} speaks"
     },
     "Passage": {
@@ -1487,6 +1488,7 @@
         "begins": "Zone {zone} speaks first. The camps take turns of {seconds} s, {turns} turns in all.",
         "over": "The Scrum Debate is over: {a} in Zone A, {b} in Zone B.",
         "empty": "Zone {zone} is empty. The class thinks: {answer}.",
+        "noSpeaker": "Nobody stands in Zone {zone}, so this turn runs out with no speaker.",
         "thesis": "Zone {zone}'s thesis: {text}"
       },
       "panel": {
@@ -2537,7 +2539,7 @@
       "intro": "Pick a playlist for each state.",
       "howOrder": "How the order works",
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during a trial uses the Eclipse's.",
-      "trialNote": "The higher row wins. A mode with no playlist of its own plays as before: a Rebuttal the Objection's, a zone mode the Debate's, Testimony, a Panic Round and the Closing Argument the Discussion's.",
+      "trialNote": "The higher row wins. A mode with no playlist of its own plays as before: a Rebuttal the Objection's, a zone mode the Debate's, Testimony, a Panic Round and the Closing Argument the Discussion's. The Closing Argument's own playlist starts once the GM confirms its speaker.",
       "incidentNote": "Only the players taking part in the murder, and the GMs, hear it.",
       "fadeNote": "Set the fade length in each playlist's Fade Duration. When a body is found and nothing is mapped to it, the music goes silent, and a track you put on yourself stops too.",
       "when": "When",

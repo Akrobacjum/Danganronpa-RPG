@@ -18,8 +18,10 @@
  *   C (Scrum Debate): the camps as they stand (Zone A Aiko, Botan; Zone B Chie), Skip the Sides ("Sides set"): Camps
  *     confer on every player with the camps kept, regional voice off - the GMs told once that the voices are not split,
  *     no player told; Skip the Confer: Zone B first, Chie the speaker, and no second notice; p3's thesis from its own page
- *     ("trial.keyword") on p1's chat; p3 moves Chie into Zone A - Zone B empty - and the GM's heartbeat ends the Scrum with
- *     Zone A's answer as a Finding, on every player.
+ *     ("trial.keyword") on p1's chat; p3 moves Chie into Zone A - Zone B empty - and the heartbeat ends nothing (since
+ *     1.2.119): Chie's turn runs on; four Skips walk the turns - Aiko, Zone B's with no speaker (its line on every
+ *     player's chat), Botan - and the last turn's end, Zone B still empty, gives Zone A's answer as a Finding, on every
+ *     player.
  *   V (the camps' voice rooms; the owner's 13.11.2026): regional voice on (the harness counts avclient-livekit active,
  *     so the primary's `voice.assign` reaches each player's `desiredRoom`), the same camps: in Confer p1 and p2 are sent
  *     Zone A's room and p3 Zone B's, and no notice; p1's page asks again as a reload does (its told room forgotten,
@@ -232,14 +234,36 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     await settle(800);
     const thesisCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.thesis", { zone: "B", text: "S68 nobody went in" });`);
     verdict("p3's thesis for Chie reaches p1's chat", thesis.ok && await chatHas(p1, thesisCard), J({ thesis }));
+    // Since 1.2.119 (the owner's #5, R7841) a camp emptied in the turns ends nothing: the turn runs on, a turn that falls to
+    // the empty camp runs with no speaker, and the Finding waits for the last turn's end. Until then the heartbeat ended
+    // the Scrum here within a second. Camps 2:1, so 4 turns of 40 s: Chie (B), Aiko (A), nobody (B), Botan (A).
     await moveOn(p3, IDS.chie, 500, 500);
+    await settle(3000);
+    const held = await floorOn(gm);
+    verdict("Chie crosses into Zone A: Zone B empty, and the heartbeat ends nothing - Chie's turn runs on",
+        held?.mode === "scrum" && held.phase === "speak" && held.holder === IDS.chie, J({ held }));
+    const skipTurn = async () => { await gm.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 }); await settle(1200); };
+    await skipTurn();
+    const turn2 = await floorOn(p1);
+    await skipTurn();
+    const turn3 = [];
+    for (const c of [p1, p2, p3]) turn3.push(await floorOn(c));
+    const noSpeakerCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.noSpeaker", { zone: "B" });`);
+    const seenNoSpeaker = [];
+    for (const c of [p1, p2, p3]) seenNoSpeaker.push(await chatHas(c, noSpeakerCard));
+    verdict("Skip twice: Aiko speaks for Zone A, then Zone B's turn runs with no speaker on every player, and every player's chat says so",
+        turn2?.holder === IDS.aiko && turn3.every(f => f?.mode === "scrum" && f.phase === "speak" && f.holder === null) && seenNoSpeaker.every(Boolean),
+        J({ turn2, turn3, seenNoSpeaker }));
+    await skipTurn();
+    const turn4 = await floorOn(p1);
+    await skipTurn();
     const over = await gm.eval(`${F} const end = Date.now() + 6000; while (F.trialFloor() && Date.now() < end) await new Promise(r => setTimeout(r, 200));
         const { trialProgress } = await import("${repoUrl}/scripts/vote.mjs"); return { floor: F.trialFloor(), findings: (trialProgress().findings ?? []).map(f => f.text) };`, { timeout: 30000 });
     const emptyCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.empty", { zone: "B", answer: "Inside" });`);
     const seenEmpty = [];
     for (const c of [p1, p2, p3]) seenEmpty.push(await chatHas(c, emptyCard));
-    verdict("Chie crosses into Zone A: Zone B empty, the heartbeat ends the Scrum with Zone A's answer, on every player",
-        over.floor === null && over.findings.at(-1) === "Inside" && seenEmpty.every(Boolean), J({ over, seenEmpty }));
+    verdict("Botan's turn, then the last turn's end with Zone B still empty: the Scrum ends with Zone A's answer as a Finding, on every player",
+        turn4?.holder === IDS.botan && over.floor === null && over.findings.at(-1) === "Inside" && seenEmpty.every(Boolean), J({ turn4, over, seenEmpty }));
     await canary.scan({ phase: "C" });
 
     /* ------------------------------ V. the camps' voice rooms ------------------------------ */
