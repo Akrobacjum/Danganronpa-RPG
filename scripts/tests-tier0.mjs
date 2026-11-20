@@ -10229,6 +10229,8 @@ const REGRESSIONS = [
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
          * two inline token listeners beside another event's, a held reader of trial-scene.mjs beside one whose flag is
          * only in a comment, a store and a stale row.
+         * 1.2.119 (20.11.2026): use-items.mjs `discardBroken` reads no broken flag any more - any item is thrown away, but
+         * what inventory.mjs `onlyCopied` names (the owner, 20.11.2026) - and its SHEET row is struck (it stood stale here).
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "out of scope: judged on the GM (knownSender + `ownsActorAt` the token, `guardSendbackPlace`; E03/E28) and unchanged by E13; in the hall there are no rooms after C1, so the mover's veto never sends a hall token back (movement.mjs `onPreUpdateToken` returns). E12 C9 lets it carry `level` [1b.1 a token's movement in the hall]"],
@@ -10264,7 +10266,6 @@ const REGRESSIONS = [
             ["SHEET use-items.mjs#creativeUseGone", "judged where it runs, on a GM: a creative ruling's reading of the item as the GMs hold it (`itemAsHeld`) and of the holder's death the GMs keep (`isDeadForGm`), before the GM's window and after it (`ruleCreativeUse`, held in that GM's memory); it moves no token and seats nobody (E14 part 1 C5; S08-35)"],
             ["SHEET use-items.mjs#useItem", "out of scope: the roller's client on its own item; creative use is not a roll and the amend of 25.09 leaves it unchanged - `useItem` and `useCreatively` reach no roll's wear (R439) (E13 C8)"],
             ["SHEET use-items.mjs#rollSpends", "out of scope: a pure reader of the item and the roll it is handed, as `tierOf` is; `breakOnDespair` hands it `held`, so on a GM's road the swing's held weapon decides (R439) (E13 C8)"],
-            ["SHEET use-items.mjs#discardBroken", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET trial-scene.mjs#readCastActors", "held: `flagsHeldNow(actor)` once per character of the world, in one synchronous pass, for the cast picker's default ticks (E81 DZ6; `readCast`'s two facts per actor, the Start window reading them after its `judgedFor`); a player owner is `ownerIdsOf`; it decides a tick's default, the GM's Apply or Start decides the row [1b.2]; R437"],
             ["SHEET trial-scene.mjs#readCast", "held: `flagsHeldNow(actor)` once per cast token, the whole cast in one synchronous pass before the diff (H3); under Q-E13-1 (a) only `monokuma` decides; a player owner is `ownerIdsOf` (the actor's ownership: whether a player can write it is Foundry's rule, not measured here) [1b.2]; R116"],
             ["SHEET murder-rules.mjs#wearSwing", "judged: on the GM in the incident; reads the held `weapon` (fix r2-H18) and writes through `breakOnDespair(actor, tool, roll, weapon)`; `actor.items.get` only finds the document to write. C8 changes the tier-0 rule inside `breakOnDespair`, not this road (E13 C8)"],
