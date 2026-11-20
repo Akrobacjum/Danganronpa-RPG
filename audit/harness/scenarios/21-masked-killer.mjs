@@ -194,6 +194,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         ["victim", "bystander"].every(k => drawnOn(veiled[k]).length > 0 && drawnOn(veiled[k]).every(v => v === false) && veiled[k].tokens.every(t => t[7] === false))
         && drawnOn(veiled.killer).length > 0 && drawnOn(veiled.killer).every(v => v === true) && veiled.killer.tokens.every(t => t[7] === true),
         JSON.stringify(veiled), { flow: "murder-incident" });
+    /* THE VOICE TILE AND THE MAP AGREE (1.2.119 line F; the auditor's finding domain-comm-c-voice 1): while veiled, the
+       killer stays in the room's channel, and the tile asks visibility.mjs `voiceVeiledHere` of each participant - the
+       map's rule - so a participant it answers true for is neither counted, listed nor drawn (voice-tile.mjs `personOf`,
+       R7864 on a stand-in Room; this scenario has no LiveKit shim). Asked here of Chie's player's account on each
+       browser, with the veil real: true on the victim's and the bystander's, false on her own and the GM's. */
+    const VOICE = `return (await import("${repoUrl}/scripts/visibility.mjs")).voiceVeiledHere?.(game.users.get("${p3.userId}")) ?? "none";`;
+    const voiced = { victim: await p1.eval(VOICE), bystander: await p2.eval(VOICE), killer: await p3.eval(VOICE), gm: await gm.eval(VOICE) };
+    check("road: while veiled, Chie's player is hidden from the victim's and the bystander's voice tiles and not from her own or the GM's (1.2.119 line F)",
+        JSON.stringify(voiced) === JSON.stringify({ victim: true, bystander: true, killer: false, gm: false }), JSON.stringify(voiced), { flow: "murder-incident" });
     /* A GM'S HIDDEN ON A VEILED TOKEN IS KEPT (E112v; the coordinator's ask of 16.11.2026, mutant M4): the veil writes no
        `hidden`, so one on a veiled token is a GM's, and `show()` leaves it to Foundry rather than forcing the sprite on for
        the token's owner. Read on the harness's model of Foundry's refresh, which hides a hidden token from every player.
