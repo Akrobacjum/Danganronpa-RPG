@@ -1,0 +1,2013 @@
+{
+ "reader": "domain-text-c-terms",
+ "lane": "K6 content analysis (AUDIT-1.2.42.md 11.1 step 7, 11.5 K6): tables 3.2 (terminology drift) and 3.3 (too long for its place) of the 1.2.42 report redone by script on b5a29e73's language files, with the Polish read against docs/text-style.md.",
+ "checkout": "claude/audit-119 (scripts/, lang/, docs/ identical to main b5a29e73, 1.2.118, module.json version 1.2.118)",
+ "files_read": [
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "read": "whole, by script: all 6369 keys flattened (6274 DRPG, 94 DAGGERHEART, 1 GAME), each key's line found by a nesting walk (6369 of 6369 placed)"
+  },
+  {
+   "file": "lang/pl.json",
+   "lines": 9375,
+   "read": "whole, by script: all 7456 keys (7337 on lines of their own, the rest inside one-line plural objects; 7456 of 7456 placed)"
+  },
+  {
+   "file": "scripts/config.mjs prose",
+   "lines": 5646,
+   "read": "the 553 English strings i18n-config.mjs walkConfigProse yields (config.mjs imported with node, read-only; it has no imports); these are the English twins of pl.json's 553 DRPG.Config.* keys"
+  },
+  {
+   "file": "docs/glossary.json",
+   "lines": 1782,
+   "read": "whole, by script: 147 entries (25 of them open: true, which forbid nothing), 15 retired rows"
+  },
+  {
+   "file": "docs/text-style.md",
+   "lines": 940,
+   "read": "1-542 and 741-940 read in full; 543-740 (the N1-N60 pair table and the pilot's 40 pairs, B01a) searched by grep for the forms named below"
+  },
+  {
+   "file": "docs/text-budgets.json",
+   "lines": 520,
+   "read": "whole, by script: 13 surfaces, 13 rules, 58 allow rows"
+  },
+  {
+   "file": "scripts/*.mjs (258 files, tests*.mjs left out)",
+   "lines": 226540,
+   "read": "by script: every string literal shaped DRPG.<...> (6390 occurrences) classified by the code before it on its line (rules in method); plural() calls (265: 213 literal keys, 21 by variable or template, the rest second matches counted once); every game.settings.register block for scope and hint"
+  },
+  {
+   "file": "scripts/tests-text.mjs",
+   "lines": 4245,
+   "read": "860-1010 (glossaryHits, T8), 1095-1107 (wordCount, the senders), 1736-1790 (loanDeclension, T12), 1270-1271 (X16's OBJECTION), 3171-3215 (T8's self-test fixture), 948-954, 3690-3700 (a fixture with 'search tokens')"
+  },
+  {
+   "file": "scripts/ui-kit.mjs",
+   "lines": 1600,
+   "read": "85-160 (roleButton, footerButtons), 325-345 (kitTabs), 755-790 (tipText, tipAttr, setTip), 930-946 (iconButton), 1068-1083 (tile), 1295-1352 (drpgWindow)"
+  },
+  {
+   "file": "scripts/sheet-actions.mjs",
+   "lines": 1558,
+   "read": "280-300, 455-480, 700-735, 1395-1430 (where tile names and tile tooltips are drawn)"
+  },
+  {
+   "file": "scripts/sheet-fit.mjs",
+   "lines": 462,
+   "read": "255-340 (longestTileWord, fitTileText, TILE_TEXT_FLOOR 0.68)"
+  },
+  {
+   "file": "scripts/utils.mjs",
+   "lines": 1452,
+   "read": "565-596 (plural, proseOf)"
+  },
+  {
+   "file": "scripts/explain.mjs",
+   "lines": 520,
+   "read": "1-30, 94-126, 225-250"
+  },
+  {
+   "file": "scripts/i18n-config.mjs",
+   "lines": 98,
+   "read": "whole"
+  }
+ ],
+ "neighbours_followed": [
+  "scripts/sheet-sidebar.mjs:800-815 (the Mastermind's lair line and its Lock button)",
+  "styles/danganronpa.css:3795-3797 (.drpg-lair-line flex-wrap: wrap; .drpg-lair-lock white-space: nowrap)",
+  "scripts/trait-ruling.mjs:330-340 (the changed-statistic window's Pass)",
+  "scripts/projects-ui.mjs:1669-1672, scripts/gm-students.mjs:216-219, scripts/room-setup.mjs:336-339 (the three tooltips over the limit, read at their attribute)",
+  "scripts/action-project.mjs:241-260, 348-370 (the project presets' labels and notes)",
+  "scripts/passages-tab.mjs:56, 177; scripts/passages-gm.mjs:1225 (Close the breach on the tab and in the refusal)",
+  "scripts/day-summary.mjs:195-201, 269 (Summary.lede's {phase} is filled with the time of day's label)",
+  "scripts/hud.mjs:1300-1330 (the Eclipse chevron's tooltip, read through a variable)",
+  "scripts/anonymity.mjs:1026-1028 (a plural() with a ternary of two literal keys)",
+  "scripts/relay-guard.mjs:1140, scripts/investigation.mjs:1400 (the readers of the two Polish genitives)",
+  "scripts/chapter.mjs:365 (Chapter.optNextMorning's reader)",
+  "tools/stages.json and tools/stages.mjs isShipped (every glossary entry's stage has shipped on 1.2.118: 98 of 105 rows shipped, none of the 7 unshipped is a glossary stage)",
+  "tools/text-map.mjs:1-60 (the screen map: maps keys to screens, not to element roles, so not reused here)",
+  "docs/handbooks/gm-handbook.en.md:471, 891, 996, 1001; player-handbook.en.md:348 (the preset names' casing outside lang/, not counted)"
+ ],
+ "method": {
+  "terms_3_2": [
+   "T8 replica: for each glossary entry and side (en, pl) whose forbidden rule names the 'ui' scope, the variants (a phrase, or a stem with each ending) are matched as whole words (no letter, digit or '_' either side), case-insensitively when the side says case 'any'; a match inside the entry's own term or an `except` phrase is shielded; `otherCase` also reports the term written in another case. Read over en.json plus config.mjs's 553 prose strings (English) and pl.json (Polish), as scripts/tests-text.mjs glossaryUnits does. 70 (entry, side) rules had something to look for.",
+   "Old-table variants: the 14 rows of AUDIT-1.2.42.md 3.2 and the names text-style.md section 6 and 7 rule on (Search Token, Truth Bullet, Class Trial, Murder Weapon, Hope/Despair Call, Dynamic Action, Self-Defense, Hold ready), each variant a whole-word regular expression, case-sensitive where the variant is a case; a key counts once however often it says the variant. 'trace' is counted outside the five closed names and the three shields of the glossary's remnant entry.",
+   "Other case: every glossary term (open entries aside) with a capital letter, matched case-insensitively with any word ending after it; a hit whose first len(term) characters differ from the term is listed, then read by hand (most are ordinary words: 'refused', 'widzi', 'called').",
+   "Polish declension: for each glossary entry with a `declension.gen`, the term plus the other of -u/-a (Truth Bulletu -> Truth Bulleta, tokenu -> tokena); the -u hits after 'po' (Rerollu) were read and set aside as the locative. Plural nominatives counted by ending (Truth Bullets/Bullety, Search Tokens/Tokeny, Calls/Calle).",
+   "Register: in pl.json, formal address (Pan, Pani, Państwo and their cases), proszę/przepraszam, second-person plural pronouns (wy, was, wam, wasz*), and every word ending in -cie read by hand for second-person plural verbs. In en.json, please and sorry."
+  ],
+  "lengths_3_3": [
+   "A key's place is read off how the scripts use it, per literal occurrence, from the code on the same line before the literal (non-test scripts). Tooltip: the first argument of tipAttr/tipText, the second of setTip, inside a data-tooltip=\"${...}\" or title=\"${...}\" attribute, after `tooltip:`, assigned to dataset.tooltip(Text) or .title, or an iconButton's label (its aria-label and data-tooltip). Tab: `{ key: \"...\", label: L(\"...\") }` with kitTabs(, kitTabBar(, tabs: or sections in the 1200 characters before; ROOM_SETUP_TABS rows. Button: inside <button ...>...</button> text, roleButton's label, or `label:` of an object with `action:` on its line, or under primary/secondary/destructive/gmRoute/yes/ok/close/no or a DialogV2 `buttons: [`. Window title: `title:` with drpgWindow(, drpgConfirm(, drpgPrompt(, DialogV2.wait/confirm/prompt/input, new DialogV2(, frame( or `window: {` in the 900 characters before. HUD: any literal in hud.mjs or hud-elapsed.mjs; status strip: any literal in player-status.mjs; both less a line that posts a notification or a card.",
+   "A key no usage rule places takes docs/text-budgets.json's name rule, the first that names it in its order (tooltip, button, tab, window title), the diagnostics groups left out; 'by' says which: usage, name, or usage+name. A plural family's base names all its forms. Tile names: DRPG.Config.(ACTIONS|HOPE_CALLS|DESPAIR_CALLS).*.label and MONOCUB.abilities.*.label (the four tables sheet-fit.mjs longestTileWord reads), plus Action.dynamicLabel, Vault.rifle and Calls.gatherCancel (drawn into .drpg-action-name); tile tooltips: ACTIONS.*.hint and HOPE_CALLS/DESPAIR_CALLS.*.effect (button.dataset.tooltip in sheet-actions.mjs).",
+   "Length: characters of the text with HTML tags removed and placeholders as written; words as tests-text.mjs wordCount counts them (whitespace tokens holding a letter, a digit or a {placeholder}). Budgets: docs/text-budgets.json, in words (button 4/6, tab and window title 5/8, tooltip 15/23, tile label 3/5, tile hint 30/45); the task's own rule for buttons: PL characters over twice EN's. The usage rule misses a key handed through a variable (the HUD's Eclipse tooltips came in only by the HUD file rule) and a key built at run time."
+  ],
+  "polish": "Plural families: every plural() call with a literal key (213 keys) must have .one and .other in en.json and .one, .few, .many, .other in pl.json; every family of either file is held to the same; the 9 literal keys inside the 21 variable or ternary calls were checked by hand. The 81 families whose .few equals .many were read at the phrase around the number (about 60 characters; six whole: Vote.blackenedRewarded, Floor.registerCount, Vote.blackenedKnown, Migrate.done, Vote.levelUpGranted, Vote.levelUpWaiting), and the 40 whose .one equals .other listed. One-file keys: en.json minus pl.json, and pl.json minus en.json split into DRPG.Config.* (compared with config.mjs's 553 prose keys) and .few/.many forms of an English family. English in pl.json: values identical to the English (428) and values with two or more English function words and no Polish letter or function word (6), each read.",
+  "not_run": "No harness, npm, suite, scenario, probe or tools/check.mjs part was run (node tools/check.mjs text would give T4, T5, T8 and T12's own counts); audit/findings-1.2.118/base-run.json did not exist when looked for, so no lint or test result is cited as passed."
+ },
+ "counts": {
+  "keys": {
+   "en_json": 6369,
+   "pl_json": 7456,
+   "config_prose_en": 553,
+   "pl_config_twins": 553,
+   "config_prose_without_pl_twin": 0,
+   "pl_config_without_prose": 0,
+   "en_only": 0,
+   "pl_only": 1087,
+   "pl_only_config": 553,
+   "pl_only_plural_few_many": 534,
+   "pl_only_other": 0,
+   "plural_families_en": 267,
+   "plural_families_pl": 267,
+   "empty_values": 0,
+   "en_or_em_dashes": 0,
+   "placeholder_sets_differing": 2,
+   "placeholder_note": "Analyze.identified and Analyze.critPrompt: English {a} (the article) has no Polish twin, by design of the language"
+  },
+  "glossary": {
+   "entries": 147,
+   "open_entries_forbidding_nothing": 25,
+   "retired": 15,
+   "t8_rules_read_ui": 70,
+   "t8_hits_en_ui_and_prose": 0,
+   "t8_hits_pl_ui": 0,
+   "stages_unshipped_among_glossary_entries": 0
+  },
+  "variants_3_2": [
+   {
+    "concept": "Remnant/trace/clue",
+    "side": "en",
+    "variant": "Remnant(s)",
+    "keys": 357,
+    "of_which_config_prose": 44,
+    "sample": [
+     "DRPG.Action.dcObserve",
+     "DRPG.Action.dcObserveKey",
+     "DRPG.Action.dcObserveFaint",
+     "DRPG.Action.dcObserveDaily",
+     "DRPG.Action.dcTamper"
+    ]
+   },
+   {
+    "concept": "Remnant/trace/clue",
+    "side": "en",
+    "variant": "trace(s) outside the five names and the three shields",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Remnant/trace/clue",
+    "side": "en",
+    "variant": "clue(s)",
+    "keys": 13,
+    "of_which_config_prose": 3,
+    "sample": [
+     "DRPG.Tips.Case.plannedClueTooltip",
+     "DRPG.Tips.Case.whichRemnantTooltip",
+     "DRPG.Tips.Case.placeTooltip",
+     "DRPG.Investigation.plannerIntro.one",
+     "DRPG.Investigation.plannerIntro.other"
+    ]
+   },
+   {
+    "concept": "Remnant/trace/clue",
+    "side": "pl",
+    "variant": "Remnant (inflected)",
+    "keys": 440,
+    "sample": [
+     "DRPG.Action.dcObserve",
+     "DRPG.Action.dcObserveKey",
+     "DRPG.Action.dcObserveFaint",
+     "DRPG.Action.dcObserveDaily",
+     "DRPG.Action.dcAnalyze"
+    ]
+   },
+   {
+    "concept": "Remnant/trace/clue",
+    "side": "pl",
+    "variant": "ślad*",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Remnant/trace/clue",
+    "side": "pl",
+    "variant": "wskazówk*",
+    "keys": 5,
+    "sample": [
+     "DRPG.Action.dcHint",
+     "DRPG.Analyze.askHint",
+     "DRPG.Analyze.askHintHint",
+     "DRPG.Handbooks.callout.tip",
+     "DRPG.Bridge.noHelp"
+    ]
+   },
+   {
+    "concept": "stash",
+    "side": "en",
+    "variant": "stash(es)",
+    "keys": 71,
+    "of_which_config_prose": 5,
+    "sample": [
+     "DRPG.Action.dcStash",
+     "DRPG.Analyze.findStash",
+     "DRPG.Analyze.findStashHint",
+     "DRPG.Analyze.stashFound",
+     "DRPG.Analyze.stashFoundGm"
+    ]
+   },
+   {
+    "concept": "stash",
+    "side": "en",
+    "variant": "hiding place(s)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "stash",
+    "side": "en",
+    "variant": "drawer(s)",
+    "keys": 1,
+    "of_which_config_prose": 1,
+    "sample": [
+     "DRPG.Config.TRAP_TRIGGERS.search.hint"
+    ]
+   },
+   {
+    "concept": "stash",
+    "side": "en",
+    "variant": "Vault (in text)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "stash",
+    "side": "pl",
+    "variant": "skrytk*/skrytek",
+    "keys": 79,
+    "sample": [
+     "DRPG.Passage.why.notOwn",
+     "DRPG.Action.dcStash",
+     "DRPG.Analyze.findStashHint",
+     "DRPG.Analyze.stashFound",
+     "DRPG.Analyze.stashFoundGm"
+    ]
+   },
+   {
+    "concept": "stash",
+    "side": "pl",
+    "variant": "schow(e|k)*",
+    "keys": 22,
+    "sample": [
+     "DRPG.Analyze.stashNothing",
+     "DRPG.Items.autoReadied",
+     "DRPG.Items.stowShape",
+     "DRPG.Items.brokenTooltip",
+     "DRPG.Tips.Sweep.Gm.copyReportTooltip"
+    ]
+   },
+   {
+    "concept": "stash",
+    "side": "pl",
+    "variant": "kryjówk*",
+    "keys": 1,
+    "sample": [
+     "DRPG.Tips.Gm.keepTheMastermindTooltip"
+    ]
+   },
+   {
+    "concept": "stash",
+    "side": "pl",
+    "variant": "sejf*",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "GM",
+    "side": "en",
+    "variant": "GM(s)",
+    "keys": 479,
+    "of_which_config_prose": 31,
+    "sample": [
+     "DAGGERHEART.SETTINGS.Resources.fear.hint",
+     "DRPG.Settings.forceDiceLook.hint",
+     "DRPG.Settings.forcePrivateRolls.hint",
+     "DRPG.Settings.lockRollDialog.hint",
+     "DRPG.Settings.roomVisibility.hint"
+    ]
+   },
+   {
+    "concept": "GM",
+    "side": "en",
+    "variant": "Gamemaster(s)",
+    "keys": 8,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Settings.forceDiceLook.hint",
+     "DRPG.Assign.noMonokumas",
+     "DRPG.DiceLook.settingBack",
+     "DRPG.DiceLook.settingBackUnheard",
+     "DRPG.DiceLook.diag.forced.notForced"
+    ]
+   },
+   {
+    "concept": "GM",
+    "side": "en",
+    "variant": "GM team / GM Team",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "GM",
+    "side": "en",
+    "variant": "Monokuma(s)",
+    "keys": 87,
+    "of_which_config_prose": 6,
+    "sample": [
+     "DRPG.Settings.despairFromRolls.hint",
+     "DRPG.Settings.hideSystemFear.hint",
+     "DRPG.Settings.pixelFont.hint",
+     "DRPG.Settings.theme.monokumaLegacy",
+     "DRPG.SettingsWindow.legacyOnly"
+    ]
+   },
+   {
+    "concept": "GM",
+    "side": "en",
+    "variant": "Game Master / game master",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "GM",
+    "side": "pl",
+    "variant": "GM (all forms)",
+    "keys": 533,
+    "sample": [
+     "DAGGERHEART.SETTINGS.Resources.fear.hint",
+     "DRPG.Settings.forceDiceLook.hint",
+     "DRPG.Settings.forcePrivateRolls.hint",
+     "DRPG.Settings.lockRollDialog.hint",
+     "DRPG.Settings.roomVisibility.hint"
+    ]
+   },
+   {
+    "concept": "GM",
+    "side": "pl",
+    "variant": "Mistrz Gry",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "GM",
+    "side": "pl",
+    "variant": "Monokum*",
+    "keys": 98,
+    "sample": [
+     "DRPG.Settings.despairFromRolls.hint",
+     "DRPG.Settings.hideSystemFear.hint",
+     "DRPG.Settings.pixelFont.hint",
+     "DRPG.Settings.theme.monokumaLegacy",
+     "DRPG.SettingsWindow.legacyOnly"
+    ]
+   },
+   {
+    "concept": "time of day",
+    "side": "en",
+    "variant": "time(s) of day",
+    "keys": 164,
+    "of_which_config_prose": 19,
+    "sample": [
+     "DRPG.Settings.searchTokensPerRoom.hint",
+     "DRPG.Settings.chargeMovement.hint",
+     "DRPG.Settings.hudTicker.name",
+     "DRPG.Settings.hudTicker.hint",
+     "DRPG.Settings.musicEnabled.hint"
+    ]
+   },
+   {
+    "concept": "time of day",
+    "side": "en",
+    "variant": "phase(s)",
+    "keys": 13,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Floor.lead.start",
+     "DRPG.Tips.Trial.moveToInvestigationTooltip",
+     "DRPG.Vote.executionFailed",
+     "DRPG.Music.diag.clock",
+     "DRPG.Chapter.bodyNote"
+    ]
+   },
+   {
+    "concept": "time of day",
+    "side": "pl",
+    "variant": "por* dnia",
+    "keys": 191,
+    "sample": [
+     "DRPG.Settings.searchTokensPerRoom.hint",
+     "DRPG.Settings.chargeMovement.hint",
+     "DRPG.Settings.hudTicker.name",
+     "DRPG.Settings.hudTicker.hint",
+     "DRPG.Settings.musicEnabled.hint"
+    ]
+   },
+   {
+    "concept": "time of day",
+    "side": "pl",
+    "variant": "faz*",
+    "keys": 15,
+    "sample": [
+     "DRPG.Floor.lead.start",
+     "DRPG.Floor.lead.openDebate",
+     "DRPG.Floor.lead.openAgain",
+     "DRPG.Floor.lead.reopen",
+     "DRPG.Tips.Trial.moveToInvestigationTooltip"
+    ]
+   },
+   {
+    "concept": "killer",
+    "side": "en",
+    "variant": "killer(s)",
+    "keys": 83,
+    "of_which_config_prose": 17,
+    "sample": [
+     "DRPG.Action.murderSecondDeclaration",
+     "DRPG.Action.murderCancelled",
+     "DRPG.Action.murderOpens",
+     "DRPG.Action.murderNeedsApproval",
+     "DRPG.Action.murderAsk"
+    ]
+   },
+   {
+    "concept": "killer",
+    "side": "en",
+    "variant": "Blackened",
+    "keys": 46,
+    "of_which_config_prose": 1,
+    "sample": [
+     "DRPG.Monocub.flag.killer",
+     "DRPG.Floor.incidentOpen",
+     "DRPG.Floor.registerEmpty",
+     "DRPG.Floor.registerCount.one",
+     "DRPG.Floor.registerCount.other"
+    ]
+   },
+   {
+    "concept": "killer",
+    "side": "en",
+    "variant": "murderer(s)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "killer",
+    "side": "pl",
+    "variant": "zabój*",
+    "keys": 84,
+    "sample": [
+     "DRPG.Action.murderConfirmEclipse",
+     "DRPG.Action.murderWitness.one",
+     "DRPG.Action.murderWitness.few",
+     "DRPG.Action.murderWitness.many",
+     "DRPG.Action.murderWitness.other"
+    ]
+   },
+   {
+    "concept": "killer",
+    "side": "pl",
+    "variant": "morderc*",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "killer",
+    "side": "pl",
+    "variant": "Blackened",
+    "keys": 56,
+    "sample": [
+     "DRPG.Monocub.flag.killer",
+     "DRPG.Floor.incidentOpen",
+     "DRPG.Floor.registerEmpty",
+     "DRPG.Floor.registerCount.one",
+     "DRPG.Floor.registerCount.few"
+    ]
+   },
+   {
+    "concept": "student/character/player",
+    "side": "en",
+    "variant": "student(s)",
+    "keys": 307,
+    "of_which_config_prose": 28,
+    "sample": [
+     "DRPG.Settings.despairFromRolls.hint",
+     "DRPG.Actions.pipTooltip",
+     "DRPG.Actions.lockedTooltip",
+     "DRPG.Assign.intro",
+     "DRPG.Assign.splitDone"
+    ]
+   },
+   {
+    "concept": "student/character/player",
+    "side": "en",
+    "variant": "character(s)",
+    "keys": 145,
+    "of_which_config_prose": 7,
+    "sample": [
+     "DRPG.DhSettings.title",
+     "DRPG.Settings.enforceAnonymity.name",
+     "DRPG.Settings.roomVisibility.hint",
+     "DRPG.Sheet.ultimatePlaceholder",
+     "DRPG.Hud.assignHint"
+    ]
+   },
+   {
+    "concept": "student/character/player",
+    "side": "en",
+    "variant": "player(s)",
+    "keys": 289,
+    "of_which_config_prose": 30,
+    "sample": [
+     "DAGGERHEART.UI.Countdowns.noPlayerAccess",
+     "DAGGERHEART.APPLICATIONS.CountdownEdit.defaultOwnershipTooltip",
+     "DRPG.Settings.forceDiceLook.hint",
+     "DRPG.Settings.forceDiceLook.choices.own",
+     "DRPG.Settings.forcePrivateRolls.name"
+    ]
+   },
+   {
+    "concept": "student/character/player",
+    "side": "pl",
+    "variant": "ucz(eń|nia...)",
+    "keys": 341,
+    "sample": [
+     "DRPG.Settings.despairFromRolls.hint",
+     "DRPG.Actions.pipTooltip",
+     "DRPG.Actions.woundedTooltip",
+     "DRPG.Assign.intro",
+     "DRPG.Assign.splitDone"
+    ]
+   },
+   {
+    "concept": "student/character/player",
+    "side": "pl",
+    "variant": "postać/postaci*",
+    "keys": 383,
+    "sample": [
+     "DRPG.DhSettings.title",
+     "DRPG.Settings.enforceAnonymity.name",
+     "DRPG.Settings.roomVisibility.hint",
+     "DRPG.Settings.uiScale.hint",
+     "DRPG.Sheet.ultimatePlaceholder"
+    ]
+   },
+   {
+    "concept": "student/character/player",
+    "side": "pl",
+    "variant": "gracz*",
+    "keys": 324,
+    "sample": [
+     "DAGGERHEART.UI.Countdowns.noPlayerAccess",
+     "DAGGERHEART.APPLICATIONS.CountdownEdit.defaultOwnershipTooltip",
+     "DRPG.Settings.forceDiceLook.hint",
+     "DRPG.Settings.forceDiceLook.choices.own",
+     "DRPG.Settings.forcePrivateRolls.name"
+    ]
+   },
+   {
+    "concept": "Final Truth Remnant",
+    "side": "en",
+    "variant": "Final Truth Remnant(s)",
+    "keys": 18,
+    "of_which_config_prose": 1,
+    "sample": [
+     "DRPG.Mastermind.finalTruthPlaced",
+     "DRPG.Mastermind.finalTruthReminder",
+     "DRPG.Mastermind.finalRemnantsTitle",
+     "DRPG.Mastermind.finalPlacedIn",
+     "DRPG.Tips.Case.roomPlannedFinalTooltip"
+    ]
+   },
+   {
+    "concept": "Final Truth Remnant",
+    "side": "en",
+    "variant": "Final Key Remnant(s)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Final Truth Remnant",
+    "side": "en",
+    "variant": "Final Remnant(s) (no Truth/Key)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Final Truth Remnant",
+    "side": "pl",
+    "variant": "Final Truth Remnant*",
+    "keys": 19,
+    "sample": [
+     "DRPG.Mastermind.finalTruthPlaced",
+     "DRPG.Mastermind.finalTruthReminder",
+     "DRPG.Mastermind.finalRemnantsTitle",
+     "DRPG.Mastermind.finalRemnantsNote",
+     "DRPG.Mastermind.finalPlacedIn"
+    ]
+   },
+   {
+    "concept": "Final Truth Remnant",
+    "side": "pl",
+    "variant": "Final Key Remnant*",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Final Truth Remnant",
+    "side": "pl",
+    "variant": "Final Remnant* (no Truth/Key)",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Free Move",
+    "side": "en",
+    "variant": "Free Move",
+    "keys": 25,
+    "of_which_config_prose": 3,
+    "sample": [
+     "DRPG.Settings.chargeMovement.hint",
+     "DRPG.Actions.freeMoveAvailable",
+     "DRPG.Actions.freeMoveSpent",
+     "DRPG.Actions.freeMoveLeft",
+     "DRPG.Murder.victimNoticedNext"
+    ]
+   },
+   {
+    "concept": "Free Move",
+    "side": "en",
+    "variant": "free Move",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Free Move",
+    "side": "en",
+    "variant": "free move / Free move",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Free Move",
+    "side": "pl",
+    "variant": "Free Move*",
+    "keys": 31,
+    "sample": [
+     "DRPG.Settings.chargeMovement.hint",
+     "DRPG.Actions.freeMoveAvailable",
+     "DRPG.Actions.freeMoveSpent",
+     "DRPG.Actions.freeMoveLeft",
+     "DRPG.Murder.victimNoticedNext"
+    ]
+   },
+   {
+    "concept": "Free Move",
+    "side": "pl",
+    "variant": "free Move / darmowy Move",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Objection",
+    "side": "en",
+    "variant": "OBJECTION",
+    "keys": 13,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Floor.objectionNote",
+     "DRPG.Floor.mode.objection",
+     "DRPG.Floor.holdingDebate",
+     "DRPG.Trial.presentNote",
+     "DRPG.Trial.objection"
+    ]
+   },
+   {
+    "concept": "Objection",
+    "side": "en",
+    "variant": "Objection(s)",
+    "keys": 58,
+    "of_which_config_prose": 3,
+    "sample": [
+     "DRPG.Hud.trial.objection",
+     "DRPG.Floor.next.openAgain",
+     "DRPG.Floor.lead.openAgain",
+     "DRPG.Floor.lead.now",
+     "DRPG.Floor.lead.closing"
+    ]
+   },
+   {
+    "concept": "Objection",
+    "side": "en",
+    "variant": "objection (lower case)",
+    "keys": 4,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Trial.logSummary.one",
+     "DRPG.Trial.logSummary.other",
+     "DRPG.Trial.objectionWarning.one",
+     "DRPG.Trial.objectionWarning.other"
+    ]
+   },
+   {
+    "concept": "Objection",
+    "side": "pl",
+    "variant": "OBJECTION",
+    "keys": 13,
+    "sample": [
+     "DRPG.Floor.objectionNote",
+     "DRPG.Floor.mode.objection",
+     "DRPG.Floor.holdingDebate",
+     "DRPG.Trial.presentNote",
+     "DRPG.Trial.objection"
+    ]
+   },
+   {
+    "concept": "Objection",
+    "side": "pl",
+    "variant": "Objection*",
+    "keys": 78,
+    "sample": [
+     "DRPG.Hud.trial.objection",
+     "DRPG.Floor.next.openAgain",
+     "DRPG.Floor.lead.openAgain",
+     "DRPG.Floor.lead.now",
+     "DRPG.Floor.lead.closing"
+    ]
+   },
+   {
+    "concept": "Analyze",
+    "side": "en",
+    "variant": "analyz*",
+    "keys": 61,
+    "of_which_config_prose": 9,
+    "sample": [
+     "DAGGERHEART.CONFIG.Traits.knowledge.verb.analyze",
+     "DRPG.Price.nothingLeft.analyze",
+     "DRPG.Price.nothingLeft.analyzeOneStep",
+     "DRPG.Action.placeholder.analyze",
+     "DRPG.Analyze.onBullet"
+    ]
+   },
+   {
+    "concept": "Analyze",
+    "side": "en",
+    "variant": "analys*",
+    "keys": 6,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Investigation.newTraceNote",
+     "DRPG.Investigation.keyPublicNote",
+     "DRPG.Investigation.traceAnalysis",
+     "DRPG.TruthBullet.shownReal",
+     "DRPG.TruthBullet.analyzedText"
+    ]
+   },
+   {
+    "concept": "Role Reversal",
+    "side": "en",
+    "variant": "Role Reversal",
+    "keys": 14,
+    "of_which_config_prose": 13,
+    "sample": [
+     "DRPG.Murder.freeResolution",
+     "DRPG.Config.ITEM_CATEGORIES.crimeTool.hint",
+     "DRPG.Config.MURDER_OPENING.killer.despair",
+     "DRPG.Config.MURDER_OPENING.victim.failure",
+     "DRPG.Config.CRISIS_ACTIONS.selfDefence.hint"
+    ]
+   },
+   {
+    "concept": "Role Reversal",
+    "side": "en",
+    "variant": "Role reversal / role reversal",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Role Reversal",
+    "side": "pl",
+    "variant": "Role Reversal",
+    "keys": 15,
+    "sample": [
+     "DRPG.Murder.thirdIntro",
+     "DRPG.Murder.freeResolution",
+     "DRPG.Config.ITEM_CATEGORIES.crimeTool.hint",
+     "DRPG.Config.MURDER_OPENING.killer.despair",
+     "DRPG.Config.MURDER_OPENING.victim.failure"
+    ]
+   },
+   {
+    "concept": "Role Reversal",
+    "side": "pl",
+    "variant": "Role reversal / role reversal",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Level Up",
+    "side": "en",
+    "variant": "Level Up(s)",
+    "keys": 75,
+    "of_which_config_prose": 2,
+    "sample": [
+     "DRPG.DhSettings.coreExperience",
+     "DRPG.Floor.newTrialConfirm",
+     "DRPG.Tips.Setup.applyTooltip",
+     "DRPG.Tips.Setup.handThemOutTooltip",
+     "DRPG.Tips.Setup.allThePlayersPickTooltip"
+    ]
+   },
+   {
+    "concept": "Level Up",
+    "side": "en",
+    "variant": "Level up / level up",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Level Up",
+    "side": "en",
+    "variant": "level-up",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Level Up",
+    "side": "pl",
+    "variant": "Level Up*",
+    "keys": 92,
+    "sample": [
+     "DRPG.DhSettings.coreExperience",
+     "DRPG.Floor.newTrialConfirm",
+     "DRPG.Tips.Setup.applyTooltip",
+     "DRPG.Tips.Setup.handThemOutTooltip",
+     "DRPG.Tips.Setup.allThePlayersPickTooltip"
+    ]
+   },
+   {
+    "concept": "Level Up",
+    "side": "pl",
+    "variant": "Level up / level up",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Assembly",
+    "side": "en",
+    "variant": "Public Announcement",
+    "keys": 2,
+    "of_which_config_prose": 1,
+    "sample": [
+     "DRPG.Calls.gatherTitle",
+     "DRPG.Config.DESPAIR_CALLS.publicAnnouncement.label"
+    ]
+   },
+   {
+    "concept": "Assembly",
+    "side": "en",
+    "variant": "Assembly",
+    "keys": 2,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Events.ticker.assembly",
+     "DRPG.Calls.gatherShort"
+    ]
+   },
+   {
+    "concept": "Assembly",
+    "side": "en",
+    "variant": "public announcement (lower)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Assembly",
+    "side": "pl",
+    "variant": "Public Announcement",
+    "keys": 2,
+    "sample": [
+     "DRPG.Calls.gatherTitle",
+     "DRPG.Config.DESPAIR_CALLS.publicAnnouncement.label"
+    ]
+   },
+   {
+    "concept": "Assembly",
+    "side": "pl",
+    "variant": "Assembly",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Breakdown",
+    "side": "en",
+    "variant": "Breakdown",
+    "keys": 17,
+    "of_which_config_prose": 2,
+    "sample": [
+     "DRPG.Price.will.breakdown",
+     "DRPG.Murder.breakdownDisadvantage",
+     "DRPG.Facility.state.breakdown",
+     "DRPG.Facility.effect.endBreakdown",
+     "DRPG.RollDialog.locked"
+    ]
+   },
+   {
+    "concept": "Breakdown",
+    "side": "en",
+    "variant": "Broken Down / broken down",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Breakdown",
+    "side": "pl",
+    "variant": "Breakdown",
+    "keys": 18,
+    "sample": [
+     "DRPG.Murder.breakdownDisadvantage",
+     "DRPG.Facility.state.breakdown",
+     "DRPG.Facility.effect.endBreakdown",
+     "DRPG.RollDialog.locked",
+     "DRPG.RollDialog.advantageLocked"
+    ]
+   },
+   {
+    "concept": "Search Token",
+    "side": "en",
+    "variant": "Search Token(s)",
+    "keys": 34,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Settings.searchTokensPerRoom.name",
+     "DRPG.Settings.searchTokensPerRoom.hint",
+     "DRPG.SearchTokens.title",
+     "DRPG.SearchTokens.reset",
+     "DRPG.SearchTokens.exhausted"
+    ]
+   },
+   {
+    "concept": "Search Token",
+    "side": "en",
+    "variant": "search token(s) / Search token(s)",
+    "keys": 2,
+    "of_which_config_prose": 1,
+    "sample": [
+     "DRPG.Chapter.optNextMorning",
+     "DRPG.Config.ACTIONS.search.hint"
+    ]
+   },
+   {
+    "concept": "Search Token",
+    "side": "pl",
+    "variant": "Search Token*",
+    "keys": 42,
+    "sample": [
+     "DRPG.Settings.searchTokensPerRoom.name",
+     "DRPG.Settings.searchTokensPerRoom.hint",
+     "DRPG.SearchTokens.title",
+     "DRPG.SearchTokens.reset",
+     "DRPG.SearchTokens.exhausted"
+    ]
+   },
+   {
+    "concept": "Search Token",
+    "side": "pl",
+    "variant": "search token* (lower)",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Truth Bullet",
+    "side": "en",
+    "variant": "Truth Bullet(s)",
+    "keys": 184,
+    "of_which_config_prose": 23,
+    "sample": [
+     "DRPG.Settings.language.hint",
+     "DRPG.Settings.bulletSort.name",
+     "DRPG.Settings.bulletSort.hint",
+     "DRPG.Sheet.groupTruthBullets",
+     "DRPG.Sheet.bulletsHereChapter"
+    ]
+   },
+   {
+    "concept": "Truth Bullet",
+    "side": "en",
+    "variant": "other case",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Truth Bullet",
+    "side": "pl",
+    "variant": "Truth Bullet*",
+    "keys": 224,
+    "sample": [
+     "DRPG.Settings.language.hint",
+     "DRPG.Settings.bulletSort.name",
+     "DRPG.Settings.bulletSort.hint",
+     "DRPG.Sheet.groupTruthBullets",
+     "DRPG.Sheet.bulletsHereChapter"
+    ]
+   },
+   {
+    "concept": "Truth Bullet",
+    "side": "pl",
+    "variant": "other case",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Class Trial",
+    "side": "en",
+    "variant": "Class Trial",
+    "keys": 78,
+    "of_which_config_prose": 8,
+    "sample": [
+     "DRPG.Settings.sequences.hint",
+     "DRPG.Hud.trialTooltip",
+     "DRPG.Items.noDiscardInTrial",
+     "DRPG.Mastermind.finalAnnounce",
+     "DRPG.Floor.next.start"
+    ]
+   },
+   {
+    "concept": "Class Trial",
+    "side": "en",
+    "variant": "class trial / Class trial",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Class Trial",
+    "side": "pl",
+    "variant": "Class Trial (bare)",
+    "keys": 136,
+    "sample": [
+     "DRPG.Settings.sequences.hint",
+     "DRPG.Settings.musicEnabled.hint",
+     "DRPG.Hud.trialTooltip",
+     "DRPG.Items.noDiscardInTrial",
+     "DRPG.Mastermind.finalRunningNote"
+    ]
+   },
+   {
+    "concept": "Class Trial",
+    "side": "pl",
+    "variant": "Class Trial inflected",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Murder Weapon",
+    "side": "en",
+    "variant": "Murder Weapon(s)",
+    "keys": 10,
+    "of_which_config_prose": 3,
+    "sample": [
+     "DRPG.Sheet.sharedSlots",
+     "DRPG.Action.goalCrimeHint",
+     "DRPG.Cleanup.gmAttemptsLeft.one",
+     "DRPG.Cleanup.gmAttemptsLeft.other",
+     "DRPG.Murder.resolutionNote"
+    ]
+   },
+   {
+    "concept": "Murder Weapon",
+    "side": "en",
+    "variant": "murder weapon (lower)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Murder Weapon",
+    "side": "pl",
+    "variant": "Narzędzi* zbrodni",
+    "keys": 13,
+    "sample": [
+     "DRPG.Sheet.sharedSlots",
+     "DRPG.Action.goalCrimeHint",
+     "DRPG.Cleanup.gmAttemptsLeft.one",
+     "DRPG.Cleanup.gmAttemptsLeft.few",
+     "DRPG.Cleanup.gmAttemptsLeft.many"
+    ]
+   },
+   {
+    "concept": "Hope Call",
+    "side": "en",
+    "variant": "Hope Call(s)",
+    "keys": 15,
+    "of_which_config_prose": 2,
+    "sample": [
+     "DRPG.Settings.lockRollDialog.hint",
+     "DRPG.Murder.actionsLocked",
+     "DRPG.Trial.actionsLocked",
+     "DRPG.Calls.hopeTitle",
+     "DRPG.Calls.silenced"
+    ]
+   },
+   {
+    "concept": "Hope Call",
+    "side": "en",
+    "variant": "Despair Call(s)",
+    "keys": 16,
+    "of_which_config_prose": 2,
+    "sample": [
+     "DRPG.Despair.callTitle",
+     "DRPG.Despair.pipTooltip",
+     "DRPG.Despair.unknownCall",
+     "DRPG.Trial.callsLocked",
+     "DRPG.Calls.despairTitle"
+    ]
+   },
+   {
+    "concept": "Hope Call",
+    "side": "en",
+    "variant": "hope call / despair call (lower)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "safeword",
+    "side": "pl",
+    "variant": "safeword*",
+    "keys": 11,
+    "sample": [
+     "DRPG.Events.safewordSub",
+     "DRPG.Sound.safewordNoFile",
+     "DRPG.Safeword.title",
+     "DRPG.Safeword.keybinding",
+     "DRPG.Safeword.announced"
+    ]
+   },
+   {
+    "concept": "character sheet",
+    "side": "pl",
+    "variant": "arkusz*",
+    "keys": 125,
+    "sample": [
+     "DRPG.Settings.enforceAnonymity.name",
+     "DRPG.Settings.enforceAnonymity.hint",
+     "DRPG.Settings.lockPlayerResources.name",
+     "DRPG.Settings.language.hint",
+     "DRPG.Settings.documentLanguage.hint"
+    ]
+   },
+   {
+    "concept": "character sheet",
+    "side": "pl",
+    "variant": "karta postaci forms",
+    "keys": 0,
+    "sample": []
+   },
+   {
+    "concept": "Dynamic Action",
+    "side": "en",
+    "variant": "Dynamic Action(s)",
+    "keys": 6,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Action.dynamicRefused",
+     "DRPG.Action.dynamicLabel",
+     "DRPG.Action.dynamicTitle",
+     "DRPG.Remnant.action.dynamic",
+     "DRPG.Bridge.what.dynamic.difficulty"
+    ]
+   },
+   {
+    "concept": "Dynamic Action",
+    "side": "en",
+    "variant": "dynamic action (lower)",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Self-Defense",
+    "side": "en",
+    "variant": "Self-Defense",
+    "keys": 2,
+    "of_which_config_prose": 2,
+    "sample": [
+     "DRPG.Config.ITEM_CATEGORIES.crimeTool.hint",
+     "DRPG.Config.CRISIS_ACTIONS.selfDefence.label"
+    ]
+   },
+   {
+    "concept": "Self-Defense",
+    "side": "en",
+    "variant": "self-defense/defence other",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "Hold ready",
+    "side": "en",
+    "variant": "Hold ready / hold ready",
+    "keys": 2,
+    "of_which_config_prose": 0,
+    "sample": [
+     "DRPG.Items.brokenTooltip",
+     "DRPG.Vault.handFirst"
+    ]
+   },
+   {
+    "concept": "Hold ready",
+    "side": "en",
+    "variant": "Hold Ready",
+    "keys": 0,
+    "of_which_config_prose": 0,
+    "sample": []
+   },
+   {
+    "concept": "neutral resources",
+    "side": "en",
+    "variant": "Sanity",
+    "keys": 138,
+    "of_which_config_prose": 39,
+    "sample": [
+     "DAGGERHEART.CONFIG.HealingType.stress.name",
+     "DAGGERHEART.CONFIG.HealingType.stress.inChatRoll",
+     "DAGGERHEART.GENERAL.stress",
+     "DAGGERHEART.EFFECTS.Types.stress.name",
+     "DAGGERHEART.UI.Notifications.notEnoughStress"
+    ]
+   },
+   {
+    "concept": "neutral resources",
+    "side": "en",
+    "variant": "sanity (lower)",
+    "keys": 5,
+    "of_which_config_prose": 3,
+    "sample": [
+     "DRPG.Events.reserveYou",
+     "DRPG.Events.reserveVictim",
+     "DRPG.Config.TIER_EFFECTS.usable.1",
+     "DRPG.Config.TIER_EFFECTS.usable.2",
+     "DRPG.Config.TIER_EFFECTS.usable.3"
+    ]
+   }
+  ],
+  "variants_note": "A key counts once per variant. 'of_which_config_prose' is how many of an English count are config.mjs prose (DRPG.Config.* keys; en.json holds none). The five sample keys are the first in file order. 'GM (all forms)' in Polish counts GM, GM-a, GM-owie and the other hyphenated cases (250 bare, 182 GM-a, 75 GM-owie, 55 GM-ów, 18 GM-owi, 13 GM-em, 11 GM-om, 2 GM-ie, 2 GM-ami, 1 GM-ach occurrences; no unhyphenated case form).",
+  "old_3_2_rows_today": [
+   "Remnant / trace / clue: EN Remnant 357 keys, 'trace' outside the five names 0, 'clue' 13 (10 the Key Remnant planner's 'planned clue', 3 the name Leave a Clue); PL Remnant 440, 'ślad*' 0. As the 1.2.42 proposal and DB15/DB33 have it.",
+   "stash / hiding place / drawer / Vault: EN stash 71, hiding place 0, drawer 1 (TRAP_TRIGGERS.search.hint, the fiction's drawer, not a stash), Vault 0 in text; PL skrytka 79, kryjówka 1 (the Mastermind's lair, Tips.Gm.keepTheMastermindTooltip), schow* 22 (the verb schować and 'schowek' = the clipboard), sejf 0.",
+   "GM / Monokuma / Gamemaster / GM team: EN GM 479, Monokuma 87, Gamemaster 8 (each the Foundry role or 'a full Gamemaster'), GM team 0.",
+   "time of day / phase: EN 'time of day' 164, 'phase' 13 (each the clock's phase: Daily Life, Investigation, Class Trial); Settings.hudTicker.hint now says 'time of day'; Summary.lede's '{phase}' is only a placeholder name, filled with the time of day's label (day-summary.mjs:269), so the shown text is right.",
+   "killer / Blackened: EN killer 83, Blackened 46; PL zabój* 84, Blackened 56. Which of the 83 stand after a body is found was not read sentence by sentence (not_established).",
+   "student / character / player: EN student 307, character 145, player 289; PL uczeń 341, postać 383, gracz 324.",
+   "Final Truth Remnant / Final Key Remnant: 18 / 0 in EN, 19 / 0 in PL: settled.",
+   "Free Move / free Move: 25 / 0 (PL 31 / 0): settled.",
+   "OBJECTION / Objection: EN 13 / 58; 11 of the 13 are allow rows of docs/text-budgets.json for X15 and X16 (the owner, 12.11.2026), the other two the bare word on the mode and the HUD button (Floor.mode.objection, Trial.objectionShort), which tests-text.mjs:1270-1271 reads as a name.",
+   "Analyze / Analyse: analyz* 61, analys* 6 - all six 'analysis'/'Analysis:', the noun, the same in American spelling; the glossary's analys- stem forbids only -e, -ed, -es, -ing.",
+   "Role reversal / Role Reversal: 0 / 14 (PL 0 / 15): settled.",
+   "Level Up / Level up: 75 / 0 (PL 92 / 0): settled.",
+   "Public Announcement / Assembly: the Call 2 keys, the event 2 (Events.ticker.assembly, Calls.gatherShort; PL 'Zgromadzenie'): as proposed.",
+   "Breakdown / Broken Down: 17 / 0 (PL 18 / 0): settled."
+  ],
+  "polish_plural_nominatives": {
+   "Truth Bullets": 23,
+   "Truth Bullety": 26,
+   "Truth Bulletów": 24,
+   "Truth Bulletu": 38,
+   "Truth Bulleta": 1,
+   "Search Tokens": 6,
+   "Search Tokeny": 13,
+   "Search Tokenów": 11,
+   "Search Tokenu": 5,
+   "Remnants": 0,
+   "Remnanty": 99,
+   "Remnantów": 77,
+   "Calls (incl. Hope/Despair Calls)": 15,
+   "Calle": 8,
+   "Calla": 11,
+   "tokena": 1,
+   "tokenu": 30,
+   "note": "keys of pl.json holding each form at least once"
+  },
+  "polish_register": {
+   "formal_address": 0,
+   "prosze_przepraszam": 0,
+   "second_person_plural_pronouns": 1,
+   "second_person_plural_pronouns_note": "Explain.phase.classTrial 'jedno z was'; the other five hits are the placeholder {was}",
+   "second_person_plural_verbs_keys": 9,
+   "second_person_plural_verbs_note": "7 are grammatical for a subject of 'ty i ...' or two people (Monocub.bribeAsk 'ustalicie', forceFriskTooltip 'ty i cały pokój widzicie', Project.passageNote 'znacie ... ty i uczniowie', CRISIS_ACTIONS.sharedEscape.hope/despair/critical 'Oboje uciekacie', doubleRoleReversal.hint/.short 'stajecie się'), each mirroring its English 'you and ...'/'both of you'; one speaks to a group (Explain.phase.classTrial, finding 6)",
+   "en_please_sorry": 0,
+   "client_setting_hints": 13,
+   "client_hints_ending_this_browser_en_and_pl": 13,
+   "gm_unhyphenated_cases": 0,
+   "safeword_inflected": 0,
+   "karta_postaci": 0,
+   "monokuma_feminine_verb": 0,
+   "hope_despair_feminine_or_neuter_adjective": 0
+  },
+  "polish_plurals": {
+   "plural_calls": 265,
+   "literal_keys": 213,
+   "variable_or_template_calls": 21,
+   "literal_keys_missing_a_form": 0,
+   "families_missing_a_form_en": 0,
+   "families_missing_a_form_pl": 0,
+   "families_few_equals_many": 81,
+   "families_few_equals_many_read_at_the_number_and_right": 81,
+   "families_one_equals_other": 40,
+   "families_many_differs_from_other": 84,
+   "note": "utils.mjs:565-584 falls back to .other when a form is missing, silently; none is missing. In the 81 families .few = .many because the number stands in a case Polish does not split by count (after z/do/dla/u, a dative or instrumental, an indeclinable noun such as Health, Hope, Blackened, or a count that is not before the noun)."
+  },
+  "english_in_pl": {
+   "identical_to_english": 428,
+   "identical_with_a_lower_case_english_word": 47,
+   "english_looking_by_function_words": 6,
+   "english_sentences_found": 0,
+   "note": "All 47 are names English by PL-k/D33a (Take from the Body, Shut the Door, Pick the Lock, Repair an item, Fuel a Monocub...), unit strings (+{seconds} s, {width} x {height} px) or Passage.tab.howStart 'start', which is also a Polish noun."
+  },
+  "lengths_3_3": {
+   "button": {
+    "keys": 226,
+    "by_usage": 207,
+    "by_name_only": 19,
+    "target_words": 4,
+    "limit_words": 6,
+    "over_target": 12,
+    "over_limit": 0,
+    "longest_en": [
+     "DRPG.Case.fillFromTraces - EN 30 chars/5 words, PL 31 chars/5 words (lang/en.json:7299, lang/pl.json:9137; usage)",
+     "DRPG.Murder.openingReask - EN 30 chars/6 words, PL 31 chars/5 words (lang/en.json:2772, lang/pl.json:2918; usage)",
+     "DRPG.Project.passagePick - EN 28 chars/6 words, PL 24 chars/4 words (lang/en.json:4444, lang/pl.json:4771; usage)",
+     "DRPG.CaseMap.unrelated - EN 27 chars/6 words, PL 30 chars/4 words (lang/en.json:7348, lang/pl.json:9188; usage)",
+     "DRPG.Items.itemNoEffect - EN 27 chars/6 words, PL 30 chars/6 words (lang/en.json:1114, lang/pl.json:1147; usage)",
+     "DRPG.Season.resourcesButton - EN 27 chars/4 words, PL 21 chars/3 words (lang/en.json:6233, lang/pl.json:6710; name)",
+     "DRPG.Murder.betrayalButton - EN 27 chars/5 words, PL 34 chars/5 words (lang/en.json:2939, lang/pl.json:3102; name)",
+     "DRPG.TruthBullet.autopsyTitle - EN 26 chars/4 words, PL 26 chars/4 words (lang/en.json:3704, lang/pl.json:3969; usage)",
+     "DRPG.Case.moveTraces - EN 25 chars/5 words, PL 23 chars/4 words (lang/en.json:7320, lang/pl.json:9160; usage)",
+     "DRPG.Passage.tab.deleteTitle - EN 25 chars/4 words, PL 20 chars/3 words (lang/en.json:820, lang/pl.json:835; usage)",
+     "DRPG.Vote.remind - EN 25 chars/4 words, PL 27 chars/4 words (lang/en.json:2437, lang/pl.json:2543; usage)",
+     "DRPG.Mastermind.correctlyNamed - EN 25 chars/4 words, PL 20 chars/2 words (lang/en.json:1399, lang/pl.json:1446; usage)",
+     "DRPG.Panel.goSeasonChecklistButton - EN 25 chars/4 words, PL 29 chars/4 words (lang/en.json:5158, lang/pl.json:5523; name)",
+     "DRPG.Chapter.finishEnd - EN 24 chars/4 words, PL 24 chars/3 words (lang/en.json:3368, lang/pl.json:3601; usage)",
+     "DRPG.Project.cardOpenManager - EN 24 chars/4 words, PL 20 chars/3 words (lang/en.json:4535, lang/pl.json:4991; usage)",
+     "DRPG.Floor.endClosing - EN 24 chars/4 words, PL 24 chars/3 words (lang/en.json:1792, lang/pl.json:1865; usage)",
+     "DRPG.Observe.pickRefuse - EN 23 chars/3 words, PL 21 chars/4 words (lang/en.json:3630, lang/pl.json:3895; usage)",
+     "DRPG.Passage.card.repick - EN 23 chars/4 words, PL 20 chars/3 words (lang/en.json:857, lang/pl.json:872; usage)",
+     "DRPG.Panel.goStartInvestigationButton - EN 23 chars/3 words, PL 24 chars/2 words (lang/en.json:5155, lang/pl.json:5520; name)",
+     "DRPG.Chapter.promoteConfirm - EN 22 chars/5 words, PL 18 chars/3 words (lang/en.json:3330, lang/pl.json:3544; usage)"
+    ],
+    "longest_pl": [
+     "DRPG.Murder.betrayalButton - EN 27 chars/5 words, PL 34 chars/5 words (lang/en.json:2939, lang/pl.json:3102; name)",
+     "DRPG.Case.fillFromTraces - EN 30 chars/5 words, PL 31 chars/5 words (lang/en.json:7299, lang/pl.json:9137; usage)",
+     "DRPG.Murder.openingReask - EN 30 chars/6 words, PL 31 chars/5 words (lang/en.json:2772, lang/pl.json:2918; usage)",
+     "DRPG.Eclipse.endOnly - EN 21 chars/3 words, PL 30 chars/4 words (lang/en.json:4378, lang/pl.json:4698; usage)",
+     "DRPG.CaseMap.unrelated - EN 27 chars/6 words, PL 30 chars/4 words (lang/en.json:7348, lang/pl.json:9188; usage)",
+     "DRPG.Case.chargeAgain - EN 18 chars/4 words, PL 30 chars/5 words (lang/en.json:7296, lang/pl.json:9134; usage)",
+     "DRPG.Items.itemNoEffect - EN 27 chars/6 words, PL 30 chars/6 words (lang/en.json:1114, lang/pl.json:1147; usage)",
+     "DRPG.Panel.goSeasonChecklistButton - EN 25 chars/4 words, PL 29 chars/4 words (lang/en.json:5158, lang/pl.json:5523; name)",
+     "DRPG.Trial.logTitle - EN 18 chars/3 words, PL 28 chars/4 words (lang/en.json:3481, lang/pl.json:3724; usage)",
+     "DRPG.Vote.remind - EN 25 chars/4 words, PL 27 chars/4 words (lang/en.json:2437, lang/pl.json:2543; usage)",
+     "DRPG.TruthBullet.autopsyTitle - EN 26 chars/4 words, PL 26 chars/4 words (lang/en.json:3704, lang/pl.json:3969; usage)",
+     "DRPG.Vote.sendAgain - EN 19 chars/4 words, PL 26 chars/4 words (lang/en.json:2411, lang/pl.json:2513; usage)",
+     "DRPG.Advance.allPlayers - EN 21 chars/4 words, PL 25 chars/3 words (lang/en.json:5382, lang/pl.json:5786; usage)",
+     "DRPG.Tables.installAction - EN 19 chars/2 words, PL 25 chars/2 words (lang/en.json:5099, lang/pl.json:5454; usage)",
+     "DRPG.Bridge.giveItem - EN 21 chars/4 words, PL 24 chars/3 words (lang/en.json:5022, lang/pl.json:5369; usage)",
+     "DRPG.Chapter.finishEnd - EN 24 chars/4 words, PL 24 chars/3 words (lang/en.json:3368, lang/pl.json:3601; usage)",
+     "DRPG.Project.passagePick - EN 28 chars/6 words, PL 24 chars/4 words (lang/en.json:4444, lang/pl.json:4771; usage)",
+     "DRPG.Floor.endClosing - EN 24 chars/4 words, PL 24 chars/3 words (lang/en.json:1792, lang/pl.json:1865; usage)",
+     "DRPG.Panel.goStartInvestigationButton - EN 23 chars/3 words, PL 24 chars/2 words (lang/en.json:5155, lang/pl.json:5520; name)",
+     "DRPG.Anonymity.audit.fix - EN 20 chars/4 words, PL 23 chars/4 words (lang/en.json:5481, lang/pl.json:5885; usage)"
+    ],
+    "pl_over_2x_en_chars": [
+     "DRPG.Mastermind.lair.lock - EN 4 chars/1 words, PL 16 chars/3 words (lang/en.json:1373, lang/pl.json:1420; usage)",
+     "DRPG.TraitRuling.pass - EN 4 chars/1 words, PL 9 chars/1 words (lang/en.json:4682, lang/pl.json:5022; usage)"
+    ]
+   },
+   "tab": {
+    "keys": 31,
+    "by_usage": 29,
+    "by_name_only": 2,
+    "target_words": 5,
+    "limit_words": 8,
+    "over_target": 1,
+    "over_limit": 0,
+    "longest_en": [
+     "DRPG.Redacted.tabLocked - EN 43 chars/8 words, PL 32 chars/6 words (lang/en.json:5417, lang/pl.json:5821; name)",
+     "DRPG.Mastermind.finalRemnantsTitle - EN 20 chars/3 words, PL 20 chars/3 words (lang/en.json:1415, lang/pl.json:1462; usage)",
+     "DRPG.TruthBullet.tabWriteNew - EN 15 chars/4 words, PL 11 chars/2 words (lang/en.json:3663, lang/pl.json:3928; usage+name)",
+     "DRPG.TruthBullet.tabFromRemnant - EN 14 chars/3 words, PL 10 chars/2 words (lang/en.json:3661, lang/pl.json:3926; usage+name)",
+     "DRPG.Items.tabGiveExisting - EN 13 chars/2 words, PL 14 chars/2 words (lang/en.json:1141, lang/pl.json:1174; usage+name)",
+     "DRPG.Investigation.tabKeyRemnants - EN 12 chars/2 words, PL 12 chars/2 words (lang/en.json:3079, lang/pl.json:3248; usage+name)",
+     "DRPG.Vault.tabDescription - EN 11 chars/1 words, PL 4 chars/1 words (lang/en.json:3200, lang/pl.json:3408; usage+name)",
+     "DRPG.Tables.tabTierPools - EN 11 chars/2 words, PL 11 chars/2 words (lang/en.json:5038, lang/pl.json:5392; usage+name)",
+     "DRPG.Tables.tabRoomPools - EN 11 chars/2 words, PL 12 chars/2 words (lang/en.json:5039, lang/pl.json:5393; usage+name)",
+     "DRPG.Items.tabCreateNew - EN 10 chars/2 words, PL 11 chars/2 words (lang/en.json:1142, lang/pl.json:1175; usage+name)",
+     "DRPG.Vault.tabFacilities - EN 10 chars/1 words, PL 10 chars/1 words (lang/en.json:3199, lang/pl.json:3407; usage+name)",
+     "DRPG.Items.tabTake - EN 9 chars/2 words, PL 7 chars/1 words (lang/en.json:1212, lang/pl.json:1245; usage+name)",
+     "DRPG.Despair.tabMonokumas - EN 9 chars/1 words, PL 8 chars/1 words (lang/en.json:655, lang/pl.json:650; usage+name)",
+     "DRPG.Vault.tabSearching - EN 9 chars/1 words, PL 14 chars/1 words (lang/en.json:3198, lang/pl.json:3406; usage+name)",
+     "DRPG.Despair.tabStudents - EN 8 chars/1 words, PL 9 chars/1 words (lang/en.json:656, lang/pl.json:651; usage+name)",
+     "DRPG.Despair.tabOverflow - EN 8 chars/1 words, PL 8 chars/1 words (lang/en.json:657, lang/pl.json:652; usage+name)",
+     "DRPG.Investigation.tabTraces - EN 8 chars/1 words, PL 8 chars/1 words (lang/en.json:3078, lang/pl.json:3247; usage+name)",
+     "DRPG.Vault.tabPassages - EN 8 chars/1 words, PL 15 chars/2 words (lang/en.json:3197, lang/pl.json:3405; usage+name)",
+     "DRPG.Tables.tabNewItem - EN 8 chars/2 words, PL 14 chars/2 words (lang/en.json:5044, lang/pl.json:5398; usage+name)",
+     "DRPG.Vault.tabStashes - EN 7 chars/1 words, PL 7 chars/1 words (lang/en.json:3142, lang/pl.json:3340; usage+name)"
+    ],
+    "longest_pl": [
+     "DRPG.Redacted.tabLocked - EN 43 chars/8 words, PL 32 chars/6 words (lang/en.json:5417, lang/pl.json:5821; name)",
+     "DRPG.Mastermind.finalRemnantsTitle - EN 20 chars/3 words, PL 20 chars/3 words (lang/en.json:1415, lang/pl.json:1462; usage)",
+     "DRPG.Vault.tabPassages - EN 8 chars/1 words, PL 15 chars/2 words (lang/en.json:3197, lang/pl.json:3405; usage+name)",
+     "DRPG.Items.tabGiveExisting - EN 13 chars/2 words, PL 14 chars/2 words (lang/en.json:1141, lang/pl.json:1174; usage+name)",
+     "DRPG.Vault.tabSearching - EN 9 chars/1 words, PL 14 chars/1 words (lang/en.json:3198, lang/pl.json:3406; usage+name)",
+     "DRPG.Tables.tabNewItem - EN 8 chars/2 words, PL 14 chars/2 words (lang/en.json:5044, lang/pl.json:5398; usage+name)",
+     "DRPG.Investigation.tabKeyRemnants - EN 12 chars/2 words, PL 12 chars/2 words (lang/en.json:3079, lang/pl.json:3248; usage+name)",
+     "DRPG.Tables.tabRoomPools - EN 11 chars/2 words, PL 12 chars/2 words (lang/en.json:5039, lang/pl.json:5393; usage+name)",
+     "DRPG.Items.tabCreateNew - EN 10 chars/2 words, PL 11 chars/2 words (lang/en.json:1142, lang/pl.json:1175; usage+name)",
+     "DRPG.TruthBullet.tabWriteNew - EN 15 chars/4 words, PL 11 chars/2 words (lang/en.json:3663, lang/pl.json:3928; usage+name)",
+     "DRPG.Sound.tabPlay - EN 4 chars/1 words, PL 11 chars/1 words (lang/en.json:2364, lang/pl.json:2454; usage+name)",
+     "DRPG.Tables.tabTierPools - EN 11 chars/2 words, PL 11 chars/2 words (lang/en.json:5038, lang/pl.json:5392; usage+name)",
+     "DRPG.TruthBullet.tabFromRemnant - EN 14 chars/3 words, PL 10 chars/2 words (lang/en.json:3661, lang/pl.json:3926; usage+name)",
+     "DRPG.Vault.tabFacilities - EN 10 chars/1 words, PL 10 chars/1 words (lang/en.json:3199, lang/pl.json:3407; usage+name)",
+     "DRPG.Despair.tabStudents - EN 8 chars/1 words, PL 9 chars/1 words (lang/en.json:656, lang/pl.json:651; usage+name)",
+     "DRPG.Despair.tabMonokumas - EN 9 chars/1 words, PL 8 chars/1 words (lang/en.json:655, lang/pl.json:650; usage+name)",
+     "DRPG.Despair.tabOverflow - EN 8 chars/1 words, PL 8 chars/1 words (lang/en.json:657, lang/pl.json:652; usage+name)",
+     "DRPG.Investigation.tabTraces - EN 8 chars/1 words, PL 8 chars/1 words (lang/en.json:3078, lang/pl.json:3247; usage+name)",
+     "DRPG.Items.tabTake - EN 9 chars/2 words, PL 7 chars/1 words (lang/en.json:1212, lang/pl.json:1245; usage+name)",
+     "DRPG.Note.tab - EN 4 chars/1 words, PL 7 chars/1 words (lang/en.json:6104, lang/pl.json:6553; usage)"
+    ]
+   },
+   "window-title": {
+    "keys": 274,
+    "by_usage": 130,
+    "by_name_only": 144,
+    "target_words": 5,
+    "limit_words": 8,
+    "over_target": 18,
+    "over_limit": 0,
+    "longest_en": [
+     "DRPG.Requirements.newerSystemTitle - EN 43 chars/7 words, PL 45 chars/6 words (lang/en.json:5533, lang/pl.json:5939; usage+name)",
+     "DRPG.Observe.projectFoundTitle - EN 40 chars/8 words, PL 21 chars/5 words (lang/en.json:3620, lang/pl.json:3885; name)",
+     "DRPG.Rules.announceTitle - EN 37 chars/6 words, PL 32 chars/5 words (lang/en.json:6045, lang/pl.json:6485; name)",
+     "DRPG.Loot.coverTitle - EN 37 chars/7 words, PL 40 chars/7 words (lang/en.json:5409, lang/pl.json:5813; name)",
+     "DRPG.CaseRealize.title - EN 35 chars/4 words, PL 37 chars/4 words (lang/en.json:7457, lang/pl.json:9297; usage+name)",
+     "DRPG.Trial.objectionPickTitle - EN 35 chars/5 words, PL 36 chars/5 words (lang/en.json:3527, lang/pl.json:3757; usage+name)",
+     "DRPG.Audit.awayTitle - EN 35 chars/7 words, PL 40 chars/6 words (lang/en.json:5777, lang/pl.json:6209; name)",
+     "DRPG.Remnant.foundTitle - EN 35 chars/7 words, PL 28 chars/4 words (lang/en.json:3734, lang/pl.json:4005; name)",
+     "DRPG.Trap.alertTitle - EN 34 chars/6 words, PL 30 chars/4 words (lang/en.json:6816, lang/pl.json:7372; name)",
+     "DRPG.Audit.listTitle - EN 34 chars/6 words, PL 45 chars/7 words (lang/en.json:5746, lang/pl.json:6178; name)",
+     "DRPG.Cleanup.reshapeRulingTitle - EN 34 chars/6 words, PL 36 chars/6 words (lang/en.json:2713, lang/pl.json:2850; name)",
+     "DRPG.Frisk.forceTitle - EN 32 chars/6 words, PL 29 chars/4 words (lang/en.json:5625, lang/pl.json:6037; usage+name)",
+     "DRPG.CaseSummary.title - EN 31 chars/4 words, PL 39 chars/4 words (lang/en.json:7506, lang/pl.json:9348; usage+name)",
+     "DRPG.Passage.card.repickTitle - EN 31 chars/5 words, PL 28 chars/4 words (lang/en.json:858, lang/pl.json:873; usage+name)",
+     "DRPG.Observe.anythingTitle - EN 31 chars/6 words, PL 25 chars/4 words (lang/en.json:3612, lang/pl.json:3877; name)",
+     "DRPG.Season.reportCard.title - EN 31 chars/6 words, PL 30 chars/5 words (lang/en.json:6404, lang/pl.json:6967; name)",
+     "DRPG.Investigation.clearPlan.confirmTitle - EN 30 chars/6 words, PL 29 chars/4 words (lang/en.json:2995, lang/pl.json:3159; usage+name)",
+     "DRPG.Observe.describeTitle - EN 30 chars/5 words, PL 20 chars/3 words (lang/en.json:3638, lang/pl.json:3903; usage+name)",
+     "DRPG.Requirements.title - EN 30 chars/5 words, PL 26 chars/4 words (lang/en.json:5516, lang/pl.json:5920; name)",
+     "DRPG.Investigation.finalAskTitle - EN 29 chars/5 words, PL 26 chars/4 words (lang/en.json:3014, lang/pl.json:3184; usage+name)"
+    ],
+    "longest_pl": [
+     "DRPG.Requirements.newerSystemTitle - EN 43 chars/7 words, PL 45 chars/6 words (lang/en.json:5533, lang/pl.json:5939; usage+name)",
+     "DRPG.Audit.listTitle - EN 34 chars/6 words, PL 45 chars/7 words (lang/en.json:5746, lang/pl.json:6178; name)",
+     "DRPG.Rolls.flagsTitle - EN 24 chars/4 words, PL 44 chars/7 words (lang/en.json:5795, lang/pl.json:6227; name)",
+     "DRPG.Loot.coverTitle - EN 37 chars/7 words, PL 40 chars/7 words (lang/en.json:5409, lang/pl.json:5813; name)",
+     "DRPG.Audit.awayTitle - EN 35 chars/7 words, PL 40 chars/6 words (lang/en.json:5777, lang/pl.json:6209; name)",
+     "DRPG.CaseSummary.title - EN 31 chars/4 words, PL 39 chars/4 words (lang/en.json:7506, lang/pl.json:9348; usage+name)",
+     "DRPG.CaseRealize.title - EN 35 chars/4 words, PL 37 chars/4 words (lang/en.json:7457, lang/pl.json:9297; usage+name)",
+     "DRPG.Trial.objectionPickTitle - EN 35 chars/5 words, PL 36 chars/5 words (lang/en.json:3527, lang/pl.json:3757; usage+name)",
+     "DRPG.Infiltrate.pick.coverTitle - EN 29 chars/5 words, PL 36 chars/7 words (lang/en.json:3826, lang/pl.json:4099; name)",
+     "DRPG.Cleanup.reshapeRulingTitle - EN 34 chars/6 words, PL 36 chars/6 words (lang/en.json:2713, lang/pl.json:2850; name)",
+     "DRPG.Infiltrate.tail.unseenTitle - EN 28 chars/4 words, PL 34 chars/6 words (lang/en.json:3866, lang/pl.json:4139; name)",
+     "DRPG.Passage.tab.revokeTitle - EN 28 chars/4 words, PL 33 chars/4 words (lang/en.json:812, lang/pl.json:827; usage+name)",
+     "DRPG.Rolls.awayTitle - EN 26 chars/5 words, PL 33 chars/5 words (lang/en.json:5824, lang/pl.json:6256; name)",
+     "DRPG.Fog.check.isolated.title - EN 23 chars/5 words, PL 33 chars/5 words (lang/en.json:6663, lang/pl.json:7207; name)",
+     "DRPG.Mastermind.toggleFinalTrial - EN 28 chars/6 words, PL 32 chars/5 words (lang/en.json:1387, lang/pl.json:1434; usage)",
+     "DRPG.Notices.clearTitle - EN 20 chars/3 words, PL 32 chars/3 words (lang/en.json:7089, lang/pl.json:8901; usage+name)",
+     "DRPG.Passage.show.title - EN 27 chars/4 words, PL 32 chars/4 words (lang/en.json:835, lang/pl.json:850; name)",
+     "DRPG.Rules.announceTitle - EN 37 chars/6 words, PL 32 chars/5 words (lang/en.json:6045, lang/pl.json:6485; name)",
+     "DRPG.Chapter.promoteTitle - EN 20 chars/4 words, PL 32 chars/5 words (lang/en.json:3327, lang/pl.json:3541; name)",
+     "DRPG.Action.palmTitle - EN 28 chars/4 words, PL 31 chars/4 words (lang/en.json:1070, lang/pl.json:1101; name)"
+    ]
+   },
+   "tooltip": {
+    "keys": 526,
+    "by_usage": 431,
+    "by_name_only": 95,
+    "target_words": 15,
+    "limit_words": 23,
+    "over_target": 165,
+    "over_limit": 3,
+    "longest_en": [
+     "DRPG.Project.everyone - EN 214 chars/43 words, PL 233 chars/41 words (lang/en.json:4656, lang/pl.json:4996; usage)",
+     "DRPG.Monocub.silencedNote - EN 177 chars/34 words, PL 167 chars/26 words (lang/en.json:1245, lang/pl.json:1314; usage)",
+     "DRPG.Tips.Case.faintTooltip - EN 135 chars/23 words, PL 154 chars/22 words (lang/en.json:2100, lang/pl.json:2190; usage+name)",
+     "DRPG.TruthBullet.lockedTooltip - EN 127 chars/22 words, PL 138 chars/21 words (lang/en.json:3688, lang/pl.json:3953; name)",
+     "DRPG.Eclipse.bodyLocked - EN 122 chars/20 words, PL 72 chars/11 words (lang/en.json:4391, lang/pl.json:4710; usage)",
+     "DRPG.Tips.Setup.setThemToObserverTooltip - EN 117 chars/21 words, PL 142 chars/20 words (lang/en.json:2035, lang/pl.json:2125; usage+name)",
+     "DRPG.Tips.Gm.stateTooltip - EN 117 chars/21 words, PL 123 chars/19 words (lang/en.json:2014, lang/pl.json:2104; usage+name)",
+     "DRPG.Tips.Sweep.Actions.pickDoorTooltip - EN 116 chars/21 words, PL 130 chars/19 words (lang/en.json:2131, lang/pl.json:2221; usage+name)",
+     "DRPG.Loot.takeTooltip - EN 116 chars/23 words, PL 141 chars/23 words (lang/en.json:5388, lang/pl.json:5792; usage+name)",
+     "DRPG.Fog.floorsHint - EN 116 chars/22 words, PL 123 chars/18 words (lang/en.json:6587, lang/pl.json:7127; usage)",
+     "DRPG.RollDialog.reactionLocked - EN 116 chars/21 words, PL 121 chars/22 words (lang/en.json:4768, lang/pl.json:5108; usage)",
+     "DRPG.Tips.Sweep.Trial.eclipseEndOnlyTooltip - EN 115 chars/22 words, PL 93 chars/16 words (lang/en.json:2169, lang/pl.json:2259; usage+name)",
+     "DRPG.Hud.eclipseRunningTooltip - EN 115 chars/22 words, PL 127 chars/22 words (lang/en.json:696, lang/pl.json:703; name)",
+     "DRPG.Tips.Sweep.Case.bulletFaintTooltip - EN 114 chars/21 words, PL 124 chars/18 words (lang/en.json:2299, lang/pl.json:2389; usage+name)",
+     "DRPG.Tips.Case.kindWhatItReallyTooltip - EN 113 chars/22 words, PL 121 chars/18 words (lang/en.json:2094, lang/pl.json:2184; usage+name)",
+     "DRPG.Tips.Sweep.Case.tieTooltip - EN 113 chars/21 words, PL 143 chars/21 words (lang/en.json:2286, lang/pl.json:2376; usage+name)",
+     "DRPG.Tips.Case.onANodeTooltip - EN 112 chars/20 words, PL 127 chars/18 words (lang/en.json:2083, lang/pl.json:2173; usage+name)",
+     "DRPG.Fog.floorsHintGm - EN 112 chars/20 words, PL 107 chars/16 words (lang/en.json:6588, lang/pl.json:7128; usage)",
+     "DRPG.Tips.Gm.tierTooltip - EN 111 chars/23 words, PL 114 chars/17 words (lang/en.json:1994, lang/pl.json:2084; usage+name)",
+     "DRPG.Tips.Sweep.Trial.diveSetSaveTooltip - EN 110 chars/22 words, PL 115 chars/17 words (lang/en.json:2197, lang/pl.json:2287; usage+name)"
+    ],
+    "longest_pl": [
+     "DRPG.Project.everyone - EN 214 chars/43 words, PL 233 chars/41 words (lang/en.json:4656, lang/pl.json:4996; usage)",
+     "DRPG.Monocub.silencedNote - EN 177 chars/34 words, PL 167 chars/26 words (lang/en.json:1245, lang/pl.json:1314; usage)",
+     "DRPG.Tips.Case.faintTooltip - EN 135 chars/23 words, PL 154 chars/22 words (lang/en.json:2100, lang/pl.json:2190; usage+name)",
+     "DRPG.Vault.neighboursHint - EN 103 chars/19 words, PL 152 chars/25 words (lang/en.json:3258, lang/pl.json:3466; usage)",
+     "DRPG.Items.durabilityTooltip - EN 70 chars/11 words, PL 152 chars/20 words (lang/en.json:1190, lang/pl.json:1223; name)",
+     "DRPG.Tips.Sweep.Case.tieTooltip - EN 113 chars/21 words, PL 143 chars/21 words (lang/en.json:2286, lang/pl.json:2376; usage+name)",
+     "DRPG.Tips.Setup.setThemToObserverTooltip - EN 117 chars/21 words, PL 142 chars/20 words (lang/en.json:2035, lang/pl.json:2125; usage+name)",
+     "DRPG.Loot.takeTooltip - EN 116 chars/23 words, PL 141 chars/23 words (lang/en.json:5388, lang/pl.json:5792; usage+name)",
+     "DRPG.TruthBullet.lockedTooltip - EN 127 chars/22 words, PL 138 chars/21 words (lang/en.json:3688, lang/pl.json:3953; name)",
+     "DRPG.Items.brokenTooltip - EN 100 chars/22 words, PL 136 chars/23 words (lang/en.json:1189, lang/pl.json:1222; usage+name)",
+     "DRPG.Tips.Sweep.Actions.pickDoorTooltip - EN 116 chars/21 words, PL 130 chars/19 words (lang/en.json:2131, lang/pl.json:2221; usage+name)",
+     "DRPG.Tips.Sweep.Case.orderTooltip - EN 104 chars/20 words, PL 128 chars/20 words (lang/en.json:2287, lang/pl.json:2377; usage+name)",
+     "DRPG.Tips.Case.onANodeTooltip - EN 112 chars/20 words, PL 127 chars/18 words (lang/en.json:2083, lang/pl.json:2173; usage+name)",
+     "DRPG.Hud.eclipseRunningTooltip - EN 115 chars/22 words, PL 127 chars/22 words (lang/en.json:696, lang/pl.json:703; name)",
+     "DRPG.Tips.Sweep.Case.bulletFaintTooltip - EN 114 chars/21 words, PL 124 chars/18 words (lang/en.json:2299, lang/pl.json:2389; usage+name)",
+     "DRPG.Case.chargeAgainHint - EN 107 chars/21 words, PL 124 chars/18 words (lang/en.json:7297, lang/pl.json:9135; usage)",
+     "DRPG.Fog.floorsHint - EN 116 chars/22 words, PL 123 chars/18 words (lang/en.json:6587, lang/pl.json:7127; usage)",
+     "DRPG.Tips.Gm.stateTooltip - EN 117 chars/21 words, PL 123 chars/19 words (lang/en.json:2014, lang/pl.json:2104; usage+name)",
+     "DRPG.Despair.pipTooltip - EN 97 chars/18 words, PL 122 chars/18 words (lang/en.json:635, lang/pl.json:624; name)",
+     "DRPG.Tips.Case.kindWhatItReallyTooltip - EN 113 chars/22 words, PL 121 chars/18 words (lang/en.json:2094, lang/pl.json:2184; usage+name)"
+    ]
+   },
+   "tile-label": {
+    "keys": 47,
+    "by_usage": 47,
+    "by_name_only": 0,
+    "target_words": 3,
+    "limit_words": 5,
+    "over_target": 1,
+    "over_limit": 0,
+    "longest_en": [
+     "DRPG.Vault.rifle - EN 20 chars/4 words, PL 17 chars/2 words (lang/en.json:3219, lang/pl.json:3427; usage)",
+     "DRPG.Config.DESPAIR_CALLS.behindClosedDoors.label - EN 19 chars/3 words, PL 19 chars/3 words (lang/pl.json:7818; usage)",
+     "DRPG.Config.DESPAIR_CALLS.publicAnnouncement.label - EN 19 chars/2 words, PL 19 chars/2 words (lang/pl.json:7858; usage)",
+     "DRPG.Config.DESPAIR_CALLS.feedOverflow.label - EN 17 chars/3 words, PL 17 chars/3 words (lang/pl.json:7850; usage)",
+     "DRPG.Config.DESPAIR_CALLS.fuelTheCub.label - EN 14 chars/3 words, PL 14 chars/3 words (lang/pl.json:7838; usage)",
+     "DRPG.Config.DESPAIR_CALLS.gameProtection.label - EN 14 chars/2 words, PL 14 chars/2 words (lang/pl.json:7842; usage)",
+     "DRPG.Action.dynamicLabel - EN 14 chars/2 words, PL 14 chars/2 words (lang/en.json:1005, lang/pl.json:1029; usage)",
+     "DRPG.Config.ACTIONS.directMurder.label - EN 13 chars/2 words, PL 13 chars/2 words (lang/pl.json:7666; usage)",
+     "DRPG.Config.MONOCUB.abilities.askHope.label - EN 12 chars/3 words, PL 12 chars/3 words (lang/pl.json:8027; usage)",
+     "DRPG.Config.HOPE_CALLS.contribution.label - EN 12 chars/1 words, PL 12 chars/1 words (lang/pl.json:7776; usage)",
+     "DRPG.Calls.gatherCancel - EN 11 chars/3 words, PL 7 chars/1 words (lang/en.json:4216, lang/pl.json:4491; usage)",
+     "DRPG.Config.ACTIONS.rest.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7624; usage)",
+     "DRPG.Config.DESPAIR_CALLS.contraband.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7854; usage)",
+     "DRPG.Config.ACTIONS.listen.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7629; usage)",
+     "DRPG.Config.HOPE_CALLS.freeCrit.label - EN 10 chars/2 words, PL 10 chars/2 words (lang/pl.json:7800; usage)",
+     "DRPG.Config.HOPE_CALLS.experience.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7768; usage)",
+     "DRPG.Config.MONOCUB.abilities.meddle.label - EN 9 chars/1 words, PL 9 chars/1 words (lang/pl.json:8031; usage)",
+     "DRPG.Config.DESPAIR_CALLS.favoriteProject.label - EN 9 chars/1 words, PL 9 chars/1 words (lang/pl.json:7846; usage)",
+     "DRPG.Config.MONOCUB.abilities.bet.label - EN 9 chars/2 words, PL 9 chars/2 words (lang/pl.json:8029; usage)",
+     "DRPG.Config.HOPE_CALLS.ultimate.label - EN 8 chars/1 words, PL 8 chars/1 words (lang/pl.json:7772; usage)"
+    ],
+    "longest_pl": [
+     "DRPG.Config.DESPAIR_CALLS.behindClosedDoors.label - EN 19 chars/3 words, PL 19 chars/3 words (lang/pl.json:7818; usage)",
+     "DRPG.Config.DESPAIR_CALLS.publicAnnouncement.label - EN 19 chars/2 words, PL 19 chars/2 words (lang/pl.json:7858; usage)",
+     "DRPG.Config.DESPAIR_CALLS.feedOverflow.label - EN 17 chars/3 words, PL 17 chars/3 words (lang/pl.json:7850; usage)",
+     "DRPG.Vault.rifle - EN 20 chars/4 words, PL 17 chars/2 words (lang/en.json:3219, lang/pl.json:3427; usage)",
+     "DRPG.Config.DESPAIR_CALLS.fuelTheCub.label - EN 14 chars/3 words, PL 14 chars/3 words (lang/pl.json:7838; usage)",
+     "DRPG.Config.DESPAIR_CALLS.gameProtection.label - EN 14 chars/2 words, PL 14 chars/2 words (lang/pl.json:7842; usage)",
+     "DRPG.Action.dynamicLabel - EN 14 chars/2 words, PL 14 chars/2 words (lang/en.json:1005, lang/pl.json:1029; usage)",
+     "DRPG.Config.ACTIONS.directMurder.label - EN 13 chars/2 words, PL 13 chars/2 words (lang/pl.json:7666; usage)",
+     "DRPG.Config.MONOCUB.abilities.askHope.label - EN 12 chars/3 words, PL 12 chars/3 words (lang/pl.json:8027; usage)",
+     "DRPG.Config.HOPE_CALLS.contribution.label - EN 12 chars/1 words, PL 12 chars/1 words (lang/pl.json:7776; usage)",
+     "DRPG.Config.ACTIONS.rest.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7624; usage)",
+     "DRPG.Config.DESPAIR_CALLS.contraband.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7854; usage)",
+     "DRPG.Config.ACTIONS.listen.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7629; usage)",
+     "DRPG.Config.HOPE_CALLS.freeCrit.label - EN 10 chars/2 words, PL 10 chars/2 words (lang/pl.json:7800; usage)",
+     "DRPG.Config.HOPE_CALLS.experience.label - EN 10 chars/1 words, PL 10 chars/1 words (lang/pl.json:7768; usage)",
+     "DRPG.Config.MONOCUB.abilities.meddle.label - EN 9 chars/1 words, PL 9 chars/1 words (lang/pl.json:8031; usage)",
+     "DRPG.Config.DESPAIR_CALLS.favoriteProject.label - EN 9 chars/1 words, PL 9 chars/1 words (lang/pl.json:7846; usage)",
+     "DRPG.Config.MONOCUB.abilities.bet.label - EN 9 chars/2 words, PL 9 chars/2 words (lang/pl.json:8029; usage)",
+     "DRPG.Config.HOPE_CALLS.ultimate.label - EN 8 chars/1 words, PL 8 chars/1 words (lang/pl.json:7772; usage)",
+     "DRPG.Config.DESPAIR_CALLS.newRule.label - EN 8 chars/2 words, PL 8 chars/2 words (lang/pl.json:7866; usage)"
+    ]
+   },
+   "tile-hint": {
+    "keys": 39,
+    "by_usage": 39,
+    "by_name_only": 0,
+    "target_words": 30,
+    "limit_words": 45,
+    "over_target": 13,
+    "over_limit": 0,
+    "longest_en": [
+     "DRPG.Config.HOPE_CALLS.relief.effect - EN 234 chars/45 words, PL 260 chars/44 words (lang/pl.json:7793; usage)",
+     "DRPG.Config.DESPAIR_CALLS.bounty.effect - EN 232 chars/44 words, PL 246 chars/35 words (lang/pl.json:7871; usage)",
+     "DRPG.Config.ACTIONS.analyze.hint - EN 230 chars/45 words, PL 242 chars/39 words (lang/pl.json:7602; usage)",
+     "DRPG.Config.ACTIONS.project.hint - EN 223 chars/43 words, PL 247 chars/38 words (lang/pl.json:7619; usage)",
+     "DRPG.Config.ACTIONS.move.hint - EN 211 chars/38 words, PL 213 chars/34 words (lang/pl.json:7672; usage)",
+     "DRPG.Config.HOPE_CALLS.freeCrit.effect - EN 205 chars/45 words, PL 216 chars/40 words (lang/pl.json:7801; usage)",
+     "DRPG.Config.HOPE_CALLS.reroll.effect - EN 204 chars/39 words, PL 252 chars/41 words (lang/pl.json:7781; usage)",
+     "DRPG.Config.HOPE_CALLS.contribution.effect - EN 201 chars/39 words, PL 238 chars/37 words (lang/pl.json:7777; usage)",
+     "DRPG.Config.ACTIONS.rest.hint - EN 199 chars/42 words, PL 214 chars/36 words (lang/pl.json:7625; usage)",
+     "DRPG.Config.ACTIONS.tamper.hint - EN 189 chars/35 words, PL 196 chars/29 words (lang/pl.json:7662; usage)",
+     "DRPG.Config.HOPE_CALLS.experience.effect - EN 189 chars/37 words, PL 197 chars/30 words (lang/pl.json:7769; usage)",
+     "DRPG.Config.ACTIONS.observe.hint - EN 187 chars/38 words, PL 123 chars/17 words (lang/pl.json:7597; usage)",
+     "DRPG.Config.DESPAIR_CALLS.publicAnnouncement.effect - EN 155 chars/31 words, PL 155 chars/26 words (lang/pl.json:7859; usage)",
+     "DRPG.Config.ACTIONS.listen.hint - EN 154 chars/28 words, PL 148 chars/24 words (lang/pl.json:7630; usage)",
+     "DRPG.Config.HOPE_CALLS.ultimate.effect - EN 151 chars/29 words, PL 177 chars/29 words (lang/pl.json:7773; usage)",
+     "DRPG.Config.HOPE_CALLS.support.effect - EN 151 chars/27 words, PL 178 chars/30 words (lang/pl.json:7765; usage)",
+     "DRPG.Config.DESPAIR_CALLS.newRule.effect - EN 147 chars/28 words, PL 161 chars/24 words (lang/pl.json:7867; usage)",
+     "DRPG.Config.HOPE_CALLS.talent.effect - EN 145 chars/27 words, PL 155 chars/21 words (lang/pl.json:7761; usage)",
+     "DRPG.Config.ACTIONS.palm.hint - EN 140 chars/26 words, PL 108 chars/19 words (lang/pl.json:7647; usage)",
+     "DRPG.Config.HOPE_CALLS.burst.effect - EN 135 chars/28 words, PL 168 chars/23 words (lang/pl.json:7789; usage)"
+    ],
+    "longest_pl": [
+     "DRPG.Config.HOPE_CALLS.relief.effect - EN 234 chars/45 words, PL 260 chars/44 words (lang/pl.json:7793; usage)",
+     "DRPG.Config.HOPE_CALLS.reroll.effect - EN 204 chars/39 words, PL 252 chars/41 words (lang/pl.json:7781; usage)",
+     "DRPG.Config.ACTIONS.project.hint - EN 223 chars/43 words, PL 247 chars/38 words (lang/pl.json:7619; usage)",
+     "DRPG.Config.DESPAIR_CALLS.bounty.effect - EN 232 chars/44 words, PL 246 chars/35 words (lang/pl.json:7871; usage)",
+     "DRPG.Config.ACTIONS.analyze.hint - EN 230 chars/45 words, PL 242 chars/39 words (lang/pl.json:7602; usage)",
+     "DRPG.Config.HOPE_CALLS.contribution.effect - EN 201 chars/39 words, PL 238 chars/37 words (lang/pl.json:7777; usage)",
+     "DRPG.Config.HOPE_CALLS.freeCrit.effect - EN 205 chars/45 words, PL 216 chars/40 words (lang/pl.json:7801; usage)",
+     "DRPG.Config.ACTIONS.rest.hint - EN 199 chars/42 words, PL 214 chars/36 words (lang/pl.json:7625; usage)",
+     "DRPG.Config.ACTIONS.move.hint - EN 211 chars/38 words, PL 213 chars/34 words (lang/pl.json:7672; usage)",
+     "DRPG.Config.HOPE_CALLS.experience.effect - EN 189 chars/37 words, PL 197 chars/30 words (lang/pl.json:7769; usage)",
+     "DRPG.Config.ACTIONS.tamper.hint - EN 189 chars/35 words, PL 196 chars/29 words (lang/pl.json:7662; usage)",
+     "DRPG.Config.DESPAIR_CALLS.gameProtection.effect - EN 120 chars/21 words, PL 187 chars/26 words (lang/pl.json:7843; usage)",
+     "DRPG.Config.HOPE_CALLS.support.effect - EN 151 chars/27 words, PL 178 chars/30 words (lang/pl.json:7765; usage)",
+     "DRPG.Config.HOPE_CALLS.ultimate.effect - EN 151 chars/29 words, PL 177 chars/29 words (lang/pl.json:7773; usage)",
+     "DRPG.Config.HOPE_CALLS.burst.effect - EN 135 chars/28 words, PL 168 chars/23 words (lang/pl.json:7789; usage)",
+     "DRPG.Config.DESPAIR_CALLS.newRule.effect - EN 147 chars/28 words, PL 161 chars/24 words (lang/pl.json:7867; usage)",
+     "DRPG.Config.DESPAIR_CALLS.favoriteProject.effect - EN 115 chars/21 words, PL 157 chars/22 words (lang/pl.json:7847; usage)",
+     "DRPG.Config.HOPE_CALLS.sprint.effect - EN 127 chars/25 words, PL 155 chars/21 words (lang/pl.json:7785; usage)",
+     "DRPG.Config.HOPE_CALLS.talent.effect - EN 145 chars/27 words, PL 155 chars/21 words (lang/pl.json:7761; usage)",
+     "DRPG.Config.DESPAIR_CALLS.publicAnnouncement.effect - EN 155 chars/31 words, PL 155 chars/26 words (lang/pl.json:7859; usage)"
+    ]
+   },
+   "hud": {
+    "keys": 27,
+    "by_usage": 27,
+    "by_name_only": 0,
+    "budget": "none: docs/text-style.md section 4 and docs/text-budgets.json set no HUD or status-strip surface",
+    "longest_en": [
+     "DRPG.Hud.startEclipseNewSession.other - EN 123 chars/21 words, PL 144 chars/23 words (lang/en.json:695, lang/pl.json:701; usage)",
+     "DRPG.Hud.startEclipseNewSession.one - EN 122 chars/21 words, PL 146 chars/23 words (lang/en.json:695, lang/pl.json:698; usage)",
+     "DRPG.Hud.eclipseRunningTooltip - EN 115 chars/22 words, PL 127 chars/22 words (lang/en.json:696, lang/pl.json:703; usage)",
+     "DRPG.Hud.startEclipseFree - EN 99 chars/19 words, PL 100 chars/16 words (lang/en.json:694, lang/pl.json:696; usage)",
+     "DRPG.Hud.elapsedTooltip.other - EN 77 chars/15 words, PL 74 chars/12 words (lang/en.json:684, lang/pl.json:680; usage)",
+     "DRPG.Hud.elapsedTooltip.one - EN 76 chars/15 words, PL 73 chars/12 words (lang/en.json:684, lang/pl.json:677; usage)",
+     "DRPG.Hud.trialTooltip - EN 63 chars/12 words, PL 49 chars/8 words (lang/en.json:715, lang/pl.json:727; usage)",
+     "DRPG.Trial.objectionOutside - EN 49 chars/10 words, PL 50 chars/7 words (lang/en.json:3516, lang/pl.json:3799; usage)",
+     "DRPG.Hud.rewind - EN 46 chars/9 words, PL 73 chars/13 words (lang/en.json:678, lang/pl.json:673; usage)",
+     "DRPG.Hud.endEclipse - EN 46 chars/10 words, PL 44 chars/7 words (lang/en.json:677, lang/pl.json:672; usage)",
+     "DRPG.Hud.startEclipseNamed.other - EN 39 chars/6 words, PL 37 chars/5 words (lang/en.json:690, lang/pl.json:691; usage)",
+     "DRPG.Hud.startEclipseNamed.one - EN 38 chars/6 words, PL 39 chars/5 words (lang/en.json:690, lang/pl.json:688; usage)",
+     "DRPG.Hud.rewindEclipse - EN 36 chars/7 words, PL 34 chars/5 words (lang/en.json:681, lang/pl.json:733; usage)",
+     "DRPG.Hud.nowPlaying - EN 25 chars/4 words, PL 22 chars/4 words (lang/en.json:680, lang/pl.json:732; usage)",
+     "DRPG.Hud.sessionTooltip - EN 17 chars/2 words, PL 15 chars/2 words (lang/en.json:676, lang/pl.json:671; usage)",
+     "DRPG.Hud.elapsed - EN 16 chars/3 words, PL 13 chars/2 words (lang/en.json:682, lang/pl.json:674; usage)",
+     "DRPG.Eclipse.named - EN 14 chars/2 words, PL 16 chars/2 words (lang/en.json:4381, lang/pl.json:4701; usage)",
+     "DRPG.Hud.trialSpeaks - EN 13 chars/2 words, PL 11 chars/2 words (lang/en.json:719, lang/pl.json:734; usage)",
+     "DRPG.Hud.trial.scrum - EN 12 chars/2 words, PL 12 chars/2 words (lang/en.json:713, lang/pl.json:725; usage)",
+     "DRPG.Zones.confer.name - EN 12 chars/2 words, PL 13 chars/2 words (lang/en.json:1511, lang/pl.json:1558; usage)"
+    ],
+    "longest_pl": [
+     "DRPG.Hud.startEclipseNewSession.one - EN 122 chars/21 words, PL 146 chars/23 words (lang/en.json:695, lang/pl.json:698; usage)",
+     "DRPG.Hud.startEclipseNewSession.other - EN 123 chars/21 words, PL 144 chars/23 words (lang/en.json:695, lang/pl.json:701; usage)",
+     "DRPG.Hud.eclipseRunningTooltip - EN 115 chars/22 words, PL 127 chars/22 words (lang/en.json:696, lang/pl.json:703; usage)",
+     "DRPG.Hud.startEclipseFree - EN 99 chars/19 words, PL 100 chars/16 words (lang/en.json:694, lang/pl.json:696; usage)",
+     "DRPG.Hud.elapsedTooltip.other - EN 77 chars/15 words, PL 74 chars/12 words (lang/en.json:684, lang/pl.json:680; usage)",
+     "DRPG.Hud.elapsedTooltip.one - EN 76 chars/15 words, PL 73 chars/12 words (lang/en.json:684, lang/pl.json:677; usage)",
+     "DRPG.Hud.rewind - EN 46 chars/9 words, PL 73 chars/13 words (lang/en.json:678, lang/pl.json:673; usage)",
+     "DRPG.Trial.objectionOutside - EN 49 chars/10 words, PL 50 chars/7 words (lang/en.json:3516, lang/pl.json:3799; usage)",
+     "DRPG.Hud.trialTooltip - EN 63 chars/12 words, PL 49 chars/8 words (lang/en.json:715, lang/pl.json:727; usage)",
+     "DRPG.Hud.endEclipse - EN 46 chars/10 words, PL 44 chars/7 words (lang/en.json:677, lang/pl.json:672; usage)",
+     "DRPG.Hud.startEclipseNamed.one - EN 38 chars/6 words, PL 39 chars/5 words (lang/en.json:690, lang/pl.json:688; usage)",
+     "DRPG.Hud.startEclipseNamed.other - EN 39 chars/6 words, PL 37 chars/5 words (lang/en.json:690, lang/pl.json:691; usage)",
+     "DRPG.Hud.rewindEclipse - EN 36 chars/7 words, PL 34 chars/5 words (lang/en.json:681, lang/pl.json:733; usage)",
+     "DRPG.Hud.nowPlaying - EN 25 chars/4 words, PL 22 chars/4 words (lang/en.json:680, lang/pl.json:732; usage)",
+     "DRPG.Eclipse.named - EN 14 chars/2 words, PL 16 chars/2 words (lang/en.json:4381, lang/pl.json:4701; usage)",
+     "DRPG.Hud.sessionTooltip - EN 17 chars/2 words, PL 15 chars/2 words (lang/en.json:676, lang/pl.json:671; usage)",
+     "DRPG.Hud.elapsed - EN 16 chars/3 words, PL 13 chars/2 words (lang/en.json:682, lang/pl.json:674; usage)",
+     "DRPG.Zones.confer.name - EN 12 chars/2 words, PL 13 chars/2 words (lang/en.json:1511, lang/pl.json:1558; usage)",
+     "DRPG.Hud.chapter - EN 11 chars/2 words, PL 12 chars/2 words (lang/en.json:674, lang/pl.json:669; usage)",
+     "DRPG.Hud.trial.scrum - EN 12 chars/2 words, PL 12 chars/2 words (lang/en.json:713, lang/pl.json:725; usage)"
+    ]
+   },
+   "status": {
+    "keys": 21,
+    "by_usage": 21,
+    "by_name_only": 0,
+    "budget": "none: docs/text-style.md section 4 and docs/text-budgets.json set no HUD or status-strip surface",
+    "longest_en": [
+     "DRPG.Actions.freeMoveSpent - EN 91 chars/17 words, PL 134 chars/22 words (lang/en.json:561, lang/pl.json:575; usage)",
+     "DRPG.Actions.cubMovesFree - EN 84 chars/14 words, PL 90 chars/14 words (lang/en.json:563, lang/pl.json:577; usage)",
+     "DRPG.Actions.pipReadOnly.other - EN 80 chars/15 words, PL 71 chars/13 words (lang/en.json:559, lang/pl.json:572; usage)",
+     "DRPG.Actions.pipReadOnly.one - EN 79 chars/16 words, PL 71 chars/13 words (lang/en.json:559, lang/pl.json:569; usage)",
+     "DRPG.Hud.stillToActTooltip - EN 67 chars/12 words, PL 65 chars/9 words (lang/en.json:686, lang/pl.json:683; usage)",
+     "DRPG.Eclipse.actionsMurderOnly - EN 62 chars/12 words, PL 62 chars/10 words (lang/en.json:4386, lang/pl.json:4706; usage)",
+     "DRPG.Actions.allSpent - EN 58 chars/12 words, PL 46 chars/9 words (lang/en.json:564, lang/pl.json:578; usage)",
+     "DRPG.Hud.stillPlacingTooltip - EN 56 chars/11 words, PL 44 chars/5 words (lang/en.json:688, lang/pl.json:685; usage)",
+     "DRPG.Hud.stillPlacingFreeTooltip - EN 48 chars/9 words, PL 56 chars/9 words (lang/en.json:689, lang/pl.json:686; usage)",
+     "DRPG.Move.drag - EN 47 chars/9 words, PL 58 chars/9 words (lang/en.json:4410, lang/pl.json:4730; usage)",
+     "DRPG.Eclipse.placementOnly - EN 43 chars/7 words, PL 35 chars/5 words (lang/en.json:4387, lang/pl.json:4707; usage)",
+     "DRPG.Actions.freeMoveAvailable - EN 43 chars/8 words, PL 42 chars/8 words (lang/en.json:560, lang/pl.json:574; usage)",
+     "DRPG.Actions.eclipseFreePlacement - EN 28 chars/6 words, PL 34 chars/6 words (lang/en.json:579, lang/pl.json:604; usage)",
+     "DRPG.Actions.eclipseMovesLeft.other - EN 26 chars/4 words, PL 27 chars/4 words (lang/en.json:577, lang/pl.json:602; usage)",
+     "DRPG.Actions.eclipseMovesLeft.one - EN 25 chars/4 words, PL 29 chars/4 words (lang/en.json:576, lang/pl.json:599; usage)",
+     "DRPG.Hud.stillPlacing - EN 13 chars/2 words, PL 21 chars/3 words (lang/en.json:687, lang/pl.json:684; usage)",
+     "DRPG.Hud.stillToAct - EN 12 chars/3 words, PL 13 chars/2 words (lang/en.json:685, lang/pl.json:682; usage)",
+     "DRPG.Actions.label - EN 7 chars/1 words, PL 5 chars/1 words (lang/en.json:551, lang/pl.json:558; usage)",
+     "DRPG.Panel.stateColumn - EN 5 chars/1 words, PL 4 chars/1 words (lang/en.json:5233, lang/pl.json:5611; usage)",
+     "DRPG.Panel.state.dead - EN 4 chars/1 words, PL 8 chars/2 words (lang/en.json:5236, lang/pl.json:5614; usage)"
+    ],
+    "longest_pl": [
+     "DRPG.Actions.freeMoveSpent - EN 91 chars/17 words, PL 134 chars/22 words (lang/en.json:561, lang/pl.json:575; usage)",
+     "DRPG.Actions.cubMovesFree - EN 84 chars/14 words, PL 90 chars/14 words (lang/en.json:563, lang/pl.json:577; usage)",
+     "DRPG.Actions.pipReadOnly.one - EN 79 chars/16 words, PL 71 chars/13 words (lang/en.json:559, lang/pl.json:569; usage)",
+     "DRPG.Actions.pipReadOnly.other - EN 80 chars/15 words, PL 71 chars/13 words (lang/en.json:559, lang/pl.json:572; usage)",
+     "DRPG.Hud.stillToActTooltip - EN 67 chars/12 words, PL 65 chars/9 words (lang/en.json:686, lang/pl.json:683; usage)",
+     "DRPG.Eclipse.actionsMurderOnly - EN 62 chars/12 words, PL 62 chars/10 words (lang/en.json:4386, lang/pl.json:4706; usage)",
+     "DRPG.Move.drag - EN 47 chars/9 words, PL 58 chars/9 words (lang/en.json:4410, lang/pl.json:4730; usage)",
+     "DRPG.Hud.stillPlacingFreeTooltip - EN 48 chars/9 words, PL 56 chars/9 words (lang/en.json:689, lang/pl.json:686; usage)",
+     "DRPG.Actions.allSpent - EN 58 chars/12 words, PL 46 chars/9 words (lang/en.json:564, lang/pl.json:578; usage)",
+     "DRPG.Hud.stillPlacingTooltip - EN 56 chars/11 words, PL 44 chars/5 words (lang/en.json:688, lang/pl.json:685; usage)",
+     "DRPG.Actions.freeMoveAvailable - EN 43 chars/8 words, PL 42 chars/8 words (lang/en.json:560, lang/pl.json:574; usage)",
+     "DRPG.Eclipse.placementOnly - EN 43 chars/7 words, PL 35 chars/5 words (lang/en.json:4387, lang/pl.json:4707; usage)",
+     "DRPG.Actions.eclipseFreePlacement - EN 28 chars/6 words, PL 34 chars/6 words (lang/en.json:579, lang/pl.json:604; usage)",
+     "DRPG.Actions.eclipseMovesLeft.one - EN 25 chars/4 words, PL 29 chars/4 words (lang/en.json:576, lang/pl.json:599; usage)",
+     "DRPG.Actions.eclipseMovesLeft.other - EN 26 chars/4 words, PL 27 chars/4 words (lang/en.json:577, lang/pl.json:602; usage)",
+     "DRPG.Hud.stillPlacing - EN 13 chars/2 words, PL 21 chars/3 words (lang/en.json:687, lang/pl.json:684; usage)",
+     "DRPG.Hud.stillToAct - EN 12 chars/3 words, PL 13 chars/2 words (lang/en.json:685, lang/pl.json:682; usage)",
+     "DRPG.Panel.state.dead - EN 4 chars/1 words, PL 8 chars/2 words (lang/en.json:5236, lang/pl.json:5614; usage)",
+     "DRPG.Actions.label - EN 7 chars/1 words, PL 5 chars/1 words (lang/en.json:551, lang/pl.json:558; usage)",
+     "DRPG.Panel.stateColumn - EN 5 chars/1 words, PL 4 chars/1 words (lang/en.json:5233, lang/pl.json:5611; usage)"
+    ]
+   }
+  },
+  "script_reach": {
+   "script_files": 258,
+   "script_lines": 226540,
+   "key_literals": 6390,
+   "rule_hits": {
+    "tooltip T1 tipAttr/tipText": 405,
+    "tooltip T1 setTip": 17,
+    "tooltip T2 attribute": 24,
+    "tooltip T3 tooltip:": 7,
+    "tooltip T4 dataset/.title": 29,
+    "tooltip T5 iconButton": 6,
+    "button U1 <button> text": 35,
+    "button U2 roleButton": 2,
+    "button U3 label: with action/footer": 231,
+    "tab B1": 21,
+    "tab B2 ROOM_SETUP_TABS": 8,
+    "window title W1": 141,
+    "hud H1": 30,
+    "status H2": 24
+   }
+  },
+  "old_3_3_rows_today": [
+   "CRISIS_ACTIONS.finishingBlow.hint: 212 chars in 1.2.42, 230 chars/42 words today (EN; PL 227/35) - under the config description's limit of 45 words, over its target of 30; a row of the crisis menu (action-murder.mjs:124), not a tile tooltip.",
+   "CRISIS_ACTIONS.useItem.hint: 156 then, 171 chars/35 words today (PL 197/29).",
+   "HOPE_CALLS.freeCrit.effect: 150 then, 205 chars/45 words today (PL 216/40) - at the tile tooltip's limit of 45 words, not over.",
+   "Music.noSituational: 176 then, 32 chars today ('No playlist called “{name}” yet.').",
+   "Eclipse.actionsLocked: 153 then, 137 chars/22 words (PL 115/19).",
+   "Anonymity.blocked: 150 then, 133 chars/23 words (PL 156/21).",
+   "Buttons named in 1.2.42: Assign.title and Voice.stopEavesdrop are no keys today; Observe.pickConfirm 17, Eclipse.endAndAdvance 22 ('End and move the clock', the proposal's words), Chapter.endTitle 15 ('End the chapter'), Trap.rearm 14, Analyze.askHint 14 ('Ask for a hint').",
+   "Hud.roomTokens: 47 then, 21 today ('{left}/{max} searches', the proposal's shape; the sentence is in Hud.roomTokensTooltip).",
+   "DESPAIR_CALLS.behindClosedDoors.label and publicAnnouncement.label: still 19 chars each, not shortened; the longest tile word is now 12 letters ('Contribution', 'Announcement'), see not_established."
+  ]
+ },
+ "strengths": [
+  "The glossary's forbidden variants hold in the UI: 70 (entry, side) rules read over 6369 English keys, 553 config sentences and 7456 Polish keys, 0 hits - no 'trace' outside the five names, no 'ślad', no British -our/-yse/-ll- spellings, no 'karta postaci', 'akcje podstawowe', 'GMa', 'safeworda', 'Trail Someone' or 'Investigation Dashboard'.",
+  "Every 1.2.42 drift row that had a proposal is settled as proposed: Final Truth Remnant 18/0, Free Move 25/0, Role Reversal 14/0, Level Up 75/0, Breakdown 17/0, Gamemaster only for the Foundry role, 'phase' only for the clock's phase.",
+  "The two files have the same keys: en-only 0; pl-only 1087 = the 553 config twins (equal, key for key, to config.mjs's prose) and 534 .few/.many forms of 267 English plural families.",
+  "Plural forms are whole: 213 literal plural() keys and all 267 families carry .one/.other in English and .one/.few/.many/.other in Polish; the 81 families whose few equals many were read at the number's phrase (six of them whole), and each reads right in Polish.",
+  "No English sentence in pl.json: the 428 identical values are names kept English by rule (PL-k, D33a) and unit strings.",
+  "Register is uniform: no formal address, no 'proszę'/'przepraszam' and no 'please'/'sorry'; all 13 client-setting hints end 'Only affects this browser.' / 'Dotyczy tylko tej przeglądarki.' (EN14, PL-o); GM's cases all hyphenated (PL-i); no en or em dash in either file.",
+  "No button, tab, window title or tile label is over its word limit (226, 31, 274 and 47 keys read); the old 3.3 HUD row (Hud.roomTokens 47 -> 21) and two of its three notices were cut as proposed."
+ ],
+ "findings": [
+  {
+   "id": "domain-text-c-terms-1",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "evidence_class": "S",
+   "title": "'search tokens' in lower case in two English texts, one of them a tile tooltip; the glossary's otherCase check reads only the singular",
+   "where": "lang/en.json:3343 (DRPG.Chapter.optNextMorning, drawn at scripts/chapter.mjs:365); scripts/config.mjs:1524 (DRPG.Config.ACTIONS.search.hint, the Search tile's tooltip); scripts/tests-text.mjs:871-874 (wordRe), 948 and 954 (the otherCase match)",
+   "what_happens": "text-style.md EN7 (DB17) writes 'Search Token' capitalized, and 34 English keys do. Two do not: the End of chapter option 'with actions and search tokens refilled' and the Search tile's 'Spends one of its search tokens.' The glossary's search-token entry has otherCase on both sides, but T8 matches the term itself as a whole word, so 'search tokens' (an 's' after 'token') is never read; T8's own fixture (tests-text.mjs:3203) pins only the singular 'Spend a search token'. The Polish twins say 'Search Tokenami' and 'Search Tokenów', as the rule wants.",
+   "evidence": "lang/en.json:3343  \"optNextMorning\": \"Open the next chapter on the morning of day {day}, with actions and search tokens refilled\"\nscripts/config.mjs:1524  hint: \"Loot the room for something you name. Spends one of its search tokens.\",\nscripts/tests-text.mjs:873  const wordRe = (forms, anyCase) => new RegExp(`(?<![\\\\p{L}\\\\p{N}_])(?:${...})(?![\\\\p{L}\\\\p{N}_])`, ...\nscripts/tests-text.mjs:954  if (named) for (const m of u.text.matchAll(named)) if (m[0] !== term) hit(m, `${side}-case`, ...)",
+   "failure_scenario": "A player hovers the Search tile and reads 'search tokens' in lower case, while the HUD tooltip beside it says 'Search Tokens: 2 of 3 left here'.",
+   "expected": "'Search Tokens' in both sentences; the otherCase match to take the term's plural (or its endings) as well.",
+   "confidence": "read",
+   "refutation_tried": "Looked for an allow row or a glossary note that keeps the lower case (none: the entry's rule and note are null; text-budgets.json's 58 allow rows name neither key); looked for a test that holds the lower case (tests-tier0.mjs mentions 'search tokens' only in comments and in R518's handbook lists, not these keys); confirmed the singular is caught by T8's fixture and the plural is not by the regex itself.",
+   "old_id": "1.2.42 section 3.2 did not have the row; text-style.md EN7's 'Found:' example (Action.tokensLeft) is fixed"
+  },
+  {
+   "id": "domain-text-c-terms-2",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "evidence_class": "S",
+   "title": "Two project names written in two casings: 'Repair an item' / 'Repair an Item' and 'Close the breach' / 'Close the Breach'",
+   "where": "lang/en.json:4456 (Project.preset.repairItem 'Repair an item'), 4466 (Project.repairNote), 4470 (Project.repairItemSummary 'Repair an Item: ...'); lang/en.json:4455 (Project.preset.closeBreach 'Close the Breach'), 4469 (closeBreachSummary), 4463 (Project.unbreachNote 'Close the breach: Body, Complex (6)'), 735 (Passage.why.isBreach '... or a Close the breach project'); the same words in lang/pl.json:4783, 4793, 4797, 4782, 4796, 4790, 750",
+   "what_happens": "EN6 (DB16) gives Title Case to every name, and the other four presets are Title Case everywhere (Breach the Wall, Seal the Passage, Repair the Lock, Secret Passage: 3-4 keys each, one casing). 'Repair an item' is the preset's label and its note but 'Repair an Item' its card summary; 'Close the Breach' is the label and summary but 'Close the breach' the note and the refusal that names the project. The glossary has entries for repair-the-lock and breach-the-wall and none for these two, so no lint reads them. Polish keeps the English names (PL-k), so both files carry both casings. The GM handbook writes 'Repair an item', 'Close the breach' and 'Seal the passage' (gm-handbook.en.md:471, 1001), a third reading.",
+   "evidence": "lang/en.json:4455  \"closeBreach\": \"Close the Breach\",\nlang/en.json:4456  \"repairItem\": \"Repair an item\",\nlang/en.json:4463  \"unbreachNote\": \"Close the breach: Body, Complex (6). Once it is finished the wall stands whole again.\"\nlang/en.json:4470  \"repairItemSummary\": \"Repair an Item: “{target}”\"",
+   "failure_scenario": "A player picks 'Repair an item' in Start New and the GM's approval card calls the same project 'Repair an Item'; a GM told 'use ... a Close the breach project' looks for it in the list as 'Close the Breach'.",
+   "expected": "One casing per name, Title Case by EN6 ('Repair an Item', 'Close the Breach'), and glossary entries for both so the lint holds them; the Passages tab's own button 'Close the breach' (Passage.tab.closeBreach, a verb phrase, PL 'Zamknij wyłom') can stay a button's words.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether the lower-case form is the tab's button rather than the project (Passage.tab.closeBreach is; unbreachNote and isBreach's 'a Close the breach project', PL 'projekt Close the breach', name the project); searched the glossary, text-style.md and text-budgets.json for either name (none); tests-tier0.mjs:15687 (R981) quotes 'Close the breach' and 'Repair an item' only in its title prose, not as a held text.",
+   "old_id": ""
+  },
+  {
+   "id": "domain-text-c-terms-3",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "evidence_class": "S",
+   "title": "Two Polish genitives the glossary writes otherwise, which neither T8 nor T12 reads: 'Truth Bulleta' and 'tokena'",
+   "where": "lang/pl.json:2205 (DRPG.Tips.Case.giveFromPlanTooltip, drawn at scripts/investigation.mjs:1400); lang/pl.json:8833 (DRPG.Relay.what.saveNotOwn, relay-guard.mjs:1140); docs/glossary.json entries truth-bullet (declension.gen 'Truth Bulletu') and token ('tokenu')",
+   "what_happens": "DB4 and the glossary decline Truth Bullet and token with -u in the genitive, and pl.json does so in 38 keys ('Truth Bulletu') and 30 keys ('tokenu', lower case). One GM tooltip says 'okno wydania Truth Bulleta' and one relay fragment 'rzut obronny tokena'. T8 forbids only the case variants of Truth Bullet; T12 (tests-text.mjs:1765-1790) looks for an ending on an indeclinable term and for a bare form after a governing preposition, never for a declined term with the wrong ending, so both stand unread.",
+   "evidence": "lang/pl.json:2205  \"giveFromPlanTooltip\": \"Otwiera okno wydania Truth Bulleta, wypełnione z tego planu i z jego odbiorcą\"\nlang/pl.json:8833  \"saveNotOwn\": \"rzut obronny tokena, którym ten gracz nie gra\"\ndocs/glossary.json truth-bullet: \"declension\": {\"countable\": true, \"gen\": \"Truth Bulletu\"}",
+   "failure_scenario": "A Polish GM hovers 'Give from the plan' in the Investigation window and reads 'Truth Bulleta' where every other window of the module says 'Truth Bulletu'.",
+   "expected": "'wydania Truth Bulletu', 'rzut obronny tokenu'.",
+   "confidence": "read",
+   "refutation_tried": "Ran the same search for every glossary entry with a declension (8 entries): 'Remnanta', 'Search Tokena' and 'GMa' 0; 'Rerollu' 25 hits, all after 'po', which is the locative and right, so set aside. Checked that 'tokena' is not a quoted Foundry word (the English is 'a save for a token').",
+   "old_id": ""
+  },
+  {
+   "id": "domain-text-c-terms-4",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "ux",
+   "evidence_class": "S",
+   "title": "Three tooltips over the tooltip limit of 23 words, one at 43",
+   "where": "lang/en.json:4656 (DRPG.Project.everyone, scripts/projects-ui.mjs:1671 data-tooltip on a disabled viewer tick); lang/en.json:1245 (DRPG.Monocub.silencedNote, scripts/gm-students.mjs:218 column tooltip); lang/pl.json:3466 (DRPG.Vault.neighboursHint, scripts/room-setup.mjs:338 title on the neighbours field)",
+   "what_happens": "docs/text-budgets.json sets the tooltip's target at 15 words and its limit at 23 (fail null: a report until E71 splits a GM's window from a player's). Of 526 keys placed as tooltips (431 by usage, 95 by name), 165 are over the target in one language or both and 3 over the limit: Project.everyone 43 words EN / 41 PL (214/233 characters, three clauses on who sees a public project), Monocub.silencedNote 34 EN / 26 PL, Vault.neighboursHint 19 EN but 25 PL (the Polish adds a sentence on the grey names). All three are in GM windows (the project's viewer ticks, the Students window's Monocub column, Room setup).",
+   "evidence": "scripts/projects-ui.mjs:1671  const lock = locked ? ` disabled data-tooltip=\"${foundry.utils.escapeHTML(game.i18n.localize(\"DRPG.Project.everyone\"))}\"` : \"\";\nscripts/gm-students.mjs:218  { key: \"silenced\", label: L(\"DRPG.Monocub.silenced\"), cls: \"silenced\", tooltip: L(\"DRPG.Monocub.silencedNote\") },\nscripts/room-setup.mjs:338  title=\"${foundry.utils.escapeHTML(game.i18n.localize(\"DRPG.Vault.neighboursHint\"))}\" />",
+   "failure_scenario": "A GM hovers a greyed viewer tick on a public project and gets a 43-word, three-sentence tooltip to read before the pointer moves.",
+   "expected": "Each under 23 words by T29 (the shortest natural wording), the rest in the window's note or the handbook.",
+   "confidence": "read",
+   "refutation_tried": "Read each at its call site to confirm it is a tooltip and not a note (all three are tooltip or title attributes); looked for allow rows (none name these keys); checked whether the budget fails these (tooltip fail is null, so it is a report, which is why the severity is nit).",
+   "old_id": ""
+  },
+  {
+   "id": "domain-text-c-terms-5",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "ux",
+   "evidence_class": "S",
+   "title": "Two buttons whose Polish is more than twice the English: 'Lock' -> 'Zamknij na klucz' in a no-wrap mini button, 'Pass' -> 'Zrezygnuj'",
+   "where": "lang/en.json:1373 / lang/pl.json:1420 (DRPG.Mastermind.lair.lock), drawn at scripts/sheet-sidebar.mjs:811, styles/danganronpa.css:3797; lang/en.json:4682 / lang/pl.json:5022 (DRPG.TraitRuling.pass), scripts/trait-ruling.mjs:338",
+   "what_happens": "Of 226 button labels (207 placed by usage), 2 are over twice their English in characters (the median ratio is 1.0; 14 are over 1.5). The Mastermind's lair line on the sheet sidebar is a wrapping flex row of the room, its state and a .drpg-mini-button with white-space: nowrap; in Polish the button reads 'Zamknij na klucz' (16 characters, 4.0 times 'Lock'), while its other face is 'Otwórz' (6). Pass is a secondary button in a DialogV2 footer, where the 9 characters of 'Zrezygnuj' have room. No button is over the 6-word limit.",
+   "evidence": "scripts/sheet-sidebar.mjs:811  + `<button type=\"button\" class=\"drpg-mini-button drpg-lair-lock\"${tipAttr(\"DRPG.Tips.Setup.lairLockTooltip\")}>${t(locked ? \"DRPG.Mastermind.lair.unlock\" : \"DRPG.Mastermind.lair.lock\")}</button>`;\nstyles/danganronpa.css:3795  .drpg-lair-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; }\nstyles/danganronpa.css:3797  .drpg-lair-lock, .drpg-passage-seal { white-space: nowrap; }\nlang/pl.json:1420  \"lock\": \"Zamknij na klucz\",",
+   "failure_scenario": "A Polish Mastermind's sidebar line 'Twój pokój: Biblioteka - Otwarty - [Zamknij na klucz]' takes a second line where the English fits one, since the row wraps and the button does not; whether it does at the sidebar's width is a layout fact this reading cannot see.",
+   "expected": "'Zamknij' (the state beside it already says what is locked), or a check of the line at the sidebar's narrowest width.",
+   "confidence": "read",
+   "refutation_tried": "Read the sidebar line's markup and its CSS: .drpg-lair-line wraps (danganronpa.css:3795), so the long button costs a line rather than running past the edge - which is why this is a nit; whether it wraps at the sidebar's width needs a browser (not_established), and only the ratio is the finding. Pass: kept as the task's rule names it, with the note that its window has room.",
+   "old_id": ""
+  },
+  {
+   "id": "domain-text-c-terms-6",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "evidence_class": "S",
+   "title": "The Class Trial's explanation speaks to the class as 'you' (PL second-person plural) in a window every user, GM included, opens",
+   "where": "lang/en.json:6501 / lang/pl.json:7037 (DRPG.Explain.phase.classTrial); scripts/explain.mjs:94-104 (phaseExplanation by the phase alone), 228-243 (openStateExplainer: 'Anyone may open it')",
+   "what_happens": "The clock's explainer shows the phase's paragraph whoever clicks. In a Class Trial it says 'Everyone is in the room and one of you did it ... Get it right and the killer is punished; get it wrong and everybody else is.' / 'jedno z was to zrobiło ... Trafcie ... pomylcie się'. The rest of pl.json speaks to the one reader as 'ty' (V1; no other second-person plural addressed to a group was found among 9 keys with such verbs); P2 keeps the second person for the one acting. A GM reading it is told that one of them did it.",
+   "evidence": "lang/pl.json:7037  \"classTrial\": \"Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. Trafcie, a zabójca zostanie ukarany; pomylcie się, a ukarani zostaną wszyscy pozostali.\"\nscripts/explain.mjs:103  const long = game.i18n.has(`DRPG.Explain.phase.${key}`)",
+   "failure_scenario": "A GM clicks the clock during a trial to check the phase and reads 'one of you did it' and 'Get it right'.",
+   "expected": "The neutral voice for a text any role reads ('One of the students did it; if the class names the right one ...'), or a second line for a GM.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a GM branch in phaseExplanation (none: the key is the phase's) and in openStateExplainer (none); checked that the other second-person plural verbs are grammatical for 'ty i ...' subjects and mirror the English (7 keys) or are placeholders ({was}, 5 keys). The rule's reach is a reading of V1 and P2, so a second reader may weigh it as by design for a dramatic line.",
+   "old_id": ""
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "Polish keeps the English plural 'Truth Bullets' (23 keys) beside 'Truth Bullety' (26), 'Hope Calls'/'Despair Calls' (15) beside 'Calle' (8), and 'Search Tokens' (6) beside 'Search Tokeny' (13).",
+   "source": "The owner approved texts with the English plural: text-style.md N24 'Truth Bullets, które przepadły ...', N34 'Truth Bullets to twoja wiedza', the pilot's pair 22 (DRPG.Settings.bulletSort.hint), PL-e's example 'Nikt nie wydaje Hope Calls'; the owner's 12.11.2026 rule against the English plural names Remnant alone (glossary remnant inflection; Remnants 0 in pl.json). Whether it should reach the other three is an owner's question (not_established)."
+  },
+  {
+   "what": "'clue' in 13 English keys.",
+   "source": "10 are the Key Remnant planner's 'planned clue' slots, the place the 1.2.42 proposal kept the word for; 3 are the crisis action's name Leave a Clue (glossary leave-a-clue, DB16)."
+  },
+  {
+   "what": "OBJECTION in capitals in 13 keys.",
+   "source": "docs/text-budgets.json allow rows for X15 and X16 on 11 of them ('the owner approved this allow row on 12.11.2026'); the bare 'OBJECTION' of the mode and the HUD button is set aside as a name at scripts/tests-text.mjs:1270-1271."
+  },
+  {
+   "what": "pl.json has 1087 keys en.json does not.",
+   "source": "553 are config.mjs's prose twins (en.json holds no DRPG.Config.*; i18n-config.mjs installs them), 534 the Polish .few/.many forms (the repository's working rules: a plural() key needs .few/.many in Polish)."
+  },
+  {
+   "what": "Action, Call, preset and crisis names identical in pl.json (Take from the Body, Pick the Lock, Fuel a Monocub ...).",
+   "source": "text-style.md PL-k (D33a, DB3, DB38): names of actions and Calls stay English in Polish."
+  }
+ ],
+ "comments_against_code": [],
+ "hygiene": {
+  "lint_gaps": [
+   "T8's otherCase matches the glossary term as a whole word, so a plural in another case ('search tokens') is never read (finding 1); its self-test fixture covers only the singular (tests-text.mjs:3203).",
+   "T12 has no check for a declined entry written with the wrong ending (finding 3).",
+   "No glossary entry for the project names Repair an Item and Close the Breach (finding 2), nor for Seal the Passage, which is consistent today."
+  ],
+  "magic_numbers": [],
+  "duplicated_helpers": [],
+  "dead_code": []
+ },
+ "hints_for_other_passes": {
+  "layout": [
+   "The Mastermind's lair line (sheet-sidebar.mjs:808-811) in Polish at the sidebar's narrowest width: does the no-wrap 'Zamknij na klucz' stay on the room name's line or wrap to its own (finding 5)."
+  ],
+  "doc": [
+   "gm-handbook.en.md:471 and 1001 write 'Close the breach', 'Seal the passage' and 'Repair an item' where the UI's presets say 'Close the Breach' and 'Seal the Passage' (finding 2; the handbook pass's lane)."
+  ],
+  "parity": [
+   "DRPG.Items.durabilityTooltip: the Polish (152 characters) says what the English (70) does not - '(bez krytyka)' and that the item breaks after the last point; one side of a pair holds a fact the other lacks (lang/en.json:1190, lang/pl.json:1223). Read only for length here; a parity reader may weigh it."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Whether the longest tile words (12 letters: 'Contribution', 'Announcement' of Public Announcement; 'Infiltrate', 'Facilities', 'Experience' at 10) still shrink every tile's type: sheet-fit.mjs:288-338 measures the longest word in the real font and scales all grids to fit it, floor 0.68. The 1.2.42 row asked for 'Announcement' and 'Closed Doors'; both labels are 19 characters today, unchanged. A layout fact: needs a browser at the sheet's width.",
+   "live_check": "LIVE-E66-01 (the tiles' type against the 0.68 floor, AUDIT-1.2.42.md item 362) covers it",
+   "l1": {
+    "what": "the --drpg-tile-text scale on the Actions tab and the Calls tab, a student's and a Monokuma's sheet, in English and in Polish",
+    "recipe": [
+     "Open a student's sheet at its default width, Actions tab, in English; in the console read getComputedStyle(document.querySelector('.drpg-action-grid') ?? document.body).getPropertyValue('--drpg-tile-text')",
+     "Same on the Calls tab (Contribution) and on a Monokuma's sheet (Public Announcement)",
+     "Switch the module language to Polish and repeat",
+     "Note the value and whether it is the 0.68 floor"
+    ],
+    "clients": "one GM (a sheet of each kind)",
+    "theme": "both",
+    "settles_if": "the variable is unset or 1 on both tabs: no tile word shrinks the grid; a value under 1, or 0.68, names the word that does it (rename or soft-wrap it)",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether the Polish lair button 'Zamknij na klucz' wraps the Mastermind's sidebar line to a second line, or runs past it (finding 5).",
+   "live_check": "new live check: the Mastermind's sheet sidebar in Polish at its narrowest width",
+   "l1": {
+    "what": "the lair line's width with the Polish Lock button",
+    "recipe": [
+     "Make a student the Mastermind with a lair room set",
+     "Open their sheet as the Mastermind's player with the module in Polish",
+     "Narrow the sheet to its minimum width",
+     "See whether 'Zamknij na klucz' stays on the line, wraps to a line of its own or runs past the edge"
+    ],
+    "clients": "one GM and one player (the Mastermind's)",
+    "theme": "both",
+    "settles_if": "the button stays on the room's line at minimum width: finding 5 is the ratio alone; it wraps to a line of its own: a cosmetic cost of one line (nit); it runs past the edge: a minor layout defect",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether the owner wants the 12.11.2026 rule against the English plural in a Polish sentence (written for Remnant) to cover Truth Bullet, Search Token and Call: today pl.json has 'Truth Bullets' 23 / 'Truth Bullety' 26, 'Search Tokens' 6 / 'Search Tokeny' 13, 'Calls' 15 / 'Calle' 8, and approved pairs use the English plural.",
+   "live_check": "an owner's answer, not a table reading"
+  },
+  {
+   "what": "Which of the 83 English keys saying 'killer' stand after a body is found, where the 1.2.42 proposal wanted 'Blackened' (the incident and Stage 6 keep 'killer'). The split needs each sentence's moment, read off its sender; not done here.",
+   "live_check": "none: a static reading by the senders (a later TEXT pass)"
+  },
+  {
+   "what": "No lint, test or check result is cited: base-run.json did not exist when looked for, and node tools/check.mjs text was not run, so T4's, T5's, T8's and T12's own counts on b5a29e73 are not read here; this file's counts are its own scripts'.",
+   "live_check": "the base run (K0)"
+  }
+ ],
+ "count_note": "Nothing was given to count against: the scope names the work, not a list. The reach is in counts.script_reach and files_read. The usage rules placed 431 tooltips, 207 buttons, 130 window titles, 29 tabs, 27 HUD texts and 21 status-strip texts; the name rules added 95, 19, 144 and 2 more, and a key read through a variable or built at run time is placed by neither (the HUD's Eclipse tooltips came in only by the HUD file rule). The glossary's 147 entries include 25 open ones, which forbid nothing; 70 (entry, side) rules had a variant or otherCase in the ui scope."
+}
