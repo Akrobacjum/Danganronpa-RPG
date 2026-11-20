@@ -1,0 +1,76 @@
+{
+ "refuter": "verify-first-session/controls-06-gm-panel-campaign",
+ "of": "first-session/controls-06-gm-panel-campaign",
+ "checked": [
+  {
+   "ref": "controls-06-gm-panel-campaign-1",
+   "claim": "Enter in a Monocub's Despair -> Hope fields in the Students window presses the footer's Apply (the window closes, no Hope is given), because the fields carry no data-drpg-enter.",
+   "verdict": "stands",
+   "why": "Read the whole road. The row's select and stepper carry no data-drpg-enter (the Mastermind's same row does); guardTextFields' third rule acts only on that marker and its first rule only on data-drpg-field; the stepper is an input type=number, which takes part in implicit submission; every button in the table is type=button (iconButton, roleButton, the stepper's - and +, the row buttons), so the first submit in tree order is the kit footer's primary, Apply (ui-kit.mjs header). No other keydown listener in gm-students.mjs. Narrowed: the claim holds for the amount field; Enter on the pool select does not submit a form in Chromium (a select is not a field that triggers implicit submission), so 'or the pool select' in the control's name is not supported. The failure scenario uses the amount and stays as written.",
+   "evidence": "gm-students.mjs:102-105 `<select name=\"donor:${a.id}\"...>` / `${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true, attrs: { \"data-tooltip\": ... } })}` / `<button type=\"button\" class=\"drpg-mini-button\" data-drpg-give=...`; ui-kit.mjs:831 `<input type=\"number\" ...`; utils.mjs:1122-1124 `const field = ev.target?.closest?.(\"[data-drpg-enter]\"); if (!field || field.tagName === \"TEXTAREA\") return;`; ui-kit.mjs:41-43 `ENTER IS THE FIRST SUBMIT BUTTON IN TREE ORDER ... measured against DialogV2 on 14.365`; gm-students.mjs:545-552 footer primary `action: \"save\", label: ... DRPG.Panel.apply`; mastermind.mjs:524-525 `data-drpg-enter=\"[data-drpg-give]\"`.",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-gm-panel-campaign-3",
+   "claim": "The Next line sends the GM to 'the Investigation window's Key Remnants tab' and its button opens the Investigation on the Map view, which draws no tabs.",
+   "verdict": "stands",
+   "why": "The action 'investigation' runs openInvestigationDashboard() with no view; the view defaults to the user's flag or 'map'; the Key Remnants tab is a kitTabs entry of the Table view only (data-drpg-view=\"table\"). The panel's own note says a planned Remnant is placed from its node on the Map. The line's words and the window it opens disagree on a GM who never switched views. Text only: nit.",
+   "evidence": "gm-panel.mjs:905 `if (keys > 0) return { text: plural(\"DRPG.Panel.nextKeysToPlace\", { n: keys }), action: \"investigation\" };`; gm-panel.mjs:260-262 `run: () => import(\"./investigation.mjs\").then(m => m.openInvestigationDashboard())`; investigation.mjs:1103-1106 `return INVESTIGATION_VIEWS.includes(v) ? v : \"map\";`; investigation.mjs:1066-1070 `data-drpg-view=\"table\"><form> ${kitTabs([ ... { key: \"key\", label: ... tabKeyRemnants`; lang/en.json:5163 `Place it from the Investigation window's Key Remnants tab.`; gm-panel.mjs:1106-1108 `placed from its own node on the Investigation window's Map, Place on the map`.",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "The GM panel / Tile: Fix voice (controls-06-gm-panel-campaign-4)",
+   "claim": "Fix voice is drawn enabled for a GM who is not the primary and every press is refused with the primary's name.",
+   "verdict": "stands",
+   "why": "resetAllVoice returns null on any browser but the primary's; the tile's run then warns resetRefused.primary with the name. tileHtml disables a tile only through item.disabled, and the voiceReset item has none (the Settings tile beside it has one). The refusal is told and nothing is lost: nit as written.",
+   "evidence": "voice.mjs:2611-2612 `if (!avclientActive()) return null; if (!isPrimaryGm()) return null;`; gm-panel.mjs:331-341 `{ key: \"voiceReset\", ... const n = await resetAllVoice(); ... game.i18n.format(\"DRPG.Voice.resetRefused.primary\", { name })`; gm-panel.mjs:497 `const blocked = Boolean(item.disabled?.());`; gm-panel.mjs:313-314 `disabled: () => !mayModifySettings(), disabledReason: \"DRPG.SettingsWindow.mayNot\"`.",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "The GM panel / Next line: End the chapter (controls-06-gm-panel-campaign-4)",
+   "claim": "The Next line's End the chapter is offered to a GM who is not the primary and is always refused by chapterEndHere.",
+   "verdict": "stands",
+   "why": "nextStep returns action 'chapterEnd' for a stopped end and for the trial's chapterEnd step with no question of who is the primary; EXTRA_ACTIONS.chapterEnd runs openChapterEndDialog, whose second line refuses any GM but the primary with a notice naming them. Told refusal: nit.",
+   "evidence": "gm-panel.mjs:841 `return { text: game.i18n.localize(\"DRPG.Panel.nextChapterEndStopped\"), action: \"chapterEnd\" };`; gm-panel.mjs:422-425 `chapterEnd: { key: \"chapterEnd\", run: () => import(\"./chapter.mjs\").then(m => m.openChapterEndDialog()) }`; chapter.mjs:391 `if (!chapterEndHere()) return null;`; chapter.mjs:865-867 `if (isPrimaryGm()) return true; ... ui.notifications.warn(game.i18n.format(\"DRPG.Chapter.endPrimaryOnly\", { name }));`.",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "The GM panel / Next line: Announce the body (controls-06-gm-panel-campaign-4)",
+   "claim": "The Next line's Announce the body is offered to a GM who is not the primary and is always refused by discoveryHere.",
+   "verdict": "stands",
+   "why": "nextStep returns action 'bodyDialog' with no primary check; openBodyDiscoveryDialog refuses at discoveryHere before the form. The refusal itself is a recorded choice (body.mjs's note: 'Refused rather than sent on to the primary', tier 2 'a GM who is not the primary announces no body and is told whose it is'); that note covers the refusal, not that the button is drawn enabled, so the finding's narrow claim holds. Nit.",
+   "evidence": "gm-panel.mjs:950 `if (asked) return { text: game.i18n.format(\"DRPG.Panel.nextBodyAsked\", ...), action: \"bodyDialog\" };`; gm-panel.mjs:440-443 `bodyDialog: { ... m.openBodyDiscoveryDialog() }`; body.mjs:1107 `if (!discoveryHere()) return null;`; body.mjs:176-181 `function discoveryHere() { if (isPrimaryGm()) return true; ... ui.notifications.warn(game.i18n.format(\"DRPG.Chapter.bodyPrimaryOnly\", { name }));`.",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-06-gm-panel-campaign-5",
+   "claim": "Edit campaign's End the chapter closes the window unsaved and asks 'End the chapter now?' before a GM who is not the primary is refused.",
+   "verdict": "stands",
+   "why": "The click sets endAsked and closes the window; after drpgWindow resolves, endTheChapter asks its drpgConfirm and only a yes runs openChapterEndDialog, whose chapterEndHere refuses. Nothing on the road asks isPrimaryGm earlier; Season setup's listener has the same shape. Note: closing without Apply is the designed behaviour for every GM (gm-campaign.mjs:100-104), so 'what was typed is gone' is not specific to the non-primary GM; what is specific is the question asked and answered before the refusal. Nit.",
+   "evidence": "gm-campaign.mjs:225-229 `addEventListener(\"click\", ev => { ev.preventDefault(); endAsked = true; dialog.close(); });`; gm-campaign.mjs:243 `if (endAsked) return endTheChapter(roads.endChapter ?? (() => import(\"./chapter.mjs\").then(m => m.openChapterEndDialog())));`; gm-campaign.mjs:116-124 `const yes = await drpgConfirm({ ... }); if (yes !== true) return null; return run();`; chapter.mjs:391 `if (!chapterEndHere()) return null;`; season-setup.mjs:1194-1198, :1213 the same shape.",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "counts.stale_state = 0; every surface's refresh = null",
+   "claim": "No surface of the 22 shows stale state (the reader wrote stale_state 0 and left every refresh block null).",
+   "verdict": "refuted",
+   "why": "The Students window's live region holds fields (each row's State select, the Despair -> Hope pool select and amount, the Role select) and is redrawn by keepLive without any opt-out of rule 1. While focus stands in one of those fields - a State select keeps focus after it is changed, until the GM clicks elsewhere - a death, a revival, a Monocub's acceptance or a donation by another GM is held (pending) until focus leaves the region. Under D-A1 a surface still on keepLive's wait-for-focus is a major finding. The brief also asks for a refresh block on every surface; all 22 are null, so the reader's 0 is a count of what was not read, not a measured zero.",
+   "evidence": "gm-students.mjs:571-576 `keepLive(dialog, { region: \".drpg-alive-live\", build: table, watch: { actors: true, hooks: [\"drpgDeathsChanged\", ...] }, after: wireAll });`; gm-students.mjs:133 `state: `<select name=\"state.${a.id}\"`; gm-students.mjs:222 `return `<div class=\"drpg-alive-live\">`; live.mjs:157-162 `// RULE 1. The GM is typing in here; come back when they are not. if (!force && isEditing(element)) { pending = true; ...`; live.mjs:375-381 `if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;`; DECISIONS.md D-A1 'Every surface still on rule 1 is a major REFR finding'.",
+   "severity_after": "major"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 6,
+  "weakened": 0,
+  "refuted": 1
+ },
+ "not_established": [
+  "Findings 2, 6 and 7 (nit, verdict silent) and the four silent and two unknown controls were outside this pass's list (minor or above; dead, throws, mislabeled, wrong_audience) and were not re-checked.",
+  "Finding 1 in a real browser: the keystroke was read, not pressed (no harness, no Chromium here). Chromium probe as in the finding: focus [name=\"amount:<id>\"] in .drpg-window-alive, press Enter, read whether the window stands and the Monocub's Hope.",
+  "Despair Flow (gm-team-dialog.mjs openGmTeamDialog): only the Overflow line is kept fresh (keepFresh on SETTINGS.overflow and drpgOverflowChanged, :326-333); pools, names and assignments are read once at open. Whether another GM's pool or assignment change while the window stands open leaves it stale was not traced; new live check: two GMs, one changes a student's pool, read the other's open Despair Flow.",
+  "Edit campaign (gm-campaign.mjs openClockDialog): the clock is read once at open (:217 `const clock = getClock()`) and no keepLive or hook redraws the fields. Whether the time of day advanced by another GM while the window is open is shown, or written back on Apply, was not traced (applyCampaignForm not read here); new live check: two GMs, one advances the time of day while the other holds Edit campaign open, then Apply.",
+  "Students window donors: the pool select's figures (donorLabel) are rebuilt on each redraw, but whether every Despair pool write fires an actor update or one of the five watched hooks was not traced.",
+  "The GM panel's two keepLive regions hold buttons, not fields, so rule 1 does not hold them; that the standing block reads only what its watch covers was not re-read (the file's own note says the token and store redraw is read, not measured)."
+ ]
+}
