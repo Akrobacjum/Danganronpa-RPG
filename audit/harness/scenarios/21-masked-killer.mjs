@@ -376,6 +376,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         const wrap = document.createElement("div"); wrap.innerHTML = html ?? "";
         return [...wrap.querySelectorAll('select[name="who"] option')].map(o => o.textContent).sort();`;
     const listed = await p2.eval(PICKER, { timeout: 60000 });
+    /* A CALL'S CONFIRMATION (1.2.119, the audit's adversarial pass of 20.11.2026, a blocker: "Support's confirmation
+       window names the masked killer"). The player picker lists the masked student as "?" (call-pickers.mjs `pickPlayer`,
+       `nameAsSeen`) and hands back the actor; the confirmation printed the chosen target's own name on its "Aimed at"
+       line (calls.mjs `confirmCall`, `describeChoice`). On p2, Botan's Support aimed at the "?" - the window as Botan's
+       browser builds it, read and cancelled (nothing is paid) - and a Despair Call's refusal before paying, as a
+       Monokuma's browser would show it, for a Call that marks Health on a student with none left to mark (call-effects.mjs
+       `refusalBeforePaying`, handed Chie through a Proxy whose Health is all marked; nothing is written). Read: whether Chie's name is anywhere in
+       either, and whether the line names a "?". */
+    const CONFIRM = `const C = await import("${repoUrl}/scripts/calls.mjs"), CFG = await import("${repoUrl}/scripts/config.mjs");
+        const E = await import("${repoUrl}/scripts/call-effects.mjs");
+        const actor = game.actors.get("${ids.botan}"), target = game.actors.get("${ids.chie}");
+        let html = null;
+        globalThis.__dialogAnswers.push(cfg => { const c = cfg?.content; html = typeof c === "string" ? c : (c?.outerHTML ?? ""); return null; });
+        try { await C.confirmCall(CFG.HOPE_CALLS.support, { kind: "hope", held: 9, choice: { target }, actor }); } finally { globalThis.__dialogAnswers.length = 0; }
+        const aimed = game.i18n.localize("DRPG.Calls.aimedAt");
+        const refusal = E.refusalBeforePaying({ damage: { hitPoints: 1 } }, { target: new Proxy(target, { get: (t, k) => (k === "system"
+            ? { resources: { hitPoints: { value: 6, max: 6 } } } : Reflect.get(t, k)) }) }) ?? "";
+        return { drawn: html !== null, named: (html ?? "").includes(target.name) || refusal.includes(target.name),
+            aimedAtQ: (html ?? "").includes(aimed + ":</strong> ?"), refusal };`;
+    const confirmed = await p2.eval(CONFIRM, { timeout: 60000 });
+    check("outside the fight: with the mask standing, a Call aimed at the \"?\" names it \"?\" on the buyer's own screen - Support's confirmation on p2 says \"Aimed at: ?\", and neither it nor a Despair Call's refusal before paying holds Chie's name",
+        confirmed.drawn && !confirmed.named && confirmed.aimedAtQ && confirmed.refusal.length > 0, JSON.stringify(confirmed), { flow: "give-take-stash" });
     const PALM = (value, faces) => `const actor = game.actors.get("${ids.chie}");
         globalThis.__dialogAnswers.push(() => ({ value: "${value}", form: { querySelector: sel => (sel.includes("who") ? { value: "${ids.botan}" } : null) } }));
         const faces = ${JSON.stringify(faces)};

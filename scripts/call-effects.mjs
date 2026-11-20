@@ -44,6 +44,7 @@ import {
     isSealed, sealRoom, isCallSilenced, isChained, restrict, scheduleGather, gatherEveryone, gatherSceneOf
 } from "./call-world.mjs";
 import { roomNames } from "./rooms.mjs";
+import { nameAsSeen } from "./mask-gm.mjs";
 export { pickTarget } from "./call-pickers.mjs";
 export {
     sealedRooms, isSealed, restrictions, isCallSilenced, isChained, clearSeals, pendingGather, scheduleGather,
@@ -884,23 +885,26 @@ export async function liftArmedConfusions() {
 export function refusalBeforePaying(call, choice = {}) {
     const i18n = game.i18n;
     const target = choice.target ?? null;
+    /* Named as the buyer sees them (1.2.119, the audit's blocker of 20.11.2026): shown on the buyer's own screen before
+       the price, so a masked student is "?" there (mask-gm.mjs `nameAsSeen`; scenario 21 "outside the fight"). */
+    const name = target ? nameAsSeen(target) : "";
     if (call?.sealsRoom && choice.room && isSealed(choice.room)) {
         return i18n.format("DRPG.Calls.alreadySealed", { room: choice.room });
     }
     if (call?.silences && target && isCallSilenced(target)) {
-        return i18n.format("DRPG.Calls.alreadySilenced", { name: target.name });
+        return i18n.format("DRPG.Calls.alreadySilenced", { name });
     }
     if (call?.chains && target && isChained(target)) {
-        return i18n.format("DRPG.Calls.alreadyChained", { name: target.name });
+        return i18n.format("DRPG.Calls.alreadyChained", { name });
     }
     if (call?.damage && target && Object.keys(call.damage)
         .every(resource => resourceValue(target, resource) >= resourceMax(target, resource))) {
-        return i18n.format("DRPG.Calls.nothingToMark", { name: target.name });
+        return i18n.format("DRPG.Calls.nothingToMark", { name });
     }
     // A second copy of the same Call adds nothing, and the first is still there
     // to be used (CALL-02). Dice Calls are exempt: those stack by design.
     if (call?.grants && target && alreadyArmed(target, call)) {
-        return i18n.format("DRPG.Calls.alreadyArmed", { name: target.name, call: call.label });
+        return i18n.format("DRPG.Calls.alreadyArmed", { name, call: call.label });
     }
     if (call?.grantsHope && target) {
         if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.hopeBlocked");
