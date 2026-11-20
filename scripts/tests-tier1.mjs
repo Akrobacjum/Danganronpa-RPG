@@ -55080,6 +55080,26 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson({ stamped: true, despairCarries: true, awardTakes: true, bothRoads: 2, gmThrow: true, fresh: true }),
             "{the Reroll's three settles stamped with its message; its Despair carrying the message; the award taking it; both of the award's pool writes naming it; the GM's own throw noted; a landed message's settle started again by a new throw}");
     }],
+    ["R7903 - a roll's point that spills into the Overflow, or comes back off it, is named on the GM that writes it (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): despair-award.mjs `awardRollDespair` hands its message to despair.mjs `spillFrom` at a full pool and runs a Reroll's give-back off the Overflow inside dice-hold.mjs `stampLocal`, `adjustDespair`'s spill hands its `dice` on, `spillFrom` adds to the Overflow inside the stamp, and the count's `onChange` (settings.mjs) tells `drpgOverflowChanged` before it asks `holdPaint`", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T4 measures the hold on the writing GM; this holds the roads, read off the
+         * source. Red at a87c7f82: none of them.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const award = fnSource(src("despair-award.mjs"), "awardRollDespair");
+        const seen = {
+            fullPool: /spillFrom\(monokuma\.id, before, 1, `roll spill from \$\{monokuma\.name\}`, \{ dice: named \}\)/.test(award),
+            giveBack: /stampLocal\("overflow", named, \(\) => takeOverflow\(1, /.test(award),
+            adjust: /spillFrom\(userId, before, delta, "pool spill", \{ dice \}\)/.test(fnSource(src("despair.mjs"), "adjustDespair")),
+            spill: /stampLocal\("overflow", dice, \(\) => addOverflow\(next\.spill, \{ reason \}\)\)/.test(fnSource(src("despair.mjs"), "spillFrom")),
+            redraw: /Hooks\.callAll\("drpgOverflowChanged"\);\s*\n\s*onOverflowStoreChange\(\);/.test(src("settings.mjs"))
+                && /holdPaint\(m\.seenLocal\("overflow"\), "overflow"/.test(fnSource(src("settings.mjs"), "onOverflowStoreChange")),
+            seen: /Hooks\.on\("drpgOverflowChanged", \(\) => noteLocalSeen\("overflow"\)\)/.test(fnSource(src("dice-hold.mjs"), "registerDiceHold"))
+        };
+        equal(stableJson(seen), stableJson({ fullPool: true, giveBack: true, adjust: true, spill: true, redraw: true, seen: true }),
+            "{the full pool's spill named; the Reroll's give-back off the Overflow stamped; adjustDespair's spill named; spillFrom's add stamped; the count's redraw held after the hook; the stamp seen on the hook}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

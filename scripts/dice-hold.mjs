@@ -164,6 +164,40 @@ export async function stampRollWrites(messageId, actorIds, write) {
     }
 }
 
+/** While a roll's write of something not a document runs on this browser: a name (`overflow`) -> message id (`stampLocal`). */
+const LOCAL = new Map();
+/** What `LOCAL` held when the named change was heard (`noteLocalSeen`), read once by its redraw (`seenLocal`). */
+const LOCAL_SEEN = new Map();
+
+/**
+ * Run `write` - a roll's write of something no update's options travel with, the Overflow's count (a GMs' store: each
+ * GM's copy is a client setting, and a store's write carries nothing to the other GMs) - with `name` stamped with
+ * `messageId` on this browser, so its redraw here waits for this browser's dice of the roll (settings.mjs
+ * `onOverflowStoreChange`). The writer's alone: the other GMs merge the count with no word of the roll and draw it at
+ * once (LIVE-S119-01).
+ */
+export async function stampLocal(name, messageId, write) {
+    if (!messageId) return write();
+    LOCAL.set(name, messageId);
+    try {
+        return await write();
+    } finally {
+        if (LOCAL.get(name) === messageId) LOCAL.delete(name);
+    }
+}
+
+/** The change `name` was heard on this browser: keep the stamp it was written under, for its redraw (`seenLocal`). */
+export function noteLocalSeen(name) {
+    LOCAL_SEEN.set(name, LOCAL.get(name) ?? null);
+}
+
+/** The stamp the last heard change of `name` was written under, taken; null when none. */
+export function seenLocal(name) {
+    const id = LOCAL_SEEN.get(name) ?? null;
+    LOCAL_SEEN.delete(name);
+    return id;
+}
+
 /**
  * The roll the last update of `actorId` on this browser carried, null when none: read by every repaint that update asked
  * for. Not taken on reading: one update renders each window open on the actor (two sheets, or the harness's shim and the
@@ -202,6 +236,8 @@ export function noteRollMessage(message) {
  */
 export function registerDiceHold() {
     Hooks.on("createChatMessage", message => noteRollMessage(message));
+    // The Overflow's count heard here (settings.mjs fires it inside the count's `onChange`, before the redraw).
+    Hooks.on("drpgOverflowChanged", () => noteLocalSeen("overflow"));
     Hooks.on("preUpdateActor", (actor, changes, options) => {
         const id = STAMPING.get(actor?.id);
         if (id && options && typeof options === "object") options[DICE_OPTION] = id;

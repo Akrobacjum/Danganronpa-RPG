@@ -366,7 +366,7 @@ export async function adjustDespair(userId, delta, { clamp = false, dice = null 
     const max = despairMax();
     if (!clamp && delta > 0 && wanted > max) {
         try {
-            await spillFrom(userId, before, delta, "pool spill");
+            await spillFrom(userId, before, delta, "pool spill", { dice });
         } catch (err) {
             // The pool write already landed. A failure to record the spill is
             // worth a line in the log and nothing more - refusing the income
@@ -679,7 +679,7 @@ export async function returnOwed(userId, key, n) {
  * What is paid comes off the oldest rows first - a row paid whole goes, a row paid in part
  * keeps the rest. Answers `owedAfter`'s result.
  */
-export async function spillFrom(userId, before, n, reason) {
+export async function spillFrom(userId, before, n, reason, { dice = null } = {}) {
     if (!game.user?.isGM) return null;
     await despairOwedStore.whenHydrated();
     const owed = owedOf(userId);
@@ -696,7 +696,9 @@ export async function spillFrom(userId, before, n, reason) {
     if (paid.length) await despairOwedStore.dropMany(paid);
     if (next.spill > 0) {
         const { addOverflow } = await import("./overflow.mjs");
-        await addOverflow(next.spill, { reason });
+        // A roll's spill drawn on this GM when its dice of the roll have landed (dice-hold.mjs `stampLocal`, 1.2.119).
+        const { stampLocal } = await import("./dice-hold.mjs");
+        await stampLocal("overflow", dice, () => addOverflow(next.spill, { reason }));
     }
     return next;
 }

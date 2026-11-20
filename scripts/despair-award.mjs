@@ -159,7 +159,8 @@ export async function awardRollDespair(actor, delta, { message = null, dice = nu
          */
         if (before >= despairMax()) {
             const { takeOverflow } = await import("./overflow.mjs");
-            if (await takeOverflow(1, { reason: `a Reroll gave back ${monokuma.name}'s point` })) return { monokuma, pool: 0, overflow: -1 };
+            const { stampLocal } = await import("./dice-hold.mjs");
+            if (await stampLocal("overflow", named, () => takeOverflow(1, { reason: `a Reroll gave back ${monokuma.name}'s point` }))) return { monokuma, pool: 0, overflow: -1 };
         }
         if (before <= 0) return null;
         await adjustDespair(monokuma.id, -1, { dice: named });
@@ -177,7 +178,7 @@ export async function awardRollDespair(actor, delta, { message = null, dice = nu
          * What the pool owes for a conversion is paid first (E05 C12,
          * despair.mjs `spillFrom`): a full pool that owes two stood at ten.
          */
-        const next = await spillFrom(monokuma.id, before, 1, `roll spill from ${monokuma.name}`);
+        const next = await spillFrom(monokuma.id, before, 1, `roll spill from ${monokuma.name}`, { dice: named });
         debug(`${monokuma.name} is at maximum Despair; the roll ${next?.spill ? "fed the overflow" : "paid what the pool owes"}.`);
         return { monokuma, pool: 0, overflow: next?.spill ?? 0 };
     }
