@@ -1,0 +1,253 @@
+{
+ "refuter": "verify-stages-08",
+ "of": "stages-08",
+ "checked": [
+  {
+   "ref": "E85 promise 2",
+   "claim": "A GM makes a tunnel one way in Room setup > Passages; GM only, logged, sent to knowers; the primary judges from the GMs' record; reset and rename keep it; the Mastermind held to it",
+   "verdict": "stands",
+   "why": "setPassageWay refuses a non-GM and a wall passage, patches only oneWay, touches the knowers and logs; tunnelVerdict refuses the exit end with code oneWay for the Mastermind too; the rename patch (carryRename) writes only `rooms`, a merge that keeps `oneWay`; R901 runs the reset and reads the way kept. The refusal's words are a later rewording, as the reader says.",
+   "evidence": "scripts/passages-gm.mjs:1891-1902 `if (!game.user?.isGM) return refuse(\"only a GM changes one.\", false); ... await rowsOf(stores).patch(passageId, { oneWay: from }); await touch(knowersOf(passageId, stores), ...); await logRow(...)`; scripts/movement.mjs:2340 \"(H81-02; the Mastermind too: which way a tunnel goes is the map's, as a wall is)\", :2373 `if (near.exit) return { code: \"oneWay\", ...}`; scripts/passages-gm.mjs:1978 `rows[id] = { rooms: row.rooms.map(...) }`; scripts/tests-tier1.mjs:24350 (R901 body) `const reset = await P.passagesAfterReset({ stores });`"
+  },
+  {
+   "ref": "E85 promise 3",
+   "claim": "A knower's token dragged onto a tunnel end goes through once at a door's price by Go through's request; the module's own placings, teleport, displace, a drag beside the mark and a climb alone go nowhere; drag and press ask once",
+   "verdict": "stands",
+   "why": "tunnelStepTarget needs this user's own move with x or y changed and refuses the crossing's mark, a revert, teleport and displace; every region teleport of the module (three sites, no others found by grep of teleportTokens) runs inside whilePlacing, and onTunnelStep drops a placed token; goThrough holds one ask per character across both roads. The part read on 14.370 is as the reader says (CALIBRATION.md:36).",
+   "evidence": "scripts/movement.mjs:2456-2459 `if (!userId || userId !== me || !from || !to) return null; if (changes?.x === undefined && changes?.y === undefined) return null; if (options?.[TUNNEL_CROSSING] || options?.[REVERT] || options?.teleport === true || options?.movementAction === \"displace\") return null;`; scripts/call-world.mjs:513, :556, scripts/cleanup.mjs:1985 `await whilePlacing(...region.teleportTokens(...))`; scripts/sheet-sidebar.mjs:685 `if (crossingsAsked.has(actor.id)) return;`"
+  },
+  {
+   "ref": "E85 promise 4",
+   "claim": "Stairs write the floor's bottom as the token's height on a crossing to another floor",
+   "verdict": "stands",
+   "why": "crossTunnel writes `elevation` from landingElevation when it differs; landingElevation answers floorElevation (the level's elevation.bottom) on another floor and the token's own on its own floor.",
+   "evidence": "scripts/passages-gm.mjs:2361-2364 `const height = M.landingElevation(token, spot.level); const rises = height !== ...; await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}), ...(rises ? { elevation: height } : {}) }`; scripts/rooms.mjs:547-552 `const height = Number(floor?.elevation?.bottom ?? floor?.elevation); return Number.isFinite(height) ? height : 0;`"
+  },
+  {
+   "ref": "E85 promise 5",
+   "claim": "Go through stays enabled wherever the token stands and says where to stand away from an end; a one-way tunnel says so under its name; a wall passage has a line and no button",
+   "verdict": "stands",
+   "why": "knownPassageItem draws the Go through button for a tunnel with no disabled state, the oneWay note when the row has a way, and for a wall passage the walk line and no Go through button; a click away from an end is refused with notAtPassage's words. The notes themselves record that the button is not drawn disabled (v1.2.81.md Known gaps).",
+   "evidence": "scripts/sheet-sidebar.mjs:780-785 `const note = tunnel ? (row.way ? `<span ... data-drpg-passage-note=\"oneWay\">` ...) : `<span ... data-drpg-passage-note=\"walk\">` ... + (tunnel ? `<button type=\"button\" class=\"drpg-mini-button drpg-passage-cross\"...` : \"\")`; lang/en.json:4983 \"notAtPassage\": \"Stand on the passage's mark, or a square next to it, first.\""
+  },
+  {
+   "ref": "E85 promise 7",
+   "claim": "A found room opens at once: curtain opening at 400 ms, open at 1100 ms, the sound at the start, the name 5.4 s",
+   "verdict": "stands",
+   "why": "The constants are as stated (250 + 150 = 400, + 700 = 1100; OUTLINE_MS 5400) and R905 (tier 0) is green in the base run (no cited test is in skip-baseline.json; the suite merge has one failure, XI07, unrelated).",
+   "evidence": "scripts/fog-reveal.mjs:88-92 `export const REVEAL_SLASH_MS = 250; export const REVEAL_HOLD_MS = 150; const REVEAL_PART_MS = 700; export const DISCOVERY_MS = REVEAL_SLASH_MS + REVEAL_HOLD_MS + REVEAL_PART_MS; const OUTLINE_MS = 5400;`; audit/findings-1.2.118/base-run.json suite_merge \"3387 passed, 1 failed\" (XI07)"
+  },
+  {
+   "ref": "E85 promise 8",
+   "claim": "The roll window's title flat; the voice word at the top over the picture, kept while somebody speaks; 10 px padding; Frisk's row 'See what they carry' drawn as other choice rows",
+   "verdict": "stands",
+   "why": "The rules and the key are where cited. One detail of the reader's note is wrong: E87's H84-03 (7a79b30c) lifted the word with the buttons on the wall's full form under Stained Glass, not under Monokuma Legacy; the word is still at the top, so the promise holds.",
+   "evidence": "styles/components.css:2352-2356 \"On the wall's full form it is lifted with them (H84-03, 27.10.2026 ...)\" under `body.drpg-theme-stained-glass > #drpg-voice-tile[data-place=\"wall\"]:not([data-fit=\"compact\"]) .drpg-voice-tile-state { top: calc(7px - var(--drpg-voice-lift, 0px)); ...}`; git 7a79b30c \"the voice word lifted with the buttons and the Projects tray keeps its icons under Stained Glass\"; lang/en.json:5599 \"rowLabel\": \"See what they carry\""
+  },
+  {
+   "ref": "E85 promise 9",
+   "claim": "Where the GMs are putting a token back, hold it unlawful, or saw it move while the price was taken, the primary refuses with 'That cannot be done now.' and its console names which",
+   "verdict": "stands",
+   "why": "crossingWhy has the three English reasons, each mapped to the closed list's cannotNow, and crossTunnel writes a Debug line naming which. The words the player reads are DRPG.Bridge.why.cannotNow, \"You cannot do that right now.\", not the notes' quoted sentence: a wording difference the reader did not note, the meaning kept.",
+   "evidence": "scripts/passages-gm.mjs:2277-2279 `case \"putBack\": ... case \"unlawful\": ... case \"moved\": return \"the character's token moved while the price was taken\";`; scripts/bridge-guards.mjs:427-429 `[\"cannotNow\", /^the GMs are putting the character's token back$/], ...`; lang/en.json:4947 \"cannotNow\": \"You cannot do that right now.\""
+  },
+  {
+   "ref": "E85 grade",
+   "claim": "7, provisional after L1: the main ask (both ways) delivered only in part, the stage keeping the owner's case open",
+   "verdict": "stands",
+   "why": "The scale's 7 is 'one promise delivered in part'; the stage's own notes say the owner's case is still open as a defect and its cause measured on a model only, and the tier-2 test's comment says the harness crossed back before the fix too. The base run now shows the cited tests green, which does not lift the part-delivery. Within both caps.",
+   "evidence": ".github/release-notes/v1.2.81.md:3 \"fixed but for its one-way case, which is still open\", :131 \"The owner's one-way case is still open as a defect.\"; scripts/tests-tier2.mjs:73353 \"The harness's regions ask no ...\"",
+   "grade_after": 7
+  },
+  {
+   "ref": "E86 promise 1",
+   "claim": "A player's drawn roll starts its dice when the GM's card reaches the player's browser, once; hidden only where readable; refused throws nothing",
+   "verdict": "stands",
+   "why": "startWaitOf answers only on a non-GM browser with waits, a drawn roll and a readable message; playBack throws only when nothing started and warns of a mismatch; R947/R948 are stamped H82 and green in the base run.",
+   "evidence": "scripts/roll-draw.mjs:487-489 `if (!waits.size || user?.isGM || !((message?.rolls?.length ?? 0) > 0)) return null; if (!isDrawnRoll(message) || !readable(message)) return null;`; scripts/roll-draw.mjs:612-616 `if (!start.started) { ... start.started = playDice(played);`"
+  },
+  {
+   "ref": "E86 promise 2",
+   "claim": "The GM's own screen throws a player's drawn roll at the GM's throw, before its message, once, a failed write in the Debug log",
+   "verdict": "weakened",
+   "why": "A later stage narrowed it and the reader does not say so: since E60 C5e (a9fae146, 1.2.98) the primary throws a player's dice on its own screen only while forcePrivateRolls is off or one of that GM's Monokumas stands in the roller's room; forcePrivateRolls is on by default. So on 1.2.118 'the GM's own screen throws' holds for a GM in the room, by the owner's later rule, not for every primary. Not a defect of today's code; the promise as worded is superseded in part, as the reader marked E19 P4 and E18 P7.",
+   "evidence": "scripts/roll-draw.mjs:1700 `const shown = seesPlayersDice(actor) ? throwOnThisScreen(roll, sender) : false;`, :2516-2520 `function seesPlayersDice(actor) { let forced = true; try { forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) !== false; } ... return !forced || gmsInRoomOf(actor).includes(game.user?.id); }`; scripts/settings.mjs:1488-1494 forcePrivateRolls `default: true`; git a9fae146 \"E60 C5e: a GM sees a player's dice only with one of that GM's own Monokumas in the roller's room - the 3D dice's audience, the primary's own throw ...\""
+  },
+  {
+   "ref": "E86 promise 3",
+   "claim": "With One dice look on, a player and an Assistant GM are held to the GM's appearance with an empty effects list; the GM keeps its own; global effects through Dice So Nice",
+   "verdict": "stands",
+   "why": "lookFrom answers sfxList [] whatever the source holds; canonicalLook builds from the source; E108 later added the role looks without changing the empty effects list. The global effects' half rests on reading Dice So Nice, as the reader says.",
+   "evidence": "scripts/dice-sync.mjs:671-677 `export function lookFrom(source, held) { ... return { appearance, sfxList: [], roleAppearance }; }`"
+  },
+  {
+   "ref": "E86 promise 4",
+   "claim": "Voice moves to the new room as soon as a move ends; none in a drag; a refused crossing only to the room paid for; the 1500 ms pass kept behind",
+   "verdict": "stands",
+   "why": "passForSettledMove asks an immediate reconcile unless a drag is in flight, a newer move came or the route is refused, and re-arms the debounced pass after it.",
+   "evidence": "scripts/voice.mjs:219-225 `if (draggedNow.size || moveTurns.get(doc.id) !== turn) return false; const refused = await moveRefused(doc).catch(() => false); ... scheduleReconcile({ immediate: true }); scheduleReconcile();`"
+  },
+  {
+   "ref": "E86 promise 5",
+   "claim": "On every GM's board and no player's, each secret tunnel end names where it leads, dimmed; a one-way's way out and an arrowhead; nothing sent; redrawn a quarter second after a region change",
+   "verdict": "stands",
+   "why": "passageTunnels answers [] off a GM's browser; endWords picks mark.from for the exit end; alpha 0.7; the redraw timers are 250 ms.",
+   "evidence": "scripts/passages-gm.mjs:3000-3001 `export function passageTunnels(sceneId, level = null, { stores = PASSAGE_STORES, gm = Boolean(game.user?.isGM) } = {}) { if (!gm) return [];`, :3133 `const exit = tunnel.oneWay !== null && tunnel.oneWay !== end.index;`, :3145 `text.alpha = 0.7;`, :3164-3167 `wordsTimer = setTimeout(() => {...}, 250);`"
+  },
+  {
+   "ref": "E86 promise 6",
+   "claim": "A GM's room outline is cut where a secret passage of that floor runs in its wall, dimmed; closing draws it whole, opening cuts it again after 250 ms",
+   "verdict": "stands",
+   "why": "gmPassageGaps answers only a GM's browser and only secret segments of the scene and floor; redrawFrameSoon draws again 250 ms after the rows change, keyed by passageCutKey.",
+   "evidence": "scripts/fog-doorways.mjs:851-853 `export function gmPassageGaps(scene, level = null, { gm = Boolean(game.user?.isGM), known } = {}) { if (!gm || typeof scene?.id !== \"string\") return []; return secretSegmentsOn(scene.id, level, { known });`; scripts/fog.mjs:4617 \"The GM's frame drawn again 250 ms after the GMs' passage rows last changed (H82-05 ...)\""
+  },
+  {
+   "ref": "E86 promise 7",
+   "claim": "perf() has a line 'drawn for this browser, asked to dice started'; a voice connect writes its time in the Debug log",
+   "verdict": "stands",
+   "why": "Both lines are in the code. No test reads the 'started' line: the tier-2 perf test asserts on the 'shown' line and the GM's line only, as the reader says (no test found).",
+   "evidence": "scripts/diagnostics.mjs:1904 `lines.push(tripLine(\"drawn for this browser, asked to dice started\", drawn, \"started\", \"answered\", \"the answer in\"));`; scripts/voice-client.mjs:644 `debug(`Voice: the connect for \"${target ?? \"the main room\"}\" took ${took} ms ...`)`; scripts/tests-tier2.mjs:24594 (reads only \"asked to dice shown\")"
+  },
+  {
+   "ref": "E86 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "P2's narrowing by E60 C5e is the owner's later rule, not a defect, and the reader graded E19 and E18 with superseded promises at 8 too; the perf() line and the redraw hold by reading only, which is the scale's 8 ('one holds only by code reading'). The cited tier-1 and tier-2 tests are green in the base run; scenarios 33, 75 and 76 are not yet in it. Every live check of the stage unread keeps it under 9.",
+   "evidence": "audit/findings-1.2.118/base-run.json suite_shards (green but shard 3's XI07); audit/findings-1.2.118/base-run.json pending \"the ci scenarios one at a time\"",
+   "grade_after": 8
+  },
+  {
+   "ref": "E19 promise 1",
+   "claim": "A dropped voice shows one card kept in history; rejoins about 1, 5 and 15 s after, then self-checks every 45 s; no LiveKit toast; a server or other-window close says reload and is not fought",
+   "verdict": "stands",
+   "why": "RECONNECT_MS sums to 1, 5 and 15 s; SELF_CHECK_MS is 45000; the closes in NOT_FOUGHT take the 'closed' card with no retry.",
+   "evidence": "scripts/voice-client.mjs:715 `const RECONNECT_MS = [1000, 4000, 10000];`, :235 `const SELF_CHECK_MS = 45000;`, :718 `const NOT_FOUGHT = [2, \"DUPLICATE_IDENTITY\", 4, \"PARTICIPANT_REMOVED\"];`, :757 `game.i18n.localize(retry ? \"DRPG.Voice.drop.retry\" : \"DRPG.Voice.drop.closed\")`"
+  },
+  {
+   "ref": "E19 promise 2",
+   "claim": "A world setting on by default holds avclient-livekit's useExternalAV false everywhere and takes effect after a reload",
+   "verdict": "stands",
+   "why": "The ENFORCED row and the setting are as stated.",
+   "evidence": "scripts/enforced.mjs:116-117 `{ id: \"liveKitInFoundry\", module: \"avclient-livekit\", key: \"useExternalAV\", value: false, toggle: SETTINGS.liveKitInFoundry }`; scripts/settings.mjs:1613-1614 `default: true, requiresReload: true`"
+  },
+  {
+   "ref": "E19 promise 3",
+   "claim": "While the voice tile is on, the camera dock is folded and no camera pops out, field by field; off gives the dock back once",
+   "verdict": "stands",
+   "why": "The rtc row writes hideDock and each user's popout through the field writer and keeps a record to give back.",
+   "evidence": "scripts/enforced.mjs:119-120 `{ id: \"rtcDock\", kind: \"rtc\", module: \"core\", key: \"rtcClientSettings\", fields: { hideDock: true }, userFields: { popout: false }, toggle: SETTINGS.voiceTile }`; :359 `function rtcDockGiveBack(client, record)`"
+  },
+  {
+   "ref": "E19 promise 5",
+   "claim": "In an Eclipse a player's browser leaves voice; the GMs share one room; every connected account has a row",
+   "verdict": "stands",
+   "why": "eclipseRoomFor gives every GM eclipse-gm and a player its own silent room, which the browser leaves voice on (R817).",
+   "evidence": "scripts/voice.mjs:2023-2025 `function eclipseRoomFor(user) { return user?.isGM ? `${ROOM_PREFIX}eclipse-gm` : silentRoomFor(user.id); }`"
+  },
+  {
+   "ref": "E19 promise 6",
+   "claim": "Re-send everybody's voice room forgets every browser and sends again at once; a non-primary GM is told to ask the primary",
+   "verdict": "stands",
+   "why": "resetAllVoice answers null off the primary and the panel then names the primary; on the primary it forgets everyone and runs a forced immediate pass.",
+   "evidence": "scripts/voice.mjs:2612-2616 `if (!isPrimaryGm()) return null; ledger.forgetEveryone(); if (enabled) return (await reconcile({ immediate: true, force: true })) ?? 0;`; scripts/gm-panel.mjs:336-339 `if (n !== null) return ...; const name = game.users.get(primaryGmId())?.name ...; game.i18n.format(\"DRPG.Voice.resetRefused.primary\", { name })`"
+  },
+  {
+   "ref": "E19 promise 7",
+   "claim": "The murder music: one track for everybody, Music channel, room music paused on a player and held at 0 on a GM; an old parked volume given back",
+   "verdict": "stands",
+   "why": "The four functions are in murder-music.mjs as cited (moved there by E41 C9a); R821-R825 are green in the base run and scenario 13 was green in the first session's run.",
+   "evidence": "scripts/murder-music.mjs:85 `export function murderTrackFor(sounds, key)`, :142 `export function createRoomHold(...)`, :355 `export async function restoreDuckedMusic(`; audit/findings-1.2.118/base-run.json first_session \"twelve scenarios green (00, 10-15, 17-21)\""
+  },
+  {
+   "ref": "E19 promise 8",
+   "claim": "Breakdown and Wounded play on every GM and each owner (a co-owner too); a state at load or by the wand plays nothing",
+   "verdict": "stands",
+   "why": "stateSoundsFor answers only a GM or an OWNER, only for a resource written in this update and a status not yet on.",
+   "evidence": "scripts/states.mjs:382-388 `if (!user || !(user.isGM || actor.testUserPermission?.(user, \"OWNER\"))) return []; ... .filter(state => written[state.resource] !== undefined && SFX_FOR_STATE[state.id]) .filter(state => shouldHave(actor, state) && !(actor.statuses?.has?.(state.id) ?? false))`"
+  },
+  {
+   "ref": "E19 promise 9",
+   "claim": "The Sound window's Effects tab: icons with tooltips, a count of assigned, a legend, saves as you go; the safeword heard whatever the slider",
+   "verdict": "stands",
+   "why": "soundEffectsHtml is in sfx.mjs; the count's words are now \"{n} of {total} events have a file.\" rather than the notes' \"{n} of {total} assigned\", a rewording with the meaning kept; R828/R829 green in the base run.",
+   "evidence": "scripts/sfx.mjs:598 `export function soundEffectsHtml({ lead = \"\" } = {})`; lang/en.json:2370 `\"assigned\": { \"one\": \"{n} of {total} events has a file.\", \"other\": \"{n} of {total} events have a file.\" }`"
+  },
+  {
+   "ref": "E19 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "P4's 'where the dead go' was replaced by E72 C8 and E62 C3b with recorded reasons (the comment at voice-client.mjs:461-471), P10 is unread and the one finding is a nit; that is the scale's 8 at most once a promise holds only by reading. All ten live checks unread caps it at 9.",
+   "evidence": "scripts/voice-client.mjs:469-471 \"Since E62 C3b (13.11.2026, the owner's Q-C3b-5) the dead talk in the Spectators' room (`SPECTATOR_ROOM`)\"",
+   "grade_after": 8
+  },
+  {
+   "ref": "E18 promise 1",
+   "claim": "A waited question says 'Open until {time}.' in each reader's clock; five minutes for a Call, three for the others; the yes goes by the primary and is written only once the player's browser has it",
+   "verdict": "stands",
+   "why": "TIMING has 300000 for a Hope Call and 180000 for a ruling; receivedOnPrimary and keepRuling are in call-gm.mjs; the tier-2 E18 C1 test reads the yes kept only on the receipt.",
+   "evidence": "scripts/config.mjs:368 `rulingMs: 180000,`, :377 `hopeCallRulingMs: 300000,`; scripts/call-gm.mjs:735 `export async function receivedOnPrimary(requestId, senderId)`; scripts/tests-tier2.mjs:38685 \"a ruling reaches the card only once its asker said it arrived ... (E18 C1)\""
+  },
+  {
+   "ref": "E18 promise 2",
+   "claim": "If the player stopped waiting, no word in eight seconds or the time passed, the card ends as expired and a Call's yes is taken back; a primary's load ends past cards",
+   "verdict": "stands",
+   "why": "ackMs is 8000; endSentOn, sweepAskCards and the E68 C11 rule under a GM's hand are where cited; the end's words were reworded by E71 B12, as the reader says.",
+   "evidence": "scripts/config.mjs:366 `ackMs: 8000,`; scripts/call-gm.mjs:686 `async function endSentOn(sent, { askerExpired = false } = {})`, :207 `export async function sweepAskCards({ leaving = null } = {})`; lang/en.json:5007 \"settledExpired\": \"Nobody answered in time. You can ask again.\""
+  },
+  {
+   "ref": "E18 promise 3",
+   "claim": "On a primary's reload or a handover the player's browser asks again, three times at most, one card; a differing resend refused",
+   "verdict": "stands",
+   "why": "RESENDS = 3; askMark/sameAsk/askAgain are where cited; the tier-2 resent-ask test is green in the base run.",
+   "evidence": "scripts/bridge-guards.mjs:2102 `const RESENDS = 3;`; scripts/call-gm.mjs:113 `function askMark(ctx, kind, held)`, :119 `function sameAsk(mark, kind, held)`"
+  },
+  {
+   "ref": "E18 promise 4",
+   "claim": "One ruling per card: a non-primary GM's press goes to the primary, which takes the card once; the GMs keep who ruled",
+   "verdict": "stands",
+   "why": "claimOnPrimary, ACTION_CARD_CLAIM and the ruledCardStore are where cited; R842/R843 green.",
+   "evidence": "scripts/call-gm.mjs:1077 `export async function claimOnPrimary(messageId, step, by)`; scripts/bridge-wire.mjs:202 `export const ACTION_CARD_CLAIM = \"card.claim\";`; scripts/gm-stores.mjs:1519 `export const ruledCardStore = defineGmStore({`"
+  },
+  {
+   "ref": "E18 promise 5",
+   "claim": "A missed private card comes back: each browser asks the connected GMs at load and when a GM comes back; a GM answers only that card's readers; only the newest 8 raise a notice",
+   "verdict": "stands",
+   "why": "askForWords is called at ready and when a GM's packet arrives; answerWordsRequest is GM-only, takes the sender from Foundry's id, checks the readers and sends to the sender alone through wordsFor; RETURN_NOTICES is 8.",
+   "evidence": "scripts/secret.mjs:889 `const RETURN_NOTICES = 8;`, :944 `for (const m of newest.slice(0, RETURN_NOTICES)) noticeOnReturn.add(m.id);`, :959-963 `if (!game.user?.isGM) return []; ... const sender = game.users.get(senderId ?? \"\");`, :977 `if (!readers.includes(sender.id)) continue;`, :1448 `if (game.users.get(senderId ?? \"\")?.isGM) askForWords([senderId]);`"
+  },
+  {
+   "ref": "E18 promise 6",
+   "claim": "A student two players own: private cards, private rolls, sounds, clean-up words, incident cards reach every owner",
+   "verdict": "stands",
+   "why": "ownerIdsOf answers every non-GM owner, and whisperToOwner/whisperToOwnerOnly and private-rolls.mjs's readers use it; the co-owner gap was closed by playerOwns (E91 C6).",
+   "evidence": "scripts/utils.mjs:658-660 `export function ownerIdsOf(actor) { ... return game.users.filter(u => !u.isGM && actor.testUserPermission(u, \"OWNER\")).map(u => u.id);`; scripts/private-rolls.mjs:1003 `for (const id of ownerIdsOf(subject)) recipients.push(id);`"
+  },
+  {
+   "ref": "E18 promise 9",
+   "claim": "E18 C7 is not in 1.2.83; it shipped in 1.2.87",
+   "verdict": "stands",
+   "why": "The four commits exist with those subjects; 1.2.83's notes say C7 is not in it.",
+   "evidence": "git 29a53176 \"E18 C7: a Frisk's ask ends when its searcher stops waiting ...\", 3719a0c8 \"Merge 1.2.87 (E17, E18 C7) ...\"; .github/release-notes/v1.2.83.md:246 \"**E18's C7 is not in this version**\""
+  },
+  {
+   "ref": "E18 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Each promise checked holds in code with stamped tests green in the base run; P7 superseded by the owner's later rule and P8 unread (though the tier-2 test 'a call on the GM with no GM connected posts nothing and says so once' at tests-tier2.mjs:38452 drives the no-GM road and is green). LIVE-E18-01 and -02 hold the main promise below 9.",
+   "evidence": "scripts/tests-tier2.mjs:38452 \"a call on the GM with no GM connected posts nothing and says so once ... (E18 C0)\"",
+   "grade_after": 8
+  }
+ ],
+ "counts": {
+  "checked": 33,
+  "stands": 32,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "scope_note": "Checked: the four stages' grades and every promise marked holds yes (29; none is marked no). The file has one finding, STG-E19-1, of severity nit, below the minor line, so it is not checked here; promises marked partly, superseded or unread are read only where a grade rests on them (E85 P1).",
+ "not_established": [
+  "base-run.json exists now (written 20.11.2026, 21:19): the suite on b5a29e73 is green but for XI07 in shard 3, which passes alone; no test the reader cites is in skip-baseline.json, so they ran and passed. The scenarios the reader names (33, 61, 62, 73, 75, 76) are still pending in that file; 12 and 13 were green in the first session's run only.",
+  "Whether a GM with no Monokuma in the roller's room sees nothing of a player's drawn throw at a real table (E60 C5e's narrowing of E86 P2): a live check of E60's (LIVE-E60-09 by df6fbc5f's subject), not read here.",
+  "Where the reader's notes name a later commit or a CALIBRATION reading, only the cited line was read, not the whole paper."
+ ]
+}

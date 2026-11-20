@@ -13,6 +13,7 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 | claude/planlook-119 | 240a5d94 | the Planner's type colours, square routed arrows with a bundle and ports per source, the deduction/counter/solution kinds and the trial modes each in a distinct hue |
 | claude/sheet-119 | f5319776 | the effect pile; Hope/Despair applied after Dice So Nice everywhere |
 | claude/facilities-119 | 782baaa0 (asm de96c5be, 21:31Z) | the Facilities rows end on what the action gives (action-facilities.mjs effectWords/effectsWords, timed-effects.mjs timedWhat); the GM's text effect is named "a message from the GM"; R7843. An owner request |
+| claude/fog-119 | ef1a6064 (asm 5a0424c2, 21:34Z; comment fix caf01e3f) | the voice tile under the veil: visibility.mjs voiceVeiledHere, voice-tile.mjs personOf/channelCount, R7864, 9.2 item 690 LIVE-F119-03 - domain-comm-c-voice-1 |
 | claude/fog-119 | fc190a65 | the discovery cut-ahead guard (gm-store stampOver/floorOf); Hide all counts studentActors only (ledgerRooms); a Spectator's walk is not an Eclipse crossing (judgeArrival) - MAP-17 / domain-map-b-movement-1 |
 
 ## Pushed, merge pending the final report
@@ -22,10 +23,9 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 | claude/day-119 | d76fdbbc | masks end before every advance, so the day board no longer names the masked (stages-25 E118-1); the Support/Call confirmation via nameAsSeen (mask) - domain-comm-b-calls-1; a card's words after the mask ends stay cut (f5c8f041) - domain-core-b-secret-1; the GM's Despair Call public card (90f1c51c) - domain-comm-b-calls-2; the veil in the room pickers: seenHere/veiledFromHere on the hand-over (Give/Share/Show), Palm, Tail, a Hope Call's room target and the Monocub's room student - domain-map-c-rooms-1. By design unchanged: countsAsPresent and othersInRoom (they feed rules); whole-cast lists (Despair Call, Tamper) still name the veiled killer; nameAsSeen does not learn the veil |
 
 ## In progress (by Saturday 10:00, else 1.2.120)
-- F on fog-119: the voice tile under the veil (voice.mjs placeVoices) - domain-comm-c-voice-1.
 - C1 on claude/season-119: Reset the season is dead (controls-10-setup-config-1, domain-case-g-death-chapter-1, stages-17 E49-1); Season setup's Save writes the stale clock and safeword (controls-10-setup-config-2); the checklist's live rows (controls-10-setup-config-3), only if time allows.
 - S on sheet-119: discarding items that are not broken (an owner request, not a finding).
-- P on claude/sound-119: Sound > Effects add/remove per file (owner request).
+- P on claude/sound-119: Sound > Effects add/remove per file (owner request); pushed, not merged, being reworked per the owner (21:34Z).
 
 ## Deferred to 1.2.120 (known; kept in the report as open)
 - The victim's target number omits the masked killer's defence (murder-rules crisisDefense) - domain-case-a-incident-1.
