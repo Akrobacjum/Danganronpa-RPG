@@ -22,6 +22,8 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 | --- | --- | --- |
 | claude/day-119 | d76fdbbc (asm 68214026, 21:50Z) | masks end before every advance (the boards); a Call's confirmation, refusals and card name a masked student "?"; words kept under a mask stay cut after it ends unless revealed; the veil's room pickers (seenHere: hand-over, Palm, Tail, Hope Call room target, Monocub). R7880, R7881, R7883 (R7882 removed). Assembly tier 1 before this merge: 1805 passed, 0 failed, 16 skipped (the coordinator's reading) |
 
+| claude/sound-119 | 28778c8e (asm 6507f0ca, 22:14Z) | Sound > Effects lists each event's own files, each in its own text box (edit replaces, empty removes), Play and Remove per file; the tab is a keepLive region that redraws on any GM's change and holds while typing. R7833-R7835, P119-S1, 9.2 item 685 LIVE-P119-01. An owner request; the coordinator notes it takes the Effects tab off the rule-1 list - the audit's reading: "holds while typing" is still rule 1 under D-A1 unless the tab asks for whileEditing, to be re-checked after the release. The sticky glass header showing a row through it is old, not fixed |
+
 ## Pushed, merge pending the final report
 | Branch | sha | What |
 | --- | --- | --- |
@@ -30,7 +32,6 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 
 ## In progress (by Saturday 10:00, else 1.2.120)
 - C1 on claude/season-119: Reset the season is dead (controls-10-setup-config-1, domain-case-g-death-chapter-1, stages-17 E49-1); Season setup's Save writes the stale clock and safeword (controls-10-setup-config-2); the checklist's live rows (controls-10-setup-config-3), only if time allows.
-- P on claude/sound-119: Sound > Effects add/remove per file (owner request); pushed, not merged, being reworked per the owner (21:34Z).
 
 ## Deferred to 1.2.120 (known; kept in the report as open)
 - The victim's target number omits the masked killer's defence (murder-rules crisisDefense) - domain-case-a-incident-1.

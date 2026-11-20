@@ -1,0 +1,420 @@
+{
+ "refuter": "verify-stages-26",
+ "of": "stages-26",
+ "checked": [
+  {
+   "ref": "E39 promise 1 (holds yes)",
+   "claim": "70-movement drives the refusal that names no unknown room, the vetoed last leg, ten crossings, Refund once, the Eclipse allowance and its console put-back",
+   "verdict": "stands",
+   "why": "The scenario's checks say each case the promise lists, and its register row names E39 and the ci layer. Its result in the base run was not yet written when read; the promise stands on the scenario's text.",
+   "evidence": "audit/harness/scenarios/70-movement.mjs:110 'unknown: p1's drag into E39 C ... the sentence names neither E39 C nor E39 D'; :118 'leg: ... Aiko stays in E39 C and the GMs' record names C'; :129 'parallel: ... ten in all'; :144 'refund: ... a second Refund is refused'; :200 'eclipse: the crossing past the allowance from p1's console ... is put back'; audit/harness/README.md:206 '| 70 | scenarios/70-movement.mjs | ci | exists | E39 |'. base/scenarios.log (the after-run, still going when read: 00 to 65 written, 68, 70, 72, 86, 99 not yet)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E39 promise 2 (holds yes)",
+   "claim": "99-actions drives every ACTIONS row with a census, each threshold band, Find Stash/Passage flat numbers and Palm's Frisk",
+   "verdict": "stands",
+   "why": "The census check, the flat check and the frisk check are at the cited places and assert what the promise says. Scenario result not yet in the base run.",
+   "evidence": "audit/harness/scenarios/99-actions.mjs:154 'census: every row of ACTIONS has a driver here and every driver a row'; :240 'flat: Find Stash and Find Passage at one below their number, at it ... and on a critical'; :321 'frisk: Palm's Frisk from p1 - Unseen ... Openly allowed, and forced'; README.md:233 (stage E39, ci). base/scenarios.log (the after-run, still going when read: 00 to 65 written, 68, 70, 72, 86, 99 not yet)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E39 promise 3 (holds yes)",
+   "claim": "tier 2 E39-T1 holds the one project entry's cases",
+   "verdict": "stands",
+   "why": "The test is at the cited line, its title lists the cases (null, +1, one crossing, renamed full bar, clamps, frozen refused, 0 written as 1) and it passed in the base run.",
+   "evidence": "scripts/tests-tier2.mjs:81096 \"the one entry's cases, one after another on fresh projects (E39-T1): no such project and an empty change answer null; a +1 moves the bar; ... a frozen bar's +1 is refused; a target of 0 asked is written as 1\". base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E39 promise 4 (holds yes)",
+   "claim": "tier 2 E35-T10 holds every TRANSFER_POLICY mode to a driven road",
+   "verdict": "stands",
+   "why": "The test is at the cited line and passed in the base run. The mutant counts are the paper's and not reproducible here (the reader says so).",
+   "evidence": "scripts/tests-tier2.mjs:78236 \"each owner change's refusal and result reach its asker in its own words: into full hands ...\". base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E39 promise 5 (holds yes)",
+   "claim": "68 part M: a move between the trial hall's zones runs no crossing step",
+   "verdict": "stands",
+   "why": "Part M reads the op log for the token's own update alone and scans the canary after it. Scenario 68's base-run result not yet written.",
+   "evidence": "audit/harness/scenarios/68-trial-zones.mjs:330 'begin(\"M\", \"a move between the zones is no crossing\")'; :380 'J(docOps) === J([\"p1 embedded-update Scene.Token\"])'; :384 'await canary.scan({ phase: \"M\" })'. base/scenarios.log (the after-run, still going when read: 00 to 65 written, 68, 70, 72, 86, 99 not yet)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E39 promise 7 (holds no)",
+   "claim": "Every put-back writes through putBackWrite with diff: false, every coordinate sent whatever the writer's copy holds - does not hold",
+   "verdict": "weakened",
+   "why": "The road half holds: R7741 holds the three put-backs to putBackWrite and passed, and the body is `{ ...options, diff: false }`. The 'sent' half was read sent on 14.370: L1's second probe recorded the GM's socket emitting modifyDocument with x 400, y 300 from a stale copy. What failed at the table is that the write did not land, and in the same probe the fresh-copy control failed too, so the stale copy was not shown to be the cause there; only the r5 run points at it. The headless tier-2 test is green. On this evidence the promise is 'partly' (road and send hold, landing on 14.370 unsettled), not 'no'.",
+   "evidence": "scripts/movement.mjs:3493-3495 `export function putBackWrite(tokenDoc, to, options = {}) { return tokenDoc.update(to, { ...options, diff: false }); }`; audit/findings-1.2.118/live-readings-e58-delta.json readings[17] (item 650): 'the GM's socket emitted `modifyDocument` with x 400, y 300 in both runs ... The 'fresh' control failed as well ... so a copy out of step is not what stops it here'; readings[19]: 'Whether the client sends it ... and the server refuses it, or the client drops it, is not read'. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7741 pass; 'a put-back writes every coordinate it names ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E39 promise 8 (holds yes)",
+   "claim": "A route of one update judged leg by leg and charged room by room",
+   "verdict": "stands",
+   "why": "roomsAlong and routeLegs are at the cited places; R7740 (registry stamp E118) passed; 70-movement's route checks drive it. The drag by mouse is LIVE-E39-11, unread, as the reader says.",
+   "evidence": "scripts/movement.mjs:3236 `export function roomsAlong(points, roomOf)`; :3263 `function routeLegs(tokenDoc, options, end, from, to, here, there)`; audit/harness/scenarios/70-movement.mjs:155 'route: Aiko's one move from E39 A through E39 B to E39 C ... takes two actions'; docs/dev/R-REGISTRY.md:1743 '| R7740 | 1 | E118 |'. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7740 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E39-1 (minor)",
+   "claim": "putBackWrite's promise did not hold on 14.370 for a copy out of step; a vetoed crossing can stay past the veto",
+   "verdict": "weakened",
+   "why": "The cited code and test are right, and movement.mjs is the same on L1's tree. But the reading the finding calls 'measured' is mixed: the client did send both coordinates, the fresh-copy control also failed in that probe, and the race was staged with updateSource. The failure_scenario (in play, the token past the veto on every browser) is not read at all - LIVE-E39-12 part 3 is open. By BRIEF.md, a road read in part is 'suspected'. The severity can stay minor if confirmed; until then it is a question for L1, not a measured defect.",
+   "evidence": "live-readings-e58-delta.json readings[8] outcome 'mixed'; readings[17] outcome 'mixed', 'the cause \"not read\"'; readings[19] 'whether the race happens at a real table (item 650 part 3) is not read'; scripts/movement.mjs:3484-3491 header 'every coordinate it names sent whatever the copy holds'.",
+   "severity_after": "minor, confidence suspected (the cause and the race in play unread)",
+   "grade_after": null
+  },
+  {
+   "ref": "E39 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "weakened",
+   "why": "The number holds but the reasons do not reach it by 11.4: with promise 7 marked 'no' (contradicted at a table) the scale's row is 6 ('one promise not delivered'), not 7. With promise 7 read as 'partly' (above), the stage has two promises in part (the shim, the put-back) and no major, which the 7 row allows ('several minor or one promise in part'). The base run now shows every named tier-2 and tier-0/1 test green; scenarios 70 and 99 were not yet written. The cap of 9 and 'provisional' stand.",
+   "evidence": "audit/AUDIT-1.2.42.md 11.4: '| 7 | ... kilka `minor` albo jedna obietnica dowieziona w części |', '| 6 | jedno `major` | jedna obietnica niedowieziona albo zepsuta przez późniejszy etap |'; stages-26.json E39 grade_reasons 'One promise of the shipped part is contradicted at a table ... By 11.4 one promise in part sets 7'.",
+   "severity_after": null,
+   "grade_after": "7 (on promises 6 and 7 both partly; provisional after L1)"
+  },
+  {
+   "ref": "E40 promise 1 (holds yes)",
+   "claim": "DC36: a wrong verdict sentences and kills nobody; the close executes once and stamps executedAt",
+   "verdict": "stands",
+   "why": "E40-T1 is at the cited line, reads the actor alive after the verdict and dead after the close, and passed; 18-trial (94/94) drives the same road.",
+   "evidence": "scripts/tests-tier2.mjs:27861 \"the verdict sentences but kills nobody; the condemned dies when the trial closes (E40-T1, DC36)\". base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): pass. base/scenarios.log 'green 18-trial 41.6 s 94/94 passed'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E40 promise 2 (holds yes)",
+   "claim": "checkState: pure stateProblems, a GM-only reader, run at the primary GM's ready and after every scenario",
+   "verdict": "stands",
+   "why": "The reader answers null off a GM, the ready call is gated on the primary, the cluster runs it after every scenario but a probe or a throw, and R5100 passed.",
+   "evidence": "scripts/state-check.mjs:113-118 `export function checkState({ quiet = false, gm = game.user?.isGM === true } = {}) { if (!gm) return null;`; scripts/module.mjs:416 `if (isPrimaryGm()) import(\"./state-check.mjs\").then(m => m.checkState())`; audit/harness/cluster.mjs:1265-1266 'check(`state: the world's invariants hold after the scenario ...`'; scripts/api.mjs:81, :1181. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R5100 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E40 promise 3 (holds yes)",
+   "claim": "The phase x action matrix: tile and press agree on every ACTIONS key in every locking phase; the floor's modes a dimension",
+   "verdict": "stands",
+   "why": "Both the tile and the press ask allowedNow; E40-T3 and E40-T7 are at the cited lines and passed.",
+   "evidence": "scripts/sheet-actions.mjs:1279 `const now = allowedNow(actor, key, { facts: { eclipse: () => eclipse, ...`; scripts/action-rolls.mjs:208 `const now = allowedNow(actor, actionKey, { facts: fightNow });`; tests-tier2.mjs:50519 (E40-T3), :50830 (E40-T7). base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): both pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E40 promise 4 (holds yes)",
+   "claim": "One shared allowed-now rule, a road a row, each caller asking it",
+   "verdict": "stands",
+   "why": "Every caller the reader lists asks allowedNow with its road (grep of scripts/ outside the tests); E40-T4 and E40-T6 passed.",
+   "evidence": "scripts/allowed-now.mjs:48 `export const ROADS = Object.freeze({`, :133 `export function allowedNow(actor, key, { road = \"action\", facts = {} } = {})`; calls.mjs:67 `road: despair ? \"callDespair\" : \"callHope\"`; handover.mjs:49 `road: \"handover\"`; inventory.mjs:1102 `road: \"transfer\"`; passages-gm.mjs:2114 `road: \"passageShare\"`, :2400 `road: \"passageFind\"`; bridge-guards.mjs:707 `road: \"proposal\"`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): E40-T4, E40-T6 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E40 promise 5 (holds yes)",
+   "claim": "18-trial: the trial on the doing browsers with world and chat scans after every step, and its later parts",
+   "verdict": "stands",
+   "why": "The register row lists each part the promise names, and the scenario is green in the base run's after-run.",
+   "evidence": "audit/harness/README.md:181 '| 18 | scenarios/18-trial.mjs | ci | exists | E40 | ... a GM's reload in the vote ... a reset of the incident group during Chie's suicide ... the verdict window's preselection'; base/scenarios.log 'green 18-trial 41.6 s 94/94 passed, 0 expected red, 0 failed'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E40 promise 6 (holds yes)",
+   "claim": "Two accused, each on a tick; a wrong verdict executes exactly the ticked; none ticked, no verdict",
+   "verdict": "stands",
+   "why": "R7601-R7603 and E40-T8 passed. The reader's own caveat (the window's call round verdictAnswer read, its mutant survived) is a reason to count the promise as held partly by reading, which the grade already does.",
+   "evidence": "scripts/tests-tier1.mjs:7815 'R7601 - two accused students living at the table are offered one tick each'; tests-tier2.mjs:27460 'E40-T8 - two accused, each on their own: ... holds the wrong verdict off with none ticked'. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7601, R7602, R7603, E40-T8 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E40 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "refuted",
+   "why": "11.4 gives 8 only when every promise is delivered ('obietnice dowiezione'), one holding by code reading or with a minor. The reader marks promise 9 (the 12-rule mutation run into the release gate) 'partly', and the paper confirms the gate half was not done; that is the 7 row ('one promise delivered in part'). The reader applies exactly this rule to E39 and E53 ('one promise in part sets 7') and not here. Promises 7 and 8 are also unread, which gives no ground to go above 7. Every named test is green in the base run, which does not lift a promise in part.",
+   "evidence": "docs/dev/e40/STATUS.md:70 'Into the release gate: the gate's wiring is tools/stages.json's and .github's, which this line does not touch'; :254 'Into the release gate: not done'; .github/release-notes/v1.2.117.md:162-163 'the 12-rule mutation run is recorded ... but is in no gate, and no mutation runner is in the repository'; AUDIT-1.2.42.md 11.4 rows 8 and 7.",
+   "severity_after": null,
+   "grade_after": "7 (provisional after L1)"
+  },
+  {
+   "ref": "E43 promise 1 (holds yes)",
+   "claim": "game.drpg.diagnoseSecrets() and diagnoseTraps(), the latter GM only",
+   "verdict": "stands",
+   "why": "Both are on the api object, the traps one answers null and warns off a GM; R5200 passed.",
+   "evidence": "scripts/api.mjs:1262-1263 `diagnoseSecrets: () => import(\"./secret.mjs\")...`, `diagnoseTraps: () => game.user.isGM ? ... : (ui.notifications.warn(...), null)`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R5200 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 2 (holds yes)",
+   "claim": "The voice plan grouped by where each account is sent; contestedOf names no false conflict",
+   "verdict": "stands",
+   "why": "Functions at the cited lines; R5201 and R5202 passed.",
+   "evidence": "scripts/voice.mjs:940 `export function contestedOf(claims)`, :2475 `export async function voicePlan({ toChat = false, targets } = {})`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R5201, R5202 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 3 (holds yes)",
+   "claim": "One registry of the GM-only fields, registered by the owning files",
+   "verdict": "stands",
+   "why": "registerSecretFields and SECRET_FIELDS are in gm-store.mjs; R5203 (tier 0, a census, as the reader says) passed.",
+   "evidence": "scripts/gm-store.mjs:103 `export function registerSecretFields(owner, fields)`, :108 `export const SECRET_FIELDS = Object.freeze({`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R5203 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 4 (holds yes)",
+   "claim": "The fuzz: every request of the four tables in six shapes from a player's console, each refused with a closed-list code, nothing written",
+   "verdict": "stands",
+   "why": "Scenario 30 is green in the after-run (2 expected red, 0 failed), and L1 read the fuzz on 14.370 (LIVE-E43-01) with each refusal coded.",
+   "evidence": "base/scenarios.log 'green 30-security 513.6 s 302/304 passed, 2 expected red, 0 failed'; docs/dev/e58/LOCAL-REPORT.md:400 'LIVE-E43-01 (534), the fuzz on v14 | measured | ... scenario 30's four checks, all pass'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 5 (holds yes)",
+   "claim": "The hostile-client matrix with delivery proven on the GM first",
+   "verdict": "stands",
+   "why": "Scenario 33 is green in the after-run. Never run on v14, as the reader notes; that is a cap, not a refutation.",
+   "evidence": "base/scenarios.log 'green 33-bridge-paths 200.8 s 89/90 passed, 1 expected red, 0 failed'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 6 (holds yes)",
+   "claim": "The README chapter on what a console always sees, read against the code and known-leaks.json",
+   "verdict": "stands",
+   "why": "The chapter is at README.md:308, and the canary's readme check holds each known leak to its marked paragraph (S17-64's at :283). That 'each sentence was read against the code' is the paper's word and is not re-checkable from source; the shipped part holds.",
+   "evidence": "README.md:308 '**What a player with a console always sees.**'; README.md:283 '<!-- leak:S17-64 -->'; audit/harness/lib/canary.mjs:379 'what stays needs its paragraph in README.md, marked <!-- leak:${e.id} -->'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 7 (holds yes)",
+   "claim": "Open 96: a project's card opened while unknown turns into it on discovery",
+   "verdict": "stands",
+   "why": "R5204 passed, and LIVE-E43-03 was read as expected on 14.370 in both themes and languages.",
+   "evidence": "scripts/tests-tier1.mjs:61405 'R5204 - a project's card opened while its project was unknown turns into the project's'; LOCAL-REPORT.md:402 'the card redraws as the project's ... without reopening - in all four of Stained Glass and Monokuma Legacy, English and Polish'. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R5204 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 8 (holds yes)",
+   "claim": "Open 103 and the season canary: the sight copy, 72 walking a chapter's end, a second chapter and the reset with every marker scanned, the Mask's cards veiled",
+   "verdict": "weakened",
+   "why": "E43-T1 (the Mask's cards) passed. But the promise's canary half is not met as written: the 1.2.117 notes list as an open part of E43's Done-when that the canary plants no closingClaims, diveSets, claimTicket or passage* keys, so 'every marker scanned' scans markers that were never seeded for those secrets. The reader's own note and grade_reasons say this promise 'holds in part'; it should be marked 'partly'. Scenario 72's base-run result was not yet written.",
+   "evidence": ".github/release-notes/v1.2.117.md:165-168 '**E43's plan, open parts of its \"Done when\"** ... the canary plants no closingClaims, diveSets, claimTicket or `passage*` keys'; stages-26.json E43 grade_reasons 'One promise holds in part: the canary does not seed every secret key the plan names'. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): E43-T1 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 9 (holds yes)",
+   "claim": "projectLabel(id, user) and a sealed repair's end card named to each reader",
+   "verdict": "stands",
+   "why": "nameAs and labelFor are at the cited lines; R7541 passed. 72-canary's result not yet written.",
+   "evidence": "scripts/projects-secrecy.mjs:168 `export function nameAs(countdownId, user = game.user, ...)`, :187 `export function labelFor({ name = \"\", secret = false, ...`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7541 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 promise 10 (holds yes)",
+   "claim": "A project's room scene: a GM's pick where several scenes hold the room, else the proposer's token; a completed project's room action says why; clock set back",
+   "verdict": "stands",
+   "why": "The functions are at the cited lines; R7641-R7644 passed.",
+   "evidence": "scripts/projects.mjs:148 `export function projectSceneRule(`, :190 `detectedSceneFor`, :232 `roomSceneChoices`; scripts/facilities.mjs:193 `facilityState`, :211 `completionAfterClockBack`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7641, R7642, R7643, R7644 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E43 grade",
+   "claim": "8, provisional",
+   "verdict": "weakened",
+   "why": "The reasons say 'One promise holds in part' (the canary's seeding) while every promise is marked 'yes'; with that promise marked 'partly', as above, 11.4's row is 7, the same rule the reader applies to E39 and E53. The matrix never run on v14 keeps the cap of 9 and the provisional mark. The base run now shows R5200-R5204, R7541, R7641-R7644, E43-T1 and scenarios 30 and 33 green; that does not lift a promise in part.",
+   "evidence": "stages-26.json E43 grade_reasons 'One promise holds in part: the canary does not seed every secret key the plan names, and the matrix has never run on v14 ... 8 by 11.4'; AUDIT-1.2.42.md 11.4 '| 7 | ... albo jedna obietnica dowieziona w części |'.",
+   "severity_after": null,
+   "grade_after": "7 (provisional after L1)"
+  },
+  {
+   "ref": "E53 promise 1 (holds yes)",
+   "claim": "perf() prints each cost with count, p50, p95 and 'none since this browser loaded'",
+   "verdict": "stands",
+   "why": "costLines and perfReport are at the cited lines with the 'none since' line; R7540 passed. 86-frame-work's result not yet written; the table's numbers are LIVE-E53-01, as the reader says.",
+   "evidence": "scripts/diagnostics.mjs:1654 `export function costLines(`, :1658 `if (!s?.n) return `  ${label}: none since this browser loaded`;`, :1749 `export async function perfReport({ frames = 60 } = {})`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7540 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E53 promise 3 (holds yes)",
+   "claim": "The balance log: off by default, recording only, on the primary after each drawn roll; exact count over 144 throws; backed up and in no reset group",
+   "verdict": "stands",
+   "why": "The store row is backup: true with no reset group and its comment says why; roll-draw.mjs calls noteBalanceRoll after the record; R7542 and E53-T1 passed.",
+   "evidence": "scripts/gm-stores.mjs:1705-1710 'In the case's backup; no reset group' `defineGmStore({ name: \"balanceLog\", key: SETTINGS.gmBalanceLog, kind: \"ledger\", backup: true, sync: true })`; scripts/roll-draw.mjs:1762 `await noteBalanceRoll(rollStore.get(rollId));`; balance-log.mjs:93 `export function exactCount(`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7542, E53-T1 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E53 promise 4 (holds yes)",
+   "claim": "projectLabel(id, user)",
+   "verdict": "stands",
+   "why": "As E43 promise 9; R7541 passed.",
+   "evidence": "scripts/projects-secrecy.mjs:187 `export function labelFor(`. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7541 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E53 promise 5 (holds yes)",
+   "claim": "P2: a project action's use limit per character; P1: a secret project's room action reaches an insider through the sight copy",
+   "verdict": "stands",
+   "why": "R7543 passed and its title states the limits; scenario 99's facilities part not yet in the after-run.",
+   "evidence": "scripts/tests-tier1.mjs:62793 'R7543 - a project action's use limit (P2, the owner 15.11.2026: per character; no limit, once each time of day, once each day ...)'. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7543 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E53 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "stands",
+   "why": "Two promises in part (the budget with every threshold null and no run, and the revision for the shipped version), no major; 11.4's 7 row fits, capped and provisional for LIVE-E53-01 and LIVE-E33-05. Nothing found that goes lower: the budget's nulls are the owner's and coordinator's decision, recorded. The named tests are green in the base run.",
+   "evidence": "stages-26.json E53 promise 2 note 'every threshold is null by the coordinator's word until L1 has measured'; base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R7540, R7542, R7543, E53-T1 pass.",
+   "severity_after": null,
+   "grade_after": "7 (provisional after L1)"
+  },
+  {
+   "ref": "E58 promise 2 (holds no)",
+   "claim": "The local gate's eight parts run on a v14 sandbox, or written as not run with the real error",
+   "verdict": "stands",
+   "why": "local-gate.json holds eight parts, each not-run with reason no-server, bound to ec1478d5 (1.2.118's release commit); that is the very state plan-114/ADDED.md names as E58's starting point, not a sandbox run or a real error read there.",
+   "evidence": "audit/gate/local-gate.json: commit ec1478d5..., parts 0-7 each ('not-run', 'no-server'); docs/dev/plan-114/ADDED.md:17 '| The local gate's parts not run ... | **E58** | 8 parts, each `not-run`, reason `no-server` | Each part has run on a v14 sandbox, or is written as not run with the real error |'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E58 promise 3 (holds no)",
+   "claim": "Scenarios 16-first-run and 64-migration-drill",
+   "verdict": "stands",
+   "why": "Both register rows are 'planned', stage E58, and neither file exists in scenarios/.",
+   "evidence": "audit/harness/README.md:179 '| 16 | scenarios/16-first-run.mjs | local-gate | planned | E58 |'; :205 '| 64 | scenarios/64-migration-drill.mjs | local-gate | planned | E58 |'; ls audit/harness/scenarios: no 16-*, no 64-*.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E58 grade",
+   "claim": "not graded",
+   "verdict": "stands",
+   "why": "11.4 allows 'not graded' for a stage that cannot be graded from the repository; E58 has papers but no test bearing its stamp or name, and nothing of its own shipped beyond papers. The reader grades the other unshipped stages on what shipped; for E58 what shipped is evidence for other stages, so not grading it is consistent.",
+   "evidence": "AUDIT-1.2.42.md 11.4 'etap, którego nie dało się ocenić z repozytorium (brak papierów, brak testów z jego stemplem), dostaje \"nie oceniono\" z powodem'; .github/release-notes/v1.2.117.md:98-102 (E58: 33 of 565 rows measured, the gate's dry run every part not run).",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E83 grade",
+   "claim": "not graded",
+   "verdict": "stands",
+   "why": "No docs/dev/e83, no test stamped or named E83 but a tier-0 interface row, nothing shipped; the row is planned 1.2.119.",
+   "evidence": "tools/stages.json:108 '{\"id\": \"E83\", \"planned\": \"1.2.119\", \"with\": \"E58\", \"version\": null, ...}'; ls docs/dev: no e83.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E26 promise 1 (holds yes)",
+   "claim": "Every shipped font with its licence named and its text in fonts/",
+   "verdict": "stands",
+   "why": "fonts/ holds the three licence texts beside the woff2 files; R6300 passed and check (all 25 parts, fonts among them) was green in the base run's quick stage.",
+   "evidence": "fonts/: LICENSE-SpecialElite.txt, OFL-PressStart2P.txt, OFL-VT323.txt, README.md, pixel.woff2, pixel-ext.woff2 ...; audit/findings-1.2.118/base-run.json quick.check '25 part(s), all green'. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R6300 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E26 promise 2 (holds yes)",
+   "claim": "The modified Press Start 2P renamed DRPG Pixel in its name tables, glyphs byte-equal",
+   "verdict": "stands",
+   "why": "The stylesheet declares the face as 'DRPG Pixel'; check fonts, which reads each woff2's family name, was green in the base run. Glyph byte-equality is the paper's measurement and not re-read.",
+   "evidence": "styles/danganronpa.css:2737 'font-family: \"DRPG Pixel\";'; tools/check.mjs:818 'fonts: ... with a family name (...)'; base-run.json quick.check '25 part(s), all green'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E26 promise 3 (holds yes)",
+   "claim": "module.zip the same bytes on any git config; release.yml's archive pinned",
+   "verdict": "stands",
+   "why": "The workflow's step carries both -c options and its comment names check package as its guard; check package was green in the base run.",
+   "evidence": ".github/workflows/release.yml:209 'run: git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD'; base-run.json quick.check '25 part(s), all green'.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E26 promise 4 (holds yes)",
+   "claim": "module.json: no maximum anywhere, a verified Daggerheart no older than 2.10.5 and its minimum",
+   "verdict": "stands",
+   "why": "No 'maximum' in module.json; Daggerheart minimum 2.6.5, verified 2.12.9; R6301 passed.",
+   "evidence": "module.json:21-22 '\"minimum\": \"2.6.5\", \"verified\": \"2.12.9\"'; grep -ci maximum module.json: 0. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R6301 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E26 promise 6 (holds yes)",
+   "claim": "No Polish 'MG' where the glossary says 'GM'",
+   "verdict": "stands",
+   "why": "Zero whole-word MG in pl.json and both Polish handbooks today; the reader notes it was fixed by another line.",
+   "evidence": "grep -cow MG lang/pl.json docs/handbooks/gm-handbook.pl.md docs/handbooks/player-handbook.pl.md: 0, 0, 0.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E26 grade",
+   "claim": "9",
+   "verdict": "stands",
+   "why": "Each prep promise holds and the base run now shows R6300, R6301 and every check part green, which removes the reader's first reason for not 10. One nit remains (E26-1, the two LIVE-E26 ids not in 9.2: grep 0), which is 11.4's 9 row. Promise 5 (the README draft) is a draft by the owner's rule and delivered as written (STATUS C5 'done'), so it does not pull the grade down.",
+   "evidence": "docs/dev/e26/STATUS.md:12 '| README draft (docs/dev/e26/README-DRAFT.md): ... README.md not edited | done | C5 |'; :53 'LIVE-E26-01 (the plan)'; grep -c LIVE-E26 audit/AUDIT-1.2.42.md: 0. base run of this audit, read from this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 20.11.2026; merged 3387 passed, 1 failed (grid XI07 alone), 27 skipped): R6300, R6301 pass.",
+   "severity_after": null,
+   "grade_after": "9"
+  }
+ ],
+ "counts": {
+  "checked": 42,
+  "stands": 36,
+  "weakened": 5,
+  "refuted": 1
+ },
+ "not_established": [
+  {
+   "what": "The base-run results of scenarios 68, 70, 72, 86 and 99 (E39 promises 1, 2, 5, 8; E43 promises 8, 9; E53 promises 1, 5): the after-run had written 00 to 65 when read, so those promises stand on the scenarios' text, not their result.",
+   "l1": null
+  },
+  {
+   "what": "The suite results used here are the eight shard files in this session's scratchpad (base/shards/results-suite-1..8/01-runtests.json), with base-run.json's summary; every named test passed, none of them among the 27 skips.",
+   "l1": null
+  },
+  {
+   "what": "Whether the put-back from a copy out of step fails in play, and whether the client or the server drops it (E39-1, E39 promise 7): L1's probes are mixed and the fresh-copy control failed too.",
+   "l1": {
+    "what": "a put-back from a writer's copy one step behind, in play",
+    "recipe": [
+     "Two GM pages and one player on the 30099 sandbox",
+     "The player crosses into a refused room twice in quick succession so the second move is on its way when the first is put back",
+     "Read the token's x and y on the server (the other GM's page) and on the player's page 2 s after the put-back",
+     "Repeat once with the GM's copy in step as a control"
+    ],
+    "clients": "2 GMs, 1 player",
+    "theme": "default",
+    "settles_if": "the control lands and the stale case does not: E39-1 confirmed minor; both land: the finding falls; neither lands: the cause is not the stale copy",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "E40 promises 7 and 8 (the regex sort and settle -> until counts) and the mutant counts of E39, E40, E43 and E53 were not re-counted here either.",
+   "l1": null
+  }
+ ]
+}
