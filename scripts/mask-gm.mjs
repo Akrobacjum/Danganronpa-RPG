@@ -157,6 +157,17 @@ export function nameAsSeen(actor, { user = game.user, masked = null } = {}) {
     return actor.name ?? "";
 }
 
+/** Who stands behind a mask now, `[{ id, name }]` read off the masked tokens: secret.mjs keeps it with a GM's words (`hid`). */
+export function maskedNow({ scenes = game.scenes } = {}) {
+    const rows = new Map();
+    for (const scene of scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (!isMaskedToken(token)) continue;
+        const actor = token.actor ?? game.actors?.get?.(token.actorId ?? "");
+        if (actor?.id) rows.set(actor.id, { id: actor.id, name: actor.name ?? "" });
+    }
+    return [...rows.values()];
+}
+
 /** Whether any token on any scene is masked now (secret.mjs veils every card while one is: `setNameMask`'s `stands`). */
 export function anyMaskStands() {
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (isMaskedToken(token)) return true;
@@ -290,6 +301,8 @@ export async function endMask(killerId, why = "end") {
        incident closed, when postSecret no longer veils by itself (secret.mjs `incidentVeils`): this card went out spoken
        by the killer and addressed to the killer's player, and every browser holds every chat document - 72's "chapter
        end" read Chie's actor id, name and p3's user id on p1 and p2, the Blackened of a verdict that missed her. */
+    // A reveal: the name is no longer kept cut on the cards this GM holds (secret.mjs `forgetHeldMask`); any other end keeps it.
+    if (why === "reveal") await import("./secret.mjs").then(m => m.forgetHeldMask(killerId)).catch(err => error("Could not let the cards name a revealed killer", err));
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });
     log(`${killer?.name ?? killerId} is no longer behind a "?" (${why}).`);
     return true;
@@ -690,7 +703,7 @@ export function registerMasks() {
     Hooks.on("createToken", tokenDoc => { if (isPrimaryGm()) adoptToken(tokenDoc).catch(err => error("Could not mask or veil a new token", err)); });
     import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.
-    import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands })).catch(err => error("Could not hand the cards the masked names", err));
+    import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands, masked: maskedNow })).catch(err => error("Could not hand the cards the masked names", err));
     Hooks.on("refreshToken", token => {
         drawMaskName(token);
         if (!game.user?.isGM) noticeOwnMask();

@@ -17923,22 +17923,26 @@ const SCENARIOS = [
             return send.call(this, event, packet, options, ...rest);
         };
         const named = () => out.some(html => html.includes(killer.name));
-        const ask = card => { out.length = 0; S.answerWordsRequest({ action: "secret.request", ids: [card.id] }, reader.id); return [out.length > 0, named()]; };
+        const ask = (card, from = reader) => { out.length = 0; S.answerWordsRequest({ action: "secret.request", ids: [card.id] }, from.id); return [out.length > 0, named()]; };
+        // and the killer's own player, who reads their name throughout (a card is cut only for readers outside the mask)
+        const theirs = owner(killer);
         const popups = new Set(document.querySelectorAll(".drpg-popup"));
         const cards = [];
         const read = {};
         try {
             must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
             await settle();
-            const card = await S.postSecret({ content: `<p>E119B ${foundry.utils.escapeHTML(killer.name)} was seen</p>`, whisper: [reader.id, game.user.id] });
+            const card = await S.postSecret({ content: `<p>E119B ${foundry.utils.escapeHTML(killer.name)} was seen</p>`, whisper: [reader.id, theirs.id, game.user.id] });
             must(card, "the card was not posted - this would measure nothing");
             cards.push(card);
             read.masked = ask(card);
             await K.endMask(killer.id, "timeOfDay");
             await settle();
             read.ended = ask(card);
+            read.ownerEnded = ask(card, theirs);
             out.length = 0;
-            await S.updateSecret(card, `<p>E119B again ${foundry.utils.escapeHTML(killer.name)}</p>`);
+            // its readers named, as the callers that rewrite a card do (`settleCall`): the card was veiled while the mask stood
+            await S.updateSecret(card, `<p>E119B again ${foundry.utils.escapeHTML(killer.name)}</p>`, [reader.id, game.user.id]);
             await settle();
             read.rewritten = [out.length > 0, named()];
             must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the second mask did not go up - this would measure nothing");
@@ -17958,8 +17962,8 @@ const SCENARIOS = [
             putBackStored(stored);
             await settle();
         }
-        equal(stableJson(read), stableJson({ masked: [true, false], ended: [true, false], rewritten: [true, false], revealed: [true, true] }),
-            "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the card rewritten after; a card under a mask the killer revealed)");
+        equal(stableJson(read), stableJson({ masked: [true, false], ended: [true, false], ownerEnded: [true, true], rewritten: [true, false], revealed: [true, true] }),
+            "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
     }],
 
     ["E112 - the masks end before the Class Trial is entered, a token copied from a masked one without its flag is not kept as \"?\", and the hall's own tokens go at the trial's exit", async () => {
