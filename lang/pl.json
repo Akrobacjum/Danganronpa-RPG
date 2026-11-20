@@ -2467,7 +2467,12 @@
       "file": "Plik",
       "rowButtons": "Sprawdź lub wyczyść",
       "notAssigned": "jeszcze nie przypisano",
-      "severalHint": "Jeden plik albo kilka rozdzielonych znakiem „|”; każde odtworzenie losuje jeden, nigdy ten sam dwa razy z rzędu.",
+      "severalHint": "Każdy plik dodany tutaj albo przyciskiem Wybierz dołącza do plików tego zdarzenia. Każde odtworzenie losuje jeden, nigdy ten sam dwa razy z rzędu.",
+      "addFile": "Dodaj plik: ścieżka albo link",
+      "showFiles": "Pokaż albo ukryj pliki tego zdarzenia",
+      "filesOf": "Pliki zdarzenia {label}",
+      "playFile": "Odtwórz {name}",
+      "removeFile": "Usuń {name}",
       "fileCount": {
         "one": "{n} plik",
         "few": "{n} pliki",

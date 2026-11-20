@@ -3028,6 +3028,23 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
 /* the file box and its Choose in one line, inside the cell (a `td` given `display: flex` stops being a cell) */
 .application.drpg-window-sound .drpg-sound-file { display: flex; align-items: center; gap: 4px; }
 .application.drpg-window-sound .drpg-sound-file > input[type="text"] { flex: 1 1 0; min-width: 0; font-size: var(--drpg-text-sm); }
+/* AN EVENT'S FILES, ONE BY ONE (1.2.119; sfx.mjs `soundFilesHtml`): the "N files" chip is the one chip that is a click -
+   it unfolds the row's files under its box, its mark turning - and keeps the chip's look; each file a line of its name
+   (the path in its tooltip), Play and Remove. The name wraps rather than widen the column. */
+body .application.drpg-window-sound button.drpg-sound-chip.drpg-sound-files-toggle {
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0 0 0 6px;
+    background: transparent;
+    cursor: pointer;
+}
+.application.drpg-window-sound .drpg-sound-files-toggle::after { content: " \25B8"; }
+.application.drpg-window-sound .drpg-sound-files-toggle[aria-expanded="true"]::after { content: " \25BE"; }
+.application.drpg-window-sound .drpg-sound-files { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 0; list-style: none; }
+.application.drpg-window-sound .drpg-sound-files[hidden] { display: none; }
+.application.drpg-window-sound .drpg-sound-files-item { display: flex; align-items: center; gap: 4px; min-width: 0; margin: 0; }
+.application.drpg-window-sound .drpg-sound-files-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: var(--drpg-text-sm); }
 .application.drpg-window-sound .drpg-sound-act { display: flex; gap: 2px; justify-content: flex-end; }
 /* the Music tab's notes on the order, folded */
 .application.drpg-window-sound details.drpg-sound-order { margin: 0 0 8px; }

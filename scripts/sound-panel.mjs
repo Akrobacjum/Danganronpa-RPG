@@ -357,7 +357,7 @@ export async function openSoundDialog() {
     if (alreadyOpen("drpg-window-sound")) return RAISED;
 
     const { kitTabs, wireKitTabs, drpgWindow } = await import("./ui-kit.mjs");
-    const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
+    const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel, soundEffectsRegion, wireSoundRows } = await import("./sfx.mjs");
 
     if (!game.user.isGM) {
         await openPlayerSoundDialog({ drpgWindow, soundSlidersHtml, wireSoundPanel });
@@ -439,7 +439,8 @@ export async function openSoundDialog() {
              * THE MUSIC ROWS FOLLOW ANOTHER GM'S MAPPING (E44 C2b, 04.11.2026; the 27.10 amend: "keepLive for settings
              * is E44's", E50's STAGE). With the window open on two GMs, one's mapping left the other's select drawn
              * with the old playlist - true only until it was read. The rows are a region of their own, woken by the
-             * map's key alone: another key of the module, the Effects tab's `sfxMap` among them, redraws nothing here.
+             * map's key alone: another key of the module, the Effects tab's `sfxMap` among them, redraws nothing here
+             * (the Effects tab's own region follows `sfxMap`, below).
              * A select being chosen from holds the redraw (rule 1); a dirty select and a row's save marker are
              * carried across (rule 2); `after` wires the new selects, whose answer finds its marker in the window.
              */
@@ -448,6 +449,18 @@ export async function openSoundDialog() {
                 build: musicMapBody,
                 watch: { settings: [SETTINGS.musicMap] },
                 after: next => wireMusicMap(next, dialog.element)
+            });
+            /*
+             * THE EFFECTS ROWS FOLLOW THE MAP (1.2.119; the owner's standing rule: "Zawsze odswiezamy okna od razu przy
+             * zmianie"): a file added or removed on a row - by this GM, or another GM with the window open - redraws the
+             * table in place, its open lists kept (sfx.mjs `openFileLists`), a box being typed in holding the redraw (rule
+             * 1). Until then the tab followed nothing and a row's chip kept its old count until the window was opened again.
+             */
+            keepLive(dialog, {
+                region: "[data-drpg-sfx-region]",
+                build: soundEffectsRegion,
+                watch: { settings: [SETTINGS.sfxMap] },
+                after: next => wireSoundRows(next)
             });
         },
         rejectClose: false
