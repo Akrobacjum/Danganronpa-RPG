@@ -78,3 +78,13 @@ The base run: the first session's `npm test` beside ten readers timed out in 01-
 started 19:20Z, gave lint (418 files, 0 problems), check (25 parts, all green) and the gate's self-test (37/37) and
 was stopped in the suite; the suite now runs as CI runs it, in eight shards one at a time, then `suite-merge.mjs`,
 then the `ci` scenarios one at a time, then probes 42 and 43.
+
+## Stan końcowy (20.11.2026, ~22:40Z)
+
+All the planned readers have written their files and every file has been through its refuter (`verify-*.json`,
+`verify-first-session/`). The report is `audit/AUDIT-1.2.42.md` part I, sections 10-18 (14959453 and after). Beside
+the reader files: `BRIEF.md` (the readers' brief), `DECISIONS.md` (the owner's calls D-A1..D-A4), `ROUTING.md` (what
+the coordinator says is already being fixed for 1.2.119), `lines-119.json` (the audit's own reading of the 1.2.119
+diffs), `base-run.json` (the base run), `INDEX.json` (each report ID -> its reader file, its own id, severity and
+verdict), `L1-HANDOFF.md` (523 table checks for line L1, by priority), `verify-mask-urgent.json` and
+`verify-urgent-2.json` (the identity findings checked first).
