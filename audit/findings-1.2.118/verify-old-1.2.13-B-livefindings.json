@@ -1,0 +1,416 @@
+{
+  "refuter": "verify-old-1.2.13-B-livefindings",
+  "of": "old-1.2.13-B-livefindings",
+  "checked": [
+    {
+      "ref": "Q1",
+      "claim": "fixed: fog mipmaps off, the contradicting 'answer to minification' comment gone",
+      "verdict": "stands",
+      "why": "Every mipmap write in scripts/ is OFF; no comment says mipmaps are the answer; the 'MIPMAPS OFF' block explains why.",
+      "evidence": "scripts/fog.mjs:3558 '* MIPMAPS OFF, AND THIS IS THE SECOND TIME THEY HAVE BEEN THE'; :3575 'mipmap: PIXI.MIPMAP_MODES.OFF'; :3603 'base.mipmap = PIXI.MIPMAP_MODES.OFF;'; grep 'answer to minification' over scripts/: 0 hits",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q2",
+      "claim": "fixed: chapter.mjs header says the sweep is a GM button, not a session trigger",
+      "verdict": "stands",
+      "why": "Header matches; callers of sweepTruthBullets are investigation.mjs:398, chapter.mjs:657 (the chapter end's ticked box) and api.mjs; none on a clock or session hook.",
+      "evidence": "scripts/chapter.mjs:16-17 'here it is a button in the Investigation Dashboard and the session counter does not touch it'; scripts/investigation.mjs:398 'const { removed } = await sweepTruthBullets({ actors });'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q3",
+      "claim": "fixed: the death texts and comments now say items stay on the body and only Truth Bullets die",
+      "verdict": "refuted",
+      "why": "The language texts are fixed, but the decision also asked for the comments, and three comments on b5a29e73 still say the death destroys the inventory: the API's JSDoc on killCharacter and reviveCharacter, and the Students window's header. killCharacter's own comment says 'The belongings stay either way', so the comments contradict the code. The reader's grep looked only for keepItems/itemsGone keys.",
+      "evidence": "scripts/api.mjs:830 '/** D1 in one procedure: inventory and Truth Bullets destroyed, body marked. */'; scripts/api.mjs:833 '/** Un-mark a mis-click. Does NOT bring the destroyed inventory back. */'; scripts/gm-students.mjs:51-52 '`openDeathDialog` for that one character, with the warning about the inventory it destroys.'; against scripts/death.mjs:156-157 'The belongings stay either way.'",
+      "status_after": "partly",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "Q4",
+      "claim": "fixed: usable limit 3, gear 2 (one stowed), comments agree",
+      "verdict": "stands",
+      "why": "Numbers and comments agree; config.mjs:944 'Usables still cap at three of their own' is now true (usable limit 3); sheet-sidebar.mjs:1175 is dated history; player brochure says 3 usables, 2 gear slots.",
+      "evidence": "scripts/config.mjs:672 'limit: 3,'; :964 'limit: 2,'; :977 'maxStowed: 1'; scripts/inventory.mjs:658-659 'two between the weapons, the cleaning tools and the tools'; docs/handbooks/player-brochure.en.md:62 '**3 usables**; **2 gear slots**'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q5",
+      "claim": "fixed: Motive costs 6 and no comment calls it nine",
+      "verdict": "stands",
+      "why": "Comment and code agree; the New Rule comment dates the old nine.",
+      "evidence": "scripts/config.mjs:2898 'SIX, and it began at nine (E24, 31.08)'; :2910 'label: \"Motive\", icon: \"fa-envelope\", cost: 6'; :2919 'at nine beside it then, six since E24'; grep 'nine-point': 0 hits",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q6",
+      "claim": "fixed: Relief price comments agree with cost 4",
+      "verdict": "stands",
+      "why": "Read the Sprint, Burst and Relief comments: every present-tense price is 4, older ones are dated.",
+      "evidence": "scripts/config.mjs:2413 'PRICES, AS THEY STAND: Sprint 2, Burst 4, Relief 4'; :2473 'FOUR (D10d), and it went up to get here.'; :2489 'label: \"Relief\", icon: \"fa-mug-hot\", cost: 4'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q7",
+      "claim": "fixed: the 'nothing reads a tie yet' comment is gone, ties are read",
+      "verdict": "stands",
+      "why": "No tie/tied word in TRIAL (config.mjs:4289-4439, scanned); the count computes tied and the verdict prints the note.",
+      "evidence": "scripts/vote.mjs:1010 'const tied = accused.length > want || noMajority;'; scripts/verdict.mjs:208 'game.i18n.localize(\"DRPG.Vote.tiedVerdictNote\")'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q8",
+      "claim": "fixed: hud.mjs header places the HUD in #ui-left-column-1",
+      "verdict": "stands",
+      "why": "Header and the host chain agree (narrowColumn first on a narrow screen, then the left column, then fallbacks).",
+      "evidence": "scripts/hud.mjs:5-6 'This renders it into `#ui-left-column-1`, above the GM launcher'; :431-434 'document.querySelector(\"#ui-left-column-1\") ?? document.querySelector(\"#ui-top\") ?? document.querySelector(\"#ui-middle\")'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q9",
+      "claim": "partly: the trail is token.ruler (confirmed in a sandbox), the second seat's view of a drag unread",
+      "verdict": "stands",
+      "why": "One name, no guesses, no SPIKE comment; the file itself says the second-seat reading remains. No LIVE-E116-01/02 row in the live readings.",
+      "evidence": "scripts/visibility.mjs:911 'CONFIRMED ON 14.365 (sandbox, 03.09; audit Q9): the trail is `token.ruler`'; :919-921 'One drag at the table, watched from a second seat, is what remains.'; :1013-1015 'const trail = token.ruler;'",
+      "status_after": "partly",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "Q10",
+      "claim": "fixed: lockPlayerResources hint says Health and Sanity are locked for a player",
+      "verdict": "stands",
+      "why": "en and pl hints both name Health and Sanity as put back; readers at resource-guard.mjs:146/186 and sheet-mode.mjs:111.",
+      "evidence": "lang/en.json DRPG.Settings.lockPlayerResources.hint 'A player's own edit of their Actions, Hope, Health, Sanity, or statistics is put back or flagged to the GMs'; scripts/sheet-mode.mjs:111 'return !game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q11",
+      "claim": "fixed: enforceAnonymity hint no longer says ownership None",
+      "verdict": "stands",
+      "why": "Hint describes the censored sheet; revealSourceOf and myRemnantRefs exist and are called.",
+      "evidence": "lang/en.json DRPG.Settings.enforceAnonymity.hint 'Another player's sheet shows only their name, portrait, Ultimate, Health, what they hold'; scripts/truth-bullets.mjs:590 'async function revealSourceOf(sceneId, remnantId) {', :787; scripts/visibility.mjs:716",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q12",
+      "claim": "partly: PROJECT_ITEMS removed; the three project items are in no module handbook",
+      "verdict": "stands",
+      "why": "The audit's question asked to 'zapisać w handbooku' and the decision says 'zostają regułą handbooka'; no handbook names them (grep), only the code comment does. The reader's ambiguity note is fair.",
+      "evidence": "scripts/tables-pools.mjs:667-671 'Sleeping draught, Lethal poison, Gift ... the rule lives where the rest of the guide's unimplemented content lives - the handbook'; audit/AUDIT-1.2.13.md:744 'trzy przedmioty projektowe zostają regułą handbooka'; grep -i 'poison|draught|gift' docs/handbooks/*.md: only the planted-item trap lines",
+      "status_after": "partly",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "Q13",
+      "claim": "fixed: retuneRemnant no longer renames the token",
+      "verdict": "stands",
+      "why": "Read the GM branch: the only token write is the delete on remove; the rest is the ledger.",
+      "evidence": "scripts/remnants.mjs:2528 'await token.delete();'; :2541-2542 'There used to be a token rename above this'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q14",
+      "claim": "fixed: modes debate/objection/rebuttal (and later ones), no Floor.mode.discussion, old word migrated",
+      "verdict": "stands",
+      "why": "Both language files carry nine mode keys, none 'discussion'; the migration reads an old floor as debate; 'discussion' elsewhere (events.mjs:500, hud.mjs:1145) means no floor, as decided.",
+      "evidence": "scripts/floor-machine.mjs:35 'export const MODES = Object.freeze({ debate: \"debate\", objection: \"objection\", rebuttal: \"rebuttal\"'; scripts/trial-floor.mjs:338 'mode: stored.mode === \"discussion\" ? FLOOR_MODES.debate'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q15",
+      "claim": "fixed: no long dash or &mdash; in the module's code and texts",
+      "verdict": "stands",
+      "why": "git grep over scripts, lang, styles, module.json, README, CHANGELOG and the handbooks: one hit, the text lint's planted fixture.",
+      "evidence": "scripts/tests-text.mjs:3155 'An &mdash; entity\\n\" }   // lines 2, 3 and 5 flagged'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q16",
+      "claim": "partly (major): murderState holds only active and stage; the veil's token flag still names the killer's tokens to a console",
+      "verdict": "weakened",
+      "why": "The status holds: world-secrets.mjs allows only active/stage, and the veil's flag is readable on every browser. The severity 'major' is not confirmed: the flag is a declared known leak of severity 'info' in audit/harness/known-leaks.json, written into the README as a Foundry limit, and the release notes of 1.2.116-1.2.118 record it; whether that recorded acceptance makes it a by-decision item rather than a major finding is the first-session file's question, not settled here.",
+      "evidence": "scripts/world-secrets.mjs:140-141 'murderState: Object.freeze({ only: Object.freeze([\"active\", \"stage\"]),'; scripts/mask-gm.mjs:424-425 'export function veilPatch() { return { [`flags.${MODULE_ID}.${VEIL_FLAG}`]: true };'; audit/harness/known-leaks.json:136-139 '\"id\": \"foundry-veiled-token-actor\" ... \"severity\": \"info\"'; README.md:303-305 'so a console can tell which tokens they are and whose. <!-- leak:foundry-veiled-token-actor -->'",
+      "status_after": "partly",
+      "severity_after": "not established (major per first-session file; info per known-leaks.json)"
+    },
+    {
+      "ref": "Q17",
+      "claim": "fixed: the empty block in clock.mjs is gone",
+      "verdict": "stands",
+      "why": "The reader did not re-read; I did: no 'before.session' block, and a scan of clock.mjs for a block holding only comments finds none.",
+      "evidence": "grep -n 'session > before.session|before\\.session' scripts/clock.mjs: 0 hits; python scan for '{ comment-only }' over scripts/clock.mjs: 0 hits",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "Q18",
+      "claim": "obsolete: the archive of four dashes in audit/harness/results is gone",
+      "verdict": "stands",
+      "why": "git ls-files audit/harness/results lists nothing and git log of the path is empty in this clone; the folder holds only an empty untracked log now (0 bytes).",
+      "evidence": "git ls-files audit/harness/results: (no output); git log --oneline -- audit/harness/results: (no output)",
+      "status_after": "obsolete",
+      "severity_after": "none"
+    },
+    {
+      "ref": "LF-SUITE",
+      "claim": "obsolete: the 102/9 accounting of 1.1.88 no longer describes the suite",
+      "verdict": "stands",
+      "why": "LIVE-002 was withdrawn as a harness fault; skips are now probes held to skip-baseline.json; the old report was inconsistent with itself (147 vs 111). The confidence 'measured' is generous (the reader's evidence is K plus others' F), but the status holds.",
+      "evidence": "audit/AUDIT-1.1.88.md:53 '**102 passed / 9 failed**'; :18 '(147 scenariuszy)'; :204-205 'LIVE-002 ... withdrawn, it was a false positive of the harness'; audit/harness/skip-baseline.json exists",
+      "status_after": "obsolete",
+      "severity_after": "none"
+    },
+    {
+      "ref": "LF-R9",
+      "claim": "fixed: R9's rule now covers murderState (only active and stage) and more answer-key names",
+      "verdict": "stands",
+      "why": "R9 applies the world-secrets rules to every module world setting; murderState allows two fields.",
+      "evidence": "scripts/tests-tier0.mjs:1446 '[\"R9 - nothing the investigation depends on is in a world setting\"'; scripts/world-secrets.mjs:147 'fields: Object.freeze([\"sourceActor\", \"realType\", \"pointsAt\", \"dc\", \"tiedToCrime\", \"analysis\", \"analyzedText\", \"note\", \"tokenId\", \"leftBy\"])'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "LF-DEATH",
+      "claim": "partly: the Finishing Blow kills; the death now reaches a player only when made public, by design",
+      "verdict": "stands",
+      "why": "Scenario checks match; the only writers of the dead flag and the dead status are in markDeceased, which returns on a non-GM.",
+      "evidence": "audit/harness/scenarios/10-murder.mjs:193 'kill.dead === true && kill.flag === false && kill.stage === \"resolution\"'; :197 'p1: the death is not on p1's client before the body is found'; scripts/death.mjs:87 'await actor.setFlag(MODULE_ID, FLAGS.deceased, record);', :97 'await actor.toggleStatusEffect(\"dead\", { active: true, overlay: true });'",
+      "status_after": "partly",
+      "severity_after": "none"
+    },
+    {
+      "ref": "LF-REMNANT",
+      "claim": "fixed: a trace token's name and flags give nothing away",
+      "verdict": "stands",
+      "why": "placeRemnant names the token by traceLabel(null), tints it neutral, and writes only isRemnant and fromIncident flags; the full label goes to the ledger.",
+      "evidence": "scripts/remnants.mjs:463 'const publicName = traceLabel(null);'; :486 'name: publicName,'; :505 'texture: { src: ICON, tint: TINTS.neutral },'; :551-554 '[REMNANT_FLAGS.isRemnant]: true, ...(castSees ? { [REMNANT_FLAGS.fromIncident]: true } : {})'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "LF-PERMS",
+      "claim": "fixed: a player cannot write a world setting",
+      "verdict": "weakened",
+      "why": "The cited check exists, but it is the harness's model of Foundry's permission gate (CLAUDE.md: 'models ownership and roles and little else'); no recorded reading on Foundry 14.370 of a player's world-setting write (the one F row is an Assistant, who may write them). The reader's own confidence is 'suspected', which by 11.3 is a question, not a settled 'fixed'.",
+      "evidence": "audit/harness/scenarios/00-boot.mjs:57 '// player cannot write world settings (server-side rule holds)'; live-readings-other.json: 'A scratch Assistant (role 3): isGM true, can(\\'SETTINGS_MODIFY\\') true'",
+      "status_after": "fixed (not confirmed; needs a run or an F reading)"
+    },
+    {
+      "ref": "LF-VOTE",
+      "claim": "fixed: the vote opens, takes votes, counts and closes without exceptions",
+      "verdict": "weakened",
+      "why": "The functions exist (openVote, closeVote, the count with ties), but 'without exceptions' is a run's claim and no base-run.json exists; the reader marks it suspected itself.",
+      "evidence": "scripts/vote.mjs:308 'export async function openVote({ picks = null, restart = false } = {})'; :318 'export async function closeVote()'; ls audit/findings-1.2.118/base-run.json: No such file",
+      "status_after": "fixed (not confirmed; needs base-run.json)"
+    },
+    {
+      "ref": "LF-CLEANUP",
+      "claim": "partly (minor): endMurder goes to idle; tier 2's restore leaves the world changed at a real table",
+      "verdict": "weakened",
+      "why": "The endMurder half reads as claimed. The restore half rests on LOCAL-REPORT readings of module commit 01b845d7 on claude/e58-local, which is not an ancestor of b5a29e73 (git merge-base --is-ancestor: no; its runtime scripts 179c2644 differ from b5a29e73 in 19 script files), and the delta row itself says 'Not read on b5a29e73'. The outer restore of audit/live put the world back each time (second pass []). So the module suite's put-backs miss things on a near tree; on b5a29e73 it is unmeasured.",
+      "evidence": "scripts/murder-rules.mjs:3405 'export async function endMurder({ reason = \"closed\", followUp = true, conclude = true } = {})'; audit/harness/scenarios/10-murder.mjs:829 'check(\"gm: murder ends clean\"'; live-readings-e58-delta.json row LOCAL-REPORT.md:320-324 '\"carries_to_b5a29e73\": \"Not read on b5a29e73.\"'; LOCAL-REPORT.md (branch):82 'After every chunk the world was put back and the second pass read `[]`'",
+      "status_after": "partly",
+      "severity_after": "minor, provisional (another tree's reading)"
+    },
+    {
+      "ref": "LF-NOTHROW",
+      "claim": "open: no uncaught exception over a whole crime is not re-established",
+      "verdict": "stands",
+      "why": "Correctly left open: only a run settles it and no base-run.json exists. One refinement: the fog stacks the reader saw (fog.mjs:327, :495) are inside fog.mjs's step(), which catches both a throw and a rejected promise and logs them, so they are caught errors, not uncaught exceptions. The untracked log is now empty (0 bytes).",
+      "evidence": "scripts/fog.mjs:326 'step(\"seedDiscovery\", () => seedDiscovery(tokenDoc?.parent ?? null));'; :493-506 'function step(id, fn) { try { const result = fn(); ... result.catch(err => error(...)) ... } catch (err) { error(fogText(\"DRPG.Fog.stepFailed\"'; audit/harness/results/01-runtests.log: 0 bytes",
+      "status_after": "open"
+    },
+    {
+      "ref": "LF-LIVEKIT",
+      "claim": "fixed: the three LIVEKITAVCLIENT keys are LiveKit's, not counted",
+      "verdict": "stands",
+      "why": "00-boot fails only a missing DRPG. key; voice.mjs reads the three to match LiveKit's own toasts.",
+      "evidence": "audit/harness/scenarios/00-boot.mjs:52-54 'const ours = missing.filter(k => k.startsWith(\"DRPG.\"));'; scripts/voice.mjs:504 'game.i18n.localize(\"LIVEKITAVCLIENT.onDisconnected\")', :519",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "OA-1",
+      "claim": "partly: some fog/ring/isometric readings at 14.370 or the table; large-map look, scene-change cost and PIXI cleanup unread",
+      "verdict": "stands",
+      "why": "The cited rows exist with the quoted numbers; none names scene-change cleanup or a large isometric map.",
+      "evidence": "live-readings-e58.json LIVE-E53-01 LOCAL-REPORT.md:346 'the fog repainted p95 33-51 ms (2-3 repaints); ... a student's ring p95 0.1-1.9 ms'; :345 'not the 1366x768 laptop on the largest isometric map'",
+      "status_after": "partly",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "OA-2",
+      "claim": "partly: CSS now ~2.0 MB and 1004 !important; load order read at 14.370; narrow cut text and v14 light theme unread",
+      "verdict": "stands",
+      "why": "Re-counted: 2007312 bytes over seven sheets, 31831 lines, 1004 '!important'; 99990 at danganronpa.css:5984 and :18069; LIVE-E30-09 as-expected.",
+      "evidence": "cat styles/*.css | wc -c: 2007312; grep -o '!important' | wc -l: 1004; styles/danganronpa.css:5984 'z-index: 99990;'; live-readings-other.json LIVE-E30-09 'all seven sheets in module.json's order'",
+      "status_after": "partly",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "OA-3",
+      "claim": "open: voice by room and music by phase never read at a table",
+      "verdict": "stands",
+      "why": "Checked the other way (already settled?): the only LiveKit rows are LIVE-E05-11 (the setting's shape) and LIVE-E112-01 ('hearing (livekit): not checkable here'); no music reading ('the seed has no murder playlist'). Still open.",
+      "evidence": "live-readings-e58.json LIVE-E112-01 'hearing (livekit): not checkable here'; LIVE-E06-01 'no sounds captured - the seed has no murder playlist'",
+      "status_after": "open",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "WD-WRITE",
+      "claim": "partly (minor): the senderId/ownsActor shape holds; other readers found roads where a player's console goes around a price or a card's check",
+      "verdict": "stands",
+      "why": "senderOf/ownsActor read as quoted; the three cited findings exist and each 'stands' in its refuter file.",
+      "evidence": "scripts/bridge-guards.mjs:61-71 'export function senderOf(senderId) ... export function ownsActor(user, actorId) { ... testUserPermission(user, \"OWNER\")'; verify-domain-core-a-bridge.json domain-core-a-bridge-1 'stands', verify-domain-comm-a-messenger.json domain-comm-a-messenger-1 'stands'",
+      "status_after": "partly",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "WD-HTML",
+      "claim": "fixed: a player's messenger text is escaped",
+      "verdict": "stands",
+      "why": "sendMessage escapes; in addition, the render side cleans words a GM did not write (secret.mjs), which the reader did not cite and which covers a console write of a thread message.",
+      "evidence": "scripts/messenger.mjs:248 'const esc = foundry.utils.escapeHTML(body).replace(/\\n/g, \"<br>\");'; scripts/messenger-app.mjs:668-672 '`contentOf` now reads them through secret.mjs, which cleans anything a GM did not write. ... body.innerHTML = shownWordsOf(message);'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "WD-ROLLS",
+      "claim": "partly (minor): forced private rolls hold; a player's dice look diagnostic reads another student's hidden roll",
+      "verdict": "stands",
+      "why": "The handler and setting are where cited; domain-roll-a-draw-3 stands in its refuter file.",
+      "evidence": "scripts/private-rolls.mjs:104 'game.socket.on(SOCKET_EVENT, (payload, senderId) => {'; scripts/settings-window.mjs:91 '\"forcePrivateRolls\"'; verify-domain-roll-a-draw.json domain-roll-a-draw-3 'stands'",
+      "status_after": "partly",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "WD-CRIME",
+      "claim": "partly (minor): the whole-crime strength, as LF-DEATH/LF-CLEANUP/LF-NOTHROW",
+      "verdict": "weakened",
+      "why": "The partly status follows from LF-DEATH (by design) and LF-NOTHROW (unmeasured); its 'minor' rests on LF-CLEANUP, whose restore half is a reading of another tree (weakened above).",
+      "evidence": "as LF-CLEANUP: live-readings-e58-delta.json '\"carries_to_b5a29e73\": \"Not read on b5a29e73.\"'",
+      "status_after": "partly",
+      "severity_after": "not established"
+    },
+    {
+      "ref": "WD-GEAR",
+      "claim": "fixed: the shared gear limit of 2 is enforced",
+      "verdict": "stands",
+      "why": "Beyond the callers the reader cited, a preCreateItem hook enforces the limit on every created item and the primary GM's sheet-audit asks canCarry too.",
+      "evidence": "scripts/config.mjs:964 'limit: 2,'; scripts/inventory.mjs:1323 'Hooks.on(\"preCreateItem\", (item, data, options) => {', :1335 'const room = canCarry(actor, category);'; scripts/sheet-audit.mjs:2293 'const cap = canCarry(actor, category);'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "WD-ROOMS",
+      "claim": "fixed: the player's room is recognised and Search Tokens exist",
+      "verdict": "weakened",
+      "why": "Existence only (the reader's own 'suspected'); a table reading LIVE-E78-14 found a defect in room arrival on 1.2.77, fixed in 1.2.78 and 'measured in the harness only ... no re-reading at a table is recorded'.",
+      "evidence": "scripts/movement.mjs:3617 'export function roomOfActor(actor) {'; live-readings-other.json LIVE-E78-14 'only the second drag inside the new room was counted ... no re-reading at a table is recorded.'",
+      "status_after": "fixed (not confirmed)"
+    },
+    {
+      "ref": "WD-DEGRADE",
+      "claim": "partly: missing required modules stop the module with a message; isometric is now required",
+      "verdict": "stands",
+      "why": "Start path and ready announcement as quoted; module.json requires three modules; the fog's missing tile is a debug log (quiet, not a warning), which only narrows the old 'warning' wording.",
+      "evidence": "scripts/module.mjs:187-191 'if (!requirementsMet()) { log(\"Not starting: a required module is missing or disabled.\"); removeModuleStyles(); return; }'; scripts/fog.mjs:3605-3606 'debug(\"Fog: could not build a raster tile\", err); return null;'",
+      "status_after": "partly",
+      "severity_after": "none"
+    },
+    {
+      "ref": "WD-SUITE",
+      "claim": "obsolete: the 1.1.88 suite was replaced by one many times its size",
+      "verdict": "stands",
+      "why": "Re-counted the registry: 495 tier 0 and 1248 tier 1 of 1743 rows; 54 scenario files.",
+      "evidence": "docs/dev/R-REGISTRY.md: awk over '| R<n> | <tier> |' gives 495 '0' and 1248 '1'; ls audit/harness/scenarios/*.mjs | wc -l: 54",
+      "status_after": "obsolete",
+      "severity_after": "none"
+    },
+    {
+      "ref": "CL-CHANGELOG",
+      "claim": "fixed: CHANGELOG.md exists, generated from release notes",
+      "verdict": "stands",
+      "why": "108 lines, first row 1.2.118 = module.json version; 103 release-notes files.",
+      "evidence": "CHANGELOG.md:6 '- **1.2.118** - one day's board ...'; module.json '\"version\": \"1.2.118\"'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "CL-POLISH",
+      "claim": "fixed: lang/pl.json exists, held to parity",
+      "verdict": "stands",
+      "why": "Leaf counts 6369 en / 7456 pl re-counted; module.json declares only en; i18n.mjs's registerLanguage prefetches and merges the module's language.",
+      "evidence": "module.json languages [{'lang': 'en', 'path': 'lang/en.json'}]; scripts/i18n.mjs:132 'export function registerLanguage() {'; scripts/module.mjs:202 'safely(\"the language\", registerLanguage);'",
+      "status_after": "fixed",
+      "severity_after": "none"
+    },
+    {
+      "ref": "CL-LIVE",
+      "claim": "partly: the live-eye checklist item, as OA-1..OA-3",
+      "verdict": "stands",
+      "why": "A dedup of OA-1..OA-3, which stand.",
+      "evidence": "as OA-1..OA-3",
+      "status_after": "partly",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "new_observations[0]",
+      "claim": "nit: trial-floor.mjs header says a rebuttal returns to open debate by itself; the code ends the floor",
+      "verdict": "stands",
+      "why": "Confirmed (not required: nit).",
+      "evidence": "scripts/trial-floor.mjs:27-28 'Nobody else. Then it returns to open debate by itself.'; scripts/floor-machine.mjs:440 'if (floor.mode === MODES.rebuttal) return inRound ? nextTurn(floor, now, cards, ctx) : ended(cards, true);'",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "new_observations[1]",
+      "claim": "nit: FLOOR_MODES JSDoc says 'The three modes' over nine",
+      "verdict": "stands",
+      "why": "Confirmed (not required: nit).",
+      "evidence": "scripts/trial-floor.mjs:74 '/** The three modes, spelled out once so nothing else has to spell them'; lang/en.json DRPG.Floor.mode: nine keys",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "new_observations[2]",
+      "claim": "nit: TRIAL.speakSeconds called 'a free discussion'",
+      "verdict": "stands",
+      "why": "Confirmed (not required: nit).",
+      "evidence": "scripts/config.mjs:4291 'How long a free discussion runs before the bar turns red.'; :4303 'speakSeconds: 180,'",
+      "severity_after": "nit"
+    }
+  ],
+  "counts": {
+    "checked": 44,
+    "stands": 37,
+    "weakened": 6,
+    "refuted": 1
+  },
+  "count_note": "41 items: every fixed (24), partly (12) and obsolete (3) item checked; the file has only 2 open items (LF-NOTHROW, OA-3), so the sample of 5 is both of them; the 3 new_observations are all nit (none minor or above), checked anyway and counted.",
+  "not_established": [
+    {
+      "what": "Q16 and WD-WRITE: whether the veil's console-readable token flag is 'major' or a recorded acceptance (known leak, severity info, in the README).",
+      "settles": "the owner's word on foundry-veiled-token-actor, or the first-session file's refuter."
+    },
+    {
+      "what": "LF-PERMS, LF-VOTE, LF-NOTHROW, WD-ROOMS: every claim that needs a run.",
+      "settles": "audit/findings-1.2.118/base-run.json (not on the branch when checked), and for LF-PERMS a player's world-setting write read on Foundry 14.370."
+    },
+    {
+      "what": "LF-CLEANUP: whether tier 2's put-backs leave the world changed on b5a29e73 (the readings are of 01b845d7, not an ancestor).",
+      "settles": "the local gate's whole-world diff on b5a29e73."
+    }
+  ]
+}
