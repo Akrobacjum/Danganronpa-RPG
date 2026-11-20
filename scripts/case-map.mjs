@@ -22,7 +22,7 @@
 import { esc } from "./utils.mjs";
 import { tipAttr } from "./ui-kit.mjs";
 import { REMNANT_TYPES, TRUTH_BULLET_TYPES } from "./config.mjs";
-import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, lightEdges, CAMERA_LIMITS, TILE_GUTTER } from "./case-view.mjs";
+import { MAP_GEOMETRY, mapPlace, routeEdges, relayoutCaseMap, wireCaseCamera, lightEdges, CAMERA_LIMITS, TILE_GUTTER } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
    places the drawn nodes at their measured size and moves the camera; read here, and by E99, under these names. */
@@ -107,23 +107,34 @@ export function caseTypeOf(node) {
     return CASE_TYPE_ORDER.includes(t) ? t : null;
 }
 
-/** A node's type class and attribute, or nothing (`caseTypeOf`). */
-const typeAttrs = t => (t ? { cls: [`drpg-case-type--${t}`], attr: ` data-drpg-type="${t}"` } : { cls: [], attr: "" });
+/** The schema's kinds that carry a colour (round 2), in the legend's order after the types. */
+export const CASE_KIND_ORDER = Object.freeze(["deduction", "counter", "solution"]);
+
+/** A node's type or kind class and attribute, or nothing: an evidence node by `caseTypeOf`, a schema node by its kind. */
+function typeAttrs(t, node = null) {
+    if (t) return { cls: [`drpg-case-type--${t}`], attr: ` data-drpg-type="${t}"` };
+    const k = !node?.evidence && CASE_KIND_ORDER.includes(node?.kind) ? node.kind : null;
+    return k ? { cls: [`drpg-case-kind--${k}`], attr: ` data-drpg-kind="${k}"` } : { cls: [], attr: "" };
+}
 
 /**
  * THE LEGEND (1.2.119): each type the drawn case holds, once, in CASE_TYPE_ORDER, its colour's swatch beside the type's
  * own name (REMNANT_TYPES' label, the words the nodes use). Drawn at the left of the camera's strip under the graph, which
- * stands there anyway. Measured in Chromium (audit/case-map-sweep.mjs, a case holding all eight types, 20.11.2026): under
+ * stands there anyway; since round 2 the schema's kinds after the types (`CASE_KIND_ORDER`). Measured in Chromium (audit/case-map-sweep.mjs, a case holding all eight types, 20.11.2026): under
  * the glass the graph's viewport keeps its height (972x295 at 1366x768, 972x599 at 1920x1080); under Legacy, whose pixel
- * font is wider, the legend wraps to three lines and the viewport loses 29 px (319 -> 290, 623 -> 594). Nothing for a case
- * with no typed evidence.
+ * font is wider, the legend wraps to three lines and the viewport loses 29 px (319 -> 290, 623 -> 594); the owner kept it
+ * visible (20.11.2026). Nothing for a case with neither typed evidence nor a schema node.
  */
 export function caseLegendHtml(graph) {
     const held = new Set((graph?.nodes ?? []).map(caseTypeOf).filter(Boolean));
     const types = CASE_TYPE_ORDER.filter(t => held.has(t));
-    if (!types.length) return "";
+    // the schema's kinds after the types (round 2), named by the words their chips carry
+    const kinds = CASE_KIND_ORDER.filter(k => (graph?.nodes ?? []).some(n => !n.evidence && n.kind === k));
+    if (!types.length && !kinds.length) return "";
+    const swatch = `<span class="drpg-case-legend-swatch" aria-hidden="true"></span>`;
     return `<ul class="drpg-case-legend" aria-label="${esc(L("DRPG.CaseMap.legendLabel"))}">`
-        + types.map(t => `<li class="drpg-case-legend-item drpg-case-type--${t}" data-drpg-type="${t}"><span class="drpg-case-legend-swatch" aria-hidden="true"></span>${esc(REMNANT_TYPES[t]?.label ?? t)}</li>`).join("")
+        + types.map(t => `<li class="drpg-case-legend-item drpg-case-type--${t}" data-drpg-type="${t}">${swatch}${esc(REMNANT_TYPES[t]?.label ?? t)}</li>`).join("")
+        + kinds.map(k => `<li class="drpg-case-legend-item drpg-case-kind--${k}" data-drpg-kind="${k}">${swatch}${esc(L(`DRPG.CaseMap.kind.${k}`))}</li>`).join("")
         + `</ul>`;
 }
 
@@ -166,7 +177,7 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
     const r = reachOf(node, reach);
     const reachText = r ? F(r.reachable ? "DRPG.CaseMap.reachYes" : "DRPG.CaseMap.reachNo", { held: r.held, of: r.of }) : "";
     const text = String(node.text ?? "").trim();
-    const typed = typeAttrs(caseTypeOf(node));
+    const typed = typeAttrs(caseTypeOf(node), node);
     const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : "", text,
         ...marks.filter(m => MARK_KEYS[m]).map(m => L(MARK_KEYS[m]))].filter(Boolean).join(", ");
     const cls = ["drpg-case-node", `drpg-case-node--${node.kind}`, `is-${state}`, ...(loose ? ["is-loose"] : []),
@@ -236,18 +247,21 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         heads.push(`<span class="drpg-case-col-head" data-drpg-col-head="${c}" style="left: ${place.cols[c]?.x ?? MAP_GEOMETRY.pad + c * (MAP_GEOMETRY.nodeW + MAP_GEOMETRY.colGap)}px">${esc(L(key))}</span>`);
     }
     const shownEdges = (graph?.edges ?? []).filter(e => place.at[e.from] && place.at[e.to]);
-    /* EACH EDGE OVER A HALO OF ITS OWN (1.2.119, "Czytelność strzałek"): the same path drawn first, wider and in the
-       graph's ground (components.css), so a line keeps a margin where it crosses another or the column heads, and the
-       one drawn later reads as over the other. The halo carries no `data-drpg-ends`, so case-view.mjs reads the edges
-       alone (`relayoutCaseMap` draws it again with its edge, `lightEdges` lights it with its edge). */
+    /* EACH EDGE OVER A HALO (1.2.119, "Czytelność strzałek"): the same path, wider and in the graph's ground
+       (components.css), so a line keeps a margin from the column heads and the lines it crosses. The halos stand in one
+       layer under every line (round 2): the square routes meet in trunks (case-view.mjs `routeEdges`), and a halo drawn
+       between two lines cut a branch off its trunk where they join. A halo carries no `data-drpg-ends`, so case-view.mjs
+       reads the edges alone (`relayoutCaseMap` routes it again with its edge, `lightEdges` lights it with its edge). */
     const arrows = arrowDefs(shownEdges.map(e => e.kind));
-    const edges = shownEdges.map(e => {
-        const d = edgePath(place.at[e.from], place.at[e.to]);
+    const routes = routeEdges(shownEdges, place.at, MAP_GEOMETRY);
+    const halos = [], edges = [];
+    for (const e of shownEdges) {
+        const d = routes.get(`${e.from}>${e.to}`) ?? "";
         const head = arrows.ids[e.kind] ?? arrows.ids.input;
-        return `<path class="drpg-case-edge-halo" data-drpg-halo="${esc(e.from)}>${esc(e.to)}" d="${d}"/>`
-            + `<path class="drpg-case-edge drpg-case-edge--${esc(e.kind)}" data-drpg-edge="${esc(e.from)}>${esc(e.to)}" data-drpg-ends="${esc(JSON.stringify([e.from, e.to]))}"`
-            + ` data-drpg-arrow="${head}" data-drpg-arrow-lit="${arrows.lit}" marker-end="url(#${head})" d="${d}"/>`;
-    });
+        halos.push(`<path class="drpg-case-edge-halo" data-drpg-halo="${esc(e.from)}>${esc(e.to)}" d="${d}"/>`);
+        edges.push(`<path class="drpg-case-edge drpg-case-edge--${esc(e.kind)}" data-drpg-edge="${esc(e.from)}>${esc(e.to)}" data-drpg-ends="${esc(JSON.stringify([e.from, e.to]))}"`
+            + ` data-drpg-arrow="${head}" data-drpg-arrow-lit="${arrows.lit}" marker-end="url(#${head})" d="${d}"/>`);
+    }
     const buttons = [], fields = [];
     for (const [id, p] of Object.entries(place.at)) {
         const node = nodes.get(id);
@@ -293,7 +307,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
     const width = place.width;
     return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}"${open ? ` data-drpg-all-open="1"` : ""}>`
         + heads.join("")
-        + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${arrows.defs}${edges.join("")}</svg>`
+        + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${arrows.defs}<g class="drpg-case-halos">${halos.join("")}</g><g class="drpg-case-lines">${edges.join("")}</g></svg>`
         + gap + buttons.join("") + fields.join("") + controlled.join("") + `</div>`;
 }
 
@@ -358,8 +372,8 @@ function nodeEditHtml({ graph, node, p, open, allOpen = false, state = null, fin
     const cells = String(html ?? "");
     // The node's facts only where it has no field of its own (another chapter's Remnant); otherwise its warnings alone
     const said = nodeInfoHtml({ graph, node, finders, authors, reach, problems, rows: !cells.trim() });
-    // its type's colour on its fields too (1.2.119): with every node open, the fields are all of the node that shows
-    const typed = typeAttrs(caseTypeOf(node));
+    // its type's or kind's colour on its fields too (1.2.119): with every node open, the fields are all of the node that shows
+    const typed = typeAttrs(caseTypeOf(node), node);
     return `<fieldset class="${["drpg-case-edit", ...typed.cls].join(" ")}" data-drpg-edit="${esc(node.id)}"${typed.attr} aria-label="${esc(F("DRPG.CaseMap.editLabel", { name: nameOf(node) }))}"`
         // with every node open the fields are the node: they take the focus the hidden face cannot (owner-116, 16.11.2026)
         + ` style="left: ${p.x}px; top: ${p.y}px"${allOpen ? ` tabindex="0"` : ""}${open ? "" : " hidden"}>` + head + said + cells + moves + `</fieldset>`;

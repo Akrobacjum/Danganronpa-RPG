@@ -336,6 +336,70 @@
       "on": "--drpg-case-type-final",
       "size": "small",
       "where": "the planner's type chip (1.2.119): .application:is(.drpg-window-case, .drpg-window-trial) [data-drpg-type] > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-type--final"
+    },
+    {
+      "id": "case-kind-sg-deduction",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-kind-deduction",
+      "size": "small",
+      "where": "the planner's kind chip (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-kind--deduction"
+    },
+    {
+      "id": "case-kind-sg-counter",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-kind-counter",
+      "size": "small",
+      "where": "the planner's kind chip (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-kind--counter"
+    },
+    {
+      "id": "case-kind-sg-solution",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-kind-solution",
+      "size": "small",
+      "where": "the planner's kind chip (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-kind--solution"
+    },
+    {
+      "id": "case-warn-sg",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-warn",
+      "size": "small",
+      "where": "the planner's problem badge (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-warn"
+    },
+    {
+      "id": "case-kind-lg-deduction",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-kind-deduction",
+      "size": "small",
+      "where": "the planner's kind chip (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-kind--deduction"
+    },
+    {
+      "id": "case-kind-lg-counter",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-kind-counter",
+      "size": "small",
+      "where": "the planner's kind chip (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-kind--counter"
+    },
+    {
+      "id": "case-kind-lg-solution",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-kind-solution",
+      "size": "small",
+      "where": "the planner's kind chip (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-kind--solution"
+    },
+    {
+      "id": "case-warn-lg",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-warn",
+      "size": "small",
+      "where": "the planner's problem badge (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-warn"
     }
   ],
   "hours": {
