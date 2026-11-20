@@ -1,0 +1,351 @@
+{
+ "reader": "domain-core-c-boot-settings",
+ "files_read": [
+  {
+   "file": "scripts/module.mjs",
+   "lines": 720,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/settings.mjs",
+   "lines": 4662,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/settings-window.mjs",
+   "lines": 523,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/dh-settings.mjs",
+   "lines": 223,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/migrate.mjs",
+   "lines": 1802,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/requirements.mjs",
+   "lines": 419,
+   "read": "whole"
+  }
+ ],
+ "count_note": "6 files, 8349 lines, each read start to end; the total matches the scope's list (720 + 4662 + 523 + 223 + 1802 + 419). Scripted over source text: 199 settings registered (71 world, 128 client), every SETTINGS name registered, every world setting in exactly one lifetime list; 22 keys handed to onWorldChange, each a row of sync.mjs SETTING_KINDS; 40 registrations with a name, 39 drawn in a window (37 in the two settings windows' sections, 2 in the Sound window), bulletSort the one left (it lives on the inventory); every literal DRPG key of the six files and the dynamic families (DhSettings.*, SettingsWindow.sections.*, Requirements.*) present in en.json and pl.json. audit/findings-1.2.118/base-run.json did not exist when read, so no test result below is claimed.",
+ "neighbours_followed": [
+  "lang/en.json and lang/pl.json (DRPG.Legacy.safeword = MISIUBOMBO in both; DRPG.Safeword.kept; DRPG.SettingsWindow.*; DRPG.Settings.*; DRPG.Requirements.*; DRPG.DhSettings.*; DRPG.Help.documentLanguageUnset), by script",
+  "scripts/sync.mjs (SETTING_KINDS and SYNC, the keys and kinds settings.mjs hands it), by script",
+  "scripts/live.mjs 313-351 (keepLive's updateSetting and clientSettingChanged listeners, watch.stores)",
+  "scripts/investigation.mjs 2409-2412 (the dashboard's keepLive watches keyPlanStore among its stores)",
+  "scripts/truth-bullets.mjs 1988-2002 (registerTruthBullets: no load-time migration since E04)",
+  "scripts/remnants.mjs 1059-1099 (reconcileRemnantActor no longer calls adoptQuestionMark)",
+  "scripts/resources.mjs 38-62 (registerActionResource returns early on a second call)",
+  "scripts/user-match.mjs 223-237 (a player's user.character is written by the primary GM)",
+  "scripts/vault-store.mjs 975-1003 (bedroomStashGaps, ensureBedroomStash: what the forced bedroomStashes clause writes)",
+  "scripts/i18n.mjs 132-150 (seedDocumentLanguage), scripts/utils.mjs 152-176 (worldLocalize falls back to the page's language when the setting is empty)",
+  "scripts/look.mjs 24-37 (themeOnlyKeys), scripts/dice-look.mjs 165 and scripts/dice-sync.mjs 180 (the dice look read at each throw)",
+  "scripts/anonymity.mjs 731-745 and 776-835 (lockSettings; ownership.default held at OBSERVER, which makes the forced openStudentSheets clause harmless)",
+  "scripts/safeword.mjs 1-60 (the word is the button's label; the button is what stops the scene)",
+  "scripts/api.mjs 93, 735-737 (game.drpg.migrate is migrate1_2_0, options passed through)",
+  "docs/handbooks/gm-handbook.en.md:1897 and .pl.md:1897 (migrate({ force: true }) documented as the repair)",
+  "scripts/tests-tier2.mjs 56560-56585 ('an unstamped world in play keeps its safeword'), scripts/tests-tier1.mjs:7002 (source regex on keepOldSafeword)",
+  "audit/harness/scenarios/15-held.mjs 370-395 (the load-time migration's whisper, keepOldSafeword named)",
+  "module.json (relationships.requires: three modules; systems: minimum 2.6.5, verified 2.12.9; languages: en only)",
+  "docs/dev/e39/CALIBRATION.md:20 (LIVE-E30-01: `-=key` deletes on 14.370)",
+  "audit/findings-1.2.42/core.md (CORE-13, CORE-16), text.md (TEXT-19), ui.md (UI-07, UI-08); audit/findings-1.2.118/old-1.2.42-core.json (CORE-13, CORE-16 read there as fixed)"
+ ],
+ "strengths": [
+  "Every world setting has a lifetime: the three lists at scripts/settings.mjs:1162-1194 tag all 71 world registrations and nothing else (scripted 20.11.2026), so a season setting the reset forgets is a tagged absence, not a silent one (tier 0 R1256 holds them; its result not read).",
+  "Every world setting that promises a redraw has one: the 22 keys handed to onWorldChange (settings.mjs:3463-3465) are exactly the 22 rows of sync.mjs SETTING_KINDS, and the GM stores' keys go through onStoreChange with a named kind (3473-3475), so R171's rule about raw store keys is kept in the file that registers them.",
+  "The boot cannot be taken down by one subsystem: every registration in module.mjs is under `safely` (152-158), the relay guard and the GM chrome run before the requirements check, and a stopped module takes its stylesheets off the page (module.mjs:187-191, requirements.mjs:157-186).",
+  "The migration stamp is held back on three separate grounds - a failed clause (with a permanent notice), a clause that answered notPrimary, and a primacy lost at either end of the pass (migrate.mjs:1696-1729) - and every lift reads back before it removes and throws when its secret stayed (578-599).",
+  "The automatic road of the safeword clause now asks the world whether it was played (worldWasInPlay, read before anything writes at ready: migrate.mjs:1549-1573, 1756-1762); a new world is no longer given the old word (the old CORE-13 on that road).",
+  "The settings windows write only what differs and through game.settings.set, so each setting's onChange runs once, a reload is asked once with Foundry's own question, and a world row is drawn and written only for a user Foundry lets modify settings (settings-window.mjs:123-130, 402-439).",
+  "Death and the incident's seats are each one pure table in the leaf (settings.mjs:3647-3670, 3794-3865), with the readers' rules written beside them; the Eclipse count adds what is in flight so two fast drags cannot both read the old count (3925-3971).",
+  "Daggerheart's character settings window is dressed, never rebuilt: hidden fields stay in the form with their values, the words are replaced after every render, and each field gets a name a screen reader reads (dh-settings.mjs:29-34, 111-130, 175-211)."
+ ],
+ "findings": [
+  {
+   "id": "domain-core-c-boot-settings-1",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "The repair the GM handbook names, game.drpg.migrate({ force: true }), sets a default world's safeword to MISIUBOMBO and tells the GMs the world already had it; it also gives back a bedroom stash a GM removed",
+   "where": "scripts/migrate.mjs:1659 and 1671 (force skips the `since` gate; wasInPlay becomes Boolean(from)); 1579-1614 (keepOldSafeword); 1019-1039 (bedroomStashes); docs/handbooks/gm-handbook.en.md:1897; lang/en.json and lang/pl.json DRPG.Legacy.safeword",
+   "what_happens": "A forced pass re-enters every clause regardless of the stamp. keepOldSafeword's only guard against a world that never used the old word is `if (!from && !wasInPlay) return null`; on a stamped world `from` is set, so a world whose safeword is still the default \"Safe Word\" - every world created on 1.2.x whose GM never typed one - is written the language file's legacy word MISIUBOMBO, and the GMs are whispered DRPG.Safeword.kept: 'This world already has the safeword \"MISIUBOMBO\", so that word stays.' The same pass runs bedroomStashes, whose own note says a sweep would put back a stash the GM removed on purpose (TRAP 76) and that the clause is gated to run once for that reason; forced, it gives every Bedroom owner without a stash an open one again. The handbook offers the forced pass as the safe repair ('Running it twice changes nothing the second time').",
+   "evidence": "migrate.mjs:1659  const inPlay = wasInPlay ?? Boolean(from);\nmigrate.mjs:1671  if (!force && from && !foundry.utils.isNewerVersion(clause.since, from)) {\nmigrate.mjs:1586  if (!from && !wasInPlay) return null;\nmigrate.mjs:1590  if (current && current !== DEFAULT_SAFEWORD) return null;\nmigrate.mjs:1592  const legacy = String(game.i18n.localize(\"DRPG.Legacy.safeword\") ?? \"\").trim();\nmigrate.mjs:1595  await setSetting(SETTINGS.safeword, legacy);\nmigrate.mjs:1028  ... a sweep would put that back at every load (TRAP 76); stamped with this version, this runs once\ngm-handbook.en.md:1897  `game.drpg.migrate({ force: true })` runs it whether or not the version moved, which is the repair when a world's data plainly is not current. Running it twice changes nothing the second time.",
+   "failure_scenario": "A GM whose world misbehaves runs game.drpg.migrate({ force: true }) as the handbook says; every player's Safeword button now reads MISIUBOMBO, a word the table never agreed, and the GM's card says the world already had it.",
+   "expected": "A forced pass repairs without re-seeding: the safeword clause keeps the default on a world stamped after 1.1.39 (the clause's own `since`), and a seeding clause stays gated by its stamp even when forced (migrate.mjs:90-101 says the gate is what tells a seed from a GM's removal).",
+   "confidence": "read",
+   "refutation_tried": "Followed game.drpg.migrate to migrate1_2_0 with the options passed through (api.mjs:735). Looked for another guard in keepOldSafeword: only `from`/`wasInPlay` and the current value against DEFAULT_SAFEWORD. The legacy key is MISIUBOMBO in both language files, so a Polish GM gets the same. The tier-2 test 'an unstamped world in play keeps its safeword' (tests-tier2.mjs:56560) drives only from: \"\", and tier 1's line 7002 reads the guard's text; neither drives a stamped world. Checked the other seeding clauses: openStudentSheets raises default ownership to OBSERVER, which anonymity.mjs holds anyway (776-835), so it is harmless; unseedMessengerChime removes only the seeded path and says so (133-138). A downgrade was also considered (the stamp is written whatever the direction): back to a build at or above 1.2.113 it re-runs nothing, so it is not written as a finding.",
+   "old_id": "CORE-13",
+   "tests_near": "tier 2 'an unstamped world in play keeps its safeword' (scripts/tests-tier2.mjs:56560); tier 1 source check at scripts/tests-tier1.mjs:7002; result of neither read (no base-run.json)."
+  },
+  {
+   "id": "domain-core-c-boot-settings-2",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "Game settings never redraws while open, and its Save writes back every row that differs from the stored value - so a change another GM saved meanwhile is undone",
+   "where": "scripts/settings-window.mjs:408-433 (saveSettings), 490-523 (openGameSettingsWindow: no keepLive, no hook)",
+   "what_happens": "The window is drawn once from the settings as they stood at open. saveSettings walks every row and writes each field whose value differs from the setting's value now - not each field the user touched. A world row that another GM (or an Assistant) changed and saved while this window stood open still shows the old value, differs from the stored one, and is written back on this GM's Save, with its onChange (and, for a requiresReload row such as the dice look or Voice in Foundry's window, the reload question for every client). Nothing redraws the open window on updateSetting, against the owner's standing rule that a window redraws at once when what it shows changes.",
+   "evidence": "settings-window.mjs:411  const fields = form?.querySelectorAll?.(\"[data-drpg-setting] [name]\") ?? [];\nsettings-window.mjs:425  const value = fieldValue(field, reg);\nsettings-window.mjs:426  if (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;\nsettings-window.mjs:427  await game.settings.set(MODULE_ID, key, value);\nsettings-window.mjs:418  for (const [name, value] of diceLookWrites(String(field.value))) {   // the dice look compares with the stored choice the same way\nsettings-window.mjs:514-520  render: (event, dialog) => { const root = dialog.element; wireSections(root); holdSectionHeight(root); ... }",
+   "failure_scenario": "GM A opens Game settings to change Crossing rooms costs a Move; GM B meanwhile switches Lock players' resources off and saves; A presses Save and the lock is on again for the whole table, with neither GM told.",
+   "expected": "A row the user did not touch is not written (compare with the value the window was drawn with), and the window follows updateSetting for the rows it shows, as keepLive does for the module's other windows.",
+   "confidence": "read",
+   "refutation_tried": "The header says the window writes 'as Foundry's form did' (settings-window.mjs:37-45; v13's SettingsConfig #onSubmit read as text, v14's shape LIVE-E49-02): Foundry's own form has the same compare-with-now shape, so this is a copied behaviour, but no paper records accepting the lost update or the stale window for the module's own window. Looked for a refresh: no keepLive, no updateSetting or clientSettingChanged listener in settings-window.mjs or look.mjs. Looked for other writers of the rows so a single GM could meet it: of the window's 25 world rows only documentLanguage has another writer (i18n.mjs:147, the first start's seed), so the case needs two users who may modify settings, which the module supports (Assistant GMs, a second GM). The client window has the same shape, but no other road writes its rows (grep), so it is not written as a finding.",
+   "tests_near": "R3420 holds the sections; the tests that call saveSettings (five test files name it) were not read for this case; none found that saves over a value changed after the window opened."
+  },
+  {
+   "id": "domain-core-c-boot-settings-3",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "Three older clauses answer null when their read-back fails, so the runner counts them as 'nothing to do' and stamps the world, against the file's own rule to throw",
+   "where": "scripts/migrate.mjs:369-378 (forgetMonokumaWalks), 461-465 (motiveTimer), 1599-1602 (keepOldSafeword); the rule at 80-85",
+   "what_happens": "Each of these reads back after its write, and on a mismatch logs an error and returns null. migrate1_2_0 treats null as a clause with nothing to do (1682), so no clause is listed as failed and the stamp is written; the clause is `since`-gated and never runs again on that world. The header says a clause that could not finish what it is for throws, so the world is not stamped and the next load tries again, and the lifts below follow it.",
+   "evidence": "migrate.mjs:82   DO throw when the clause could not finish what it is for ... the world is then not stamped, and the next load runs it again.\nmigrate.mjs:375  if (stillThere) {\nmigrate.mjs:376      error(\"Could not clear the Monokuma rows from the discovery ledger\");\nmigrate.mjs:377      return null;\nmigrate.mjs:462  if (!Number.isFinite(check.remaining)) { error(\"The motive record could not be given a timer\"); return null; }",
+   "failure_scenario": "On a world whose motive write did not land, the GM sees no failure notice and the motive stays without a timer, read as already due, for good.",
+   "expected": "Throw where the read-back fails, as the lifts do (578-599).",
+   "confidence": "read",
+   "refutation_tried": "Checked the runner: only a throw reaches report.failed (1687-1693). The clauses are old (1.1.37-1.1.43) and only a world stamped before them reaches them, and a failed world-setting write is rare, which is why this is a nit.",
+   "tests_near": "none found that plants a failed read-back for these three."
+  },
+  {
+   "id": "domain-core-c-boot-settings-4",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "ux",
+   "title": "Document language offers 'Not set yet' as a choice a GM can save, which empties the world's language until the next primary start",
+   "where": "scripts/settings.mjs:1733-1744 (choices include \"\"), scripts/settings-window.mjs:96 and 389-390 (the select writes it), scripts/i18n.mjs:144-148, scripts/utils.mjs:167-176",
+   "what_happens": "The select in Game settings > gm lists 'Not set yet' beside English and Polski, and fieldValue accepts \"\" because it is a key of the choices. Saved, the setting is empty: worldLocalize then writes each document in the page language of whichever browser writes it - the mixed-language log D196 exists to stop - until the primary GM's next ready seeds it again with that GM's language.",
+   "evidence": "settings.mjs:1742  choices: { \"\": \"DRPG.Help.documentLanguageUnset\", ...LANGUAGES },\nsettings-window.mjs:390  return reg.choices && !Object.hasOwn(reg.choices, v) ? undefined : v;\ni18n.mjs:145  if (!game.user?.isGM || !isPrimaryGm() || documentLanguage()) return false;\nutils.mjs:175  if (!lang || lang === pageLanguage()) return game.i18n.format(key, data);",
+   "failure_scenario": "A GM unsure which language to pick leaves 'Not set yet' selected and saves; cards a Polish player's browser writes come out in Polish and the English GM's in English, in one log.",
+   "expected": "'Not set yet' shown only while the setting is empty, and not offered once a language is written.",
+   "confidence": "read",
+   "refutation_tried": "The empty choice is deliberate so that the default is among the choices (settings.mjs:1739-1741, E66 fix r1 F12, R1164); that note is about Foundry's default check, not about a GM saving it. No guard in saveSettings or fieldValue refuses \"\".",
+   "tests_near": "R1164 (named at settings.mjs:1741); result not read."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "registerSettings is about 1970 lines (settings.mjs:1484-3454).",
+   "source": ".claude/rules/code.md 'Two functions are deliberately long' (a flat registration table)."
+  },
+  {
+   "what": "The trial's dead list (trialProgress.mutedDead) is public and tells the table of a death nobody has found.",
+   "source": "settings.mjs:3821-3830 (E70 C5; the owner's DC19 and TR30 = 2)."
+  },
+  {
+   "what": "Whether an incident is a trap is read from the world half where the cast has no `indirect` (an incident opened under 1.2.63).",
+   "source": "settings.mjs:3613-3631 (E05 fix r1-G1)."
+  },
+  {
+   "what": "The motive, the rules, the called assembly, the body found and the bodies found are world settings every browser reads.",
+   "source": "settings.mjs:762-817 (public by design; the guide p. 16 for the motive)."
+  },
+  {
+   "what": "Game settings and DRPG Settings write each row whose field differs from the stored value, as Foundry's Configure Settings did.",
+   "source": "settings-window.mjs:37-45 (STAGE E49 Risks 2; LIVE-E49-02 for v14's shape). The lost update this gives with two GMs is not recorded there (finding 2)."
+  },
+  {
+   "what": "A setting of the other theme is drawn disabled with its reason, never removed.",
+   "source": "settings-window.mjs:51-56 (the owner's rule of 10.11: no state may add, remove or shift a control)."
+  },
+  {
+   "what": "The verbose log is a GM's row alone in this browser's window.",
+   "source": "settings-window.mjs:132-140 (E100 item 3, the owner on the player-screens review #4)."
+  },
+  {
+   "what": "A newer Daggerheart loads with a warning, silenced per version and per browser; no maximum in the manifest.",
+   "source": "requirements.mjs:355-369 (decision D1)."
+  },
+  {
+   "what": "Dice So Nice, Isometric Perspective and LiveKit are required; a world without one stops, and nothing checks a LiveKit server.",
+   "source": "requirements.mjs:4-12 (amendment d, 09.10.2026; E13 C10; the owner's d2)."
+  },
+  {
+   "what": "unseedMessengerChime also removes the same Foundry file when a GM chose it deliberately.",
+   "source": "migrate.mjs:133-138 ('of the two mistakes this is the recoverable one')."
+  },
+  {
+   "what": "Scars, Proficiency and Max Evasion Increase are hidden in Daggerheart's character settings window, kept in the form.",
+   "source": "dh-settings.mjs:10-34 (the owner, 11.11.2026)."
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/module.mjs:516-518",
+   "comment_says": "registerTruthBullets comes 'After the API, because the migration it kicks off reads the clock'.",
+   "code_does": "registerTruthBullets kicks off no migration since E04: its own note says the two passes are clauses of migrate.mjs (truth-bullets.mjs:1995-1998)."
+  },
+  {
+   "where": "scripts/module.mjs:588-589",
+   "comment_says": "'`adoptQuestionMark` inside it already asked this for its own sweep'.",
+   "code_does": "reconcileRemnantActor no longer calls adoptQuestionMark; the sweep is the clause questionMarkIcon (remnants.mjs:1063-1065, migrate.mjs:474-491)."
+  },
+  {
+   "where": "scripts/module.mjs:560-563 and 597-607",
+   "comment_says": "'All four of these load-time passes WRITE'; and the JSDoc 'Every bedroom's owner holds the key to it' stands over tellProposersOnLoad.",
+   "code_does": "Six load-time passes are gated this way now (refreshTableCopyOnLoad with the tier 3 wording, reconcileRemnantActorOnLoad, tellProposersOnLoad, issueMissingKeys, sealProjects); the bedroom-key note belongs to issueMissingKeys at 616."
+  },
+  {
+   "where": "scripts/settings.mjs:2684-2688",
+   "comment_says": "The Key plan has no onChange, so 'another GM's edit reaches an open dashboard at its next one, and not the moment it merges'.",
+   "code_does": "The dashboard's keepLive watches keyPlanStore among its stores (investigation.mjs:2412), and keepLive redraws on that store's clientSettingChanged, another GM's merge included (live.mjs:335-351, measured on the harness 08.10.2026 per its note)."
+  },
+  {
+   "where": "scripts/settings.mjs:3692-3693",
+   "comment_says": "'`game.user.character` is a field nothing at this table ever sets'.",
+   "code_does": "The primary GM sets a player's user.character by account name since E79 C10 (user-match.mjs:237); the code below already prefers it (3736-3739)."
+  },
+  {
+   "where": "scripts/settings.mjs:4479-4482",
+   "comment_says": "'crossing 1200 px of width restacks the module'.",
+   "code_does": "BREAKPOINTS.narrow is 1224 (4344), as the note at 4318 says."
+  },
+  {
+   "where": "scripts/settings.mjs:1039-1044",
+   "comment_says": "mineDoor is read by 'vault.mjs (a concealed stash is their own furniture)'.",
+   "code_does": "vault.mjs is a facade with no code since E41 C6; the readers of iAmTheMastermind / myMastermindLair are fog.mjs, movement.mjs, projects.mjs, sheet-mode.mjs, sheet-sidebar.mjs, stash-reach.mjs and mastermind.mjs (grep)."
+  },
+  {
+   "where": "scripts/settings-window.mjs:6-8, 17, 30",
+   "comment_says": "'the 35 settings' stand in the sections; SETTINGS_SECTIONS holds 'every one of the 35 in exactly one'.",
+   "code_does": "The sections hold 37 rows (12 client, 25 world) and the Sound window two more (SOUND_WINDOW_SETTINGS); 35 was A1's count at 20218b05."
+  },
+  {
+   "where": "scripts/settings-window.mjs:23-24",
+   "comment_says": "GAME_SECTIONS holds 'every world row of the 35, Vary the sounds ... and Give back'.",
+   "code_does": "Vary the sounds and Music follow the game state are the Sound window's since E101 (settings-window.mjs:106-109); no game section names sfxVary."
+  },
+  {
+   "where": "scripts/migrate.mjs:68-70",
+   "comment_says": "'The clauses are independent of each other - none assumes another has run - which is why the list is in the order they were written'.",
+   "code_does": "Four clauses say they rely on the order: faintIntoSecrets runs 'after truthBulletShape (it reads the rows that one fills)' (563-565), liftDiscoveryLedger 'after forgetMonokumaWalks' (624-625), migrateRemnantsOnce 'after neutralTraceNames' (847-848), liftIncidentFight 'after the method's lift' (941-942).",
+   "old_id": "CORE-16 (read as fixed in old-1.2.42-core.json; the order rule was replaced by one the clauses contradict)"
+  },
+  {
+   "where": "scripts/migrate.mjs:39-42 and 139-142",
+   "comment_says": "'deleting a key with the `-=key` syntax can be accepted and do nothing at all'; '`-=key` cannot be trusted to remove anything in this Foundry'.",
+   "code_does": "On Foundry 14.370 `-=key` deletes and writes v14's deprecation warning (LIVE-E30-01, docs/dev/e39/CALIBRATION.md:20, 16.11.2026; CLAUDE.md); the read-back rule stays sound, the reason given for it does not."
+  },
+  {
+   "where": "scripts/migrate.mjs:103-106 and 114-116",
+   "comment_says": "The plan's clauses include 'stash seeding and `stashRoom` (E11)'; 'The clause that changes bedroom keys re-runs the bedroom-key pass itself'.",
+   "code_does": "No clause touches bedroom keys or `stashRoom`; the one stash clause is bedroomStashes (E89 C8, 1019-1039)."
+  },
+  {
+   "where": "scripts/migrate.mjs:1167-1171",
+   "comment_says": "hideBodyTiles is 'exported for the suite'.",
+   "code_does": "No test or harness file names it (grep of scripts/tests*.mjs and audit/harness); R5873 drives bodyTileAlphaPatches."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [
+   "registerSettings, settings.mjs:1484-3454 (about 1970 lines; by decision)"
+  ],
+  "functions_150_to_300": 2,
+  "functions_150_to_300_list": [
+   "module.mjs init hook 160-355 (196 lines)",
+   "module.mjs ready hook 392-549 (158 lines)"
+  ],
+  "duplicated_helpers": [
+   "The held settings' onChange `() => import(\"./enforced.mjs\").then(m => m.applyEnforced()).catch(...)` is written four times (settings.mjs:1573-1575, 1587-1589, 1599-1601, 1615-1617).",
+   "`() => import(\"./clock.mjs\").then(m => m.refreshSheets()).catch(() => {})` inline three times (2349, 2356, 2436) beside onConfusionsChange (3478-3480), which is that line under a name.",
+   "requirements.mjs reads the newer-system silence twice: systemWarningSilence (313-321) and inline in announceNewerSystem (373-378).",
+   "The four primary-only load passes in module.mjs (559-624) repeat one shape: isPrimaryGm gate, dynamic import, catch with a sentence.",
+   "`element instanceof HTMLElement ? element : element?.[0]` / `app.element` resolution again in settings.mjs:1136 and dh-settings.mjs:89, 217."
+  ],
+  "dead_code": [
+   "settings-window.mjs `keysFor` is exported and named by no other file or test (grep -w); it is used inside the file only.",
+   "migrate.mjs `hideBodyTiles` is exported 'for the suite' and named by no test (comments_against_code).",
+   "migrate.mjs `forgetMonokumaWalks` (since 1.1.43) reads the world setting discoveredRooms, which liftDiscoveryLedger empties since 1.2.64; it is live only for a world stamped before 1.1.43."
+  ],
+  "magic_numbers": [
+   "settings.mjs:4497 resize settle 250 ms",
+   "settings.mjs:4419-4421 autoScale's 2560, 1440, 0.7, and the 320 x 240 floor",
+   "settings.mjs:4470 typeScale's 0.85 (explained at 4458-4463)",
+   "migrate.mjs:1510 ChatMessage batch of 100",
+   "dh-settings.mjs:82 the 16 px rem fallback (WINDOW_REM 34 is named)"
+  ],
+  "comments_displaced": [
+   "settings.mjs:1630-1643: the pixel face's note stands over systemWarningSilenced and relayWarned; pixelFont is registered at 1672.",
+   "settings.mjs:1775-1784: the glass blur's note stands over bulletSort; glassBlur is registered at 1805.",
+   "settings.mjs:2537-2539: rollDrawWarned's note stands over levelUpsMigrated; rollDrawWarned is at 2549.",
+   "settings.mjs:2602-2605: foundryToolWindows's note stands over moveAudit's note and registration; foundryToolWindows is at 2624.",
+   "settings.mjs:3175-3176: friskForce's note stands over balanceLog; friskForce is at 3194.",
+   "settings.mjs:4293-4298: applyTheme's JSDoc stands over BREAKPOINTS and the screen helpers, about 250 lines above applyTheme (4551)."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Game settings > gm > Document language: 'Not set yet' is a choice that saves an empty setting (finding 4)."
+  ],
+  "stale_windows": [
+   "Game settings (settings-window.mjs:490-523): reads 25 world settings at open; listens to nothing (no keepLive, no updateSetting); Save writes back stale rows (finding 2). verdict: stale.",
+   "DRPG Settings, this browser's window (settings-window.mjs:445-482): reads 12 client settings, the volumes and the voice devices at open; listens to nothing. No other road writes those settings (grep), so stale only in principle.",
+   "The requirements window and the newer-system window (requirements.mjs:94-135, 370-419): static by nature (a stopped module; a version)."
+  ],
+  "two_gm": [
+   "settings.mjs:4094-4101 recordBodyFound and 4112-4126 carryBodyRooms read and write the whole bodiesFound world setting with no queue; their callers (body.mjs announceBody, fog.mjs carryRoomInWorld) are said to run on the primary - not traced here."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Whether Daggerheart 2.12.9 (module.json's verified version) still draws the character settings window with the selectors dh-settings.mjs reads: `.traits-inner-container`, `.two-columns`, `.add-experience-btn`, `.experience-item`, `a[data-action=\"removeExperience\"]`, and the field names system.scars, system.proficiency, system.evasion. The file says it was read at the tag 2.6.5 (dh-settings.mjs:12); a missing selector fails silently (the words and the hiding just do not happen).",
+   "l1": {
+    "what": "Daggerheart's character settings window as the module dresses it, on the verified Daggerheart",
+    "recipe": [
+     "1. As GM, open a student's sheet and press the wrench in its header.",
+     "2. On Details: check that Scars, Proficiency and Max Evasion Increase are not shown, that the two group headings and Max Health / Max Sanity read the module's words, and that each statistic has its glyph.",
+     "3. On Experiences: check the New button's words and each bin's tooltip.",
+     "4. Switch the module's language to Polish, reload, repeat 2-3.",
+     "5. Change Max Health by one and back: the hidden fields' values must not change (read the actor's system.scars, proficiency, evasion before and after in the console)."
+    ],
+    "clients": "one GM",
+    "theme": "both",
+    "settles_if": "All words, hidden fields and glyphs as described: holds on 2.12.9. Any shown hidden field or English word: a selector moved.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Whether the base run's tests near this lane pass: R1256 (lifetimes), R3420 (sections), R3550-R3553 and R3920 (dh-settings), R5873 (body tiles), R179 (worldWasInPlay), tier 2 'an unstamped world in play keeps its safeword', scenario 00-boot E20-T3 (a stopped module). base-run.json did not exist when this file was written; no result is claimed."
+  },
+  {
+   "what": "How v14's Configure Settings renders the module's one menu (DrpgSettingsMenu.render opens the module's own window) and whether SettingsConfig.reloadConfirm({ world }) exists under that name on 14.370: LIVE-E49-02 (settings.mjs:1982-1987, settings-window.mjs:37-41, 393-400). The fallback is a plain debounced reload of this browser only, which for a world setting would leave the other clients unreloaded.",
+   "l1": {
+    "what": "Configure Settings' DRPG button and the reload question of a world setting with requiresReload",
+    "recipe": [
+     "1. As GM, Configure Settings > Danganronpa RPG: press the module's one button; the DRPG Settings window must open.",
+     "2. GM panel > Between sessions > Settings > Privacy: change Dice look for the table, Save.",
+     "3. Read the question shown: Foundry's reload confirmation for every client (world), and whether a connected player's page reloads after Yes."
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "The window opens and Foundry's world reload question appears and reloads the player: holds. A plain reload of the GM's page only: the fallback ran and the player keeps the old look until they reload.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Where Foundry 14.370 keeps a client setting in the browser: requirementsLanguage reads localStorage['danganronpa-rpg.language'] as JSON (requirements.mjs:199-205) so a stopped module speaks the player's chosen language. Not read on v14.",
+   "l1": {
+    "what": "The requirements window's language when the module stops",
+    "recipe": [
+     "1. Set the module's language to Polish on a GM's browser and reload.",
+     "2. Disable Dice So Nice and reload.",
+     "3. Read the window that says the module did not start: Polish or English?",
+     "4. In the console: localStorage.getItem('danganronpa-rpg.language')."
+    ],
+    "clients": "one GM",
+    "theme": "default",
+    "settles_if": "Polish window and a JSON string '\"pl\"': holds. English window or null: v14 keeps client settings elsewhere and the stopped module falls back to Foundry's language.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Finding 2 was read, not run: a harness scenario with two GMs, one holding Game settings open while the other saves a world row, then the first saving, would measure the write-back (no live table needed: new harness probe)."
+  }
+ ]
+}
