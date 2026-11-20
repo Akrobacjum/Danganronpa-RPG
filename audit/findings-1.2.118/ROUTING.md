@@ -12,6 +12,7 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 | claude/trial-119 | cdcb27f9 | Dive and Scrum never close early; an empty camp's turn runs with no speaker; the Closing music plays from the speak step on |
 | claude/planlook-119 | 240a5d94 | the Planner's type colours, square routed arrows with a bundle and ports per source, the deduction/counter/solution kinds and the trial modes each in a distinct hue |
 | claude/sheet-119 | f5319776 | the effect pile; Hope/Despair applied after Dice So Nice everywhere |
+| claude/facilities-119 | 782baaa0 (asm de96c5be, 21:31Z) | the Facilities rows end on what the action gives (action-facilities.mjs effectWords/effectsWords, timed-effects.mjs timedWhat); the GM's text effect is named "a message from the GM"; R7843. An owner request |
 | claude/fog-119 | fc190a65 | the discovery cut-ahead guard (gm-store stampOver/floorOf); Hide all counts studentActors only (ledgerRooms); a Spectator's walk is not an Eclipse crossing (judgeArrival) - MAP-17 / domain-map-b-movement-1 |
 
 ## Pushed, merge pending the final report
@@ -24,7 +25,6 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 - F on fog-119: the voice tile under the veil (voice.mjs placeVoices) - domain-comm-c-voice-1.
 - C1 on claude/season-119: Reset the season is dead (controls-10-setup-config-1, domain-case-g-death-chapter-1, stages-17 E49-1); Season setup's Save writes the stale clock and safeword (controls-10-setup-config-2); the checklist's live rows (controls-10-setup-config-3), only if time allows.
 - S on sheet-119: discarding items that are not broken (an owner request, not a finding).
-- T on claude/facilities-119: the Facilities GM action tiles show the chosen action's effect (owner request).
 - P on claude/sound-119: Sound > Effects add/remove per file (owner request).
 
 ## Deferred to 1.2.120 (known; kept in the report as open)
