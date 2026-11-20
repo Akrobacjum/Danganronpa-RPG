@@ -100,10 +100,15 @@ const living = new Set();
  * @param {Function}[options.after]  Run after a successful rebuild, with the new
  *                                   element - for anything the region needs that
  *                                   markup alone cannot carry.
+ * @param {boolean} [options.whileEditing] Rebuild with the focus in a field of
+ *                                   the region that holds nothing typed, and give
+ *                                   that field the focus back (`untouchedFocus`);
+ *                                   a field typed in still holds the rebuild until
+ *                                   the focus leaves, as RULE 1 has it.
  * @returns {Function} Stop listening. Idempotent; also called automatically
  *                     when the window closes or the region goes away.
  */
-export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null } = {}) {
+export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null, whileEditing = false } = {}) {
     if (!app || typeof build !== "function" || !region) return () => {};
 
     const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0, watch, build };
@@ -154,8 +159,17 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             return;
         }
 
+        /* A FOCUS ON A FIELD NOBODY TYPED IN (the line claude/plan-119, 20.11.2026; the owner of that day: "by okna zawsze
+           odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)"). With `whileEditing`, a focused field that holds
+           nothing typed - a click into it, a tab through it - does not hold the rebuild: the region is rebuilt and the
+           field with the same name gets the focus back, its caret where it was. The case dashboard asks it: with every node
+           open on its Map (owner-116) a GM's focus sits in a field most of the time, and the Map stayed as it was drawn
+           until the focus left the region. A field typed in, a select (its list may be open under the pointer) and a field
+           with no name hold it as before. */
+        const keep = !force && whileEditing && isEditing(element) ? untouchedFocus(element) : null;
+
         // RULE 1. The GM is typing in here; come back when they are not.
-        if (!force && isEditing(element)) {
+        if (!force && !keep && isEditing(element)) {
             pending = true;
             record.deferred++;
             debug(`live: ${region} deferred - focus is inside it`);
@@ -172,6 +186,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             restore(next, carried);
             record.refreshes++;
             if (after) after(next);
+            if (keep) giveFocusBack(next, keep);
 
             /*
              * AND THE NEW NODES ARE DRESSED (LAT-14, 20.09).
@@ -371,6 +386,28 @@ function listenFor(watch, schedule) {
  * are beyond the audit's list: a slider is dragged, an image input is a button.
  */
 const PRESSED_INPUTS = new Set(["checkbox", "radio", "button", "submit", "reset", "color", "file", "range", "image"]);
+
+/**
+ * The focused field of `element` when it holds nothing typed (`keepLive`'s `whileEditing`): `{ name, start, end }`, or
+ * null - for a field typed in (`isDirty`), a select, or a field with no name to find it by after the rebuild.
+ */
+function untouchedFocus(element) {
+    const active = document.activeElement;
+    if (!active || !element.contains(active) || active.tagName === "SELECT") return null;
+    const name = active.getAttribute?.("name");
+    if (!name || isDirty(active)) return null;
+    let start = null, end = null;
+    try { start = active.selectionStart ?? null; end = active.selectionEnd ?? null; } catch { /* a type with no caret */ }
+    return { name, start, end };
+}
+
+/** The focus given back to the field named as before the rebuild, its caret where it was (`untouchedFocus`). */
+function giveFocusBack(element, { name, start, end }) {
+    const field = element.querySelector(`[name="${CSS.escape(name)}"]`);
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    try { if (start !== null && end !== null) field.setSelectionRange(start, end); } catch { /* a type with no caret */ }
+}
 
 function isEditing(element) {
     const active = document.activeElement;

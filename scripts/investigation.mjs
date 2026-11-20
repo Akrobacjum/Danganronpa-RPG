@@ -2449,6 +2449,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                 region: ".drpg-case-live",
                 build: buildCase,
                 watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },
+                /* a focused field nobody typed in does not hold the redraw (live.mjs `whileEditing`; the owner, 20.11.2026, the
+                   line claude/plan-119): with every node open on the Map a GM's focus is in a field most of the time */
+                whileEditing: true,
                 after: () => {
                     wireCase(dialog);
                     wireCaseFilters(dialog, reading, () => live?.refresh?.());

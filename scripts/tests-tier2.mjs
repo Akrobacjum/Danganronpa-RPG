@@ -104534,6 +104534,58 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ gone: true, token: false, inputs: [], missing: 0 }),
             "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
     }],
+
+    ["the open planner draws a node written to the case while it stands open - with no field focused, and with a field focused that holds nothing typed, the focus kept on that field; a field with text typed holds the redraw until the focus leaves, its text kept (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\"; the line claude/plan-119)", async () => {
+        /*
+         * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction
+         * to the GMs' case store while the window stands open - this GM's own write, which reaches the window through the
+         * same store hook as another GM's merged in (live.mjs `listenFor`'s `stores`). First with nothing focused in the
+         * window; then with the fixture's Name field focused and untouched; then with it focused and a word typed in it,
+         * and after that the focus moved to the window's footer. Read each time: whether the new node is drawn within 2 s,
+         * and where the focus is. Red at b5a29e73: a focused field held every redraw until the focus left the region, and
+         * with every node open on the Map (owner-116) a GM's focus is in a field most of the time.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is drawn and focused on its window");
+        const ch = getClock().chapter, base = "deduction-suite-live", added = ["deduction-suite-live-1", "deduction-suite-live-2", "deduction-suite-live-3"];
+        let win = null;
+        const seen = {};
+        try {
+            await S.setCaseNode(ch, base, { kind: "deduction", label: "SUITE live base" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const drawn = id => Boolean(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`));
+            const label = () => win.field(`case:${ch}:${base}:label`);
+            await until(() => drawn(base), 3000).catch(() => {});
+            const write = async (i) => {
+                await S.setCaseNode(ch, added[i], { kind: "deduction", label: `SUITE live ${i + 1}` });
+                await until(() => drawn(added[i]), 2000).catch(() => {});
+                return drawn(added[i]);
+            };
+            document.activeElement?.blur?.();
+            seen.none = await write(0);
+            label()?.focus();
+            const focused = document.activeElement === label();
+            seen.untouched = { focused, drawn: await write(1), focus: document.activeElement === label() };
+            label()?.focus();
+            if (label()) { label().value = "SUITE live typed"; label().dispatchEvent(new Event("input", { bubbles: true })); }
+            const held = !(await write(2));
+            root?.querySelector('footer.form-footer button')?.focus();
+            await until(() => drawn(added[2]), 2000).catch(() => {});
+            seen.typed = { held, after: drawn(added[2]), kept: label()?.value === "SUITE live typed" };
+        } finally {
+            if (win) {
+                const typed = win.field(`case:${ch}:${base}:label`);
+                if (typed) typed.value = typed.defaultValue;
+                await win.close().catch(() => {});
+            }
+            for (const id of [base, ...added]) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ none: true, untouched: { focused: true, drawn: true, focus: true }, typed: { held: true, after: true, kept: true } }),
+            "the open planner did not draw a node written meanwhile (none: no focus; untouched: a field focused and untouched - drawn, focus kept; typed: a field with text typed - held, drawn after the focus left, the text kept)");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
