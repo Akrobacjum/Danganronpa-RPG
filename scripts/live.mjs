@@ -95,16 +95,16 @@ const living = new Set();
  *                                   still found - which means `build` must
  *                                   return an element carrying the same class.
  * @param {Function} options.build   Returns the replacement: markup, or a node.
- * @param {object}  [options.watch]  `{ actors, tokens, items, settings, settingKeys, stores, hooks }`.
+ * @param {object}  [options.watch]  `{ actors, tokens, items, settings, settingKeys, stores, hooks, where }`.
  * @param {number}  [options.delay]  Debounce, ms.
  * @param {Function}[options.after]  Run after a successful rebuild, with the new
  *                                   element - for anything the region needs that
  *                                   markup alone cannot carry.
  * @param {boolean} [options.whileEditing] Rebuild with the focus in a field of
- *                                   the region that holds nothing typed, and give
- *                                   that field the focus back (`untouchedFocus`);
- *                                   a field typed in still holds the rebuild until
- *                                   the focus leaves, as RULE 1 has it.
+ *                                   the region, typed in or not, and give that
+ *                                   field the focus and its caret back
+ *                                   (`keptFocus`); a select, a nameless field and
+ *                                   an IME's composition still hold it.
  * @returns {Function} Stop listening. Idempotent; also called automatically
  *                     when the window closes or the region goes away.
  */
@@ -132,6 +132,10 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
      * E44-T1); a real pointer at a table is not measured yet: LIVE-E44-02. */
     let held = false;
     let heldWanted = false;
+    /* An IME's composition in a field of the region (`whileEditing`): a rebuild under it would cut the word being
+       composed, so it waits for `compositionend`, which answers a rebuild wanted meanwhile. Not measured: jsdom composes
+       nothing, and no table has typed Polish through an IME into the Map yet. */
+    let composing = false;
     let holdTimer = null;
 
     const root = () => app.element ?? null;
@@ -159,14 +163,15 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             return;
         }
 
-        /* A FOCUS ON A FIELD NOBODY TYPED IN (the line claude/plan-119, 20.11.2026; the owner of that day: "by okna zawsze
-           odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)"). With `whileEditing`, a focused field that holds
-           nothing typed - a click into it, a tab through it - does not hold the rebuild: the region is rebuilt and the
-           field with the same name gets the focus back, its caret where it was. The case dashboard asks it: with every node
-           open on its Map (owner-116) a GM's focus sits in a field most of the time, and the Map stayed as it was drawn
-           until the focus left the region. A field typed in, a select (its list may be open under the pointer) and a field
-           with no name hold it as before. */
-        const keep = !force && whileEditing && isEditing(element) ? untouchedFocus(element) : null;
+        /* A FOCUS IN A FIELD DOES NOT HOLD THE REBUILD (the line claude/plan-119, 20.11.2026; the owner of that day: "by
+           okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)", and "Zawsze odswiezamy okna od razu przy
+           zmianie"). With `whileEditing` the region is rebuilt with the focus in one of its fields: what was typed is
+           carried (RULE 2, `capture` and `restore`), a field another GM changed meanwhile keeps the typed text and is
+           marked, and the field with the same name gets the focus back with its caret where it was. The case dashboard asks
+           it: with every node open on its Map (owner-116) a GM's focus sits in a field most of the time, and the Map stayed
+           as it was drawn until the focus left the region. A select (its list may be open under the pointer), a field with
+           no name and an IME's composition hold it as before. */
+        const keep = !force && whileEditing && !composing && isEditing(element) ? keptFocus(element) : null;
 
         // RULE 1. The GM is typing in here; come back when they are not.
         if (!force && !keep && isEditing(element)) {
@@ -255,6 +260,15 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         rebuild(true);
     };
     root()?.addEventListener("focusout", onFocusOut);
+    const onCompositionStart = () => { composing = true; };
+    const onCompositionEnd = () => {
+        composing = false;
+        if (pending && whileEditing) { pending = false; schedule(); }
+    };
+    if (whileEditing) {
+        root()?.addEventListener("compositionstart", onCompositionStart);
+        root()?.addEventListener("compositionend", onCompositionEnd);
+    }
 
     const view = () => root()?.ownerDocument?.defaultView ?? window;
     const release = () => {
@@ -287,6 +301,8 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         for (const [name, id] of listeners) Hooks.off(name, id);
         Hooks.off("closeApplicationV2", closeId);
         root()?.removeEventListener("focusout", onFocusOut);
+        root()?.removeEventListener("compositionstart", onCompositionStart);
+        root()?.removeEventListener("compositionend", onCompositionEnd);
         root()?.removeEventListener("pointerdown", onPointerDown, true);
         for (const name of RELEASES) view().removeEventListener(name, release, true);
         clearTimeout(holdTimer);
@@ -326,6 +342,17 @@ function listenFor(watch, schedule) {
     ];
 
     const listeners = names.map(name => [name, Hooks.on(name, () => schedule())]);
+    /* A HOOK HEARD FOR WHAT THE WINDOW SHOWS, NOTHING WIDER (the line claude/plan-119, 20.11.2026; the owner of that day:
+       "Tak. Zawsze odswiezamy okna od razu przy zmianie"). `watch.where` is `[[hook, test(...args)]]`: the hook schedules
+       a rebuild only where its test answers true - the case dashboard hears a Remnant's token made or deleted and a room's
+       region, never a player's token moving (investigation.mjs `CASE_WATCH`). */
+    for (const [name, test] of watch.where ?? []) {
+        listeners.push([name, Hooks.on(name, (...args) => {
+            let hit = false;
+            try { hit = test(...args) === true; } catch { hit = false; }
+            if (hit) schedule();
+        })]);
+    }
 
     // Settings are filtered rather than watched wholesale: every module in the
     // world writes settings, and a window has no business redrawing because
@@ -388,20 +415,22 @@ function listenFor(watch, schedule) {
 const PRESSED_INPUTS = new Set(["checkbox", "radio", "button", "submit", "reset", "color", "file", "range", "image"]);
 
 /**
- * The focused field of `element` when it holds nothing typed (`keepLive`'s `whileEditing`): `{ name, start, end }`, or
- * null - for a field typed in (`isDirty`), a select, or a field with no name to find it by after the rebuild.
+ * The focused field of `element` to give the focus back to after a rebuild (`keepLive`'s `whileEditing`): `{ name, start,
+ * end }`, or null - for a select, or a field with no name to find it by. What was typed in it is carried by `capture` and
+ * `restore` (RULE 2), and a field another GM changed meanwhile keeps the typed text and is marked (`drpg-moved-under`).
+ * A select holds the rebuild: its list may be open under the pointer, and a select drawn anew shuts it.
  */
-function untouchedFocus(element) {
+function keptFocus(element) {
     const active = document.activeElement;
     if (!active || !element.contains(active) || active.tagName === "SELECT") return null;
     const name = active.getAttribute?.("name");
-    if (!name || isDirty(active)) return null;
+    if (!name) return null;
     let start = null, end = null;
     try { start = active.selectionStart ?? null; end = active.selectionEnd ?? null; } catch { /* a type with no caret */ }
     return { name, start, end };
 }
 
-/** The focus given back to the field named as before the rebuild, its caret where it was (`untouchedFocus`). */
+/** The focus given back to the field named as before the rebuild, its caret where it was (`keptFocus`). */
 function giveFocusBack(element, { name, start, end }) {
     const field = element.querySelector(`[name="${CSS.escape(name)}"]`);
     if (!field) return;

@@ -104535,15 +104535,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
     }],
 
-    ["the open planner draws a node written to the case while it stands open - with no field focused, and with a field focused that holds nothing typed, the focus kept on that field; a field with text typed holds the redraw until the focus leaves, its text kept (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\"; the line claude/plan-119)", async () => {
+    ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*
          * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction
          * to the GMs' case store while the window stands open - this GM's own write, which reaches the window through the
          * same store hook as another GM's merged in (live.mjs `listenFor`'s `stores`). First with nothing focused in the
-         * window; then with the fixture's Name field focused and untouched; then with it focused and a word typed in it,
-         * and after that the focus moved to the window's footer. Read each time: whether the new node is drawn within 2 s,
-         * and where the focus is. Red at b5a29e73: a focused field held every redraw until the focus left the region, and
-         * with every node open on the Map (owner-116) a GM's focus is in a field most of the time.
+         * window; then with the fixture's Name field focused and untouched; then with it focused, a word typed in it and
+         * part of it selected; then the same field written in the store meanwhile. Read each time: whether the new node is
+         * drawn within 2 s, where the focus is, the field's text and caret, and the field's mark. Red at b5a29e73: a
+         * focused field held every redraw until the focus left the region, and with every node open on the Map
+         * (owner-116) a GM's focus is in a field most of the time; red at 88ad9a26 for a field typed in, which still held.
          */
         const S = await import("./case-schema.mjs");
         needs(env.dialogs(), "the dashboard is drawn and focused on its window");
@@ -104569,11 +104570,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const focused = document.activeElement === label();
             seen.untouched = { focused, drawn: await write(1), focus: document.activeElement === label() };
             label()?.focus();
-            if (label()) { label().value = "SUITE live typed"; label().dispatchEvent(new Event("input", { bubbles: true })); }
-            const held = !(await write(2));
-            root?.querySelector('footer.form-footer button')?.focus();
-            await until(() => drawn(added[2]), 2000).catch(() => {});
-            seen.typed = { held, after: drawn(added[2]), kept: label()?.value === "SUITE live typed" };
+            if (label()) { label().value = "SUITE live typed"; label().dispatchEvent(new Event("input", { bubbles: true })); label().setSelectionRange(5, 9); }
+            const drawnTyped = await write(2);
+            seen.typed = { drawn: drawnTyped, focus: document.activeElement === label(), kept: label()?.value === "SUITE live typed",
+                caret: [label()?.selectionStart, label()?.selectionEnd] };
+            /* the same field written meanwhile (another GM's Save of it): the text typed stays, the field is marked */
+            await S.setCaseNode(ch, base, { label: "SUITE live elsewhere" });
+            await until(() => label()?.classList.contains("drpg-moved-under"), 2000).catch(() => {});
+            seen.under = { kept: label()?.value === "SUITE live typed", marked: Boolean(label()?.classList.contains("drpg-moved-under")), focus: document.activeElement === label() };
         } finally {
             if (win) {
                 const typed = win.field(`case:${ch}:${base}:label`);
@@ -104583,8 +104587,73 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const id of [base, ...added]) await S.dropCaseNode(ch, id).catch(() => {});
             await gmStoresIdle();
         }
-        equal(stableJson(seen), stableJson({ none: true, untouched: { focused: true, drawn: true, focus: true }, typed: { held: true, after: true, kept: true } }),
-            "the open planner did not draw a node written meanwhile (none: no focus; untouched: a field focused and untouched - drawn, focus kept; typed: a field with text typed - held, drawn after the focus left, the text kept)");
+        equal(stableJson(seen), stableJson({ none: true, untouched: { focused: true, drawn: true, focus: true },
+            typed: { drawn: true, focus: true, kept: true, caret: [5, 9] }, under: { kept: true, marked: true, focus: true } }),
+            "the open planner did not draw a node written meanwhile (none: no focus; untouched: a field focused and untouched - drawn, focus kept; typed: text typed - drawn, focus, text and caret kept; under: the same field written meanwhile - text kept, marked, focus kept)");
+    }],
+
+    ["the open planner draws at once what changes on the map that it shows - a Remnant's token deleted by hand, with no ledger write after it, takes its node off; a room's region made puts the room in a planned Remnant's room list and deleted takes it out - and a token that is no Remnant moved redraws nothing (investigation.mjs `CASE_WATCH`, live.mjs `watch.where`; the owner, 20.11.2026: \"Tak. Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
+        /*
+         * The dashboard drawn on the Map. A trace placed on the scene on screen and a deduction resting on it; its token then
+         * deleted by hand with `drpgReset` in the delete's options, so remnants.mjs's own `deleteToken` hook writes no
+         * tombstone - a deletion whose ledger write comes from another GM, or none - and the Map must hear the token itself.
+         * A planned Remnant written with no room, and a region marked a room made on the scene and then deleted. A token
+         * with no Remnant flag moved (the world's first such token, put back after). Read: the trace's node drawn within
+         * 2 s of each, the room in the planned row's list, and whether the region element was replaced by the move.
+         * Red at 88ad9a26: the dashboard heard no token and no region.
+         */
+        const S = await import("./case-schema.mjs");
+        const R = await import("./remnants.mjs");
+        needs(env.dialogs(), "the dashboard is drawn on its window");
+        needs(world.atLeast("sceneOnScreen"), "the trace and the room are made on the scene on screen");
+        const scene = canvas.scene, ch = getClock().chapter, ded = "deduction-suite-map-live", inc = "incident-suite-map-live";
+        let win = null, trace = null, region = null, key = null;
+        const seen = {};
+        const other = scene.tokens.find(t => !t.getFlag(MODULE_ID, R.REMNANT_FLAGS.isRemnant));
+        const otherAt = other ? { x: other.x, y: other.y } : null;
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 180, y: 60, note: "SUITE map live", chapter: ch });
+            must(trace?.id, "the trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE map live" });
+            key = R.keyOf(trace);
+            await S.setCaseNode(ch, ded, { kind: "deduction", label: "SUITE map live", inputs: [key] });
+            await S.setCaseNode(ch, inc, { kind: "incident", label: "SUITE map live planned", type: "prep" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const nodeOf = id => root?.querySelector(`[data-drpg-node="${CSS.escape(id)}"], .drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"]`) ?? null;
+            const rooms = () => [...(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${inc}"] select[name="${CSS.escape(`case:${ch}:${inc}:room`)}"]`)?.options ?? [])].map(o => o.value);
+            await until(() => nodeOf(key), 3000).catch(() => {});
+            seen.drawn = Boolean(nodeOf(key));
+            const live = () => root?.querySelector(".drpg-case-live");
+            if (other) {
+                const before = live();
+                await other.update({ x: other.x + 100 }, { animate: false });
+                await wait(800);
+                seen.moved = live() === before;
+            } else seen.moved = true;
+            [region] = await scene.createEmbeddedDocuments("Region", [{ name: "SUITE live room", shapes: [{ type: "rectangle", x: 0, y: 0, width: 200, height: 200 }],
+                flags: { [MODULE_ID]: { room: true } } }]);
+            must(region?.id, "the room's region was not made");
+            await until(() => rooms().includes("SUITE live room"), 2000).catch(() => {});
+            seen.roomIn = rooms().includes("SUITE live room");
+            await scene.deleteEmbeddedDocuments("Region", [region.id]);
+            region = null;
+            await until(() => !rooms().includes("SUITE live room"), 2000).catch(() => {});
+            seen.roomOut = !rooms().includes("SUITE live room");
+            await scene.deleteEmbeddedDocuments("Token", [trace.id], { drpgReset: true });
+            await until(() => !nodeOf(key), 2000).catch(() => {});
+            seen.gone = !nodeOf(key);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (other && otherAt) await other.update(otherAt, { animate: false }).catch(() => {});
+            if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]).catch(() => {});
+            if (trace) { await R.dropRemnantSecret(trace).catch(() => {}); if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]).catch(() => {}); }
+            for (const id of [ded, inc]) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: true, moved: true, roomIn: true, roomOut: true, gone: true }),
+            "the open planner did not show a change on the map at once, or redrew for a token it does not show (drawn: the trace's node at the start, moved: no redraw for a non-Remnant token's move, roomIn and roomOut: the room in the planned row's list, gone: the deleted token's node off)");
     }],
 ];
 

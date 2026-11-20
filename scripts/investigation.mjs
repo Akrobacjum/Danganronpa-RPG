@@ -29,7 +29,7 @@
 import { MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, RECIPIENT_EVERYONE } from "./config.mjs";
 import { isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions, keyOf } from "./remnants.mjs";
+import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions, keyOf, traceTokenHeard } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
@@ -45,7 +45,7 @@ import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, 
 import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 
-import { roomRegions } from "./rooms.mjs";
+import { roomRegions, ROOM_FLAG } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { PLANNED_GLYPH, randomPointIn, SCALE_LABELS, keyRowShows, keyPlan, caseKeyCount, placedKeyRemnants, keyPlanStatus, same, placeKeyRow, saveKeyPlan, writable, keyRowsUsed } from "./key-remnants.mjs";
 export { keyRevealRecord, recordKeyRevealed, keyPlan, setKeyPlan, archiveKeyPlan, liftKeyPlan, clearKeyPlan, keepOnlyKeyPlanChapter, clearSeasonKeyPlan, recordCaseKeys, caseKeyCount, keysToPlace, keyPlanStatus, missingKeyRows, keyFeeOf, chargeForUnfoundKeys, askToChargeForUnfoundKeys, randomPointIn, openKeyRemnantHere, placeInSlot, placeKeyRow } from "./key-remnants.mjs";
@@ -1122,6 +1122,29 @@ function mapChapterOf(reading) {
     return reading.chapter && Number.isInteger(named) ? { chapter: named, chapters: "this" }
         : { chapter: getClock().chapter, chapters: reading.chapter === "" ? "all" : "this" };
 }
+
+/**
+ * WHAT THE DASHBOARD SHOWS OF THE MAP ITSELF, HEARD AT ONCE (the owner, 20.11.2026: "Tak. Zawsze odswiezamy okna od razu
+ * przy zmianie"; the line claude/plan-119). Its stores are heard already (`openInvestigationDashboard`'s `watch.stores`);
+ * of the scenes it reads only these, and so hears only these (live.mjs `watch.where`):
+ * - a Remnant's token made or deleted, or its Remnant flag changed: a trace is its token (D38 = 1), and one whose token
+ *   went is no node (remnants.mjs `traceRefsOf`) - heard here even where no ledger write follows (the primary GM's
+ *   tombstone, remnants.mjs's `deleteToken` hook, is written on the primary alone). A Remnant's token moved is not: its
+ *   room is the ledger's (`remnantData`), so a move changes nothing drawn, and a player's token is never heard;
+ * - a room's region made, deleted, renamed or marked: the rooms a planned row is placed by (utils.mjs `placeRoomOptions`);
+ * - a scene made, deleted or renamed: the rooms' groups.
+ */
+const CASE_WATCH = Object.freeze([
+    ["createToken", doc => traceTokenHeard(doc)],
+    ["deleteToken", doc => traceTokenHeard(doc)],
+    ["updateToken", (doc, changes) => traceTokenHeard(doc, changes ?? {})],
+    ["createRegion", () => true],
+    ["deleteRegion", () => true],
+    ["updateRegion", (doc, changes) => "name" in (changes ?? {}) || Boolean(changes?.flags?.[MODULE_ID] && Object.keys(changes.flags[MODULE_ID]).some(k => k.replace(/^-=/, "") === ROOM_FLAG))],
+    ["createScene", () => true],
+    ["deleteScene", () => true],
+    ["updateScene", (doc, changes) => "name" in (changes ?? {})]
+]);
 
 /**
  * THE GRAPH THE MAP DRAWS (`caseMapRegion`), for the drawing and for what acts on its order (`moveCaseNode`), so the two
@@ -2448,7 +2471,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore], where: CASE_WATCH },
                 /* a focused field nobody typed in does not hold the redraw (live.mjs `whileEditing`; the owner, 20.11.2026, the
                    line claude/plan-119): with every node open on the Map a GM's focus is in a field most of the time */
                 whileEditing: true,
