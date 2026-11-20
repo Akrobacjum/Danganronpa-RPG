@@ -1,0 +1,845 @@
+{
+ "reader": "stages-07",
+ "checkout": "branch claude/audit-119 at 00f2924f; the code read is main b5a29e73 (1.2.118) - the branch adds files under audit/ only. Shallow history: the oldest commits are 32fd204f and 30587912 (14.10.2026), so E78's own commits and every stage commit the 1.2.78-1.2.80 notes name (7ac773b, d69801d, 87b963e, 3ad0ca0, 770b06c, f9086fc2, 22cc778, bcbd213) are not in it; the release merges are (37a3219a, b1018851, cad376ef), and 6af414cb (E79 r4-G7), 588c8dd4 (E80 sec1-G2) and 105ea310 (crlf-G1).",
+ "read_counts": {
+  "stages": 4,
+  "release_notes_lines_read": "v1.2.77.md 1-197, v1.2.78.md 1-169, v1.2.79.md 1-219, v1.2.80.md 1-308, each whole (893 lines)",
+  "papers_read_whole": {},
+  "papers_not_found": [
+   "docs/dev/e78",
+   "docs/dev/e84",
+   "docs/dev/e79",
+   "docs/dev/e80 (ls docs/dev: no folder for any of the four)"
+  ],
+  "other_papers_read": [
+   "audit/findings-1.2.118/BRIEF.md (whole), first-session/README.md (whole), stages-25.json and stages-05.json (shape, one stage each), stages-03.json (the not-graded E07 entry)",
+   "audit/AUDIT-1.2.42.md 16-127 (section 11) and 9.2 items 223-266 and 271 (lines 1097-1140, 1145) by grep of the ids; items 236, 237, 239 and 256 read whole",
+   "audit/findings-1.2.118/first-session/live-items-07.json and live-items-08.json: the rows of items 223-266 and 271 and both files' observations",
+   "audit/findings-1.2.118/live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json: every row naming LIVE-E78/E84/E79/E80, a passage, a tunnel or a Frisk",
+   "tools/stages.json rows E78, E84, E79, E80; docs/dev/R-REGISTRY.md rows stamped E78 (20), E79 (32), E80 (31), and R570, R571 (stamped 1.2.78); git grep E84 over scripts, audit/harness, tools, docs: tools/stages.json:30 and docs/dev/e58/TRIAGE-9.2.md:260 only",
+   "audit/harness/README.md register rows 74, 75, 76 and the LiveKit and passages paragraphs (700-717); audit/harness/skip-baseline.json (R543 the one row of R533-R623)"
+  ],
+  "code_read": [
+   "scripts/voice-tile.mjs 1-148 (the header) and 1060-1215 (OBJECTION!, the Spectator switch, the reveal on the tile)",
+   "scripts/movement.mjs 220-345 (whenAtRest, destinationOf) and 2895-2990 (onUpdateToken's end, recheckAtRest, judgeMove's start)",
+   "scripts/bridge-guards.mjs 1891-1905 (WINDOW_CLOCK, createWaiter)",
+   "scripts/user-match.mjs 1-303 (whole)",
+   "scripts/enforced.mjs 40-125 (the held rows) and 505-660 (the file permissions, the portraits, the User Configuration window, the give-back's header)",
+   "scripts/passages-gm.mjs 2420-2560 (resolvePassageSearch) and 3270-3304 (the GM's hooks); function heads by grep",
+   "scripts/movement-audit.mjs 1-71; scripts/settings.mjs 1578-1605, 1925-1960, 2608-2630; scripts/voice.mjs 1405-1424 (moduleHoldsMic)",
+   "scripts/config.mjs 1800-1830 (Palm, Frisk), 1625 (passageThreshold), 4404 (speakerMs); scripts/season-setup.mjs 1480-1500; scripts/trial-scene.mjs 535-545, 1680-1705; scripts/room-setup.mjs 390-398; scripts/mask-gm.mjs 653-658; scripts/spectator-ui.mjs 35-43",
+   "audit/harness/scenarios/74-room-tile.mjs 1005-1075 (phase L)",
+   "test bodies: R571 (tests-tier0.mjs:11048-11084) and R583 (tests-tier0.mjs:15210-15270) whole; the heads of R570, R541, R559, R575, R598, R621",
+   "docs/handbooks/gm-handbook.en.md 359 and 927-929 (Palm and Frisk)"
+  ]
+ },
+ "count_note": "Four stages, as the scope names (E78, E84, E79, E80, in tools/stages.json order). None has a folder in docs/dev; the release notes are each stage's one paper. E84 has no registry row of its own and is graded on the release's two rows (stamped 1.2.78, its version) and scenario 74's phase L, with the reason in its entry. The 1.2.80 notes carry E16's part 1 beside E80; E16 is another reader's stage and its promises (the dice look, the roll window, R800-R806, LIVE-E16-01..04) are left out here. Tier 2 and the scenarios have no verdict in either session's base run (01-runtests timed out; the run stopped inside 30-security, before 33, 40, 74, 75 and 76), so every tier-2 test and scenario below is in tests_to_join and none is claimed green. Live items counted by id: E78 13 (items 223-235), E84 2 (items 236 LIVE-E78-14 and 237 LIVE-E84-01 - the first carries E78's prefix but is E84's fix), E79 25 (238-262), E80 5 (263-266, 271); 45 in all.",
+ "stages": [
+  {
+   "id": "E78",
+   "version": "1.2.77",
+   "shipped": "2026-10-14",
+   "what": "The owner's request A9: a voice tile at the right wall in place of Foundry's camera dock (who you hear speaking in your own LiveKit room, your microphone, a speaker button with the list 'Who you hear', a GM's block), the dock hidden with its sound kept, the gear's Voice section, a Pre-season line for a world that sends video, a smaller room tile, and three fixes from 1.2.76 (The Forge's Assets Library pictures, the idle Still to act strip, the anvil on Foundry tools).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.77.md (1-197, whole: Before installing 10-51, At the table 53-110, Changed 112-130, Known gaps 132-161, Checked 163-197)",
+    "no papers folder (ls docs/dev: no e78)",
+    "tools/stages.json row E78 (planned and shipped 1.2.77, 14.10.2026; touches null, drills none)",
+    "docs/dev/R-REGISTRY.md: 20 rows stamped E78, R533-R552",
+    "audit/AUDIT-1.2.42.md 9.2 items 223-235 (lines 1097-1109; LIVE-E78-01..13); item 236 (LIVE-E78-14) is E84's fix and is counted there",
+    "git log: the stage's commits are older than the shallow checkout; 6 later commits name E78 (git log -E --grep '\\bE78\\b')"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout (1.2.77 shipped 14.10.2026; the history begins at 32fd204f of 14.10.2026). The notes name 18 commits with 166 mutants (v1.2.77.md 186-188) and two review rounds (189-194).",
+   "promises": [
+    {
+     "promise": "The tile shows only who this player hears speaking in their own voice room - a remote participant of the browser's own LiveKit Room whose audio element here is live - never anyone outside it; a new speaker after 250 ms, the portrait held 1.5 s then faded (at once under reduced motion); someone who leaves, a lost connection or a new Room clears it at once",
+     "source": "v1.2.77.md 66-70",
+     "code": "scripts/voice-tile.mjs:11-34 (the rule as the header states it: attachRoom, participantUser, audible, STICK_MS, HOLD_MS), :8-9 (the dock kept in the document)",
+     "holds": "yes",
+     "test": "R535, R536, R540, R550 (tier 1); scenario 75 (A-F)",
+     "test_kind": "behaviour",
+     "note": "Changed on purpose by E79 C15: the first speaker on an empty tile is shown at once, a change of speaker still waits 250 ms (voice-tile.mjs:22-26). Real speech on a real LiveKit server is LIVE-E78-10 and LIVE-E79-20, both open."
+    },
+    {
+     "promise": "While the tile is on (the default), Foundry's camera dock and its pop-outs are not shown on any screen but stay in the page so their sound keeps playing; off brings the dock back for everyone with no reload; with avclient-livekit inactive or A/V off or video only there is no tile",
+     "source": "v1.2.77.md 12-20",
+     "code": "styles/danganronpa.css:6303-6314 (body.drpg-dock-hidden #camera-views and the popouts); scripts/voice-tile.mjs:148 DOCK_HIDDEN_CLASS; scripts/settings.mjs:1928-1942 (voiceTile: world, default true, onChange redraws the tile and holds the dock)",
+     "holds": "yes",
+     "test": "R541 (tier 1: the class, both displays, the elements still in the document, dockHiddenFor over the A/V modes); scenario 75 A and D",
+     "test_kind": "both",
+     "note": "Extended by E19 C1 (1.2.83): the setting's change also folds Foundry's own dock and pop-outs through enforced.mjs's rtcDock row (enforced.mjs:118-120, settings.mjs:1935-1941). That display: none !important wins over Foundry's own dock rules and that the hidden dock still plays after F5 are read in code only (v1.2.77.md 14, 149; R541's own head says so) - LIVE-E78-01 and -10, open."
+    },
+    {
+     "promise": "The microphone button mutes and unmutes the viewer's own microphone and nobody else's, by writing the viewer's own users.<self>.muted; a bound key does the same (no default key); struck grey with the reason when the module holds it, a lock for the GM's block, a dot when not connected or in LiveKit's own window",
+     "source": "v1.2.77.md 71-77",
+     "code": "scripts/voice-tile.mjs:45-56 (toggleOwnMic, the states), :182 MIC_FREE, :1747 keybindings.register 'toggleMute'; scripts/voice.mjs micHold",
+     "holds": "yes",
+     "test": "R537, R544 (tier 0: toggleAudio( called and a client muted key written only in toggleOwnMic)",
+     "test_kind": "both",
+     "note": "avclient-livekit muting the microphone itself on that write, push to talk included, is LIVE-E78-02 (open). Today micHold names more reasons than 1.2.77's six (the first session's live-items-07 item 224: deadAlone, deadMuted, floorHeld, listening, masked, veiled, spectator)."
+    },
+    {
+     "promise": "A GM's microphone is no longer turned on when the GM walks a Monokuma into a room; the module mutes and unmutes nobody on its own",
+     "source": "v1.2.77.md 28-29",
+     "code": "R544's reading: no toggleAudio( outside toggleOwnMic (grep over scripts/ outside the tests: no call); scripts/voice.mjs:1405-1424 moduleHoldsMic",
+     "holds": "superseded",
+     "test": "R544",
+     "test_kind": "static",
+     "note": "The first half holds (no toggleAudio call). The second was replaced on purpose by later stages: the trial floor writes BROADCAST_AUDIO for the players it silences (E70, trial-floor.mjs:34), a Monocub is muted in the trial modes (E110, 08048db0), the veil holds the killer's microphone (E112, voice.mjs moduleHoldsMic 'veiled'), and an Eclipse takes the account out of voice (E19 C4). None of these is the module moving a microphone outside a rule the owner set."
+    },
+    {
+     "promise": "'Who you hear' lists each person of the viewer's room with a volume and 'Mute name for you' that only this browser hears, kept through a reconnect; only a GM has 'Block name's microphone for everyone', Foundry's own block, disabled with the reason while the game holds that microphone (a death the GMs keep secret)",
+     "source": "v1.2.77.md 21-27, 86-95",
+     "code": "scripts/voice-tile.mjs:58-94 (setPeerVolume, voicePeerMutes, toggleBlock drawn only while game.user.isGM), :1397 toggleMuteFor, :1413 toggleMuteAll; scripts/voice.mjs:1405-1424 moduleHoldsMic ('secretDead' among today's reasons); scripts/settings.mjs:1945-1950 voicePeerMutes (client)",
+     "holds": "yes",
+     "test": "R538, R539 (tier 1); scenario 75 C (the re-attach keeps the 0)",
+     "test_kind": "behaviour",
+     "note": "Whether Foundry's server refuses a player's write of another user's BROADCAST_AUDIO, and whether the block holds on the blocked player's own browser, is LIVE-E78-06 (partly read: first-session live-items-07 item 228, 'as-expected' for the part read). A volume after F5 is LIVE-E78-03, open."
+    },
+    {
+     "promise": "The gear's window has a Voice section where the world has voice: microphone, sound output, the microphone's mode and the push-to-talk key",
+     "source": "v1.2.77.md 96-99",
+     "code": "scripts/voice-panel.mjs (167 lines; its header 1-20 read); scripts/settings-window.mjs:89 (the audio section)",
+     "holds": "yes",
+     "test": "R542 by the 9.2 item; R586 (E79 C12, the section's place); scenario 75 C",
+     "test_kind": "behaviour",
+     "note": "Real devices: LIVE-E78-04, open. voice-panel.mjs was not read past its header."
+    },
+    {
+     "promise": "While the world is in audio-and-video mode and the tile stands in for the dock, Season Setup's Pre-season checks add a Voice line asking for audio only",
+     "source": "v1.2.77.md 30-32",
+     "code": "scripts/season-setup.mjs:1486-1493 (videoUnwatched; E20 C3 added two more lines, A/V off and video alone)",
+     "holds": "yes",
+     "test": "none found by name; scenario 75 by the notes",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The room tile is smaller under Monokuma Legacy (430x364 at 1920x1080) and beside the notices under Stained Glass, its pane running to the screen's foot",
+     "source": "v1.2.77.md 33-40",
+     "code": "scripts/glass.mjs:283 roomCapH; scripts/glass-blocks.mjs:35 VOICE_FULL 114, VOICE_MIN 42 (round 2)",
+     "holds": "yes",
+     "test": "R533 (tier 0), R549, R551 (tier 1); audit/glass-sweep.mjs (Chromium, not re-run)",
+     "test_kind": "both",
+     "note": "The pixel sizes are the notes' Chromium readings; not re-run. LIVE-E78-01 (the P11 matrix) open."
+    },
+    {
+     "promise": "On The Forge a jpg, png, webp or avif from the Assets Library is kept for a room and shown on the room tile, and a voice portrait from there on the voice tile; off The Forge nothing changed",
+     "source": "v1.2.77.md 103-105",
+     "code": "scripts/utils.mjs:209, :233 forgeAsset; scripts/vault-store.mjs:625-647 (safeRoomImage's road); scripts/notice-history.mjs:281-282",
+     "holds": "yes",
+     "test": "R546 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "On a stand-in for The Forge only; LIVE-E78-11 open."
+    },
+    {
+     "promise": "The Still to act strip and the other leaning blocks stand still on an idle screen; Foundry tools wears the module's white pixel anvil and no Foundry logo",
+     "source": "v1.2.77.md 106-110",
+     "code": "scripts/glass.mjs:788 OVERHANG, :873-923 (a pass over the same geometry writes the rotation sheet zero times)",
+     "holds": "yes",
+     "test": "R547, R548 (tier 1); the sweep's idle read (Chromium)",
+     "test_kind": "both",
+     "note": "LIVE-E78-12 and -13 open."
+    },
+    {
+     "promise": "A known leak, A9-K3 (a character killed in secret moves to the main voice room at the kill and is seen in 'Who you hear'), stands until E19",
+     "source": "v1.2.77.md 143-147",
+     "code": "audit/harness/known-leaks.json: no entry A9-K3 today (its ids read: S17-64, foundry-* rows, TR30)",
+     "holds": "superseded",
+     "test": "scenario 75 (the expected red as the notes kept it)",
+     "test_kind": "behaviour",
+     "note": "Closed by E19 (1.2.83) as the notes planned; the entry is gone from known-leaks.json."
+    }
+   ],
+   "registry_rows": 20,
+   "tests_read": [
+    {
+     "test": "R541 (tests-tier1.mjs:17670, head read)",
+     "measures": "yes",
+     "why": "Builds a stand-in dock and pop-out, reads their computed display through the module's sheets with the class off, on and off, that the dock, the pop-out and both audio elements stay in the document, dockHiddenFor over the A/V modes and the voiceTile registration. Its own head says the pop-out's id is the suite's choice, so it meets the selector by construction (LIVE-E78-01). Ok in the base run's tiers 0-1 (0 failed)."
+    },
+    {
+     "test": "R544 (registry row; tier 0)",
+     "measures": "yes",
+     "why": "A source reading: no file reads settings.activity, toggleAudio( and a client muted key only in toggleOwnMic. Static, but the promise is a property of the source. Ok in the base run (0 failed)."
+    },
+    {
+     "test": "R535, R536, R537, R538, R539, R540, R542, R545-R552 (registry rows; tiers 0-1)",
+     "measures": "yes",
+     "why": "Each row's title names an observable reading on the LiveKit shim or the stylesheet cascade; bodies not read beyond R541's head. All ok in the base run but R543, which skips by the baseline (a browser's layout)."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 75 (75-voice-tile, ci; 41 check() calls in the file)",
+    "audit/glass-sweep.mjs at 25 sizes (Chromium; the notes' run on 3ad0ca0)"
+   ],
+   "scenarios": [
+    "75-voice-tile (register row 211, E78; the LiveKit shim lib/livekit.mjs installed by this scenario alone); 74-room-tile phase K by the notes (the room tile beside the notices)"
+   ],
+   "live": {
+    "items": 13,
+    "read": 0,
+    "partly": 1,
+    "open": 12,
+    "ids_partly": [
+     "LIVE-E78-06"
+    ],
+    "ids_open": [
+     "LIVE-E78-01",
+     "LIVE-E78-02",
+     "LIVE-E78-03",
+     "LIVE-E78-04",
+     "LIVE-E78-05",
+     "LIVE-E78-07",
+     "LIVE-E78-08",
+     "LIVE-E78-09",
+     "LIVE-E78-10",
+     "LIVE-E78-11",
+     "LIVE-E78-12",
+     "LIVE-E78-13"
+    ],
+    "note": "From first-session/live-items-07.json items 223-235. No reading of any of them in live-readings-e58.json, -other.json or the delta; the sandbox ran LiveKit 0.6.8 with A/V off, so nothing of a real voice room was read. Items 223, 231 and 232 are marked stale there (E19 changed the dock's ground and holds useExternalAV false). LIVE-E78-10, the owner's two-browser test T1, carries the stage's main promise (who is heard, the dock's sound after F5).",
+    "l1": {
+     "what": "LIVE-E78-10 (T1) with -01 and -02: who the tile shows speaking, the hidden dock's sound after F5, the microphone's states and a GM's block, on a real LiveKit server",
+     "recipe": [
+      "1. A world with avclient-livekit and a LiveKit server, A/V mode audio only, the voice tile on; a GM and two players in separate browser profiles.",
+      "2. Put the two players in two rooms with voice: each speaks; each tile shows only the speaker of its own room, after the first word with no wait, and the speaker's number counts the room's participants.",
+      "3. Press F5 on one player's browser: the camera dock is not seen, and the other people in its room are still heard.",
+      "4. On the player's tile: mute, unmute, push to talk with a bound key; the others hear exactly that. In an Eclipse the button is grey with its reason.",
+      "5. The GM opens 'Who you hear' and blocks a player's microphone: the lock shows on that player's tile and nobody hears them; for a death the GMs keep, the block is disabled with its reason.",
+      "6. Turn the voice tile off in the module's settings: the dock comes back on every screen with no reload."
+     ],
+     "clients": "one GM and two players, separate browsers",
+     "theme": "both",
+     "settles_if": "each step as written - the main promise holds at a table and the grade loses 'provisional'; a speaker from another room on the tile, silence after F5 or a block that does not silence is a finding against E78 (major)",
+     "priority": "grade cap 9 (rule 1); E78 graded 8"
+    }
+   },
+   "findings": [
+    {
+     "id": "E78-1",
+     "severity": "nit",
+     "title": "voice-tile.mjs's header still says the tile sends no packet and writes no document but the GM's block; three later buttons on the tile do",
+     "where": "scripts/voice-tile.mjs:95-96 (the header); :1189-1214 paintReveal (the click calls requestReveal, mask-gm.mjs:653-657, a bridge request requestMaskReveal); :1112 paintSpectatorTalk (spectator-ui.mjs:35-43 writes a flag on the player's own User); :1063-1093 paintObjection (the press is the primary GM's 'trial.object' row)",
+     "what_happens": "The E78 header records a property later stages broke on purpose: E92 round 3 put the Spectator's switch on the tile, owner-115/E112 the reveal of a mask, E70 C11 OBJECTION!. The OBJECTION! note itself says 'The tile sends nothing itself' (the press goes through hud.mjs objectionControl), but the reveal's click handler is in voice-tile.mjs and sends a request, and the switch writes a User document.",
+     "evidence": "voice-tile.mjs:95: ' * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,'; :1205: 'revealToggles.set(button, () => onReveal(masked));' with ':1189 export function paintReveal(tile, { masked = myMask(), onReveal = requestReveal } = {})'; mask-gm.mjs:655-656: 'const { requestMaskReveal } = await import(\"./bridge-asks.mjs\"); const res = await requestMaskReveal({ actorId: actor.id });'; spectator-ui.mjs:38: 'await user.setFlag(MODULE_ID, SPECTATOR_LISTEN_FLAG, true);'",
+     "failure_scenario": "A developer auditing what the voice tile can send trusts the header, skips voice-tile.mjs when listing the roads a player's click takes to the GMs, and misses the reveal request.",
+     "expected": "The header says which of the tile's buttons send or write, and through which function.",
+     "confidence": "read",
+     "refutation_tried": "Read whether the reveal and the switch are another file's buttons merely placed on the tile: the reveal's button and its click handler are built in voice-tile.mjs (:1197-1208), the switch's onToggle is invoked from voice-tile.mjs; a GM's block is the only write the header allows. No test pins the header's sentence. The behaviour is not wrong - only the comment."
+    }
+   ],
+   "superseded_by": [
+    "E19 (1.2.83): the dock also folded through enforced.mjs's rtcDock row and avclient-livekit's own window held off (enforced.mjs:111-120); A9-K3 closed; an Eclipse takes the account out of voice",
+    "E79 C15 (1.2.79): the first speaker at once and the state word (voice-tile.mjs:22-26, 96-115); H81-10 keeps the word while a face is drawn",
+    "E70 C11 (1.2.90): OBJECTION! on the tile (voice-tile.mjs:1062-1093); E92 round 3: the Spectator switch; owner-115/E112: the reveal button",
+    "E70, E110, E112: the module holds microphones for the trial's floor, a Monocub in the trial modes and the veil (voice.mjs:1405-1424)",
+    "E96 C4: the tile in the middle of the right side, under the tray (commit 4e4b190c)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of 1.2.77 still standing is in the code at the place named, and 19 of the 20 registry rows (R533-R552) were ok in the base run's tiers 0-1 with R543 skipped by the baseline; the rows drive the tile on the harness's LiveKit shim, not only read it. Two promises were replaced on purpose (the module mutes nobody; the A9-K3 leak) and are marked superseded, not broken. Against a 9: the parts that carry the stage - that the hidden dock still sounds, that display: none wins over Foundry's own rules, avclient-livekit's private API and its muting on the module's write - hold by reading alone (the notes and R541's own head say so), and one stale header comment (E78-1, nit). Rule 1 caps the grade at 9 while LIVE-E78-10 is unread; scenario 75 has no verdict in this audit's runs.",
+   "missing_to_10": "A reading of LIVE-E78-10 (T1), -01 and -02 on a real LiveKit server; a verdict of scenario 75 in the base run; the header's sentence at voice-tile.mjs:95 made true; a test that reads Foundry v14's real camera pop-out id rather than the suite's own (R541's note)."
+  },
+  {
+   "id": "E84",
+   "version": "1.2.78",
+   "shipped": "2026-10-14",
+   "what": "Two fixes released alone from the owner's table on 1.2.77: a player's requests reach the GM again (the waiter's timers called as the browser's own functions, WINDOW_CLOCK), and the first drag into a new room counts (the token's room read once more at rest: movement.mjs whenAtRest and recheckAtRest, fog.mjs). The notes call the second one 'stage E84'; the release commit's message names E84 for both.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.78.md (1-169, whole: the report 5-23, At the table 25-53, Changed 55-97, Known gaps 99-121, Checked 123-169)",
+    "no papers folder (ls docs/dev: no e84)",
+    "tools/stages.json:30 row E84 (planned and shipped 1.2.78, 14.10.2026; touches null, drills none)",
+    "docs/dev/R-REGISTRY.md: no row stamped E84; R570 and R571 stamped '1.2.78' (lines 372-373)",
+    "audit/AUDIT-1.2.42.md 9.2 items 236 (LIVE-E78-14, the drag) and 237 (LIVE-E84-01, the wait), lines 1110-1111, read whole",
+    "git log 30587912..37a3219a: 5 commits, the release merge 37a3219a (22 files) and the notes' commit 16663361; the fix commits 7ac773b, d69801d and the ledger's 87b963e are not in the shallow checkout"
+   ],
+   "commits": 5,
+   "commits_note": "The release merge 37a3219a's diff stat (git show --stat) matches the notes' Changed list: bridge-guards.mjs, client-entry.mjs, 74-room-tile.mjs, movement.mjs, fog.mjs, tests-tier0/1.mjs, tools/stages.json.",
+   "promises": [
+    {
+     "promise": "Every request a player's client waits on is sent and its answer waited for: the waiter's timers are started and cleared by calling the browser's own setTimeout and clearTimeout as functions",
+     "source": "v1.2.78.md 27-31, 57-62",
+     "code": "scripts/bridge-guards.mjs:1891 'export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms), clear: id => clearTimeout(id) });', :1905 createWaiter(... clock = WINDOW_CLOCK ...)",
+     "holds": "yes",
+     "test": "R570 (tier 1), R571 (tier 0); scenario 33 with the harness's refusing timers (client-entry.mjs)",
+     "test_kind": "both",
+     "note": "R571 reads every module file for a window function taken as a value, with a control that finds the 1.2.77 spelling; both ok in the base run's tiers 0-1 (0 failed). At a table, LIVE-E84-01: the item holds the owner's report of the defect (live-readings-other.json item 237), not a reading of the fix."
+    },
+    {
+     "promise": "A drag into another room shows the new room on the room tile, plays the fog's arrival and, for a player's character, is charged once on the first drag: the move is judged once more where the token comes to rest (at most 3 s, then 250 ms), only for a character whose room this browser recorded, with no newer move, no put-back and no route still settling, and only when the room differs or a pending step is still noted",
+     "source": "v1.2.78.md 32-43, 73-85",
+     "code": "scripts/movement.mjs:238-240 (AT_REST_MAX_MS 3000, AT_REST_POLL_MS 100, AT_REST_GRACE_MS 250), :244-264 stillMoving and whenAtRest, :2906 the call, :2927-2942 recheckAtRest (the guards as the notes word them, the debug line at :2939); scripts/fog.mjs:4309-4314 (the fog's read at rest)",
+     "holds": "yes",
+     "test": "scenario 74 phase L (L1-L3, 74-room-tile.mjs:1007-1075)",
+     "test_kind": "behaviour",
+     "note": "Changed by E79 C14 (1.2.79): the room is now read from the update itself at the hook (movement.mjs:330-334 destinationOf), so phase L reads one announcement in the room entered, and the read at rest stays as the backstop for a route left pending (L3). The at-rest wait also serves voice.mjs:257-268, visibility.mjs:412-444, projects-seen.mjs:383 and sheet-sidebar.mjs:758 today. The fog's second reading needs a canvas and is read in code only (notes 117-118)."
+    },
+    {
+     "promise": "With the module's debug on, the browser that read a move again says 'read again at rest' with the recorded room and the room the token stands in",
+     "source": "v1.2.78.md 49-53",
+     "code": "scripts/movement.mjs:2939-2940",
+     "holds": "yes",
+     "test": "none found",
+     "test_kind": "static",
+     "note": "A Debug line; LIVE-E78-14 asks to read it at a table."
+    },
+    {
+     "promise": "The harness's client timers, fetch, queueMicrotask and structuredClone refuse any receiver but the window, as a browser's do",
+     "source": "v1.2.78.md 63-67",
+     "code": "audit/harness/client-entry.mjs (27 lines added in 37a3219a's diff stat; not read)",
+     "holds": "unread",
+     "test": "scenario 33 red first with this change alone on 1.2.77's code (the notes, 134-140)",
+     "test_kind": "behaviour",
+     "note": "The red-first run is the notes' record (K), not re-run."
+    }
+   ],
+   "registry_rows": 2,
+   "tests_read": [
+    {
+     "test": "R571 (tests-tier0.mjs:11048-11084, whole)",
+     "measures": "yes",
+     "why": "Blanks comments and literals in every module file and finds any of nine window functions neither called nor asked typeof; its control finds the 1.2.77 spelling twice and a requestAnimationFrame value once, and passes a call, a typeof, ?.() and an object key. It asserts that over 100 files were read, so an empty list cannot pass. Ok in the base run (0 failed)."
+    },
+    {
+     "test": "R570 (tests-tier1.mjs:6185, head read)",
+     "measures": "yes",
+     "why": "Builds createWaiter with no clock of its own and sends, answers and times out a request on it, so the default clock is the one exercised. In jsdom the harness's timers refuse another receiver since this release, so a regression of WINDOW_CLOCK fails here. Ok in the base run."
+    },
+    {
+     "test": "scenario 74 phase L (74-room-tile.mjs:1007-1075, read)",
+     "measures": "yes",
+     "why": "Stands in both readings on the judging browser - a position held at the drag's start with movement 'pending', and a last update with a waypoint pending and movement 'stopped' - and reads the tile, the charge and every drpgRouteSettled; by its comment L1-L3 fail with the re-read taken out (14.10.2026). It does not read the fog's re-read (no canvas). No verdict in this audit's runs."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 74 (phase L)",
+    "scenario 33 (the wait, 45 checks by the notes)",
+    "scenarios 66 and 40 (drags read where they end, by the notes)"
+   ],
+   "scenarios": [
+    "74-room-tile phase L (register row 210 stamps the scenario E77); 33-bridge-paths (register row 188, E31). No register row names E84."
+   ],
+   "live": {
+    "items": 2,
+    "read": 0,
+    "partly": 2,
+    "open": 0,
+    "ids_partly": [
+     "LIVE-E78-14",
+     "LIVE-E84-01"
+    ],
+    "ids_open": [],
+    "note": "first-session/live-items-07.json items 236 ('partly', defect) and 237 ('partly', mixed): what is recorded (live-readings-other.json) is the owner's report of each defect on 1.2.77 at a real table (14.10.2026), not a reading of the fixes; the field movement.pending.waypoints was read by that name on 14.370 on 16.11.2026 (live-readings-other.json, item 256's row). No re-reading of either fix at a table is recorded.",
+    "l1": {
+     "what": "LIVE-E84-01 (a player's action and statistic reach the GM, in Firefox and Chromium) and LIVE-E78-14 (the first mouse drag into a new room counts)",
+     "recipe": [
+      "1. Foundry v14 with a GM connected and one player in Firefox, one in Chromium (on The Forge if the table runs there).",
+      "2. Each player runs Search from the action grid and clicks a statistic on the sheet: the action goes through, the GM's browser draws the roll, the card is in the chat, and the player's console has no 'Could not send ... to the GM'.",
+      "3. The GM, with the module's debug on, drags Monokuma by mouse from one room into another in one move: the room tile names the new room, the fog shows its arrival, and no second drag is needed.",
+      "4. A player drags their character into a new room with an action to pay: the tile names it, one action is charged once; note whether the GM's console says 'read again at rest'."
+     ],
+     "clients": "one GM and two players (Firefox and Chromium)",
+     "theme": "default",
+     "settles_if": "each step as written - both fixes hold at a table; a refused request, a second drag needed or a double charge is a finding against E84 (major)",
+     "priority": "grade cap 9 (rule 1); E84 graded 8"
+    }
+   },
+   "findings": [
+    {
+     "id": "E84-1",
+     "severity": "nit",
+     "title": "The stage's labels point two ways: LIVE-E84-01 is the wait's fix, the drag fix the notes call E84 carries E78's prefix, and its tests are stamped 1.2.78",
+     "where": ".github/release-notes/v1.2.78.md:14 ('The second fix (stage E84)') and :163 ('The E84 fix is commit 7ac773b, the ledger row 87b963e and the wait's fix d69801d'); audit/AUDIT-1.2.42.md:1110 (item 236, LIVE-E78-14, the drag) and :1111 (item 237, LIVE-E84-01, the wait); docs/dev/R-REGISTRY.md:372-373 (R570, R571 under '1.2.78')",
+     "what_happens": "Read by its id, E84's live check is the waiter's fix, which the notes say is not E84; the drag fix that the notes call E84 has its live check under E78 and no test or code comment names E84 (git grep E84 over scripts, audit/harness, tools and docs: tools/stages.json:30 and docs/dev/e58/TRIAGE-9.2.md:260 only). The first session's reader of items 236-237 found the same.",
+     "evidence": "v1.2.78.md:14: 'The second fix (stage E84):'; v1.2.78.md:163: 'The E84 fix is commit 7ac773b, the ledger row 87b963e and the wait's fix d69801d.'; AUDIT-1.2.42.md:1111: '237. **LIVE-E84-01 - akcja i rzut gracza docierają do GM-a:** ...'",
+     "failure_scenario": "The owner at L1, settling E84 by its id, runs LIVE-E84-01 (the wait) alone and leaves the first-drag check LIVE-E78-14 unread, believing E84 settled.",
+     "expected": "One stage id for each fix and its live check, or a note on each saying which fix it is.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a later note that renames either item or says which fix E84 is: the 9.2 rows, the release commit's message (it names E84 for the whole release), tools/stages.json (no field for it) and the registry. None does. The code of both fixes is correct; this is the papers'."
+    }
+   ],
+   "superseded_by": [
+    "E79 C14 (1.2.79): the room of a move read from the update itself at the hook (movement.mjs:323-334 destinationOf); the read at rest stays for a route left pending (74 L3)",
+    "1.2.118 (E39 work): a route of one update judged leg by leg (movement.mjs roomsAlong, routeLegs; first-session live-items-08 item 261) - the at-rest read is unchanged by it as far as read"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Graded although no registry row carries E84 and the stage has no papers folder: the release was E84 alone, its two rows are stamped with its version (1.2.78), its notes are full and its scenario phase is in the repository, so it can be judged from the repository (11.4 rule 2 asks for that, not for the stamp's spelling). Both fixes are in today's code as the notes word them (bridge-guards.mjs:1891, movement.mjs:2927-2942, fog.mjs:4309-4314), R570 and R571 measure the wait's fix and were ok in the base run, and phase L stands in both readings of the owner's report. Against a 9: the fog's read at rest holds by reading alone (no canvas), phase L has no verdict in this audit's runs, and the labels mislead (E84-1, nit). Rule 1 caps it at 9 while neither fix has been read at a table.",
+   "missing_to_10": "Readings of LIVE-E84-01 and LIVE-E78-14 at a table after the fixes; a verdict of scenario 74 L and 33 in the base run; the ids sorted (E84-1); a reading of the fog's arrival at rest on a canvas (a Chromium or table check)."
+  },
+  {
+   "id": "E79",
+   "version": "1.2.79",
+   "shipped": "2026-10-17",
+   "what": "Secret passages a GM gives a student (Room Setup's Passages tab, a player's copy and the cut of the token's move, Show the passage, the GMs' overlay, the primary GM's move audit with 'log' and 'sendBack'), OBJECTION! on the HUD aimed at whoever the GM's voice room hears speaking, and the owner's reports from 1.2.77 and 1.2.78: Daggerheart's welcome window held closed, players kept out of the file browser, an account given the student named like it, the trial hall's tokens and room tile, and smaller fixes.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.79.md (1-219, whole: Before installing 7-41, At the table 43-140, Changed 142-158, Known gaps 160-195, Checked 197-219)",
+    "no papers folder (ls docs/dev: no e79)",
+    "tools/stages.json row E79 (planned and shipped 1.2.79, 17.10.2026; touches null, drills none)",
+    "docs/dev/R-REGISTRY.md: 32 rows stamped E79, R553-R563 and R572-R592",
+    "audit/AUDIT-1.2.42.md 9.2 items 238-262 (lines 1112-1136; LIVE-E79-01..25)",
+    "git log 37a3219a..b1018851: 4 commits (the merge b1018851, the ledger 883e6465, 6af414cb r4-G7, the gate record 4fcda186); 7 commits name E79 in the whole history"
+   ],
+   "commits": 4,
+   "commits_note": "The stage's C0-C16 and its 16 fix commits are not in the shallow checkout; 6af414cb (r4-G7: comments in two module files and R560) is.",
+   "promises": [
+    {
+     "promise": "A GM makes a passage with two clicks on a plain wall between two rooms of the floor on screen and gives it to a student; doors, a wall that stops nobody, a stretch another passage holds, another floor and one room's wall are refused with the reason; Revoke now or when they leave, Close and Open, Delete after a yes; a moved wall says 'pick it again'",
+     "source": "v1.2.79.md 47-56",
+     "code": "scripts/passages-tab.mjs (404 lines; not read whole); scripts/passages-gm.mjs:1778 grantPassage, :1791 revokePassage, :1849 deletePassage, :2554-2560 the pick's radius",
+     "holds": "yes",
+     "test": "R561 (tier 1), R554, R574; scenario 76 (114 check() calls)",
+     "test_kind": "behaviour",
+     "note": "The GM's two clicks on a real canvas are LIVE-E79-06, open; its Polish labels were renamed by E66 C5 (live-items-07 item 243)."
+    },
+    {
+     "promise": "A player's browser holds only the open passages its own characters know, addressed to that player alone; the token goes through that stretch as through a door and the step is charged as a crossing; to everybody else it is a wall",
+     "source": "v1.2.79.md 63-69, 144-147",
+     "code": "scripts/passages.mjs:323 tunnelEndsFor and the cut (passageSegmentsFor :451 per live-items-07 item 245); scripts/passages-gm.mjs:134 actsAsMastermind",
+     "holds": "yes",
+     "test": "R555, R556, R557, R558, R560 (tier 0: every passage packet names its recipients, no flag holds a passage); scenario 76 C0 (the numeric marker on every surface)",
+     "test_kind": "both",
+     "note": "On 14.370 (18.11.2026, LOCAL-REPORT on L1's branch) 'every tunnel, stairs and Secret Passage test passes' after C1's floorNamed (live-readings-e58-delta.json): F, agrees, for the tier-2 tests, not for a mouse drag. A drag, the ruler, the keyboard and a move from code are LIVE-E79-01, open."
+    },
+    {
+     "promise": "The Mastermind (the first connected owner of the Mastermind's student) knows every passage and is not listed; a Monokuma's token passes every open passage when a GM moves it",
+     "source": "v1.2.79.md 57-59",
+     "code": "scripts/passages-gm.mjs:134-140 actsAsMastermind",
+     "holds": "yes",
+     "test": "R555, R559, R572 (the handbook's 9.6 says so, as the code does)",
+     "test_kind": "both",
+     "note": "Whether Foundry 14 stops a GM's drag at a wall at all is LIVE-E79-08, open."
+    },
+    {
+     "promise": "Show the passage gives it to a student in the same room and floor at no action, needs a GM, tells the GMs on a card of their own and each player of the student shown; refused while the shower is dead, in an incident, a Monocub or locked; a repeat show writes nothing and tells nobody",
+     "source": "v1.2.79.md 71-77",
+     "code": "scripts/passages-gm.mjs (show's judge on the primary; by R562's title)",
+     "holds": "yes",
+     "test": "R562 (tier 1); scenario 76 phase G",
+     "test_kind": "behaviour",
+     "note": "Between two players at a table: LIVE-E79-04, open."
+    },
+    {
+     "promise": "A player's token moved through a wall its character could not pass is noted on the primary GM: 'log' (the default) writes a Debug line and an audit row (newest 1000, repeats within 30 s on one row) and moves nothing; 'sendBack' puts the token back, tells its player and warns the GMs once in 30 s; GMs', Monokuma's moves and the stairs pass",
+     "source": "v1.2.79.md 29-31, 79-87",
+     "code": "scripts/movement-audit.mjs:1-24 (one call site, movement.mjs noteGmPosition), :71 AUDIT_ROWS_KEPT 1000, :374 the mode; scripts/settings.mjs:2611-2622 moveAudit (choices log/sendBack, default log); scripts/api.mjs:1594-1606 passages.log() and .audit()",
+     "holds": "partly",
+     "test": "R559 (tier 1); scenario 76 phase D",
+     "test_kind": "behaviour",
+     "note": "Changed on purpose by E17 C1: the doors' rules (a lock, a seal, Chained, the courtroom, another's bedroom, the Eclipse's allowance) put a token back in either mode (movement-audit.mjs:18-24, :40-52 RULE_CODES), so 'log moves nothing' now holds for the walls and floors alone. LIVE-E79-02 partly read on 14.370 (19.11.2026): ignoreWalls on an update is honoured (live-readings-e58-delta.json, item 239); its main ask - no audit row for a lawful move with a GM on another scene and floors - is unread. The item names a trial 'E82' that is not a stage (movement-audit.mjs:22-24)."
+    },
+    {
+     "promise": "Daggerheart's welcome window stays closed for every account while the world switch is on (default), with nothing written to the world; off, Daggerheart shows it at the next start of an account that never saw it",
+     "source": "v1.2.79.md 10-13",
+     "code": "scripts/enforced.mjs:96-104 (the dhWelcome row, kind userFlag, held on this browser's copy at setup); scripts/settings.mjs:1580-1590 (world, default true, re-applied on change)",
+     "holds": "yes",
+     "test": "R575 (tier 1; head read); scenario 15 N1 by its head",
+     "test_kind": "behaviour",
+     "note": "LIVE-E79-09 open; Daggerheart's ready was read in 2.6.5 and 2.10.5 during the design, neither copy is in the repository (enforced.mjs:96-101)."
+    },
+    {
+     "promise": "Players and Trusted Players can neither browse nor upload files while the switch is on: at the first start with a GM connected the module takes FILES_BROWSE and FILES_UPLOAD from those roles and the GMs get a card naming what was taken; a change to them is put back and the GMs told; an account given the browser by name keeps it; portraits open nothing for players and a browser that opens anyway closes; turning it off gives nothing back",
+     "source": "v1.2.79.md 14-21",
+     "code": "scripts/enforced.mjs:105-110 (the playerFiles row), :557-578 holdPermissions (first: the card from permissionsLost; tell: the put-back card), :580-584 onWorldSettingUpdated, :587 maySeeFiles (a GM or FILES_BROWSE by name), :601-610 disarmPortraits, :617-621 closePlayerFilePicker",
+     "holds": "partly",
+     "test": "R577, R578 (tier 1); scenario 15",
+     "test_kind": "behaviour",
+     "note": "'Turning it off does not give them back' was changed by E20 C6 (1.2.84 train): the GMs' 'Give back Foundry's settings' writes the file permissions back from foundryBefore (enforced.mjs:648-660 header). The notes' own gap stands: a player's picture pickers for a project or the investigation windows close too (v1.2.79.md 188-189). Foundry 14's default roles for the two permissions are LIVE-E79-11, open."
+    },
+    {
+     "promise": "A User Configuration window that opens by itself while a browser starts closes; one a person opens stays",
+     "source": "v1.2.79.md 131",
+     "code": "scripts/enforced.mjs:636-645 closeUnaskedUserConfig (own account, first render, until 30 s after ready, navigator.userActivation.isActive false)",
+     "holds": "yes",
+     "test": "R576 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "Where the browser has no userActivation reading nothing is closed (enforced.mjs:643); whether v14's own open reads false there is LIVE-E79-10, open."
+    },
+    {
+     "promise": "A player account with no character, named exactly like one student (case, Polish letters and spaces aside, never a part), gets that student as its character and Owner when no other player owns it, on the primary GM at its start, a connect, an account or student made or renamed; a GM's own pick or clear stays for the season; nothing is assigned and the GMs get a card for none, several, two alike, another's student or an account that owns another",
+     "source": "v1.2.79.md 22-28",
+     "code": "scripts/user-match.mjs:92-95 nameKey (NFD, lower case, l for the Polish l with stroke, white space run together), :108-133 matchPlan, :216-254 matchAccounts (Owner before the character), :256-286 tellGms (once per account and reason a session), :288-303 the hooks (ready, userConnected, createUser, updateUser, createActor, updateActor; noteGmChoice on a GM's write of character)",
+     "holds": "yes",
+     "test": "R579, R580 (tier 1); scenario 15 by the file's header (measured at 2399885)",
+     "test_kind": "both",
+     "note": "Read whole. The GMs' word is a world setting (accountCharacters, settings.mjs:3426) keyed by season, not a flag on the account, since E79 fix r3-G1. LIVE-E79-12 partly read: first-session live-items-07 item 249 'as-expected' for (a) alone; whether v14 refuses a player's rename of its own account is unread."
+    },
+    {
+     "promise": "The hall's tokens copy the school token's picture, size, rotation and opacity and never turn as they move; during a Class Trial every room tile shows the hall's name, picture and description, written with the warning that everybody sees them",
+     "source": "v1.2.79.md 112-116",
+     "code": "scripts/trial-scene.mjs:536-541 hallTokenData (HALL_TOKEN_LOOK, lockRotation: true); :1361 hallRoom, :1388 setHallRoom, :1699 its one caller in applyScenesTab",
+     "holds": "yes",
+     "test": "R581, R582 (tier 1), R583 (tier 0, read whole)",
+     "test_kind": "both",
+     "note": "Where the GM writes the hall's facts moved: Room Setup has no Scenes tab since E101 item 5; the season's school and hall stand in Season setup (room-setup.mjs:395-396), which still calls applyScenesTab. R583's title still says 'called by the Scenes tab's Apply alone' - it reads the function's name, so it stays true. LIVE-E79-13 and -14 open (-14's text is stale on the tab)."
+    },
+    {
+     "promise": "OBJECTION! in the Nonstop Debate: paid at the press (1 action, else 1 Hope, else 1 Sanity), aimed at whoever the GM's voice room hears speaking (about a second of speech) else the last player who spoke, only at a living student of the table and never the objector's own; 30 s to choose the bullet, withdrawn on close, lapse, Back to debate or the debate's end with the price kept; a GM's Re-point; with no voice room the player names whom",
+     "source": "v1.2.79.md 89-108",
+     "code": "scripts/config.mjs:4404 speakerMs 1000; scripts/trial-speakers.mjs (the primary's reading of LiveKit's speaker list); scripts/trial.mjs:1056-1058, :1185, :1233-1246 (withdrawn, the price stays), :99-111 the card's states",
+     "holds": "partly",
+     "test": "R590, R591, R592 (tiers 0-1); scenario 63 X2 and 72 by the notes",
+     "test_kind": "both",
+     "note": "Changed on purpose by E70 C11 (1.2.90; the owner's B3 and Q-p2-4): OBJECTION! stands on the voice tile in every phase and the HUD's trial row draws it only where no tile is drawn (voice-tile.mjs:1062-1093); E110 C1 reworked the GM's re-point (tier 2 E110-T1). How soon LiveKit names a speaker and whether a second tells speech from a cough are LIVE-E79-22, open."
+    },
+    {
+     "promise": "Smaller fixes: the caret narrows Foundry tools, the Projects tray says 'No projects yet.', the Hope and Despair dice in the badge's colours under Stained Glass, the notice card fills its pane and LATENCY/FPS is hidden, a move into another room is announced on the move itself, the voice tile's first speaker at once and its state word, the GM's fog ignores the Mastermind's rooms",
+     "source": "v1.2.79.md 118-131",
+     "code": "scripts/foundry-windows.mjs:44-48, 167-169 (per live-items-07 item 252); scripts/movement.mjs:323-334 destinationOf; scripts/voice-tile.mjs:22-26, 96-115 (C15); stained-glass.css by R587",
+     "holds": "yes",
+     "test": "R563, R584-R589 (tiers 0-1); scenario 74 L, 66 N13",
+     "test_kind": "both",
+     "note": "LIVE-E79-15..21 open but -16 and -19 partly (live-items-08 items 253 and 256); the dice's contrast (13.9:1, 6.0:1) is computed, not seen (LIVE-E79-17). The Polish word for the Eclipse state is 'Eclipse' since E66 C5 (live-items-08 item 258)."
+    }
+   ],
+   "registry_rows": 32,
+   "tests_read": [
+    {
+     "test": "R559 (tests-tier1.mjs:18660, head read)",
+     "measures": "yes",
+     "why": "Drives auditMove on a scene of plain objects with seven walls (ordinary, a passage's with a stretch known to one character, open and closed doors, one-way, one that does not restrict, one upstairs) and recorders for every write, each review round's case red at its parent by the head. Foundry's one-way reading is the plan's, not v14's source. Ok in the base run (0 failed)."
+    },
+    {
+     "test": "R575 (tests-tier1.mjs:19643, head read)",
+     "measures": "yes",
+     "why": "Reads this browser's account for the welcome flag in a Daggerheart world with the switch on, and drives holdUserFlag on stand-in accounts whose update must stay uncalled. The real Daggerheart ready is not driven. Ok in the base run."
+    },
+    {
+     "test": "R583 (tests-tier0.mjs:15210-15270, whole)",
+     "measures": "yes",
+     "why": "A source reading with five planted faults the reader must see first (the GM gate, a second caller, the picture raw, the tile reading the flag, the reader not judging), and a guard that both files are over 1000 characters. It pins the writer's one call in applyScenesTab, which today's Season setup still reaches; its title's 'Scenes tab' is a name, not a reading. Ok in the base run."
+    },
+    {
+     "test": "R553-R558, R560-R563, R572-R574, R576-R582, R584-R592 (registry rows)",
+     "measures": "yes",
+     "why": "Titles name observable readings; bodies not read. All ok in the base run's tiers 0-1 (0 failed, none of them in the skip baseline)."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 76 (76-passages, ci; 114 check() calls, 71 of 71 by the notes)",
+    "scenario 15 (N1, N2, N4 and the account match by the files' heads)",
+    "scenario 63 (X2) and 72 (the Objection aimed at a trial participant, CI fix 976e2101)",
+    "scenario 74 (L) and 66 (N13): the room at the hook",
+    "scenario 65 (the two Foundry limits of the passages as expected reds)",
+    "audit/glass-sweep.mjs (the notes' run on 0641c4c)"
+   ],
+   "scenarios": [
+    "76-passages (register row 212, E79); 15-held, 63-class-trial, 65-season, 66-rooms, 72-canary, 74-room-tile by the notes"
+   ],
+   "live": {
+    "items": 25,
+    "read": 0,
+    "partly": 4,
+    "open": 21,
+    "ids_partly": [
+     "LIVE-E79-02",
+     "LIVE-E79-12",
+     "LIVE-E79-16",
+     "LIVE-E79-19"
+    ],
+    "ids_open": [
+     "LIVE-E79-01",
+     "LIVE-E79-03",
+     "LIVE-E79-04",
+     "LIVE-E79-05",
+     "LIVE-E79-06",
+     "LIVE-E79-07",
+     "LIVE-E79-08",
+     "LIVE-E79-09",
+     "LIVE-E79-10",
+     "LIVE-E79-11",
+     "LIVE-E79-13",
+     "LIVE-E79-14",
+     "LIVE-E79-15",
+     "LIVE-E79-17",
+     "LIVE-E79-18",
+     "LIVE-E79-20",
+     "LIVE-E79-21",
+     "LIVE-E79-22",
+     "LIVE-E79-23",
+     "LIVE-E79-24",
+     "LIVE-E79-25"
+    ],
+    "note": "first-session/live-items-07.json items 238-252 and live-items-08.json items 253-262. Partly: 239 (ignoreWalls on an update read on 14.370, 19.11.2026), 249 (part a), 253, 256 (movement.pending.waypoints read by name on 14.370, 16.11.2026). Items 239, 243, 246, 251, 253, 256, 258-260, 262 are marked stale there (renamed labels, E70 C11's move of OBJECTION!, E101's tab). Beside 9.2: on 14.370 every tunnel, stairs and Secret Passage tier-2 test passes since C1's floorNamed (live-readings-e58-delta.json, 18.11.2026), with three passage tests still failing there (1037, 1096, 1108: a pass over four named regions with a Teleport, Room Setup over a Hall with a Teleport Lift, End the trial's copies) - not read further.",
+    "l1": {
+     "what": "LIVE-E79-01 (a known passage in a real drag, ruler, keyboard and a move from code; a stranger stopped), -02 (the audit in 'log' with a GM on another scene and floors: no row for a lawful move), -08 (a GM's drag of Monokuma through a passage), -22 (whom OBJECTION! hits on a real LiveKit room)",
+     "recipe": [
+      "1. Foundry v14 sandbox (never the table's port); a scene with two rooms and a passage given to Aiko; moveAudit on 'log'.",
+      "2. Aiko's player drags through the gap, then uses the ruler and the keyboard, then a console token.update across it: each passes and is charged once; a second player whose student does not know it is stopped at the wall by each road.",
+      "3. With the GM on another scene and a two-floor scene in the world, make ten lawful moves: game.drpg.passages.audit() holds no row and dropped is 0.",
+      "4. The GM drags Monokuma through the gap and beside it: through the gap it passes, beside it it stops (or note that v14 does not stop a GM at all).",
+      "5. In a Class Trial on a real LiveKit room, one player speaks, another presses OBJECTION!: note the milliseconds until the button names the speaker and that the primary GM aims it there; a cough under a second names nobody."
+     ],
+     "clients": "one GM and two players; step 5 with voice on a LiveKit server",
+     "theme": "default",
+     "settles_if": "each step as written - the main promise holds at a table and the grade loses 'provisional'; a stranger through the wall, an audit row for a lawful move, or an Objection at someone else than the speaker is a finding against E79 (major)",
+     "priority": "grade cap 9 (rule 1); E79 graded 8"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E17 C1 (1.2.85 train): the doors' rules put a token back in either moveAudit mode (movement-audit.mjs:18-24, :40-52)",
+    "E20 C6: 'Give back Foundry's settings' gives the file permissions back (enforced.mjs:648-660)",
+    "E70 C11 (1.2.90): OBJECTION! on the voice tile, the trial row as fallback; E110 C1 (1.2.114): the GM's re-point reworked",
+    "E80 (1.2.80): tunnels and stairs, Make public, Foundry's secret doors in the same tab; E85/H81 (1.2.81): tunnels one way or both",
+    "E101 item 5 (1.2.112): the hall's facts written in Season setup, Room Setup's Scenes tab gone (room-setup.mjs:395-396)",
+    "H81-10: the voice tile's word stays while a face is drawn (voice-tile.mjs:107-113)",
+    "1.2.118: a route of one update judged leg by leg (movement.mjs roomsAlong, routeLegs), and an end naming no floor takes the scene's one floor (passages-gm.mjs floorNamed)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of 1.2.79 still standing has its code where the notes say (passages-gm.mjs, movement-audit.mjs, enforced.mjs, user-match.mjs read whole, trial-scene.mjs, trial.mjs) and all 32 registry rows were ok in the base run's tiers 0-1; the passages' privacy rule is pinned by a source test (R560) and a scenario that reads a marker on every surface (76 C0). On 14.370 the passages' tier-2 tests pass since 1.2.118's floorNamed (F). Reading found no defect. Three promises were changed on purpose by later stages (the audit's 'log', the permissions given back, OBJECTION!'s place) and are marked partly with the stage that changed them. Against a 9: the passage in a real drag, the audit's 'log' with no false row, and whom OBJECTION! hits stand on unread live checks (21 of 25 open, none fully read), and scenario 76 has no verdict in this audit's runs; three passage tests still fail on 14.370 with the reason not read. Rule 1 caps the grade at 9.",
+   "missing_to_10": "Readings of LIVE-E79-01, -02, -08 and -22 at a table; a verdict of scenario 76 in the base run; the three passage tests that fail on 14.370 (1037, 1096, 1108) read to a cause; a scenario check that a player's own picture pickers are what the file switch closes (the notes' gap, 188-189)."
+  },
+  {
+   "id": "E80",
+   "version": "1.2.80",
+   "shipped": "2026-10-20",
+   "what": "Both parts of E80: tunnels and stairs between rooms with 'Go through' on the sheet, Find Passage (Analyze's fourth choice), Make public and Make secret, Foundry's secret doors put back and converted, the players' ruler hidden on a GM's press, and Frisk, the Palm tile's third direction (openly with an ask and a force, or unseen on two rolls). Shipped with E16's part 1 (another reader's stage).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.80.md (1-308, whole; E16's parts - the dice look, the roll window - read and left to E16's reader)",
+    "no papers folder (ls docs/dev: no e80); the notes cite the stage's ledgers (P1-22, P1-25, P1-26, P2-01, P2-24, P2-25) that are not in the repository",
+    "tools/stages.json row E80 (planned and shipped 1.2.80, 20.10.2026; touches sockets, rolls; drills none)",
+    "docs/dev/R-REGISTRY.md: 31 rows stamped E80, R593-R623 (R800-R806 are E16's)",
+    "audit/AUDIT-1.2.42.md 9.2 items 263-266 and 271 (LIVE-E80-01..05)",
+    "git log b1018851..cad376ef: 5 commits (the merge cad376ef, 6d9c218b the ledger, 105ea310 crlf-G1, 588c8dd4 sec1-G2, the gate record f0ea4293); 11 commits name E80 in the whole history"
+   ],
+   "commits": 5,
+   "commits_note": "The stage's C-commits and the round fixes the notes name (b238929..8713dc8, d03b661, 10b7ea7..bcbd213, aa58b22..82dee66, 22cc778) are not in the shallow checkout; 588c8dd4 is.",
+   "promises": [
+    {
+     "promise": "A GM makes a tunnel or stairs with a click in each of two rooms, on one floor or two; a click in no room, both ends in one room or on another tunnel's end is refused with the reason; the tab's columns Rooms, Kind, Shape, Origin, Who knows, At season start, State",
+     "source": "v1.2.80.md 64-71",
+     "code": "scripts/passages-gm.mjs:2683 tunnelEndAt, :2713 tunnelRowFor, :3000 passageTunnels; scripts/passages-tab.mjs",
+     "holds": "yes",
+     "test": "R594, R606 (tier 0: the tab fits Room Setup at 1280x720), R607 (tiers 0-1)",
+     "test_kind": "both",
+     "note": "On 14.370 every tunnel and stairs tier-2 test passes since 1.2.118's floorNamed (live-readings-e58-delta.json, 18.11.2026). The tab at a real desk: LIVE-E80-04, open (its Polish heads renamed since; live-items-08 item 266)."
+    },
+    {
+     "promise": "A student at one of a tunnel's ends (within one square) presses Go through; the primary GM decides it as a door: one crossing at a door's price or one Eclipse crossing, another's bedroom passed, a lock, a seal, Chained, an incident, a trial, no price or a spent Eclipse turn them back in a door's words and nothing is paid; the token lands on the far end or the nearest free square, the price given back if it cannot be moved; a GM must be connected",
+     "source": "v1.2.80.md 82-91",
+     "code": "scripts/passages-gm.mjs:2314 crossTunnel; scripts/movement.mjs:2346 tunnelVerdict, :2392 tunnelRefusalText, :2478 tunnelLanding; scripts/sheet-sidebar.mjs:712-758 (the landing waits whenAtRest)",
+     "holds": "yes",
+     "test": "R597, R614 (tier 1); scenario 33 phase 'a tunnel gone through' (33-bridge-paths.mjs:1198), 30-security 'a tunnel nobody of the sender's knows' (:2033)",
+     "test_kind": "behaviour",
+     "note": "The one square and the landing's three rings are chosen, not measured (notes 83, 251-252). A drag onto a tunnel's end was added by E85/H81 (1.2.81). LIVE-E80-01 partly read (live-items-08 item 263)."
+    },
+    {
+     "promise": "Find Passage: Head against 16, 1 action, every room, refused in a Class Trial before anything is paid; 16 or a critical finds the oldest open secret passage of the room on the floor the student does not know; the Mastermind finds none; one card of the same shape for a find, a miss, an empty room and the Mastermind to the student and the GMs, nothing to onlookers; a Reroll finds once, in the room its roll was thrown in, only while the student still stands there",
+     "source": "v1.2.80.md 95-109",
+     "code": "scripts/config.mjs:1625 passageThreshold 16; scripts/action-analyze.mjs:50 (the trial filter shuts the passage), :386-420 locatePassage (no GM: refused before payment); scripts/passages-gm.mjs:2454-2535 resolvePassageSearch (read: the trial refusal, beat = critical or total >= 16, actsAsMastermind finds none, the replay's held place and the 'not in that room' refusal, one card to the owner and the GMs, the trap told on every first throw)",
+     "holds": "yes",
+     "test": "R598, R599, R604, R612 (tier 1); scenario 30 'a console's Find Passage' (:1717)",
+     "test_kind": "behaviour",
+     "note": "Read in full. The GMs hear the sound only on a find (passages-gm.mjs:2522, gm: Boolean(pick)); the notes say the GMs get the card, not the sound, for a miss - consistent."
+    },
+    {
+     "promise": "Make public gives a passage to every student at once and tells nobody, lifts no lock, survives the season's reset; Make secret gives it back to the students listed alone; revoking from a public passage decides only what they know after Make secret",
+     "source": "v1.2.80.md 75-78",
+     "code": "scripts/passages-gm.mjs:1292 (a public passage's knowers are every student), :1833 (the switch), :199 (the copy's stamp)",
+     "holds": "yes",
+     "test": "R602, R608, R610, R615 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "The notes' own gaps stand: no console call for it, the GMs' overlay draws a public passage like a secret one (v1.2.80.md 266-268)."
+    },
+    {
+     "promise": "While a GM is connected the primary GM puts a Foundry secret door a player opened or closed back as a GM last left it; a door changed with no GM watching is put back when a GM connects, with a card; a step through such a door is judged as through a wall; Season setup's 'Convert to passages' makes each an ordinary shut wall and, between two rooms, a passage nobody knows",
+     "source": "v1.2.80.md 37-41, 113-117",
+     "code": "scripts/passages-gm.mjs:1480 convertSecretDoors, :1512 secretDoorHeldShut, :1559 stampSecretDoor, :1574 stampNewSecretDoor, :1604 putBackSecretDoor, :1671 settleSecretDoors, :1732 onSceneCreated, :1747 onDoorsGmLeft, :1764 onDoorsRoleChanged, :3284-3302 the hooks and the pass at the GM's ready",
+     "holds": "yes",
+     "test": "R601, R605, R609, R616 (tier 1); scenario 30 'a secret door a player opens' (:2073)",
+     "test_kind": "behaviour",
+     "note": "The hooks are registered on a GM's browser at ready (passages-gm.mjs:3270-3302), so the notes' gap stands: a player made a GM who then becomes the primary runs no pass until its next start (v1.2.80.md 261). Whether v14 accepts a player's change of a secret door at all is LIVE-E80-03, open."
+    },
+    {
+     "promise": "Season setup's 'The players' movement ruler is hidden (optional)' with Hide and Show takes the ruler from the Player and Trusted Player roles and gives it back; GMs keep theirs",
+     "source": "v1.2.80.md 118-120",
+     "code": "scripts/season-setup.mjs:108 rulerRoles, :132 setPlayerRulers",
+     "holds": "yes",
+     "test": "R601 (its title names the rulers)",
+     "test_kind": "behaviour",
+     "note": "Since owner-116 (1.2.116) a ruler is also shown only where the token is (visibility.mjs:940 rulerShownTo; live-items-08 item 264). Which roles v14 gives SHOW_RULER by default is LIVE-E80-02, open."
+    },
+    {
+     "promise": "Frisk openly (the default): the target's player is asked 'Turn out your pockets?' and no answer in a minute is a refusal; the GMs answer for a character without a player; after a refusal or no answer the searcher may force it at Body 12 within 30 s in front of the room, unless the world switch 'Frisk: forcing after a refusal' is off; an allow shows the pockets as at the ask",
+     "source": "v1.2.80.md 23-24, 124-136",
+     "code": "scripts/config.mjs:1824 frisk Body 12; scripts/frisk.mjs:768 askToFrisk, :880 answerFrisk, :924 followFrisk, :982 expireFriskAsk, :69 friskForceOpen, :1059 friskPacketRefusal; scripts/settings.mjs:74 friskForce",
+     "holds": "yes",
+     "test": "R617, R619, R621 (tier 0: the four Frisk requests asked of the primary, with a control that removes onPrimary); tier 2 'an open Frisk's ask is judged on the primary GM ...' (tests-tier2.mjs:12780) and the E80 fix tests at 13438-14928; scenario 40 'an open Frisk at the table' (40-flow.mjs:1770-1907), 97-two-gms F, 30-security 'an open Frisk's ask'",
+     "test_kind": "behaviour",
+     "note": "On 14.370 (18-19.11.2026, L1's branch) tier-2 tests of the open Frisk fail with the cause not read: 179 and 184 'fail on their readings - the open Frisk's ask row never reaches asking'; and on the stand-in users 'an open Frisk's action comes back only where its card says so', 'an open Frisk's ask keeps its clocks ...' and 'an open Frisk's force on a GM that is not the primary ...' fail on readings (live-readings-e58-delta.json). Whether that is the tests' (the paper ties the cast finding to three Frisk tests) or the module's is not established - see not_established."
+    },
+    {
+     "promise": "Frisk unseen: two rolls on one payment, Shadow 15 then Hand 10; the list to the searcher and the GMs alone, the target told only when it noticed; never a Truth Bullet or a stash, an item no GM decided on left out, a trapped item read as its clean twin",
+     "source": "v1.2.80.md 137-142",
+     "code": "scripts/config.mjs:1811 (unseen shadow 15), :1825 rummage hand 10 unseen 15; scripts/frisk.mjs:297 friskPerson, :354 replayRummage",
+     "holds": "partly",
+     "test": "R617, R618 (tier 1); tier 2 'an unseen Frisk is judged on the primary from a player's two drawn rolls ...' (12520), 'a Frisk's list is what the target carries ...' (12685)",
+     "test_kind": "behaviour",
+     "note": "Changed on purpose by the owner's privacy rule of 13.11.2026 (line 2, #6 and #7): an open Frisk turned out in front of the room shows each witness the list, and an unseen Frisk the target catches is seen by the room (tier 2 at 13030 and 13136); the GM handbook says so (gm-handbook.en.md:929). 'The list to the searcher and the GMs alone' now holds for an unseen Frisk that is not caught."
+    },
+    {
+     "promise": "A Frisk, a Take or a Plant at a body the GMs keep reads as at a living student (the owner's choice of 20.10); the body's card to the GMs alone with no sound; a Frisk on such a body or on somebody in the incident asks nobody and plays as a student who does not answer, with a notice to the GMs",
+     "source": "v1.2.80.md 25-32, 145-146",
+     "code": "scripts/frisk.mjs:146 personActionRefusal, :182 knownDeath, :215 tellOnlookers",
+     "holds": "yes",
+     "test": "tier 2 'an unseen Frisk at a body the GMs keep reads at the searcher as at a living target ...' (15296), 'an open Frisk at a body the GMs keep, unanswered and let go ...' (15452), 'a death the table knows is no Frisk's on any road' (13438); 588c8dd4 (sec1-G2)",
+     "test_kind": "behaviour",
+     "note": "The notes' second major finding of part 2 (an unseen Frisk at a kept body read differently) was closed by 22cc778 by the notes; that commit is not in the checkout, its tier-2 test is."
+    },
+    {
+     "promise": "With no GM connected a Frisk is refused before it is paid; a Reroll keeps the moment (a miss nobody felt can turn into one look; a force and a felt Frisk stand); a Frisk thrown through the roll window keeps its context",
+     "source": "v1.2.80.md 147-151, 168",
+     "code": "scripts/frisk.mjs:354 replayRummage; scripts/action-analyze.mjs (the no-GM refusal as Find Passage's, :402)",
+     "holds": "yes",
+     "test": "tier 2 'a Frisk's Reroll on the primary keeps what the moment did' (15151), 'a Find Passage or a Frisk thrown through the roll window keeps ...' (75325)",
+     "test_kind": "behaviour",
+     "note": "The notes' gaps of this part (a GM who drops and returns without a reload read as one that forgot its asks; a follow after the primary's reload handing back an action the end left spent) are 'read in the code, not measured' (v1.2.80.md 235-242); not re-read here."
+    },
+    {
+     "promise": "serialWrite keeps one key's steps in order",
+     "source": "v1.2.80.md 186-187",
+     "code": "scripts/utils.mjs:409 serialWrite (imported by vault-store.mjs:69; resolvePassageSearch runs in it, passages-gm.mjs:2457)",
+     "holds": "yes",
+     "test": "R593 (tier 1)",
+     "test_kind": "behaviour",
+     "note": ""
+    }
+   ],
+   "registry_rows": 31,
+   "tests_read": [
+    {
+     "test": "R598 (tests-tier1.mjs:22356, head read)",
+     "measures": "yes",
+     "why": "Drives resolvePassageSearch on an engine of the suite's own with rows made in stamp order and ids in reverse, so 'oldest' is the stamp's; covers another floor, another scene, a known passage, the Mastermind and a Reroll. Red at the parent by its head. Ok in the base run (0 failed)."
+    },
+    {
+     "test": "R621 (tests-tier0.mjs:15936, head read)",
+     "measures": "yes",
+     "why": "Reads each requestFrisk* for onPrimary: true with a control that takes the option out and must miss it, so it reads the option and not the name; static, because the harness's one GM is always the primary (its head says so). Ok in the base run."
+    },
+    {
+     "test": "R593-R597, R599-R620, R622, R623 (registry rows)",
+     "measures": "yes",
+     "why": "Titles name observable readings, the windows' (R619, R623) on the module's stylesheets in jsdom; bodies not read. All ok in the base run's tiers 0-1."
+    },
+    {
+     "test": "tier 2: 28 titles naming a Frisk (tests-tier2.mjs:12051-15452, 39890, 40054, 75325, 97980) and 31 naming a passage, a tunnel or stairs",
+     "measures": "unread",
+     "why": "Titles read, bodies not. No verdict in this audit's runs; on 14.370 the passage ones pass and several open-Frisk ones fail (see promises 7 and not_established)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: the Frisk tests at tests-tier2.mjs:12051-15452 (the eight titles naming 'E80' at 13438-14928 among them)",
+    "tier 2: the tunnel, stairs and Find Passage tests (A10-7 and others)",
+    "scenario 40 (6h: an open Frisk at the table, three players' browsers)",
+    "scenario 30 (a console's Find Passage, an open Frisk's ask, a tunnel nobody knows, a secret door a player opens)",
+    "scenario 33 (a tunnel gone through)",
+    "scenario 97 (F: a Frisk's ask when the primary leaves)",
+    "scenarios 01, 15, 17, 65, 72, 76, 83 (gained checks by the notes)"
+   ],
+   "scenarios": [
+    "no register row of audit/harness/README.md names E80; the phases above carry flows 'secret-passages' and 'frisk-openly'"
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "partly": 1,
+    "open": 4,
+    "ids_partly": [
+     "LIVE-E80-01"
+    ],
+    "ids_open": [
+     "LIVE-E80-02",
+     "LIVE-E80-03",
+     "LIVE-E80-04",
+     "LIVE-E80-05"
+    ],
+    "note": "first-session/live-items-08.json items 263-266 and 271; 263 partly by the sandbox's passage tests (LOCAL-REPORT 275-281, the floorless fixtures, fixed in 1.2.118). The notes add that the owner's own Frisk run on the sandbox has no live id and has not been done (v1.2.80.md 217-218). Item 271 (Frisk on The Forge with two accounts) is stale on the harness's one GM (E38 added a second).",
+    "l1": {
+     "what": "LIVE-E80-05 (an open Frisk between two players' browsers: allow, refuse, silence, a force at the last second, a GM who drops and returns) and LIVE-E80-01 (Go through and stairs on a real canvas with a second player in both rooms), with the unread tier-2 Frisk failures on 14.370",
+     "recipe": [
+      "1. Foundry v14 (The Forge if possible): one GM and two players in separate browsers; Aiko and Botan in one room.",
+      "2. Aiko's player Frisks Botan openly: Botan's player allows once (Aiko sees the list as at the ask), refuses once (Aiko is asked 'Make them?' and forces within 30 s at Body 12; the room reads it), and does not answer for a minute once.",
+      "3. Press 'Make them' in the last second of the 30; then repeat with the GM's browser dropped and back without a reload during the ask: note the card each side reads and whether the action is spent or handed back.",
+      "4. Run the tier-2 tests 'an open Frisk's ask is judged on the primary GM ...', 'an open Frisk's action comes back only where its card says so ...' and 'an open Frisk's ask keeps its clocks ...' from the GM's console on the sandbox and record each failing assertion's text.",
+      "5. Give Aiko a tunnel to a room upstairs; she presses Go through: her token lands on the far end on the other floor at a door's price, Botan in either room sees her leave and arrive."
+     ],
+     "clients": "one GM and two players",
+     "theme": "both for step 2's windows, default for the rest",
+     "settles_if": "each step as written and the three tests green, or failing on a stand-in the harness has and v14 lacks - the Frisk's main promise holds; an ask that never reaches the target, a force refused in its window, or an action spent and not handed back where the card says it is, is a finding against E80 (major)",
+     "priority": "grade cap 9 (rule 1); E80 graded 7"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E85/H81 (1.2.81): tunnels and stairs both ways or one way, a drag onto a tunnel's end",
+    "the owner's privacy rule of 13.11.2026 (line 2, #6, #7): an open Frisk turned out shows the room the list; a caught unseen Frisk is seen by the room (tier 2 at 13030, 13136; gm-handbook.en.md:929)",
+    "owner-116 (1.2.116): the ruler follows the token's own visibility (visibility.mjs:940 rulerShownTo)",
+    "E66 C5 and E71: the Passages tab's and the Frisk row's Polish words (live-items-08 items 266; commit 47c18e2b)",
+    "E95 C1: a Frisk's person gate reads the token, not a body's tile (tier 2 at 97980)",
+    "1.2.118: an end naming no floor takes the scene's one floor (passages-gm.mjs floorNamed), which made the passage tests pass on 14.370"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of E80 traced is in today's code where the notes say (passages-gm.mjs, movement.mjs, season-setup.mjs, frisk.mjs, config.mjs); Find Passage's judge was read in full and matches the notes clause by clause; all 31 registry rows were ok in the base run's tiers 0-1, with R621 pinning the Frisk's requests on the primary and R598 driving the find. On 14.370 the tunnel and stairs tests pass (F). Reading found no new defect. Against an 8: the stage's own ledger left P2-01 open (the Palm window with Frisk still scrolls at 1366x768 with 'Whose pockets?' below the fold, v1.2.80.md 226-229), the notes list minor defects read in code and not measured that were not re-read here (a GM's drop and return read as forgotten asks; a follow after the primary's reload handing back an action the end left spent; v1.2.80.md 235-242), and on the owner's real Foundry several open-Frisk tier-2 tests fail with the cause not read. The main Frisk promise between two people stands on LIVE-E80-05, open; rule 1 caps the grade at 9.",
+   "missing_to_10": "The 14.370 Frisk failures read to a cause; LIVE-E80-05 and -01 read at a table; P2-01 closed or accepted by the owner; tests for the read-in-code gaps (a GM's drop and return, a follow after a reload); a verdict of the tier-2 Frisk tests and scenarios 40, 30, 33, 97 in the base run."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "Tier 2's and the scenarios' results for these four stages: base-run.json does not exist, the first session's 01-runtests timed out, and its run stopped inside 30-security, so 33, 40, 74, 75, 76 and 97 have no verdict. Every tier-2 test and scenario named here is in tests_to_join, not claimed green.",
+   "live_check": "none - a base run settles it"
+  },
+  {
+   "what": "Per-test results of the 85 tier 0-1 rows (R533-R552, R553-R563, R572-R623, R570, R571): only the first session's totals were read (1776 passed, 0 failed, 16 skipped; R543 the one skip among them by skip-baseline.json).",
+   "live_check": "none - a base run's per-test file settles it"
+  },
+  {
+   "what": "Why open-Frisk tier-2 tests fail on Foundry 14.370 (LOCAL-REPORT.md on claude/e58-local, 18-19.11.2026, digested in live-readings-e58-delta.json): 179 and 184 'the ask row never reaches asking', and three stand-in-user tests on readings. The paper ties a stray incident cast to three Frisk tests and does not say whether it explains these; module or test was not read.",
+   "live_check": "new live check: the three named tests run on the sandbox after the cast is cleared, each failing assertion's text recorded",
+   "l1": {
+    "what": "the cause of the open-Frisk tier-2 failures on 14.370",
+    "recipe": [
+     "1. On the sandbox, clear the GM stores' incident cast (the paper's round 0 step).",
+     "2. Run tier 2 with --only 'an open Frisk' from the GM's console in each theme.",
+     "3. For each failure record the assertion and the ask row's state (asking, asked) on the primary."
+    ],
+    "clients": "the sandbox's GM page and three player pages",
+    "theme": "both",
+    "settles_if": "green after the cast is cleared - the tests' world, no finding; red with the ask never reaching its target on v14 - a finding against E80's open Frisk (major)",
+    "priority": "E80's grade (7, cap 9)"
+   }
+  },
+  {
+   "what": "That a hidden camera dock still plays its sound after F5 and that display: none !important wins over Foundry v14's own dock rules (E78's main mechanism); read in code and in R541 on a stand-in only.",
+   "live_check": "LIVE-E78-10 (T1) steps 2 and 7; LIVE-E78-01",
+   "l1": {
+    "what": "the hidden dock's sound and display on v14",
+    "recipe": [
+     "1. Voice tile on, a LiveKit room with two players.",
+     "2. One player presses F5; the other speaks.",
+     "3. Inspect #camera-views: computed display none, the audio elements present, the speech heard."
+    ],
+    "clients": "one GM and two players",
+    "theme": "both",
+    "settles_if": "heard and hidden - E78 holds; silence or a visible dock - a finding against E78 (major)",
+    "priority": "E78's grade cap 9"
+   }
+  },
+  {
+   "what": "The three passage tests that still fail on 14.370 (1037, 1096, 1108: a pass over four named regions with a Teleport, Room Setup over a Hall with a Teleport Lift, a Gate and a Porch, End the trial's copies on the chosen place): whether any is E79's or E80's code was not read.",
+   "live_check": "new live check: the three tests' failing assertions recorded on the sandbox"
+  },
+  {
+   "what": "audit/harness/client-entry.mjs's refusing timers (E84's harness change) and voice-panel.mjs, passages-tab.mjs, trial-speakers.mjs and frisk.mjs past their heads were not read; the promises resting on them are judged from the function heads, the registry titles and the notes.",
+   "live_check": "none - a second reader of those files"
+  },
+  {
+   "what": "The notes' counts (settings registered, strings in en.json and pl.json, 148/149 files, 166 mutants for E78, the review rounds' findings) were not recounted: the stages' commits and mutant definitions are not in the shallow checkout.",
+   "live_check": "none"
+  }
+ ]
+}
