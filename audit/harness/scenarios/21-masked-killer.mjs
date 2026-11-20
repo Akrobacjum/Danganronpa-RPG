@@ -232,6 +232,33 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         JSON.stringify(consoles), { knownLeak: "foundry-veiled-token-actor", measured: veiled.mic === false && tokenIds.length > 0 });
     check("road: the GMs' store of the veil holds nothing on the victim's and the bystander's browsers, and Chie's row on the GM's",
         consoles.gm.store === 1 && consoles.victim.store === 0 && consoles.bystander.store === 0, JSON.stringify(consoles), { flow: "murder-incident" });
+    /* THE PICKERS WHILE THE VEIL STANDS (1.2.119, the audit's adversarial pass of 20.11.2026, a blocker: "the hand-over
+       picker names the killer hidden by the opening's veil"). The room's people (movement.mjs `othersInRoom`) leave out a
+       GM's `hidden` alone, and since E112v the veil writes only its flag - it keeps the killer a witness, a target and a
+       finder on the GM's side (`countsAsPresent`) - so every picker a player's browser builds from the room listed the
+       veiled killer by name (`nameAsSeen` hides a masked character, not a veiled one). On p1, Aiko in Dorm A with Chie
+       veiled: the lists of the hand-over (handover.mjs `askWhoIsHere`, Give, Share and Show the passage), Palm, Tail
+       (action-tail.mjs `tailTargets`) and a Hope Call's target in the room (call-pickers.mjs `pickTarget`), each window
+       read as p1's browser builds it and cancelled. Read: whether Chie's name, or a "?" for her, is in any of them. */
+    const PICKERS = `const out = {};
+        const actor = game.actors.get("${ids.aiko}"), chie = game.actors.get("${ids.chie}").name;
+        const grab = async run => { let html = null;
+            globalThis.__dialogAnswers.push(cfg => { const c = cfg?.content; html = typeof c === "string" ? c : (c?.outerHTML ?? ""); return null; });
+            try { await run(); } catch (e) { html = html ?? ("threw " + String(e?.message ?? e)); } finally { globalThis.__dialogAnswers.length = 0; }
+            return html; };
+        const H = await import("${repoUrl}/scripts/handover.mjs"), T = await import("${repoUrl}/scripts/action-tail.mjs");
+        const P = await import("${repoUrl}/scripts/call-effects.mjs"), CFG = await import("${repoUrl}/scripts/config.mjs");
+        out.handover = await grab(() => H.askWhoIsHere(actor, { title: "S21", intro: room => room, note: "", okLabel: "S21" }));
+        out.palm = await grab(() => game.drpg.performAction(actor, "palm", {}));
+        out.call = await grab(() => P.pickTarget(actor, CFG.HOPE_CALLS.support, "hope"));
+        const tail = T.tailTargets(actor).map(a => a.name);
+        const names = html => { const w = document.createElement("div"); w.innerHTML = html ?? ""; return [...w.querySelectorAll("option, label, button")].map(n => n.textContent.trim()).filter(Boolean); };
+        return { drawn: [out.handover, out.palm, out.call].map(h => h !== null && !String(h).startsWith("threw")),
+            named: [out.handover, out.palm, out.call].some(h => String(h ?? "").includes(chie)) || tail.includes(chie),
+            lists: { handover: names(out.handover), palm: names(out.palm), call: names(out.call), tail } };`;
+    const pickers = await p1.eval(PICKERS, { timeout: 90000 });
+    check("road: while the veil stands, no picker on the victim's browser lists Chie - the hand-over's, Palm's, Tail's and a Hope Call's in the room name neither her nor a \"?\" for her",
+        !pickers.named && Object.values(pickers.lists).every(l => !l.includes("?")), JSON.stringify(pickers), { flow: "murder-incident" });
     // Let the held roll go: the opening is offered again on p3 (`throwOpeningRoll`), thrown on the forced faces, drawn and scored.
     await p3.eval(RELEASE);
     await gm.eval(`for (let i = 0; i < 100 && game.drpg.murderState()?.stage === "openingRoll"; i++) await new Promise(r => setTimeout(r, 100)); return true;`, { timeout: 30000 });

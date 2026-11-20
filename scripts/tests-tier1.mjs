@@ -57808,6 +57808,39 @@ const INVARIANTS = [
             none: {}, folded: true, defaults: null
         }), "[leaving the hour; stamped already; a rehearsal; another hour; a row with no day; a second announcement; no rows; the advance's write; the default]");
     }],
+    ["R7883 - a player's room pickers leave out a killer whose veiled token this browser does not draw (scripts/mask-gm.mjs `veiledFromHere`, `seenHere`; the pickers of scripts/handover.mjs `askWhoIsHere`, palm.mjs, action-tail.mjs `tailTargets`, call-pickers.mjs `pickPlayer`, monocub.mjs's room student; the audit's blocker of 20.11.2026 through the coordinator): an actor with a veiled token the token's rule hides here is left out, one it shows - the owner, the killers' side - and one with no veil are kept, a GM leaves out nobody, and before the rule is bound nobody is left out; each room picker passes its room through it", async () => {
+        /* 20.11.2026 (1.2.119 line D). Pure over hand-made scenes and the token's verdict handed in (visibility.mjs
+           `tokenShownTo` is bound at ready, `shown` here); the pickers read off their sources. Driven on a real player's
+           browser in scenario 21 "road" (the hand-over, Palm, Tail and a Hope Call's target; the Monocub's needs a Monocub
+           the scenario does not hold, so it is this test's source read alone). Tamper's frame list is not a room picker
+           (cleanup.mjs `framingCandidates`: every living student) and is not read. */
+        const K = await import("./mask-gm.mjs");
+        if (typeof K.seenHere !== "function") { ok(false, "mask-gm.mjs has no seenHere"); return; }
+        const sources = await moduleSources();
+        const src = f => stripComments(sources.get(f) ?? "");
+        const flags = veiled => ({ [MODULE_ID]: veiled ? { veiled: true } : {} });
+        const scenes = [{ tokens: [{ id: "t1", actorId: "killer", flags: flags(true) }, { id: "t2", actorId: "other", flags: flags(false) },
+            { id: "t3", actorId: "shownKiller", flags: flags(true) }] }];
+        const shown = token => (token.id === "t1" ? "hide" : token.id === "t3" ? "show" : null);
+        const cast = [{ id: "killer" }, { id: "other" }, { id: "shownKiller" }];
+        const ids = list => list.map(a => a.id);
+        const player = { isGM: false }, gm = { isGM: true };
+        const pickers = {
+            handover: bodyOf(src("handover.mjs"), "export async function askWhoIsHere(", { until: "\nexport " }),
+            palm: src("palm.mjs"), tail: fnSource(src("action-tail.mjs"), "tailTargets"),
+            call: src("call-pickers.mjs"), monocub: bodyOf(src("monocub.mjs"), "roomStudent: {", { length: 400 })
+        };
+        must(Object.values(pickers).every(text => text.length > 100), "a picker's source was not read - this reads nothing");
+        equal(stableJson({
+            player: ids(K.seenHere(cast, { scenes, shown, user: player })),
+            gm: ids(K.seenHere(cast, { scenes, shown, user: gm })),
+            unbound: ids(K.seenHere(cast, { scenes, shown: null, user: player })),
+            filtered: Object.fromEntries(Object.entries(pickers).map(([k, text]) => [k, /seenHere\(othersInRoom\(actor\)\)/.test(text)]))
+        }), stableJson({
+            player: ["other", "shownKiller"], gm: ["killer", "other", "shownKiller"], unbound: ["killer", "other", "shownKiller"],
+            filtered: { handover: true, palm: true, tail: true, call: true, monocub: true }
+        }), "[a player's list; a GM's; before the rule is bound; each room picker passes its room through seenHere]");
+    }],
     ["R4402 - the day's boards wear the frame of the module's ordinary windows, in both themes (styles/danganronpa.css, styles/stained-glass.css; the owner's report at a real table on 1.2.109: the boards' frame was pink): read through the module's cascade, the end-of-day and start-of-day boards win the same edge and the same shadow as a module window - Monokuma Legacy's one-pixel window edge and its drop shadow, Stained Glass's window glass (the inset highlights, the accent's glow, the drop shadow); the trial's band and the \"spilling\" mood word keep the sequences' band colour", async () => {
         /* 12.11.2026. Red at 1ff4bc77: the boards' edge was three units of `--drpg-seq-band` (Stained Glass's Despair pink,
            Legacy's red) and they had no shadow. The cascade is the text's (tests-kit.mjs `styleCascade`), not a layout. */

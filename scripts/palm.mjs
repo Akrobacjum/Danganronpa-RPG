@@ -38,7 +38,7 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
 import { judgedFor } from "./sheet-audit.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
-import { nameAsSeen } from "./mask-gm.mjs";
+import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 
 /**
  * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
@@ -286,7 +286,8 @@ export async function performPalm(actor, def, options) {
 
     // Anybody standing here who is not you. `othersInRoom` already excludes
     // tokens that do not count as present - see `countsAsPresent`.
-    const targets = othersInRoom(actor).filter(a => a?.type === "character");
+    // and none whose veiled token this browser does not draw (mask-gm.mjs `seenHere`, 1.2.119)
+    const targets = seenHere(othersInRoom(actor)).filter(a => a?.type === "character");
     if (!targets.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Steal.nobodyHere"));
         return null;

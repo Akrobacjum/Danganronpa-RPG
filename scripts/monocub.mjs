@@ -59,7 +59,7 @@ import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader, callRowsHtml, pickedRow } from "./call-pickers.mjs";
-import { nameAsSeen } from "./mask-gm.mjs";
+import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 
 /* ==========================================================================
  * STATUS
@@ -905,7 +905,8 @@ export const CUB_TARGETS = Object.freeze({
     roomStudent: {
         async list(actor) {
             const { othersInRoom } = await import("./movement.mjs");
-            return othersInRoom(actor).filter(a => !isMonocub(a) && !isDeadForGm(a));
+            // as this browser sees the room (mask-gm.mjs `seenHere`, 1.2.119): `refuses` below is the GM's, and unchanged
+            return seenHere(othersInRoom(actor)).filter(a => !isMonocub(a) && !isDeadForGm(a));
         },
         async refuses(actor, target) {
             if (!target || target.type !== "character") return "the target is not a character";

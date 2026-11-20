@@ -685,6 +685,35 @@ function drawMaskName(token) {
     }
 }
 
+/*
+ * THE ROOM'S PEOPLE AS A PLAYER'S PICKER LISTS THEM, UNDER THE OPENING'S VEIL (1.2.119, 20.11.2026; the audit's adversarial
+ * pass through the coordinator, a blocker: "the hand-over picker names the killer hidden by the opening's veil"). The
+ * room's people (movement.mjs `othersInRoom`, `countsAsPresent`) leave out a GM's `hidden` alone, and since E112v the veil
+ * writes only its flag: the veiled killer stays a witness, a target and a finder - the rules' reading, on the GM's side
+ * and on every browser that counts the room (`countsAsPresent`'s own note), which this leaves as it is. But the pickers a
+ * player's browser builds from the room listed them by name, `nameAsSeen` hiding a masked character and not a veiled one
+ * (scenario 21 "road", red at 8098249c: the hand-over's, Palm's, a Hope Call's and Tail's lists on the victim's browser
+ * held "Chie Mori"). So a picker passes its room through `seenHere`: an actor with a veiled token this browser does not
+ * draw - visibility.mjs `tokenShownTo`'s own verdict, "hide", bound here at ready (visibility.mjs is reached from files
+ * this one is) - is left out, as their token is. A GM, the token's owner and the killers' side, to whom the token is
+ * shown, list them as before. Before the binding, nobody is left out.
+ */
+let shownHere = null;
+
+/** Whether this browser does not draw a veiled token of `actor` (`tokenShownTo` "hide"): never on a GM's. */
+export function veiledFromHere(actor, { scenes = game.scenes, shown = shownHere, user = game.user } = {}) {
+    if (!actor || user?.isGM || typeof shown !== "function") return false;
+    for (const scene of scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (token.actorId === actor.id && isVeiledToken(token) && shown(token) === "hide") return true;
+    }
+    return false;
+}
+
+/** `actors` without those whose veiled token this browser does not draw (`veiledFromHere`): a picker's room, as it sees it. */
+export function seenHere(actors, options = {}) {
+    return (actors ?? []).filter(a => !veiledFromHere(a, options));
+}
+
 let spectatorViewerOf = () => false;
 const isSpectatorViewer = () => spectatorViewerOf();
 
@@ -702,6 +731,8 @@ export function registerMasks() {
     // A token made while a mask or a veil stands joins it (E112, `adoptToken`).
     Hooks.on("createToken", tokenDoc => { if (isPrimaryGm()) adoptToken(tokenDoc).catch(err => error("Could not mask or veil a new token", err)); });
     import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
+    // The veil's verdict for this browser's pickers (`seenHere`): the token's own rule, by `import()` as the Spectator's above.
+    import("./visibility.mjs").then(m => { shownHere = doc => m.tokenShownTo(doc, m.viewerHere(d => Boolean(d?.isOwner))); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.
     import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands, masked: maskedNow })).catch(err => error("Could not hand the cards the masked names", err));
     Hooks.on("refreshToken", token => {
