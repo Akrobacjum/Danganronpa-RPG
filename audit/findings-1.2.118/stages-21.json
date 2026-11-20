@@ -1,0 +1,1069 @@
+{
+ "reader": "stages-21",
+ "base": "main b5a29e73 (1.2.118); tier 0-1 results from the audit's base run log (1776 passed, 0 failed, 16 skipped); tier 2 and the scenarios not joined",
+ "stages": [
+  {
+   "id": "E64",
+   "version": "1.2.110",
+   "shipped": "2026-11-13",
+   "what": "Balance and rules before 1.3.0: the clean-up and crisis numbers, Level Up by DA39 with a once-per-world migration, Observe's critical hint, a fair shuffle in the item draw, the audit's orphan fixes (D001-D059) and the Investigation dashboard's tidy-up (E64-inv).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.110.md (1-362 read whole; E64's part: 24-37, 66-71, 89-118, 218-230, 259-282, 301-302, 307-361)",
+    "docs/dev/e64/STATUS.md (1-281, whole)",
+    "docs/dev/e64-inv/STATUS.md (116 lines; not read, only its tests' rows R3967-R3970)",
+    "audit/AUDIT-1.2.42.md:1481 (item 507, LIVE-E64-01); no block beginning 'Po E64' exists in 9.2 (grep)",
+    "tools/stages.json:81",
+    "git log --oneline v1.2.109..v1.2.110: 197 commits, 56 of them name E64",
+    "The plan (docs/dev/plans/E64.md) lives on another branch and was not read: the notes and STATUS are the claim."
+   ],
+   "commits": 56,
+   "train_commits": 197,
+   "promises": [
+    {
+     "promise": "The fresh-scene discount (-3) holds only while an incident runs or a body of this chapter lies unfound.",
+     "source": ".github/release-notes/v1.2.110.md:24, 96; STATUS row S05-60",
+     "code": "scripts/cleanup.mjs:404 freshSceneBonus, :449 unfoundBodyIn; scripts/config.mjs:4516 CLEANUP.freshScene.onlyWith",
+     "holds": "yes",
+     "test": "R3950 (ok in the base run); tier 2 '1.2.110 V3'; scenario 30 (the check at 30-security.mjs:3023)",
+     "test_kind": "behaviour",
+     "note": "Read: the bonus is 0 once a body is found or in the Investigation and the trial; on a GM the unfound bodies are cut to those the roller's players may know (V3, 8a6d9bd8). R3950 calls the function with stand-in clock, incident and deaths."
+    },
+    {
+     "promise": "No clean-up number falls below 8 after its reliefs.",
+     "source": ".github/release-notes/v1.2.110.md:25, 96; STATUS row DA12",
+     "code": "scripts/cleanup.mjs:387 atLeastFloor, read at :377, :652, :656, :812, :1794; scripts/config.mjs:4491 minDc 8",
+     "holds": "yes",
+     "test": "R3951 (ok)",
+     "test_kind": "both",
+     "note": "R3951 calls atLeastFloor and cleanupDc and reads the GM's verdict and the roll window by source patterns."
+    },
+    {
+     "promise": "Tamper costs one action and no Sanity, has no cap a time of day, and is refused with no action left; the killer's own Stage 6 keeps its Sanity price.",
+     "source": ".github/release-notes/v1.2.110.md:25-26, 96-98; .github/release-notes/v1.2.111.md:145-146 (E64 F3)",
+     "code": "scripts/cleanup.mjs:1316 tamperPriceSkip, :2279 validPrice, :2297 chargeUnclaimed, :1198-1211 (the refusal when no action could be charged)",
+     "holds": "yes",
+     "test": "R3958, R3959 (ok); R4476-R4478 (ok); tier 2 'a reshaped trace does not change until the GM says so' and the clean-up tests",
+     "test_kind": "both",
+     "note": "R3958 is a source read (no cap store or setting left); R3959 calls tamperPriceSkip and reads validPrice and chargeUnclaimed by pattern. The paid behaviour is tier 2's."
+    },
+    {
+     "promise": "Wounded costs an action in Daily Life and the Investigation, not in the Class Trial.",
+     "source": ".github/release-notes/v1.2.110.md:26, 99",
+     "code": "scripts/actions.mjs:39-74 actionBudget; scripts/config.mjs:3394 STATES.wounded.actionsLostIn",
+     "holds": "yes",
+     "test": "R3954 (ok); R1160",
+     "test_kind": "both",
+     "note": "R3954 calls actionBudget per phase on a stand-in actor (must() first that no darkened hour stands) and reads two readers by pattern."
+    },
+    {
+     "promise": "A crisis action aimed at a strong defender is one harder (eight rows, cap 1), never the opening roll; the menu, the roll window and the GM's judgement read one number.",
+     "source": ".github/release-notes/v1.2.110.md:26-28, 101; STATUS 83-103; scripts/murder-rules.mjs:232-237 (the comment 'one reading for the menu, the roll window and the judge')",
+     "code": "scripts/murder-rules.mjs:239 crisisThreshold, :254 crisisDefense, :316-318 (menu), :1183 (roll window), :1773 (judge); scripts/config.mjs:3791 DEFENSE",
+     "holds": "partly",
+     "test": "R3961 (ok); the STATUS names 88 crisis tier-2 tests",
+     "test_kind": "both",
+     "note": "Holds where the roller's browser knows the other side. Where the roller's copy of the cast holds no killer (a trap's victim; since 1.2.113 a victim of a killer behind a '?') the browser shows the base number and the GM judges one higher: finding E64-1."
+    },
+    {
+     "promise": "A critical carries the body two rooms; any other hit towards a far room stops in the room between; never through a bedroom.",
+     "source": ".github/release-notes/v1.2.110.md:27-28, 98; STATUS row moveBody",
+     "code": "scripts/cleanup.mjs:2723 bodyReach, :2744 bodyLanding, :1955-1957 (the GM's side reads the band's reach)",
+     "holds": "yes",
+     "test": "R3957 (ok); LIVE-E64-01 (not read)",
+     "test_kind": "both",
+     "note": "Pure landing math is called; the apply and the dialog are read by pattern. On a real map with floors and fog it is LIVE-E64-01's, open."
+    },
+    {
+     "promise": "Level Up offers no +1 Health or +1 Sanity; a point in Head raises the Sanity maximum, in Body or Leg the Health maximum.",
+     "source": ".github/release-notes/v1.2.110.md:29-31, 102",
+     "code": "scripts/config.mjs:3417 LEVEL_UP_OPTIONS, :3436 LEVEL_UP_TRAIT_RESOURCES; scripts/level-up.mjs:715-718, :853-860, :965-968",
+     "holds": "yes",
+     "test": "R3956 (ok); tier 2 'a GM's advancement rises from the maxima'",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Old +1 Health / +1 Sanity picks are brought under the new rule once per world, in a window where the GM ticks each change; only a sheet the module stamped is read; a season reset takes the rises with the season.",
+     "source": ".github/release-notes/v1.2.110.md:30-31, 68-71, 269-271; .github/release-notes/v1.2.111.md:146",
+     "code": "scripts/level-up.mjs:1295 da39Row, :1345 da39RowOf, :1386-1431 (apply), :1449 (the once-per-world mark); scripts/season-wipe.mjs:478-479; scripts/settings.mjs:2543 levelUpsMigrated",
+     "holds": "yes",
+     "test": "R3963 (ok); tier 2 'E64 DA39 migration'; scenario 65 (V2)",
+     "test_kind": "behaviour",
+     "note": "R3963 is a pure reading of da39Row, da39Taken and readDa39Answers on stand-in sheets. The window and its writes were not traced here; they rest on the tier-2 test to join."
+    },
+    {
+     "promise": "Other numbers: Confusion's first tier at 11, a sabotage hit at 12 needs a repair of 2, a trap's victim notices at Night as by day, a Palm steal needs 12; the item draw shuffles fairly (Fisher-Yates).",
+     "source": ".github/release-notes/v1.2.110.md:32-33, 99-103",
+     "code": "scripts/config.mjs:1931 simpleRepair 2, :3744 nightDisadvantage false; scripts/action-project.mjs:1304-1305; scripts/utils.mjs:917 shuffle; scripts/tables-pools.mjs:928, :964",
+     "holds": "yes",
+     "test": "R3952, R3953, R3964, R3965, R3966 (all ok)",
+     "test_kind": "both",
+     "note": "R3953 measures the shuffle (chi-square over 24,000 shuffles on one fixed sequence). R3965 and R3966 read config or source text only; R3952 and R3964 call the reader."
+    },
+    {
+     "promise": "Observe's critical hint is written on the finder's own Truth Bullet only, in a box of its own asked first.",
+     "source": ".github/release-notes/v1.2.110.md:34-35, 101; STATUS 105-114",
+     "code": "scripts/observe.mjs:1089 findTexts (the hint only on a critical, joined into that copy's text)",
+     "holds": "yes",
+     "test": "R3955, R3960 (ok)",
+     "test_kind": "both",
+     "note": "R3960 pins the order of the fields in describeFind's text; that the box is in view at 1366x768 was measured by the stage in Chromium on a harness page (STATUS 107-114), not on Foundry, and not re-measured here."
+    },
+    {
+     "promise": "A Loaded Die that did not hold gives its Call back (D052), on a GM's own roll and on a player's roll the GM drew.",
+     "source": ".github/release-notes/v1.2.110.md:104, 218-224",
+     "code": "scripts/call-effects.mjs:540 giveBackLoadedDie; scripts/action-pipeline.mjs:296-301; scripts/roll-draw.mjs:1719-1727",
+     "holds": "yes",
+     "test": "R3962 (ok); tier 2 'E64 D052', 'a Loaded Die bought and armed'",
+     "test_kind": "both",
+     "note": "R3962 is a source read of both roads. The drawn road misread the dice on Daggerheart 2.12 at the release's first CI run and was fixed in a0611351 (in 1.2.110)."
+    },
+    {
+     "promise": "The other orphans: D059 (a free Move's refund per time of day), D008 (key copies go with the room), D001 (a give through the person gate), D003 (a Tier 0 crisis use waits for the GM), D034/D039 (a repair held to its tier, the GM's size recorded).",
+     "source": ".github/release-notes/v1.2.110.md:104-106; STATUS 44-52",
+     "code": "not traced here",
+     "holds": "unknown",
+     "test": "tier 2 'E64 D001', 'E64 D003', 'E64 D039 and D034', E17-T6, 'a bedroom given away from the console'",
+     "test_kind": "behaviour",
+     "note": "No tier 0-1 row backs them; they rest on tier 2, which is not joined yet."
+    },
+    {
+     "promise": "The Investigation's GM tools are tidier: fewer buttons on the bar, Who has what as one table, one word 'Visibility', shorter hints.",
+     "source": ".github/release-notes/v1.2.110.md:36-37, 107-109",
+     "code": "scripts/investigation.mjs (not traced here)",
+     "holds": "yes",
+     "test": "R3967, R3968, R3969, R3970 (all ok)",
+     "test_kind": "both",
+     "note": "By the green rows, not by my reading. R3969 and R3970 are source reads; the fit at 1366x768 is the stage's own Chromium reading on harness pages."
+    }
+   ],
+   "registry_rows": 63,
+   "registry_note": "63 rows carry the stamp E64, 21 of them E64's own (R3950-R3970); the other 42 are the train's: 18 of E72 (R3800-R3809, R3815-R3818, R3821-R3824), 7 of E91 (R3810-R3814, R3819, R3820), 3 of E99 (R3917-R3919), 9 of the gaps lines (R3980-R3988) and 5 of the fixes from 1.2.109's table (R4400-R4404). The notes say so (Known gaps, line 309). All 63 read 'ok' in the base run's tier 0-1 log.",
+   "tests_read": [
+    {
+     "test": "R3950",
+     "measures": "yes",
+     "why": "Calls freshSceneBonus for eight cases (quiet day, incident, unfound body, other chapter, found, Investigation, trial); a discount on a quiet day would turn it red."
+    },
+    {
+     "test": "R3951",
+     "measures": "weak",
+     "why": "Calls atLeastFloor and cleanupDc, but the GM's scoring and the roll window are held by regular expressions on the source text, not by a scored attempt."
+    },
+    {
+     "test": "R3954",
+     "measures": "yes",
+     "why": "Calls actionBudget for three phases on a stand-in actor; the two readers (the clock's note, the sheet's mark) are source patterns."
+    },
+    {
+     "test": "R3956",
+     "measures": "weak",
+     "why": "Reads the option table, the rise table and applyAdvancement by pattern; what a pick writes on a sheet is tier 2's."
+    },
+    {
+     "test": "R3961",
+     "measures": "weak",
+     "why": "Calls crisisThreshold with a state that names both sides and a stand-in for the statistics; it cannot see the case where the roller's copy names no killer (E64-1). The openings are held by source patterns."
+    },
+    {
+     "test": "R3962",
+     "measures": "no",
+     "why": "Every field is a reading of the source text (its own comment says so); the behaviour is tier 2's."
+    },
+    {
+     "test": "R3963",
+     "measures": "yes",
+     "why": "Pure calls of da39Row, da39Taken, readDa39Answers and offerList with eleven cases."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E64 D052",
+    "tier 2: E64 D001",
+    "tier 2: E64 D003",
+    "tier 2: E64 D039 and D034",
+    "tier 2: E64 DA39 migration",
+    "tier 2: 1.2.110 V3",
+    "tier 2: a Loaded Die bought and armed",
+    "tier 2: a GM's advancement rises from the maxima",
+    "tier 2: a reshaped trace does not change until the GM says so",
+    "tier 2: E17-T6",
+    "tier 2: a bedroom given away from the console",
+    "scenario 30-security",
+    "scenario 40-flow",
+    "scenario 65-season",
+    "scenario 83-roll-integrity"
+   ],
+   "scenarios": [
+    "No row of audit/harness/README.md's register names E64.",
+    "30-security: the check at 30-security.mjs:3023 holds V3 (the GM and the player's browser read one fresh-scene number).",
+    "40-flow, 65-season (V2: the load's promise and the DA39 step), 61, 63, 72, 83: moved to Body/Head picks or re-read by the stage (STATUS 235-262); they ask nothing new of E64."
+   ],
+   "live": {
+    "items": 1,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E64-01 (AUDIT 9.2 item 507) is in neither live-readings file."
+   },
+   "findings": [
+    {
+     "id": "E64-1",
+     "severity": "minor",
+     "title": "A victim whose copy of the cast names no killer is shown a crisis number one lower than the GM judges",
+     "where": "scripts/murder-rules.mjs:254-263 (crisisDefense), :316-318 (the menu), :1183 (the roll window's dc), :1773 (the GM's judge); scripts/incident-store.mjs:586-588 (castCopyFor holds killerId null)",
+     "what_happens": "crisisDefense reads the defender's statistic through state.killerId or state.victimId. On a player's browser the state is that player's copy of the cast (incident-store.mjs:187-191). The copy of everyone but the killers holds killerId null in a trap, and since 1.2.113 while the killer stands behind a '?'. For the victim's rows defended by the killer (Self-Defense and Role Reversal by Body, Survive by Leg) the browser then answers 0 and shows the base number, with no '+1' line on the tile; the primary GM reads its own cast, finds the killer, and scores the roll against base + 1 when that statistic is 1 or more.",
+     "failure_scenario": "A trap built by a student with Body 1 springs on Aiko. Her menu and her roll window read Self-Defense 'Beat 18'. She rolls a total of 18. The primary scores 18 against 19 (crisisThreshold at murder-rules.mjs:1773) and the action fails. The stage's promise is one number for the menu, the window and the judge (murder-rules.mjs:232-237). The same gap opens in a direct murder whose opening hid the killer (E69 C8).",
+     "confidence": "read",
+     "refutation_tried": "Looked for a road that hands the player the GM's number: both the menu (:316) and the roll (:1183) call crisisThreshold on the browser's own murderState(); no field of the copy carries the defence. Looked for a decision that a trap or a mask drops the defence: none in docs/dev/e64/STATUS.md, the notes or AUDIT 9.2 (docs/dev/e101/REVIEW.md R7 is another point). R3961 hands in a state with both ids, so it stays green. Not run (the audit's rule against running the harness)."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 8,
+   "grade_reasons": "Every rule the notes list is in the code and has a green tier 0-1 row (R3950-R3970, all 'ok' in the base run), several of them real calls of the rule (R3950, R3953, R3954, R3963). One promise holds in part: the defence's number differs between the roller's browser and the GM where the roller's copy names no killer (E64-1, minor). The orphans D001-D059 and the migration's window rest on tier 2, not joined yet. The one live check (LIVE-E64-01) is unread. Said by the stage itself and still so: C7's review was not made against session 0's data, and the lethality of the crisis defence was not measured.",
+   "missing_to_10": "E64-1 closed (the copy or the tile carrying the number the GM will judge by, or the defence dropped where the defender is hidden) with a test that drives a trap's victim; the tier-2 names above green in the base run; LIVE-E64-01 read on a real map; the eight defended rows and the other defaults confirmed by the owner."
+  },
+  {
+   "id": "E72",
+   "version": "1.2.110",
+   "shipped": "2026-11-13",
+   "what": "The Monocub rebuilt (made by its player's acceptance of the Monocub Rule, moves paid on the GM after their checks, caps, Redeem, Ask for Hope, Tinker, the purse, Bribe, Bounty, a move to order, the Ghost Bet), the dead's voice outside the trial with Silence now, the Call windows drawn as the Action window, and Talent.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.110.md (1-362 read whole; E72's part: 38-45, 72-87, 120-141, 277-282, 303-304, 311-317)",
+    "docs/dev/e72/STATUS.md (1-493, whole)",
+    "audit/AUDIT-1.2.42.md 9.2: no block 'Po E72' and no item LIVE-E72-n (grep); LIVE-E72-03 exists only in docs/dev/e72/STATUS.md:222 and the notes' Known gaps (line 314)",
+    "tools/stages.json:82 (with E64)",
+    "git log --oneline v1.2.109..v1.2.110: 197 commits, 60 of them name E72",
+    "The plan (docs/dev/plans/E72.md) lives on another branch and was not read."
+   ],
+   "commits": 60,
+   "train_commits": 197,
+   "promises": [
+    {
+     "promise": "A dead player becomes a Monocub only by accepting the Monocub Rule; the old Monocubs window is gone.",
+     "source": ".github/release-notes/v1.2.110.md:38, 75-76, 124",
+     "code": "scripts/monocub.mjs:427 offerMonocub, :459 answerMonocubOffer, :487 openInvitation; bridge row monocub.answer",
+     "holds": "yes",
+     "test": "R3804 (ok); tier 2 'a Monocub is made by its player's acceptance of the Monocub Rule'; scenario 33 A20; scenario 30 (the dead student's answer to the invitation)",
+     "test_kind": "both",
+     "note": "R3804 is a tier-0 source read (one road makes a Monocub); the behaviour is tier 2's and scenario 33's. answerMonocubOffer was not read line by line."
+    },
+    {
+     "promise": "A move costs nothing until its checks pass, one Monocub at a time.",
+     "source": ".github/release-notes/v1.2.110.md:39, 122",
+     "code": "scripts/monocub.mjs:1270-1322 cubAbilityOnGm (serialWrite per Monocub, refusal before the price, the price before the dice), :1186 cubAbilityRefusalOnGm, :1119 performCubAbility (pays nothing)",
+     "holds": "yes",
+     "test": "R3800 (ok); tier 2 'a Monocub's Confusion is paid on the GM after its conditions'",
+     "test_kind": "both",
+     "note": "Read whole. R3800 is a source read of the order of the calls; tier 2 drives it."
+    },
+    {
+     "promise": "Each student takes one Monocub move per time of day and two per game day, a failed one counted.",
+     "source": ".github/release-notes/v1.2.110.md:39, 123",
+     "code": "scripts/monocub.mjs:1233 cubCapRefusal, :1245 noteCubMove, :1297-1310 (the share, the price and the note in one lock a target)",
+     "holds": "yes",
+     "test": "tier 2 'a student takes one Monocub move per time of day and two per game day', 'two Monocubs' Confusions on one student at once take one share'",
+     "test_kind": "behaviour",
+     "note": "Read. No tier 0-1 row."
+    },
+    {
+     "promise": "Redeem (free, +1 Hope once a game day) and Ask for Hope.",
+     "source": ".github/release-notes/v1.2.110.md:40, 124",
+     "code": "scripts/monocub.mjs:1511 redeemHope, :1526 postHopeAsk, :1548 answerHopeAsk, :737-743 (an ask lapses with its time of day, v110-lows)",
+     "holds": "yes",
+     "test": "tier 2 'Redeem gives a Monocub +1 Hope once a game day at no price', 'Ask for Hope posts one card in the Monocub's thread', '1.2.110 lows, the Monocub's row'; R3805 (ok)",
+     "test_kind": "behaviour",
+     "note": "Read."
+    },
+    {
+     "promise": "Tinker, the purse of Hope the GMs keep, Bribe, the GM's Bounty, a move done to order for its action alone, and the Ghost Bet (settled by the Final Trial's verdict too).",
+     "source": ".github/release-notes/v1.2.110.md:40-41, 127-131",
+     "code": "scripts/monocub.mjs:1477 scoreTinker, :762-860 (the purse), :1633 offerBribeOnGm, :1657 answerBribeOnGm, :1800 postBounty, :1835 claimBounty, :1214 priceOf, :1908 placeBet, :1917 settleBets",
+     "holds": "yes",
+     "test": "R3808, R3815, R3816 (ok); tier 2: 'a Monocub's Tinker moves a public project', 'a Monocub's purse is spent before its sheet', 'a Bribe is offered to a Monocub and paid only on its yes', 'two Bribes one payer cannot pay from one Hope', 'a Bounty is the GMs' and the Monocubs' alone', '1.2.110 lows, two Bounties at once', 'a move to order costs only its action', 'a Ghost Bet names a student'; scenario 33 A21",
+     "test_kind": "both",
+     "note": "Only priceOf and the purse's header were read; the rest stands on the tests. A recorded known leak stays: a move paid from the purse shows no Hope drop on the sheet (audit/harness/known-leaks.json 'foundry-cub-purse'; scenario 33 A21b, an expected red)."
+    },
+    {
+     "promise": "A Monocub sees every room the class found and crosses rooms for free, but not into a running murder's room.",
+     "source": ".github/release-notes/v1.2.110.md:41-42, 126, 264-268",
+     "code": "scripts/gm-stores.mjs fogSectionFor / cubFogSection; scripts/movement.mjs crossingVerdict (not traced here)",
+     "holds": "unknown",
+     "test": "tier 2 'a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it', 'a Monocub's owner is sent every room the class found'; the 1.2.113 tests '1.2.113 a Monocub's crossing costs nothing once its Free Move is spent'",
+     "test_kind": "behaviour",
+     "note": "No tier 0-1 row and not read here; rests on tier 2 to join. The refusal's words were changed by V1 (28036bb7) so that a murder's room is not told as sealed."
+    },
+    {
+     "promise": "Outside the Class Trial a dead student talks in a voice room of their own account (drpg-dead-<userId>).",
+     "source": ".github/release-notes/v1.2.110.md:43, 80-81, 132",
+     "code": "scripts/voice-client.mjs:461-470, :483 SPECTATOR_ROOM; scripts/voice.mjs:962-963, :1070, :1969",
+     "holds": "superseded",
+     "test": "R3806 (ok, rewritten for the new rule)",
+     "test_kind": "behaviour",
+     "note": "Replaced by E62 C3b (fd25ee16, first in v1.2.112; the owner's Q-C3b-5): the dead talk in the Spectators' room, public or secret; deadRoomFor has no caller and is gone."
+    },
+    {
+     "promise": "The GM can move a death kept secret out of its room at once (Silence now), from the Students row and the incident tracker.",
+     "source": ".github/release-notes/v1.2.110.md:43-44, 132",
+     "code": "scripts/incident-store.mjs:978 silenceDeadNow, :988 isDeadSilenced, :569-570 (out of every player's copy); scripts/voice.mjs:1269 deathVoiceGone; scripts/gm-students.mjs:423; scripts/murder-ui.mjs:784",
+     "holds": "yes",
+     "test": "R3821 (ok); tier 2 'E72 C8 Silence now'; scenario 61 (the cast's stamps)",
+     "test_kind": "both",
+     "note": "The voice now goes to the Spectators' room, not a room of its own (above). A GM who is not the primary pressing it is LIVE-E72-03, named only in the STATUS and never tried."
+    },
+    {
+     "promise": "Call windows look like the Action window, fold away no row's description, and Experience and Ultimate are one tile, Talent.",
+     "source": ".github/release-notes/v1.2.110.md:45, 133",
+     "code": "scripts/call-pickers.mjs callWindow (layout 'action'); scripts/calls.mjs callAsksGm (not traced here)",
+     "holds": "yes",
+     "test": "R3817, R3818, R3822 (ok); scenario 88 (the Hope Call flow's length)",
+     "test_kind": "both",
+     "note": "By the green rows, not by my reading."
+    },
+    {
+     "promise": "The crime witness's mark lives in the GMs' Monocub record, lifted off the actor flag by a migration that carries 'since 1.2.110'.",
+     "source": ".github/release-notes/v1.2.110.md:72-74, 122, 206-207",
+     "code": "scripts/monocub.mjs:577 isCrimeSilenced, :589 cubSawIncident, :601 markWitnessesAt, :622 liftCubWitness; scripts/migrate.mjs:1059-1071",
+     "holds": "yes",
+     "test": "R3801, R178 (ok); tier 2 'the crime witness's mark is the GMs' row and its owner's copy', 'a Monocub in a murder's room is marked a crime witness', '1.2.110 lows, the crime witness's lift run'",
+     "test_kind": "both",
+     "note": "R3801 is a tier-0 source read."
+    },
+    {
+     "promise": "A wrong verdict tells the Monocubs of the case judged (and this chapter's crime witnesses) that their killer walks free, naming nobody.",
+     "source": ".github/release-notes/v1.2.110.md:125, 277-282",
+     "code": "scripts/monocub.mjs:112 wrongVerdictTouches; scripts/verdict.mjs remindOnWrongVerdict",
+     "holds": "yes",
+     "test": "R4474 (ok); tier 2 'a wrong verdict tells the case's dead and the chapter's crime witnesses among the Monocubs'",
+     "test_kind": "both",
+     "note": "V4 (bc6a99da, a074c9aa) narrowed it to the case judged."
+    },
+    {
+     "promise": "No dead student finds a body (DC7).",
+     "source": ".github/release-notes/v1.2.110.md:123",
+     "code": "scripts/body.mjs witnessesOf, checkBodyFound through body-tile.mjs bodyPlaceOf (not traced here)",
+     "holds": "yes",
+     "test": "R3802 (ok), R348",
+     "test_kind": "source-read",
+     "note": "The STATUS says it itself (line 392-393): measured off the source and through the loot tests, not by a tier-2 walk onto a tile."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No row carries the stamp E72: its 18 rows (R3800-R3809, R3815-R3818, R3821-R3824) are stamped E64, and R4474 (V4) is stamped E93. All 19 read 'ok' in the base run. By a script that reads each body for source readers and for calls on imported modules (rough), R3800-R3805 and R3808 are tier-0 source reads.",
+   "tests_read": [
+    {
+     "test": "R3800",
+     "measures": "weak",
+     "why": "A tier-0 reading of monocub.mjs's text: the executor has no spend, the GM's run asks the refusal before spendAction and spendCubHope and both before the dice, one key per Monocub. It pins the order of the calls, not what a refused move costs; tier 2 measures that."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: a Monocub's Confusion is paid on the GM after its conditions",
+    "tier 2: the crime witness's mark is the GMs' row and its owner's copy, not an actor flag (E72 C2)",
+    "tier 2: a Monocub in a murder's room is marked a crime witness",
+    "tier 2: a student takes one Monocub move per time of day and two per game day",
+    "tier 2: Redeem gives a Monocub +1 Hope once a game day at no price",
+    "tier 2: Ask for Hope posts one card in the Monocub's thread",
+    "tier 2: a Monocub is made by its player's acceptance of the Monocub Rule",
+    "tier 2: a wrong verdict tells the case's dead and the chapter's crime witnesses among the Monocubs",
+    "tier 2: the Monocub's tiles say why they are shut",
+    "tier 2: the Event panel says Redeem is waiting to a Monocub's own player alone",
+    "tier 2: the Event panel tells a Monocub's own player that a Bribe waits and that its Ghost Bet stands",
+    "tier 2: the Monocub's panel says part B's state",
+    "tier 2: a Ghost Bet names a student for the window's Hope",
+    "tier 2: 1.2.110 lows, the Monocub's row",
+    "tier 2: 1.2.110 lows, two Bounties at once",
+    "tier 2: 1.2.110 lows, the crime witness's lift run",
+    "tier 2: a move to order costs only its action",
+    "tier 2: a Bounty is the GMs' and the Monocubs' alone",
+    "tier 2: Hope given from Despair to a Monocub counts its purse toward the limit",
+    "tier 2: two Monocubs' Confusions on one student at once take one share of its time of day",
+    "tier 2: two Bribes one payer cannot pay from one Hope",
+    "tier 2: a Bribe is offered to a Monocub and paid only on its yes",
+    "tier 2: a Monocub's purse is spent before its sheet",
+    "tier 2: a Monocub's Tinker moves a public project in its room",
+    "tier 2: a Monocub crosses to a connected room with no Move and no action",
+    "tier 2: a Monocub's owner is sent every room the class found",
+    "tier 2: an execution in the Final Trial posts the execution card (E72 C11; D102)",
+    "tier 2: E72 C8 Silence now",
+    "scenario 30-security (a Monocub's ability, the answer to the invitation, a Bribe)",
+    "scenario 33-bridge-paths (A20, A21, A21b)",
+    "scenario 61-gmstore-case",
+    "scenario 72-canary",
+    "scenario 75-voice-tile",
+    "scenario 88-flow-length"
+   ],
+   "scenarios": [
+    "No row of audit/harness/README.md's register names E72.",
+    "33-bridge-paths: A20 (p2's yes from the window with the Rule makes its dead Botan a Monocub on the primary), A21 (a Bribe offered from one player's page and accepted on the other's: the payer's Hope into the purse), A21b (the purse's weak signal, an expected red recorded as 'foundry-cub-purse').",
+    "30-security: a console's packets for a Monocub's ability, a dead student's answer to the invitation and a Bribe, each refused with nothing changed.",
+    "75-voice-tile part E, 88-flow-length (the Hope Call flow one window shorter with Talent), 61-gmstore-case (the cast's stamps without silencedDead), 72-canary."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "AUDIT 9.2 has no item of E72. LIVE-E72-03 (Silence now from a GM who is not the primary) stands only in docs/dev/e72/STATUS.md:222 and the notes' Known gaps; the dead's voice on a real LiveKit is named there as untried too."
+   },
+   "findings": [
+    {
+     "id": "E72-1",
+     "severity": "nit",
+     "title": "The stage's one live check, LIVE-E72-03, was never written into AUDIT 9.2",
+     "where": "docs/dev/e72/STATUS.md:222; .github/release-notes/v1.2.110.md:314; audit/AUDIT-1.2.42.md 9.2 (no LIVE-E72 item)",
+     "what_happens": "The notes say Silence now from a GM who is not the primary is to be tried at a table as LIVE-E72-03 'not written into AUDIT 9.2'. Five releases later 9.2 still has no such item, so the list a tester follows does not ask it.",
+     "failure_scenario": "A tester who works through 9.2 on a real Foundry never presses Silence now as the second GM; the one road the stage built without a bridge action (any GM writes the cast and the primary's hook moves the voice) stays unread.",
+     "confidence": "read",
+     "refutation_tried": "grep 'LIVE-E72' over audit/AUDIT-1.2.42.md and both live-readings files: no hit."
+    }
+   ],
+   "superseded_by": [
+    "E62 C3b (fd25ee16, first in v1.2.112): the dead outside the trial talk in the Spectators' room, not a room of their own account"
+   ],
+   "grade": 9,
+   "grade_reasons": "Each promise of the notes has a named test: 19 tier 0-1 rows, all 'ok' in the base run, and about thirty tier-2 tests that drive the roads (to join), with scenario 33's A20 and A21 from the players' own pages. The GM's run of a move, the caps, Redeem and Ask for Hope were read and nothing was found against them. One promise was replaced on purpose (the dead's own voice room, by E62 C3b). What is left: the purse's recorded weak signal (a known leak), the live check that was never written into 9.2 (E72-1), and the parts of the plan the coordinator left out (mutePolicy, deadMuteStore, D101), which the notes say. Part B's code was read only in part.",
+   "missing_to_10": "The tier-2 names above green in the base run; LIVE-E72-03 written into 9.2 and read, with the dead's voice on a real LiveKit; part B's defaults and D038's confirmed by the owner."
+  },
+  {
+   "id": "E91",
+   "version": "1.2.110",
+   "shipped": "2026-11-13",
+   "what": "The stage notes' leftovers (D037-D117): the Mastermind's door (lock and seal), a refused Find Passage's price back, a student's co-owners, passages made public or secret from the API, the contract's console levels, the Fog tab's Mastermind column, old rest stamps migrated and smaller fixes.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.110.md (1-362 read whole; E91's part: 46-48, 72-79, 143-156, 225-230, 311-320)",
+    "docs/dev/e72/STATUS.md:131-168 and 254-279 (E91 has no folder of its own; its table and D038 are sections of E72's STATUS)",
+    "docs/dev/audit-113/FINDINGS.md:105 (A113-C5-5, suspected: E91 shipped though the owner's DRPG-D1 choice was to revert it)",
+    "audit/AUDIT-1.2.42.md 9.2: no block 'Po E91' and no item LIVE-E91-n (grep)",
+    "tools/stages.json:83 (with E72)",
+    "git log --oneline v1.2.109..v1.2.110: 197 commits, 19 of them name E91",
+    "The plan and the deferred-items file are not in the repository (docs/dev/e72/STATUS.md:155-157): the notes and that STATUS are the claim."
+   ],
+   "commits": 19,
+   "train_commits": 197,
+   "promises": [
+    {
+     "promise": "The Mastermind can lock or open their own room with the GM's own lock, and seal a passage at their door; a refusal names no role.",
+     "source": ".github/release-notes/v1.2.110.md:46, 78-79, 152",
+     "code": "scripts/mastermind.mjs:298-313 lockLair (primary only, actsAsMastermind, vault-store.mjs writeRoomLock); scripts/passages-gm.mjs sealLairPassage; bridge rows mastermind.lairLock, passage.lairSeal",
+     "holds": "yes",
+     "test": "R3819, R3820 (ok); tier 2 'D038 lair lock', 'D038 lair seal'; scenario 33 A22; scenario 30 SEC-D038",
+     "test_kind": "both",
+     "note": "lockLair read; every refusal is the one sentence 'nothing was carried out'. Said by the notes and still so: the moment a door locks is world data every browser sees, and D038's default waits for the owner."
+    },
+    {
+     "promise": "A refused Find Passage gives its price back (D053).",
+     "source": ".github/release-notes/v1.2.110.md:47, 148-149",
+     "code": "not traced here",
+     "holds": "unknown",
+     "test": "tier 2 'a Find Passage the primary GM refuses after its price was taken gives the price back (E91 C2, D053)'",
+     "test_kind": "behaviour",
+     "note": "Rests on tier 2 to join."
+    },
+    {
+     "promise": "A student with several owners is treated as owned by each (D078): rulings go to the thread their card is in, the betrayal offer, sounds and the lone finder take any player owner.",
+     "source": ".github/release-notes/v1.2.110.md:47, 150",
+     "code": "scripts/incident-store.mjs:577-579 (the offer through playerOwns); the census of every ownerOf call is R3812's",
+     "holds": "yes",
+     "test": "R3812 (ok); tier 2 'a GM's ruling on a card goes to the thread the card is in', 'a co-owner's question lands in the co-owner's thread'",
+     "test_kind": "both",
+     "note": "R3812 is a tier-0 census of the source. Not located by the stage itself: 1.2.101's carry about chapter.mjs, eclipse.mjs, frisk.mjs and the Key fee (STATUS 165)."
+    },
+    {
+     "promise": "game.drpg.passages.makePublic and makeSecret (D117).",
+     "source": ".github/release-notes/v1.2.110.md:149",
+     "code": "scripts/passages-tab.mjs / the API (not traced here)",
+     "holds": "yes",
+     "test": "R3811 (ok)",
+     "test_kind": "source-read",
+     "note": "By the green row; the script reads R3811 as a source read, so 'refusing an unknown id with nothing written' may be text, not a call."
+    },
+    {
+     "promise": "The contract's console logs only failed rows as warnings (C1).",
+     "source": ".github/release-notes/v1.2.110.md:148",
+     "code": "scripts/contract code (not traced here)",
+     "holds": "yes",
+     "test": "R3810 (ok)",
+     "test_kind": "behaviour",
+     "note": "By the green row."
+    },
+    {
+     "promise": "Room Setup's Fog tab shows the Mastermind as knowing every room (D067).",
+     "source": ".github/release-notes/v1.2.110.md:150",
+     "code": "scripts/room-setup.mjs (not traced here)",
+     "holds": "unknown",
+     "test": "tier 2 'Room setup's Fog tab draws the Mastermind's column as knowing every room'",
+     "test_kind": "behaviour",
+     "note": "Rests on tier 2 to join."
+    },
+    {
+     "promise": "Smaller fixes: a breach's renamed room (D037), a Search for something specific whose card is not posted (D072), the Dynamic window's name (D076), old rest stamps given a chapter or dropped by a migration that carries 'since 1.2.110' (D068), a planted Gear kept stowed under quiet without putting a held piece down (D090).",
+     "source": ".github/release-notes/v1.2.110.md:150-152, 206-207",
+     "code": "scripts/migrate.mjs:1075-1076 chapterRestStamps; scripts/inventory.mjs:963-985 keepGearShape (the quiet branch readies another piece only into an empty hand)",
+     "holds": "yes",
+     "test": "R3813, R3814, R178 (ok); tier 2 D072, D076 tests and E35-T7",
+     "test_kind": "both",
+     "note": "keepGearShape read: the second review's point (a held knife put down without a word) is closed by the guard at :978."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No row carries the stamp E91: its 7 rows (R3810-R3814, R3819, R3820) are stamped E64. All 7 read 'ok' in the base run.",
+   "tests_read": [
+    {
+     "test": "R3819",
+     "measures": "weak",
+     "why": "Reads the two callers of writeRoomLock by pattern and the bridge row's shape, and makes one real call: lockLair for an asker who is not the Mastermind is refused with nothing written. That a Mastermind's press locks the room is tier 2's ('D038 lair lock')."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: D038 lair lock",
+    "tier 2: D038 lair seal",
+    "tier 2: a Find Passage the primary GM refuses after its price was taken gives the price back (E91 C2, D053)",
+    "tier 2: a GM's own Search for something specific whose card is not posted gives back the action and the room's search token (E91 C7, D072)",
+    "tier 2: the Dynamic action's difficulty window names the character as its sheet does (E91 C7, D076)",
+    "tier 2: a GM's ruling on a card goes to the thread the card is in (E91 C6, D078)",
+    "tier 2: Room setup's Fog tab draws the Mastermind's column as knowing every room",
+    "tier 2: E35-T7",
+    "scenario 33-bridge-paths (A22)",
+    "scenario 30-security (SEC-D038)",
+    "scenario 66-rooms",
+    "scenario 76-passages"
+   ],
+   "scenarios": [
+    "No row of audit/harness/README.md's register names E91.",
+    "33-bridge-paths A22: p3, the Mastermind's player, locks the Gym and seals the tunnel at its door from its own page; on the primary the Gym is locked with the GM's lock and the tunnel closed.",
+    "30-security SEC-D038: p1's console asks the lock and the seal in Chie's name and in Aiko's; nothing changes, one refused for ownership, one with nothing carried out."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "AUDIT 9.2 has no item of E91."
+   },
+   "findings": [],
+   "superseded_by": [],
+   "grade": 9,
+   "grade_reasons": "Every item of the notes has a named test: 7 tier 0-1 rows 'ok' in the base run and tier-2 tests red first by the STATUS, with scenario 33 A22 and 30's SEC-D038 for the two new bridge roads. lockLair and keepGearShape were read; nothing was found against the stage. Not a 10: three items (D053, D067, D072/D076) rest on tier 2, not joined; the rest of the code was not read here; a lock's timing is a hint every browser sees (the notes say it); D038's default and the stage's shipping itself (A113-C5-5, a question in the 1.2.113 audit) wait for the owner's word; the stage has no papers of its own beyond a section of E72's STATUS, and no live check asks the Mastermind's sheet line on a real sheet.",
+   "missing_to_10": "The tier-2 names above green in the base run; the owner's confirmation of D038's default; a live check of the Mastermind's Lock/Unlock and Seal line on a real sheet in both themes."
+  },
+  {
+   "id": "E93",
+   "version": "1.2.111",
+   "shipped": "2026-11-13",
+   "what": "Facilities: the Rest tile becomes the Facilities tile, with a GM's rolled room actions, a completed project's room action with a lifetime, a closed list of effects (timed ones among them), five new Overflow states and a trace for every use.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.111.md (1-688 read whole; E93's part: 28-57, 164-193, 194-266, 418-438, 509-529, 571-577, 603-605, 625-688)",
+    "docs/dev/e93/SPEC.md (1-63) and docs/dev/e93/STATUS.md (1-188), both whole",
+    "docs/dev/e93/REVIEW-111.md (headings and the findings table: a review of other lines, not of E93); REVIEW-102.md and REVIEW-112.md not read",
+    "docs/dev/audit-113/FINDINGS.md (the rows A113-C2-6, A113-C4-1, A113-C6-1 and lines 318-345)",
+    "audit/AUDIT-1.2.42.md:1437-1439 (items 475-477, LIVE-E93-01..03); no block 'Po E93' exists in 9.2 (grep)",
+    "audit/findings-1.2.118/live-readings-e58.json and live-readings-other.json (searched for the ids and for the subject)",
+    "tools/stages.json:84",
+    "git log --oneline v1.2.110..v1.2.111: 206 commits, 39 of them name E93",
+    "The plan (docs/dev/plans/E93.md) lives on another branch and was not read."
+   ],
+   "commits": 39,
+   "train_commits": 206,
+   "promises": [
+    {
+     "promise": "The tile that held the rests is named Facilities (key 'rest'); its window offers the two rests and the actions of the room the character stands in.",
+     "source": ".github/release-notes/v1.2.111.md:31-32, 231-235",
+     "code": "scripts/action-rest.mjs, scripts/action-facilities.mjs (not traced line by line); scripts/config.mjs ACTIONS.rest.label",
+     "holds": "yes",
+     "test": "R3754 (ok), R7791, R7792 (ok, F118 in 1.2.118); tier 2 E93-T3, E93-T16",
+     "test_kind": "behaviour",
+     "note": "The tile's words and the grey line's contrast were reworked in 1.2.118 after the owner's report of 17.11.2026 (LIVE-F118-03, open)."
+    },
+    {
+     "promise": "A GM's room action: set in Room Setup's Facilities tab (name, statistic, difficulty, up to four effects), rolled, the roll drawn on the primary GM on the statistic of the GMs' copy, its effects written there; one person per time of day, closed for everyone once anyone used it, a failed roll too.",
+     "source": ".github/release-notes/v1.2.111.md:33-41, 215-229",
+     "code": "scripts/facilities.mjs:87 cleanAction, :275 roomActions, :419 closedNow; scripts/bridge-table.mjs:150-162 (facility.use); scripts/bridge-runs-acts.mjs:106-152 handleFacilityUse; scripts/facilities-gm.mjs:42 offerAt, :78 closeForAll; scripts/roll-draw.mjs:1172-1179, :1994-2007 facilityOfDraw",
+     "holds": "yes",
+     "test": "R3750, R3752 (ok); tier 2 E93-T2; scenario 33 E93-A; scenario 30 (a console's packets for a room action)",
+     "test_kind": "behaviour",
+     "note": "Read whole. The limit is judged and written in one step of the action's key on the GM. The closing is written by the use, not by the draw: nit E93-1."
+    },
+    {
+     "promise": "A completed project's room action: set by a GM on the project, offered in the project's room with no roll, once per person per time of day, costing an action unless switched off, for a lifetime; the Projects window's line names it and the time left.",
+     "source": ".github/release-notes/v1.2.111.md:42-46",
+     "code": "scripts/facilities.mjs:112 cleanFacility, :169 facilityLive, :262 facilityTimesLeft, :383 projectActionsWith, :404 facilityLineFor; scripts/projects.mjs:1421-1432 (the completion row 'facility'); scripts/bridge-runs-acts.mjs:125-135",
+     "holds": "yes",
+     "test": "R3751, R7644 (ok); tier 2 E93-T3; scenario 33 E93-A",
+     "test_kind": "behaviour",
+     "note": "Read. Changed on purpose since: the limit is the GM's pick since 1.2.116 (none, once a time of day - the default - or once a day; 592fcff0), a project with no room stands wherever its readers are (1.2.115), and a completion later than a clock set back is restamped with the reason shown to the GM (1.2.117, after the owner's report of 15-16.11.2026)."
+    },
+    {
+     "promise": "Effects that last and effects that need a pick: a statistic raised until the time of day's or the day's end, a temporary Experience, advantage on the next roll, protection from Despair, extra crossings in the next Eclipse, durability back, the end of Wounded or Breakdown, progress to the room's oldest project, a stronger next Ultimate; the lasting ones shown on the owner's sheet as a chip.",
+     "source": ".github/release-notes/v1.2.111.md:47-53, 424-435",
+     "code": "scripts/timed-effects.mjs (whole: KINDS :52-107, giveTimed :184, endTimedEffect :201, endTimedEffects :222, endAtEclipseStart :354, takeDespairShield :123, boostUltimate :147); scripts/facilities-gm.mjs:103-200 applyEffects",
+     "holds": "yes",
+     "test": "tier 2 E93-T5 to E93-T14; scenario 33 E93-C",
+     "test_kind": "behaviour",
+     "note": "Read. Three parts are held by reading alone, as the notes say (433-435): the GM's draw counting the armed Call of advantage and two of them as two dice, a Reroll of a shielded roll, and the player's road of an Ultimate's arming. Since 1.2.113 a row ends as an Eclipse starts (A113-C2-6, 35a880b7) and the GMs are told when a shield took a point (A113-C6-1). Still so: a GM's hand edit of a raised statistic is taken down again at the end (timed-effects.mjs:20-22)."
+    },
+    {
+     "promise": "Five new Overflow states, in the hat by default: Lockdown, Insomnia, Toll, Jitters, Power cut.",
+     "source": ".github/release-notes/v1.2.111.md:54-57, 178-180, 202-213",
+     "code": "scripts/config.mjs OVERFLOW.effects; scripts/overflow.mjs (overflowFacilityStates, overflowFacilityToll); scripts/facilities.mjs:429 facilityCost, :438 facilityShut; scripts/roll-draw.mjs:1177 (the Toll at the draw), :2004 (Lockdown at the draw)",
+     "holds": "yes",
+     "test": "R3753, R3757 (ok); tier 2 E93-T1; scenario 30 (Toll: a payment of one action draws no roll; Lockdown: no roll drawn)",
+     "test_kind": "both",
+     "note": "R3757 calls paymentSize, ticketCovers and facilityCost."
+    },
+    {
+     "promise": "Every use of a room action, a GM's or a project's, leaves a faint Subtle trace in its room.",
+     "source": ".github/release-notes/v1.2.111.md:40-41, 420",
+     "code": "scripts/bridge-runs-acts.mjs:143-145; scripts/facilities-gm.mjs:203-210 leaveTrace",
+     "holds": "yes",
+     "test": "tier 2 E93-T4; scenario 33 E93-A",
+     "test_kind": "behaviour",
+     "note": "Read: placed after a failed roll too."
+    },
+    {
+     "promise": "A secret project's action is offered to its insiders and told to their browsers alone.",
+     "source": ".github/release-notes/v1.2.111.md:45-46, 421-423",
+     "code": "scripts/facilities.mjs:329-364 projectFacilityOf, toldOnPlayer, toldFacility; scripts/facilities-gm.mjs:44-48 (canSee for the sender)",
+     "holds": "yes",
+     "test": "scenario 33 E93-B (p2's browser holds no message, flag, card words or setting that names it)",
+     "test_kind": "behaviour",
+     "note": "The reading on the insider's browser moved from the newest card to the GMs' sight copy in 1.2.115 (P1), the card kept as a fallback."
+    },
+    {
+     "promise": "A player's browser holds its own characters' uses and timed effects after a load.",
+     "source": ".github/release-notes/v1.2.111.md:181-184 (the owner's copies mineTimedEffects and the uses)",
+     "code": "scripts/facility-uses.mjs:120-129; scripts/timed-effects.mjs:396-411 (the first ask waits for 'ready')",
+     "holds": "yes",
+     "test": "scenario 00-boot (37/37 on the fix, by docs/dev/e58/LOCAL-REPORT.md:529)",
+     "test_kind": "behaviour",
+     "note": "Did not hold on a real Foundry from 1.2.111 to 1.2.116: on 14.370 game.user is null at init, so the four registrations (the lock-pick passes, the room actions' uses, the eavesdrops, the timed effects) threw on every browser at every load and a player's browser held none of them until the next change. Read on the owner's sandbox on 16.11.2026 and fixed in 1.2.117 (80dfaf06); no such failure there after the fix."
+    }
+   ],
+   "registry_rows": 7,
+   "registry_note": "The 7 rows stamped E93 are not E93's: R4474 (the 1.2.110 review's V4) and R4800-R4805 (E54). E93's own tier-1 rows, R3750-R3754 and R3757, are stamped '1.2.111'. All six read 'ok' in the base run; by the script's rough reading five are calls of the code and R3753 reads the config.",
+   "tests_read": [
+    {
+     "test": "R3757",
+     "measures": "yes",
+     "why": "Pure calls: the GM's price with and without Toll, a payment's size (one action, two, a Burst), and whether a ticket covers a price. A ticket of one action covering two would turn it red."
+    },
+    {
+     "test": "tier 2 E93-T2 (first 75 lines)",
+     "measures": "yes",
+     "why": "Judged as the primary judges a player's packet (bridge-guards.mjs judge with the player's id), the roll a message with the GMs' record; it reads the use, the public closing, a second use ('alreadyDone'), no roll named and another action's roll. Its result in the base run is to join."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E93-T1",
+    "tier 2: E93-T2",
+    "tier 2: E93-T3",
+    "tier 2: E93-T4",
+    "tier 2: E93-T5",
+    "tier 2: E93-T6",
+    "tier 2: E93-T7",
+    "tier 2: E93-T8",
+    "tier 2: E93-T9",
+    "tier 2: E93-T10",
+    "tier 2: E93-T11",
+    "tier 2: E93-T12",
+    "tier 2: E93-T13",
+    "tier 2: E93-T14",
+    "tier 2: E93-T15",
+    "tier 2: E93-T16",
+    "tier 2: E74-T6",
+    "tier 2: E74-T7",
+    "tier 2: E15-T4",
+    "tier 2: every legal modifier the GM lists is scored without an alarm",
+    "scenario 33-bridge-paths (E93-A, E93-B, E93-C)",
+    "scenario 30-security (a room action's packets, Toll, Lockdown)",
+    "scenario 00-boot",
+    "scenario 71-sheet",
+    "scenario 72-canary"
+   ],
+   "scenarios": [
+    "No row of audit/harness/README.md's register names E93, and the stage has no scenario of its own (the notes' Known gaps, line 575).",
+    "33-bridge-paths E93-A: p1's Facilities window offers the room's GM action and the completed project's; the GM's is rolled and drawn on the GM for one action, the project's costs its action on the GM, two traces left.",
+    "33-bridge-paths E93-B: a secret project's action reaches its insider p1 and nothing on p2's browser names it. E93-C: a +2 Body on Aiko's sheet for p1 through its copy, nothing on p2's, ended on the GM.",
+    "30-security: a console's packets for a room action (another's character, another room's action, no roll, a roll of another action), a one-action payment under Toll, a paid roll under Lockdown: each refused or not drawn."
+   ],
+   "live": {
+    "items": 3,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E93-01..03 are in neither live-readings file as a reading. The id LIVE-E93-01 appears there only because 9.2 gives the number 475 to two items; those rows are tier-2 runs filed under LIVE-E76-01. Two real-table readings touch the stage without an id: the init registrations that threw on 14.370 (fixed 1.2.117) and the owner's report that a completed project's action was shown to nobody (explained and built in 1.2.117, not run on a real Foundry since)."
+   },
+   "findings": [
+    {
+     "id": "E93-1",
+     "severity": "nit",
+     "title": "A GM's room action is closed by the use packet, not by the drawn roll, so a failed roll that is never reported closes nothing",
+     "where": "scripts/roll-draw.mjs:1174, :1994-2007 (facilityOfDraw asks only whether a use has closed it); scripts/bridge-runs-acts.mjs:136-140 (the row and the public closing are written by facility.use)",
+     "what_happens": "The rule is that once anyone uses a GM's room action, a failed roll too, it is closed for everyone until the next time of day. The roll is drawn on a payment; the use row and the facilityClosed key are written only when the roller's browser then sends facility.use. An honest browser always sends it. A console that reads a failed drawn roll and sends nothing leaves the action open, for itself and for the table.",
+     "failure_scenario": "From a player's console: pay one action, throw the Facilities roll of the Dorm's action (drawn on the GM, 9 against 12), send no facility.use; pay again and throw again. Each try costs an action, the action never closes on a failure, and no line of the GMs' record says a roll went unreported. It is the trust model's known shape (a trace an action leaves is placed at the roller's request) and is not in docs/dev/e93/STATUS.md's 'What a console can still do'.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a closing at the draw: drawRefusal and drawOnGm write no facilityUses row (grep facilityUseStore in roll-draw.mjs: one read, :2005-2006). Scenario 30's room-action checks send packets that are refused; none withholds the use after a drawn failure."
+    }
+   ],
+   "superseded_by": [
+    "1.2.113, A113-C2-6 (35a880b7): 'until the time of day ends' ends as an Eclipse starts, for timed effects and unused passes",
+    "1.2.115: a project with no room stands wherever its readers are; a secret project's action read from the GMs' sight copy",
+    "1.2.116, P2 (592fcff0): a project's action's use limit is the GM's pick (none, a time of day, a day)",
+    "1.2.117, P1: a completion later than a clock set back is restamped, and a GM is told why an action does not stand; E117: the copies' first ask moved to 'ready'",
+    "1.2.118, F118: the tile's words and the grey line's contrast"
+   ],
+   "grade": 8,
+   "grade_reasons": "The stage is delivered on 1.2.118: the road facility.use was read whole and holds what the notes say (the room read on the GM, the limit judged and written in one step, the roll named off the GMs' record, a project's price taken by the GM), the six tier-1 rows are 'ok', and sixteen tier-2 tests and scenario 33's three controls drive it (to join). It is not a 9 because three parts of the timed effects are held by reading alone, by the notes' own word (the draw counting the armed advantage, a Reroll of a shielded roll, the Ultimate's arming road), and none of LIVE-E93-01..03 was read while the real table has already found two faults the harness could not see (the init registrations on 14.370; a project's action shown to nobody after a clock set back), both fixed in 1.2.117. One nit of mine (E93-1).",
+   "missing_to_10": "The three parts read in code driven by a test; the tier-2 names above green in the base run; LIVE-E93-01..03 read on a real Foundry, and the 1.2.117 restamp given a 9.2 item of its own (the 1.2.117 notes say it has none); the owner's word on the defaults still marked (the reading of 'stronger Ultimate', the durability and project-progress picks); E93-1 either closed at the draw or listed among what a console can still do."
+  },
+  {
+   "id": "E69",
+   "version": "1.2.111",
+   "shipped": "2026-11-13",
+   "what": "The Infiltrate tile: the Listen tile renamed and made a window of rows, with Dash, Tail Someone and the 'settled crossing' event; the plan's other three parts (the eavesdrop on voice, Echoes, the killer behind a '?') were left out of 1.2.111 and built in 1.2.113.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.111.md (1-688 read whole; E69's part: 59-77, 268-326, 531-546, 583-585, 600-602)",
+    "docs/dev/e69/SPEC.md (1-22) and docs/dev/e69/STATUS.md (1-105), both whole",
+    "docs/dev/audit-113/FINDINGS.md:102, :659-671 (A113-C5-2: C6, C7 and C8 absent in 1.2.111 with no recorded agreement)",
+    "audit/AUDIT-1.2.42.md:1440 (item 478, LIVE-E69-04), :1514-1518 (items 525-527, LIVE-E69-03, -06, -05); no block 'Po E69' exists in 9.2 (grep)",
+    "audit/findings-1.2.118/live-readings-e58.json and live-readings-other.json",
+    "tools/stages.json:85 (with E93)",
+    "git log --oneline v1.2.110..v1.2.111: 206 commits, 18 of them name E69",
+    "The plan (docs/dev/plans/E69.md) lives on another branch and was not read."
+   ],
+   "commits": 18,
+   "train_commits": 206,
+   "promises": [
+    {
+     "promise": "The tile that held Listen is named Infiltrate (key 'listen'); it opens one list of rows, each with its price; Listen is greyed with its reason in a room with no neighbour.",
+     "source": ".github/release-notes/v1.2.111.md:62-65, 268-278",
+     "code": "scripts/config.mjs:2193-2212 INFILTRATE; scripts/action-listen.mjs infiltrateRows",
+     "holds": "yes",
+     "test": "R3755, R3756 (ok)",
+     "test_kind": "both",
+     "note": "Eight rows today: Echoes joined in 1.2.113. R3755 reads the config and the texts."
+    },
+    {
+     "promise": "Dash: a Leg roll drawn on the primary GM; the GM grants the free crossings its band earns off its own record of the roll; one roll settles one Dash.",
+     "source": ".github/release-notes/v1.2.111.md:66-67, 288-297",
+     "code": "scripts/bridge-runs-acts.mjs:171-189 handleDash; scripts/bridge-table.mjs:164-175; scripts/bridge-guards.mjs:1628-1642 rollRefusal (a roll settles an action once)",
+     "holds": "yes",
+     "test": "tier 2 E69-T3; scenario 33 E69-A; scenario 30 (a console's packets for a Dash)",
+     "test_kind": "behaviour",
+     "note": "Read. The bands are the owner's of 13.11.2026 (2, 3 and 4 free crossings; 8834a9b9, first in v1.2.112), not the 1, 2, 3 that 1.2.111 shipped."
+    },
+    {
+     "promise": "Tail Someone: two rolls drawn on the GM; on a Shadow miss the target learns the tailer's name at once; a card to the tailer at each settled crossing of the target, live, in an Eclipse too; a critical names who stands in the room reached, outside an Eclipse; one tail per tailer; it ends lost, at the day's end, at a body found, to a Dash, and silently at a death or an incident.",
+     "source": ".github/release-notes/v1.2.111.md:68-75, 299-310",
+     "code": "scripts/tail-gm.mjs (whole: tailRefusal :48, startTail :61, onTailCrossing :115, tailsAfterDash :143, registerTails :167)",
+     "holds": "yes",
+     "test": "tier 2 E69-T4; scenario 33 E69-B; scenario 30 (a console's packets for a tail)",
+     "test_kind": "behaviour",
+     "note": "Read whole; nothing found. While a killer stands behind a '?', the name in a critical tail's card is written '?' for a reader outside the mask by the one cut every private card passes (secret.mjs:472-499, R7403)."
+    },
+    {
+     "promise": "A settled crossing: one event on the primary GM, about 2 s after a recorded crossing where the token still stands, one event for a run of crossings.",
+     "source": ".github/release-notes/v1.2.111.md:76-77, 280-286",
+     "code": "scripts/crossing-settle.mjs (whole); scripts/movement.mjs:1330-1343 recordCrossingInStep, :1350-1363 noteCrossing",
+     "holds": "yes",
+     "test": "tier 2 E69-T2; LIVE-E69-04 (not read)",
+     "test_kind": "behaviour",
+     "note": "Read whole. Only a player's lawful crossing and a tunnel are recorded: a GM's drag, a gather and an assembly settle nothing. That is said in the file's header and is what E74-1 and E74-2 stand on."
+    },
+    {
+     "promise": "The eavesdrop: after a good Listen roll the listener is sent into the room's voice channel, microphone held, with Stop listening and a line in the GM's list (the plan's C6).",
+     "source": "docs/dev/e69/STATUS.md:21-31; .github/release-notes/v1.2.111.md:583 (left out of 1.2.111)",
+     "code": "scripts/eavesdrop-gm.mjs; scripts/voice.mjs listeningRow (not read here)",
+     "holds": "yes",
+     "test": "R6020, R6021, R6022, R6025, R6026 (ok); tier 2 E69-T5; scenario 33 E69-C; scenario 30; LIVE-E69-03 (not read)",
+     "test_kind": "both",
+     "note": "Built in 1.2.113 after the audit's A113-C5-2. Its main effect is on a real voice server, which only LIVE-E69-03 can read; headless it runs against a shim."
+    },
+    {
+     "promise": "Echoes: a row that names the nearest room holding a living student of another player (the plan's C7).",
+     "source": "docs/dev/e69/STATUS.md:32",
+     "code": "scripts/echoes-gm.mjs (not read here); scripts/config.mjs:2196",
+     "holds": "yes",
+     "test": "R6023, R6024, R6026 (ok); tier 2 E69-T6; scenario 33 E69-C; LIVE-E69-06 (not read)",
+     "test_kind": "both",
+     "note": "Built in 1.2.113."
+    },
+    {
+     "promise": "The murder's privacy: an opening on Hope or a critical of a direct murder hides the killer behind a '?' until they reveal themselves or the time of day ends (the plan's C8).",
+     "source": "docs/dev/e69/STATUS.md:33-52",
+     "code": "scripts/mask-gm.mjs (header 1-36 and the name helpers 108-200 read); scripts/incident-store.mjs:584-588; scripts/secret.mjs:447-499",
+     "holds": "yes",
+     "test": "R6027-R6032, R7403, R7404 (ok); tier 2 E69-T7; scenario 21-masked-killer; LIVE-E69-05 (read in part)",
+     "test_kind": "both",
+     "note": "Built in 1.2.113; the owner then saw the killer's real token on the victim's screen at a table on 1.2.114 and again on 1.2.115; fixed in 1.2.115 and 1.2.116 (the cause of the second report 'not established' by the paper). On 16.11.2026 the sandbox pages read the '?' on the victim's, the bystander's and the killer's browsers (live-readings-e58.json, item 556). A recorded limit stays: a token keeps its actorId (known-leaks.json 'foundry-masked-token-actor'). Its meeting with E64's defence is finding E64-1."
+    },
+    {
+     "promise": "A Reroll of a Dash or a tail is replayed on the primary GM.",
+     "source": ".github/release-notes/v1.2.111.md:318-326",
+     "code": "scripts/infiltrate-reroll.mjs (not read here)",
+     "holds": "unknown",
+     "test": "tier 2 E74-T6, E74-T7",
+     "test_kind": "behaviour",
+     "note": "Built in E74 C7; rests on tier 2 to join."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No row carries the stamp E69. Its own rows: R3755 and R3756 (stamped '1.2.111') and R6020-R6032 (thirteen, stamped E54, the first unshipped row when 1.2.113's tests were written). All 15 read 'ok' in the base run.",
+   "tests_read": [
+    {
+     "test": "tier 2 E69-T4 (first 68 lines)",
+     "measures": "weak",
+     "why": "The start is judged as the primary judges a player's packet and the rolls are the GMs' records, but each crossing is handed straight to onTailCrossing and each Dash to tailsAfterDash: the chain from a real walk through the 2 s settle to the card is not driven by it. Its result is to join."
+    },
+    {
+     "test": "tier 2 E69-T2 (first 35 lines)",
+     "measures": "weak",
+     "why": "Calls scheduleSettle itself with an 80 ms wait and reads the hook; that movement.mjs schedules it is one source pattern (/scheduleSettle\\(/). The 2 s on a real server is LIVE-E69-04's."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E69-T2",
+    "tier 2: E69-T3",
+    "tier 2: E69-T4",
+    "tier 2: E69-T5",
+    "tier 2: E69-T6",
+    "tier 2: E69-T7",
+    "tier 2: E74-T6",
+    "tier 2: E74-T7",
+    "scenario 21-masked-killer",
+    "scenario 33-bridge-paths (E69-A, E69-B, E69-C)",
+    "scenario 30-security (a Dash, a tail, the eavesdrop and Echoes, the killer behind a '?')",
+    "scenario 75-voice-tile"
+   ],
+   "scenarios": [
+    "21-masked-killer (register row, 'a killer behind a \"?\" (E69 C8)', since 1.2.115): no card's words, chat document, drawn message, notice, history, Event card, relayed dice or cast on the victim's and the bystander's browsers names the killer.",
+    "33-bridge-paths: E69-A (p1's Dash paid with one action, drawn on the GM, the crossings granted by the GM), E69-B (p1's tail on Botan kept by the GM), E69-C (Echoes answered by the GM; the eavesdrop's copy, Stop listening, a free repeat).",
+    "30-security: a console's packets for a Dash, a tail, the eavesdrop and Echoes, and a read of the killer behind a '?' from a console (recorded as a Foundry limit)."
+   ],
+   "live": {
+    "items": 4,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E69-04, -03 and -06 are in neither file. LIVE-E69-05 has no row of its own; its point (1) is answered in part by two other rows: the owner's report of 14.11.2026 (LIVE-OWN115-01, a fault, fixed in 1.2.115) and the sandbox reading of 16.11.2026 under LIVE-E112-04 (the '?' drawn on three browsers; the hosted server, the give-back at the mask's end and the voice half not read)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "The owner's decision of 13.11.2026 (8834a9b9, first in v1.2.112): a Dash gives 2, 3 or 4 free crossings",
+    "1.2.113 (the audit's A113-C5-2): C6, C7 and C8 built; 1.2.115 and 1.2.116: the mask on every card, picker and token picture after the owner's two reports"
+   ],
+   "grade": 8,
+   "grade_reasons": "Everything the plan named is on 1.2.118, three parts two releases late. The tail and the settled crossing were read whole and hold; Dash's run is short and held to one settle a roll; 15 tier 0-1 rows are 'ok'. It is an 8 and not a 9 because the stage's two heaviest promises are not proved where they live: the eavesdrop moves a real microphone and a real voice room and was measured only against a shim (LIVE-E69-03 open), and the killer's '?' failed twice at the owner's table after it shipped, the second time with no cause established, with one partial sandbox reading since. The two tier-2 tests read hand the event to the listener instead of walking a token to it. Not built and said: E53's ledger counters (Q-E69-5).",
+   "missing_to_10": "LIVE-E69-03, -04, -05 and -06 read on a real Foundry with a voice server; a test that walks a token and lets the settle fire the tail's card; the tier-2 names above green; the owner's word on the defaults still open (a tail's card naming a room the tailer never entered, the day's end as the clock's day)."
+  },
+  {
+   "id": "E74",
+   "version": "1.2.111",
+   "shipped": "2026-11-13",
+   "what": "Doors and Keep Watch in the Infiltrate tile: Shut the Door (a barricade), Force the Door, Pick the Lock (a pass for the picker), Keep Watch with its hindrance die, Repair the Lock and Room Setup's Broken column, the doors' Remnants, and the Reroll's replay of all seven rows.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.111.md (1-688 read whole; E74's part: 79-115, 185-193, 328-416, 548-569, 586-602)",
+    "docs/dev/e74/STATUS.md (1-165, whole)",
+    "docs/dev/audit-113/FINDINGS.md:35, :101, :643-657 (A113-C5-1), :75 and :327-339 (A113-C2-6)",
+    "audit/AUDIT-1.2.42.md 9.2: no block 'Po E74' and no item LIVE-E74-n (grep)",
+    "tools/stages.json:86 (with E69)",
+    "git log --oneline v1.2.110..v1.2.111: 206 commits, 25 of them name E74",
+    "The plan (docs/dev/plans/E74.md) lives on another branch and was not read."
+   ],
+   "commits": 25,
+   "train_commits": 206,
+   "promises": [
+    {
+     "promise": "Shut the Door: a Body roll drawn on the GM; the GM keeps a barricade of the roll's strength; a walk in through a door is refused, a passage, a breach or a tunnel goes through and a GM's move is never stopped; it comes down when its author leaves the room, at the time of day's end, at an Eclipse's start and at the season reset; someone stopped at the door sends a 'Someone tries to get in' card.",
+     "source": ".github/release-notes/v1.2.111.md:82-88, 328-340",
+     "code": "scripts/doors-gm.mjs:82-96 shutRefusal, :102-116 shutDoor, :474-485 endBarricade, :495-502 onDoorCrossing, :505-510 registerDoors, :433-451 knockDoor; scripts/movement.mjs:2115-2124 barricadedFrom; scripts/actions.mjs:499-500",
+     "holds": "partly",
+     "test": "tier 2 E74-T1, E74-T9; scenario 33 E74-A, E74-B; scenario 30",
+     "test_kind": "behaviour",
+     "note": "Read whole. 'When its author leaves' is read off a settled crossing only, which a gather, an assembly or a GM's move of the author does not make: finding E74-1."
+    },
+    {
+     "promise": "Force the Door: one Body roll against everything that holds the door at once (a barricade by its strength, a tie holds; a lock and a seal at 18; a critical all); a forced lock stays broken until repaired, a forced seal is lifted for its time of day; the rooms next door hear a banging with no name.",
+     "source": ".github/release-notes/v1.2.111.md:89-93, 342-355",
+     "code": "scripts/doors-gm.mjs:157-204 forceDoor, :119-125 whatHolds",
+     "holds": "yes",
+     "test": "tier 2 E74-T2; scenario 30 (a console's packets)",
+     "test_kind": "behaviour",
+     "note": "Read. No scenario drives it legally (the flow 'door-force' is partial in scripts/tests-flows.mjs:85-98); tier 2's E74-T2 is its road."
+    },
+    {
+     "promise": "Pick the Lock: Shadow 16 for cover, Hand 15 (18 clean), both drawn on the GM; an open gives the picker alone a pass to the room beyond, kept until they leave that room, lost if not used in its time of day; the lock stays locked for everyone else.",
+     "source": ".github/release-notes/v1.2.111.md:94-98, 410-413",
+     "code": "scripts/doors-gm.mjs:206-251 pickLock; scripts/lockpick-gm.mjs (grantPass :55, onPassCrossing :71, passesAtNewTimeOfDay :84, endPassesAtEclipseStart :97); scripts/movement.mjs:1210-1214 holdsPass",
+     "holds": "partly",
+     "test": "tier 2 E74-T3, E74-T11; scenario 33 E74-C; scenario 30 (a pass a console claims)",
+     "test_kind": "behaviour",
+     "note": "Read. A pass in use ends only on its holder's settled crossing out of the room: finding E74-2. Since 1.2.113 an unused pass ends as an Eclipse starts (A113-C2-6)."
+    },
+    {
+     "promise": "Keep Watch: a Body roll against 12, declared before an Eclipse; at its start the post is the watcher's room, with a card of who is in it, a card for each settled crossing into or out of it and a summary at its end; the watcher is held to the post; a miss with Despair marks a Sanity.",
+     "source": ".github/release-notes/v1.2.111.md:99-102, 357-363, 386-393",
+     "code": "scripts/watch-gm.mjs:50-78 (watchRefusal, declareWatch), :97-113 startWatches, :119-135 onWatchCrossing, :138-153 endWatches; scripts/movement.mjs:1217-1220 watchHolds",
+     "holds": "yes",
+     "test": "tier 2 E74-T4, E74-T9; scenario 30 (a console's packets)",
+     "test_kind": "behaviour",
+     "note": "Read. E74-T4 starts no real Eclipse (watch-gm.mjs:117 says so), and no scenario drives the row legally (the flow 'keep-watch' is partial)."
+    },
+    {
+     "promise": "A watch of 18 or more, or a critical, puts one hindrance die on the opening roll of whoever opens a murder on the watcher (DA44, the owner's option A).",
+     "source": ".github/release-notes/v1.2.111.md:102-104, 405-409, 586-588",
+     "code": "scripts/watch-gm.mjs:42-47 openingHindrance (needs the row's post), :138-153 endWatches (drops every row at the Eclipse's end); scripts/murder-rules.mjs:4433-4449; scripts/roll-draw.mjs:2240-2248; scripts/eclipse.mjs:437-474, :520-529",
+     "holds": "no",
+     "test": "tier 2 E74-T10",
+     "test_kind": "behaviour",
+     "note": "The die is read off a watch that stands only while the Eclipse runs, and a direct murder declared in the dark is opened after the Eclipse has ended: finding E74-3. E74-T10 writes the watch row by hand at noon and opens the murder directly, so it stays green."
+    },
+    {
+     "promise": "Repair the Lock: a project preset (Hand, Trivial) offered where a door of the builder's room has a broken lock, one a door, its completion mends the lock; Room Setup's Doors tab shows a Broken column that mends when unticked.",
+     "source": ".github/release-notes/v1.2.111.md:105-107, 365-375",
+     "code": "scripts/doors-gm.mjs:263-320 (lockRepairsOf, repairLockRefusal, repairLockDone, unrepairLock, dropLockRepairs); scripts/projects.mjs:1397-1420 (the row 'repairsLock')",
+     "holds": "yes",
+     "test": "tier 2 E74-T5, E74-T8",
+     "test_kind": "behaviour",
+     "note": "Read."
+    },
+    {
+     "promise": "Remnants: a barricade leaves a subtle trace, a forced door an evident one where it was heard, a pick one by its roll.",
+     "source": ".github/release-notes/v1.2.111.md:108-109",
+     "code": "scripts/doors-gm.mjs:457-471 leaveDoorTrace, pickTrace",
+     "holds": "yes",
+     "test": "tier 2 E74-T9",
+     "test_kind": "behaviour",
+     "note": "Read."
+    },
+    {
+     "promise": "A Reroll of these rolls is replayed on the primary GM; what cannot be taken back is said on its line.",
+     "source": ".github/release-notes/v1.2.111.md:110-113, 377-384",
+     "code": "scripts/infiltrate-reroll.mjs (not read beyond its entries)",
+     "holds": "unknown",
+     "test": "tier 2 E74-T6, E74-T7",
+     "test_kind": "behaviour",
+     "note": "Rests on tier 2 to join."
+    },
+    {
+     "promise": "A bedroom's owner is warned of a careless pick and of a forced door at their next entry (DA30).",
+     "source": "docs/dev/e74/STATUS.md:42-47; .github/release-notes/v1.2.111.md:592 (shipped as 'at once, wherever the owner is')",
+     "code": "scripts/doors-gm.mjs:358-423 noteBedroom, tellBedroomNotes",
+     "holds": "yes",
+     "test": "tier 2 (the 1.2.113 privacy line's tests, names not collected here)",
+     "test_kind": "behaviour",
+     "note": "Not delivered in 1.2.111; built in 1.2.113 (b70b3b23, 26063339) after the audit's A113-C5-1. Read: told at once in the bedroom, held in the GMs' store otherwise, once per entry."
+    },
+    {
+     "promise": "The barricade's public flag carries no author and no strength, with a known-leaks row and a README paragraph (DA47).",
+     "source": ".github/release-notes/v1.2.111.md:175-176, 556-557, 593-594",
+     "code": "scripts/movement.mjs:108-127 (the flag, true and nothing else); audit/harness/known-leaks.json (11 ids, none of the barricade)",
+     "holds": "partly",
+     "test": "scenario 33 E74-A reads the flag on p2's browser",
+     "test_kind": "behaviour",
+     "note": "The flag is as promised. The record is not: nit E74-4."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No row carries the stamp E74 and no row of the registry names E74 at all (grep: 0 lines). The stage has no tier 0-1 test of its own beyond the Infiltrate window's rows in R3756 and the Spectator guard in R3865; everything else is tier 2 (E74-T1 to E74-T11) and scenarios 30 and 33, none of which is joined yet.",
+   "tests_read": [
+    {
+     "test": "tier 2 E74-T1 (first 75 lines)",
+     "measures": "weak",
+     "why": "The shut and the walk's verdicts are real (judged as the primary judges a player's packet; crossingVerdict for a student, a GM and a passage). 'Its author leaves' is a hand-made event passed to onDoorCrossing: an author taken out of the room by a gather cannot turn it red (E74-1)."
+    },
+    {
+     "test": "tier 2 E74-T10 (whole)",
+     "measures": "no",
+     "why": "For the promise as the notes word it. The watch is a row written by the test with a post, at noon, with no Eclipse; the murder is opened directly; it reads the die at 18, 17, a critical, a row with no post and no row. It would fail if openingHindrance or the draw's term were dropped (the stage's mutants), and cannot fail on the real order: Eclipse ends, endWatches drops the row, the opening is rolled (E74-3)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E74-T1",
+    "tier 2: E74-T2",
+    "tier 2: E74-T3",
+    "tier 2: E74-T4",
+    "tier 2: E74-T5",
+    "tier 2: E74-T6",
+    "tier 2: E74-T7",
+    "tier 2: E74-T8",
+    "tier 2: E74-T9",
+    "tier 2: E74-T10",
+    "tier 2: E74-T11",
+    "tier 2: every legal modifier the GM lists is scored without an alarm",
+    "scenario 33-bridge-paths (E74-A, E74-B, E74-C)",
+    "scenario 30-security (Shut, Force, Pick, Keep Watch, a knock, a pass)",
+    "scenario 66-rooms",
+    "scenario 76-passages"
+   ],
+   "scenarios": [
+    "No row of audit/harness/README.md's register names E74.",
+    "33-bridge-paths: E74-A (p1's Shut the Door: one action, the Body roll drawn on the GM, the barricade kept at that total, the public flag read on p2's browser), E74-B (p1's walk into Botan's barricaded room refused on p1's browser, Botan's player told once), E74-C (p1's copy holds the pass to the locked Dorm B, the walk in stands, the walk out ends it).",
+    "30-security: a console's packets for Shut the Door, Force the Door, Pick the Lock, Keep Watch, a knock and a pass it claims: each refused, nothing kept.",
+    "No scenario drives Force the Door or Keep Watch legally (scripts/tests-flows.mjs:85-98: both flows partial, moved to E39)."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "AUDIT 9.2 has no item of E74: nothing asks a barricade, a forced door, a pass or a watch on a real map, and nothing asks the hindrance die at a table."
+   },
+   "findings": [
+    {
+     "id": "E74-3",
+     "severity": "major",
+     "title": "The hindrance die of Keep Watch is read off a watch that is already gone when a murder declared in the dark is opened",
+     "where": "scripts/watch-gm.mjs:42-47 (openingHindrance needs row.post), :138-153 (endWatches drops every row), :156-161 (run at drpgEclipseChanged false); scripts/eclipse.mjs:437-474 (the clock's write that ends the Eclipse), :520-529 (judgePendingMurders after it); scripts/murder-rules.mjs:4433-4449; scripts/roll-draw.mjs:2240-2248",
+     "what_happens": "A watch has a post only from the Eclipse's start (startWatches) and every watch is dropped at its end (endWatches, on the hook the clock's write fires, 120 to 360 ms after it). A direct murder is declared in an Eclipse and opened only after that Eclipse has ended (eclipse.mjs:520-529: 'LAST, and after the clock has moved'): the opening roll is invited after the GMs' card, the incident's writes and, where no statistic was ruled, a GM's window; and it is drawn on the primary when the killer's player presses Roll, which reads the watch again (roll-draw.mjs:2247). By then the victim's row is gone, openingHindrance answers 0, and the GM throws no hindrance die. The die applies only to an incident a GM opens by hand while an Eclipse still runs.",
+     "failure_scenario": "Botan declares Keep Watch in the afternoon and rolls 19. The Eclipse starts; Botan's post is the Dorm. Aiko's player declares a direct murder in the dark and ends alone with Botan. The GM ends the Eclipse: the watch's summary card goes to Botan and the row is dropped; then the murder opens and Aiko's opening roll is asked and drawn with no hindrance die. The notes promise 'one hindrance die on the opening roll of whoever opens a murder on the watcher'.",
+     "confidence": "read",
+     "refutation_tried": "Looked for anything that keeps the watch for the lights: eclipse.mjs takes the betrayals' offers before the clock moves for this very reason (:404-418) but reads no watch (grep 'watch' in eclipse.mjs and murder-rules.mjs: only openingHindrance); endWatches has no exception for a victim of a parked declaration; one commit touches watch-gm.mjs after v1.2.111 (4acd3f5b, a list's join) and none since then adds or removes a call of endWatches (git log -S). Looked for a later rule that the die is meant for a hand-opened incident only: none in docs/dev/e74/STATUS.md, the notes or docs/dev/audit-113/FINDINGS.md:771. Not established: whether the invitation's packet still carries 'hindrance: 1' on a fast local server (endWatches and judgePendingMurders race for some hundreds of milliseconds); the draw at the press comes seconds later and reads no watch either way, and where the two differ the GM's draw names the difference to the roller. Not run (the audit's rule)."
+    },
+    {
+     "id": "E74-1",
+     "severity": "minor",
+     "title": "A barricade outlives its author's leaving when the author did not walk out",
+     "where": "scripts/doors-gm.mjs:495-502 (onDoorCrossing), :505-510; scripts/crossing-settle.mjs:11-15 and scripts/movement.mjs:1117, :1350-1363 (only a player's lawful crossing and a tunnel are recorded); scripts/call-world.mjs:463 gatherEveryone, called by scripts/body.mjs:316, scripts/call-effects.mjs:1348, scripts/call-world.mjs:436, scripts/trial-scene.mjs:789; scripts/movement.mjs:2115-2124",
+     "what_happens": "The barricade comes down on its author's settled crossing out of the room, on a new time of day, on an Eclipse's start and at the season reset. A body's discovery, an assembly and the trial's start move every student with a GM's write (gatherEveryone), and a GM may drag the author out; none of these is a recorded crossing, so nothing settles and the row and the public flag stay. barricadedFrom then refuses every player's walk into the empty room, the author's own included (it knows no author), and no window of a GM takes a barricade down (the only callers of endBarricade are the three hooks, Force the Door and the reset).",
+     "failure_scenario": "Aiko barricades the Dorm in the afternoon. A body is found in the Gym and the discovery gathers every living student there. In the Investigation that follows in the same time of day, anyone who walks to the Dorm is told 'The door does not give.', Aiko too, until the time of day moves, an Eclipse starts or somebody forces it with a Body roll above her total. The notes: 'It comes down when its author leaves the room'.",
+     "confidence": "read",
+     "refutation_tried": "Looked for another road that drops it: grep endBarricade, endAllBarricades, setRoomBarricaded and barricadeStore over scripts/ (doors-gm.mjs, infiltrate-reroll.mjs's strength patch, actions.mjs:499-500 for the reset); gatherEveryone and body.mjs hold no call. A phase change fires drpgPhaseChanged, not drpgTimeOfDayChanged (sync.mjs:340-349, :475). E74-T1 passes a hand-made event to onDoorCrossing. Not run."
+    },
+    {
+     "id": "E74-2",
+     "severity": "minor",
+     "title": "A lock-pick pass in use is kept for good when its holder leaves the room without walking out",
+     "where": "scripts/lockpick-gm.mjs:71-80 (onPassCrossing), :84-90 (passesAtNewTimeOfDay skips a pass in use), :97-107; scripts/movement.mjs:1210-1214 (holdsPass asks no time)",
+     "what_happens": "A pass marked entered ends only when a settled crossing of its holder out of that room arrives. A holder taken out by a gather, an assembly, the trial or a GM's move makes no such crossing; the pass stays 'in use', is skipped by the time of day's end and by an Eclipse's start, and holdsPass lets its holder through that lock, bedroom or seal on any later day, once more, until they walk in and out again.",
+     "failure_scenario": "Chie picks the lock of Botan's bedroom at 16 and walks in. A body is found elsewhere and the discovery gathers her out. Two game days later the lock still holds for everyone else and Chie walks into Botan's bedroom with no roll. The notes: the pass 'lasts until they leave that room; one not used in its time of day is lost'.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a second ending: endPass is called from onPassCrossing, the two boundary sweeps (both skip an entered row), a new pick (grantPass replaces it), the Reroll and the reset; nothing compares the holder's place with the pass's room. Scenario 33 E74-C and E74-T11 end the pass by a walk out. Not run."
+    },
+    {
+     "id": "E74-4",
+     "severity": "nit",
+     "title": "DA47's record of the barricade's public flag was never written",
+     "where": "audit/harness/known-leaks.json (ids: S17-64, foundry-hidden-tokens, foundry-actor-items, foundry-passage-crossing, foundry-passage-only-room, foundry-passage-tunnel, foundry-secret-door-type, TR30, foundry-cub-purse, foundry-masked-token-actor, foundry-veiled-token-actor); audit/harness/README.md and README.md (no 'barricad'); docs/dev/e74/STATUS.md:51-72",
+     "what_happens": "The owner's DA47, as the notes quote it, is a public 'barricaded' flag 'with a known-leaks row and a README paragraph'. The flag ships; the row and the paragraph were proposed in the STATUS for the coordinator and are in neither file on 1.2.118.",
+     "failure_scenario": "A reader of the README's list of what a player's console can still read does not find that it reads which rooms are barricaded; scenario 33 E74-A reads the flag on p2's browser with no known-leak mark on the check.",
+     "confidence": "read",
+     "refutation_tried": "grep 'barricad' over audit/harness/known-leaks.json, audit/harness/README.md and README.md: no hit; the notes' Known gaps (593-594) say the same of 1.2.111."
+    }
+   ],
+   "superseded_by": [
+    "1.2.113 (b70b3b23, 26063339; the owner's rule #1 of 13.11.2026): a bedroom's owner is told on walking back in",
+    "1.2.113 (0f392e5f; the owner's rules #8 and #9): the actor's own room sees who works its doors, and a knock is heard by everyone behind the barricade, not its author alone",
+    "1.2.113, A113-C2-6 (35a880b7): an unused pass ends as an Eclipse starts"
+   ],
+   "grade": 6,
+   "grade_reasons": "The doors work on the ordinary road and were read whole: the shut, the force and the pick are judged on the GM off its record of each roll, the Reroll, the Broken column and the repair preset are there, and DA30's warning came in 1.2.113. One promise is not delivered: the watch's hindrance die (the owner's DA44, option A) cannot fall on a murder declared in the dark, because the watch it is read off ends with the Eclipse before that murder opens (E74-3, by reading). Two more hold in part: a barricade and a pass in use both end only on a walked crossing, so a discovery's gather leaves a shut empty room and a pass kept for good (E74-1, E74-2). The stage has no tier 0-1 test and no live check at all, two of its seven rows have no legal scenario control, and the tests of the three promises above hand the event or the row to the code by hand.",
+   "missing_to_10": "E74-3 closed (the watch kept until the lights have judged, or read before the Eclipse's end) with a test that runs a real Eclipse from the declaration to the drawn opening; E74-1 and E74-2 closed (the author's and the holder's place read at a gather and a GM's move, or a GM's control to take a barricade down) with tests that move the token as the discovery does; the known-leaks row and the README paragraph of DA47; legal scenario controls for Force the Door and Keep Watch; live checks written into 9.2 and read; the tier-2 names above green."
+  }
+ ],
+ "not_established": [
+  "No tier-2 result and no scenario result of the base run was available: every name under tests_to_join is cited for what its body or its papers say it does, not for a green run.",
+  "E64: the DA39 migration's window and writes, and the orphans D059, D008, D001, D003, D034 and D039, were not traced in the source. C7's review against session 0's data and the lethality of the crisis defence stay unmeasured, as the stage says.",
+  "E64-1 was not run; it is a reading of crisisDefense on a copy whose killerId is null. Whether the owner wants a hidden killer's or a trap builder's statistic to defend at all is a rules question the papers do not answer.",
+  "E72: of part B (Tinker, Bribe, Bounty, Ghost Bet) only priceOf and the purse's header were read; the Monocub's crossing and fog section were not read. LIVE-E72-03 was never tried.",
+  "E91: sealLairPassage, the Find Passage refund, the Fog tab's column, D072 and D076 were not read; A113-C5-5 (whether the owner agreed to ship E91) is a question of the 1.2.113 audit that these papers do not close.",
+  "E93: whether a statistic raised by a timed effect stays raised when a season reset cuts the 'actions' group (which drops the timedEffects rows without taking them back) while the 'advancement' group is left unticked was not established. The three parts the notes call 'read in code, not run' were not driven by me either.",
+  "E69: eavesdrop-gm.mjs, echoes-gm.mjs and most of mask-gm.mjs were not read. Whether a Spectator can be the target of Tail Someone (the notes' own known gap of 1.2.111) was not re-established: frisk.mjs personActionRefusal still has no Spectator line for the target, and how a Spectator's token reads there was not traced.",
+  "E74-3: whether the opening's invitation still carries 'hindrance: 1' on a fast local server is a race between endWatches and judgePendingMurders that reading cannot settle; the draw at the press reads no watch either way. E74-1 and E74-2 were not run; that an assembly and the trial's gather take the same road is read from gatherEveryone's four callers.",
+  "The kind of each tier 0-1 test not listed under tests_read comes from a small script that reads the test's body for source readers (fnSource, moduleSources, otherSources, stripComments, bodyOf) and for calls on imported modules; it is rough and was not checked by hand for every row.",
+  "The plans of all six stages (docs/dev/plans/E64.md and the others) live on another branch and were not read; the notes and the STATUS files are the claim."
+ ]
+}

@@ -1,0 +1,398 @@
+{
+ "reader": "domain-case-f-planner-stores",
+ "files_read": [
+  {
+   "file": "scripts/case-copy.mjs",
+   "lines": 279,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-hints.mjs",
+   "lines": 66,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-layout.mjs",
+   "lines": 193,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "lines": 556,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-realize.mjs",
+   "lines": 281,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-schema.mjs",
+   "lines": 632,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-summary.mjs",
+   "lines": 126,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-trial.mjs",
+   "lines": 157,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/case-view.mjs",
+   "lines": 497,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-store.mjs",
+   "lines": 1760,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "lines": 3047,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/world-secrets.mjs",
+   "lines": 445,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/pre-session-note.mjs",
+   "lines": 483,
+   "read": "whole"
+  }
+ ],
+ "lines_read_total": 8522,
+ "neighbours_followed": [
+  "scripts/investigation.mjs (lines 1100-1280, 1300-1340, 1440-1600, 1820-1897, 2200-2215, 2255-2465: investigationView, mapChapterOf, caseMapRegion, autopsyCount, caseReach, caseCulprit, schemaEditor, readSchemaForm, applySchemaSave, wireMap, openInvestigationDashboard) - not read whole",
+  "scripts/key-remnants.mjs (lines 40-380, 545-575, 1206-1246: keyRevealRecord, keyPlan, setKeyPlan, keepOnlyKeyPlanChapter, keepSeasonKeyPlan, missingKeyRows, placeInSlot)",
+  "scripts/body.mjs (lines 440-620: announceBody, BODY_ANNOUNCED_HOOK, callBodyAnnounced, announceArrivedBodies)",
+  "scripts/live.mjs (lines 40-270: keepLive, its watch and its two holds)",
+  "scripts/trial-progress.mjs (lines 500-630: RECORD_FIELDS, askRecord, recordOnPrimary, writeTrialProgressInStep)",
+  "scripts/trial-floor-ui.mjs (lines 1350-1358, 1555-1556, 1600-1660, 1836-1843: the schema's slot, the summary's actions, the console's render, startTrialMode)",
+  "scripts/trial.mjs (lines 68-90: TRIAL_FLAGS)",
+  "scripts/gm-panel.mjs (lines 575-660: the tile runner that closes the panel, awaits the tile and reopens; keepPanelFresh)",
+  "scripts/season-wipe.mjs (lines 395-470, 836-905: RESET_STEPS, the step's ask / keep / run), scripts/season-exceptions.mjs (lines 40-70, 165-186: RESET_GROUPS, the cuts written per ticked group)",
+  "scripts/bridge-runs-records.mjs (lines 695-701: handleNoteSave), scripts/bridge-guards.mjs (lines 1875-1878: replyForMe)",
+  "scripts/truth-bullets.mjs (lines 1043-1072: issueAutopsy), scripts/remnants.mjs (lines 1930-1975: remnantData)",
+  "scripts/enforced.mjs (lines 481-491: permissionsInForce; the row playerFiles)",
+  "scripts/module.mjs (lines 280, 292, 430-433: the registrations and their order), scripts/config.mjs (TIMING lines 439-467)",
+  "lang/en.json and lang/pl.json (DRPG.Case.copy.*, DRPG.Season group labels, DRPG.CaseSummary.*, DRPG.CaseRealize.askBody)",
+  "docs/handbooks/gm-handbook.en.md (lines 1407-1415, 1661-1673), docs/dev/e111/STATUS-115.md, docs/dev/e111/TRUST-DRAFT.md, docs/dev/e99/STATUS.md (lines 20-31, 348-358)",
+  "scripts/tests-tier0.mjs (R3375, lines 24285-24323), scripts/tests-tier1.mjs (R7345-R7349, lines 62543-62604; lines 19600-19635), scripts/tests-tier2.mjs (lines 29600-29707, 32536-32572, 56470-56541) - read for what they pin, not run"
+ ],
+ "strengths": [
+  "One merge for the sync, a restore, the claim and the server copy, per field and commutative; nothing has a merge rule of its own (scripts/gm-store.mjs:306-326, 329-333).",
+  "A GM-to-GM packet is judged before it is merged: this client a GM, the sender a GM by Foundry's senderId, the world's id, the store known and synced, the section's shape and its unsafe keys (scripts/gm-store.mjs:658-682, 633-649).",
+  "A store's handle refuses every write on a client that is not a GM's, so no caller has to remember the check (scripts/gm-store.mjs:897-902).",
+  "A file's section is taken without its watermark, without another world's removals and with no stamp beyond the clock's bound (scripts/gm-store.mjs:531-549); a restore twice is a restore once.",
+  "The case summary is built by one pure allowlist: names and words only, links as indices of its own list, no node id, author or count of what is missing (scripts/case-summary.mjs:24-40); world-secrets.mjs holds the card to it (lines 251-256).",
+  "A player's note: the ask is answered about the sender Foundry names and nobody else, and a copy is taken only from a GM and only when addressed to this user (scripts/pre-session-note.mjs:400-416; scripts/bridge-guards.mjs:1875-1878).",
+  "The server copy is never written before the folder was listed and every copy in it merged, nor from a browser that has not heard the other GMs (scripts/case-copy.mjs:166-183).",
+  "A Save of a schema node writes only the fields that differ from what the window drew, each with its own stamp, so two GMs editing two fields of one node keep both (scripts/case-schema.mjs:412-438).",
+  "The Map's geometry and camera are a leaf with no import, pure where they can be, so the Chromium sweep runs the same code as the module (scripts/case-view.mjs:7-11, 83-185, 221-271).",
+  "world-secrets.mjs imports nothing and is the one statement of what world data may not hold; findWorldSecrets is pure over a snapshot (scripts/world-secrets.mjs:67-267, 359-445).",
+  "The waits on the answer keys are bounded and say why they ended (scripts/gm-stores.mjs:2062-2087).",
+  "Undo realization takes only what nobody holds and no Reveal showed, and removes the answer key before the token (scripts/case-realize.mjs:157-178)."
+ ],
+ "findings": [
+  {
+   "id": "domain-case-f-planner-stores-1",
+   "domain": "CASE",
+   "severity": "major",
+   "category": "bug",
+   "title": "Two counters that refute each other send the case map's layout into endless recursion; the Investigation panel then cannot open in its Map view on any GM's browser",
+   "where": "scripts/case-layout.mjs:103-105 (depthOf) and :90-92 (the cycle check reads input edges only); reached from scripts/investigation.mjs:1148 and scripts/case-trial.mjs:66",
+   "what_happens": "On the Map a counter's Refutes list offers every other node that is not evidence, other counters among them (investigation.mjs:1320, 1473-1475), and Save or any close writes the ticks through setCaseNode with no check for a loop (investigation.mjs:1584-1587; checkCase, case-schema.mjs:560-584, names none and blocks nothing). layoutCase refuses a cycle of input edges, but a counter with no input takes its depth from the nodes it refutes, by recursion, and a depth is remembered only once the recursion has returned. With A refuting B and B refuting A - or a counter refuting a deduction that lists that counter among its inputs - depthOf never returns and throws RangeError. caseMapRegion calls layoutCase while openInvestigationDashboard builds its body (investigation.mjs:2275-2284); every caller opens the view the GM's User remembers, and the default is the Map (investigation.mjs:1103-1106, 2268; gm-panel.mjs:262), so the panel throws before it has a window. The rows are a synced, backed-up GM store, so every GM's browser and the server copy hold the loop.",
+   "evidence": "const inputs = edges.filter(e => e.kind === \"input\" && byId.has(e.from) && byId.has(e.to));\nconst cycle = cycleOf(nodes, inputs);\n...\nelse if (n.kind === \"counter\") {\n    const targets = edges.filter(e => e.kind === \"refutes\" && e.from === id && byId.has(e.to) && !byId.get(e.to).evidence);\n    d = Math.max(1, ...targets.map(e => depthOf(e.to)));\n} else d = 1;",
+   "failure_scenario": "A GM ticks counter B under counter A's Refutes and counter A under counter B's, closes the Investigation panel, and from then on the Investigation tile answers that the action failed on every GM's browser, and the trial console's schema slot stays empty.",
+   "expected": "A loop is told on the Map and drawn around, as a cycle of inputs is: case-layout.mjs:8-10 ('A cycle of inputs has no depth, and the layout refuses it (`cycle`, the nodes on it) rather than drawing one: C8's consistency check says so to the GM') and case-schema.mjs:545 (warnings that block nothing).",
+   "fix_sketch": "Keep a visiting set in depthOf (a node met again reads depth 1), or hand cycleOf the refutes edges of the counters that have no input and name them under `cycle`.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard on the write road (applySchemaSave, setCaseNode, caseNodeOf: `refutes` is any list of ids), in graphOf (it keeps every refutes edge whose target exists, case-schema.mjs:342-345), in checkCase (no code for it) and around the callers (no try/catch at investigation.mjs:1148; the trial console's mount is caught at trial-floor-ui.mjs:1637-1638, so the console itself stands). Ran layoutCase from this checkout in Node on three hand-built graphs with graphOf's edge shapes (read-only; scratchpad layout-probe.mjs): two counters refuting each other and a deduction resting on the counter that refutes it both throw `RangeError: Maximum call stack size exceeded`; the control, a counter refuting a deduction, lays out. Looked for a way back in the interface: every caller opens the default view, the Table draws no schema editor, and Clear the plan would take the chapter's whole plan; `investigationView` can be set to \"table\" on the User only from the console.",
+   "tests_near": "R3375 (tier 0, scripts/tests-tier0.mjs:24285-24323) lays out a cycle of inputs (a rests on b, b on a) and holds `cycle`; no test builds a loop of refutes. R3376 (reachability) reads input edges only.",
+   "live_check": "On the Map add two counters, tick each under the other's Refutes, Save, open Investigation again: the panel should open and name the loop."
+  },
+  {
+   "id": "domain-case-f-planner-stores-2",
+   "domain": "CORE",
+   "severity": "major",
+   "category": "perf",
+   "title": "Every read of the case's server copy runs Restore's preview, which clones a whole store once for each of its rows: 0.6 s at 600 answer keys and 2.5 s at 1200 (Node, built rows), on the primary before each debounced write and on every GM at load",
+   "where": "scripts/gm-stores.mjs:2455 (restoreCase); scripts/gm-store.mjs:504-506 (previewSection's loop) and :329-333 (mergeSections); scripts/case-copy.mjs:151, 177, 255-258",
+   "what_happens": "case-copy.mjs reads each copy through restoreCase(file, { quiet: true, recheck: false }): at every GM's load (copyAtLoad) and, on the primary, as the first step of every write (writeServerCopy, line 177), which a change of any backed-up store's key schedules 15 s later, 60 s at most under steady change (44 of the table's 66 stores are backed up, by a count of the definitions). restoreCase computes previewSection for every store before it merges, quiet or not; a quiet read uses nothing of it but a count case-copy.mjs never reads. previewSection walks the file's keys and for each calls mergeSections(base, one), whose first line is a structuredClone of this browser's whole section. The merge that does the work is one pass. Measured here, read-only, on the checkout's gm-store.mjs in Node v22 (4 cores; scratchpad preview-cost.mjs, preview-cost2.mjs): answer-key-sized rows 300 / 600 / 1200 (100 / 200 / 400 KiB) take 126 / 644 / 2499 ms; trace-sized rows 500 / 1000 / 2000 with a fifth as many tombstones (336 / 673 / 1345 KiB) take 885 / 3385 / 17338 ms; the merge alone 19 / 39 / 114 ms.",
+   "evidence": "// gm-stores.mjs:2454-2456\nconst { section, clamped } = takenSection(raw, foreign);\nconst preview = previewSection(handle.section(), section, handle.spec);\nconst changed = await handle.mergeIn(section, { source: \"restore\" });\n// gm-store.mjs:504-506, 330\nfor (const k of keys) {\n    const one = subsection(inc, [k]);\n    const merged = mergeSections(base, one, spec);\n// const out = normalizeSection(clone(syncable(a))) ?? emptySection();",
+   "failure_scenario": "Late in a season the primary GM's browser - the one that draws every player's roll and judges every request - stands still for a second or more about once a minute while the class plays, and at each load, with nothing on screen saying why.",
+   "expected": "case-copy.mjs:46-49 gives the debounce as the cost's bound ('each write lists, reads and uploads; fifteen seconds gathers such a burst into one'), and LIVE-E111-01 asks how long a read takes; the merge is one pass, and the preview is the Restore window's, where a GM waits for it once.",
+   "fix_sketch": "Do not compute the preview for a quiet read (or only when `beforeCut` asks for its keys); or make the per-key pass merge into a section holding that key alone.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the preview is unconditional (gm-stores.mjs:2447-2476: no branch on `quiet` before line 2455), that the read comes before every write and not only the first (case-copy.mjs:176-178), that the debounced write is the primary's alone (case-copy.mjs:218) and what wakes it (clientSettingChanged of any `backup: true` key). Looked for a bound on a store's size: the bullets' and the traces' stores are cut by a season reset only, the balance log by none (gm-stores.mjs:1708-1711). Not established: how many rows a late-season world's stores hold - the numbers above are built rows, in Node, not a table's.",
+   "tests_near": "R7346 and R7348 (tier 1, scripts/tests-tier1.mjs:62559-62604) and scenario 34-case-seal hold what is read, merged and written, on stores of a few rows, and time nothing. LIVE-E111-01 (AUDIT 9.2 item 549) asks the time of a read and is open.",
+   "live_check": "On the primary of a late-season world: `f = await game.drpg.backupCase(); console.time('read'); await game.drpg.restoreCase(f, { quiet: true, recheck: false }); console.timeEnd('read')` (it saves the file too), beside `game.drpg.gmStoreStatus().perStore` for the rows and bytes behind the number."
+  },
+  {
+   "id": "domain-case-f-planner-stores-3",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A season reset that keeps the Key Remnant plan keeps every chapter's case schema whole, with last season's marks: its planned Autopsies read as sent and its question at a body as asked",
+   "where": "scripts/key-remnants.mjs:323-329 and 347-357 (the keep hook trims keyPlanStore alone); scripts/gm-stores.mjs:1666-1669, 1696-1699 (caseSchema and diveSets are in the reset group `keyPlan`); scripts/case-schema.mjs:82, 210-225; scripts/case-realize.mjs:221",
+   "what_happens": "The reset's group `keyPlan`, left unticked, runs its registry entry's `keep` instead of its clear (season-wipe.mjs:876-878): keepSeasonKeyPlan, which drops every Key plan row but the clock's chapter's, and the case and reveal rows, because a row carries no season (key-remnants.mjs:300-312). The case schema (E97) and the Logic Dive sets (E73) joined the same group later and have no keep hook; a kept group writes no cut, so all their rows of every chapter stay. A chapter's meta row is read by its chapter alone (caseMetaOf): `autopsySent`, `askedAt`, `run`, `made`, and a planned Truth Bullet's `given`, carry into the new season's chapter of that number. With the group ticked the cut takes all three stores, which the window's label ('The Key Remnant plan', lang/en.json:6431) does not say either.",
+   "evidence": "// key-remnants.mjs:326-327\nconst drop = Object.keys(keyPlanStore.entries()).filter(key => isCaseKey(key) || isRevealKey(key) || Number(key.split(\":\")[0]) !== Number(chapter));\nif (drop.length) await keyPlanStore.dropMany(drop);\n// case-schema.mjs:82\nif (plan?.kind !== \"autopsy\" || !(plan.label || plan.text) || sent?.[id]) continue;\n// case-realize.mjs:221\nif (m.askedAt !== null || m.run !== null) return false;",
+   "failure_scenario": "A GM resets the season with The Key Remnant plan unticked; in the new season's chapter 1 the Map opens on last season's chapter 1 deductions and solution, its planned Autopsy shows as sent and does not go out when the first body is found, and the window about the realization does not come.",
+   "expected": "docs/handbooks/gm-handbook.en.md:1667 ('The Key Remnant plan, left unticked, keeps only the rows of the chapter the season was in') and :1673, which names the three records that carry into a chapter of the same number - the schema is not among them; case-realize.mjs:243-246 (a planned Autopsy goes out at its body with no click of the GM's).",
+   "fix_sketch": "Give the group's keep hook the schema as well: drop the other chapters' rows and take the kept chapter's marks (autopsySent, askedAt, run, made, given) off; or stamp the meta row with its season and read it by it.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another clear or keep of caseSchemaStore: its writers are case-schema.mjs alone (patch, drop, and dropMany in clearChapterPlan), and registerSeasonState is called once for `keyPlan` (key-remnants.mjs:357). Looked for a season on the meta row or on the sent mark: none (caseMetaOf, autopsiesDue); investigation.mjs autopsyIssued is read by season, but sendPlannedAutopsy does not ask it. Read the cuts' writer (season-exceptions.mjs:181-186): a cut is written for a ticked group only.",
+   "tests_near": "Tier 2's two tests of keepOnlyKeyPlanChapter (scripts/tests-tier2.mjs:29600-29707) write and read the Key plan's store alone; tier 2's planned-Autopsy test (scripts/tests-tier2.mjs:32536-32572) puts the meta row back by hand and crosses no reset.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-f-planner-stores-4",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "perf",
+   "title": "Since the server copy, the tombstone compaction does not hold for a backed-up store: each read of the copy merges the removed tombstones back, and counts as a restore that changed something",
+   "where": "scripts/gm-stores.mjs:1967-1980 (compactGmStores); scripts/gm-store.mjs:1070-1076 (compact: removed here, not sent) and :531-534 (fileSection keeps a same-world file's tombstones); scripts/case-copy.mjs:138-158; scripts/gm-stores.mjs:2473-2483",
+   "what_happens": "On each GM, once hydrated, compactGmStores removes the tombstones older than 30 days (TIMING.gmStoreTombstoneDays) whose subject is gone, in the stores that state `exists` (31 of the 44 backed-up ones), and counts on every holder running the same rule. The server copy is a holder that never runs it: the file is written from the sections, tombstones and all, and read back by restoreCase's merge at every load and before every write. Read after the compaction, the tombstones merge straight back; read before it, the primary's write 15 s later reads the file first, merges them back and then finds the file 'same'. The count of changed keys is not zero either way, so the quiet read is handled as one that took something: the tombstones go to the other GMs as a delta, the store's `afterRestore` sends every connected player their copies again, and the Faint pass runs - at each load, from the day a world holds such a tombstone.",
+   "evidence": "// gm-store.mjs:1072-1074\nconst keys = Object.keys(w.section.d).filter(k => w.section.d[k] < before && !Object.hasOwn(w.section.e, k) && gone(k));\nif (!keys.length) return Promise.resolve(0);\nfor (const k of keys) delete w.section.d[k];\n// gm-stores.mjs:2473-2474\nif (quiet && !changed && !filled) continue;\ntry { await handle.spec.afterRestore?.(); }",
+   "failure_scenario": "From the 31st day after a Remnant or a Truth Bullet was deleted, every GM's load removes its tombstone and puts it back within a quarter of a minute, sends the players their bullets' refs (and the other copies) again, and the stores never get smaller.",
+   "expected": "gm-stores.mjs:1946-1966 (a tombstone of a gone subject goes after the bound) and gm-stores.mjs:2470-2472 ('A quiet read that took nothing ... sends no player anything and runs no Faint pass').",
+   "fix_sketch": "Apply the compaction's rule to a file's section before it is merged (and to the sections before a file is written), or have fileSection leave out the tombstones this browser's rule would remove.",
+   "confidence": "read",
+   "refutation_tried": "Checked that a tombstone put back counts as a change (mergeInto compares [e, t, d] of the key, gm-store.mjs:317-322; mergeIn answers the count), that fileSection empties `d` for another world's file only, that the file is not rewritten without them (the write compares the sections after the read merged the file back: case-copy.mjs:177-183), and the order of the three hydration hooks (module.mjs:430-433: health, copy, then the compaction registered by openGmStores) - either order ends with the tombstones back.",
+   "tests_near": "R7348 and scenario 34-case-seal read a copy over fresh rows; the compaction's tests (scripts/tests-tier1.mjs:19600-19635, scripts/tests-tier2.mjs:56470-56541) read no copy. Nothing crosses the two.",
+   "live_check": "In a world older than 30 days with deleted traces: `game.drpg.gmStoreStatus().perStore.map(s => [s.name, s.dead])` right after a load and a minute later - the counts come back to the first reading."
+  },
+  {
+   "id": "domain-case-f-planner-stores-5",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "leak",
+   "title": "When players are let into the file browser, the copy already on the server stays as it is, and the GM is told only that no copy is written",
+   "where": "scripts/case-copy.mjs:170-175, 203-207, 261-268; lang/en.json DRPG.Case.copy.refused.switchOff, .roles, .account (lang/pl.json the same); scripts/gm-stores.mjs:2679, 2896-2897",
+   "what_happens": "Once filesPrivate() answers a reason - the switch enforcePlayerFiles off, a Player or Trusted Player role or a player's account given FILES_BROWSE or FILES_UPLOAD - the module stops writing and reading the copy and says so: once a session on the primary's screen, in the case window's line and as a conflict row of the health check. The file written before stays in worlds/<id>/drpg-case under its name; nothing overwrites or empties it, and it is the whole case as Back up writes it. The stage's default for exactly this (Q-E111-5) is that the GM removes the old file by hand, but none of the three texts, the health row or the handbook's paragraph (gm-handbook.en.md:1415) says that a file is there, where it is, or that it is now within a player's reach.",
+   "evidence": "\"switchOff\": \"No copy of the case is written to the server: the setting Keep players out of the file browser is off. Turn it on, and the copy is written.\"\n// case-copy.mjs:170-175\nif (why) {\n    state.refused[why] = (state.refused[why] ?? 0) + 1;\n    state.last = why;\n    tellRefused(why);\n    return why;\n}",
+   "failure_scenario": "A GM turns Keep players out of the file browser off so that players can upload portraits; a player opens the file picker, browses to worlds/<id>/drpg-case, opens case-<32 hex>.json and reads the killer, the Mastermind and every answer key, while the GM's notice said only that no copy is written.",
+   "expected": "docs/dev/e111/STATUS-115.md:72-74 (Q-E111-5: 'the file already written stays on the server. Default: tell and refuse from then on; the GM removes an old file by hand if a player could have listed it') - a GM can remove only what the notice names; the trust model's first rule (the rules file trust-model.md, line 15: a player's browser is trusted with nothing that belongs to somebody else).",
+   "fix_sketch": "Where a copy is known (`copyStatus().found`, or after a listing), add to the three texts and the health row that a copy is on the server in the world's drpg-case folder and has to be removed by hand; or upload an empty file over each known name before refusing.",
+   "confidence": "suspected",
+   "refutation_tried": "Read every branch that follows a refusal (writeServerCopy, copyAtLoad, tellRefused, copyStatus, copyLineText, the health row): none touches the folder or names the file's existence. The module's side is read; that a player's account with FILES_BROWSE can list a folder under worlds/ and fetch the file is Foundry's, the stage's own premise and not read on 14.370 (LIVE-E111-02, AUDIT 9.2 item 550, open) - hence suspected. The protection by name and listing permission, with no encryption, is the owner's decision (case-copy.mjs:4-18) and is not the finding.",
+   "tests_near": "R7345 (tier 1, scripts/tests-tier1.mjs:62543) and scenario 34-case-seal B1-B2 hold that nothing is written while the files are open; nothing reads what the GM is told about a copy written before.",
+   "live_check": "LIVE-E111-02, then: write a copy, turn the switch off, and as a Trusted Player run `FilePicker.browse(\"data\", \"worlds/<id>/drpg-case\")`."
+  },
+  {
+   "id": "domain-case-f-planner-stores-6",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A second body announced while the first planned Autopsy is still going out is dropped, not queued: its planned Autopsy is not sent",
+   "where": "scripts/case-realize.mjs:257 (the guard), 259-262 (what is due is read once), 207-210 (the hook, not awaited)",
+   "what_happens": "The primary's listener of the body's announcement calls sendPlannedAutopsy and does not wait for it. The function reads what is due from the bodies found at that moment, then marks the chapter as sending while it issues each Autopsy to every living student, one item and one whisper a student (truth-bullets.mjs:1043-1072). A second stamp of the same chapter that arrives meanwhile finds the chapter in `sending` and returns 0; the first call walks only the list it read, and nothing calls the function again until another body is found. The second planned Autopsy stays planned.",
+   "evidence": "if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter) || sending.has(chapter)) return 0;\nconst { rows, meta } = caseRows(chapter);\nconst due = autopsiesDue({ count: autopsyCount(chapter), rows, sent: caseMetaOf(meta).autopsySent,\n    bodies: bodiesInOrder(bodiesFoundIn(chapter)).length });\nif (!due.length) return 0;\nsending.add(chapter);",
+   "failure_scenario": "In a chapter with two bodies the GM answers the two waiting discoveries one after the other; the first Autopsy reaches the class, the second, planned for the second body, never does, and the Map still shows it as planned.",
+   "expected": "case-realize.mjs:243-253: each planned Autopsy that is due goes out when its body is found, with no click of the GM's ('gracze dostaja od razu po odkryciu ciala. Bez kliku GMa'); `sending` is there so that two calls send once, not so that one is lost.",
+   "fix_sketch": "Remember that a call was skipped and read what is due once more when the running one ends (a loop until nothing is due).",
+   "confidence": "suspected",
+   "refutation_tried": "Read the announcement's road (body.mjs:476-494, 561-580): the listener hands no waitUntil, so the discovery does not wait for the sending, and a second discovery can be stamped while it runs. Looked for another caller of sendPlannedAutopsy (none: the hook at line 209 alone) and for a later sweep of what is due (none). One discovery of two bodies is one call and sends both (line 250). Not established: how long the sending takes on a real server against the time between two discoveries (the gather's own awaits stand between them) - a timing, hence suspected. The GM can still send it by hand from the panel's window.",
+   "tests_near": "Tier 2's planned-Autopsy test (scripts/tests-tier2.mjs:32536-32572) calls for one body at a time and waits; nothing announces two bodies in a row.",
+   "live_check": "Plan two Autopsies, kill two students in two rooms, announce both discoveries within a second or two (the pending prompts, one after the other): both should reach the class."
+  },
+  {
+   "id": "domain-case-f-planner-stores-7",
+   "domain": "UI",
+   "severity": "minor",
+   "category": "ux",
+   "title": "Cancelling the browser's file dialog in Restore from a file leaves the tile's promise pending: the GM panel does not come back",
+   "where": "scripts/gm-stores.mjs:2941-2954 (chooseCaseFile); callers gm-stores.mjs:2885, 2787, 2963; scripts/gm-panel.mjs:605-618",
+   "what_happens": "Restore from a file (the case window's button, and the health window's) asks for a file through a detached <input type=file> and resolves only in its `change` listener. A file dialog that is dismissed fires `cancel` on the input and no `change`, so the promise never settles. The GM panel closes itself before a tile runs and reopens when the tile's promise resolves (gm-panel.mjs:579-593, 605-618): after a cancelled dialog `await item.run()` never returns and the panel stays closed. From the health window the same pending promise is what runHealthCheck returns.",
+   "evidence": "input.addEventListener(\"change\", async () => {\n    const file = input.files?.[0];\n    if (!file) return resolve(null);\n    try { resolve(await foundry.utils.readTextFromFile(file)); }\n    catch (err) { error(\"Could not read the case file\", err); resolve(null); }\n}, { once: true });\ninput.click();",
+   "failure_scenario": "A GM opens The case from the GM panel, presses Restore from a file, thinks better of it and presses Cancel in the browser's dialog: no window is left and the GM panel does not reopen, where every other tile brings it back.",
+   "expected": "gm-panel.mjs:579-593 ('Each tile closes the panel, does its thing, and the panel comes BACK'); chooseCaseFile's own comment ('null when none was picked', gm-stores.mjs:2940).",
+   "fix_sketch": "Resolve null on the input's `cancel` event as well.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a `cancel` listener or another settle of the promise (none in gm-stores.mjs; the only other resolve is inside `change`) and for a timeout around item.run() (none). The suite hands openRestoreDialog its text and never opens the dialog, so no test can see it. That a dismissed file dialog fires `cancel` and not `change` is the browsers' behaviour, not Foundry's; not run here.",
+   "tests_near": "none found: the tests of the restore pass `text` to openRestoreDialog.",
+   "live_check": "GM panel, The case, Restore from a file, Cancel in the browser's dialog: the panel should come back."
+  },
+  {
+   "id": "domain-case-f-planner-stores-8",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "perf",
+   "title": "While a health check has found something missing, every write of a backed-up store on the primary runs the whole check again, and the check reads and parses every store's key",
+   "where": "scripts/gm-stores.mjs:3041-3046 and 3027-3040 (the recheck); :2667 and :2721-2735 (gmStoreStatus inside gmStoreHealth); scripts/gm-store.mjs:1108-1120 (statusOf)",
+   "what_happens": "After a check that found a missing row and a GM's Continue, lastHealth.missing stays set for the session. From then on each clientSettingChanged of a backed-up store on the primary calls gmStoreHealth again (one at a time, one more when a change lands meanwhile): every scene's traces, every character's bullets, the secret projects, the notes, the traps, fillsFromTraces twice (lines 2518 and 2685), and gmStoreStatus, which asks each of the 66 handles for its status - a read of the store's whole key from localStorage and a JSON.parse of it, every world's section included - and then walks every key of the module's storage.",
+   "evidence": "Hooks.on(\"clientSettingChanged\", key => {\n    if (!lastHealth?.missing || healthOpen || !isPrimaryGm()) return;\n    if (!gmStoreHandles().some(h => h.spec.backup && key === `${MODULE_ID}.${h.spec.key}`)) return;\n    if (rechecking) again = true;\n    else void recheck();\n});",
+   "failure_scenario": "A primary GM who continued past one missing answer key pays a full scan of the world and a parse of every store on each room discovered, each trace placed and each roll logged for the rest of the session.",
+   "expected": "gm-stores.mjs:3020-3025: the recheck is there so that the red line goes when another GM's restore arrives; the bytes are an information row no red line reads.",
+   "fix_sketch": "Debounce the recheck, and leave gmStoreStatus out of it (or read the bytes only for the window and diagnostics).",
+   "confidence": "read",
+   "refutation_tried": "Checked the guard (it stops only while nothing is missing, a window is open or this is not the primary) and that nothing coalesces the calls beyond the one running. The cost was not measured: it grows with the module's bytes in localStorage, which the health check itself reports.",
+   "tests_near": "none found: `grep -a -n \"C-m15\\|caseWarning\" scripts/tests-tier*.mjs` answers nothing, so neither the recheck nor its cost is held by a test I could name.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-f-planner-stores-9",
+   "domain": "CASE",
+   "severity": "nit",
+   "category": "flow",
+   "title": "The case summary is marked sent before its card exists, and a card that was not created is still reported as sent",
+   "where": "scripts/case-summary.mjs:93-108",
+   "what_happens": "Send writes the trial record's summaryShown first and creates the public card second, and does not read what ChatMessage.create answers. When the create throws or answers nothing, the trial's record says the summary went out: a second press says it was already sent, and Replay finds no card. With a create that answers nothing the GM is also told 'Summary sent.'",
+   "evidence": "const at = Date.now();\nawait setTrialProgress({ summaryShown: at });\nawait ChatMessage.create({\n    content: chatCard({ glyph: \"scale-balanced\", title: game.i18n.format(\"DRPG.CaseSummary.title\", { chapter }), body: html }),\n    ...\nconst sent = L(\"DRPG.CaseSummary.sent\");\nui.notifications.info(sent);",
+   "failure_scenario": "The card's creation fails once (the socket drops at that moment, or another module's preCreateChatMessage turns the card down): the class gets no summary this trial and the console's button reads Summary sent.",
+   "expected": "case-summary.mjs:56-61: Send posts one public card and marks it sent, so that a second press sends nothing; the mark stands for a card.",
+   "fix_sketch": "Create the card first and write the mark when it exists; or take the mark back when no card came.",
+   "confidence": "suspected",
+   "refutation_tried": "Read setTrialProgress's road for another GM (trial-progress.mjs:525-533: asked of the primary, written here when it does not answer) - the mark is written either way. Looked for a way to clear summaryShown inside a trial: only the trial's entry blanks it (trial-progress.mjs:380). The failing create itself is not something this code causes; no reading of one, hence suspected.",
+   "tests_near": "R3916 and scenario 63 S hold that a second press sends nothing; nothing fails the create.",
+   "live_check": ""
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "The server copy is protected by an unguessable name and by Foundry's listing permission, not by a passphrase or encryption; a name that leaks is the whole case.",
+   "source": "scripts/case-copy.mjs:4-18 (the owner, 14.11.2026: 'Bez hasel prosze'); docs/handbooks/gm-handbook.en.md:1415"
+  },
+  {
+   "what": "A copy written before a player was given FILES_BROWSE stays on the server; the module tells and refuses from then on and the GM removes the old file by hand (the default taken; the texts' silence about it is finding 5).",
+   "source": "docs/dev/e111/STATUS-115.md:72-74 (Q-E111-5)"
+  },
+  {
+   "what": "Nothing in the copies' folder is ever deleted; two first writes that raced leave two files, both merged at every read.",
+   "source": "scripts/case-copy.mjs:22-26"
+  },
+  {
+   "what": "The question at a body is the primary GM's alone and is asked once a chapter; a second body asks nothing.",
+   "source": "scripts/case-realize.mjs:196-202 (Q4)"
+  },
+  {
+   "what": "The trial's ticks are a trial's: a second Class Trial in the chapter starts with none; the ticks are not in the case's backup.",
+   "source": "scripts/case-schema.mjs:586-600 (Q-E99-9); scripts/gm-stores.mjs:1671-1684"
+  },
+  {
+   "what": "The summary's evidence is every Remnant on the schema a student holds a copy of, the culprit included; deductions and counters only when a GM ticked them.",
+   "source": "docs/dev/e99/STATUS.md:348-349 (Q-E99-2, Q-E99-3 as proposed); scripts/case-summary.mjs:7-13"
+  },
+  {
+   "what": "The case's consistency check warns and blocks nothing.",
+   "source": "scripts/case-schema.mjs:545 (Q-E97-7's default)"
+  },
+  {
+   "what": "Back up asks its question in a second window after the case window's button.",
+   "source": "scripts/gm-stores.mjs:2849-2854 (E47-C3, the owner's 27.09)"
+  },
+  {
+   "what": "A player's draft kept while no GM was online goes as it is when one connects, over a GM's edit made meanwhile.",
+   "source": "scripts/pre-session-note.mjs:196-198"
+  },
+  {
+   "what": "In the trial console a press on a node, or on the fold of the unrelated evidence, opens and folds nothing: the schema is read only there.",
+   "source": "scripts/case-map.mjs:120, 222; scripts/case-trial.mjs:86-90"
+  },
+  {
+   "what": "The reset's keyPlan group, ticked, also cuts the case schema and the Logic Dive sets (each store's row says it is cut with the plan).",
+   "source": "scripts/gm-stores.mjs:1662-1664, 1692-1694"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/case-realize.mjs:200-201",
+   "comment_says": "Answering writes `askedAt`, so a second body asks nothing.",
+   "code_does": "askAtBody writes askedAt before the window opens (line 229), so a reload of the primary while the question stands also counts as asked."
+  },
+  {
+   "where": "scripts/case-copy.mjs:133-136",
+   "comment_says": "readServerCopies answers `{ read, copies, newest }`, or `{ refused }` (\"notGm\", \"list\", \"fetch\").",
+   "code_does": "It answers `{ read, bad, count, newest, newestFile }` (line 157), refuses with \"notGm\", \"quiet\" or \"list\" (lines 139-144), and counts a failed fetch in `bad` (line 149): \"fetch\" is never answered, and there is no `copies`."
+  },
+  {
+   "where": "scripts/gm-stores.mjs:1659-1661 and scripts/case-schema.mjs:6-7",
+   "comment_says": "A schema row is `{ kind, label, text, inputs, refutes, mode, order, made }`, the meta row `{ sort, manual, run, askedAt }`, and case-schema.mjs is the store's only reader and writer.",
+   "code_does": "NODE_FIELDS holds 32 names and META_FIELDS 7 (case-schema.mjs:401-404: made, autopsies, autopsySent among them); investigation.mjs:2069 reads caseSchemaStore.entries() itself."
+  },
+  {
+   "where": "the repository's rules file code.md, section 'Things that will bite', last paragraph ('Two functions are deliberately long')",
+   "comment_says": "Two functions are deliberately long (registerSettings and steps()); everything else the audit measured over 300 lines has been split.",
+   "code_does": "createGmStoreEngine (scripts/gm-store.mjs:700-1640) spans 941 lines, with makeHandle (216 lines) inside it; measured with espree."
+  },
+  {
+   "where": "scripts/case-view.mjs:27-32",
+   "comment_says": "MAP_GEOMETRY, `openW` with it, is read by `mapPlace` and by the stylesheet's node rule.",
+   "code_does": "No script reads `openW` (declared at line 52 only); styles/components.css:3491 states 352px on its own."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [
+   {
+    "fn": "createGmStoreEngine",
+    "file": "scripts/gm-store.mjs",
+    "lines": 941
+   }
+  ],
+  "functions_150_to_300": 1,
+  "functions_150_to_300_names": [
+   "makeHandle, scripts/gm-store.mjs:891-1106 (216 lines, inside createGmStoreEngine)"
+  ],
+  "functions_measured": 991,
+  "duplicated_helpers": [
+   "isPlain: scripts/gm-store.mjs:148, scripts/gm-stores.mjs:38, scripts/case-schema.mjs:166 (the same line three times; scripts/passages.mjs:29 a fourth)",
+   "the zoom's clamp: clampZoomOf in scripts/case-map.mjs:424 beside clampZoom in scripts/case-view.mjs:221, which case-map.mjs could import with CAMERA_LIMITS",
+   "a ledger key's token id: tokenIdOf in scripts/case-map.mjs:44-48 beside `String(x).split(\".\").pop()` in scripts/case-hints.mjs:29, 33, scripts/case-summary.mjs:82 and scripts/investigation.mjs:1208",
+   "SOCKET_EVENT = `module.${MODULE_ID}` declared in scripts/gm-store.mjs:84 and scripts/pre-session-note.mjs:53 (and 26 other module files) beside the exported one in scripts/bridge-wire.mjs:22; gm-store.mjs imports config.mjs alone on purpose, pre-session-note.mjs does not",
+   "sorted-key JSON: stableJson in scripts/gm-store.mjs:132-136 and sortedJson in scripts/world-secrets.mjs:297-301 (world-secrets.mjs imports nothing on purpose)",
+   "L and F (localize, format) declared locally in scripts/case-map.mjs:50-51, scripts/case-realize.mjs:33-34, scripts/case-trial.mjs:30 and inside scripts/case-summary.mjs:75"
+  ],
+  "dead_code": [
+   "MAP_GEOMETRY.openW, scripts/case-view.mjs:52: `grep -a -n \"\\.openW\\b\\|openW:\" scripts/*.mjs audit/*.mjs audit/harness/scenarios/*.mjs` finds the declaration alone",
+   "`revealed.has(tokenId)`, scripts/case-realize.mjs:168: the reveal record's ids are a slot number or `sceneId.tokenId` (scripts/key-remnants.mjs:558, 569), never a bare token id; the slot test beside it does the work",
+   "the second argument handed to a store's claim - `{ engine: api }`, `{ engine: api, reclaim: true }` (scripts/gm-store.mjs:1017, 1245) and `{ backup: true }` (scripts/gm-stores.mjs:2255): `grep -n \"claim: \" scripts/gm-stores.mjs` shows eleven claims, each taking `legacy` alone",
+   "exported and read only inside their own file (no other script, test, harness file or tool names them; a word scan of 777 files under scripts/, audit/ and tools/): plannerEmpty, scheduleCopy, SEAL_MOST_MS (scripts/case-copy.mjs), AUTOPSY_NODE (scripts/case-schema.mjs). No export of the 13 files is without a reader."
+  ],
+  "magic_numbers": [
+   "scripts/case-realize.mjs:131 - 300 ms, the settle before a run checks that the meta row still names it (the two-GM guard, LIVE-E97-04); not in TIMING",
+   "scripts/case-copy.mjs:51-52 - SEAL_QUIET_MS 15000 and SEAL_MOST_MS 60000, 'chosen, not measured'; in the file, not in TIMING",
+   "scripts/gm-stores.mjs:2668 - 3 * 1024 * 1024 bytes, the size at which the bytes row turns into a conflict",
+   "scripts/gm-store.mjs:124 - PART_BYTES 256 * 1024 (LIVE-E04-02 unmeasured); :1530-1533 - 20 rounds of 5 ms in idle()",
+   "scripts/case-view.mjs:442, 464 - a drag under 4 px is a click; 0.0015 a wheel pixel",
+   "scripts/case-realize.mjs:70 - REALIZE_WIDTH 720 (measured, says its comment)",
+   "scripts/pre-session-note.mjs:261 - 86_400_000 ms a day"
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Trial console, the schema's node buttons and the fold of the unrelated evidence (scripts/case-map.mjs:121-125, 223-224; scripts/case-trial.mjs:98): each is a <button> with aria-expanded and no callback wired; by the comments' word a press opens and folds nothing there.",
+   "Realization preview, Run realization (scripts/case-realize.mjs:82, 113-116, 128): shown and enabled when no line is `create` (every slot placed or over the limit) and when no room is picked; it then answers 'not run'.",
+   "The case window, Restore from a file, and the health window's Restore (scripts/gm-stores.mjs:2885, 2787): after a cancelled file dialog nothing follows and the GM panel does not reopen (finding 7).",
+   "Investigation tile and every button that reopens the panel (scripts/gm-panel.mjs:262; scripts/investigation.mjs:2437, 2462; scripts/murder-rules.mjs:4206, 4236): throw while a loop of refutes stands in the chapter's schema (finding 1).",
+   "The case window, Write the copy now (scripts/gm-stores.mjs:2879, 2886-2890): offered while the files are open to players; the press only says the refusal."
+  ],
+  "stale_windows": [
+   "Trial console's schema (scripts/case-trial.mjs:121-128): watches items, four settings, four stores (caseTicks, caseSchema, keyPlan, blackened) and the chat hooks; it also reads the traces' store and tokens (caseGraph: a trace's name, words and tie), the bullets' store (secretOf in casePresentations) and the cast (killerIds in caseCulprit), none of which it watches. Its chapter is the clock's at the mount and is not read again (line 140).",
+   "The case window (scripts/gm-stores.mjs:2861-2875): the last backup's age and the server copy's line are read once at open; a copy the primary's debounce writes while it stands is not shown.",
+   "The case health window (scripts/gm-stores.mjs:2767-2784): its rows are the report of the moment it opened; the quiet recheck leaves an open window alone (`!healthOpen`, line 3033), so a restore that arrives from another GM does not change what it shows.",
+   "Restore's preview (scripts/gm-stores.mjs:2965-2998): the counts per store are computed when the file is picked; the stores may move before Restore is pressed (the restore itself reads again).",
+   "Realization preview (scripts/case-realize.mjs:94-119): the lines, the planned rooms and the count of marks behind Undo are read at open; a slot another GM places meanwhile still reads `create` (runRealization skips it by reading the plan again, line 138).",
+   "The case summary's preview (scripts/case-summary.mjs:80-91): composed at open and sent as shown; a tick another GM makes while it stands is in neither.",
+   "Enter the cast by hand (scripts/gm-stores.mjs:2917-2934): the list of students is the one at open."
+  ]
+ },
+ "not_established": [
+  "Whether Foundry 14.370 lets an account with FILES_BROWSE list worlds/<id>/drpg-case and hands the file to a browser that is not logged in (LIVE-E111-02, open): finding 5's last step and the copy's whole protection rest on it.",
+  "How long a read of the server copy takes at a table (LIVE-E111-01, open): finding 2's numbers are Node v22 on built rows, and the number of rows a late-season world's stores hold was not read on a real world.",
+  "How long issueAutopsy takes on a real server against the time between two announced discoveries (finding 6).",
+  "That Foundry 14's module socket honours `recipients` for the GM-to-GM packets (scripts/gm-store.mjs:1677) and for note.copy (scripts/pre-session-note.mjs:289): no recorded reading of it was found among the papers I opened; without it a `gms.state` would reach every browser. Another reader holds the socket's road.",
+  "Whether the summary after a wrong verdict should leave out evidence only the culprit holds: Q-E99-3's default is 'a student found', while the reach's rule B leaves the culprit's copy out (scripts/case-schema.mjs:504-506). A question for the owner, not a defect by the record.",
+  "Whether the presented marks and hints of a first trial should stand in a second trial of the same chapter: a Present card carries its chapter and no trial (scripts/trial.mjs:68-90; scripts/case-hints.mjs:58), while the ticks are a trial's (Q-E99-9 speaks of the ticks alone).",
+  "What one flush of a large store costs: each write reads and parses the store's whole key, clones the section, writes it through game.settings.set and reads it back (scripts/gm-store.mjs:810-834); not measured.",
+  "Whether a host whose `data` source refuses the upload (LIVE-E111-01's second half) shows the toast DRPG.Case.copy.emptyHere at every GM's load in a world whose planner is empty (scripts/case-copy.mjs:273-275): read as possible, not run.",
+  "investigation.mjs was followed in parts only (the lines listed under neighbours_followed): the Map's write road beyond applySchemaSave and the Table were not traced by this reader.",
+  "The two timing probes and the layout probe ran pure files of the checkout in Node from the scratchpad (layout-probe.mjs, preview-cost.mjs, preview-cost2.mjs); the harness and the checks were not run."
+ ]
+}

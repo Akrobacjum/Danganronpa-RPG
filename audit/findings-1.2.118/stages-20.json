@@ -1,0 +1,829 @@
+{
+ "reader": "stages-20",
+ "checkout": "main b5a29e73 = 1.2.118, read on the audit's branch (which adds audit papers and two harness probes only); nothing run, nothing changed but this file",
+ "read_counts": {
+  "stages": 4,
+  "release_notes_lines_read": "v1.2.109.md lines 1-295 and 323-717 of 717 (296-322, the Daggerheart 2.12 section, not read); v1.2.118.md lines 14-35",
+  "papers_read_whole": {
+   "docs/dev/e61/STATUS.md": 178,
+   "docs/dev/e62/STATUS.md": 161,
+   "docs/dev/e92/STATUS.md": 248,
+   "docs/dev/e94/STATUS.md": 115
+  },
+  "papers_not_read": [
+   "docs/dev/e61/RELEASE-1.2.108-draft.md (128)",
+   "docs/dev/e92/CENSUS.md (109)",
+   "docs/dev/e62/turn-baseline.json (3113)",
+   "docs/dev/e62/shots"
+  ],
+  "source_read_whole": {
+   "scripts/sequence.mjs": "1277 lines, but 820-899 (the case summary's board) skimmed",
+   "scripts/transitions.mjs": 227,
+   "scripts/spectator.mjs": 123,
+   "scripts/spectator-ui.mjs": 103
+  },
+  "source_read_in_part": [
+   "scripts/day-summary.mjs 28-177",
+   "scripts/clock.mjs 140-244, 380-475, 838-893",
+   "scripts/sync.mjs 380-640",
+   "scripts/verdict.mjs 740-844, 1385-1414",
+   "scripts/popup.mjs 960-1019",
+   "scripts/boundary.mjs 18-144, 315-338, 455-482",
+   "scripts/safeword.mjs 160-480",
+   "scripts/visibility.mjs 520-580",
+   "scripts/hud.mjs 470-549",
+   "scripts/hud-elapsed.mjs 160-220",
+   "scripts/glass.mjs 2860-2909 and the lines of hintTurn, onStateChange",
+   "scripts/monokuma.mjs 211-270",
+   "scripts/bridge-guards.mjs 1454-1492",
+   "scripts/projects.mjs 396-417",
+   "scripts/sheet-mode.mjs 60-90",
+   "scripts/module.mjs 460-494"
+  ],
+  "source_not_read": [
+   "scripts/glass-close.mjs (483 lines: its four tests were read, not the file)",
+   "scripts/death-fade.mjs",
+   "scripts/spectator-dead.mjs",
+   "scripts/voice.mjs but for the lines a search for the Spectator returned",
+   "scripts/gm-students.mjs",
+   "scripts/voice-tile.mjs"
+  ],
+  "registry_rows": {
+   "E61": 12,
+   "E62": 9,
+   "E92": 19,
+   "E94": 11
+  },
+  "base_run_lookups": "51 rows of these stages looked up in tier01.log: 49 ok, 2 with no line because their rows are removed (R3859 in E92, R3721 in E118); 22 later tests named here also looked up, all ok",
+  "test_bodies_read": "41 of the 49 existing rows of these stages (not read: R3717, R3718 past its opening comment, R3719, R3726, R3858, R3862, R3863, R3864), and R4652, R7522, R7793 of later stages",
+  "live_items": 11,
+  "live_readings_found": 0
+ },
+ "stages": [
+  {
+   "id": "E61",
+   "version": "1.2.109",
+   "shipped": "2026-11-12",
+   "what": "The sequence engine and its first two full-screen sequences - the Class Trial's entry and the verdict's cut-in - with the table's switch (world setting sequences), Esc, the still frame under reduced motion and two Sound rows.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.109.md (1-122 the plain words and Before installing; 124-192 the entry, the cut-in, the engine; 420-425 Not in this release; 468-509 the owner's answers; 511-566 Known gaps; 581-717 Checked)",
+    "docs/dev/e61/STATUS.md (1-178, whole)",
+    "audit/AUDIT-1.2.42.md:1474-1476 (items 500-502: LIVE-E61-01, -08, -06; no heading 'Po E61' exists, the items are found by id)",
+    "git log --oneline v1.2.108..v1.2.109: 90 commits (80 without merges), 24 of them naming E61",
+    "The plan (docs/dev/plans/E61.md) is on the planner's branch and not in this checkout: the notes and STATUS are the claim. docs/dev/e61/RELEASE-1.2.108-draft.md (128 lines) was not read."
+   ],
+   "commits": 24,
+   "promises": [
+    {
+     "promise": "Starting the Class Trial plays one entry on every screen at the table, from the clock's one event, once per event (a second hearing starts nothing).",
+     "source": ".github/release-notes/v1.2.109.md:21-25, 126-129",
+     "code": "scripts/sequence.mjs:1199 onPhaseChanged, :624 playTrialEntry, :306 trialEntryKey, :183 playSequence (:186-188 one start per key); scripts/sync.mjs:450 phaseHook, :475 the clock's row; scripts/clock.mjs:176-180 the edge's stamp",
+     "holds": "yes",
+     "test": "R3704 (tier 1); scenario 63 A3; tier 2 'the trial's entry and exit play from Start and End the trial, and Edit campaign's Apply plays neither'",
+     "test_kind": "both",
+     "note": "R3704 drives onPhaseChanged with a clock of its own under the lids' look (first motion, again null, another phase ends it) and reads three source lines (the row, the hook, rebuildAll's hold). Per browser the count is scenario 63's."
+    },
+    {
+     "promise": "Every road into the trial plays it, it lasts 3.4 s in all and the closed curtain opens on its fixed time (Q-E61-5's default).",
+     "source": ".github/release-notes/v1.2.109.md:126-129, 502; docs/dev/e61/STATUS.md:164",
+     "code": "scripts/sequence.mjs:301 edgeShown, :329 sceneTargetOf, :349 whenSceneDrawn (SCENE_WAIT_MS 15000 at :319), :634 the gate at titleOut; scripts/clock.mjs:122 trialCutOf, :235-239; scripts/trial-floor-ui.mjs:196",
+     "holds": "superseded",
+     "test": "R6090, R6091 (tier 1); tier 2 'the trial's entry and exit play from Start and End the trial, and Edit campaign's Apply plays neither'",
+     "test_kind": "behaviour",
+     "note": "Two later decisions of the owner replaced it: Edit campaign and any write without the road's mark play nothing (12.11.2026, first in v1.2.111), and the closed curtain stands until this browser has drawn the trial's scene, 15 s at most (the owner at a table on 1.2.112, 13.11.2026; fix-113r, first in v1.2.113). Since E105 (v1.2.112) the curtain is drawn under open windows and the title over them."
+    },
+    {
+     "promise": "Under Stained Glass the standing panes keep their place and the hole closes with new panes of the curtain's kind, each sliding out at its own size from behind an edge of glass already there; no two panes overlap at any frame; above 1366x768 the new panes keep 1366x768's share of the screen.",
+     "source": ".github/release-notes/v1.2.109.md:131-143, 148-157",
+     "code": "scripts/glass-close.mjs:169 fillHole, :428 slidePlan, :473 slideAt, :379 visibleAt, :363 tilingReading; scripts/glass.mjs:3267 entryPieces; scripts/sequence.mjs:522 drawTrialEntry (:549-596), :437 slideCanvas",
+     "holds": "yes",
+     "test": "R3703, R3716, R3718, R3719 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "R3703 and R3716 (bodies read) run the pure geometry on three cuts recorded off the glass harness (a GM at 1600x900, 1366x768, 1440x900) and on rings, R3716 with two planted faults; R3718 and R3719, by their titles, do the same for the slide and for 1920x1080 over eight seeds. What a real canvas under Foundry's CSS draws, and how smooth it is, is LIVE-E61-01, unread. R3703 allows one new pane out of range on the 1600x900 cut (scripts/tests-tier1.mjs:56222), as the notes' Known gaps say."
+    },
+    {
+     "promise": "Under Monokuma Legacy, and wherever no curtain is cut, two lids close and open with the same title, times and sound; no glass code runs.",
+     "source": ".github/release-notes/v1.2.109.md:144-145",
+     "code": "scripts/sequence.mjs:598-609 (the lids), :628 (pieces asked only under the Stained Glass class)",
+     "holds": "yes",
+     "test": "R3704, R3705 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "Both read two .drpg-seq-lid elements and the look 'lids' on a played entry."
+    },
+    {
+     "promise": "The GM's verdict card plays a cut-in on every screen: the sentenced's portrait and name, the votes as counted, GUILTY or NOT GUILTY, the card's sentence; nobody sentenced draws no portrait or stamp; it reads only the card and the public record, never the Blackened; a player's message with the same flags plays nothing; the Final Trial's verdict has none.",
+     "source": ".github/release-notes/v1.2.109.md:26-28, 79-81, 99-101, 159-172, 501-502",
+     "code": "scripts/sequence.mjs:711 verdictBoard, :742 verdictBoardElement, :763 drawVerdictCut, :790 playVerdictCut (:791 a GM's message only), :1273-1274 the hook; scripts/verdict.mjs:777-796 postVerdictCard (:793-794 the flag), :1398-1408 finalVerdictCard (verdictAt alone, so no board)",
+     "holds": "yes",
+     "test": "R3706, R3707, R3717 (tier 1); scenario 63 G4",
+     "test_kind": "both",
+     "note": "R3706 draws the three variants from stand-in messages and a stand-in count and refuses a player's message and a card with no verdictAt. That the card's flag holds the sentenced's ids and 'right' and nothing else is R3707's regular expression over postVerdictCard's source, not a verdict driven."
+    },
+    {
+     "promise": "The engine: one sequence at a time (a new one or a phase change cuts the running one); Esc ends it on that screen only and is taken from the windows behind it; it writes no setting and no document; Foundry tools are hidden by a body attribute for the span, never collapsed; the notice stack stands over it.",
+     "source": ".github/release-notes/v1.2.109.md:47-49, 176-180",
+     "code": "scripts/sequence.mjs:152 endSequence, :183-289 playSequence, :1184-1194 onEscape, :1271 the capture listener; scripts/module.mjs:484-487 (the sequences registered before Foundry's windows); styles/danganronpa.css:18069-18070",
+     "holds": "yes",
+     "test": "R3700 (tier 1)",
+     "test_kind": "both",
+     "note": "Driven: start, second start, Esc taken and the next not, the write watch empty, the notice stack's place. Read in source: no notice road, no toggleFoundryTools, the registration order."
+    },
+    {
+     "promise": "Under reduced motion a still frame stands instead (the closed curtain or lids with the title for 1.5 s; the verdict's last frame for 3 s) and nothing animates; the room and voice tiles are covered for the span and come back with it.",
+     "source": ".github/release-notes/v1.2.109.md:146-147, 167-168",
+     "code": "scripts/sequence.mjs:200-266 (still), :478 COVERED, :483-495 coverBlocks, :536-539, :611; scripts/motion.mjs reducedMotion",
+     "holds": "yes",
+     "test": "R3701, R3705, R3717 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "R3705 waits the 1.5 s and reads the host gone and the cover mark off."
+    },
+    {
+     "promise": "A world setting Full-screen sequences, on by default, in the DRPG Settings window's game section: off, nothing is drawn on any screen and the two sounds still play.",
+     "source": ".github/release-notes/v1.2.109.md:47-49, 68-73",
+     "code": "scripts/settings.mjs:195, :1817 (registration); scripts/settings-window.mjs:96; scripts/sequence.mjs:122 sequencesOn, :194-198 (off: the sound alone)",
+     "holds": "yes",
+     "test": "R3701, R3702 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "The switch's hint has drifted from what the switch governs on 1.2.118 (finding E61-1)."
+    },
+    {
+     "promise": "Two new Sound rows, The Class Trial starts (trialStart) and Verdict cut-in (verdictCut), each played once at its frame; the vote's row is relabelled The vote's result, its key kept.",
+     "source": ".github/release-notes/v1.2.109.md:74-78, 183-184",
+     "code": "scripts/config.mjs:5393 trialStart, :5474 verdictCut; scripts/sequence.mjs:634, :796 (the sounds handed), :268 (at the frame), :1172 playSound",
+     "holds": "yes",
+     "test": "R3701, R3702 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "R3701 counts the sound at once when still or off and at its frame in motion; a real file through the Sound window's volume is one of the plan's live checks never written into AUDIT 9.2 (notes 552-557)."
+    },
+    {
+     "promise": "A client that loads after the event plays nothing (Q-E61-1's default).",
+     "source": ".github/release-notes/v1.2.109.md:81, 103, 499-500, 566",
+     "code": "scripts/sequence.mjs:99 LATE_PLAY_MS, :1217 lateSequence, :1249 catchUpSequences, :104-119 the browser's own record",
+     "holds": "superseded",
+     "test": "R4934 (tier 1); scenario 96; scenario 63 C2",
+     "test_kind": "behaviour",
+     "note": "The owner answered 'Przez 10 minut' on 13.11.2026 (docs/dev/e61/STATUS.md:156-160): a browser that loads within 10 minutes plays the newest sequence it missed, once. First in v1.2.112; scenario 63's C2 was rewritten from 'none' to 'once' (audit/harness/scenarios/63-class-trial.mjs:328-331)."
+    }
+   ],
+   "registry_rows": 12,
+   "tests_read": [
+    {
+     "test": "R3700",
+     "measures": "yes",
+     "why": "Starts a sequence, starts it again, sends two Escape keydowns and watches every setting and document write over the run; a second start, a write or an Escape left to the windows would fail it. Three of its fourteen readings are source text."
+    },
+    {
+     "test": "R3701",
+     "measures": "yes",
+     "why": "Plays the same kind still, off and in motion with a counting sound and waits past the sound's frame; a sound played twice or a host drawn with the switch off fails it."
+    },
+    {
+     "test": "R3704",
+     "measures": "yes",
+     "why": "Calls onPhaseChanged three times on a clock it stamps itself and reads the host, the lids and what still plays; the three source lines pin text only (the clock's row, the hook, rebuildAll's hold)."
+    },
+    {
+     "test": "R3706",
+     "measures": "yes",
+     "why": "Builds the board from stand-in cards and a stand-in count and compares variants, stamps, votes and sentences; the 'Blackened nowhere' reading can only fail if the board invents a third student, since the planted one is in no flag by construction."
+    },
+    {
+     "test": "R3707",
+     "measures": "weak",
+     "why": "The card's flag is read as a regular expression over postVerdictCard's source; no verdict is run in tier 1. It would fail on a reworded line as on a changed flag. Frame 5's parts are read on a drawn element."
+    },
+    {
+     "test": "R3703",
+     "measures": "yes",
+     "why": "fillHole and tilingReading on three recorded cuts: gaps 0, doubles 0, every new pane convex and in the standing range, with one chip allowed on one cut and said so."
+    },
+    {
+     "test": "R3716",
+     "measures": "yes",
+     "why": "Every 20 ms of the closing and the opening on seven plans, overlaps and corners outside their place counted, and two planted faults that the reading must see."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 63-class-trial (A3 the entry once on the GM and p1-p3; C2 p4 loaded within 10 minutes plays it once; G4 the cut-in once on gm2 and four players)",
+    "scenario 96-late-sequence",
+    "tier 2: the trial's entry and exit play from Start and End the trial, and Edit campaign's Apply plays neither",
+    "tier 2: the trial's exit after End of chapter names the trial's own chapter, not the one the clock moved to (A113-C2-3)"
+   ],
+   "scenarios": [
+    "63-class-trial (audit/harness/README.md:199): three checks added by E61 C6 count the engine's per-kind counter on each client - A3, C2 (rewritten for the 10 minutes), G4. The register's row does not name E61 or these checks.",
+    "96-late-sequence (README.md:230, stamped gaps-111): names Q-E61-1; its seven checks play the start-of-day board late, not the entry."
+   ],
+   "live": {
+    "items": 3,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E61-1",
+     "severity": "nit",
+     "title": "The switch's hint no longer says what the switch governs: with it off the case summary's sound plays too, and three later sequences under it are not named",
+     "where": "lang/en.json:396 and lang/pl.json:392 (DRPG.Settings.sequences.hint); scripts/sequence.mjs:194-198, :672-674, :882-885; scripts/death-fade.mjs:278",
+     "what_happens": "The hint reads 'Plays the Class Trial's entry, the verdict, the clock's turns and flashes, and the day boards full screen for everyone. When off, only the trial's and the verdict's sounds play.' On 1.2.118 the same switch also stops the trial's exit (playTrialExit returns at once when off), the case summary's board (whose own sound playSequence still plays when off) and the death fade (onDeadMoment goes to its end state).",
+     "failure_scenario": "A GM turns Full-screen sequences off before a session, relying on the hint; at Show summary the Case summary sound plays on every screen with no board, which the hint says does not happen.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a later rewording of the key in both language files and for a test that pins the hint (R3702 reads only that name and hint are strings). The GM handbook's sections 15.3 and 17 (docs/handbooks/gm-handbook.en.md:1625, 1733) are current; only the setting's own hint lags."
+    },
+    {
+     "id": "E61-2",
+     "severity": "nit",
+     "title": "verdictBoard's comment names the wrong test",
+     "where": "scripts/sequence.mjs:709",
+     "what_happens": "The comment says 'R3708 plants a Blackened to show it'. R3708 is the pane order's test (scripts/tests-tier1.mjs:57843); the test that plants a Blackened beside the sentenced is R3706 (:57314).",
+     "failure_scenario": "A reader who follows the comment to check that the cut-in never names the Blackened opens a test about the order of panes and finds no such reading.",
+     "confidence": "read",
+     "refutation_tried": "Searched the registry and both tier files for another test numbered R3708; there is one row, E62's (docs/dev/R-REGISTRY.md:1210)."
+    }
+   ],
+   "superseded_by": [
+    "the owner's rule of 12.11.2026, first in v1.2.111: Edit campaign plays no entry (edgeShown, trialCut), and the trial's exit became a sequence of its own (playTrialExit)",
+    "gaps-111, first in v1.2.112: a browser that loads within 10 minutes plays the sequence it missed (Q-E61-1 answered)",
+    "E105, first in v1.2.112: the curtain's layer under open windows, the title's over them",
+    "fix-113r, first in v1.2.113: the closed curtain waits for this browser's next scene, 15 s at most (R6090, R6091)"
+   ],
+   "grade": 8,
+   "grade_reasons": "Everything the 1.2.109 notes promise of E61 is in the code of 1.2.118, and each promise has a tier-1 test that drives it and is ok in the base run (R3700-R3707, R3716-R3719: tier01.log lines 1575-1581, 1599-1602, 1616; 12 of 12 rows). Reading sequence.mjs whole (1277 lines) and the verdict's card found no road on which the entry or the cut-in shows more than the card says: the Final Trial's card carries no verdictCut (verdict.mjs:1405), a player's message is refused first (sequence.mjs:791). Held below 9 by two things. One, parts of the stage's own plan are not delivered to date: the floors' cross-section (C7) is not built and waits on LIVE-E61-06, and of C6 three cases have no test (a reload during the entry or the cut-in, End the trial during a cut-in, a trial with one mode; notes 422-425, STATUS 147-152). Two, the look and the smoothness of the entry at a real table rest on LIVE-E61-01, unread; the one recorded table reading that touches the entry (LIVE-113R-01, the owner on 1.2.112, 13.11.2026, audit/findings-1.2.118/live-readings-other.json) was a defect report, fixed in 1.2.113 and not read again. Two nits (E61-1, E61-2).",
+   "missing_to_10": "A recorded reading of LIVE-E61-01 (both themes, 1366x768 and 1920x1080, GM and player) and LIVE-E61-08 (the microphone under a sequence); LIVE-E61-06 read and C7 built or struck from the plan by the owner; scenario or tier-2 holds for the three C6 cases; a tier-2 test that runs a verdict and reads the posted card's flags for the sentenced's ids and nothing of the Blackened, in place of R3707's source read; the hint brought up to what the switch governs."
+  },
+  {
+   "id": "E62",
+   "version": "1.2.109",
+   "shipped": "2026-11-12",
+   "what": "The clock's turns with a direction (one pure planner feeding the curtain), the Investigation's six pane flashes with the Pane flash sound, the body's flicker, Esc for a running transition, the HUD's phase slide, and the two centre cards (the day summary and the body's card).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.109.md (29-32, 39-41, 86-89, 107-110; 194-226 the clock's turns and the centre cards; 426-432 Not in this release; 497-509; 534-545 Known gaps; 581-717 Checked)",
+    "docs/dev/e62/STATUS.md (1-161, whole; 84-99 and 114-161 are later additions for C6 and C3b)",
+    "audit/AUDIT-1.2.42.md:1477 (item 503, LIVE-E62-01)",
+    "git log --oneline v1.2.108..v1.2.109: 90 commits, 18 naming E62",
+    "The plan (docs/dev/plans/E62.md) is not in this checkout; docs/dev/e62/turn-baseline.json (3113 lines) was not read."
+   ],
+   "commits": 18,
+   "promises": [
+    {
+     "promise": "Each change of the clock turns the curtain in its own direction from one pure planner: an hour forward from the top, a new day and a rewind from the bottom, the Eclipse in from the centre and out inward (1.4 s); the trial's entry is E61's.",
+     "source": ".github/release-notes/v1.2.109.md:29-30, 196-201",
+     "code": "scripts/transitions.mjs:71-95 transitionFor, :160-197 onClockHeard (:189 the hint), :219-227 the three hooks; scripts/glass.mjs:2501 paneOrder, :2519-2524 hintTurn and its 1.5 s, :2537 turnPlan, :2876-2883 glassTurn takes the hint",
+     "holds": "yes",
+     "test": "R3708, R3709, R3711, R3712 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "Driven: the planner on twelve pairs of clocks, the plan's first batch, the hint handed and withheld. Not driven anywhere in CI: a turn drawn in that direction (jsdom has no canvas; the glass sweep's --turn runs in Chromium outside CI); LIVE-E62-01 is unread. 'The trial's exit from the centre' (notes 198) was replaced on 12.11.2026 by E61's exit sequence (transitions.mjs:84-86; R3709's title says so)."
+    },
+    {
+     "promise": "The Investigation begins with six random groups of panes flashing at 0, 360, 900, 1320, 1930 and 2400 ms, each with the sound Pane flash; never more than 3 flashes in any second.",
+     "source": ".github/release-notes/v1.2.109.md:30-31, 107-110, 202-205",
+     "code": "scripts/transitions.mjs:42 INVESTIGATION_ONSETS, :49 flashRate, :83, :190 (flicker and sound per onset), :114-116 playFlashSound; scripts/config.mjs:5385 paneFlash",
+     "holds": "yes",
+     "test": "R3710, R3711, R3713 (the Sound row), R3727, R4652 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "The count (3 in a second) is read on the two tables alone and since 1.2.112 with both on one screen (R4652). That the sound plays once per onset on a browser is held by reading alone: no test counts playSfx('paneFlash'), and the notes' Checked say the planned tier-2 check was not written (715). The share of the screen one group covers was never measured (notes 534-536; no later record found)."
+    },
+    {
+     "promise": "When a body is announced the seams and the pulse flicker four times on every browser (0, 450, 900, 1350 ms); under Legacy other frames light instead; a rehearsal's announcement plays nothing.",
+     "source": ".github/release-notes/v1.2.109.md:31-32, 206-208",
+     "code": "scripts/transitions.mjs:45 DISCOVERY_ONSETS, :108-112 flicker, :204-216 onBodyAnnounced, :225-226 the hook",
+     "holds": "yes",
+     "test": "R3713, R4652 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "R3713 reads the body's class lit and put out and null for a rehearsal and under reduced motion. What the class draws is stylesheet, unread headless."
+    },
+    {
+     "promise": "Esc ends a running transition on that screen at its end state; two changes of the clock close together end on the second (the first's later flashes dropped, the second's direction handed, Esc held for the second).",
+     "source": ".github/release-notes/v1.2.109.md:209-212",
+     "code": "scripts/sequence.mjs:1180 holdEscape, :1184-1194 onEscape; scripts/transitions.mjs:101-104 clearFlashes, :184, :191-195; scripts/glass.mjs:2526 skipTurn",
+     "holds": "yes",
+     "test": "R3713, R3727 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "R3727 was not red first (its own comment); it counts the flicker by the body's class and reads the hint 'top'. What skipTurn leaves on screen is not read headless."
+    },
+    {
+     "promise": "With the switch off or under reduced motion the curtain turns as before 1.2.109 (from the centre), and no flash or flash sound plays; a transition writes no setting and no document.",
+     "source": ".github/release-notes/v1.2.109.md:70-71, 200-201",
+     "code": "scripts/transitions.mjs:187 (no hint, no flash when off or still), :186 (boards only when on)",
+     "holds": "yes",
+     "test": "R3712 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "The write watch is empty over the run; the hint is null for still, off and the trial's entry."
+    },
+    {
+     "promise": "The HUD's phase label slides in from the right when the phase changes, over the turn's length; nothing on a page load, for the same phase or under reduced motion.",
+     "source": ".github/release-notes/v1.2.109.md:213-215",
+     "code": "scripts/hud.mjs:1038 slidePhase, :489 previousPhase read before the rebuild",
+     "holds": "yes",
+     "test": "R3728 (tier 1)",
+     "test_kind": "both",
+     "note": "The slide is driven on stand-in lines with a recording animate; that renderHud calls it is a source read."
+    },
+    {
+     "promise": "The day summary and the body's card stand in the middle of the screen, over the windows, until touched, with the switch on or off; a chat card asks for it with popupCentre, honoured from a GM's card only; both stay in the notice history.",
+     "source": ".github/release-notes/v1.2.109.md:39-41, 86-89, 221-223",
+     "code": "scripts/popup.mjs:859, :968-969 (the centre stage), :991-998 (raised until the first pointerdown), :1296 (the flag from a GM's card); scripts/body.mjs:328; scripts/day-summary.mjs showDaySummary",
+     "holds": "yes",
+     "test": "R3729 (tier 1)",
+     "test_kind": "both",
+     "note": "Driven: a card with centre lands on #drpg-evidence, raised, and sinks at a pointerdown. Source reads: the GM-only rule of the chat flag, and that the summary and the body's card ask for it. Not shot at 393x852 (notes 559-560)."
+    },
+    {
+     "promise": "The day summary waits for the clock's turn and its rows come in one after another (160 ms apart from 150 ms; none under reduced motion).",
+     "source": ".github/release-notes/v1.2.109.md:40-41, 224-225",
+     "code": "scripts/day-summary.mjs:85-99 sumUp (:98 the wait), :106-110 summaryDelay; styles/danganronpa.css (.drpg-popup-centre .drpg-sum-row)",
+     "holds": "yes",
+     "test": "R3730 (tier 1); tier 2 F118-T1",
+     "test_kind": "both",
+     "note": "summaryDelay is driven on five pairs; the wait in sumUp, the rows' place and the animation rule are regular expressions over source and stylesheet. Since F118 (1.2.118) the Evening's summary is put up again when Night begins (day-summary.mjs:92-98)."
+    },
+    {
+     "promise": "The rest of the stage's plan, named 'Not in this release' in 1.2.109: the death fade and the Monocub's return (C3), the interface following a recut frame by frame (C6), the glass's texture held through a turn (C7), a late joiner's end state and the budget rows (rest of C8).",
+     "source": ".github/release-notes/v1.2.109.md:426-432; docs/dev/e62/STATUS.md:67-99, 114-161",
+     "code": "scripts/death-fade.mjs:278 onDeadMoment, :302 registerDeathFade (C3, first in v1.2.112); scripts/glass.mjs:3107 followFrames, :3150 followTurn (C6, first in v1.2.113); C7: no code",
+     "holds": "partly",
+     "test": "C3: R4550-R4559, scenario 94; C6: R6052, R6053; C7: none",
+     "test_kind": "behaviour",
+     "note": "C3 shipped in 1.2.112 and C6 in part in 1.2.113 (STATUS 96-99: the room tile under the clock still steps at the recut; no per-frame shots). C7 is measured and not changed: the layout turn reads 39 % of rest at 1600x900 against the 80 % bar, the same before E62, and waits on the owner's choice of how a vanishing pane leaves (STATUS 67-82). The rest of C8 and C0's baselines are not done."
+    }
+   ],
+   "registry_rows": 9,
+   "tests_read": [
+    {
+     "test": "R3709",
+     "measures": "yes",
+     "why": "Twelve pairs of clocks through the pure planner, kinds and directions compared; a wrong direction for any pair fails it."
+    },
+    {
+     "test": "R3712",
+     "measures": "yes",
+     "why": "Feeds onClockHeard seven clocks with the switch and motion handed in, reads the hint the curtain was handed after each and the write watch; it reads the hand-over, not a turn drawn."
+    },
+    {
+     "test": "R3713",
+     "measures": "yes",
+     "why": "A held Escape is taken once and the next is not; the announcement lights and puts out the body's class; a rehearsal and reduced motion answer null."
+    },
+    {
+     "test": "R3727",
+     "measures": "yes",
+     "why": "Two clocks 120 ms apart: one flicker lit, the second's direction handed, Escape taken. Not red first; its comment says a hand-planted removal of clearFlashes read 3."
+    },
+    {
+     "test": "R3711",
+     "measures": "yes",
+     "why": "turnPlan on a 6 x 4 grid: the top batch, six flash onsets, the plain plan's eight batches; one reading is a regular expression over glassTurn's source."
+    },
+    {
+     "test": "R3729",
+     "measures": "yes",
+     "why": "Drives showPopup with centre and a pointerdown. Three of its eight readings are source text (the GM-only flag, the summary's ask, the body card's ask): a message from a player's account carrying popupCentre is never posted in the test."
+    },
+    {
+     "test": "R3730",
+     "measures": "weak",
+     "why": "Only summaryDelay runs; that sumUp waits, that each row carries its place and that the rows animate are regular expressions over day-summary.mjs and the stylesheet."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 94-dead-spectator (E62 C3b and C3's curtain checks)",
+    "tier 2: F118-T1 - the Evening's own summary reaches the screen when Night begins, with the table's sequences on",
+    "tier 2: the six 'E62 C3b ...' tests (a kept death's Spectator; the Monocub's token; the Monocub walks its own token; a dead student's Spectator keeps its Role; a Monocub's corpse is no witness; a Spectator keeps its images)"
+   ],
+   "scenarios": [
+    "94-dead-spectator (audit/harness/README.md:228, stamped E62 C3b): a dead student watching as a Spectator, the death fade once on the victim's browser, the curtain bare after it and lit again after the Monocub's return and the revive.",
+    "No scenario row names E62's turns, flashes or centre cards; the notes list the scenarios that ran green on the line (613-618) because they read changed files, not because they ask about a turn."
+   ],
+   "live": {
+    "items": 1,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [],
+   "superseded_by": [
+    "the owner's decision of 12.11.2026, first in v1.2.111: the trial's exit is E61's sequence, not a turn from the centre",
+    "gaps (R4652), first in v1.2.112: a body announced during the Investigation's flashes cuts them (the notes' known gap 'Two flash sequences on one screen' closed)",
+    "E62 C3 and C3b, first in v1.2.112: the death fade, the Monocub's return, the dead as Spectators",
+    "fix-113p (E62 C6), first in v1.2.113: the interface's blocks ride their pane through a recut",
+    "F118 / E118 in 1.2.118: the Evening's summary is put up again when Night begins"
+   ],
+   "grade": 7,
+   "grade_reasons": "What 1.2.109 said E62 delivers works on 1.2.118 by reading and by its nine tier-1 tests, all ok in the base run (R3708-R3713, R3728-R3730: tier01.log lines 1617-1620, 1622, 1625, 1627-1629; R3727, stamped E94, line 1626), and the notes' own known gap of two flash sequences on one screen was closed in 1.2.112 (R4652, line read in transitions.mjs:207-213). Not higher, for four reasons. The stage's plan is delivered in part: C7 (texture through a turn) is measured only, with one reading far under its bar and the owner's choice still open, C6 is built in part, the rest of C8 is not done. The main promise as a player sees it - a turn drawn in its direction, six flashes with their sound - is driven only up to the hint handed to the curtain; the drawn turn is the glass sweep's (outside CI) and LIVE-E62-01, unread. One promise is held by reading alone: the Pane flash sound once per onset. And the flashes' share of the screen, which the plan meant to hold against the flash limit, has no measurement. No defect of E62's own was found; on a bystander's browser during an incident the handler still runs (the hint and the Escape hold, nothing drawn) - the visible part of that is E94's (finding E94-1).",
+   "missing_to_10": "The owner's choice for C7 and its change, with the --turn reading over the bar; the rest of C6 and C8; a recorded reading of LIVE-E62-01; a test that counts one Pane flash sound per onset on a client; the flashes' area measured at a narrow screen; a check in CI (or a recorded sweep) that a turn drawn after a clock change took the planner's direction."
+  },
+  {
+   "id": "E92",
+   "version": "1.2.109",
+   "shipped": "2026-11-12",
+   "what": "The Spectator: a fourth Role a GM sets in the Students window - a character that watches and does not play: no action, no chat, counted nowhere, a token only its owner and the GM see, the class's map, every project in sight, and a voice of its own with the other Spectators.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.109.md (42-46, 90-97, 104-106; 271-290 the Spectator; 434-437 Not in this release; 489-493; 549-551, 561-563 Known gaps; 581-717 Checked)",
+    "docs/dev/e92/STATUS.md (1-248, whole)",
+    "audit/AUDIT-1.2.42.md:1470-1473 (items 496-499, LIVE-E92-01..04)",
+    "git log --oneline v1.2.108..v1.2.109: 90 commits, 32 naming E92; tools/stages.json: touches sockets and scenes, with E62",
+    "The plan (docs/dev/plans/E92.md) is not in this checkout; docs/dev/e92/CENSUS.md (109 lines) was not read: R3858 holds the code to it."
+   ],
+   "commits": 32,
+   "promises": [
+    {
+     "promise": "A GM makes a character a Spectator in the Students window (Role); the flag is a GM's, so a player's own write of it is put back; nothing changes until a GM sets it; the window's sheet and items buttons stand in a column of their own.",
+     "source": ".github/release-notes/v1.2.109.md:42-43, 90-97, 285",
+     "code": "scripts/config.mjs:254 FLAGS.spectator; scripts/monokuma.mjs:233-259 setSpectator, :53 isSpectator; scripts/gm-students.mjs:259 changeRole; scripts/sheet-audit.mjs kindOf",
+     "holds": "yes",
+     "test": "R3851, R3862 (tier 1); scenario 93 'role'; scenario 30 part 7e1",
+     "test_kind": "behaviour",
+     "note": "R3851 records which roads changeRole calls on stand-ins for seven moves; the real write and its follow-ups (projects, map, flags) are scenario 93's."
+    },
+    {
+     "promise": "A Spectator is no student: no vote, trial cast, incident, room count, Hope or Calls; nobody in the room.",
+     "source": ".github/release-notes/v1.2.109.md:43, 273-274",
+     "code": "scripts/monokuma.mjs:77 studentActors, :120 actingStudents; scripts/movement.mjs:3761 countsAsPresent, :3808 othersInNamedRoom; scripts/murder-rules.mjs:3282",
+     "holds": "yes",
+     "test": "R3850, R3852, R3858 (tier 1); tier 2 'E92+E93 - a Spectator standing in a room takes no room action's effect and is nobody's tail target'",
+     "test_kind": "both",
+     "note": "R3850 reads nine roster readers before and after a flag held in memory on a real student of the world. R3858 is a census of source lines against CENSUS.md, so a new read of an actor's type fails until somebody classifies it; the classification itself is by hand."
+    },
+    {
+     "promise": "Every action a player's browser asks of the GM is refused for a Spectator ('A Spectator takes no actions.'), the zone modes' two rows included.",
+     "source": ".github/release-notes/v1.2.109.md:274-275",
+     "code": "scripts/bridge-guards.mjs:1458-1471 notSpectator, :1474-1478 senderNotSpectator; the four tables' rows",
+     "holds": "yes",
+     "test": "R3865 (tier 0); scenario 30 part 7e1b",
+     "test_kind": "both",
+     "note": "R3865 reads the four tables as objects, with a fixture of three planted faults first, and fails any player row added later without the guard right after knownSender. Daggerheart's relay and a Spectator's own sheet writes are outside it, as STATUS 133-135 says."
+    },
+    {
+     "promise": "It has no chat: its own browser refuses its message, no browser draws one, and the primary GM removes it.",
+     "source": ".github/release-notes/v1.2.109.md:43, 276-277, 434-437",
+     "code": "scripts/spectator-ui.mjs:74-78 refuseOwnMessage, :80-82 hideSpectatorMessage, :84-94 dropSpectatorMessage, :97-103 the hooks; styles/components.css (the body class drpg-spectator)",
+     "holds": "partly",
+     "test": "scenario 93 'chat'",
+     "test_kind": "behaviour",
+     "note": "Holds for a message a Spectator posts. Two side effects of the same three hooks are findings E92-1 (the safeword card is refused with the rest) and E92-2 (cards the account posted while it was a student are no longer drawn). No tier-0 or tier-1 test reads these hooks. The limits the notes name stand: public cards still reach its browser, and its message is broadcast before the primary removes it; the known-leaks row is still not written."
+    },
+    {
+     "promise": "It sees every room the class found (without the Mastermind's walks), every token, and every project's name and progress, secret ones too - not a secret project's description; made a student again it keeps its own rooms and loses the secret projects it was shown.",
+     "source": ".github/release-notes/v1.2.109.md:43-44, 104-106, 278-279, 561-563",
+     "code": "scripts/visibility.mjs:563 (a Spectator's browser leaves every token to Foundry); scripts/gm-stores.mjs:1910 spectatorFogSection; scripts/fog.mjs:1381 forgetSpectatorMap; scripts/projects.mjs:281-282, :399-417 tellDescription, :2889 seeAsSpectators; scripts/projects-secrecy.mjs:333-334",
+     "holds": "superseded",
+     "test": "R3855, R3856, R3867 (tier 1); scenario 93 'map', 'projects', 'back'",
+     "test_kind": "behaviour",
+     "note": "The rooms, tokens, names and progress hold. 'Not its description' was replaced: since 1.2.113 (A113-C5-3, projects.mjs:404-411) a Spectator is told a secret project's words too, as the owner's first answer had it; the GM handbook says so (docs/handbooks/gm-handbook.en.md:630) and scenario 93's check now asks for the words. A token under the opening's veil is hidden from a Spectator too since 1.2.116 (visibility.mjs:555-561)."
+    },
+    {
+     "promise": "Other players do not see its token; the GM sees it faint, at 0.3 of its opacity, with no tint and no outline.",
+     "source": ".github/release-notes/v1.2.109.md:44-45, 280",
+     "code": "scripts/visibility.mjs:543 tokenShownTo, :800-813 dressSpectator (SPECTATOR_ALPHA 0.3), :487",
+     "holds": "yes",
+     "test": "R3855, R3866 (tier 1); scenario 93 'role'",
+     "test_kind": "behaviour",
+     "note": "Both tests run the module's function on stand-ins; no canvas draws a token headless, and the look on a real map is LIVE-E92-04, unread."
+    },
+    {
+     "promise": "It moves by dragging its own token, at no price, finding nothing, through the trial's and the incident's locks.",
+     "source": ".github/release-notes/v1.2.109.md:280-281",
+     "code": "scripts/movement.mjs:1708 crossingVerdict, :3031-3032 (no charge); scripts/movement-audit.mjs:340; scripts/fog.mjs:1619",
+     "holds": "yes",
+     "test": "R3854 (tier 1); scenario 93 'ghost'",
+     "test_kind": "both",
+     "note": "The module refuses it nothing. Whether Foundry v14 itself stops a player's drag at a wall or a closed door is not tried (LIVE-E92-02); if it does, a Spectator crosses no wall and a new road is the owner's to decide (STATUS 73-75). R3854 drives crossingVerdict and reads the other three as source text."
+    },
+    {
+     "promise": "Its microphone is held in every phase; Talk with the Spectators on its voice tile moves it to the Spectators' own room and back; with the voice tile off there is no such button.",
+     "source": ".github/release-notes/v1.2.109.md:45-46, 282-284",
+     "code": "scripts/voice.mjs:1352-1354 micHold, :1457 spectatorAccount, :1476-1478 spectatorTalks, :1794-1804 the block; scripts/spectator.mjs:25, :37-42; scripts/voice-tile.mjs:1112 paintSpectatorTalk; scripts/spectator-ui.mjs:35-43",
+     "holds": "superseded",
+     "test": "R3853, R3860, R3864, R7522, R7168 (tier 1); tier 2 'a Spectator's microphone is open in the Spectators' room by default ...'; scenario 93 'voice', 'talk'",
+     "test_kind": "behaviour",
+     "note": "Replaced by the owner in 1.2.116 (owner-116, 15.11.2026): a Spectator talks in the Spectators' room from anywhere with its microphone open by default, and the button, now Listen in your room, takes it to hear its token's room, muted. The living still never hear it. One connection in two rooms, and the real block, are LIVE-E92-01 and -03, unread."
+    },
+    {
+     "promise": "It sees the same sequences as a player, but an end-of-day board with the day's heading and the school's mood alone.",
+     "source": ".github/release-notes/v1.2.109.md:46, 255-257, 286-287",
+     "code": "scripts/sequence.mjs:1137-1142 dayEndBoardFor, :928 (a watcher's board), :961-964; scripts/spectator.mjs:74 spectatorViewer",
+     "holds": "yes",
+     "test": "R3861, R3868 (tier 1); scenario 93 'board', 'road'",
+     "test_kind": "both",
+     "note": "R3868 draws both boards. R3861's 'same sequences' half is a regular expression that finds no viewer word in three functions and in transitions.mjs: it pins text. Since F118 a player's end board holds only what the start board holds, and a Spectator's start board is everybody's, read off the code alone (v1.2.118 notes 30-32)."
+    },
+    {
+     "promise": "Its sheet is a watcher's: no action panel, no Calls, no row buttons, no Level Up.",
+     "source": "docs/dev/e92/STATUS.md:15; .github/release-notes/v1.2.109.md:43",
+     "code": "scripts/sheet-mode.mjs:60-81",
+     "holds": "yes",
+     "test": "R3857 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "The mode also takes the Stop (the safeword's button) off the sheet, pinned by R3857 ('no Stop'); see finding E92-1."
+    }
+   ],
+   "registry_rows": 19,
+   "tests_read": [
+    {
+     "test": "R3865",
+     "measures": "yes",
+     "why": "A census over the tables' own objects with a planted fixture that must yield exactly three faults; a player row with no Spectator guard, or one placed late, fails it. It holds the declaration; scenario 30's part drives four refusals."
+    },
+    {
+     "test": "R3850",
+     "measures": "yes",
+     "why": "Nine readers of the roster before and after the flag is held on a real student; any list that still counted the Spectator would read true."
+    },
+    {
+     "test": "R3851",
+     "measures": "yes",
+     "why": "changeRole with recording roads on stand-ins, seven moves compared call by call; it does not run setSpectator's own write."
+    },
+    {
+     "test": "R3853",
+     "measures": "yes",
+     "why": "micHold and spectatorAccount on handed facts, and the GMs' view for an account with and without the listen flag. Its title still says the microphone is held in every phase, which the body no longer asserts (finding E92-3)."
+    },
+    {
+     "test": "R3855",
+     "measures": "yes",
+     "why": "tokenShownTo on stand-in token documents for eight viewers; a Spectator's token shown to another player in any of three states would fail it."
+    },
+    {
+     "test": "R3861",
+     "measures": "weak",
+     "why": "Half of it reads the day board's cast; the half its title leads with is the absence of six words in source text, which a gate under another name would pass."
+    },
+    {
+     "test": "R3866",
+     "measures": "yes",
+     "why": "dressSpectator on a stand-in token: alpha 0.27 for a token of 0.9, no tint, no child added, the alpha given back. No canvas: what a GM sees is LIVE-E92-04."
+    },
+    {
+     "test": "R3867",
+     "measures": "yes",
+     "why": "spectatorUserIds over four stand-in accounts, and the ownership map's levels. The title says every other player is NONE; the body asserts OBSERVER for all since 13.11.2026 (finding E92-3)."
+    },
+    {
+     "test": "R3868",
+     "measures": "yes",
+     "why": "Draws a Spectator's and a player's end board and the road playDayEnd takes for each; a cast or a chapter line on the watcher's board fails it."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 93-spectator (13 checks: setup x2, role x2, chat, voice, map, projects, talk, ghost, board, road, back)",
+    "scenario 30-security parts 7e1 (the flag a student's console writes is put back) and 7e1b (a Spectator's student actions refused)",
+    "tier 2: a Spectator's microphone is open in the Spectators' room by default, blocked outside the trial and in it while it listens where its token stands, by the trial's own write and row, and given back as it was found when the role is taken off (E92 C2, C6; owner-116)",
+    "tier 2: E92+E93 - a Spectator standing in a room takes no room action's effect and is nobody's tail target",
+    "tier 2: E62 C3b a Spectator keeps its images"
+   ],
+   "scenarios": [
+    "93-spectator (audit/harness/README.md:227, stamped E92): a Spectator from its assignment to its return to the class on p3's own browser - role, chat, voice, map, projects, the tile's switch, the drag, the end-of-day board, back to a student. The shim's LiveKit only; no wall stop; no canvas.",
+    "30-security (README.md:185): two parts added for E92, a student's console writing the flag and a Spectator's four student actions."
+   ],
+   "live": {
+    "items": 4,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E92-1",
+     "severity": "minor",
+     "title": "A Spectator has no Stop on its sheet, and with no GM answering its safeword press is refused by its own chat block while the press reports the card as posted",
+     "where": "scripts/sheet-mode.mjs:81; scripts/spectator-ui.mjs:74-78, :99; scripts/safeword.mjs:168-170, :252-269, :285-286; docs/handbooks/gm-handbook.en.md:1794; scripts/tests-tier1.mjs:58486-58499 (R3857)",
+     "what_happens": "Since E92 C5 (e08aaecc) sheetMode answers safeword false for a Spectator, so its sheet draws no Stop button; the doors left are the keybinding, unbound until the table picks a key, and the API. When a Spectator does press with no GM connected, callSafeword posts the public card from that browser (safewordPoster 'caller'), the Spectator's own preCreateChatMessage hook refuses it as chat ('A Spectator has no chat.') and no card exists; callSafeword still logs and returns true. With a GM connected whose card does not land in 3 s (TIMING.safewordAnswerMs), awaitCard takes the same road, the card is refused, and the Spectator's notice then adds 'No GM answered in time, so your screen posted the card itself.'",
+     "failure_scenario": "The table bound the safeword key; p3 plays a Spectator; the GM's browser has dropped. p3 presses the key and confirms Stop it: p3 reads a warning about chat, no other screen shows the banner, nothing is paused. The GM handbook says 'Anyone may press it - player, GM, dead, Monocub, Spectator' and that every character sheet carries the button.",
+     "confidence": "read",
+     "refutation_tried": "Read refuseOwnMessage for an exception for the safeword's flag (none: it asks only whose message it is and whether this browser watches). Read the three doors (sheet-sidebar.mjs:913-915 skips the button when the mode says so; safeword.mjs:423-433 the keybinding; api.mjs:839). With a GM connected and answering, the primary posts the card and the press works. Whether the owner asked for no Stop on a Spectator's sheet was not established: the plan is not in this checkout, and R3857's title cites only the goal 'sheet in a spectator mode'. Foundry's cancel of a create when a preCreate hook answers false is Foundry's documented behaviour, not measured here."
+    },
+    {
+     "id": "E92-2",
+     "severity": "minor",
+     "title": "Once a student is made a Spectator, every card that account posted before is left undrawn on every browser",
+     "where": "scripts/spectator-ui.mjs:69-72, :80-82, :100; scripts/spectator.mjs:108-123",
+     "what_happens": "hideSpectatorMessage removes a message's element at every render when its author's account is a Spectator's now (spectatorUserIds on the flags as held). It reads neither when the message was written nor what it is, so the action and roll cards the player posted as a student go from the log at the next redraw (a reload, a scroll back), for the GMs too; they come back if the Role is given back.",
+     "failure_scenario": "p1 has played Aiko for three sessions and posted dozens of public cards. The GM sets Aiko's Role to Spectator. After any browser reloads, none of p1's earlier cards is in the chat log on that browser, the GM's included; the notes promise only that a Spectator's own messages are refused and removed.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a time or flag test in the three chat hooks and in spectatorUserIds (none), and for a sentence in STATUS, the notes or the handbooks that says a former student's history is hidden (none; STATUS 141-151 speaks of a message a Spectator posts). Scenario 93's 'chat' posts only while the character is a Spectator. A dead student's own Spectator (E62 C3b) is not affected: that account still owns its student, so it is no Spectator's account. That Foundry v14 calls renderChatMessageHTML for each message as the log is drawn is assumed, not measured."
+    },
+    {
+     "id": "E92-3",
+     "severity": "nit",
+     "title": "Three tests' titles, and so their registry rows, state rules their bodies no longer assert; the known-leaks row the stage proposed is still not written",
+     "where": "scripts/tests-tier1.mjs:58399 (R3853), :58501 (R3860), :58691 (R3867); docs/dev/R-REGISTRY.md:1270, 1277, 1284; audit/harness/known-leaks.json",
+     "what_happens": "R3853's title says the microphone is 'held in every phase' and R3860's that the switch 'on' (SPECTATOR_TALK_FLAG) sends the account to the Spectators' room; since owner-116 the bodies assert the opposite default and read SPECTATOR_LISTEN_FLAG (comments at :58414-58415, :58510-58511). R3867's title says every other player is NONE in the ownership map; its body asserts OBSERVER (:58710-58712). The row for a Spectator's message broadcast before its removal (notes 434-437) is in no known-leaks file.",
+     "failure_scenario": "A reader settling LIVE-E92-03 from the registry reads R3853's row and expects a Spectator's microphone to be blocked in every phase, which 1.2.116 changed.",
+     "confidence": "read",
+     "refutation_tried": "Read each body against its title; searched audit/harness/known-leaks.json for 'pectator' (no hit)."
+    }
+   ],
+   "superseded_by": [
+    "E62 C3b, first in v1.2.112: a dead student's player gets a Spectator of its own",
+    "A113-C5-3, first in v1.2.113: a Spectator is told a secret project's description",
+    "S17-31 (13.11.2026): the ownership map gives every player one level, so it no longer tells a Spectator's account apart",
+    "owner-116, first in v1.2.116: the Spectators' room by default, the listen switch",
+    "E112v in 1.2.116-1.2.118: a veiled token is hidden from a Spectator too",
+    "F118 / E118 in 1.2.118: a player's end-of-day board became the day's board; the Spectator's kept"
+   ],
+   "grade": 8,
+   "grade_reasons": "The Spectator the notes describe is in the code of 1.2.118, changed twice since by the owner (the voice default, the secret project's words), and it is one of the better-held stages read here: 18 of its 19 registry rows are ok in the base run (R3850-R3858, R3860-R3868: tier01.log lines 1634-1651 and line 8 for R3865; R3859 removed in the stage), most of them drive the module's functions on stand-ins, R3865 holds every later bridge row to the guard, and scenario 93 reads a Spectator's own browser (13 checks, to join). Two minor defects were found by reading, both side effects of the chat block: the safeword (E92-1) and a former student's history (E92-2). All four live checks are unread, and two promises rest on them as a player meets them: the voice (LIVE-E92-01, -03: the harness has a LiveKit shim only) and the walk through walls (LIVE-E92-02).",
+   "missing_to_10": "The chat block letting the safeword's card through (or the GM-less road taken another way) and a Stop a Spectator can reach, or the handbook's sentence changed; the undrawn rule limited to what a Spectator posts; a tier-1 test of the three chat hooks; readings of LIVE-E92-01..04, above all whether v14 stops the drag at a wall; a test of a Spectator's start-of-day board; the three stale titles and the known-leaks row."
+  },
+  {
+   "id": "E94",
+   "version": "1.2.109",
+   "shipped": "2026-11-12",
+   "what": "The day's boards on the sequence engine - the start-of-day board and the end-of-day board - with the GM's morning line and the school's mood as a word.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.109.md (33-38, 82-85, 98-104; 228-269 the two boards, the morning line, the mood; 433, 457-459; 487-509; 546-548 Known gaps; 581-717 Checked)",
+    "docs/dev/e94/STATUS.md (1-115, whole)",
+    ".github/release-notes/v1.2.118.md:16-34 (F118: one day's board at both ends of the day)",
+    "audit/AUDIT-1.2.42.md:1478-1480 (items 504-506, LIVE-E94-01..03)",
+    "git log --oneline v1.2.108..v1.2.109: 90 commits, 22 naming E94",
+    "The plan (docs/dev/plans/E94.md) is not in this checkout."
+   ],
+   "commits": 22,
+   "promises": [
+    {
+     "promise": "A new day shows the start-of-day board on every connected browser for about 5 s: the day, the chapter, the hour, the cast in its order, the dead by the published flag alone - greyed in place with 'we remember', never struck through - the alive ratio, and the GM's morning line when there is one.",
+     "source": ".github/release-notes/v1.2.109.md:36-38, 102, 230-236",
+     "code": "scripts/sequence.mjs:926-934 dayBoardOf (isDeceased), :937 dayStartBoard, :957-975 dayBoardElement, :982-993 drawDayBoard, :1030-1037 playDayStart",
+     "holds": "yes",
+     "test": "R3714, R3715, R7793 (tier 1); scenario 69; tier 2 'E110 day boards A', 'E110 day boards B'",
+     "test_kind": "behaviour",
+     "note": "Since F118 (1.2.118) the board also shows the mood. A death the GMs keep is drawn alive (R3714's second student)."
+    },
+    {
+     "promise": "The boards play at the Night-to-Morning roll-over, the end-of-day board first (about 6 s), then the start-of-day board; Esc on the first skips to the second.",
+     "source": ".github/release-notes/v1.2.109.md:33-34, 230, 246, 506-509",
+     "code": "scripts/transitions.mjs:140-154 boardsOf, :168-176; scripts/clock.mjs:199-210 (the stamps taken off by any other write), :421-425; scripts/eclipse.mjs:273-277",
+     "holds": "superseded",
+     "test": "R4400, R5890 (tier 1); scenario 69; tier 2 'E113 day boards C'",
+     "test_kind": "behaviour",
+     "note": "Replaced twice by the owner. 12.11.2026 (first in v1.2.110): the boards play on a real roll-over alone, never on Edit campaign - found at a real table on 1.2.109, where the Morning Eclipse's end played no board at all (transitions.mjs:76-79, R4400). 13.11.2026 (first in v1.2.113): the end board when Night begins, the start board at the Morning Eclipse's start; back to back only at a chapter's end."
+    },
+    {
+     "promise": "The end-of-day board shows a player only its own student's actions of the day, a GM the table's, the module's public cards of the day and the mood; no Hope or Despair.",
+     "source": ".github/release-notes/v1.2.109.md:33-36, 103-104, 246-249",
+     "code": "scripts/sequence.mjs:945-947 dayEndBoard, :1137-1142 dayEndBoardFor, :1155-1166 playDayEnd (dayRowsFor and publicCardsOf are gone)",
+     "holds": "superseded",
+     "test": "R3722 (rewritten), R3868 (tier 1); R3721 removed in E118",
+     "test_kind": "behaviour",
+     "note": "Replaced by the owner on 18.11.2026 (F118, shipped as E118 in 1.2.118): one board at both ends of the day - the title, the chapter line, the cast, the mood - with no row of the day, no tally and nothing the school saw. 'No Hope or Despair' still holds (R3722)."
+    },
+    {
+     "promise": "The school's mood is one of three words from one share - the living students' Hope over that Hope plus the Monocubs' Hope, the Monokumas' Despair and the Overflow count - against 0.6 and 0.4, worked out on the GM who moves the clock; only the word is written, and the clock may never hold the Overflow's numbers.",
+     "source": ".github/release-notes/v1.2.109.md:34-36, 84-85, 250-254",
+     "code": "scripts/sequence.mjs:1100-1107 moodBand, :1116-1130 moodInputs; scripts/config.mjs:2127 MOOD_SHARES; scripts/clock.mjs:422-425, :444-450 morningInputs; scripts/world-secrets.mjs:105-112; scripts/chapter.mjs:761-772",
+     "holds": "yes",
+     "test": "R3723 (tier 1); tier 2 'E94 C4: the school's mood reaches the world as its word alone'; tier 2 'A113-C5-4'; R190's fixtures",
+     "test_kind": "both",
+     "note": "moodBand is driven on ten sets of inputs and moodInputs is run on the GM; that the inputs read the published death and that the advance writes the word are regular expressions over source in tier 1, and the stored clock is tier 2's to read. Since 1.2.113 a Monocub's purse counts (A113-C5-4); since 1.2.118 the chapter end's morning writes a fresh mood (R7793). The mood is written when Night begins and at the day's start."
+    },
+    {
+     "promise": "The GM's morning line: a field in Edit campaign, kept only in that GM's browser until the day starts, then folded into the clock's one write and the draft emptied; cleared by the next move of the clock; with two GMs, the line of the GM who moves the clock.",
+     "source": ".github/release-notes/v1.2.109.md:38, 82-83, 260-261, 508",
+     "code": "scripts/gm-campaign.mjs:195 morningLineRow, :246; scripts/settings.mjs:1829 (client setting morningLineDraft); scripts/sequence.mjs:1044-1048 morningLineOf, :1062-1092 dayStartPatch; scripts/clock.mjs:423-432, :461-472 openingDayPatch",
+     "holds": "yes",
+     "test": "R3720 (tier 1); tier 2 'E110 day boards A'",
+     "test_kind": "both",
+     "note": "The trimming and the patches are driven; the field in Edit campaign and the advance's fold are regular expressions over source. Since 13.11.2026 the line is written at the Morning Eclipse's start and given back to the draft if that Eclipse is taken back (eclipse.mjs:497-500). Another GM's draft stays in that GM's browser and would be used on a later morning that GM starts."
+    },
+    {
+     "promise": "What the end board showed stays as one card in this browser's notice history, and takes the place of the Night's own summary while the switch is on.",
+     "source": ".github/release-notes/v1.2.109.md:65-67, 248-249",
+     "code": "scripts/sequence.mjs:1161-1164; scripts/day-summary.mjs:117-120 keepDayEndCard, :85-99 sumUp",
+     "holds": "superseded",
+     "test": "R3724 (rewritten, tier 1); tier 2 F118-T1",
+     "test_kind": "both",
+     "note": "The card is still kept. The fold was replaced by F118: the Evening's own summary is put up again when Night begins. R3724 now reads the absence of the fold in source; F118-T1 drives the road."
+    },
+    {
+     "promise": "With the switch off no board plays and no day chime sounds; under reduced motion the board stands still; the board lets the table's clicks through; Esc ends it earlier.",
+     "source": ".github/release-notes/v1.2.109.md:71, 234-235",
+     "code": "scripts/transitions.mjs:182, :186 (boards only when on); scripts/sequence.mjs:200-266; styles/danganronpa.css (the host's pointer-events)",
+     "holds": "yes",
+     "test": "R3715 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "R3715 reads the started board, the host's pointer-events none, null for the same day again, for an hour and with the switch off."
+    },
+    {
+     "promise": "A client that loads after the day began gets no board (Q-E94-4's default).",
+     "source": ".github/release-notes/v1.2.109.md:103, 499-500",
+     "code": "scripts/sequence.mjs:1221-1226 (lateSequence's start-of-day board), :1257",
+     "holds": "superseded",
+     "test": "R4934 (tier 1); scenario 96",
+     "test_kind": "behaviour",
+     "note": "The owner's 'Przez 10 minut' (13.11.2026, first in v1.2.112): the start-of-day board plays once on a browser that loads within 10 minutes; the end-of-day board is never played late. LIVE-E94-02 was rewritten for it."
+    },
+    {
+     "promise": "The clock carries when the day began (dayStartedAt); no file the module serves holds a merge's conflict marker; the end board's chapter line stands apart.",
+     "source": ".github/release-notes/v1.2.109.md:84, 262-267",
+     "code": "scripts/clock.mjs:188-192; styles/danganronpa.css (#drpg-sequence .drpg-seq-day-sub)",
+     "holds": "yes",
+     "test": "R3725, R3726, R3731 (tier 1)",
+     "test_kind": "source-read",
+     "note": "R3725 and R3731 pin source and stylesheet text; R3726 scans the served files. Since F118 the space is the shared rule's, so the start board has it too, and dayStartedAt is read by the late joiner's board, not by rows (finding E94-2: both titles still say otherwise)."
+    }
+   ],
+   "registry_rows": 11,
+   "tests_read": [
+    {
+     "test": "R3714",
+     "measures": "yes",
+     "why": "Builds the board from three stand-in students, one published dead: order, who is greyed, the words, alive 2 of 3, no empty line; two readings are stylesheet and source text."
+    },
+    {
+     "test": "R3715",
+     "measures": "yes",
+     "why": "Feeds onClockHeard a stamped roll-over and reads which sequence started, that the same day starts nothing, that an hour and the switch off play nothing."
+    },
+    {
+     "test": "R3720",
+     "measures": "yes",
+     "why": "morningLineOf and dayStartPatch on handed inputs and the board with and without a line; the Edit campaign field and the advance's fold are source text."
+    },
+    {
+     "test": "R3722",
+     "measures": "yes",
+     "why": "Draws the end board handed rows, cards, Hope and Despair and reads that none of them is drawn or kept, the mood's word with no digit, and then's three calls."
+    },
+    {
+     "test": "R3723",
+     "measures": "yes",
+     "why": "Ten input sets through moodBand, a number refused as a mood, moodInputs run on the GM; three readings are source text."
+    },
+    {
+     "test": "R3724",
+     "measures": "weak",
+     "why": "Reads that no fold function is exported and that sumUp's text puts the window up; it would pass with the summary broken in another way. Tier 2 F118-T1 drives the road."
+    },
+    {
+     "test": "R3725",
+     "measures": "weak",
+     "why": "Two regular expressions over setClock's and lateSequence's source: the stamp is not written or read in tier 1 (tiers 0-1 write no setting)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E94 C4: the school's mood reaches the world as its word alone",
+    "tier 2: E110 day boards A - the curtain clock's Morning Eclipse opens the next day on the start-of-day board, with the GM's morning line, and its end plays none",
+    "tier 2: E110 day boards B - a day moved in Edit campaign plays no board, Next time of day from Evening plays the end-of-day board and Next from Night the start-of-day board",
+    "tier 2: E113 day boards C - the Night Eclipse's end plays the end-of-day board of the day, and its start plays none",
+    "tier 2: F118-T1 - the Evening's own summary reaches the screen when Night begins, with the table's sequences on",
+    "tier 2: A113-C5-4 - the school's mood counts a Monocub's purse as its Hope",
+    "scenario 69-day-boards",
+    "scenario 96-late-sequence",
+    "scenario 93-spectator ('board', 'road')"
+   ],
+   "scenarios": [
+    "69-day-boards (audit/harness/README.md:204, stamped fix-113; it names transitions.mjs boardsOf, not E94): on the GM's and three players' browsers the boards where the owner put them on 13.11.2026 - seven checks counting sequence.dayEnd and sequence.dayStart. No incident runs in it.",
+    "96-late-sequence (README.md:230): names Q-E94-4; a late player's start-of-day board once, nothing after 10 minutes or with the switch off.",
+    "93-spectator (README.md:227): the end-of-day board on a Spectator's and a player's browser."
+   ],
+   "live": {
+    "items": 3,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E94-1",
+     "severity": "minor",
+     "title": "While an incident hides the clock, a bystander's browser still plays the day's board when the GM moves the clock into Night or into a new day",
+     "where": "scripts/transitions.mjs:160-186 (onClockHeard asks nothing about the incident), :140-154; scripts/sequence.mjs:1030-1037, :1155-1166; against scripts/day-summary.mjs:91, scripts/hud-elapsed.mjs:199-213, scripts/clock.mjs:881-890, scripts/boundary.mjs:315-321",
+     "what_happens": "The clock's hooks run on every browser, and transitions.mjs plays the boards from them with no question of incident-store.mjs clockHiddenHere. advanceTimeOfDay stamps the move whatever runs (clock.mjs:422-425), and while an incident is before Stage 6 the GM's Next time of day moves the clock with no readiness round (boundary.mjs:315-321). So a bystander whose HUD stays frozen, whose time-of-day card is veiled and whose own day summary is held back gets the full-screen board 'End of day N' or 'Day N' with its chime, for the end board a card of it in the notice history as well, and a first Escape taken for the turn's length.",
+     "failure_scenario": "An incident's opening runs at Evening; p3 is no part of it. The GM presses Next time of day. On p3's screen the clock still reads Evening, and a 6 s board titled 'End of day 3' rises with the End of the day sound: p3 learns the GM moved the clock during the hour, which the module hides everywhere else (the rule cited at clock.mjs:881-890 and hud-elapsed.mjs:180-191).",
+     "confidence": "read",
+     "refutation_tried": "Searched sequence.mjs, transitions.mjs and the sequences' stylesheet rules for murderState, clockHiddenHere or an incident class (none); searched docs/dev, the release notes and AUDIT 9.2 for a later decision that the boards are meant to show during an incident (none: LIVE-E94-03, item 506, asks exactly this and says nothing headless reads it; the triage row at docs/dev/e58/TRIAGE-9.2.md:533 expects 'no clock leak to bystanders'). Checked that the move is an ordinary road: tier 2 E17-T10 itself advances the clock in an incident. At Stage 6 a readiness round already asks every player, so the tell there is smaller. Not run: the finding is traced in source, and R3861 pins that these files ask no viewer."
+    },
+    {
+     "id": "E94-2",
+     "severity": "nit",
+     "title": "Two tests' titles, and their registry rows, describe the board as it was before F118",
+     "where": "scripts/tests-tier1.mjs:57550 (R3725), :58190 (R3731); docs/dev/R-REGISTRY.md:1227, 1233",
+     "what_happens": "R3725's title ends 'the end-of-day board reads its rows from it'; the board has no rows since 1.2.118 and the body reads lateSequence instead (:57558-57559). R3731's title says the end board adds 22 units 'and the start board keeps its spacing'; its body asserts there is no end-board rule and that the shared rule carries the 22 units (:58198-58201).",
+     "failure_scenario": "A reader of the registry takes row R3731 to mean the two boards are spaced differently and row R3725 to mean the end board lists the day's rows.",
+     "confidence": "read",
+     "refutation_tried": "Read both bodies and their F118 comments; the registry is generated from the titles, so the rows follow them."
+    }
+   ],
+   "superseded_by": [
+    "the owner's rule of 12.11.2026, first in v1.2.110: the boards on a real roll-over alone (the dayBoard stamp; R4400)",
+    "gaps-111, first in v1.2.112: the start-of-day board late for 10 minutes (Q-E94-4 answered)",
+    "the owner's rule of 13.11.2026, first in v1.2.113: the end board at Night's start, the start board at the Morning Eclipse's start (boardsOf, nightBoard)",
+    "A113-C5-4, first in v1.2.113: a Monocub's purse in the mood",
+    "F118, shipped as E118 in 1.2.118: one day's board at both ends of the day; the rows, the tally and the public cards gone (R3721 removed); the Evening's summary back"
+   ],
+   "grade": 8,
+   "grade_reasons": "Half of what 1.2.109 promised of E94 was replaced on the owner's word within a week (when the boards play, what the end board holds, the late joiner), and what stands today is delivered: the one day's board, the mood as a word, the morning line. The ten rows that still exist are ok in the base run (R3714, R3715, R3720, R3722-R3727, R3731: tier01.log lines 1631, 1633, 1603-1607, 1615, 1626, 1630; R3721 removed in E118), the main ones drive the board and the mood on stand-ins, and the roads are held in tier 2 and scenario 69 (to join). The secrecy promises read true: the board marks a death by the published flag alone (sequence.mjs:929), the mood's inputs never leave the GM (:1116-1130) and the clock's rule keeps the Overflow's names out. One minor defect: the boards are not held back on a bystander's browser while an incident hides the clock (E94-1), which is the question LIVE-E94-03 left open and no test reads. Part of C5 was never built (scenario 86 not extended for the boards; notes 457-459). All three live checks are unread; the owner's table reports of 12.11 and 13.11 changed the stage but are not readings of its items.",
+   "missing_to_10": "The boards (and the turn's hint) held back where clockHiddenHere answers true, with a scenario that runs an incident across a move into Night; LIVE-E94-01 and -03 read at a table; the frame cost of a board recorded (scenario 86 or a table reading); tier-1 readings of setClock's stamps that drive rather than match text; the two stale titles."
+  }
+ ],
+ "not_established": [
+  "The bodies of R3717, R3718 (past its opening comment), R3719, R3726, R3858, R3862, R3863 and R3864 were not read: where a promise names one of them it is cited by its title in the registry and its ok in the base run, not by what its body does.",
+  "Tier 2's and the scenarios' results of the base run were not ready: every tier-2 name and every scenario in tests_to_join is unjoined, and 'ok in the base run' in this file means tiers 0-1 (tier01.log) only.",
+  "The four plans (docs/dev/plans/E61.md, E62.md, E92.md, E94.md) are on a branch this checkout does not hold. The promises are taken from the 1.2.109 notes and the four STATUS files; what a plan promised beyond them is known only where STATUS or the notes say it was left out.",
+  "E62: whether the direction a clock change hands the curtain always reaches the turn that same change causes on a real page. The hint is set from the clock's hook, after the row's redraws (scripts/sync.mjs:474-475, scripts/transitions.mjs:189), and the curtain turns from a 60 ms timer after the HUD writes the body's attribute (scripts/glass.mjs:3644-3655), taking a hint up to 1.5 s old (:2880). By reading the order holds; jsdom draws no curtain, the glass sweep was not run here, and LIVE-E62-01 has no reading. A hint whose own turn never comes (an hour change that moves no accent, a bystander's frozen clock) stays pending for 1.5 s and would be taken by any other turn in that time; whether that is ever seen was not established.",
+  "E62: the share of the screen one flash group covers against the flash limit's area. The notes say it was not measured and no later measurement was found in docs/dev, the release notes or audit/.",
+  "E92: whether Foundry v14 stops a Spectator's own drag at a wall or a closed door (LIVE-E92-02). The module's verdicts let it through; no reading on a real Foundry exists in live-readings-e58.json, live-readings-other.json, docs/dev/e58/LOCAL-REPORT.md or docs/dev/e39/CALIBRATION.md.",
+  "E92: whether the owner asked for no Stop on a Spectator's sheet (finding E92-1), and whether the owner's 'Dostaje tylko koniec dnia i nastroj szkoly' of 12.11.2026 meant that a Spectator gets no start-of-day board. The code plays everybody's start board on a Spectator's browser (scripts/sequence.mjs:1030-1037, :1213-1214) and no test reads it.",
+  "E92-1 and E92-2 rest on two Foundry behaviours not measured here: a preCreateChatMessage hook that answers false cancels the create without an error, and renderChatMessageHTML is called for each message as the chat log is drawn. The harness models the first (scenario 93 'chat' reads a refused message); neither is a table reading.",
+  "E61: the geometry of the entry beyond the three recorded GM cuts of R3703, R3716 and R3718 (1600x900, 1366x768, 1440x900). Other sizes and a player's cut were read by the stage in Chromium (docs/dev/e61/STATUS.md:65-103), not by a test in CI and not here.",
+  "E94-1 was traced in source, not run: no scenario moves the clock into Night while an incident's opening or fight runs with a bystander's browser watched (scenario 69 has no incident). How often a table advances the clock inside an incident before Stage 6 is the table's; tier 2 E17-T10 shows the road is a supported one.",
+  "No recorded reading on a real Foundry exists for any of the eleven live items of these four stages (items 496-506). The owner's reports from a real table on 1.2.109 and 1.2.112 (the entry's blink, the boards missing on the Morning Eclipse's end, the closed curtain and the scene) are quoted in code comments, test comments and later notes; of them only LIVE-113R-01 is in live-readings-other.json, and none is a reading of items 496-506."
+ ]
+}

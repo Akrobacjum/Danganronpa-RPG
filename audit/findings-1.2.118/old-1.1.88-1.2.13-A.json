@@ -1,0 +1,909 @@
+{
+ "reader": "old-1.1.88-1.2.13-A",
+ "source": "audit/AUDIT-1.1.88.md (the four findings REL-001, LIVE-003, LIVE-001, LIVE-002, with audit/findings/LIVE-findings.md and 'Status after this review') and audit/AUDIT-1.2.13.md section A (A1 to A26, the withdrawn A11 and the forms items A21-A26 included) with the rows of 'Stan realizacji' that concern them",
+ "read": [
+  {
+   "file": "audit/AUDIT-1.1.88.md",
+   "lines": 213,
+   "of": 213,
+   "how": "whole file"
+  },
+  {
+   "file": "audit/findings/LIVE-findings.md",
+   "lines": 108,
+   "of": 108,
+   "how": "whole file"
+  },
+  {
+   "file": "audit/AUDIT-1.2.13.md",
+   "lines": 779,
+   "of": 1368,
+   "how": "1-779: 'Stan realizacji' with its four rounds, the verdict, section A whole, section B with the decisions"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 130,
+   "of": 1666,
+   "how": "1-130 (the method, 11.3), and the lines naming CASE-03/04, LIVE-E16-06, LIVE-E116-01..03, LIVE-E80-02 by grep"
+  },
+  {
+   "file": "audit/findings-1.2.42/case.md",
+   "lines": 12,
+   "of": null,
+   "how": "the four headings CASE-01..04 with their first lines, for the severity scale"
+  },
+  {
+   "file": ".github/workflows/release.yml",
+   "lines": 318,
+   "of": 318,
+   "how": "whole file"
+  },
+  {
+   "file": "module.json",
+   "lines": 13,
+   "of": 70,
+   "how": "the version, compatibility, url, manifest and download lines by grep"
+  },
+  {
+   "file": ".github/release-notes/v1.2.118.md",
+   "lines": 261,
+   "of": 261,
+   "how": "lines 50-62 and 195-202 from the file, and the whole text as the release's body returned by GitHub"
+  },
+  {
+   "file": ".github/release-notes/v1.2.116.md",
+   "lines": 11,
+   "of": 273,
+   "how": "30-40"
+  },
+  {
+   "file": ".github/release-notes/v1.2.113.md",
+   "lines": 10,
+   "of": 236,
+   "how": "183-192"
+  },
+  {
+   "file": "README.md",
+   "lines": 31,
+   "of": 377,
+   "how": "280-310 (the privacy paragraph with the leak markers)"
+  },
+  {
+   "file": "audit/harness/known-leaks.json",
+   "lines": 147,
+   "of": 147,
+   "how": "parsed; the 'about' line and the two token-actor rows whole, the other nine rows by their first 700 characters"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": 12,
+   "of": null,
+   "how": "the rows of scenarios 11, 20, 21 and 72 by grep"
+  },
+  {
+   "file": "audit/harness/scenarios/11-killer-secrecy.mjs",
+   "lines": 162,
+   "of": 162,
+   "how": "whole file"
+  },
+  {
+   "file": "audit/harness/scenarios/20-crit-hope.mjs",
+   "lines": 80,
+   "of": 175,
+   "how": "1-80"
+  },
+  {
+   "file": "audit/harness/scenarios/21-masked-killer.mjs",
+   "lines": 31,
+   "of": 423,
+   "how": "205-235"
+  },
+  {
+   "file": "audit/harness/lib/dh-dice/dice/dhRoll.mjs",
+   "lines": 41,
+   "of": null,
+   "how": "114-154 (buildEvaluate)"
+  },
+  {
+   "file": "docs/dev/e112v/DESIGN.md",
+   "lines": 70,
+   "of": 137,
+   "how": "1-70"
+  },
+  {
+   "file": "docs/dev/e112v/STATUS.md",
+   "lines": 4,
+   "of": null,
+   "how": "four rows by grep"
+  },
+  {
+   "file": "docs/dev/e112/STATUS.md",
+   "lines": 11,
+   "of": 213,
+   "how": "196-206"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": 40,
+   "of": null,
+   "how": "rows by grep: R9, R26, R126, R171, R190, R191, R828, R1120, R1160, R1232, R1500, R1537, R3605, R4621, R7405, R7523, R7703 and neighbours"
+  },
+  {
+   "file": "eslint.config.mjs",
+   "lines": 31,
+   "of": 187,
+   "how": "30-60"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "of": 7534,
+   "how": "parsed whole by script (6369 leaves); about 45 keys looked up and read"
+  },
+  {
+   "file": "lang/pl.json",
+   "lines": 9375,
+   "of": 9375,
+   "how": "parsed whole by script (7456 leaves); the same keys looked up"
+  },
+  {
+   "file": "scripts/critical.mjs",
+   "lines": 125,
+   "of": 125,
+   "how": "whole file"
+  },
+  {
+   "file": "scripts/forced-roll.mjs",
+   "lines": 208,
+   "of": 227,
+   "how": "20-227"
+  },
+  {
+   "file": "scripts/incident-store.mjs",
+   "lines": 240,
+   "of": 1942,
+   "how": "1-240, and its writes of the world half by grep"
+  },
+  {
+   "file": "scripts/mask-gm.mjs",
+   "lines": 312,
+   "of": 714,
+   "how": "1-140, 360-460, 505-575"
+  },
+  {
+   "file": "scripts/settings.mjs",
+   "lines": 332,
+   "of": 4662,
+   "how": "836-945, 2830-2945, 3520-3625"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "lines": 122,
+   "of": 3047,
+   "how": "405-470, 520-575"
+  },
+  {
+   "file": "scripts/gm-store.mjs",
+   "lines": 63,
+   "of": 1760,
+   "how": "757-772, 908, 1030-1075"
+  },
+  {
+   "file": "scripts/world-secrets.mjs",
+   "lines": 200,
+   "of": 445,
+   "how": "1-200"
+  },
+  {
+   "file": "scripts/eclipse.mjs",
+   "lines": 248,
+   "of": 1502,
+   "how": "405-450, 500-540, 879-986, 1210-1262"
+  },
+  {
+   "file": "scripts/movement.mjs",
+   "lines": 82,
+   "of": 4058,
+   "how": "1185-1215, 1750-1800"
+  },
+  {
+   "file": "scripts/overflow.mjs",
+   "lines": 26,
+   "of": 1354,
+   "how": "1100-1125"
+  },
+  {
+   "file": "scripts/despair-award.mjs",
+   "lines": 112,
+   "of": 333,
+   "how": "60-130, 195-235"
+  },
+  {
+   "file": "scripts/reroll.mjs",
+   "lines": 51,
+   "of": 2101,
+   "how": "1040-1090"
+  },
+  {
+   "file": "scripts/roll-draw.mjs",
+   "lines": 188,
+   "of": 3066,
+   "how": "600-652, 1660-1712, 2835-2875, 2990-3030"
+  },
+  {
+   "file": "scripts/sheet-audit.mjs",
+   "lines": 21,
+   "of": 3405,
+   "how": "1925-1945"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": 106,
+   "of": 5646,
+   "how": "652-700, 940-975, 1255-1275"
+  },
+  {
+   "file": "scripts/safeword.mjs",
+   "lines": 71,
+   "of": 477,
+   "how": "100-170"
+  },
+  {
+   "file": "scripts/sfx-play.mjs",
+   "lines": 43,
+   "of": 809,
+   "how": "580-592, 716-745"
+  },
+  {
+   "file": "scripts/sfx.mjs",
+   "lines": 18,
+   "of": null,
+   "how": "95-112"
+  },
+  {
+   "file": "scripts/stash-reach.mjs",
+   "lines": 17,
+   "of": 848,
+   "how": "98-114"
+  },
+  {
+   "file": "scripts/vault-store.mjs",
+   "lines": 121,
+   "of": 1605,
+   "how": "1149-1171, 1275-1372"
+  },
+  {
+   "file": "scripts/key-remnants.mjs",
+   "lines": 56,
+   "of": 1319,
+   "how": "1015-1050, 1116-1135"
+  },
+  {
+   "file": "scripts/action-observe.mjs",
+   "lines": 38,
+   "of": 345,
+   "how": "225-262"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines": 21,
+   "of": 1673,
+   "how": "1355-1375"
+  },
+  {
+   "file": "scripts/private-rolls.mjs",
+   "lines": 86,
+   "of": 1951,
+   "how": "370-455"
+  },
+  {
+   "file": "scripts/remnants.mjs",
+   "lines": 132,
+   "of": 3366,
+   "how": "2509-2640"
+  },
+  {
+   "file": "scripts/visibility.mjs",
+   "lines": 131,
+   "of": 1317,
+   "how": "900-1030"
+  },
+  {
+   "file": "scripts/truth-bullets.mjs",
+   "lines": 20,
+   "of": 2003,
+   "how": "every line naming bulletStore, by grep"
+  },
+  {
+   "file": "scripts/gm-bridge.mjs",
+   "lines": 51,
+   "of": 263,
+   "how": "190-240"
+  },
+  {
+   "file": "scripts/bridge-guards.mjs",
+   "lines": 35,
+   "of": 2163,
+   "how": "82-95, 1865-1885"
+  },
+  {
+   "file": "scripts/module.mjs",
+   "lines": 153,
+   "of": 720,
+   "how": "520-672"
+  },
+  {
+   "file": "scripts/projects.mjs",
+   "lines": 52,
+   "of": 2976,
+   "how": "2849-2900"
+  },
+  {
+   "file": "scripts/anonymity.mjs",
+   "lines": 70,
+   "of": 1054,
+   "how": "1-70"
+  },
+  {
+   "file": "scripts/death.mjs",
+   "lines": 30,
+   "of": 803,
+   "how": "the doc and body of killCharacter and the window's three keys, by grep"
+  },
+  {
+   "file": "scripts/inventory.mjs",
+   "lines": 61,
+   "of": 1402,
+   "how": "580-640"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "lines": 31,
+   "of": 1795,
+   "how": "905-935"
+  },
+  {
+   "file": "scripts/traps.mjs",
+   "lines": 242,
+   "of": 1178,
+   "how": "440-520, 560-720"
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "lines": 21,
+   "of": 1399,
+   "how": "1255-1275"
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "lines": 74,
+   "of": 1640,
+   "how": "172-186, 362-384, 455-490"
+  },
+  {
+   "file": "scripts/diagnostics.mjs",
+   "lines": 72,
+   "of": 2358,
+   "how": "1085-1100, 1153-1185, 1474-1496"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 247,
+   "of": 26270,
+   "how": "1446-1560 (R9), 2285-2385 (R26), 18240-18270 (R1537's header)"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": 13,
+   "of": 63672,
+   "how": "50800-50812, and test names by grep"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": 124,
+   "of": 104280,
+   "how": "38188-38260, 42780-42830"
+  },
+  {
+   "file": "scripts/*.mjs (271 files)",
+   "lines": 434614,
+   "of": 434614,
+   "how": "parsed by a script with espree to count repeated keys in object literals; counted, not read"
+  },
+  {
+   "file": "the base run's tier 0-1 log (outside the repository)",
+   "lines": 27,
+   "of": null,
+   "how": "the verdict lines of 25 named tests and the two summary lines, by grep"
+  }
+ ],
+ "count_expected": 30,
+ "count_note": "4 headings '### [..] <ID>' in AUDIT-1.1.88.md and 26 headings '### A<n>' in AUDIT-1.2.13.md (A1 to A26; A26 stands before A25 in the file). 30 items below, in the source's order. No reading of mine ran the harness; verdicts quoted from the base run are from its tier 0-1 log.",
+ "scripts_written": [
+  "keys.py: flattens lang/en.json (6369 leaves) and lang/pl.json (7456 leaves) and looks keys up",
+  "dupekeys.mjs: parses the 271 files of scripts/ with espree and counts object literals with a repeated static key (53,556 literals, 0 repeats, 0 files that did not parse)"
+ ],
+ "items": [
+  {
+   "id": "REL-001",
+   "title": "GitHub's releases/latest and the main branch both stood at v1.1.0: every v1.1.1-v1.1.88 release was a prerelease, so an install by the manifest got code 110 commits old",
+   "old_severity": "KRYTYCZNY dla wydania",
+   "old_state": "addressed by the 1.2.0 release ('Status after this review', AUDIT-1.1.88.md:197-199): main carries the released code and 1.2.0 was published as a stable release",
+   "status": "fixed",
+   "evidence_class": "K",
+   "evidence": "Local main, origin/main and the tag v1.2.118 are one commit, b5a29e73 (git rev-parse); module.json:5 says 1.2.118 and module.json:68-69 point the manifest and the download at releases/latest/download. release.yml:101-109 refuses a dispatch from any ref but main, :247-250 publishes with --latest (or --prerelease on a train) at the dispatching commit. Read from GitHub through this session's connector on 20.11.2026: releases/latest is v1.2.118, target_commitish b5a29e7362932754d0f8aa7c11b986fe7a8dcafc, prerelease false, published 2026-11-19T11:59:07Z, assets module.json and module.zip; the eight newest releases (v1.2.111 to v1.2.118) are all prerelease false.",
+   "pinned_by": "no test; release.yml:255-276 ('Show what latest resolves to') only warns when latest is not the tag; `node tools/check.mjs stamps notes --release <tag>` (release.yml:197) holds the tag to module.json",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for both causes of the old failure today: main behind the newest tag (they are equal) and a release left as a prerelease (none of the eight newest is). Also read whether latest may lag by design: it may, between the two dispatches of a train (next field).",
+   "note": "By decision, a train is first published as a prerelease and promoted to latest after the owner's smoke at a table (release.yml:50-66 and :278-318; the release rules file, step 8; the owner's O1 of 15.10.2026, INFRA I10 of 18.10.2026), so latest lagging the newest tag for that interval is intended, and the run warns. The brief said GitHub's API could not be reached; it could, read-only, and two calls were made (the latest release; the eight newest releases). Not read: the published module.json asset's own download field, which release.yml:211-226 rewrites to the tag's zip. Of the numbers v1.2.0 to v1.2.118 four have no tag in this clone (1.2.6, 1.2.28, 1.2.29, 1.2.43; 115 tags of 119); 1.2.43 has a notes file and the commit 35dc48d0."
+  },
+  {
+   "id": "LIVE-003",
+   "title": "A critical paid +3 Hope instead of the guide's +2: critical.mjs made Daggerheart's pipeline pay 2 and despair-award.mjs topped it up by 1 on the chat message",
+   "old_severity": "WYSOKI",
+   "old_state": "fixed in 1.2.0 ('Status after this review': the funnel in critical.mjs is the only payer of a fresh critical, R26 states the rule, re-measured +2)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "critical.mjs:55-113 wraps DualityRoll.addDualityResourceUpdates and sets Hope to what stood before the call plus CRITICAL.hope (critical.mjs:97-104; config.mjs:1259-1262, hope 2), only when the original paid something. despair-award.mjs:81-104: the chat hook pays no Hope, only the roll's Despair. reroll.mjs:1073-1087 pays the second point for a critical reached by a Reroll (the system's own step pays one there), behind Daggerheart's hopeFear.players. A Grant of a roll thrown with no GM runs the same wrapped step once per roll (roll-draw.mjs:2995-3012). Fixing commit 62ee93c6 (30.08.2026, in v1.2.0).",
+   "pinned_by": "R26 (tier 0, the census of payers), R3605 (tier 1, a critical on Daggerheart 2.12 pays 2), scenario 20-crit-hope ('critical pays exactly +2 Hope (guide), not +3', layer ci), tier 2 'a Reroll that gains a critical pays the second Hope only with player automation on'. R26 and R3605 ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log).",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched every non-test script for a second payer (CRITICAL.hope, addDualityResourceUpdates, adjustCritHopeTopUp): critical.mjs pays; roll-draw.mjs:2859 only words a card; sheet-audit.mjs:1938 judges what a roll may cover and pays nothing; adjustCritHopeTopUp has one caller, reroll.mjs:1080.",
+   "note": "R26 reads the source, by its own header (tests-tier0.mjs:2319-2323); the driven +2 is scenario 20's, whose result in this audit's base run I did not read."
+  },
+  {
+   "id": "LIVE-001",
+   "title": "The killer's (and the accomplice's) identity was readable from any player's console: the world setting murderState carried killerId and thirdId, and world settings reach every browser",
+   "old_severity": "WYSOKI",
+   "old_state": "left open at 1.2.0 on purpose ('Status after this review'); decided 02.09.2026 (Q16: fix with a GM-side ledger) and done 03.09.2026 for both the incident's cast and the Blackened register (AUDIT-1.2.13 'Stan realizacji' row 1b, in v1.2.14, commit 5c69acf2); the 1.2.42 audit called it half done (CASE-02, -03, -04)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Closed: the world setting murderState (settings.mjs:2840-2846) may hold only `active` and `stage` (incident-store.mjs:148-151 PUBLIC_INCIDENT; splitIncident :159-167 sends any other field to the cast or nowhere; world-secrets.mjs, murderState `only: [active, stage]`). The names live in the GMs' store castStore (gm-stores.mjs:429-431; client setting, settings.mjs:2904-2910), each participant holds a stamped copy (castCopy, gm-stores.mjs:554-557; settings.mjs:2912-2918), the chapter's killers are the GMs' blackenedStore (gm-stores.mjs:468-470; settings.mjs:2926-2931), and a bystander's incidentCast() is empty (settings.mjs:3535-3544). Still there by another road: mask-gm.mjs:424-426 and :443-455 write the token flag `veiled` on every token of a direct murder's killer and of a third on the killers' side (veilWanted :411-414) while the opening waits (murder-rules.mjs:548-551), and maskPatch (mask-gm.mjs:78-81) leaves the '?' token its actorId; token documents reach every browser.",
+   "pinned_by": "The closed half: R9 (tier 0), R190 (tier 1), R191 (tier 0), R171 (tier 0), scenarios 11-killer-secrecy and 72-canary; R9, R190, R191 and R171 ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log). The open half is held as a known leak, not as a pass: scenario 21-masked-killer.mjs:230-232 (knownLeak foundry-veiled-token-actor) and 30-security.mjs:7020 (foundry-masked-token-actor) are expected red, and each fails the run when the reading stops reproducing.",
+   "still_wrong": "A player whose student is not in the incident lists the tokens carrying flags['danganronpa-rpg'].veiled (or the token named '?' with the flag masked) in the console and reads game.actors.get(token.actorId).name: the killer of a direct murder, and a third seated on the killers' side, while the opening waits and for as long as a mask stands.",
+   "severity_now": "major",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard on the token road: visibility.mjs only stops the drawing; world-secrets.mjs has no rule for the token flags veiled or masked; a victim's and a bystander's cast copies hold no killer and the GMs' veil store reaches no player (scenario 21's checks beside the red one). Looked for the owner's decision: README.md:298-304 states both readings; the mask's sentence carries 'the owner's yes of 14.11.2026' (.github/release-notes/v1.2.113.md:187-189); for the veil's mark I found the coordinator's default (docs/dev/e112v/DESIGN.md:51-66, 'Asked of the coordinator as Q1') and the release notes' Known gaps, not an owner's answer.",
+   "note": "By decision for the mask's half ('a curtain, not a wall', the owner's yes of 14.11.2026); a recorded Foundry limit for the veil's half (audit/harness/known-leaks.json rows foundry-masked-token-actor, since 1.2.113, and foundry-veiled-token-actor, since 1.2.116, narrowed in 1.2.118; class metadata, severity info). That the flag reaches a victim's and a bystander's browser is the harness's measurement written in that row (E112v, 16.11.2026, on dd9a56ed); I ran nothing. Severity major, as the 1.2.42 audit weighed the same kind of reading (CASE-03, CASE-04): it needs a console, which is why 1.1.88 called its own finding high and not critical. Counted once here; A5 below is the world setting alone."
+  },
+  {
+   "id": "LIVE-002",
+   "title": "Two i18n keys of Season setup, DRPG.Season.step.resources and DRPG.Season.hint.resources, were reported missing from lang/en.json, so a GM would see the raw key",
+   "old_severity": "NISKI",
+   "old_state": "withdrawn at 1.2.0 as a false positive of the harness: both keys existed as dotted keys inside a nested block, which Foundry expands; the harness was corrected, the module was not changed",
+   "status": "withdrawn-then",
+   "evidence_class": "S",
+   "evidence": "I agree with the withdrawal. Today both keys resolve in both files (flattened by script: en 'Starting Health, Sanity, and Hope' and 'Without them a character is Wounded and in Breakdown at once.'; pl has both), and season-setup.mjs:945 and :960 build `DRPG.Season.hint.<key>` and `DRPG.Season.step.<key>` from each row's key.",
+   "pinned_by": "tier 1 'every string the code asks for exists in the language file' (tests-tier1.mjs:2555; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)); `node tools/check.mjs parity` for the Polish twin",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Flattened lang/en.json (6369 leaves) and lang/pl.json (7456 leaves) with a script and looked both keys up, then listed every DRPG.Season.step.* (25) and DRPG.Season.hint.* (24) key beside the two template strings that read them.",
+   "note": "The 25 step keys against 24 hint keys were not matched row by row against the wizard's table: a row may name its own hint (`hintKey`, season-setup.mjs:945)."
+  },
+  {
+   "id": "A1",
+   "title": "The safeword never played its sound: the object literal handed to announce() carried `flags` twice, the second replaced the first, and the sfx flag was lost",
+   "old_severity": "P1",
+   "old_state": "'Stan realizacji' step 1: done (03.09.2026; commit 5c69acf2, in v1.2.14)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "safeword.mjs:129-159 `safewordCard()` builds one `flags` object holding `sfx: { key: \"safeword\", gm: true }`, the safeword marker and `popupKind: \"none\"` (:146-157). sfx-play.mjs:719-737 `soundFromMessage` reads that flag off the card, and :585-591 plays the safeword at volume 1 whatever the module's slider says. v1.2.13 had two `flags:` keys in the file, v1.2.14 one.",
+   "pinned_by": "none found for the card itself naming its sound (no test reads safewordCard()'s sfx flag); R828 (tier 1) and tier 2 'a player's card rings the safeword's siren only with the marker on its document' pin the player of the sound. The lint has no no-dupe-keys rule (eslint.config.mjs:48-50).",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Parsed all 271 files of scripts/ with espree and counted object literals holding the same static key twice: 0 in 53,556 literals. Read the three callers of the card (safeword.mjs:260, :286, :357): all pass safewordCard() whole.",
+   "note": "The module ships no audio: the sound is heard only where a GM mapped a file to the safeword event (sfx.mjs:642-644 says so on the Effects tab, R7108). The audit's proposed guard for the whole class, ESLint's no-dupe-keys or a tier-0 criterion, was not adopted (see new_observations)."
+  },
+  {
+   "id": "A2",
+   "title": "The Overflow's Darkness lowered the Eclipse crossings (2 to 1) on the sheet and the HUD only: movement.mjs refused at the bare constant 2, and eclipse.mjs whispered 'left' from the constant",
+   "old_severity": "P1",
+   "old_state": "'Stan realizacji' step 1: done (03.09.2026; commit 5c69acf2, in v1.2.14)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The walker's gate reads the darkened number: movement.mjs:1774-1776 `overflowCrossings(freePlacement ? null : ECLIPSE_MOVES)` plus the character's own timed crossings, refused at :1792 when the count reaches it. The GM's judge of a crossing it sees reads the same (movement.mjs:1196-1202). The count and the whisper use `eclipseAllowanceFor` (eclipse.mjs:1218, :1239-1242 `left: allowance - used`). overflow.mjs:1107-1117: under Darkness two become one and a free placement becomes two.",
+   "pinned_by": "R1232 (tier 1) calls overflowCrossings with the darkening running (free placement 2, the ordinary two 1; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)); R1160 (tier 0) for the explanation's number. No test found that drives a second crossing through movement.mjs's gate under a darkening (the tests' only readers of overflowCrossings are R1160 and R1232).",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every non-test reader of ECLIPSE_MOVES: movement.mjs:663, :1196 and :1774 all pass it through overflowCrossings; hud.mjs:1316 and explain.mjs:125 too; eclipse.mjs:74-78 is the allowance itself. No reader compares a count with the bare constant.",
+   "note": ""
+  },
+  {
+   "id": "A3",
+   "title": "A stash from before E11 did not count toward its limit: stow() matched `stashRoom === room`, and older items carry no such flag",
+   "old_severity": "P2",
+   "old_state": "not in any step of section H; corrected in the verification round of 03.09.2026 (the heading says 'poprawione 03.09'; commit 5c69acf2, in v1.2.14)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "stash-reach.mjs:104-113: `stow` counts the room's stash with `stashItemsIn(actor, room, scene)` and refuses at VAULT_LIMIT (config.mjs:904, 3). vault-store.mjs:1149-1157: `stashItemsIn` reads an item with no stamp as the primary stash's. The primary GM's judge of a player's stash write counts the same way (sheet-audit.mjs:2290).",
+   "pinned_by": "none found for the unstamped item (tier 2 reads stashItemsIn against VAULT_LIMIT only as a precondition, tests-tier2.mjs:76902 and :79265; R10 times the lookup)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched for another writer of the stash stamp that could pass the limit: stash-reach.mjs:123 (stow, after the count), :194 (retrieve, clears it) and vault-store.mjs:1258 (a room's rename carries it). None adds an item to a stash without the count.",
+   "note": ""
+  },
+  {
+   "id": "A4",
+   "title": "forced-roll.mjs replaced the client's one dice generator (CONFIG.Dice.randomUniform) from the configuration hook until the next chat message, so any other roll on that client in between took the loaded sequence",
+   "old_severity": "P2",
+   "old_state": "narrowed to one roll on 03.09.2026 (third round of the verification; commit 5c69acf2): the swap sits on that roll instance's own evaluate and is lifted in a finally; tried live in the sandbox the same day",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Gone: the open-ended window. forced-roll.mjs:176-226 shadows `evaluate` on the one Roll instance, swaps the generator only inside that call (:197-217) and restores it in `finally` (:219-224); once per purchase (`spent`, :177, :190-196). Still so: the generator swapped is the client's global one, for as long as one roll evaluates, and since E29 a second site does the same for the roller's copy of a roll the GM drew (roll-draw.mjs:637-650, the swap at :642-648).",
+   "pinned_by": "R1537 (tier 0: both swaps are rows of the contract register; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)); tier 2 E15-T7 and E16-T35 read the loaded die's faces. No test found that evaluates a second roll inside the first's evaluation.",
+   "still_wrong": "On one client, a second roll evaluated while a loaded roll's (or a drawn roll's copy's) evaluate is still pending would draw from the swapped generator and could take the forced face; whether an evaluation can stay pending that long on Foundry 14 was not established.",
+   "severity_now": "nit",
+   "confidence": "suspected",
+   "refutation_tried": "Read what the window now spans: Daggerheart's buildEvaluate awaits `roll.evaluate()` and nothing else (the harness's verbatim copy, audit/harness/lib/dh-dice/dice/dhRoll.mjs:114-123), so with the default dice method no click can land inside it; forced-roll.mjs:45-48 says the same. Foundry's own evaluate is not in the repository, so a dice method that waits for a person was not read.",
+   "note": "The 1.2.13 audit's own proposal (hand the values to the roll's own terms, no global hook) was not taken; the narrowing was. LIVE-E16-06 (9.2 item 305) is the open table reading for a non-default dice method."
+  },
+  {
+   "id": "A5",
+   "title": "murderState, a world setting, carried killerId (LIVE-001 restated, with question Q16: an accepted risk or a fix)",
+   "old_severity": "P1 (znane)",
+   "old_state": "decision Q16 of 02.09.2026: fix with a GM-side ledger; 'Stan realizacji' row 1b: done for both the cast and the Blackened register (03.09.2026; v1.2.14)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "As LIVE-001's closed half: murderState holds `active` and `stage` only (incident-store.mjs:148-151; settings.mjs:2840-2846), the cast and the chapter's killers are GM stores (gm-stores.mjs:429-431, :468-470) and a participant's copy (gm-stores.mjs:554-557). The lift out of world data runs once, on the primary GM, and reads back before it removes (incident-store.mjs:1480-1539 `liftIncidentSecrets`).",
+   "pinned_by": "R9, R191 (tier 0), R190 (tier 1), R178 (the lift is a migration clause), scenario 11-killer-secrecy; all four tests ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read every write of the world half: incident-store.mjs:380, :827, :964, :1501, :1627 all write a value split by splitIncident or an emptied one; R191 reads each literal write for an unlisted field.",
+   "note": "The same failure by another road (token flags) is counted once, under LIVE-001. `fromIncident` on a trace token, which the 1.2.13 text calls accepted (D11), is still on the token while its incident runs (world-secrets.mjs, the Token rule's comment)."
+  },
+  {
+   "id": "A6",
+   "title": "A Key Remnant created from an Observe ruling card landed on the scene the GM was viewing (createKeyRemnant took canvas.scene), not the player's",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 1: done (03.09.2026; commit 5c69acf2, in v1.2.14)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The card carries the player's scene: action-observe.mjs:228-230 reads it from where the roller's character stands and :249-254 puts it on the button's data as `scene`. messenger-app.mjs:1363-1369 hands it on as `sceneId`; key-remnants.mjs:1129 resolves that scene (the viewed one only when none came) and lists that scene's rooms; `createKeyRemnant(row, scene)` (key-remnants.mjs:1030-1045) places in that scene's region and stamps its id.",
+   "pinned_by": "none found (tests-tier0.mjs:9153 lists the card's button as out of scope of the bridge census; no test opens the placement from a card on another scene)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the other callers: `placeInSlot` (key-remnants.mjs:1221, :1272) uses the planner's own scene, right for the dashboard; `game.drpg.keyRemnantHere` with no scene falls back to the scene on screen, which is the GM's own call.",
+   "note": ""
+  },
+  {
+   "id": "A7",
+   "title": "A chat card's outcome colour was read from its words: rollOutcomeOf matched /critical|fear|despair|hope/ against flavour and content, so 'No Hope left' painted a card gold",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 1: done (03.09.2026; commit 5c69acf2, in v1.2.14)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "private-rolls.mjs:431-443: `rollOutcomeOf` answers null for a message with no roll and otherwise reads `readDuality(message)` - the two d12s - for critical, fear or hope. Its one outside caller is messenger-app.mjs:698.",
+   "pinned_by": "none found (no test names rollOutcomeOf)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched non-test scripts for another regular expression that tests a card's text for hope, fear, despair or critical: none.",
+   "note": ""
+  },
+  {
+   "id": "A8",
+   "title": "retuneRemnant still renamed the token by its visibility band; for a token from before the ledger that wrote the band back into a public name",
+   "old_severity": "P2",
+   "old_state": "decision Q13 of 02.09.2026: remove the block; 'Stan realizacji' step 1 ('rename w retuneRemnant'): done (commit 5c69acf2)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "remnants.mjs:2509-2592: `retuneRemnant` deletes the token or writes the GMs' ledger row (`setRemnantSecret` through `writeKind`, :2590); there is no token update of a name in it (the comment at :2534-2548 records the removal).",
+   "pinned_by": "tier 1 'a Remnant token's name gives nothing away' (tests-tier1.mjs:4700, a scan of the world's trace tokens) and R1120 (tier 0); both ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed the writes of a trace token's name in remnants.mjs (:486, :1318, :1501, :1549, :3102, :3132): a neutral word, an empty name or the description a GM gave; none writes a band.",
+   "note": ""
+  },
+  {
+   "id": "A9",
+   "title": "hideMovementTrail guessed four property names for the drag ruler and was never confirmed live; if none matched, a drag in an Eclipse showed the others where a token went",
+   "old_severity": "P2",
+   "old_state": "decision Q9: confirm live; read in the sandbox on Foundry 14.365 on 03.09.2026 (the trail is token.ruler with a `visible` field; the three other names removed); what another player sees during a real drag was left for a table",
+   "status": "partly",
+   "evidence_class": "K",
+   "evidence": "Settled: the name. visibility.mjs:1013-1016 writes `token.ruler.visible = false` and nothing else, and the comment at :911-921 records the 14.365 reading and what it could not show. Added since (owner-116, 1.2.116): the ruler class asks `rulerHere` on every write of its `visible` (visibility.mjs:1005-1011, `rulerShownTo` :940-947). Not settled: nobody has read, on a real Foundry 14, another player's screen during a drag.",
+   "pinned_by": "R7523 (tier 0) and R7703 (tier 1) read the rule on stand-ins (ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)); the harness has no canvas. Live: 9.2 items 558-560 (LIVE-E116-01 to -03) and 264 (LIVE-E80-02).",
+   "still_wrong": "During an Eclipse a player drags a token and another player's screen may still draw the ruler's path and distance: whether Foundry 14.370's ruler takes the module's `visible` write is the open question LIVE-E116-01 asks (an accessor or an instance field, and which class).",
+   "severity_now": "minor",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a recorded reading on a real Foundry: docs/dev/e58/LOCAL-REPORT.md and docs/dev/e39/CALIBRATION.md hold none of the ruler as another player sees it (one row names TokenDocument#movement's keys); the live-readings files of this audit list only LIVE-E116-03 as partly read.",
+   "note": "Season setup's optional row hides the players' ruler by Foundry's own permission (season-setup.mjs:613-618, E80 C5), a second road to the same end that does not depend on the write."
+  },
+  {
+   "id": "A10",
+   "title": "The Truth Bullet ledger had no cache: secretOf parsed the client setting on every call, and the Investigation dashboard calls it per bullet on every rebuild",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 1: done (03.09.2026, a cache; closes D1)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The ledger is a GM store since E04 (1.2.63): truth-bullets.mjs:182-185 `secretOf` is `bulletStore.get(uuid)`, which reads the section held in memory (gm-store.mjs:908 `get: k => current(st).section.e[k]`); storage is parsed once per world and kept (gm-store.mjs:757-769 `worldOf`).",
+   "pinned_by": "none found (R10 times five hot lookups, secretOf not among them; R171 holds every reader to the engine)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched truth-bullets.mjs for a read of the setting past the store: none (R171 fails any read of a store's key outside the engine; ok in the base run).",
+   "note": "The 03.09 cache itself is gone with the old ledger; the store that replaced it does the same job."
+  },
+  {
+   "id": "A11",
+   "title": "WITHDRAWN by the 1.2.13 audit itself (02.09.2026): it had read `payload.userId !== game.user.id` in gm-bridge.mjs as the sender check; the handlers take authority from Foundry's senderId and use payload.userId only as an address",
+   "old_severity": null,
+   "old_state": "withdrawn on 02.09.2026 while carrying out step 1; no change made",
+   "status": "withdrawn-then",
+   "evidence_class": "S",
+   "evidence": "I agree. Today the pairs still stand together: gm-bridge.mjs:198-201 and :227-230 (the opening roll asked and withdrawn: addressed to me, then `game.users.get(senderId)?.isGM`), bridge-guards.mjs:1875-1878 `replyForMe` (the same two lines for every reply), incident-store.mjs:1395 and :1405, projects.mjs:606, fog.mjs:1412.",
+   "pinned_by": "R1b (tier 0, 'no socket handler takes a character on somebody's word'; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)), scenario 30-security",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every non-test line comparing a packet's userId with this user (14 lines): each socket handler among them also tests the sender Foundry names; sfx.mjs:101-104 tests the sender first.",
+   "note": ""
+  },
+  {
+   "id": "A12",
+   "title": "refreshTableCopy and resealSecretProjects ran at ready on every GM's client at once: two GMs, two parallel writes to the same tables and the same countdown record",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 1: done (03.09.2026; commit 5c69acf2, in v1.2.14)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "module.mjs:559-576: the item tables' wording pass returns unless `isPrimaryGm()` (:568). module.mjs:637-669: the reseal asks `isPrimaryGm()` inside the closure (:661), at load and at every createUser, so whichever client is primary then does it. The neighbours are gated the same way (module.mjs:590, :610, :619). Since E36 a reseal is one step of the primary's queue per project (projects.mjs:2871-2872).",
+   "pinned_by": "none found for the gate itself (R4621, tier 1, pins the reseal's wait for the GMs' copies; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log))",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the other callers: migrate.mjs:1107 (a migration clause, primary only by R178) and projects.mjs:2898 `seeAsSpectators` (one GM's own role change, which goes through the same queue).",
+   "note": "The gate is at the load-time callers on purpose, not inside the functions: both stay on game.drpg as repair routes a GM may run by hand (module.mjs:564-566)."
+  },
+  {
+   "id": "A13",
+   "title": "Four setting hints described behaviour the module no longer had (lockPlayerResources, enforceAnonymity, despairFromRolls, musicEnabled), and the unused key Anonymity.forcedOnCreate said 'set to None'",
+   "old_severity": "P2",
+   "old_state": "decisions Q10 and Q11 of 02.09.2026 (rewrite the hints to the code); 'Stan realizacji' step 4: done",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json today: lockPlayerResources.hint says a player's own edit of Actions, Hope, Health, Sanity or statistics is put back or flagged and only listed with the switch off (the rule as the repository's trust-model rules file states it; I did not re-read sheet-audit.mjs for it); enforceAnonymity.hint lists what another player's sheet shows, the list of anonymity.mjs:22-23; despairFromRolls.hint points at the GM panel's Despair Flow (gm-panel.mjs:378); musicEnabled.hint points at the Sound window. DRPG.Anonymity.forcedOnCreate is in neither language file. Each hint has its Polish twin.",
+   "pinned_by": "none found for the sentences' truth (parity and `check text` hold the keys and their style, not what they claim)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Compared three of the four sentences with the code they describe (anonymity.mjs's header, the panel's Despair Flow tile, the Sound window's keys) and the fourth with the trust-model rules file, and looked the five keys up in both flattened language files.",
+   "note": ""
+  },
+  {
+   "id": "A14",
+   "title": "The death texts said a dead student's inventory is destroyed (deathNote, revived, keepItems, two comments); the code removed only Truth Bullets and left the rest on the body",
+   "old_severity": "P2",
+   "old_state": "decision Q3 of 02.09.2026 (the code is the rule: belongings stay, Truth Bullets go; five texts and two comments to correct); 'Stan realizacji' step 4: done",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "DRPG.Chapter.deathNote now says the Truth Bullets are destroyed unless kept and 'Everything else stays on the body to be found'; DRPG.Chapter.revived says the Truth Bullets lost with the death do not come back; the box is DRPG.Chapter.keepBullets ('Keep their Truth Bullets, for a death outside the killing game'); the count is the plural family DRPG.Chapter.bulletsGone. keepItems and itemsGone are gone from both files. death.mjs:130-135 (the doc) and :209-210 (`destroyBullets` unless keepBullets) agree; the window reads the three keys at death.mjs:760-764.",
+   "pinned_by": "none found for the sentences' truth",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked up the old and new keys in both flattened language files and read killCharacter's doc and its one deletion (death.mjs:158-210).",
+   "note": "Since E05 a death kept secret destroys the bullets only at its publication; the note says that too."
+  },
+  {
+   "id": "A15",
+   "title": "Dead code and identical branches: an empty `if` in clock.mjs, a ternary with two equal arms in projects.mjs, PROJECT_ITEMS, three aliases kept for macros, two historical macros, about eleven unused i18n keys, and a hard-coded file list in diagnostics.mjs `fileSizes`",
+   "old_severity": "P3",
+   "old_state": "'Stan realizacji' step 8 and the heading's 'Stan 03.09': all done; the three aliases and the two macros removed in the third round (decisions Q12 and Q17)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "None of the seven is in the tree: no `next.session > before.session` in clock.mjs; no ternary with two equal `Math.min(current, target)` arms; PROJECT_ITEMS is one comment recording its removal (tables-pools.mjs:663); no openRestRoomsDialog, manageRestRooms, openMusicDialog or a `trialQueue` function (only the setting's key is left); there is no macros/ directory; the eleven keys named (Anonymity.forcedOnCreate, Anonymity.notYours, Music.tabPlay, Music.tabPlaylists, Music.title, Project.gmCanAdjust, Tables.tabEdit, Tables.tierTarget, Sheet.groupWeapons, groupTools, groupCleaners) and every DRPG.Roster key are in neither language file; `fileSizes` walks the manifest's styles, the languages and the scripts crawled from module.mjs (diagnostics.mjs:1095-1099, :1153-1160).",
+   "pinned_by": "R126 (tier 0, fileSizes reads every stylesheet and language the module loads; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log)); `npm run lint` no-unused-vars for dead names; nothing found that pins the i18n keys' removal",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "One git grep or key lookup for each of the seven bullets, over scripts/, lang/ and the tree's top level.",
+   "note": "Whether other unused keys exist today is the text pass's question, not this item's."
+  },
+  {
+   "id": "A16",
+   "title": "hasGm() mixed a question with a side effect: every call with no GM online raised a toast, so a caller that only wanted to dim a tile got a toast per render",
+   "old_severity": "P3",
+   "old_state": "split in the fourth round of 03.09.2026: gmOnline() asks, hasGm() refuses with the toast",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "bridge-guards.mjs:82-84: `gmOnline()` returns whether any GM is active and does nothing else. No function named hasGm is left in scripts/ (git grep for `hasGm(` outside the tests: 0 lines); the 'no GM' message is the bridge's own, said once by the request (`bridgeRequest`), and callers that only ask use gmOnline (for example action-listen.mjs:273 and :287).",
+   "pinned_by": "R161 (tier 0: who asks, and whether a GM is there, is answered in one leaf; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log))",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed the callers of gmOnline() outside its file (20 lines by grep): a caller either returns at once (action-listen.mjs:273, :287) or opens a block of its own at the action; I did not read those blocks.",
+   "note": "The claim is about gmOnline having no side effect, which is three lines; what each caller then says is its own."
+  },
+  {
+   "id": "A17",
+   "title": "Texts outside i18n: the literals ' · Hope' and ' · Despair' in gm-bridge.mjs, a hand-made .replace('{count}') in explain.mjs, and whole English reports in diagnostics.mjs and voice.mjs",
+   "old_severity": "P3",
+   "old_state": "fourth round of 03.09.2026: the two literals and the replace go through i18n; the diagnostic reports stay English in code ('it is the console')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "No non-test script holds ' · Hope' or ' · Despair' as a literal (git grep: one comment bullet in action-murder.mjs:345), and none calls `.replace(\"{` on a text (git grep: 0). The pickaxe finds the literal's removal in 5c69acf2 (03.09.2026).",
+   "pinned_by": "`node tools/check.mjs text` (the lint of user-facing literals; part of the base run's green quick gate)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Two greps over scripts/ outside the tests for the literals and the hand-made placeholder.",
+   "note": "The third part is by decision: the diagnostics' console stays English (the repository's instruction file, 'The house style'; DB12, the owner's answer to Q-E65-1 of 01.11.2026). That report() also whispers the English report into chat is unchanged."
+  },
+  {
+   "id": "A18",
+   "title": "Seven global overrides of Foundry and Daggerheart, each documented where it lives but listed nowhere: a register and one diagnosePatches() were proposed",
+   "old_severity": "P3",
+   "old_state": "register added in the verification round of 03.09.2026 (scripts/patches.mjs, without a `since` field)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/patches.mjs (1656 lines) holds the register (25 lines `kind: \"override\"` by grep, and its hook rows, which I did not count) and `diagnosePatches`, reached on demand from game.drpg (api.mjs:1257).",
+   "pinned_by": "R1537 (tier 0: every override of another package's prototype, class or CONFIG entry and every hook of another package is a row of the register, read off the source with planted faults; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log))",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Counted the rows and checked that the two swaps of the dice generator this pass met (forced-roll.mjs, roll-draw.mjs) are among them (patches.mjs:362; R1537's header names both).",
+   "note": ""
+  },
+  {
+   "id": "A19",
+   "title": "Two exports named giveItemDialog with different signatures (the GM gives; a player hands over), one of them under the public API name",
+   "old_severity": "P3",
+   "old_state": "renamed in the fourth round of 03.09.2026: gmGiveItemDialog and handOverDialog; game.drpg.giveItemDialog kept for macros",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "gm-items.mjs:1041 exports `gmGiveItemDialog(actor)`, handover.mjs:131 exports `handOverDialog(actor, item, ...)`, and api.mjs:777 keeps the public name as `giveItemDialog: handOverDialog`. No other function of that name exists in scripts/.",
+   "pinned_by": "none found by name",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git grep for giveItemDialog outside the tests: the three lines above and no fourth.",
+   "note": ""
+  },
+  {
+   "id": "A20",
+   "title": "The entity &mdash; in three places (secret.mjs, vault.mjs twice) against the house rule of plain hyphens",
+   "old_severity": "P3",
+   "old_state": "decision Q15/Q18 of 02.09.2026: plain hyphens everywhere in code and user text; 'Stan realizacji' step 1: done",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "git grep for `&mdash;` and `&ndash;` over scripts/, lang/, styles/, module.json and README.md finds only the tests' own planted fixtures (tests-text.mjs:3134, :3155) and a detector's pattern (tests-tier0.mjs:23040).",
+   "pinned_by": "`node tools/check.mjs dashes` (green in the base run's quick gate) and the text lint's T6 (tests-text.mjs `dashesIn`)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "The grep above, entities and both characters.",
+   "note": ""
+  },
+  {
+   "id": "A21",
+   "title": "No way to leave a room out of the guide's 1.5 rooms per player, and two screens counted the ratio with two formulas (every region against ceil; unowned unlocked rooms against round)",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 3: done (03.09.2026)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "One census and one rounding: vault-store.mjs:1319-1343 `roomCensusOf` / `roomCensus` count a room a GM marked that nobody owns and that is not 'No privacy' (a locked room counts, listed apart), :1366-1368 `roomsWantedFor` is the one `Math.ceil`, and :1345-1358 `roomRatioLine` is the one sentence. Room setup reads it (room-setup.mjs:633-642), the season checklist reads it (season-setup.mjs:283, :483), and fog.mjs:1022 reads the same census.",
+   "pinned_by": "R1500 (tier 1: one census of rooms and students, read by the Doors tab, the season checklist and Pre-season checks; ok in tiers 0-1 of the central base run on b5a29e73 (20.11.2026: 1776 passed, 0 failed, 16 skipped; read in the run's log))",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every non-test reader of ROOMS_PER_PLAYER and roomCensus: the constant is read in vault-store.mjs alone (season-setup.mjs:31 says it no longer reads it).",
+   "note": "The rule moved once more after 03.09 (E20 C1, the owner's Q-3 of 29.10.2026: locked rooms count, the living are counted); the code is that later rule."
+  },
+  {
+   "id": "A22",
+   "title": "Item Tables > Create an item offered one flat 'Usable' and a 'Room Key': a bare usable resolved to the retired mixed pool and had no kind, and a key made there opened nothing (the report's third point, the Search card's preset, was withdrawn by the report itself)",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 2: done (03.09.2026); point three recorded as mistaken in 'Co sie zmienilo w samym audycie'",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "inventory.mjs:607-624 `pickableCategories` is the one list: usables split by kind (`usable:healing`, `usable:stress`), keys and Truth Bullets left out unless asked. The Create an item form reads it (tables-editor.mjs:928) and matches a preset that names a bare category to that category's first kind (:929-935).",
+   "pinned_by": "none found that reads the Create an item form's options (tier 1 reads pickableCategories for Room setup's field names, tests-tier1.mjs:50807-50808)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every non-test loop over ITEM_CATEGORIES (13 lines): the forms that offer a category to create or favour (gm-items.mjs:621, tables-editor.mjs:928, room-setup.mjs:1269) all go through pickableCategories; the rest list what exists.",
+   "note": ""
+  },
+  {
+   "id": "A23",
+   "title": "Plant the item (a trap): the same old category list - as corrected by the report itself, the select was dead (a planted item takes the searcher's category) and a planted item can spring only for someone who searched for a usable",
+   "old_severity": "P2",
+   "old_state": "decision of the owner, 03.09.2026: 'yes, only for a searcher of a usable'; the dead select removed, plantItem stores no category or tier, the window says why",
+   "status": "decision",
+   "evidence_class": "S",
+   "evidence": "The code does what was decided: traps.mjs:632-703 `openPlantDialog` asks a name and a room only, shows DRPG.Trap.plantUsableNote ('It can set off the trap only if they searched for a usable item ...') and calls `plantItem` with the name and the room's scene (:698); `plantItem` (traps.mjs:503-515) stores what it is given beside the project and the item's identity, no category or tier.",
+   "pinned_by": "none found for the window's fields; tier 2 E14-T9 reads who is told when a plant is taken",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the plant's taker: the GMs are told who took it, since a plant found as a tool or a weapon is spent for nothing (traps.mjs:569-587, E14 part 2 C4), which is the decided rule's consequence made visible, not a change of it.",
+   "note": "The decision's source is AUDIT-1.2.13.md:91-95 and the comment at traps.mjs:679-697."
+  },
+  {
+   "id": "A24",
+   "title": "Room Setup > Searching offered 'Room Key' as something a room is a good or bad place to look for; no Search ever asks for that category",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 2: done (03.09.2026)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "room-setup.mjs:1269-1270 builds the two columns from `pickableCategories({ splitUsables: false })`, which leaves bedroom keys and Truth Bullets out (inventory.mjs:610-612); usables stay one column on purpose, since a Search asks a room about the category (the comment at room-setup.mjs:1255-1268).",
+   "pinned_by": "tier 1's reading of Room setup's field names builds the expected `fav:` and `hin:` names from the same list (tests-tier1.mjs:50807-50812), so a list that differed from the form's would fail there",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the default arguments of pickableCategories: includeKeys is false unless a caller asks, and no caller in scripts/ passes it (git grep).",
+   "note": "The optional half of the old proposal (favour by usable kind) was not built; the comment says why."
+  },
+  {
+   "id": "A26",
+   "title": "The usable limit in code was 2 where the rule (decision Q4) says 3; comments in config.mjs, inventory.mjs and vault.mjs said three of other things",
+   "old_severity": "P1",
+   "old_state": "decision Q4 of 02.09.2026 (usables 3; gear 2 slots, one in hand and one stowed); 'Stan realizacji' step 1: done",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "config.mjs:672 `ITEM_CATEGORIES.usable.limit` is 3 (the comment at :657-671 records the ruling) and config.mjs:964 `LIMIT_GROUPS.gear.limit` is 2. vault-store.mjs:4 now reads 'three usable items and two pieces of gear'. v1.2.13 had `limit: 2` for usables, v1.2.14 `limit: 3`.",
+   "pinned_by": "none found that states the number 3 (tests read ITEM_CATEGORIES.usable for other fields)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Compared the two tags' config.mjs and searched inventory.mjs, vault.mjs, vault-store.mjs and config.mjs for the three sentences the item quoted: only config.mjs:944 ('Usables still cap at three of their own') is left, and it is now true.",
+   "note": ""
+  },
+  {
+   "id": "A25",
+   "title": "'Everybody carries something' passed for a student holding only a bedroom key: the check counted every item category, keys and Truth Bullets included",
+   "old_severity": "P2",
+   "old_state": "'Stan realizacji' step 2: done (03.09.2026)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "inventory.mjs:636-638 `carriableCategories` is the pickable list without keys and Truth Bullets; the season checklist's row asks it (season-setup.mjs:177-180 `hasOpeningItem`, read by the `items` row at :368-380) and so does the Pre-season check (diagnostics.mjs:1478, :1492-1496).",
+   "pinned_by": "none found by name",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git grep for carriableCategories: the definition and its two readers; no third 'has an opening item' check found in scripts/.",
+   "note": "The stricter proposal (look for the starting item itself: tier 2 and its note) was not taken; any carriable item passes the row."
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "A Direct Murder declared in an Eclipse marks its declarer's tokens for every browser even when the lights then cancel it",
+   "where": "scripts/eclipse.mjs:424-427 and :529-535; scripts/mask-gm.mjs:551-558, :443-455",
+   "what": "At an Eclipse's end the primary GM writes the token flag `veiled` on the tokens of every character with a declaration (veilAtTheLights -> veilActor -> token.update), before the lights judge. A declaration cancelled there (nobody in the room, a witness, a second declaration, a GM's refusal at the lights: eclipse.mjs:943-977) keeps the flag until lightsJudged runs after the whole judgement, which includes a GM's answer when one is asked (eclipse.mjs:973). A console on any player's browser that watches token updates reads who planned a murder that never opened. The declarations themselves left world data in E05 C3 for this reason (settings.mjs:899-909), and the known-leak row and the README sentence speak only of an opening that waits.",
+   "severity": "major",
+   "confidence": "read"
+  },
+  {
+   "title": "The two known-leak rows that give a direct murder's killer are filed as metadata of severity info, under a file whose own rule says the killer's identity may not be deferred",
+   "where": "audit/harness/known-leaks.json: 'about' (D27) and the rows foundry-masked-token-actor and foundry-veiled-token-actor",
+   "what": "Both rows describe a console resolving a token to the killer's actor and name; both are classed `metadata` / `info` with a `foundryLimit`. The class decides how the record is read later (from 1.3.0 'only foundryLimit and deferred entries remain'). The mask's reading has the owner's yes of 14.11.2026; for the veil's I found none.",
+   "severity": "minor",
+   "confidence": "read"
+  },
+  {
+   "title": "The class of defect A1 was has no guard: the lint holds four rules and no-dupe-keys is not one",
+   "where": "eslint.config.mjs:48-50",
+   "what": "A repeated key in an object literal still loads silently. Measured today with a script over scripts/ (271 files parsed with espree, 53,556 object literals): 0 repeated static keys, so nothing is wrong now; nothing would say so when one arrives.",
+   "severity": "nit",
+   "confidence": "read"
+  }
+ ],
+ "not_established": [
+  "A4: whether a roll's evaluate on Foundry 14 can stay pending while a person acts (a dice method that asks for the faces), which is what would let a second roll on the same client draw from the swapped generator (forced-roll.mjs:197-221, roll-draw.mjs:642-648). Foundry's source is not in the repository; LIVE-E16-06 at a table with a non-default dice method, with a second roll thrown meanwhile, would settle it.",
+  "A9: what another player's screen draws while a token is dragged in an Eclipse on Foundry 14.370. No reading exists in docs/dev/e58/LOCAL-REPORT.md or docs/dev/e39/CALIBRATION.md; LIVE-E116-01 and -02 (9.2 items 558, 559) would settle it.",
+  "LIVE-001: whether the owner accepted the veil's mark being readable from a console as he accepted the mask's (14.11.2026). I found the coordinator's default and the release notes; the owner's own answer would settle whether the veil's half is 'by decision'.",
+  "The results of scenarios 11, 20, 21, 30 and 72 in this audit's base run: the full run was still going when I read the base folder, so only the tier 0-1 log was read. The 1.2.118 release notes give 21-masked-killer 21/22 and 30-security 302/304 on the merged tree 55067e60, each red being the known leak.",
+  "REL-001: the `download` value inside the module.json asset published with v1.2.118 (the asset was not fetched), and why four version numbers have no tag in this clone.",
+  "Pins marked 'none found' were searched by symbol and by the item's id in the three tier files and the registry; a test that covers the behaviour under another name may exist."
+ ]
+}
