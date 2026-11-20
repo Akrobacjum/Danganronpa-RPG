@@ -38,7 +38,7 @@
    "read": "whole"
   }
  ],
- "count_note": "7 files, 7643 lines, the count of the scope paragraph (wc -l on today's checkout). BRIDGE_ACTIONS holds 100 declarations (100 `label:` keys, two of them by `handover()`), bridge-wire.mjs 104 wire names; every `DRPG.Bridge.what.<wire name>` (104) and every `DRPG.Bridge.why.<code>` of REASONS (81) is present in lang/en.json and lang/pl.json (read by a python script over the flattened files). audit/findings-1.2.118/base-run.json did not exist when looked for (20.11.2026), so no test or scenario result is cited as read; tests are named from their source.",
+ "count_note": "7 files, 7643 lines, the count of the scope paragraph (wc -l on today's checkout). BRIDGE_ACTIONS holds 100 declarations (98 `label:` keys and the two `handover()` rows), bridge-wire.mjs 105 `ACTION_` wire names besides SOCKET_EVENT; every `DRPG.Bridge.what.<wire name>` (105) and every `DRPG.Bridge.why.<code>` of REASONS (81) is present in lang/en.json and lang/pl.json (read by a python script over the flattened files). audit/findings-1.2.118/base-run.json did not exist when looked for (20.11.2026), so no test or scenario result is cited as read; tests are named from their source.",
  "neighbours_followed": [
   "scripts/echoes-gm.mjs (whole, 127 lines: echoesFor, echoesRefusal, echoCounts, the owner's 10.11 (b) note at 10-16)",
   "scripts/action-listen.mjs (performEchoes 301-328, performDash 330-356, echoesShutWhy 91-92, the Infiltrate rows 60-75)",

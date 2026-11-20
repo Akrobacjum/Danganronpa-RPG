@@ -1,0 +1,50 @@
+{
+ "refuter": "verify-controls-05-gm-panel-stores",
+ "of": "controls-05-gm-panel-stores",
+ "scope": "Every finding of severity minor or above (controls-05-gm-panel-stores-1, -2, -3). No control in the file carries the verdict dead, throws, mislabeled or wrong_audience (counts: 0 of each; read by script over all 29 surfaces and 124 controls), so none was checked on that ground. Added: the Students window's refresh focus_rule, which the reader records as keepLive's wait-for-focus without writing a finding, checked against D-A1. Findings 4-11 are nit and were not checked. Static reading of b5a29e73 only; nothing run.",
+ "checked": [
+  {
+   "ref": "controls-05-gm-panel-stores-1",
+   "claim": "Edit campaign draws the clock once and Apply writes all six clock fields over the clock as it is then, so a clock moved while the window stands is put back (and a rewound hour calls off a called assembly).",
+   "verdict": "stands",
+   "why": "openClockDialog reads the clock once and its drpgWindow has a render callback that wires only End the chapter; gm-campaign.mjs imports only alreadyOpen and RAISED from live.mjs, so no keepLive or keepFresh exists in the file. readClockForm reads every field; applyCampaignForm builds the patch from all six and setClock spreads it over the clock read inside its step (clock.mjs:156-158), so nothing keeps a newer field. correctsTheHour returns true for an hour earlier on the same day (onward false), so the stale hour calls cancelGather before the write. The trial question asks only on a move into the Class Trial (322). sync.mjs's SYNC.clock row (474-475) redraws the assembly, bar, HUD, sheets, Eclipse and visibility, nothing of this window; no hook or setting onChange names drpg-window-clock. The reader's open question about Season setup is answered the same way: season-setup.mjs imports only alreadyOpen, handOff and RAISED from live.mjs (66), has no keepLive, and its Save runs the same applyCampaignForm (1250), so the ordinary door carries the same fault. No test found that moves the clock while either window stands (grep -a over scripts/tests*.mjs for Edit campaign with meanwhile/while the window/stale: none). Severity minor holds: two writers on the clock while a correction window stands is a particular situation, not every use.",
+   "evidence": "scripts/gm-campaign.mjs:217 `const clock = getClock();`; 28 `import { alreadyOpen, RAISED } from \"./live.mjs\";`; 347-354 `const patch = { campaignName: result.campaignName, chapter, day: result.day, phase, session: result.session, timeOfDay: result.timeOfDay };`; 357 `if (correctsTheHour(getClock(), patch)) {`; 361 `await setClock(patch);`; 56-58 `const onward = hour !== hourWas && (day > dayWas || (day === dayWas && hour > hourWas)); return !onward || session < sessionWas;`; clock.mjs:157-158 `const before = getClock(); const next = { ...before, ...patch };`; season-setup.mjs:66 `import { alreadyOpen, handOff, RAISED } from \"./live.mjs\";`, 1250 `await applyCampaignForm(result);`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-05-gm-panel-stores-2",
+   "claim": "Despair Flow redraws only its Overflow line; Save writes pool names, Monokuma pools and the whole assignment map from the form as drawn, so another GM's change made meanwhile is lost.",
+   "verdict": "stands",
+   "why": "The one live call is keepFresh on .drpg-overflow-now watching the overflow setting and drpgOverflowChanged. wireMonokumaLive and wireAssignmentLive listen only to the form's own change events. The settings it prints do not redraw it: gmAssignments' onChange renders the Despair bar alone (settings.mjs:3378-3380); poolNames and monokumaPools go through onWorldChange -> sync.mjs SYNC.despair, whose row is bar, monokumaSheets and hud (sync.mjs:492). Save: setPoolLabel per pool writes the box's value (despair.mjs:240-255), setPools and setAssignments write their maps whole (monokuma.mjs:302, assignments.mjs:120). A row drawn as fallback has value \"\" and data-drpg-was \"\" (FALLBACK_PICK, 578, 617) and readAssignmentForm skips it (739), so an assignment another GM wrote after open is dropped; an explicit row (data-drpg-explicit 1) is written back with its drawn value, reverting a reassignment. alreadyOpen is per browser, so two GMs can each hold the window. One sub-claim is softer than written: the comment at 730-731 (\"a row whose actor is ticked a Monokuma is left out\") still holds for a Monokuma at open, because the roster is students() -> studentActors(), which leaves Monokumas out (monokuma.mjs:82); it is stale only for one made a Monokuma meanwhile. That does not touch the finding. Severity minor holds (two GMs at the season's setup at once).",
+   "evidence": "scripts/gm-team-dialog.mjs:326-333 `keepFresh(dialog, { run: root => { const line = root.querySelector(\".drpg-overflow-now\"); ... }, watch: { settings: [SETTINGS.overflow], hooks: [\"drpgOverflowChanged\"] } });`; 739-740 `if (!select?.value) continue; ... if (select.dataset.drpgExplicit === \"1\" || select.value !== select.dataset.drpgWas) map[actor.id] = select.value;`; 221 `if (result.assignments) await setAssignments(result.assignments);`; assignments.mjs:120 `await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, { ...map });`; settings.mjs:3378-3379 `onChange: () => { import(\"./despair.mjs\").then(m => m.renderDespairBar()).catch(() => {});`; sync.mjs:492 `[SYNC.despair]: Object.freeze([\"bar\", \"monokumaSheets\", \"hud\"]),`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-05-gm-panel-stores-3",
+   "claim": "The Eclipse's placement table is drawn once from placementStatus() and does not follow crossings made while it stands.",
+   "verdict": "stands",
+   "why": "toggleEclipse reads the rows once (117) and awaits placementTable(rows) (122); placementTable is a drpgWindow with no render callback, keepLive or keepFresh, and the only reference to its class outside the tests is its own line (208). The table is reached in the ordinary flow too, not only with no round: roundWindow returns \"table\" when a student is still unplaced after the GM's go (533), askReadiness maps it to choice null (481), and toggleEclipse then opens the table while the round stays open (close is called after the table answers, 123), so connected players can still cross while the GM reads a frozen table. The round's own GM window is live on eclipseMoveStore (521); the table is not. With no round (roundAllowed false during an incident before resolution, or no connected player of the cast, openRoundOnPrimary:345) the table is the GM's only view. The decision it feeds (End and move the clock / End only) is the Eclipse's end, so minor holds.",
+   "evidence": "scripts/boundary.mjs:117 `const rows = placementStatus();`; 122-123 `const choice = await placementTable(rows); if (!await ready.close(choice === \"end\" || choice === \"endOnly\" ? \"go\" : \"stop\")) return null;`; 193-194 `function placementTable(rows) { const body = rows.map(s => ...`; 533 `if (now.unplaced.length) return \"table\";`; 481 `return { go: true, choice: choice === \"table\" ? null : choice, close };`; 521 `watch: { settings: [SETTINGS.readyRound, SETTINGS.clock], stores: [eclipseMoveStore], hooks: [\"userConnected\"] },`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Students / refresh focus_rule (no finding written)",
+   "claim": "The reader records that the Students window's rebuild is deferred while a select or the stepper's field has focus and done at focusout, and writes no finding for it.",
+   "verdict": "stands",
+   "why": "The recorded behaviour is right: the Students window's keepLive (gm-students.mjs:571-577) has region .drpg-alive-live, whose build is aliveTableHtml with selects (donor, state, role) and the stepper's input inside the region (102-103, 133, 193, 222); keepLive's rule 1 defers the rebuild when focus is in an INPUT that is not a pressed kind, a TEXTAREA or a SELECT (live.mjs:158-163, 375-381) and runs it at focusout; b5a29e73 has no whileEditing option (grep over live.mjs: none). By D-A1 (DECISIONS.md, the owner, 20.11.2026) a surface still on that wait is a major REFR finding, and the reader's file has none for this window: the omission is the defect. Failure: a GM has the Students window open with focus in a row's State select while another GM marks a student dead; the row keeps the old state until focus leaves the table.",
+   "evidence": "scripts/gm-students.mjs:571-576 `keepLive(dialog, { region: \".drpg-alive-live\", build: table, watch: { actors: true, hooks: [\"drpgDeathsChanged\", ...] }, after: wireAll });`; 133 `state: `<select name=\"state.${a.id}\"`; live.mjs:157-162 `// RULE 1. The GM is typing in here; come back when they are not. if (!force && isEditing(element)) { pending = true; ...`; 380 `if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;`",
+   "severity_after": "major"
+  }
+ ],
+ "counts": {
+  "checked": 4,
+  "stands": 4,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "None of the three findings was pressed: the file's probes (two GMs, a clock or setting written by the second, Apply or Save on the first) were not run here; base-run.json, probe-42.json and probe-43.json were absent when read on 2026-11-20. Each stands on static reading (class S).",
+  "Finding 3's exposure at a table depends on how often a player crosses after the GM has pressed go on the round's window with someone unplaced; not measured. New live check: an Eclipse with two connected players, one unplaced; GM presses End on the round, the table opens; the player crosses; read the row.",
+  "The Students window under D-A1 is written here as major on the owner's rule; the line C1 fix (whileEditing, 1.2.119) is named in DECISIONS.md for the Planner and the case dashboard only, and whether it reaches the Students window was not read (it is not on b5a29e73)."
+ ]
+}
