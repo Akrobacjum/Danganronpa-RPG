@@ -74,10 +74,11 @@ import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VARIATIO
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, error, playerOwns, esc, plural, markLanguage } from "./utils.mjs";
 import { wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
-import { dataTable, iconButton } from "./ui-kit.mjs";
+import { dataTable, iconButton, tipAttr } from "./ui-kit.mjs";
 import {
-    SFX_ACTION, reportedMissing, droppedWhileLocked, soundFor, soundsFor, decoded, lastRates, lastGains, setSoundFor,
-    volumeToSlider, sliderToVolume, sfxVolume, setSfxVolume, playSfx, soundFromMessage, testSfx
+    SFX_ACTION, reportedMissing, droppedWhileLocked, soundFor, decoded, lastRates, lastGains, setSoundFor,
+    volumeToSlider, sliderToVolume, sfxVolume, setSfxVolume, playSfx, soundFromMessage, testSfx,
+    ownSoundsFor, withSoundFile, withSoundFileAt, withoutSoundFile, soundValueOf
 } from "./sfx-play.mjs";
 export {
     SFX_FLAG, soundFor, soundsFor, pickSound, setSoundFor, musicVolumeToInput, musicInputToVolume, sfxVolume,
@@ -597,6 +598,37 @@ export function soundSlidersHtml() {
  */
 export function soundEffectsHtml({ lead = "" } = {}) {
     const L = key => game.i18n.localize(key);
+
+    // What the "varies" chip means, said once above the table rather than in a hover on each chip.
+    const legend = Object.values(SFX_EVENTS).some(event => event.vary)
+        ? `<p class="drpg-help" data-drpg-sfx-legend><span class="drpg-sound-chip">${esc(L("DRPG.Sound.varies"))}</span> ${esc(L("DRPG.Sound.variesHint"))}</p>`
+        : "";
+
+    // This tab has no Apply (see `wireSoundPanel`), and a GM who typed paths into it closed the
+    // window believing nothing was saved: the sentence says so before the table.
+    // the table in a region of its own, redrawn in place when the map changes (1.2.119; sound-panel.mjs `keepLive`)
+    return `
+        <p class="drpg-help">${L("DRPG.Sound.effectsIntro")}</p>
+        <p class="drpg-help">${L("DRPG.Sound.autosave")}</p>
+        <p class="drpg-help" data-drpg-sfx-count>${countLine()}</p>
+        ${legend}
+        ${lead}
+        ${soundEffectsTableParts()}`;
+}
+
+/** The Effects table in its region (`[data-drpg-sfx-region]`): what the tab draws, and what a redraw in place builds. */
+function soundEffectsTable(table, groups) {
+    return `<div class="drpg-sound-effects" data-drpg-sfx-region>${markGroups(table, groups)}</div>`;
+}
+
+/** The Effects table's region alone, built again from the map as it now stands (sound-panel.mjs `keepLive`, 1.2.119). */
+export function soundEffectsRegion() {
+    return soundEffectsTableParts();
+}
+
+/** The table and its groups, from `SFX_EVENTS` and the map; `soundEffectsHtml` and `soundEffectsRegion` both build it. */
+function soundEffectsTableParts() {
+    const L = key => game.i18n.localize(key);
     const keys = Object.keys(SFX_EVENTS);
     const groups = Object.entries(SFX_CATEGORIES).map(([category, meta]) => ({ group: meta.label, count: groupCountLine(category), category, hint: meta.hint }));
     const rows = groups.flatMap(group => [group, ...keys.filter(key => SFX_EVENTS[key].category === group.category).map(effectRow)]);
@@ -609,32 +641,55 @@ export function soundEffectsHtml({ lead = "" } = {}) {
         rows,
         rowAttrs: row => ({ "data-drpg-sfx": row.key })
     });
+    return soundEffectsTable(table, groups);
+}
 
-    // What the "varies" chip means, said once above the table rather than in a hover on each chip.
-    const legend = Object.values(SFX_EVENTS).some(event => event.vary)
-        ? `<p class="drpg-help" data-drpg-sfx-legend><span class="drpg-sound-chip">${esc(L("DRPG.Sound.varies"))}</span> ${esc(L("DRPG.Sound.variesHint"))}</p>`
-        : "";
+/** Which rows have their list of files open, on this page: a redraw of the tab draws them open again. */
+const openFileLists = new Set();
 
-    // This tab has no Apply (see `wireSoundPanel`), and a GM who typed paths into it closed the
-    // window believing nothing was saved: the sentence says so before the table.
-    return `
-        <p class="drpg-help">${L("DRPG.Sound.effectsIntro")}</p>
-        <p class="drpg-help">${L("DRPG.Sound.autosave")}</p>
-        <p class="drpg-help" data-drpg-sfx-count>${countLine()}</p>
-        ${legend}
-        ${lead}
-        ${markGroups(table, groups)}`;
+/** A path's last part, the name a GM knows a file by (the whole path is the name's tooltip). */
+const fileName = path => decodeURIComponent(String(path ?? "").split(/[\\/]/).pop() || String(path ?? ""));
+
+/**
+ * AN EVENT'S FILES, ONE BY ONE (1.2.119; the owner, 20.11.2026: "dodajmy opcje wyboru ktory dzwiek usuwamy/dodajemy.
+ * Aktualnie mam np. monocub changes - 2 files, ale nie moge usunac pliku ktory mnie juz nie interesuje"). Until then the
+ * row's files stood in its one box, separated by `|`, and the only way to drop one was to edit that text by hand. Now the
+ * "N files" chip is a button (`aria-expanded`) that unfolds the row's own files (`ownSoundsFor`: never its fallback's)
+ * in a list under the box. EACH FILE A BOX LIKE THE ROW'S OWN (the owner on the first shot, 20.11.2026: "niech kazdy
+ * wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)"; a line of its name until then): its whole stored
+ * path or link, to select, copy or paste over, its name (the path's last part, decoded) the tooltip, with Play (that
+ * file alone, `testSfx`'s `only`) and Remove (that file alone). No Choose of its own: under the glass at 1366x768 three
+ * icon buttons left the box 3 characters wide ("sou", Chromium, 20.11.2026); the row's Choose adds, the box replaces. Answers `{ chip, list }`, both empty for a row with no file of its own. Pure but for the words.
+ */
+export function soundFilesHtml(key, files = ownSoundsFor(key), { open = openFileLists.has(key) } = {}) {
+    if (!files?.length) return { chip: "", list: "" };
+    const label = SFX_EVENTS[key]?.label ?? key;
+    const F = (name, data) => game.i18n.format(name, data);
+    const id = `drpg-sfx-files-${String(key).replace(/[^\w-]/g, "")}`;
+    const expanded = open ? "true" : "false";
+    const chip = `<button type="button" class="drpg-sound-chip drpg-sound-files-toggle" data-drpg-sfx-files${tipAttr("DRPG.Sound.showFiles")} aria-expanded="${expanded}"`
+        + ` aria-controls="${id}">${esc(plural("DRPG.Sound.fileCount", { n: files.length }))}</button>`;
+    const list = `<ul class="drpg-sound-files" id="${id}" data-drpg-sfx-list aria-label="${esc(F("DRPG.Sound.filesOf", { label }))}"${open ? "" : " hidden"}>`
+        + files.map((path, i) => {
+            const name = fileName(path);
+            return `<li class="drpg-sound-file drpg-sound-files-item" data-drpg-sfx-file="${i}">`
+                + `<input type="text" name="sfx-file:${esc(key)}:${i}" value="${esc(path)}" data-drpg-sfx-file-box="${i}" title="${esc(name)}" aria-label="${esc(F("DRPG.Sound.editFile", { name }))}" />`
+                + iconButton({ icon: "fa-solid fa-play", label: F("DRPG.Sound.playFile", { name }), attrs: { "data-drpg-sfx-play-file": String(i) } })
+                + iconButton({ icon: "fa-solid fa-trash-can", label: F("DRPG.Sound.removeFile", { name }), attrs: { "data-drpg-sfx-remove": String(i) } })
+                + `</li>`;
+        }).join("") + `</ul>`;
+    return { chip, list };
 }
 
 /* One event's row for `soundEffectsHtml`: the cell of its name, chips and description, the file box with Choose, and
    Test and Clear. Two chips, each answering what a bare path cannot: how many files the event draws from, and
-   whether it bends. */
+   whether it bends; the first, since 1.2.119, unfolds the row's files (`soundFilesHtml`), on every row with a file. */
 function effectRow(key) {
     const L = name => game.i18n.localize(name);
     const event = SFX_EVENTS[key];
-    const many = soundsFor(key).length;
+    const own = soundFilesHtml(key);
     const chips = [
-        many > 1 ? `<span class="drpg-sound-chip" data-drpg-sfx-files>${plural("DRPG.Sound.fileCount", { n: many })}</span>` : "",
+        own.chip,
         event.vary ? `<span class="drpg-sound-chip" data-drpg-sfx-varies data-tooltip="${esc(L("DRPG.Sound.variesHint"))}">${esc(L("DRPG.Sound.varies"))}</span>` : ""
     ].join("");
     return {
@@ -642,9 +697,11 @@ function effectRow(key) {
         // The safeword's row says so when it has no file (E110 part 3): the card reaches everybody, the sound only with a file.
         event: `<strong>${esc(event.label)}</strong>${chips}<br><span class="drpg-help">${esc(event.hint)}</span>${
             key === "safeword" && !soundFor(key) ? `<br><span class="drpg-help drpg-warn" data-drpg-sfx-nofile>${esc(L("DRPG.Sound.safewordNoFile"))}</span>` : ""}`,
-        file: `<div class="drpg-sound-file"><input type="text" name="sfx:${key}" value="${esc(soundFor(key) ?? "")}"
-            title="${esc(L("DRPG.Sound.severalHint"))}" placeholder="${esc(L("DRPG.Sound.notAssigned"))}" />${
-            iconButton({ icon: "fa-solid fa-folder-open", label: L("DRPG.Sound.choose"), attrs: { "data-drpg-sfx-pick": true } })}</div>`,
+        /* THE BOX ADDS (1.2.119): a path or a link typed or pasted here joins the row's files, as Choose does, and the
+           box empties; until then it held the whole list and a typed path replaced it. To replace: Clear, then add. */
+        file: `<div class="drpg-sound-file"><input type="text" name="sfx:${key}" value=""
+            title="${esc(L("DRPG.Sound.severalHint"))}" placeholder="${esc(L(soundFor(key) ? "DRPG.Sound.addFile" : "DRPG.Sound.notAssigned"))}" aria-label="${esc(L("DRPG.Sound.addFile"))}" />${
+            iconButton({ icon: "fa-solid fa-folder-open", label: L("DRPG.Sound.choose"), attrs: { "data-drpg-sfx-pick": true } })}</div>${own.list}`,
         act: `<div class="drpg-sound-act">${iconButton({ icon: "fa-solid fa-play", label: L("DRPG.Sound.test"), attrs: { "data-drpg-sfx-test": true } })}${
             iconButton({ icon: "fa-solid fa-xmark", label: L("DRPG.Sound.clear"), attrs: { "data-drpg-sfx-clear": true } })}</div>`
     };
@@ -731,21 +788,34 @@ export function wireSoundPanel(root) {
     });
 
     /* ---- the mapping table ------------------------------------------ */
-    const counter = root.querySelector("[data-drpg-sfx-count]");
+    wireSoundRows(root);
+}
+
+/**
+ * The Effects table's rows wired, under `root`: the whole window at its render, the table alone after a redraw in place
+ * (sound-panel.mjs `keepLive` on `[data-drpg-sfx-region]`, 1.2.119: "Zawsze odswiezamy okna od razu przy zmianie" - this
+ * GM's change or another GM's).
+ */
+export function wireSoundRows(root) {
+    // the count line stands above the table's region: read in the tab, whichever root was handed
+    const pane = root.closest?.('[data-drpg-pane="effects"]') ?? root;
+    const counter = pane.querySelector("[data-drpg-sfx-count]");
     const recount = () => {
         if (counter) counter.textContent = countLine();
         for (const group of root.querySelectorAll("[data-drpg-sfx-group-count]")) {
             group.textContent = groupCountLine(group.dataset.drpgSfxGroupCount);
         }
     };
+    recount();
 
     for (const row of root.querySelectorAll("[data-drpg-sfx]")) {
         const key = row.dataset.drpgSfx;
         const input = row.querySelector(`input[name="sfx:${CSS.escape(key)}"]`);
 
+        // the box empties: it adds, and the row's files are its list (1.2.119); the tab redraws from the setting
         const write = async value => {
             await setSoundFor(key, value);
-            if (input) input.value = value ?? "";
+            if (input) input.value = "";
             recount();
         };
 
@@ -760,20 +830,56 @@ export function wireSoundPanel(root) {
              * hand. "Clear" is the button that empties a row, and it is right
              * there next to this one.
              */
-            const existing = soundsFor(key);
+            const existing = ownSoundsFor(key);
             new foundry.applications.apps.FilePicker.implementation({
                 type: "audio",
                 current: existing[existing.length - 1] ?? "",
                 callback: path => {
                     if (existing.includes(path)) return;   // adding it twice weights the draw
-                    write([...existing, path].join(" | "));
+                    write(soundValueOf(withSoundFile(ownSoundsFor(key), path)));
                 }
             }).render(true);
         });
 
-        // Typed by hand rather than picked - a path pasted from somewhere else
-        // has to save too, or the box lies about what is mapped.
-        input?.addEventListener("change", () => write(input.value));
+        // Typed or pasted rather than picked: it joins the row's files, as Choose does (1.2.119; it replaced them until
+        // then); an empty box changes nothing
+        input?.addEventListener("change", () => {
+            if (!input.value.trim()) return;
+            write(soundValueOf(withSoundFile(ownSoundsFor(key), input.value)));
+        });
+
+        /* THE ROW'S FILES, ONE BY ONE (1.2.119): the chip unfolds them and this page remembers it; a file plays alone, or
+           goes alone - the last one gone leaves the row empty, as Clear does, and the event on its fallback, if any */
+        row.querySelector("[data-drpg-sfx-files]")?.addEventListener("click", event => {
+            const chip = event.currentTarget;
+            const open = chip.getAttribute("aria-expanded") !== "true";
+            if (open) openFileLists.add(key); else openFileLists.delete(key);
+            chip.setAttribute("aria-expanded", open ? "true" : "false");
+            const list = row.querySelector("[data-drpg-sfx-list]");
+            if (list) list.hidden = !open;
+        });
+        for (const button of row.querySelectorAll("[data-drpg-sfx-remove]")) {
+            button.addEventListener("click", () => {
+                const files = ownSoundsFor(key);
+                const index = Number(button.dataset.drpgSfxRemove);
+                if (!Number.isInteger(index) || index < 0 || index >= files.length) return;
+                write(soundValueOf(withoutSoundFile(files, index)));
+            });
+        }
+        /* one file's own box: left after an edit, it replaces that file alone, in its place (`withSoundFileAt`; emptied, it
+           removes it). The box being typed in holds the redraw (keepLive). */
+        for (const box of row.querySelectorAll("[data-drpg-sfx-file-box]")) {
+            box.addEventListener("change", () => write(soundValueOf(withSoundFileAt(ownSoundsFor(key), Number(box.dataset.drpgSfxFileBox), box.value))));
+        }
+        for (const button of row.querySelectorAll("[data-drpg-sfx-play-file]")) {
+            button.addEventListener("click", async () => {
+                const path = ownSoundsFor(key)[Number(button.dataset.drpgSfxPlayFile)];
+                if (!path) return;
+                const result = await testSfx(key, { only: path });
+                if (result?.played) return;
+                ui.notifications.warn(game.i18n.format("DRPG.Sound.testFailed", { label: SFX_EVENTS[key]?.label ?? key, why: result?.why ?? "" }));
+            });
+        }
 
         row.querySelector("[data-drpg-sfx-test]")?.addEventListener("click", async () => {
             const result = await testSfx(key);

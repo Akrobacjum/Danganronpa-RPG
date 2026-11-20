@@ -27595,7 +27595,8 @@ const INVARIANTS = [
         const autosave = [...root.querySelectorAll("p")].find(p => p.textContent.trim() === game.i18n.localize("DRPG.Sound.autosave"));
         const varies = Object.values(SFX_EVENTS).some(event => event.vary);
         const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
-        const recounts = /data-drpg-sfx-group-count/.test(fnSource(sfx, "wireSoundPanel"));
+        // the rows' wiring, the recount with it, left wireSoundPanel for wireSoundRows in 1.2.119 (the table redrawn in place)
+        const recounts = /data-drpg-sfx-group-count/.test(fnSource(sfx, "wireSoundRows"));
         equal(stableJson([["icon rows", iconRows], ["every heading has a name", heads], ["group counts", groups],
             ["the legend above the table", varies && before(legend) && legendSays], ["the autosave sentence above it", before(autosave)], ["a change recounts the groups", recounts]]),
         stableJson([["icon rows", rows.length], ["every heading has a name", heads.map(() => true)], ["group counts", groups.map(([c]) => [c, true])],

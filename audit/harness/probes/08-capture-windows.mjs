@@ -258,6 +258,15 @@ const SEED_CROWD = SEED_TYPES + `
 const SEED_MODES = SEED_TYPES + `
     await CS.setCaseNode(ch, "probe08-d4", { mode: "testimony" });
     await CS.setCaseNode(ch, "probe08-d5", { mode: "panic" });`;
+/* 1.2.119 (the sound item, 20.11.2026; the owner: "Aktualnie mam np. monocub changes - 2 files, ale nie moge usunac pliku
+   ktory mnie juz nie interesuje"): Monocub changes given three files, its row's list unfolded on the Effects tab; the
+   event's own value put back after. */
+const SEED_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
+    globalThis.__probe08sfx = game.settings.get("danganronpa-rpg", "sfxMap")?.monocub ?? null;
+    await X.setSoundFor("monocub", "sounds/monocub/turn-in.ogg | sounds/monocub/turn-out.ogg | https://example.invalid/fx/old%20chime.mp3");`;
+const DROP_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
+    await X.setSoundFor("monocub", globalThis.__probe08sfx ?? null);
+    delete globalThis.__probe08sfx;`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -356,6 +365,8 @@ export const WINDOWS = [
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
     { id: "rooms-passages--rows", module: "room-setup.mjs", before: SEED_PASSAGES, after: DROP_PASSAGES, perTab: false, call: "m.openRoomSetupDialog({ tab: \"passages\" })" },
     { id: "sound", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
+    { id: "sound--files", module: "sound-panel.mjs", before: SEED_SFX, after: DROP_SFX, perTab: false,
+      click: ['nav.drpg-tabs [data-drpg-tab-key="effects"]', 'tr[data-drpg-sfx="monocub"] [data-drpg-sfx-files]'], call: "m.openSoundDialog()" },
     { id: "despair-flow", module: "gm-team-dialog.mjs", call: "m.openGmTeamDialog()" },
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
     // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.

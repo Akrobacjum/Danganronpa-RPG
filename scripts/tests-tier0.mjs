@@ -18513,7 +18513,8 @@ const REGRESSIONS = [
             + 'return `<pre style="a:b">${t}</pre>` + "Left in English" + "one" + `x ${"An inner literal"}`; }');
         equal(JSON.stringify(planted), JSON.stringify({ prose: ["Left in English", "An inner literal"], keys: ["DRPG.Sound.why.none"] }),
             "the reader does not find the planted literals: it reads nothing it can be trusted on");
-        const wire = fnSource(sfx, "wireSoundPanel");
+        // the rows' wiring left wireSoundPanel for wireSoundRows in 1.2.119 (the Effects table redrawn in place)
+        const wire = fnSource(sfx, "wireSoundRows");
         const bodies = {
             testSfx: fnSource(sfx, "testSfx"),
             testWarning: bodyOf(wire, "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }),
@@ -22991,7 +22992,8 @@ const REGRESSIONS = [
             "the reader does not tell a key from a literal on a planted body: it reads nothing it can be trusted on");
         const test = fnSource(sfx, "testSfx") ?? "";
         const found = reasons(test);
-        const wire = bodyOf(fnSource(sfx, "wireSoundPanel") ?? "", "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }) ?? "";
+        // the rows' wiring left wireSoundPanel for wireSoundRows in 1.2.119 (the Effects table redrawn in place)
+        const wire = bodyOf(fnSource(sfx, "wireSoundRows") ?? "", "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }) ?? "";
         const word = (file, key) => file?.DRPG?.Sound?.why?.[key];
         const read = {
             reasons: [...new Set(found)].sort(),
@@ -25432,6 +25434,81 @@ const REGRESSIONS = [
         const ok = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, modes.map(m => `${m}: ok`)]));
         equal(JSON.stringify({ near, aa }), JSON.stringify({ near: ok, aa: ok }),
             `{near: each mode's nearest colour among the types, the kinds and the other modes, CIEDE2000 at least ${MIN}; aa: the ink on each mode's colour by WCAG 2 AA}`);
+    }],
+    ["R7833 - an event's files are added and removed one at a time (1.2.119, the owner: \"dodajmy opcje wyboru ktory dzwiek usuwamy/dodajemy ... nie moge usunac pliku ktory mnie juz nie interesuje\"; sfx-play.mjs `withSoundFile`, `withoutSoundFile`, `soundValueOf`, `ownSoundsFor`): a file joins the end of the row's files, a pasted list of several joins part by part, a file already there is not added twice; one file taken out leaves the rest as they stood; the files make the row's stored value, and none makes none", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026. Pure. Red at b5a29e73: sfx-play.mjs exports none of the four.
+         */
+        const P = await import("./sfx-play.mjs");
+        must(typeof P.withSoundFile === "function" && typeof P.withoutSoundFile === "function" && typeof P.soundValueOf === "function" && typeof P.ownSoundsFor === "function",
+            "sfx-play.mjs has no way to add or remove one file of an event");
+        const two = ["sounds/a.ogg", "sounds/b.ogg"];
+        equal(JSON.stringify({
+            add: P.withSoundFile(two, "sounds/c.ogg"), again: P.withSoundFile(two, "sounds/b.ogg"), pasted: P.withSoundFile(["a"], " b | c |  | a "),
+            removeSecond: P.withoutSoundFile(two, 1), removeFirst: P.withoutSoundFile(two, 0), outside: P.withoutSoundFile(two, 5), kept: two,
+            value: P.soundValueOf(["sounds/a.ogg", "sounds/c.ogg"]), one: P.soundValueOf(["sounds/a.ogg"]), none: P.soundValueOf([])
+        }), JSON.stringify({
+            add: ["sounds/a.ogg", "sounds/b.ogg", "sounds/c.ogg"], again: two, pasted: ["a", "b", "c"],
+            removeSecond: ["sounds/a.ogg"], removeFirst: ["sounds/b.ogg"], outside: two, kept: ["sounds/a.ogg", "sounds/b.ogg"],
+            value: "sounds/a.ogg | sounds/c.ogg", one: "sounds/a.ogg", none: null
+        }), "{add, again, pasted: the files after adding; removeSecond, removeFirst, outside: after removing at 1, 0 and 5; kept: the input untouched; value, one, none: the stored value}");
+    }],
+    ["R7834 - an Effects row shows its files one by one (1.2.119; sfx.mjs `soundFilesHtml`; the owner: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"): the \"N files\" chip is a button that unfolds or folds the row's list (`aria-expanded`, `aria-controls`), the list hidden while folded; each file a box like the row's own - its whole stored path or link as the value, its name (the path's last part, decoded) as the tooltip and in its accessible name - with Play and Remove named by it and carrying its index; a row with no file draws neither; the words in both languages", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026. Pure markup. Red at b5a29e73: sfx.mjs exports no soundFilesHtml
+         * (the chip was a span, and the files stood in one box separated by "|").
+         */
+        const X = await import("./sfx.mjs");
+        must(typeof X.soundFilesHtml === "function", "sfx.mjs exports no soundFilesHtml - an event's files cannot be seen one by one");
+        const key = Object.keys(SFX_EVENTS)[0];
+        const files = ["sounds/monocub/a.ogg", "https://example.invalid/fx/wet%20step.mp3"];
+        const read = open => {
+            const { chip, list } = X.soundFilesHtml(key, files, { open });
+            const d = document.createElement("div");
+            d.innerHTML = chip + list;
+            const c = d.querySelector("button[data-drpg-sfx-files]"), ul = d.querySelector("ul[data-drpg-sfx-list]");
+            return { chip: c ? [c.getAttribute("aria-expanded"), c.getAttribute("aria-controls") === ul?.id, c.textContent.trim()] : null,
+                hidden: ul ? ul.hidden : null,
+                items: [...(ul?.querySelectorAll("li[data-drpg-sfx-file]") ?? [])].map(li => {
+                    const box = li.querySelector('input[type="text"][data-drpg-sfx-file-box]');
+                    return [box?.value ?? null, box?.title ?? null, box?.getAttribute("aria-label") ?? null, li.classList.contains("drpg-sound-file"),
+                        li.querySelector("[data-drpg-sfx-play-file]")?.dataset.drpgSfxPlayFile, li.querySelector("[data-drpg-sfx-play-file]")?.getAttribute("aria-label"),
+                        li.querySelector("[data-drpg-sfx-remove]")?.dataset.drpgSfxRemove, li.querySelector("[data-drpg-sfx-remove]")?.getAttribute("aria-label")];
+                }) };
+        };
+        const F = (k, data) => game.i18n.format(k, data);
+        const lang = {};
+        for (const l of ["en", "pl"]) {
+            try { const S = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.Sound ?? {}; lang[l] = ["addFile", "showFiles", "filesOf", "playFile", "removeFile", "editFile"].map(k => typeof S[k] === "string" && S[k].length > 0); } catch { lang[l] = null; }
+        }
+        const empty = X.soundFilesHtml(key, []);
+        equal(JSON.stringify({ shut: read(false), open: read(true), empty, lang }), JSON.stringify({
+            shut: { chip: ["false", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: true, items: [
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+            open: { chip: ["true", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: false, items: [
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+            empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true, true], pl: [true, true, true, true, true, true] }
+        }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [its box's value, tooltip and name, a row box's class, Play's and Remove's index and name]; empty: a row with no file; lang: the six keys in each language}");
+    }],
+    ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026; until the owner's answer this number held "a name on one line,
+         * cut with an ellipsis" (e1c6015e), which his answer replaced the same evening: every file a box like the first.
+         * Pure. Red at e1c6015e: sfx-play.mjs exports no withSoundFileAt.
+         */
+        const P = await import("./sfx-play.mjs");
+        must(typeof P.withSoundFileAt === "function", "sfx-play.mjs has no way to replace one file of an event");
+        const two = ["sounds/a.ogg", "sounds/b.ogg"];
+        equal(JSON.stringify({
+            replace: P.withSoundFileAt(two, 1, "sounds/c.ogg"), emptied: P.withSoundFileAt(two, 1, "  "), double: P.withSoundFileAt(two, 1, "sounds/a.ogg"),
+            pasted: P.withSoundFileAt(two, 0, "sounds/c.ogg | sounds/d.ogg | sounds/b.ogg"), same: P.withSoundFileAt(two, 0, " sounds/a.ogg "),
+            outside: P.withSoundFileAt(two, 7, "sounds/c.ogg"), kept: two
+        }), JSON.stringify({
+            replace: ["sounds/a.ogg", "sounds/c.ogg"], emptied: ["sounds/a.ogg"], double: ["sounds/a.ogg"],
+            pasted: ["sounds/c.ogg", "sounds/d.ogg", "sounds/b.ogg"], same: two, outside: two, kept: ["sounds/a.ogg", "sounds/b.ogg"]
+        }), "{replace, emptied, double, pasted, same, outside: the files after one box's edit; kept: the input untouched}");
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
         /*
