@@ -1,0 +1,371 @@
+{
+ "reader": "domain-comm-a-messenger",
+ "checkout": "claude/audit-119 (scripts/ identical to main b5a29e73, 1.2.118); base-run.json not present when read, so no test or scenario result is cited as read",
+ "files_read": [
+  {
+   "file": "scripts/messenger.mjs",
+   "lines": 405,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines": 1673,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/popup.mjs",
+   "lines": 1299,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/chat-card.mjs",
+   "lines": 89,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/notice-history.mjs",
+   "lines": 1320,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "lines": 617,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/arrival-notices.mjs",
+   "lines": 51,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "7 files, 5454 lines",
+ "count_note": "7 files and 5454 lines read, as the scope lists them (405 + 1673 + 1299 + 89 + 1320 + 617 + 51). Every DRPG.* key the seven files name in a string literal (124 distinct) was checked by script against lang/en.json and lang/pl.json: none missing, and the four plural keys of these files (DRPG.Popup.moreCloseAll, DRPG.Popup.moreTip, DRPG.Notices.buttonUnread, DRPG.Notices.unreadBanner) carry one/few/many/other in Polish. Function lengths were measured with espree over the seven files (functions of 100 lines or more listed in hygiene).",
+ "neighbours_followed": [
+  "scripts/secret.mjs (postSecret/post 1155-1200: incidentVeils 1103-1107 veils only while an incident runs or a mask stands; splitFlags and GM_META 221-262; secretHtml, cardFlag, cardMeta, cardWriter 652-707; wordsOf 739-770; contentOf, shownWordsOf; remember 780-841, which raises drpgMessengerEdited and drpgSecretStored for every words arrival; onSecretPacket 1440-1513; cleanCardHtml 569-578; readersLines, dropOldGmLines, playerWords 357-445)",
+  "scripts/utils.mjs (gmIds 370-372, ownerOf 642-647, MESSAGE_FLAG and stamped 674-692, announce, whisperToOwnerOnly, whisperToOwner, whisperToGms 701-768: a speaker and a whisper list on every document unless veiled)",
+  "scripts/settings.mjs (messengerLastRead and messengerWindowPositions registered client scope 2106-2121; noticeHistory client scope 2581-2589)",
+  "scripts/call-gm.mjs (claimOnPrimary 1077-1104: the claim checks the card's ruled and settled state only; callGm's no-thread road 960-990 and its thread road 993+; the trait card, veiled, 333-347)",
+  "scripts/gm-bridge.mjs (renderChatMessageHTML 143-161: since F118 every log card holding a [data-drpg-call] button is wired on a GM)",
+  "scripts/bridge-asks.mjs (claimCard 1324-1346)",
+  "scripts/action-pipeline.mjs (missAction 1091-1097, ruledMissAction 1072-1078: data.by is the roller's actor, written on the roller's browser)",
+  "scripts/use-items.mjs (the creative-use card posted by promptAndCallGm on the player's browser 590-610; ruleCreativeUse and creativeUseGone 1004-1043; grantItemEffect 1051+)",
+  "scripts/observe.mjs (chargeObserveMiss 927-960)",
+  "scripts/price.mjs (refundPrice 262-302)",
+  "scripts/monocub.mjs (answerHopeAsk 1548-1562)",
+  "scripts/crossing-settle.mjs (whole, 1-80: CROSSING_SETTLED fires on the primary for an Eclipse's crossings too)",
+  "scripts/stash-reach.mjs (tellStashDisturbed and tellStashDisturbedNow 611-660: whisperToOwner, not veiled)",
+  "scripts/doors-gm.mjs (BEDROOM_SOUND 56, tellBedroomNotes and tellBedroomNotesNow 395-425: whisperToOwnerOnly, not veiled)",
+  "scripts/eclipse.mjs (the Eclipse crossing card 1236-1243 and the parked murder's say 916-921, both veiled)",
+  "scripts/movement.mjs (noteGmPosition's arrival road 636-648)",
+  "scripts/action-report.mjs (report 225, 328-345: no showPopup, the catch-all raises its card)",
+  "scripts/motion.mjs and styles/motion.css (SNAP, --drpg-t-enter 180ms), styles/danganronpa.css 13274-13297 (the roster's transition), styles/base.css 37, 90",
+  "scripts/tests-tier2.mjs 102748 and 102824 (A113-C5-1b, A113-C4-3: the arrival roads), audit/harness/scenarios/30-security.mjs 748-773 (the private-card cleaning keeps a button's data-* by design)",
+  "audit/findings-1.2.42/comms.md, audit/findings-1.2.118/old-1.2.42-comms.json and controls-07-messages-calls.json (to give old ids and not repeat the controls pass)"
+ ],
+ "strengths": [
+  "A thread's words never sit in the document: every thread card is a private card (messenger.mjs:284-316, COMM-03), and a card whose place in a thread is the secret is veiled (messenger.mjs:23-42), so a player's console reads no other player's conversation.",
+  "Read means seen: a thread is marked read only while its window is drawn, on Chat, frontmost and the page visible (messenger-app.mjs:446-460), and the read stamp is the newest message's own timestamp, not this browser's clock (messenger.mjs:203-206).",
+  "A failed send keeps what was typed and says what is known of it - may have gone out, said already, or not sent (messenger-app.mjs:396-427).",
+  "One ruling per card across every GM and every copy of the card: claimCard on the primary, the buttons of a card held while one press runs, a refused second press told on a card of its own (messenger-app.mjs:740-786, bridge-asks.mjs:1324-1346).",
+  "The notice history draws a kept card only through two cleanings and importNode into a template's inert document, with its own tag, attribute and class allowlist (notice-history.mjs:166-420); the store keeps every account's section of a shared browser apart and never trims another account's section of this world (notice-history.mjs:683-711).",
+  "A notice never times out: a card that does not fit waits parked behind a count, and the newest is always shown (popup.mjs:67-72, 352-389).",
+  "The arrival notices are chained per owner, so the paid crossing's hook and the settled crossing that follows it tell a stash or a bedroom once (stash-reach.mjs:611-622, doors-gm.mjs:395-402; tier 2 A113-C4-3 and A113-C5-1b, results not read)."
+ ],
+ "findings": [
+  {
+   "id": "domain-comm-a-messenger-1",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A ruling card's buttons act on whatever character and item their data names: a card a player's console writes can make a GM's press charge a classmate Sanity or use up a classmate's item",
+   "where": "scripts/messenger-app.mjs:724-786 (wireCallActions wires any [data-drpg-call] button for a GM), 1211-1233 (ruleObserveMiss: chargeObserveMiss on data.by), 938-962 (itemNoEffect and itemRefuse on data.by and data.item), 894-899 (rulingThread sends the line to data.by's owner), 1429-1435 (cubGiveHope reads data.n); scripts/gm-bridge.mjs:143-161 (since F118 every chat-log card holding such a button is wired, not only one carrying callCard); scripts/call-gm.mjs:1077-1104 (the claim checks only whether the card was ruled or settled)",
+   "what_happens": "The legitimate ruling cards are written on the roller's own browser (use-items.mjs:595-610 promptAndCallGm; action-pipeline.mjs:1091-1097 missAction carries data.by = the roller's actor), so their buttons' data-* must survive the cleaning of a player's words, and scenario 30 checks that they do (30-security.mjs:748-773). On a GM, buildBubble wires every [data-drpg-call] button of a thread card, and since F118 the chat log wires every card whose drawn copy holds one. The rule a button names then runs on the GM with the button's data as its arguments: observeMiss writes OBSERVE_FAIL_STRESS onto game.actors.get(data.by) through the GM's trustedWrite; itemNoEffect consumes data.item of data.by through grantItemEffect; itemRefuse, reply, searchMiss and observeMiss post the GM's ruling into the thread of data.by's owner (rulingThread falls back to ownerOf when the card's thread player does not own the actor). Nothing on this road compares data.by with the card's writer (cardWriter) or the thread's player, and claimOnPrimary asks only whether the card was ruled. A Give 1 / Give 2 button's amount is data.n, read with no upper bound here (monocub.mjs:1551: wholeNumber with min 0 only); what convertDespairToHope caps was not traced.",
+   "evidence": "messenger-app.mjs:725  const buttons = body.querySelectorAll(\"[data-drpg-call]\");\nmessenger-app.mjs:735  if (!game.user.isGM) { ... remove(); return; }\nmessenger-app.mjs:768  const outcome = await claimCard(message, () => runCallAction(button.dataset.drpgCall, { ...button.dataset }, message));\nmessenger-app.mjs:1212 const actor = game.actors.get(data.by);\nmessenger-app.mjs:1216 await chargeObserveMiss(actor);\nmessenger-app.mjs:953  const ask = action === \"itemNoEffect\" ? async () => ({ amounts: {}, consume: true }) : () => askItemEffect(item);\nmessenger-app.mjs:897  if (user && !user.isGM && actor?.testUserPermission?.(user, \"OWNER\")) return user;\nmessenger-app.mjs:898  return ownerOf(actor);\ngm-bridge.mjs:157      if (!cardFlag(message, \"callCard\") && !body?.querySelector?.(\"[data-drpg-call]\")) return;\ncall-gm.mjs:1097       if (row && !row.pending) return { taken: false, why: \"ruled\", by: row.by ?? null };\ncall-gm.mjs:1100       if (cardFlag(message, \"settled\") || cardMeta(message, \"settled\")) return { taken: false, why: \"settled\", by: null };",
+   "failure_scenario": "A player's console posts into their own thread a copy of an Observe card naming a classmate's character with its 'Nothing was there' button; a GM presses it: the classmate takes 1 Sanity and reads '<GM> rules: Nothing was there.' in their own thread for an Observe they never made.",
+   "expected": "A ruling acts only on a character the card's writer owns (cardWriter and data.by, the check refundOnCard's own note implies when it says the card's data is the player's to rewrite), or on a card whose ask the primary holds (the rid road the Hope Call, Dynamic and trait cards already take).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard on each road: wireCallActions checks settled and isGM only (730-738); claimCard/claimOnPrimary check claim, ruled and settled state only (bridge-asks.mjs:1324-1346, call-gm.mjs:1077-1104); chargeObserveMiss checks the GMs' marks and maximum, not who asked (observe.mjs:927-942); ruleCreativeUse checks the item is still usable and the holder alive, not whose card it is (use-items.mjs:1016-1043). The cleaning does not take the buttons off: scenario 30 asserts that a player's card's button and data attributes survive it (results not read). The Hope Call, Dynamic and trait rulings are not open this way: they go by the primary, which keeps a yes only for the ask held on that card (messenger-app.mjs:851-887, 901-933). The refund of decline and declineMurder on the writer's own character is believed by design (refundOnCard's note, 1235-1270; listed under by_decision), so it is not part of this finding. What stays: the GM's press is needed and the button's label is the card writer's.",
+   "tests_near": "Scenario 30-security 'XSS: the card's button and data attributes survive the cleaning' (30-security.mjs:772) holds the half that must stay; no test or scenario found that presses a card naming a character its writer does not own (git grep of data-drpg-call in scripts/tests*.mjs and audit/harness/scenarios read for that case).",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-a-messenger-2",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "leak",
+   "title": "In an Eclipse the arrival notices go out unveiled: every browser holds a card spoken by the owner's character the moment their crossing settles, where the Eclipse's own crossing card is veiled for exactly that reason",
+   "where": "scripts/arrival-notices.mjs:44-50 (CROSSING_SETTLED, an Eclipse's crossings included) and 33-41; scripts/stash-reach.mjs:640-643 (whisperToOwner, no veiled); scripts/doors-gm.mjs:418 with 56 (whisperToOwnerOnly with BEDROOM_SOUND, no veiled); scripts/secret.mjs:1103-1107 (incidentVeils: only an incident or a mask veils by itself); scripts/eclipse.mjs:1236-1243 (the Eclipse crossing card, veiled)",
+   "what_happens": "crossing-settle.mjs fires CROSSING_SETTLED on the primary for every lawful crossing the GMs record, an Eclipse's included (crossing-settle.mjs:5-8, 11-15), and arrival-notices.mjs answers it with noticesOnArrival. tellStashDisturbedNow whispers 'somebody has been in your stash' through whisperToOwner(owner, ...) and tellBedroomNotesNow its bedroom card through whisperToOwnerOnly(owner, ...): neither asks for a veil, and secret.mjs veils on its own only while an incident runs or a mask stands. An unveiled private card's document keeps its whisper list (the owner's players and the GMs) and its speaker (ChatMessage.getSpeaker({ actor }), utils.mjs:735-760, the speaker at 739 and 755) on every browser, stamped two seconds after the crossing (SETTLE_MS). The Eclipse's own crossing card is posted with { veiled: true } (eclipse.mjs:1238-1242), and the parked murder's line says why: 'the document would name the killer's actor and their player at the moment the lights judged them' (eclipse.mjs:916-917).",
+   "evidence": "arrival-notices.mjs:45  Hooks.on(CROSSING_SETTLED, event => {\narrival-notices.mjs:49      if (actor && scene) void noticesOnArrival(actor, event.to, scene);\nstash-reach.mjs:641    await whisperToOwner(owner, `<p>${game.i18n.localize(\"DRPG.Vault.noticed\")}</p>`, {\nstash-reach.mjs:642        flags: { [MODULE_ID]: { sfx: \"stolen\" } }\ndoors-gm.mjs:418       await whisperToOwnerOnly(owner, await bedroomCard(room, kinds, { unsealed: row.unsealed ?? null }), BEDROOM_SOUND);\nsecret.mjs:1104        if (!incidentRuns() && !standingMask()) return false;\neclipse.mjs:1238       await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: into })}<p>${\neclipse.mjs:1242       }</p>`, { veiled: true });",
+   "failure_scenario": "During an Eclipse a player watching game.messages in the console sees a new card spoken by Aiko and whispered to Aiko's player two seconds after a crossing, and learns that Aiko has just walked into her own bedroom (or a room holding her stash) and that something happened there while she was away - what the veiled crossing cards keep from him.",
+   "expected": "A notice told from a settled crossing in an Eclipse is veiled as the Eclipse's crossing card is (or every arrival notice is, since its moment is the crossing's).",
+   "confidence": "read",
+   "refutation_tried": "Checked that the road runs in an Eclipse: crossing-settle.mjs says so (5-15) and tier 2 A113-C4-3's title names 'a settled crossing (crossing rooms free, an Eclipse)' (tests-tier2.mjs:102824; result not read). Checked post() for an Eclipse veil: secret.mjs:1165-1166 veils on asked or incidentVeils, and incidentVeils reads murderState.active and the mask only. Checked the callers pass no veiled: stash-reach.mjs:641-643 passes flags alone, BEDROOM_SOUND is { flags } alone (doors-gm.mjs:56). The paid crossing's road outside an Eclipse is not in question: tokens are seen moving there. Not measured: no harness run; audit/harness/known-leaks.json lists neither card.",
+   "tests_near": "Tier 2 A113-C4-3 and A113-C5-1b read that each notice is told once on each road, not how its document is addressed. Scenario 72-canary scans a player's browser after each phase (CLAUDE.md, world-secrets); whether one of its phases settles an Eclipse crossing into a rifled stash or a noted bedroom was not read.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-a-messenger-3",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "The messenger's read map is one value for every login on a browser: a GM who reads a player's thread there marks it read for that player's own login on the same browser, and back",
+   "where": "scripts/settings.mjs:2106-2114 (messengerLastRead, scope client, a plain object); scripts/messenger.mjs:181-209 (readMap, lastReadAt, markThreadRead: keyed by the thread's player id alone); scripts/messenger.mjs:147 (unread is read against that stamp)",
+   "what_happens": "A client setting is one localStorage item per key for the whole browser - the module's own notice history reads it as `${MODULE_ID}.${key}` (notice-history.mjs:1162) and keys its value by world and user for that reason (notice-history.mjs:13-18), as the private cards' store keeps an owner per entry (secret.mjs:647-658, S11-29: 'one browser, two logins'). The read map is { <player user id>: <stamp> } with no world and no reader in it: on a GM's login it holds the GM's reading of each player's thread; on that player's login on the same browser threadStatsOf reads the same entry as the player's own. So a GM who read Aiko's thread up to a reply leaves Aiko's login on that browser with the reply already read (no badge, no count), and Aiko reading her thread there clears the GM's badge for it.",
+   "evidence": "settings.mjs:2109  game.settings.register(MODULE_ID, SETTINGS.messengerLastRead, {\nsettings.mjs:2110      scope: \"client\",\nmessenger.mjs:184      return game.settings.get(MODULE_ID, SETTINGS.messengerLastRead) ?? {};\nmessenger.mjs:206      const map = { ...readMap(), [playerUserId]: newest };\nmessenger.mjs:147      if (!(at > (readMap?.[thread] ?? 0))) continue;\nnotice-history.mjs:1162 read: () => game.settings?.storage?.get?.(\"client\")?.getItem?.(`${MODULE_ID}.${SETTINGS.noticeHistory}`) ?? null,",
+   "failure_scenario": "A GM checks a player's view by logging in as that player on the GM's own browser: the GM's ruling, read in the GM's session, shows no unread badge on the player's launcher, so the GM concludes the badge does not light for a ruling.",
+   "expected": "The read state keyed by world and reader as well as by thread (the notice history's `<world>.<user>` sections), so one login's reading is never another's.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a world or user key in readMap and markThreadRead: none (messenger.mjs:181-209). Two players sharing a browser do not collide (each thread's key is its own player's id); the collision is between a GM and a player of the same thread on one browser, so the severity is held to minor. That a client setting is one item per browser on v14 is the notice history's assumption as well (notice-history.mjs:1162-1166) and not read at a table here.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-a-messenger-4",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "ux",
+   "title": "Closing the notice history marks every unread notice read, the ones its filter or search hid and the ones waiting behind 'Show new notices' included",
+   "where": "scripts/notice-history-app.mjs:310-318 (_onClose -> markNoticesRead); scripts/notice-history.mjs:1123-1135 (markRead walks every entry); notice-history-app.mjs:363-378 (new entries wait behind the pill)",
+   "what_happens": "The window's comment says closing 'reads what it listed (P10-3)'. markNoticesRead takes no list: the engine moves every entry of this login whose state is unread to read. A reader who filtered the list to one source, searched it, or had new entries arrive while scrolled (they wait behind the pill, undrawn) closes the window and the corner button's count drops to zero for notices that were never on the list.",
+   "evidence": "notice-history-app.mjs:315  // Closing the window reads what it listed (P10-3): the badge (E81 C8) counts what nobody has looked at yet.\nnotice-history-app.mjs:316  markNoticesRead();\nnotice-history.mjs:1126    for (let i = 0; i < list.length; i++) {\nnotice-history.mjs:1127        if (list[i].state !== \"unread\") continue;",
+   "failure_scenario": "A GM opens the history, presses the 'Players' filter to find one card and closes the window: the six unread rulings and refusals the filter hid are marked read, and the corner button no longer says they are there.",
+   "expected": "What the comment says: closing reads the entries the list drew (this.drawn under the filter and search in force), and 'Mark all as read' stays the way to read everything.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a narrower call: markNoticesRead is the engine's markRead with no argument (notice-history.mjs:1188), and _onClose passes none. The design paper P10-3 itself was not found in the repository (git grep P10-3 finds only this comment and a tier-1 note at tests-tier1.mjs:14588), so whether the design meant 'all' cannot be settled from the papers; the comment's own words are 'what it listed'.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-a-messenger-5",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "perf",
+   "title": "The messenger's launcher is torn down and built again on every thread event, and each build walks every chat message",
+   "where": "scripts/messenger-app.mjs:41-51 (five hooks call renderLauncher), 1499-1536 (remove, create, append); scripts/secret.mjs:829-831 and 924 (every words arrival of a thread card raises drpgMessengerEdited); scripts/messenger.mjs:166-173 (one threadStats pass a task)",
+   "what_happens": "renderLauncher removes #drpg-messenger-launcher and appends a new button on canvasReady, on every thread message, on every read stamp, on every edited card and on every deletion. Every private thread card's words landing raise drpgMessengerEdited (secret.mjs remember), so a browser given the words of many cards after a return (askForWords answers card by card, secret.mjs:1440-1513) rebuilds the launcher once per card, each time with a threadStats pass over game.messages (the memo lives one microtask). A keyboard user whose focus is on the launcher loses it to the page whenever a message arrives, and a hover tooltip on it goes with the node.",
+   "evidence": "messenger-app.mjs:44  Hooks.on(\"drpgMessengerMessage\", () => renderLauncher());\nmessenger-app.mjs:50  Hooks.on(\"drpgMessengerEdited\", () => renderLauncher());\nmessenger-app.mjs:1501    document.getElementById(LAUNCHER_ID)?.remove();\nmessenger-app.mjs:1513    const unread = totalUnread();\nmessenger-app.mjs:1532    document.body.append(button);\nsecret.mjs:831          if (thread) Hooks.callAll(\"drpgMessengerEdited\", thread, message);",
+   "failure_scenario": "A GM who reconnects to a season-long world gets the words of a hundred thread cards back: the launcher is rebuilt a hundred times, each over every message of the log, and a GM tabbing to the launcher with the keyboard during play finds focus thrown back to the page by the next message.",
+   "expected": "The button made once and its badge and name updated in place (as popup.mjs showUnread updates the notice button's attributes only when they change, 167-183).",
+   "confidence": "read",
+   "refutation_tried": "Checked whether the pass is shared: a launcher and a roster built in one task share it (messenger.mjs:154-173), but each remember is its own task. Not measured: the cost per pass at a season's message count; scenario 86 counts messenger.threadStats (perf-counters.mjs) for one move and one write, not a return.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-a-messenger-6",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "gmPopup on a plain card's document interrupts a GM whoever wrote it, beside popupForce and popupCentre, which only a GM's card may ask - and a player's public card already reaches every GM",
+   "where": "scripts/popup.mjs:1264-1269 (forGm), 1294-1296 (centre), 1212-1215 (a public card reaches everyone)",
+   "what_happens": "E02 (S11-27) limited popupForce and later popupCentre to a GM's card, the comment saying a player's console 'put a card that looks like the module's own in the middle of every screen'. gmPopup is read with cardFlag, which answers the document's own flag first, so a plain (non-private) whisper to the GMs that a player's console writes with flags { drpgMessage, gmPopup } raises a card on every GM; the module itself never posts gmPopup on a plain document (call-gm.mjs:978-986 goes through whisperToGms, a private card, whose player meta loses gmPopup at secret.mjs:1488). And a player's public card with the module's marker is drawn on every screen, GMs included (1212-1215, 1257), so the guard closes a smaller door than its comment names.",
+   "evidence": "popup.mjs:1264  // `popupForce` only from a GM (E02, audit S11-27): from a player's console it\npopup.mjs:1267  const forGm = cardFlag(message, \"gmPopup\")\npopup.mjs:1268      || (cardWriter(message)?.isGM && cardFlag(message, \"popupForce\"));\npopup.mjs:1269  if (game.user.isGM && whisper.length && !forGm) return;",
+   "failure_scenario": "A player's console whispers the GMs a plain card with the module's marker and gmPopup: it lands in the GM's notice tile under a title the player chose, as a ruling request would.",
+   "expected": "gmPopup held to a GM's card or to the private meta the module writes, as its two siblings are, and the comment saying that a public card reaches every screen by design.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a legitimate plain gmPopup card: every module post goes through privately/postSecret (utils.mjs:701-768), so gmPopup only reaches a document by a console write. The public road cannot be limited without breaking a player's own announcements, so this is a nit about the guard's reach and its comment.",
+   "old_id": null
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A GM who was not connected when a thread card was posted reads a stub for it; a veiled thread card is not placed in the thread at all on such a GM.",
+   "source": "scripts/messenger.mjs:36-42, 252-260 ('WHAT A LATER GM CANNOT SEE')"
+  },
+  {
+   "what": "A ruling card's refusal hands back what the card says was paid, read off data the player's browser wrote; only the amount is the table's.",
+   "source": "scripts/messenger-app.mjs:1235-1283 (T-1, ACT-14, ROLL-13)"
+  },
+  {
+   "what": "Every GM gets a card and the gmAsk sound for a thread card that asks the GMs, the poster included; a plain message keeps the badge alone.",
+   "source": "scripts/messenger.mjs:350-367; scripts/messenger-app.mjs:538-546 (Dawid, 26.08)"
+  },
+  {
+   "what": "A whisper reaching a GM stays in the chat log unless it is gmPopup or a GM's popupForce; public cards interrupt everyone.",
+   "source": "scripts/popup.mjs:1236-1269"
+  },
+  {
+   "what": "No notice times out; a card that does not fit waits parked behind '+N', and '+N' closes every card that is not sticky.",
+   "source": "scripts/popup.mjs:67-72 (Dawid, 22.09), 471-482 (E81 C11, the owner's Q2 of 07.10)"
+  },
+  {
+   "what": "On a browser several accounts share, every account's notice history sits in one value anyone at its console can read.",
+   "source": "scripts/notice-history.mjs:47-52 (the owner's Q9 of 11.10.2026; GM handbook section 19, R478)"
+  },
+  {
+   "what": "A thread counts as read only while its window is frontmost, on Chat and the page visible.",
+   "source": "scripts/messenger-app.mjs:446-460 (E50 C1, Q-E50-2's default); player handbook 997"
+  },
+  {
+   "what": "The messenger's three sounds have a per-browser mute.",
+   "source": "scripts/messenger.mjs:52-61"
+  },
+  {
+   "what": "The notice history's window has no default key and the corner button is the tile's only launcher.",
+   "source": "scripts/notice-history.mjs:1292-1304; scripts/popup.mjs:85-92 (the owner's Q3 of 07.10)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/messenger.mjs:323-324",
+   "comment_says": "'`drpgMessengerRead` lets the launcher badge and the roster popover refresh the moment a window is opened, on whichever client that happened.'",
+   "code_does": "Hooks.callAll is this browser's alone and the read map is a client setting, so no other client hears it; and its listener redraws the launcher only - an open roster keeps the rows it was drawn with (messenger-app.mjs:44-50, whose own note says so)."
+  },
+  {
+   "where": "scripts/popup.mjs:23-26",
+   "comment_says": "showPopup() is 'called directly, when the caller wants a title or a sticky card - `report()` in action-rolls.mjs, ...'",
+   "code_does": "report lives in action-report.mjs since E41 C3 (action-report.mjs:225) and calls no showPopup: it whispers and leaves the card to this file's catch-all (action-report.mjs:328-345)."
+  },
+  {
+   "where": "scripts/popup.mjs:4-8 and 1191-1193",
+   "comment_says": "'a floating card in the middle of the screen'; 'Every module message surfaces in the middle of the screen, for everybody it was addressed to - GMs included.'",
+   "code_does": "An ordinary card goes to the corner tile (hostFor, 234-238); only sticky evidence, objections and centre cards take the middle stage. A GM is skipped for every whisper that is not gmPopup or a GM's popupForce (1269), as the same comment's later paragraphs say."
+  },
+  {
+   "where": "scripts/notice-history-app.mjs:315",
+   "comment_says": "'Closing the window reads what it listed (P10-3)'",
+   "code_does": "markNoticesRead() marks every unread entry of this login read, whatever the filter, the search or the pill left off the list (finding 4)."
+  },
+  {
+   "where": "scripts/messenger-app.mjs:850-858",
+   "comment_says": "'/** What each button on a ruling card does. GM side, by construction. */' over a block of line comments",
+   "code_does": "A JSDoc attached to no declaration (the next statement is ruleApproveCallOrRefuseCall, whose own comment follows it); the same sentence is CARD_ACTIONS's doc at 1391. The four-space-indented line comments before ruleApproveCallOrRefuseCall, ruleSetDifficulty, rulePickTrait, ruleRefuseTrait, ruleItemWorksOrItemNoEffectOrItemRefuse and ruleApproveMurderOrRefuseMurder (851-858, 866-873, 901-909, 928, 935-937, 970-974) are case comments left at a switch's depth after the cut into functions."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [
+   "createNoticeEngine, scripts/notice-history.mjs:434-1143 (710 lines, espree): a closure factory like gm-store.mjs's engine, not one of the two long functions CLAUDE.md's code rules name (registerSettings, steps())."
+  ],
+  "functions_150_to_300": [
+   "showPopup, scripts/popup.mjs:856-1105 (250 lines)"
+  ],
+  "duplicated_helpers": [
+   "The time of a card in the module's language, `localeFormat(\"time\", at, { hour: \"2-digit\", minute: \"2-digit\" })`, three times: bubbleTime (messenger-app.mjs:645-647), noticeTime (notice-history.mjs:1283-1285) and inline in readersLines (secret.mjs:436).",
+   "The badge's '99+' cap written twice (messenger-app.mjs:1517 and 1656).",
+   "A GM's half taken off a player's copy in two places of one file, cardPreview (messenger-app.mjs:621) and buildBubble (682), beside dropOldGmLines and secret.mjs playerWords.",
+   "NOTICE_KINDS and NOTICE_TONES (notice-history.mjs:75-76) copy popup.mjs KINDS and TONES (717-719) on purpose, held equal by R294 (notice-history.mjs:69-74)."
+  ],
+  "dead_code": [
+   "None found in the seven files: every top-level export was grepped (git grep -w over scripts/ and audit/harness). Exports read only in their own file and by the suite: bubbleTime, cleanNoticeHtml, noticeCardChanged, cardFace, CARD_FACES, TONE_FACES, createNoticeEngine."
+  ],
+  "magic_numbers": [
+   "closeRoster's 400 ms backstop (messenger-app.mjs:1582): a number where popup.mjs's dismiss explains it reads the motion token (Math.max(SNAP(), 0) + 1000, popup.mjs:1023-1036, 1060); the roster's transition is --drpg-t-enter, 180 ms (styles/motion.css:51), so it holds today.",
+   "The Stained Glass stack's capacity 2, inline in capacityOf (popup.mjs:335), beside the named MAX_VISIBLE 4 and MAX_EVIDENCE 2.",
+   "The item effect's stepper ceiling 12, written twice and unnamed (messenger-app.mjs:817 and 838).",
+   "FALLBACK_TOP 96 and WIDGET_GAP 8 (popup.mjs:254-255), SNAPSHOT_DEBOUNCE_MS 250 (795), SEARCH_MS 150 (notice-history-app.mjs:46), DEBOUNCE_MS 400 and TOMBSTONE_MS 10 min (notice-history.mjs:142-143), BUDGET (133-139): named, and each marked a design figure rather than a reading."
+  ],
+  "other": [
+   "savePosition calls game.settings.set without await inside a try (messenger-app.mjs:1481-1487): a rejected write escapes the catch as an unhandled rejection instead of the logged error the catch writes.",
+   "Two function names carry the cut of a switch: ruleApproveCallOrRefuseCall (859) and ruleItemWorksOrItemNoEffectOrItemRefuse (938), each one rule under two or three CARD_ACTIONS keys."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Any [data-drpg-call] button in a thread bubble or a GM's chat log is live on a GM whatever wrote the card (finding 1): a controls pass that lists a card's buttons from callGm alone does not see the made-up ones.",
+   "A GM's notice of a ruling card with no thread carries the card's buttons unwired - already controls-07-messages-calls-1 (popup.mjs:1267-1298)."
+  ],
+  "stale_windows": [
+   "The GM's roster keeps the rows it was drawn with (messenger-app.mjs:44-51, 1585-1629) - already controls-07-messages-calls-4.",
+   "A GM's 'Waiting on your ruling' notice keeps 'Awaiting a ruling' after another GM ruled (popup.mjs:1165-1177 reaches only an overruled Objection) - already controls-07-messages-calls-5.",
+   "The conversation window's participants line (messenger-app.mjs:234-237) is gmIds() at render, the Note dot (269-283) the note at render; a GM user added or a note saved elsewhere is not redrawn - already controls-07-messages-calls-3.",
+   "The notice history's list waits for focus to leave it (notice-history-app.mjs:363-378, 304-307) - controls-07-messages-calls-9 rated it a nit; under D-A1 (the owner's 'Zawsze odswiezamy okna od razu przy zmianie') a REFR reader may weigh it again.",
+   "Switching the conversation window's tab re-renders it and drops a typed message (messenger-app.mjs:386-391) - already controls-07-messages-calls-7."
+  ],
+  "leaks": [
+   "Finding 2's pattern - a notice told at the moment of a crossing, on a road an Eclipse also takes, posted unveiled - may stand on other CROSSING_SETTLED listeners (watch-gm.mjs:157, doors-gm.mjs:506); not read here."
+  ],
+  "a11y": [
+   "The launcher is rebuilt on every thread event and drops keyboard focus (finding 5); the roster's rows are not reachable from the keyboard (controls-07-messages-calls-10)."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Whether Foundry 14 stamps ChatMessage.timestamp on the server or keeps the creating browser's clock. It decides the open half of COMM-15: unread is the message's own timestamp against the newest read stamp (messenger.mjs:144-149, 201-206), and a bubble appended to an open window goes to the bottom (messenger-app.mjs:505-513) while a window built afresh sorts by timestamp (messenger.mjs:113-118), so a message from a browser whose clock runs behind arrives read and moves up the thread on the next open.",
+   "old_id": "COMM-15 (live check COMM-LC7)",
+   "l1": {
+    "what": "ChatMessage.timestamp against the creating browser's clock on Foundry 14.370",
+    "recipe": [
+     "On a player's machine set the system clock 3 minutes behind (or run the browser under a fake clock).",
+     "As that player send a message in the GM Chat.",
+     "On the GM: game.messages.contents.at(-1).timestamp - Date.now() in the console.",
+     "Close and reopen the player's thread on the GM and note where the bubble stands."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "default",
+    "settles_if": "About 0 ms: the server stamps it, COMM-15's half is gone. About -180000 ms: the client stamps it, COMM-15 stands (the message counts read on a GM who read the thread in the last 3 minutes, and sorts above newer bubbles).",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "That Foundry 14 keeps a client setting as one localStorage item `${namespace}.${key}` for every world and login on the browser - finding 3 rests on it, as notice-history.mjs:1162-1166 does.",
+   "l1": {
+    "what": "the storage key of messengerLastRead on Foundry 14",
+    "recipe": [
+     "Log in as a GM, open and read a player's thread.",
+     "In the console: Object.keys(localStorage).filter(k => k.includes('messengerLastRead')) and print the value.",
+     "Log out, log in as that player on the same browser, read localStorage again and look at the launcher's badge after the GM posts one more reply from another machine and the player has not opened the thread."
+    ],
+    "clients": "1 GM and 1 player on one browser, a second GM machine",
+    "theme": "default",
+    "settles_if": "One key without world or user and the same object on both logins: finding 3 stands. A key per world or per user: it falls.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Whether Foundry 14's cleaning of a player's plain (non-private) chat message keeps <button data-drpg-call ...>, which decides finding 1's chat-log half (the private-card half is held by scenario 30 in jsdom, with the harness's cleaner; result not read).",
+   "l1": {
+    "what": "a player's made-up ruling button drawn live on a GM",
+    "recipe": [
+     "As a player in the console: ChatMessage.create({ content: '<p>test</p><div class=\"drpg-call-actions\"><button type=\"button\" data-drpg-call=\"searchMiss\" data-by=\"<own actor id>\">Nothing was there</button></div>', whisper: game.users.filter(u => u.isGM).map(u => u.id) }).",
+     "On the GM, look at the card in the chat log: is the button there and enabled?",
+     "Press it and read the player's thread."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "default",
+    "settles_if": "The button is drawn and pressing it posts '<GM> rules: Nothing was there.' to the player's thread: the chat-log half stands. The button is stripped: only the thread half (private cards) stands.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Finding 2 at a table: what a player's browser holds when another student's crossing in an Eclipse settles into a rifled stash or a noted bedroom.",
+   "l1": {
+    "what": "the document of an arrival notice told in an Eclipse",
+    "recipe": [
+     "Set up a stash for Aiko and have another student go through it while Aiko is elsewhere (or force her bedroom door).",
+     "Start an Eclipse; on a second player's browser run Hooks.on('createChatMessage', m => console.log(m.speaker, m.whisper, m.flags))",
+     "Move Aiko into that room in the Eclipse and wait 3 s."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "The second player's console prints Aiko's actor as speaker and her player in the whisper list: the leak stands. A neutral speaker and every user as the list (a veiled card): it falls.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "The cost of the launcher's rebuild and stats pass on a returning GM (finding 5) at a season's message count; scenario 86 counts the module's work for a move and a write, not for a return.",
+   "l1": {
+    "what": "the frame cost of a GM's return with many thread cards",
+    "recipe": [
+     "On a world with a season of chat (several thousand messages, a few hundred thread cards), reload a GM's page.",
+     "Run await game.drpg.fps({ toChat: false }) during the first 20 s after ready and read game.drpg.counters() for messenger.threadStats."
+    ],
+    "clients": "1 GM returning, any players",
+    "theme": "both",
+    "settles_if": "messenger.threadStats in the hundreds and slow frames over the words' arrival: worth the change; a handful and no slow frames: a nit only.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether two read stamps written in one tick can lose one: markThreadRead reads the map, awaits game.settings.set and calls the hook (messenger.mjs:201-208); if Foundry 14's client set is not synchronous before its first await, a second thread marked in the same tick writes the older map back. Not traced into Foundry's client-settings code.",
+   "l1": {
+    "what": "two threads marked read at once on a GM",
+    "recipe": [
+     "On a GM with two players' windows open, run in the console: const M = await import('/modules/danganronpa-rpg/scripts/messenger.mjs'); await Promise.all([M.markThreadRead('<player A id>'), M.markThreadRead('<player B id>')]) after a new message in each thread.",
+     "Read game.settings.get('danganronpa-rpg', 'messengerLastRead')."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "Both stamps present: no loss. One missing: a race worth a finding.",
+    "priority": "nit"
+   }
+  }
+ ]
+}
