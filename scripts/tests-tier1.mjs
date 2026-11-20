@@ -54958,6 +54958,72 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ sg: ["0", "0"], pulse: ["0", "0"], seamline: ["0", "0"], flash: ["0", "0"] }),
             "{each of the band's canvases: [the padding-left it wins, the padding-right]}");
     }],
+    ["R7900 - the sheet's effect badges pile on one another instead of stretching the header (the owner, 20.11.2026, a screenshot of a student's sheet with three badges pushing the header apart: \"efekty rozjezdzaja karte. Niech stackuja sie na sobie, a najechanie myszka niech wyciaga ten, na ktory najezdzamy myszka na wierzch, tak jakby byly w stosie\"): the stack is one grid cell every badge stands in, each a step lower than the one before, the steps never rising past 20 px in all; the badge pointed at or focused is raised over the others without moving them, the last badge is on top at rest, each paints its tint over an opaque ground, and under reduced motion nothing lifts", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. On b5a29e73 `.drpg-pending-stack` was a flex column with a 4 px gap
+         * (danganronpa.css, "WHAT YOU HAVE, AND WHAT IS RIDING ON THE NEXT ROLL"), so each badge took its own row and three
+         * stood about 65 px tall in a header row reserved for 3rem. Read here: the sheets' cascade on a stack as
+         * sheet-header.mjs `pendingStack` builds it (three badges, as on the owner's screenshot), the indices and steps
+         * `pileStack` writes on it, and which badge a pointer's height picks (`pileIndexAt`). The heights in px are
+         * Chromium's (audit/pending-pile.mjs, 20.11.2026: a badge 17 px tall under Legacy and 28 px under Stained Glass, so
+         * 28 + 20 fills the row's 3rem; on b5a29e73 three badges stood 59 px and 92 px): a headless page lays nothing out,
+         * so the 20 px is held as the steps' sum.
+         */
+        const C = await styleCascade();
+        const SH = await import("./sheet-header.mjs");
+        const shell = document.implementation.createHTMLDocument("R7900");
+        const body = shell.body;
+        const badge = (cls, label) => `<div class="drpg-pending-call ${cls}" data-tooltip="${label}"><i class="fa-solid fa-hand-sparkles" inert></i><span>${label}</span></div>`;
+        body.innerHTML = `<div class="application sheet actor"><div class="character-header-sheet"><div class="character-row"><div class="drpg-actions-section">`
+            + `<div class="drpg-actions"></div><div class="drpg-pending-stack">${badge("drpg-pending-hope", "Experience +1")}${badge("drpg-pending-despair", "+1 Shadow")}`
+            + `${badge("drpg-pending-timed drpg-timed-badge", "+1 Body")}</div></div></div></div></div>`;
+        const stack = body.querySelector(".drpg-pending-stack");
+        const badges = [...stack.children];
+        must(badges.length === 3, "the three badges were not drawn");
+        if (typeof SH.pileStack === "function") SH.pileStack(stack);
+        const seen = {}, want = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            for (const motion of ["", " drpg-reduced-motion"]) {
+                body.className = `${cls} drpg-player${motion}`;
+                const key = `${theme}${motion ? " reduced" : ""}`;
+                badges[1].classList.add("drpg-raised");
+                const raised = C.on(badges[1]), rest = C.on(badges[0]);
+                seen[key] = {
+                    stack: C.winner(stack, "display")?.value ?? null,
+                    cell: badges.map(b => C.winner(b, ["grid-area", "grid-row", "grid-column"])?.value ?? null),
+                    drop: C.winner(badges[2], ["margin-top", "margin"])?.value ?? null,
+                    raisedOver: Number(raised(["z-index"])?.value) > Number(rest(["z-index"])?.value ?? 0),
+                    ground: badges.map(b => C.winner(b, ["background", "background-color"])?.value ?? "").every(v => v.includes("var(--drpg-pile-tint") && v.endsWith("var(--drpg-pile-ground)")),
+                    lift: raised(["transform"])?.value ?? null
+                };
+                badges[1].classList.remove("drpg-raised");
+                want[key] = {
+                    stack: "grid", cell: ["1 / 1", "1 / 1", "1 / 1"], drop: "calc(var(--drpg-pile-i, 0) * var(--drpg-pile-step, 0px))",
+                    raisedOver: true, ground: true, lift: motion ? "none" : "translateY(-2px)"
+                };
+            }
+        }
+        equal(stableJson(seen), stableJson(want), "{theme, motion: the stack's display, each badge's grid cell, the third badge's drop, whether a raised badge stands over the others, whether every badge paints its tint over the opaque ground, the raised badge's lift}");
+
+        must(typeof SH.pileStack === "function" && typeof SH.pileIndexAt === "function", "sheet-header.mjs exports no pileStack or pileIndexAt - the pile is not built");
+        const pile = n => {
+            const el = shell.createElement("div");
+            el.innerHTML = Array.from({ length: n }, (_, i) => badge("drpg-pending-hope", `B${i}`)).join("");
+            SH.pileStack(el);
+            const step = Number.parseFloat(el.style.getPropertyValue("--drpg-pile-step"));
+            return { indices: [...el.children].map(b => b.style.getPropertyValue("--drpg-pile-i")), focusable: [...el.children].every(b => b.tabIndex === 0),
+                rise: Math.round(step * (n - 1) * 100) / 100 };
+        };
+        equal(stableJson([1, 3, 6, 9].map(pile)), stableJson([
+            { indices: ["0"], focusable: true, rise: 0 },
+            { indices: ["0", "1", "2"], focusable: true, rise: 12 },
+            { indices: ["0", "1", "2", "3", "4", "5"], focusable: true, rise: 20 },
+            { indices: ["0", "1", "2", "3", "4", "5", "6", "7", "8"], focusable: true, rise: 20 }
+        ]), "{1, 3, 6 and 9 badges: each badge's index, every badge focusable, the pile's rise over the first badge in px}");
+        // a pointer 0, 5, 6, 11, 12 and 40 px under the stack's top over three badges (steps of 6): the badge whose strip is there
+        equal(stableJson([0, 5, 6, 11, 12, 40, -3].map(y => SH.pileIndexAt(3, y))), stableJson([0, 0, 1, 1, 2, 2, 0]),
+            "{a pointer's height over three piled badges: the index of the badge it raises}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

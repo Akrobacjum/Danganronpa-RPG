@@ -183,5 +183,7 @@ export default [
     { files: ["audit/sheet-column.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     // the sheet band's check (16.11.2026): its page.evaluate bodies run in its own page of Daggerheart's sidebar and header
     { files: ["audit/sheet-band.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
+    // the effect badges' pile (1.2.119): its page.evaluate bodies run in its own page of Daggerheart's header
+    { files: ["audit/pending-pile.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     { files: ["audit/live/page-hooks.js"], languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: { ...BROWSER, ...FOUNDRY } }, rules: RULES }
 ];
