@@ -447,8 +447,10 @@ export async function handleSendback(payload, sender, ctx, prepared) {
     // the place is a spot of the GMs' record or the centre of a room the token stood in within the
     // minute (`guardSendbackPlace`), and a wall between the two must not stop the way back
     // (movement.mjs `sendBack`'s note); a centre across a wall is the audit's to judge.
-    // The whole spot, whatever this GM's copy holds (movement.mjs `putBackWrite`; scenario 76 D).
-    await prepared.putBackWrite(token, to, { animate: false, [prepared.REVERT]: true, [prepared.SENT_BACK]: sender.isGM ? false : sender.id, constrainOptions: { ignoreWalls: true } });
+    // Through the one put-back road (movement.mjs `putBackWrite`; scenario 76 D), which knows whether it landed.
+    const out = await prepared.putBackWrite(token, to, { animate: false, [prepared.REVERT]: true, [prepared.SENT_BACK]: sender.isGM ? false : sender.id, constrainOptions: { ignoreWalls: true } });
+    // Its real outcome (movement.mjs `putBackWrite`): a put-back that did not land is not answered done.
+    if (!out?.landed) return { refused: "nothing was carried out: the token was not put back where it stood" };
 }
 
 export async function handleLoot(payload, sender, ctx) {

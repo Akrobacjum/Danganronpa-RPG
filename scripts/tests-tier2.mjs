@@ -27429,34 +27429,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Enter in the verdict window presses a verdict (the first submit button, the buttons marked default, the answer)");
     }],
 
-    ["a put-back writes every coordinate it names, whatever the writer's copy of the token holds (movement.mjs `putBackWrite`; the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
-        /*
-         * 76 D, on the D4 shim (two runs in three): the GM's put-back of Botan to 1250,400, written while p2's move to 1200,450
-         * was still on its way, left him at 1250,450 - the GM's copy held y 400 already, so the writer's diff dropped y and the
-         * move's y stood. Here the race is staged on this GM: a scratch token at 300,400, this browser's copy of it told it
-         * stands at y 300 (the target's y, as a copy that has not heard the move would), and a put-back to 300,300. Read: the
-         * changes `updateToken` hands for that write name y - what every other browser applies. Red before `putBackWrite` sent
-         * diff: false: the shim drops what the writer's copy already holds (lib/shim.mjs `TOKEN MOVEMENT`).
-         */
-        const M = await import("./movement.mjs");
-        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
-        must(scene, "no scene to stand a scratch token on");
-        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back", x: 300, y: 400, width: 1, height: 1 }]);
-        must(token, "the scratch token was not made");
-        let seen = null;
-        const hook = Hooks.on("updateToken", (doc, changes) => { if (doc.id === token.id) seen = Object.keys(changes).filter(k => k !== "_id").sort(); });
-        try {
-            token._source.y = 300;
-            await M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
-            await wait(300);
-            equal(JSON.stringify(seen?.includes("y") ?? null), "true",
-                `a put-back to 300,300, written by a copy that held y 300 already, did not send y (the changes updateToken handed: ${JSON.stringify(seen)})`);
-        } finally {
-            Hooks.off("updateToken", hook);
-            await scene.deleteEmbeddedDocuments("Token", [token.id]);
-        }
-    }],
-
     ["E40-T8 - two accused, each on their own: the verdict window ticks both, holds the wrong verdict off with none ticked, and a wrong verdict executes exactly the ticked - both, the first, the other; none gives no verdict (scripts/verdict.mjs `accusedChoices`, `executedChoice`, `read`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
         /*
          * Drawn on this GM over a record whose count accused two living students who are not known Blackened (tier 1 R7601,
@@ -104254,6 +104226,176 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(answer), stableJson(true), "the queued answer did not answer the window");
+    }],
+
+    /* ------------------------------------------------------------------------------------------------------------------
+     * C1's block on the line claude/shim-118 (19.11.2026): the put-back's own tests. L1 owns the rest of this file in its
+     * loop; kept apart so the two branches meet here alone.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["a put-back written while the token's newer move is on its way lands after it (movement.mjs `putBackWrite`; the line claude/shim-118, 19.11.2026; E58 L1's third probe, r5)", async () => {
+        /*
+         * On Foundry 14.370 a token update with `diff: false` whose every named coordinate the writer's copy already holds is not
+         * sent (CALIBRATION.md section 6, the third probe's r5; lib/shim.mjs models it since this line). The race's shape: the
+         * copy still holds the spot the put-back aims at - the token's old place - while the player's newer move is on the
+         * server already and reaches this browser a moment later. Here, on this GM: a scratch token at 300,300, its copy in
+         * step; the put-back to 300,300 started; 150 ms later a move of the token to 500,300 lands (written by this GM,
+         * standing in for the move already on its way). Read: what the put-back answered, and where the token stands after.
+         * The newer move starts away from `to` (its record's origin, 400,300), as a move written by a browser that had not seen
+         * the put-back does. Before `putBackWrite` waited for the move in flight it wrote nothing, answered undefined, and the
+         * token stood at 500,300 - a refused crossing left standing. What 14.370's server does with a put-back written after a newer move
+         * is not modelled here beyond the shim's: L1's runs at a table are its measurement. This test replaces "a put-back
+         * writes every coordinate it names, whatever the writer's copy of the token holds" (17.11.2026), retired on this line by
+         * the coordinator's answer of 19.11: it staged a copy wrong with nothing in flight, which r5 leaves no client write to
+         * correct, and under the shim's r5 rule it could only be red.
+         */
+        const M = await import("./movement.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back race", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let read = null;
+        try {
+            const back = M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            await wait(150);
+            /* The newer move starts where the mover's copy had the token - away from `to`, 400,300 here - as the race's move
+               does, written by a browser that had not seen the token back at `to` (its record's `origin`; lib/shim.mjs
+               `tokenMove` takes it from the writer's copy). Restaged on 19.11.2026 with the origin rule: until then this
+               move started at `to`, the shape of a fresh move after the put-back, which the put-back must not undo. */
+            token._source.x = 400;
+            await token.update({ x: 500, y: 300 }, { animate: false });
+            const out = await back;
+            await settle();
+            read = [out ?? null, token.x, token.y];
+        } finally {
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: true }, 300, 300]),
+            "a put-back whose spot the copy held, with the token's newer move on its way, did not land after that move (the put-back's answer, the token's x and y after)");
+    }],
+
+    ["a put-back to the spot the token stands on, with nothing on its way, writes nothing and says it landed (movement.mjs `putBackWrite`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * The other end of the same road: the copy holds the spot and no move of the token comes within the wait
+         * (`TIMING.putBackWaitMs`). Nothing is sent - 14.370 would send nothing - and the token stands where it is put back
+         * to, as far as this browser can know: answered `{ sent: false, landed: true }`, after the wait and not before it, with
+         * no update of the token heard. A copy wrong with nothing in flight is not covered (movement.mjs `putBackWrite`).
+         */
+        const M = await import("./movement.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back still", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let heard = 0, read = null;
+        const hook = Hooks.on("updateToken", doc => { if (doc.id === token.id) heard++; });
+        try {
+            const t0 = Date.now();
+            const out = await M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            const waited = Date.now() - t0;
+            await settle();
+            /* Read with 25 ms to spare: a timer measured against `Date.now()` can read a millisecond or so short of its delay. Once
+               in nine runs on 19.11.2026 this test failed with no message kept; that is the likely reading, not a measured one. */
+            read = [out ?? null, waited >= TIMING.putBackWaitMs - 25, heard, token.x, token.y];
+        } finally {
+            Hooks.off("updateToken", hook);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, true, 0, 300, 300]),
+            "a put-back to where the token stands, with nothing on its way, wrote, did not wait, or did not say it landed (the answer, waited the full wait, updates heard, x, y)");
+    }],
+
+    ["a put-back that judges a move this browser saw land does not wait when the token already stands where it is put back (movement.mjs `putBackWrite` `seenHere`, `chargeRoute`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * The mover's own charge (`chargeRoute`, the Eclipse's crossing past its allowance and the economy's out of budget)
+         * judges the move this browser has just seen land: nothing older of the token is on its way, so a copy at `to`
+         * means the token stands there - in 70-movement's "eclipse route" the GMs' count had put Aiko back first, and her
+         * own browser's put-back waited the whole 1500 ms for no move (the coordinator's reading of 19.11.2026, measured that
+         * day on an instrumented copy). Here: a scratch token at 300,300, a put-back to 300,300 marked `seenHere`. Read: the
+         * answer, that it came well inside the wait (under a third of it), no update heard, and where the token stands.
+         * R7741 holds `chargeRoute`'s two put-backs to the mark.
+         */
+        const M = await import("./movement.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back seen", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let heard = 0, read = null;
+        const hook = Hooks.on("updateToken", doc => { if (doc.id === token.id) heard++; });
+        try {
+            const t0 = Date.now();
+            const out = await M.putBackWrite(token, { x: 300, y: 300 }, { animate: false }, { seenHere: true });
+            const waited = Date.now() - t0;
+            await settle();
+            read = [out ?? null, waited < TIMING.putBackWaitMs / 3, heard, token.x, token.y];
+        } finally {
+            Hooks.off("updateToken", hook);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, true, 0, 300, 300]),
+            "a put-back marked seen here, to where the token stands, waited, wrote, or did not say it landed (the answer, inside a third of the wait, updates heard, x, y)");
+    }],
+
+    ["a move that starts where the put-back aims, made while it waits, is not undone (movement.mjs `putBackWrite`, `startedAway`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * A fresh move after the put-back has landed starts at `to`, where the token stands: it is not the move the put-back
+         * waits for, and putting the token back over it would undo a step nobody refused. Until the origin rule (19.11.2026,
+         * the coordinator's decision after 70-movement's measured wait) any move released the put-back, and this move was
+         * undone. Here: a scratch token at 300,300, a put-back to 300,300 started, 150 ms later a move to 500,300 written
+         * from this copy, at 300,300 - its record's origin is `to`. Read: the put-back's answer and where the token stands.
+         */
+        const M = await import("./movement.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back fresh move", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let read = null;
+        try {
+            const back = M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            await wait(150);
+            await token.update({ x: 500, y: 300 }, { animate: false });
+            const out = await back;
+            await settle();
+            read = [out ?? null, token.x, token.y];
+        } finally {
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, 500, 300]),
+            "a move that started where the put-back aimed, made while it waited, was undone (the put-back's answer, the token's x and y after)");
+    }],
+
+    ["a move whose record carries no origin, heard while a put-back waits, is not undone (movement.mjs `putBackWrite`, `startedAway`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * A move the put-back cannot show is the race is left standing: losing a put-back where the record cannot be read is
+         * the module's behaviour before this line (1.2.117), and overwriting a legal move would be new harm (the coordinator's
+         * decision, 19.11.2026). Whether 14.370's update carries the origin as the shim models it is LIVE-E39-20. Staged on
+         * this GM, as no write of the shim leaves a move without its record: a scratch token at 300,300, a put-back to 300,300
+         * started, then this copy set to 500,300 and `updateToken` called for it with no `_movement` in its options - a move
+         * heard with no readable origin. Read: the put-back's answer, the updates heard after the staged one (none: nothing
+         * written), and where this copy stands.
+         */
+        const M = await import("./movement.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back no origin", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let heard = 0, staged = false, read = null;
+        const hook = Hooks.on("updateToken", doc => { if (doc.id === token.id && staged) heard++; });
+        try {
+            const back = M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            await wait(150);
+            token._source.x = 500;
+            Hooks.callAll("updateToken", token, { _id: token.id, x: 500 }, {}, game.user.id);
+            staged = true;
+            const out = await back;
+            await settle();
+            read = [out ?? null, heard, token._source.x, token._source.y];
+        } finally {
+            Hooks.off("updateToken", hook);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, 0, 500, 300]),
+            "a move heard with no origin in its record was undone by a waiting put-back (the answer, updates heard after it, this copy's x and y)");
     }],
 ];
 

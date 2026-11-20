@@ -22,7 +22,7 @@
  */
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
-    ROOM_OWNER_FLAG, ACTIONS_RESOURCE } from "./config.mjs";
+    ROOM_OWNER_FLAG, ACTIONS_RESOURCE, TIMING } from "./config.mjs";
 import {
     SETTINGS, iAmTheMastermind, incidentParticipants, incidentCast, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
     isDeceased, getClock, eclipseId, eclipseCountOf, isMutedDead
@@ -1426,8 +1426,7 @@ export async function refundLastCrossing(actorId) {
             const to = { x: Number(row.back.x), y: Number(row.back.y), elevation: Number(row.back.elevation) || 0 };
             if (row.back.level !== null && row.back.level !== undefined) to.level = row.back.level;
             try {
-                await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });
-                back = true;
+                back = (await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } })).landed;
             } catch (err) {
                 error(`Could not stand "${token.name}" where it was before the crossing given back`, err);
             }
@@ -2795,7 +2794,8 @@ async function chargeRoute(tokenDoc, actor, { before, previous, crossings }, { r
         for (const [from, to, floors, spot] of crossings) {
             const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors, { elevation: ownElevation(tokenDoc), used: used0 + allowedSoFar, ...(record ? { record } : {}) });
             if (!allowed) {
-                await sendBack(tokenDoc, standing, from);
+                // The move this browser just saw land is judged here: nothing older is on its way (`putBackWrite` `seenHere`).
+                await sendBack(tokenDoc, standing, from, { seenHere: true });
                 return false;
             }
             allowedSoFar++;
@@ -3351,7 +3351,8 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
            crossing's card alone (311 ms) - this card's whole wait, 371 ms there. Without the stand-in the gain is this
            card's create, about 110 ms by review round 4's reading on p1 (correctness Q1), not measured again here.
            The route that sent it is not announced when its put-back lands first (`putBacksSent`). */
-        await sendBack(tokenDoc, previous, from);
+        // As the Eclipse's put-back above: a move this browser just saw land (`putBackWrite` `seenHere`).
+        await sendBack(tokenDoc, previous, from, { seenHere: true });
         ui.notifications.warn(game.i18n.localize("DRPG.Move.noBudget"));
         // Tagged as an error popup (red border) rather than the default
         // info one - this is a refusal, the concrete case the red variant
@@ -3486,12 +3487,102 @@ export async function announceCrossingOnGm(actor, from, to, tokenDoc, cost) {
  * its way reads the old spot in the writer's copy: the coordinate the copy already holds is dropped, the other is written
  * after the move lands, and the token stands where it never stood - 76 D read Botan at 1250,450, the put-back's x with the
  * move's y, on the D4 shim, two runs in three. So every put-back of a token's spot - `sendBack`, `refundLastCrossing` and the
- * bridge's send-back (bridge-runs-records.mjs `handleSendback`) - writes through here, with `diff: false`, every coordinate
- * it names sent whatever the copy holds. The options are the caller's otherwise. Tier 2 "a put-back writes every coordinate
- * it names"; tier 0 R7741 holds the three to this road.
+ * bridge's send-back (bridge-runs-records.mjs `handleSendback`) - writes through here, with `diff: false`. The options are
+ * the caller's otherwise; tier 0 R7741 holds the three to this road.
+ *
+ * A PUT-BACK KNOWS WHETHER IT LANDED (the line claude/shim-118, 19.11.2026; the coordinator's go-ahead of that day). On
+ * Foundry 14.370 `diff: false` does not send a token's coordinates its copy holds: the third probe's r5 (CALIBRATION.md
+ * section 6, read by E58 L1) set the GM's copy to the square it then asked for, with `diff: false` - not written, answer
+ * undefined, the server where it was. That is the race's own shape: the copy still holds the spot the put-back aims at, the
+ * token's old place, while the player's newer move is on the server already. The put-back was lost, and its callers said it
+ * had landed - a refused crossing stood, a refund was paid with the token left where it was. So where the copy holds every
+ * coordinate of `to`, the put-back waits for the token's next move heard here (`TIMING.putBackWaitMs`, unmeasured,
+ * LIVE-E39-20) - the move in flight - and writes then, its copy no longer holding `to`; if none comes, the token stands at
+ * `to` as far as this browser can know (a copy wrong with nothing in flight is not read and not covered). Answers
+ * `{ sent, landed }`: `landed` when the write was answered and the copy holds `to` after it (a write stopped at a wall
+ * did not land; the walls are passed with `constrainOptions`, which 14.370 honours here: r3), or when nothing needed
+ * sending. The callers read `landed`, never the bare call: `sendBack`'s `landed`, `refundLastCrossing`'s `back`, the
+ * bridge's send-back's answer. Tier 2 "a put-back written while the token's newer move is on its way lands after it".
+ *
+ * WHAT THE WAIT COSTS, AND WHO SKIPS IT (19.11.2026; the coordinator's reading of that day and its decision after the
+ * measurement). With nothing in flight the whole window passes: the token is drawn at `to` already, so nothing on the map
+ * waits, but the caller's next step does - `refundLastCrossing`'s card to the owner and its answer, inside its step of
+ * `serialWrite(crossingKey)`, so the character's next crossing write waits too; `sendBack`'s `lastRoom` and `lastPosition`
+ * on this browser and its `landed`; the bridge's send-back answer. Measured on an instrumented copy of e6d78ac0: tiers
+ * 0-2 whole spent it once (the still test, 1501 ms), the 52 scenarios once (70-movement's "eclipse route", Aiko on p1,
+ * 1500 ms: the mover's own charge putting back a token the GMs' count had put back first). The mover's own charge skips
+ * it: `chargeRoute` and `chargeForCrossing` judge a move this browser has just seen land, nothing older is on its way, and
+ * they pass `seenHere` (R7741). And the move that ends the wait releases the put-back only if its record's start
+ * (`options._movement[id].origin`) is away from `to` - a move written by a browser that had not seen the token back. A move
+ * that starts at `to` is a fresh step after the put-back landed; one whose start is absent or unreadable cannot be shown
+ * to be the race: both are left standing, answered `{ sent: false, landed: true }`. Before this rule any move released
+ * the put-back, and a second drag inside the window was undone. Whether 14.370 carries the client's origin as the shim
+ * models it is not read: LIVE-E39-20. Tier 2 "a move that starts where the put-back aims, made while it waits, is not
+ * undone", "a move whose record carries no origin, heard while a put-back waits, is not undone".
  */
-export function putBackWrite(tokenDoc, to, options = {}) {
-    return tokenDoc.update(to, { ...options, diff: false });
+export async function putBackWrite(tokenDoc, to, options = {}, { seenHere = false } = {}) {
+    if (spotHeld(tokenDoc, to)) {
+        // A move this browser has just seen land is judged (`seenHere`): nothing older of the token is on its way, and the
+        // token stands at `to` - nothing to send, and no wait (70-movement's "eclipse route": 1500 ms for no move, 19.11.2026).
+        if (seenHere) return { sent: false, landed: true };
+        const move = await nextMoveOf(tokenDoc, TIMING.putBackWaitMs);
+        // Nothing arrived within the window: reported as landed with nothing sent - the copy holds the spot, and nothing
+        // this browser heard says the server differs (LIVE-E39-20).
+        if (!move) return { sent: false, landed: true };
+        // A move that starts at `to`, or whose start cannot be read, is not the race: a fresh step made after the put-back
+        // landed, or one this browser cannot show is the move in flight. It ends the wait and is left standing - reported as
+        // landed with nothing sent, the module's way before this line (1.2.117) where the start is unreadable; undoing a
+        // legal move would be new harm (the coordinator's decision, 19.11.2026).
+        if (!startedAway(move.origin, to) || spotHeld(tokenDoc, to)) return { sent: false, landed: true };
+    }
+    const answer = await tokenDoc.update(to, { ...options, diff: false });
+    return { sent: answer !== undefined, landed: answer !== undefined && spotHeld(tokenDoc, to) };
+}
+
+/** Whether this browser's copy of the token holds every coordinate `to` names (`putBackWrite`). */
+function spotHeld(tokenDoc, to) {
+    const src = tokenDoc?._source ?? tokenDoc ?? {};
+    return Object.entries(to ?? {}).every(([key, value]) => key === "level"
+        ? String(src.level ?? tokenDoc?.level?.id ?? "") === String(value?.id ?? value ?? "")
+        : Number(src[key]) === Number(value));
+}
+
+/**
+ * The token's next move heard here (a coordinate or its floor in an `updateToken`), as `{ origin }` - the start its record
+ * names (`options._movement[id].origin`; lib/shim.mjs `tokenMove` models it from the writer's copy, LIVE-E39-20), null where
+ * the record holds none - or null after `ms`.
+ */
+function nextMoveOf(tokenDoc, ms) {
+    return new Promise(resolve => {
+        let done = false, hook = null, timer = null;
+        const finish = move => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            Hooks.off("updateToken", hook);
+            resolve(move);
+        };
+        hook = Hooks.on("updateToken", (doc, changes, options) => {
+            if (doc?.id !== tokenDoc?.id || !["x", "y", "elevation", "level"].some(key => key in (changes ?? {}))) return;
+            const origin = options?._movement?.[doc.id]?.origin;
+            finish({ origin: origin && typeof origin === "object" ? origin : null });
+        });
+        timer = setTimeout(() => finish(null), ms);
+    });
+}
+
+/**
+ * Whether a move's recorded start is away from `to` (`putBackWrite`): every coordinate `to` names readable in it, and one
+ * of them other than `to`'s. An absent start, or one missing a coordinate `to` names, is not away - never shown the race.
+ */
+function startedAway(origin, to) {
+    if (!origin) return false;
+    const entries = Object.entries(to ?? {});
+    const read = ([key]) => key === "level" ? origin.level !== undefined : Number.isFinite(Number(origin[key])) && origin[key] !== null;
+    if (!entries.length || !entries.every(read)) return false;
+    return entries.some(([key, value]) => key === "level"
+        ? String(origin.level?.id ?? origin.level ?? "") !== String(value?.id ?? value ?? "")
+        : Number(origin[key]) !== Number(value));
 }
 
 /**
@@ -3508,7 +3599,7 @@ export function putBackWrite(tokenDoc, to, options = {}) {
  * browser (`sound`) and tells the mover once the write has landed (`landed`, with whether it wrote).
  * Whether v14 honours the option on an update is not read here: LIVE-E79-02.
  */
-async function sendBack(tokenDoc, previous, room, { sound = true, landed = null, audited = false, elevation = false } = {}) {
+async function sendBack(tokenDoc, previous, room, { sound = true, landed = null, audited = false, elevation = false, seenHere = false } = {}) {
     if (!tokenDoc || !previous) return;
     // Announced when the REVERT lands, on every browser (`onUpdateToken`, E77 C2), not by the refusal.
     putBack.add(tokenDoc.id);
@@ -3526,10 +3617,10 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null,
             // elevation and level, the owner's 13.10).
             const to = previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y };
             if (elevation && Number.isFinite(Number(previous.elevation))) to.elevation = Number(previous.elevation);
-            await putBackWrite(tokenDoc, to,
-                { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } }
-            );
-            wrote = true;
+            wrote = (await putBackWrite(tokenDoc, to,
+                { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } },
+                { seenHere }
+            )).landed;
         } catch (err) {
             /*
              * A player may not own the token; ask the GM to do it.

@@ -667,6 +667,20 @@ export function buildDocumentClasses(ctx) {
             options._movement = { ...(options._movement ?? {}), [id]: record };
             options._priorRegions = { ...(options._priorRegions ?? {}), [id]: prior };
             if (options.teleport === undefined || options.teleport === null) options.teleport = record.passed.waypoints.every(w => w.action === "displace");
+            /* `diff: false` SENDS NO COORDINATE THE COPY HOLDS (E58 L1's third probe on 14.370, r5, 19.11.2026;
+               docs/dev/e39/CALIBRATION.md section 6): the GM's copy set to the square it then asked for, with `diff: false` -
+               not written, `update()` answering undefined, the server where it was. So an update naming movement fields and
+               nothing else, each of them one the writer's copy holds, is not sent under `diff: false`. LIVE-E30-03's reading -
+               an update naming a movement field where the token stood was sent, its hook `{_id}` - was taken without
+               `diff: false` and stands as it was below; the two are kept side by side as they were read. */
+            const movedNamed = [...named].filter(field => field !== "_id");
+            if (options.diff === false && movedNamed.length && movedNamed.every(field => TOKEN_MOVEMENT_FIELDS.includes(field) && sameValue(update[field], origin[field]))) {
+                for (const field of TOKEN_MOVEMENT_FIELDS) delete update[field];
+                delete update._regions;
+                delete options._movement[id];
+                if (!Object.keys(options._movement).length) delete options._movement;
+                return true;
+            }
             /* What is unchanged is not sent, but with `diff: false` a field the caller named is: Foundry 14.370 sent a token update
                that changed nothing when it was asked with `{ diff: false }` (CALIBRATION.md, LIVE-E30-03). Where v14 diffs - on
                the writer's client against its own copy, or on the server - was not read (LIVE-E39-12); the shim diffs on the
