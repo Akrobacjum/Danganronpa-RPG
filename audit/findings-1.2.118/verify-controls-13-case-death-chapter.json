@@ -1,0 +1,74 @@
+{
+  "refuter": "verify-controls-13-case-death-chapter",
+  "of": "controls-13-case-death-chapter",
+  "checked": [
+    {
+      "ref": "controls-13-case-death-chapter-1",
+      "claim": "The murder window draws the living once and Open the incident opens an incident on a student who died while it stood; openMurder asks nothing of death.",
+      "verdict": "stands",
+      "why": "openMurderDialog reads livingStudentsForGm once (90) and its render hook wires only its own selects and box (278-288); no keepLive, no Hooks.on, no class closer (drpg-window-murder is named only at 214 outside the tests; live.mjs has no generic closer). openMurder's guards are isGM, isEclipse, a running incident and both actors existing (441-482); grep of murder-rules.mjs for isDeadForGm finds it only in later roads (2451, 2902, 3047, 3123, 3220, 3283, 3475, 3890, 4025), none in openMurder. rollOpening (4426-4450) and askOpeningRoll (gm-bridge.mjs 213-217) ask no death either. killerFell (3220) listens to updateActor and drpgDeathsChanged only after the incident runs, and only for an incident at stage incident, so it does not cover the opening. No tier test pins a refusal of a dead killer or victim at openMurder (grep of tests-tier*.mjs). Severity minor fits: a death recorded while the window is open is a particular situation.",
+      "evidence": "scripts/murder-ui.mjs:90 \"const alive = livingStudentsForGm();\"; scripts/murder-ui.mjs:345 \"const opened = await openMurder(result);\"; scripts/murder-rules.mjs:474-482 \"const running = murderState(); if (running?.active) { refuseSecondIncident(running); return null; } const killer = game.actors.get(killerId); const victim = game.actors.get(victimId); if (!killer || !victim) return null;\"",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-13-case-death-chapter-2",
+      "claim": "The tracker's keepLive does not watch items, so readying or putting away a Cleaning Tool leaves the tool line and every clean-up DC wrong at Stage 6.",
+      "verdict": "stands",
+      "why": "The watch is actors, tokens, the murderState setting and drpgCastChanged (759); listenFor adds ITEM_HOOKS only for watch.items (309). toggleEquipped writes only the items' module flag through trustedWrite, which is doc.update on the item (resource-guard.mjs:350-354): an updateItem, no updateActor and no module hook (no Hooks.call in use-items.mjs, resource-guard.mjs or sheet-audit.mjs). killerCleanup prints cleaningTool and cleaningTier (838-842) and the DC is cleanupDc, which subtracts cleaningTier while CLEANUP.toolTierReducesDc is true (cleanup.mjs:376, config.mjs:4544). The region holds no field, so D-A1's focus wait is not the cause. Bounded as the reader says: the next actor write (a clean-up's Sanity) redraws.",
+      "evidence": "scripts/murder-ui.mjs:759 \"watch: { actors: true, tokens: true, settings: [SETTINGS.murderState], hooks: [\\\"drpgCastChanged\\\"] },\"; scripts/live.mjs:309 \"...(watch.items ? ITEM_HOOKS : []),\"; scripts/use-items.mjs:361 \"await trustedWrite(item, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: !wasEquipped }, { reason: \\\"equip\\\", ...quietly });\"; scripts/cleanup.mjs:376 \"const tool = CLEANUP.toolTierReducesDc ? cleaningTier(actor) : 0;\"",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-13-case-death-chapter-4",
+      "claim": "Four questions (two killers ran out, the victim died - Stage 6, students found a body, the tracker's End the murder) outlive what they ask about; their yes then does nothing and says nothing, unlike killerFell's question.",
+      "verdict": "stands",
+      "why": "checkVictimSpent's drpgConfirm (2415-2428) has no render hook; its yes reaches writeState with expect, which answers null silently when the expectation fails (incident-store.mjs:767-771), and returns false (2434-2435). offerStageSix's drpgConfirm (death.mjs:594-610) has no listener and beginResolution returns null with no word when the stage moved (murder-rules.mjs:2928). promptPendingBodies' drpgWindow (body.mjs:931-941) has no listener and continues past a dropped row (943); discoverBody drops the row whichever road announced (body.mjs:312-313). The tracker's End confirm (murder-ui.mjs:793-800) carries only drpg-panel; endMurder's closeOpen at 3637 closes drpg-window-incident, not it. killerFell's question does close on the murderState setting (3141-3149), which shows the shape exists. No other closer found (grep of scripts/ for closeOpen and instances.values()). What endMurder does on no incident (closeIncident with state null: restoreState with expect openedAt undefined, log, no hook, no checklist since state?.victimId is undefined, 3567-3586, 3663) looks quiet but was not traced to the end; the reader's not_established holds it.",
+      "evidence": "scripts/murder-rules.mjs:2434 \"if (!await writeState({ stage: \\\"resolution\\\", endedBy: \\\"ranOut\\\" },\"; scripts/murder-rules.mjs:2928 \"if (!state?.active || state.stage !== \\\"incident\\\") return null;\"; scripts/death.mjs:612 \"if (sure) await beginResolution(\\\"victimKilled\\\");\"; scripts/body.mjs:943 \"if (answer !== \\\"announce\\\" || !pendingBodyStore.has(row.key)) continue;\"; scripts/murder-ui.mjs:800 \"if (sure) await endMurder();\"",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-13-case-death-chapter-5",
+      "claim": "End the chapter is drawn once: its counts and disabled boxes and its backup reminder stay as drawn; its own Back up the case leaves the old date on screen.",
+      "verdict": "stands",
+      "why": "The counts are read before drpgWindow (427-465) and passed to chapterEndForm with backup: backupReminder() (475); the render hook (479-485) wires the backup button only, no keepLive. backupCase writes lastBackupAt through markCase (gm-stores.mjs:2311) and toasts backedUp; nothing redraws the reminder. tick() writes disabled for a count of 0 (326), so a Key Remnant placed meanwhile cannot be ticked. The reminder text names the date (lang/en.json chapterReminder \"Back up the case ({when}).\", backupNever \"last backup: never\").",
+      "evidence": "scripts/chapter.mjs:326 \"const tick = (name, n) => `<input type=\\\"checkbox\\\" name=\\\"${name}\\\"${n ? \\\" checked\\\" : \\\" disabled\\\"}\"; scripts/chapter.mjs:475 \"finalTruthPlaced, backup: backupReminder(), mastermind\"; scripts/gm-stores.mjs:2311 \"await markCase({ lastBackupAt: Date.now(), lastBackupBy: game.user.name });\"",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-13-case-death-chapter-6",
+      "claim": "After the incident offers Move to Investigation from the phase read at open; pressed late during a Class Trial it writes phase investigation over the trial.",
+      "verdict": "stands",
+      "why": "alreadyInvestigating is read once (3756), the drpgWindow has no listener, and the press calls setPhase(\"investigation\") (3826). setPhase guards only an entry into the Class Trial (clock.mjs:72-78). The road is worse than the reader wrote: setClock reconciles the phase, and leaving classTrial runs endFloor, shutVoteAtExit, askTrialVoices and executeAtExit, then takes the bodies off the map (clock.mjs:999-1040), so the stale press ends the trial with its vote shut uncounted and any sentence carried out. Kept at minor only because the road needs the checklist left unanswered from a murder's close into a sitting trial, a particular situation; nothing closes it on the phase change (no generic closer in live.mjs, no listener here).",
+      "evidence": "scripts/murder-rules.mjs:3756 \"const alreadyInvestigating = getClock().phase === \\\"investigation\\\";\"; scripts/murder-rules.mjs:3826 \"return setPhase(\\\"investigation\\\");\"; scripts/clock.mjs:72 \"if (key === \\\"classTrial\\\" && getClock().phase !== \\\"classTrial\\\" && !confirmNewTrial) {\"; scripts/clock.mjs:999-1003 \"async function reconcilePhase(from, to) { if (from === \\\"classTrial\\\") { ... await endFloor();\"; scripts/clock.mjs:1031 \"await executeAtExit();\"",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "Incident tracker / Ask for the opening roll again (controls-13-case-death-chapter-7)",
+      "claim": "The re-ask toasts 'offered again' whatever rollOpening did: nothing while the statistic window is open, a throw on the GM's browser for an absent owner.",
+      "verdict": "stands",
+      "why": "reaskOpening starts rollOpening unawaited and shows openingReaskSent at once (671-673). rollOpening returns null when openingTraitFor answers null, which it does while openingPickOpen (4485), and throws on this browser when the owner is not active (4438-4449). The toast names the player's side as the receiver (lang/en.json:2773). A further case the reader did not name: with no statistic kept, openingTraitFor opens the GM's own pick window first, so the toast says offered while the GM still has to pick. A toast, not a label: mislabeled as the lane uses it, nit.",
+      "evidence": "scripts/murder-ui.mjs:671-673 \"rollOpening(current.indirect ? \\\"victim\\\" : \\\"killer\\\", current) .catch(...); ui.notifications.info(game.i18n.localize(\\\"DRPG.Murder.openingReaskSent\\\"));\"; scripts/murder-rules.mjs:4485 \"if (openingPickOpen) return null;\"; scripts/murder-rules.mjs:4449 \"return throwOpeningRoll(side, actor.id, trait, { hindrance });\"",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "The ruling roads (messenger-app.mjs RULINGS) / openMurder (controls-13-case-death-chapter-10)",
+      "claim": "CARD_ACTIONS registers openMurder -> ruleOpenMurder and no card of the module draws a button with that action.",
+      "verdict": "stands",
+      "why": "git grep of scripts/ and lang/ for '\"openMurder\"' and 'openMurder:' outside the tests finds only messenger-app.mjs:1402; every action: \"open...\"/\"approve...\" literal in scripts/ is another name (eclipse.mjs:692 approveMurder, action-project.mjs:427 approveProject, trial-floor-ui.mjs openAgain/openDebate). Buttons are drawn from callGm's action list (call-gm.mjs:811); none passes openMurder. git log -S of an action: \"openMurder\" literal finds no commit that ever posted one, so no old posted card was found to carry it either (not proven for world data). The table's comment calls it 'what each button on a ruling card does'; a row no card names is dead. Nit, as the reader set it; whether a card a player's client creates can carry such a button to a GM stays the reader's not_established item for the trust-model lane.",
+      "evidence": "scripts/messenger-app.mjs:964-967 \"async function ruleOpenMurder(action, data) { const { openMurder } = await import(\\\"./murder.mjs\\\"); const opened = await openMurder({ killerId: data.killer, victimId: data.victim });\"; scripts/messenger-app.mjs:1402 \"openMurder: ruleOpenMurder,\"",
+      "severity_after": "nit"
+    }
+  ],
+  "counts": {
+    "checked": 7,
+    "stands": 7,
+    "weakened": 0,
+    "refuted": 0
+  },
+  "not_established": [
+    "Findings 3, 8 and 9 are nit and stale_state, outside this pass's remit (minor and above, and the dead, throws, mislabeled and wrong_audience controls); not re-read.",
+    "What endMurder does when the tracker's End question is answered with no incident running (closeIncident with state null, murder-rules.mjs:3440-3663): read as a restoreState with expect openedAt undefined, a log line, no drpgIncidentClosed and no checklist, but its conclude block's steps on a null state were not traced; the reader's probe for finding 4 settles it.",
+    "Finding 6's consequence on a real table: whether a late Move to Investigation during a sitting trial with a verdict applied carries the sentence out at once (trial-progress.mjs executeAtExit reading the record) was read only as far as reconcilePhase calling it; new live check: close a murder, leave After the incident open, start and sit a Class Trial with a verdict applied, press Move to Investigation, read the phase, the vote and the sentence card.",
+    "No harness run, no probe: base-run.json, probe-42.json and probe-43.json were not in audit/findings-1.2.118/ when looked for; every verdict here is a static reading (class S)."
+  ]
+}
