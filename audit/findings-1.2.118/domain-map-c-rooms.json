@@ -1,0 +1,447 @@
+{
+ "reader": "domain-map-c-rooms",
+ "checkout": "claude/audit-119 at da7f92da; scripts/ as on b5a29e73 (1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/rooms.mjs",
+   "lines": 669,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/room-tile.mjs",
+   "lines": 771,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "lines": 1399,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/boundary.mjs",
+   "lines": 638,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/visibility.mjs",
+   "lines": 1317,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/search-tokens.mjs",
+   "lines": 961,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/own-ring.mjs",
+   "lines": 459,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/bedroom-keys.mjs",
+   "lines": 50,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/handover.mjs",
+   "lines": 1036,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/stacking.mjs",
+   "lines": 149,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/selection.mjs",
+   "lines": 101,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/look.mjs",
+   "lines": 60,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/motion.mjs",
+   "lines": 574,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/narrow.mjs",
+   "lines": 432,
+   "read": "whole"
+  }
+ ],
+ "count_expected": 8616,
+ "count_read": 8616,
+ "count_note": "14 files, 8616 lines, each read start to end; the sum matches the list I was given. base-run.json did not exist when I looked, so no test result is cited as read.",
+ "neighbours_followed": [
+  "scripts/movement.mjs (countsAsPresent 3761-3772, othersInRoom 3781-3785, othersInNamedRoom 3808-3817, settledSpot 353-366, registerMovement 368-393, drpgRouteSettled 2854/2913)",
+  "scripts/mask-gm.mjs (isMaskedToken/isMaskedActor 115-124, namesHiddenFrom 126-146, nameAsSeen 148-158, the veil's note 355-397, VEIL_FLAG/veilPatch 398-428)",
+  "scripts/utils.mjs (hiddenByGm 436-446, serialWrite 396-415, whisperToOwner/whisperToOwnerOnly/whisperToGms 735-768)",
+  "scripts/allowed-now.mjs (the handover and cubLock roads 100-108)",
+  "scripts/inventory.mjs (transferRefusal 1078-1106)",
+  "scripts/sheet-inventory.mjs (addHandoverButton 977-1014); scripts/sheet-sidebar.mjs (showPassageDialog 644-655); scripts/sheet-mode.mjs (rowGate 131-137)",
+  "scripts/monokuma.mjs (actingStudents 120-123, ownStudent/ownedStudents 125-144)",
+  "scripts/projects.mjs (projectsListedIn/projectsAvailableIn 939-956, sabotageTargetsIn 968-984)",
+  "scripts/fog.mjs (applyDiscoveryChanges 1541-1554, saveDiscoveryMatrix 1566-1570, recordDiscovery 1580)",
+  "scripts/settings.mjs (SEASON_SETTINGS 1162-1167, the searchTokens registration 3433-3440)",
+  "scripts/world-secrets.mjs (WORLD_SECRET_RULES.settings 67-110: eclipseMoves, overflow; no rule names searchTokens)",
+  "scripts/gm-stores.mjs (eclipseMoveStore 1325-1337)",
+  "scripts/bridge-table.mjs (ready.open / ready.answer / ready.end 1469-1508); scripts/bridge-wire.mjs (ACTION_READY_* 86-90)",
+  "scripts/clock.mjs (advanceTimeOfDay's refill 802-815, the GM gate 377; takeBackBoundary's putBack 659); scripts/gm-campaign.mjs:382",
+  "scripts/ui-kit.mjs (stepper 808-835, toggle 906-909, ownAttrs 911-915, chip 918-926, iconButton 937-942: every attribute escaped)",
+  "docs/dev/e112v/DESIGN.md (sections 1-3: the readers of the veil, the rule kept, the known leak)",
+  "docs/dev/R-REGISTRY.md (rows R4764, R7403, R7404, R7705)",
+  "lang/en.json (DRPG.Ready.cancelled, goneEnded, barred; DRPG.Handover.nobodyHere; DRPG.Vault.twoRooms, isRoomHint, noRooms, roomsIntro; DRPG.Hud.roomTokens)",
+  "tools/check.mjs (part dashes 433-438: U+2013 and U+2014 only)",
+  "audit/findings-1.2.118/controls-11-map-rooms.json and old-1.2.42-map.json (to keep from writing their findings twice)"
+ ],
+ "strengths": [
+  "A room is one predicate in a leaf that imports config.mjs alone: a named region, flagged by a GM, no passage behaviour, no player's region (rooms.mjs:93-105), and the trial hall holds none in the one place every reader asks (roomPieces, rooms.mjs:222-226).",
+  "The camera is read only by the functions CAMERA_READERS lists, each with its kind, and R382 fails a reader not listed (rooms.mjs:555-669).",
+  "The room tile draws the GM's words as textContent only, checks the picture with safeRoomImage on every read and again where it is painted, escapes the CSS string, and opens the large picture with no share control and its title written as text after the render (room-tile.mjs:241-314, 474-476, 545-559, 712-716).",
+  "Room Setup's Apply acts on the Fog and stash cells only where the GM changed them against what was drawn (room-setup.mjs:564-586, 1137-1164), refuses one student with two bedrooms before any write (871-908, 1371), and a search-token step is a delta over the count read now, so a player's spend during the edit is kept (732-754).",
+  "The readiness round moves nothing by itself: a player's answer is keyed by Foundry's sender, the primary holds every write in one queue, and the caller moves the clock only when the primary took its own 'go' (boundary.mjs:330-402, 455-482).",
+  "A token's visibility is one pure verdict (tokenShownTo, visibility.mjs:533-616) carried to the sprite in one place, asserted again the next frame with a once-a-second sweep (235-267), and a token this browser hides gives it no sight (installSightRule, 986-1003).",
+  "A search spend is judged against the place the guard found, keyed by ctx and never re-read from the packet (search-tokens.mjs:584-619); the finder is handed a plant without its trap's project (770-774); a late answer's token comes back only to its spender, once (783-811).",
+  "A shared Truth Bullet is minted from the GMs' held copy, in the receiver's queue, so two hand-overs make one copy (handover.mjs:258-366); a loot of a body nobody has found mints its bullet only at the publication (453-467, 597-642).",
+  "A frame is never drawn on a token this browser does not show, and Monokuma stays bare even when assigned (own-ring.mjs:224-242, 336-343).",
+  "A prompt is raised over a sheet only where the two overlap and a frame after Foundry's own raise (stacking.mjs:84-133)."
+ ],
+ "findings": [
+  {
+   "id": "domain-map-c-rooms-1",
+   "domain": "MAP",
+   "severity": "major",
+   "category": "leak",
+   "title": "The hand-over picker names a killer the opening veils: a victim or a bystander in the room presses Give and reads the killer's name in the list",
+   "where": "scripts/handover.mjs:46-69 (askWhoIsHere: the list is othersInRoom, each named by nameAsSeen); scripts/movement.mjs:3761-3772, 3781-3785, 3808-3816 (countsAsPresent keeps a veiled token); scripts/mask-gm.mjs:120-124, 154-158 (nameAsSeen masks only a masked actor); scripts/visibility.mjs:555-561 (the veil hides the token); scripts/allowed-now.mjs:107-108",
+   "what_happens": "While a direct murder waits on its opening, the killer's token carries the veil flag and every browser but the killer's side's and the GMs' hides it (visibility.mjs tokenShownTo). The veil writes no `hidden` since E112v, and countsAsPresent reads only `hidden` (utils.mjs hiddenByGm), so on the victim's or a bystander's own browser othersInRoom lists the killer. askWhoIsHere asks the client gate first, whose handover road shuts only for an Eclipse (allowed-now.mjs:108), and draws each option with nameAsSeen, which hides a name only behind a mask (isMaskedActor reads the `masked` flag, not `veiled`). The picker therefore shows the killer's real name to a player whose screen shows no killer. The GM's side refuses the give itself (inventory.mjs transferRefusal, the giver's incident), but the list has already been drawn. The same window serves the sheet's Give / Share buttons (sheet-inventory.mjs:988-1013), Show the passage (sheet-sidebar.mjs:644-655) and game.drpg.giveItemDialog (api.mjs:777).",
+   "evidence": "handover.mjs:49  if (!allowedNow(actor, null, { road: \"handover\" }).ok) {\nhandover.mjs:60  const here = room ? othersInRoom(actor) : [];\nhandover.mjs:69  .map((a, i) => `<option value=\"${a.id}\"${i ? \"\" : \" selected\"}>${foundry.utils.escapeHTML(nameAsSeen(a))}</option>`).join(\"\");\nmovement.mjs:3770  // The opening's veil (E112) hides a killer from the other players, not from the room (utils.mjs `hiddenByGm`).\nmovement.mjs:3771  return !hiddenByGm(doc);\nmask-gm.mjs:156  if (!user?.isGM && (masked ?? isMaskedActor(actor)) && !actor.testUserPermission?.(user, \"OWNER\")) return MASK_NAME;\nallowed-now.mjs:108  handover: (key, f) => (f.eclipse() ? shut(WHY.eclipse) : open()),\nvisibility.mjs:557  if (viewer.eclipse || !viewer.killersSide?.has(tokenDoc.actorId)) return \"hide\";",
+   "failure_scenario": "Aiko's player, the victim, sees nobody else in the Library while the killer's opening waits; she presses Give on her notebook, and the window offers 'Botan Kage' - the killer her screen hides, and whom a Hope opening would then put behind a '?'.",
+   "expected": "A list of who is here names a veiled character as it names a masked one (\"?\") to a player who does not own it, or leaves it out of the list on that player's browser, while the veil stands; the veil's own note (mask-gm.mjs:358-362) says the killer is 'hidden from every player but the killer's side, bystanders included'.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a gate that keeps the window shut during an incident: the client gate is the Eclipse alone (allowed-now.mjs:108), rowGate keys on the sheet's mode, not the incident (sheet-mode.mjs:135-137), and transferRefusal runs on the GM after the list is drawn (inventory.mjs:1095-1098). Looked for the veil in the names: nameAsSeen and isMaskedActor read `masked` only (mask-gm.mjs:115-124); R7404 holds the masked case and names handover.mjs among its files (R-REGISTRY.md:1702), and the veil's design table (docs/dev/e112v/DESIGN.md section 1) lists the token, ruler, silhouette, voice and nameplate but no picker. Counting the killer in the room is a decision (R7705); naming them in a list is not covered by it. Not run: no probe or harness read of the picker during a veil.",
+   "old_id": null,
+   "live_check": "One GM, the killer's player, the victim's player: open a direct murder in daylight, and while the opening waits press Give on an item on the victim's sheet; the list should not show the killer's name."
+  },
+  {
+   "id": "domain-map-c-rooms-2",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "ux",
+   "title": "Room Setup lists every named region, and a name that no piece can make a room keeps its owner, locks, table, description, picture and stash cells live while Apply writes none of them",
+   "where": "scripts/room-setup.mjs:948-955 (namedByName sets the name before the canBeRoom test), 1240 (rows from its keys), 297-299, 310-311, 318-320 (only This is a room and the actions drawn off), 984-985 (Apply skips the row)",
+   "what_happens": "namedByName puts every region name in the map and pushes only the pieces that can be rooms, so a name only a Teleport, a level change or a player's region carries is a row with no pieces. roomCells draws that row with This is a room and the room's actions disabled, and every other cell - owner, Locked, Locked at start, Broken, No privacy, Neighbours, No search, the item table, the place switches, the description, the picture, the stash cells - as live controls. applyRoomRows `continue`s on such a row before comparing anything, applyStashMatrix's setStash writes nothing for it, and nothing is said. Its Fog boxes, Discover all included, do write discovery cells for a name that is no room (fog.mjs:1541-1553), and its stepper writes a counter at once (search-tokens.mjs:366-382). The hint on the disabled switch explains the switch only (DRPG.Vault.isRoomHint).",
+   "evidence": "room-setup.mjs:952  if (!map.has(region.name)) map.set(region.name, []);\nroom-setup.mjs:953  if (canBeRoom(region, players)) map.get(region.name).push(region);\nroom-setup.mjs:297  const possible = pieces.length > 0;\nroom-setup.mjs:310  html: toggle({ name: `isroom:${room}`, checked: isRoomNow, label: \"\", disabled: !possible,\nroom-setup.mjs:984  const pieces = named.get(row.room) ?? [];\nroom-setup.mjs:985  if (!pieces.length) continue;",
+   "failure_scenario": "A GM names the staircase's level-change region 'Stairwell', opens Room Setup, types a description and ticks Locked on the Stairwell row, presses Apply, and is told rooms were applied; on reopen the row is blank again with no word why.",
+   "expected": "A name that no piece can make a room is drawn with its cells off (or not drawn outside the Rooms tab), and Apply says when a row it was given wrote nothing.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a notice or a disabled state on the other cells: none in roomCells (204-376) or readRoomSetupForm (532-587); bedroomClaimedTwice counts such a row's owner too (894-908). The header of namedByName (941-947) says such a name has no pieces and so nothing a row may write - by design for Apply, but the cells are not drawn to match. Not covered by controls-11-map-rooms-3, which is about a marked-later room's actions.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-c-rooms-3",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "leak",
+   "title": "Every room's search count this time of day is a world setting every browser holds: a console reads which rooms somebody searched, and how often, in rooms the player was never in",
+   "where": "scripts/settings.mjs:3433-3440 (searchTokens, scope world); scripts/search-tokens.mjs:7-10, 92-95, 334-346; scripts/world-secrets.mjs:67-110 (no rule names it; eclipseMoves 84-87 for the like case)",
+   "what_happens": "The counters are `{ \"<sceneId>::<room>\": left }`, written by the primary on every spend and absent for a full room. Foundry sends world settings to every client, so `game.settings.get(\"danganronpa-rpg\", \"searchTokens\")` on a player's console lists every room on every scene that was searched since the last refill, and how many times. The interface shows a player only their own room's count (room-tile.mjs:168), and the room rule hides who stands where (visibility.mjs). The Eclipse's crossings - who moved how often - were taken out of world data for the same kind of fact (E05 C4, world-secrets.mjs:84-87; gm-stores.mjs:1325-1337); the search counts were not, and no rule or note says they are public.",
+   "evidence": "settings.mjs:3433  // Search token counters, keyed by room. Format: { \"Library\": 2, \"Kitchen\": 0 }\nsettings.mjs:3435  scope: \"world\",\nsearch-tokens.mjs:339  store[key] = current - 1;\nsearch-tokens.mjs:346  await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);\nworld-secrets.mjs:84  eclipseMoves: Object.freeze({\nworld-secrets.mjs:86  since: \"E05 C4\", why: \"who crossed how often in an Eclipse (S10-39)\"",
+   "failure_scenario": "During Daily Life a player types one line in the console and sees the Kitchen at 1 of 3 and the Storage room at 2 of 3 on a floor they have not visited - somebody went through both this afternoon - before any body is found.",
+   "expected": "Either the counts are the GMs' (a store, with each player's copy holding the rooms their characters stand in), or the owner records that the counts are public, as the overflow's stamp is (world-secrets.mjs:93).",
+   "confidence": "read",
+   "refutation_tried": "Searched docs/ and scripts/ for a decision that the counts are public (grep for searchTokens with public / every browser): none. WORLD_SECRET_RULES has no row for it, so R9, R190 and 72-canary do not hold it. The value names no character, which is why this is minor and not major: it tells activity in a room, not who.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-c-rooms-4",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "leak",
+   "title": "A readiness round left open by a GM who disconnected is ended 'stop' during an incident by the next GM's press, and every player it asked is told 'The GM is waiting a little longer'",
+   "where": "scripts/boundary.mjs:336-354 (openRoundOnPrimary: `cleared` writes ended 'stop' before roundAllowed is asked), 551-558 (renderReadyRound tells a player of a 'stop'); against 47-62 (E37 fix FG1b and FG1c)",
+   "what_happens": "openRoundOnPrimary computes `cleared` - an open round whose GM is not connected - and sets `write = { ...open, ended: \"stop\" }` before it asks roundAllowed, then writes it whatever roundAllowed answers. On every player's browser that showed that round's window, renderReadyRound reads ended 'stop' and posts DRPG.Ready.cancelled. With an incident running before Stage 6, the press that reaches this is 'Next time of day' (nextTimeOfDay asks no incident first; toggleEclipse's start is refused by startRefusal), so the line lands at the moment a GM moves the hidden clock. FG1b and FG1c took exactly this out of the incident's start and of a barred 'go' because 'every player of the round was told ... that the GM was waiting a little longer: a timing signal to the bystanders'.",
+   "evidence": "boundary.mjs:341  const cleared = Boolean(open && open.by !== by && !game.users.get(open.by ?? \"\")?.active);\nboundary.mjs:342  let write = cleared ? { ...open, ended: \"stop\" } : null;\nboundary.mjs:346  if (await roundAllowed(clock) && users.some(user => user.active)) {\nboundary.mjs:354  if (write) await game.settings.set(MODULE_ID, SETTINGS.readyRound, write);\nboundary.mjs:555  if (record?.id && record.ended === \"stop\" && record.id === shownFor && toldFor !== record.id) {\nboundary.mjs:557  ui.notifications.info(game.i18n.localize(\"DRPG.Ready.cancelled\"));",
+   "failure_scenario": "GM A asks the players before Next time of day and drops off; a murder opens in the Gym; GM B presses Next time of day, and every bystander whose round window was still up sees 'The GM is waiting a little longer' at that moment, though their clock shows nothing moving.",
+   "expected": "While a round may not run (roundAllowed false), a round cleared for a gone GM is written as FG1c writes a barred one - 'go', nothing told - or left to go stale with the clock.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the path is reachable during an incident: nextTimeOfDay refuses only an Eclipse (134-139) and askReadiness asks the primary (455-461); the incident's start writes nothing to the round (FG1b), so an open round can stand into an incident; roundOf keeps it open while the clock stays at its boundary (261-266). A player who had said Done still has shownFor set and is told. Rare: it needs the round's GM gone. Not run.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-c-rooms-5",
+   "domain": "MAP",
+   "severity": "nit",
+   "category": "bug",
+   "title": "The search counters' queue holds on one browser only: a refill or Room Setup's step written by a GM who is not the primary can write over a spend the primary wrote a moment before, or bring one back",
+   "where": "scripts/search-tokens.mjs:366-382 (setFor), 396-401 (reset), 329-349 (#spendAsGm), 435-439 and 503-509 (the notes); scripts/utils.mjs:409-415 (serialWrite); scripts/clock.mjs:377, 815 (the refill on the GM who moves the clock)",
+   "what_happens": "Every write of the counters reads and writes the whole object in a step of SEARCH_KEY, and serialWrite is an in-memory queue of this browser. A player's spend is run on the primary; a time of day's refill (`SearchTokens.reset` from advanceTimeOfDay) and Room Setup's stepper (`setFor`) run on whichever GM pressed. Two writes from two browsers inside one server round trip each start from the copy their browser holds: the primary's spend written after a non-primary GM's refill puts back every room's pre-refill counts less one, and Room Setup's step on another GM writes the whole store as that GM last saw it over a spend in another room. The note at 435-439 credits the step with closing the reset's race, which it does only for the season reset (on the primary).",
+   "evidence": "utils.mjs:410  const run = (serialTails.get(key) ?? Promise.resolve()).then(() => step());\nsearch-tokens.mjs:372  const store = foundry.utils.duplicate(this.store);\nsearch-tokens.mjs:374  store[key] = n;\nsearch-tokens.mjs:398  await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}));\nclock.mjs:815  if (resetSearchTokens) summary.searchTokensReset = await SearchTokens.reset({ notify: false });",
+   "failure_scenario": "An Assistant GM presses Next time of day as a player's Search in the Library is spent on the primary; the refill lands first and the spend's step then writes the old counts back, so the new afternoon opens with yesterday's searched-out rooms still at 0.",
+   "expected": "Every write of the counters goes through the primary's queue (a bridge row or the GM store), as a player's spend already does.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a primary check in reset and setFor: none (396-401, 366-382); giveBack and the bridge spend check isPrimaryGm in the step (308, 333). advanceTimeOfDay is gated on isGM, not on the primary (clock.mjs:377). The window is one round trip, so this is a nit; not measured.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-c-rooms-6",
+   "domain": "MAP",
+   "severity": "nit",
+   "category": "perf",
+   "title": "Room Setup probes every room picture at once on each open, one probe per room rather than per path, which Pre-season checks was changed not to do",
+   "where": "scripts/room-setup.mjs:773-790 (wirePictureWarnings), 1333; against scripts/room-tile.mjs:650-655, 664-689 (checkRoomImages: each path once, ROOM_IMAGE_LIMITS.atOnce at a time)",
+   "what_happens": "wirePictureWarnings calls imageFacts - a full decode and a HEAD - for every picture cell as the window opens, all together and once per room even where rooms share a path. checkRoomImages, which reads the same facts for Pre-season checks, was changed in E20's fix round to probe each path once and a few at a time, because probing a school's eighteen pictures together on one connection read them all as missing. A late probe here says nothing (pictureWarning gives no line for `late`), so the cost is traffic and decode work at each open, not a wrong warning.",
+   "evidence": "room-setup.mjs:775  for (const img of root.querySelectorAll(\"img[data-drpg-portrait]\")) {\nroom-setup.mjs:789  paint();\nroom-tile.mjs:655  * is over the limit. The pictures are probed `ROOM_IMAGE_LIMITS.atOnce` at a time.\nroom-tile.mjs:689  await Promise.all(Array.from({ length: Math.max(1, Math.min(atOnce, all.length)) }, worker));",
+   "failure_scenario": "A GM on a slow line opens Room Setup on a school of eighteen 3 MB pictures to tick one lock, and the browser fetches and decodes all eighteen before anything else loads.",
+   "expected": "The cells read their facts through the same bounded, per-path probe Pre-season checks uses, or only when the Description tab is shown.",
+   "confidence": "read",
+   "refutation_tried": "The browser's cache may answer repeat paths; whether Foundry's server sends cache headers for module or world files is not read here. Not measured.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-c-rooms-7",
+   "domain": "MAP",
+   "severity": "nit",
+   "category": "bug",
+   "title": "Room Setup's held Apply puts a student's name into Foundry's tooltip through an empty data-tooltip and the aria-label, the road R4764 and the room tile's header say not to take",
+   "where": "scripts/room-setup.mjs:871-886 (setApplyBlock), 840-849 (the reason, `DRPG.Vault.twoRooms` with the actor's and the rooms' names unescaped); scripts/room-tile.mjs:28-30; docs/dev/R-REGISTRY.md:1432 (R4764)",
+   "what_happens": "While one student is given two bedrooms, setApplyBlock sets `data-tooltip=\"\"` and the reason as the button's aria-label. R4764's row and room-tile.mjs say Foundry then reads the aria-label through the client's cleanHTML as the tooltip's markup (the E02-D01 hole). The reason is game.i18n.format with the student's name - which the owning player may set - and two region names, none escaped. What cleanHTML leaves of markup in a name is Foundry's code, not read here.",
+   "evidence": "room-setup.mjs:843  clash = { name: game.actors.get(owner)?.name ?? \"?\", a: seen.get(owner), b: room };\nroom-setup.mjs:848  const text = clash ? game.i18n.format(\"DRPG.Vault.twoRooms\", clash) : \"\";\nroom-setup.mjs:881  apply.setAttribute(\"data-tooltip\", \"\");\nroom-setup.mjs:882  apply.setAttribute(\"aria-label\", text);",
+   "failure_scenario": "A player renames their student with markup in it; the GM gives that student a second bedroom in Room Setup and hovers the greyed Apply, and the tooltip draws the name as markup rather than as text.",
+   "expected": "The reason as a tooltip in text form (setTip's `text: true`, data-tooltip-text), as R4764 asks of a tooltip written in code.",
+   "confidence": "suspected",
+   "refutation_tried": "Read R4764's row: it holds the six controls made in code and the two tiles; setApplyBlock writes its attribute by hand and is not among them. Whether cleanHTML keeps any visible markup, and whether a player's actor name reaches the GM unescaped elsewhere, was not read in Foundry's source. A question, not a finding, until a table reads it.",
+   "old_id": null
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A veiled killer still counts as standing in the room - a witness, a target, a finder - though no other player's browser draws the token.",
+   "source": "movement.mjs:3770; utils.mjs:436-446; R7705 (docs/dev/R-REGISTRY.md:1740); docs/dev/e112v/DESIGN.md section 1 (hiddenByGm row)"
+  },
+  {
+   "what": "A console can still name a masked or veiled killer from the token's actorId.",
+   "source": "mask-gm.mjs:28-30 and 392-396 (known leak foundry-veiled-token-actor); docs/dev/e112v/DESIGN.md section 3"
+  },
+  {
+   "what": "An Eclipse hides every player's token from every other whatever the roomVisibility setting.",
+   "source": "visibility.mjs:565-580 (Dawid, 2026-08-26, B-F2-3)"
+  },
+  {
+   "what": "A Mastermind standing in the lair sees the whole cast, Remnants excepted.",
+   "source": "visibility.mjs:597-609 (Dawid, 26.08)"
+  },
+  {
+   "what": "A Spectator's browser leaves every character to Foundry, the veiled killer excepted.",
+   "source": "visibility.mjs:539-563 (E92 C4, Q-E92-6; LIVE-E112-01 (g))"
+  },
+  {
+   "what": "A player who is not connected counts as ready, and the GM may go on past a player who is not, after a confirmation.",
+   "source": "boundary.mjs:12-16 (Q-E37-2, approved 01.11.2026)"
+  },
+  {
+   "what": "No readiness round opens while an incident runs before Stage 6 or in a Class Trial, and a barred 'go' is written as 'go'.",
+   "source": "boundary.mjs:30-33, 47-62 (E37 fix FG1b, FG1c)"
+  },
+  {
+   "what": "An item taken off a body nobody has found moves at once on world data every console reads; only its Truth Bullet waits for the publication.",
+   "source": "handover.mjs:415-416, 453-462 (the owner's Q2, 26.09.2026)"
+  },
+  {
+   "what": "A dead owner's bedroom opens to everyone in the Investigation only once the death is published.",
+   "source": "bedroom-keys.mjs:35-50 (D15)"
+  },
+  {
+   "what": "The room tile never draws a project's name, only 'Available project'.",
+   "source": "room-tile.mjs:144-147"
+  },
+  {
+   "what": "Room Setup's search-token controls write at once and are not part of Apply.",
+   "source": "room-setup.mjs:702-717"
+  },
+  {
+   "what": "Every student's token wears a frame on every screen, the viewer's own in bone; a missing frame on the Mastermind would be the tell.",
+   "source": "own-ring.mjs:9-36 (Dawid, 22.09; F118, 17.11.2026)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/rooms.mjs:21-24",
+   "comment_says": "'the readers that still take filter(r => r.name) move onto it in C2a and C2b, so in this commit the flag changes what Room Setup and Season setup show and nothing a rule decides'",
+   "code_does": "C2a and C2b shipped: every reader goes through roomPieces / isRoomWith (rooms.mjs:222-226), so the flag decides every rule that asks about a room. The note describes its own commit, not the file."
+  },
+  {
+   "where": "scripts/visibility.mjs:1108-1114 (applyAll's note)",
+   "comment_says": "'the only thing in here that reverses it is show() - which returns early for a token the viewer does not own (see its own note). So nothing in this module ever restores somebody else's token'",
+   "code_does": "show() (895-901) tests only document.hidden. It is called for any token whose verdict is 'show', and the veil branch answers 'show' for another player's token on the killers' side (557-560), so the module does restore a token the viewer does not own."
+  },
+  {
+   "where": "scripts/visibility.mjs:612-614",
+   "comment_says": "'A scene with no regions at all: leave Foundry's own logic alone rather than hiding the entire cast.'",
+   "code_does": "The test is !viewer.rooms.size && !room: it also holds on a scene full of rooms whenever the viewer's characters stand in no room and the other token stands in none either (two students in a corridor see each other anywhere in it). roomChangeTokens (332-333) relies on that wider reading, so the code is consistent; the comment names only one case."
+  },
+  {
+   "where": "scripts/narrow.mjs:19-28 and 36",
+   "comment_says": "'FOUR THINGS MOVE, AND ONE OF THEM IS A CONTAINER' and 'stackShapes in glass.mjs'",
+   "code_does": "STACKED (54) holds five, the tiles' row #drpg-tile-row included (E77 C8), and the row's two members move as well (66, 147); stackShapes has been glass-geometry.mjs's since E54."
+  },
+  {
+   "where": "scripts/search-tokens.mjs:353-362",
+   "comment_says": "'The Room Setup table's -1 / +1 / reset controls' and 'Without the clamp the arrows are held down and the counter goes to -3' (written with U+2212)",
+   "code_does": "Room Setup draws a kit stepper with - and + and a refill button since E46-C2a (room-setup.mjs:339-350; the E101 note at 482 says the arrows are gone). The comment also carries two U+2212 minus signs, which the house rule's '-' excludes and tools/check.mjs part dashes (433-438) does not look for."
+  },
+  {
+   "where": "scripts/search-tokens.mjs:435-439 (clearSeasonSearchTokens) and 503-509",
+   "comment_says": "a refill in a step of SEARCH_KEY means 'a reset landing while the primary's spend step ran could be written over by that step's copy of the old counts' no longer",
+   "code_does": "serialWrite is this browser's own queue (utils.mjs:409-415). It closes the race only where the refill runs on the primary; the time of day's refill runs on whichever GM moved the clock (clock.mjs:377, 815), and Room Setup's setFor on whichever GM pressed (finding 5)."
+  },
+  {
+   "where": "scripts/room-setup.mjs:1293-1295",
+   "comment_says": "'One width for all nine tabs'",
+   "code_does": "ROOM_SETUP_TABS (382-397) holds eight since the Scenes tab went to Season setup (E101 item 5)."
+  },
+  {
+   "where": "scripts/room-setup.mjs:1230-1235",
+   "comment_says": "'It opens on the Scenes tab whenever its scene holds no room (roomSetupTab)'",
+   "code_does": "roomSetupTab (404-407) answers 'bedrooms' for anything not a tab; there is no Scenes tab (395-396)."
+  },
+  {
+   "where": "scripts/room-setup.mjs:862-867",
+   "comment_says": "'the Scenes tab holds it while both its selects name one scene: two checks writing the same field'",
+   "code_does": "Only the bedrooms check calls setApplyBlock in this file (849); the Scenes check went to Season setup (season-setup.mjs:1285 keeps its own)."
+  },
+  {
+   "where": "scripts/boundary.mjs:18-20",
+   "comment_says": "'the bridge's rows ready.open, ready.answer, ready.end, gm-bridge.mjs'",
+   "code_does": "The rows are bridge-table.mjs:1469-1508 since E41 C5b; gm-bridge.mjs is the facade."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": [
+   "room-setup.mjs openRoomSetupDialog, 1200-1399 (200 lines)",
+   "room-setup.mjs roomCells, 204-376 (173 lines; its map callback 209-375, 167)",
+   "room-setup.mjs applyRoomRows, 963-1116 (154 lines)"
+  ],
+  "functions_100_to_150": [
+   "own-ring.mjs paint, 319-432 (114)",
+   "handover.mjs mintCopy, 258-366 (109)"
+  ],
+  "how_measured": "espree over each file's source (audit/harness/node_modules), every function node, end line - start line + 1; a script in /tmp/domain-map-c-rooms, nothing run in the repository",
+  "duplicated_helpers": [
+   "Two tables of the same column keys to their i18n heads in room-setup.mjs: COLUMN inside roomCells (268-275) and ROOM_SETUP_HEAD (431-438); eleven keys say the same thing in both.",
+   "Whether Stained Glass is on: motion.mjs glassOn (38-45, setting then body class), look.mjs isStainedGlass (69-72, setting alone, its one reader settings-window.mjs:217), and motion.mjs markSpent's own body-class read (350); `git grep -n 'drpg-theme-stained-glass\")' -- scripts` counts 97 lines that read the class.",
+   "The veil's flag read three ways: visibility.mjs veiledToken (618-621), mask-gm.mjs's VEIL_FLAG reader (401-403) and voice.mjs ownVeiled (named at visibility.mjs:618).",
+   "search-tokens.mjs drops the legacy plain-name key with the same two lines and the same reasoning three times (313, 345, 377).",
+   "boundary.mjs builds the same `still()` closure twice (576, 616).",
+   "room-tile.mjs settledPosition (96-98) only returns movement.mjs settledSpot."
+  ],
+  "dead_code": [
+   "handover.mjs lootCover: `rolled &&` in `held` (685) and `withItems` (690) is always true there - the function returned at 684 when it was not.",
+   "rooms.mjs isPlaceScene (354-356) is sceneHoldsRooms under a second name; its note says so and keeps it on purpose.",
+   "narrow.mjs narrowLayout (75-77) only returns settings.mjs narrowScreen."
+  ],
+  "test_only_exports": [
+   "rooms.mjs levelThrowListener (tier 2 only), standInLevelFailure (tier 1 only); boundary.mjs eclipseQuestion (tiers 0-1 and boundary itself); narrow.mjs markNotices; room-tile.mjs roomWindowBody - read by `git grep -w` over scripts/, audit/harness and tools"
+  ],
+  "magic_numbers": [
+   "visibility.mjs SWEEP_MS 1000 and SPECTATOR_ALPHA 0.3 - each with its reading beside it.",
+   "boundary.mjs: two 500 ms polls (588-593, 625-629) for a round's end on a player's page; no constant names them.",
+   "own-ring.mjs: 60 ms debounce (162) and the zoom step 0.18 (143), also in selection.mjs (245: 60 ms) - typed in each file.",
+   "narrow.mjs EDGE 8 and the 0.4 cap on an inset (234, 253).",
+   "room-tile.mjs: 480 and 16 for the description window's width (402)."
+  ],
+  "non_ascii_dashes": "search-tokens.mjs:355 and 361 carry U+2212; no U+2013 or U+2014 in the 14 files (python over the text). tools/check.mjs part dashes looks for U+2013 and U+2014 only."
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Room Setup rows for a name no piece of which can be a room (a Teleport's or a player's region): every column but This is a room and the actions is live, and Apply writes none of it (finding 2).",
+   "The Search tokens stepper on such a row writes a counter for a name that is no room, at once (room-setup.mjs:345-350, 732-754; search-tokens.mjs:366-382)."
+  ],
+  "stale_windows": [
+   "Room Setup's Apply writes back a row whose room the world changed since the open - a lock forced or repaired, a breach: controls-11-map-rooms-1, confirmed again by reading applyRoomRows (room-setup.mjs:987-1041 compare the drawn row against the region now, not against what was drawn, unlike the Fog and stash cells at 564-586 and 1129-1164).",
+   "The readiness round's GM window (boundary.mjs:514-523) watches readyRound, the clock, the Eclipse's crossings and userConnected; roundUsers reads actor ownership and actingStudents (273-284), so a student given to a player, or a death the GMs keep, during the round is not redrawn until one of the four moves.",
+   "The handover picker is drawn once (controls-11-map-rooms-6)."
+  ],
+  "other_pickers_that_name_a_veiled_killer": "mask-gm.mjs:148-153 lists the room pickers owner-115 item 1b gave nameAsSeen: Palm (palm.mjs), Tail (action-tail.mjs), Tamper's frame (action-tamper.mjs), a Call's target (call-pickers.mjs), a Monocub's (monocub.mjs) and Frisk's ask (frisk.mjs). Each lists the people countsAsPresent keeps; if each draws nameAsSeen alone, each names a veiled killer as finding 1's picker does. Not read here: those files are other readers'.",
+  "old_items_still_standing": "MAP-02 (audit/findings-1.2.42/map.md:87): a sprite sliding into the viewer's room through a corridor is shown while it stands in no room (visibility.mjs:503-508: `if (at && !myRooms().has(at)) hide(token)` leaves a sprite in no room alone). old-1.2.42-map.json holds it as partly, minor; not written again here."
+ },
+ "not_established": [
+  {
+   "what": "Finding 1 at a table: whether the victim's sheet's Give or Share opens its window during a daylight opening, and what the list shows.",
+   "why": "Read in source only; no probe or harness run of the picker under a veil.",
+   "live_check": "new live check: the hand-over picker during an opening's veil",
+   "l1": {
+    "what": "The names the hand-over window lists while the opening veils the killer.",
+    "recipe": [
+     "Start a world with a GM, the killer's player and the victim's player, room visibility on.",
+     "Put the killer and the victim in one room in Daily Life and open a direct murder; do not throw the opening roll.",
+     "On the victim's browser open the victim's sheet and press Give on any item.",
+     "Read the names in the 'Who' list.",
+     "Repeat with Share on a Truth Bullet and with 'Show the passage' if the victim knows one."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "The list names the killer: finding 1 holds. The list names nobody or '?': it does not.",
+    "priority": "major"
+   }
+  },
+  {
+   "what": "Whether two students standing outside every room (a corridor) should see each other wherever they are on the map, and whether a player viewing a scene where they have no token should see every character outside the rooms.",
+   "why": "visibility.mjs:614 answers null (Foundry's own visibility) whenever the viewer stands in no room and the token stands in none; the comment names only a scene with no regions. The guide's line ('Players see other players only in the same room') does not settle corridors, and I found no decision on it.",
+   "live_check": "a question for the owner, not a table reading",
+   "l1": null
+  },
+  {
+   "what": "Finding 7: what Foundry 14's tooltip draws from an aria-label read through cleanHTML.",
+   "why": "Foundry's TooltipManager and cleanHTML are not in this repository.",
+   "live_check": "new live check: Room Setup's held Apply with markup in a student's name",
+   "l1": {
+    "what": "The greyed Apply's tooltip when the clashing student's name holds markup.",
+    "recipe": [
+     "As a player, rename an owned student to a name with simple markup, e.g. a bold tag around it.",
+     "As GM open Room Setup, Rooms tab, and give that student two bedrooms.",
+     "Hover the greyed Apply.",
+     "Read whether the name shows as text or as formatting."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "both",
+    "settles_if": "Formatting shows: finding 7 holds. The tags show as text: it does not.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether own-ring.mjs's refreshToken listener runs before or after visibility.mjs's on v14.",
+   "why": "Either order leaves the frame hidden with the token, since the frame is the token's child (own-ring.mjs:285-297) and hide() writes token.visible false (visibility.mjs:871-874); the order only decides whether a hidden token's frame is rebuilt or kept. No table reading; not a finding either way.",
+   "live_check": "none needed for secrecy",
+   "l1": null
+  },
+  {
+   "what": "The cost of rooms.mjs playerRegionIds, which reads the world setting and builds a Set on every roomPieces call (rooms.mjs:84-87, 222-226), on the per-frame roads (visibility.mjs's sliding test at 506, room-tile's paint).",
+   "why": "What game.settings.get costs on v14 for an Object setting is not read; the counters of scenario 86 do not count it.",
+   "live_check": "game.drpg.fps({ toChat: false }) during a drag on a scene with many regions, as LIVE-E88-01 reads the table",
+   "l1": {
+    "what": "Frame time during a token's drag on a scene of many rooms, with the module's counters.",
+    "recipe": [
+     "Open a scene with 20 or more room regions.",
+     "As a player, drag your token across three rooms while `await game.drpg.fps({ toChat: false })` runs.",
+     "Read the frame rate and visibility.sliding in the report."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "both",
+    "settles_if": "Frames over 33 ms grow with the region count: worth a finding. Flat: nothing to say.",
+    "priority": "nit"
+   }
+  }
+ ],
+ "counts": {
+  "findings": 7,
+  "major": 1,
+  "minor": 3,
+  "nit": 3
+ }
+}
