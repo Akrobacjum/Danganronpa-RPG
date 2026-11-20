@@ -167,40 +167,65 @@ export function installRenderPlan(app) {
     const original = Object.getPrototypeOf(app)?.render;
     if (typeof original !== "function") return;
 
+    /* What a held paint owes when it runs (1.2.119): the repaint, or the render once any write held for this sheet needed
+       one - a held render is never narrowed to a repaint by a later write of the same roll (S119-T2). */
+    const owed = { full: false, args: null, self: app };
+    const paintOwed = () => {
+        const { full, args, self } = owed;
+        owed.full = false;
+        owed.args = null;
+        if (full) return void original.apply(self, args ?? []);
+        const now = self.element instanceof HTMLElement ? self.element : self.element?.[0];
+        if (now) settle(now, () => repaintInPlace(self.document, now, self));
+    };
+    const hold = self => {
+        const actorId = self.document.id, name = `sheet:${self.id ?? actorId}`;
+        owed.self = self;
+        queueMicrotask(() => holdPaint(takeActorDice(actorId), name, paintOwed));
+        return Promise.resolve(self);
+    };
+
     const render = function (...args) {
         const root = this.element instanceof HTMLElement ? this.element : this.element?.[0];
-        if (this.document?.type === "character" && root
-            && renderPlan(args, { rendered: Boolean(this.rendered) }) === "repaint") {
+        const plan = this.document?.type === "character" && root ? renderPlan(args, { rendered: Boolean(this.rendered) }) : "render";
+        if (plan === "repaint") {
             try {
-                // Held, the sheet's element is read again when the paint runs (a render meanwhile replaces it).
-                const repaint = () => {
-                    const now = this.element instanceof HTMLElement ? this.element : this.element?.[0];
-                    if (now) settle(now, () => repaintInPlace(this.document, now, this));
-                };
                 /*
                  * A ROLL'S CHANGE WAITS FOR THIS BROWSER'S DICE (1.2.119; the owner, 20.11.2026: Hope "dopiero po
                  * zakonczeniu animacji kosci dice so nice"). The write that asked for this repaint may be a roll's, named
                  * in its options (dice-hold.mjs `DICE_OPTION`); Foundry calls this render inside the update, before the
                  * `updateActor` that carries the options (THE ORDER, above), so the option is read a microtask later
                  * (`takeActorDice`), and the repaint waits until that roll's dice have landed here (`holdPaint`, which
-                 * paints at once for a write naming none). Where no dice can be falling on this browser - no Dice So
-                 * Nice, no throw of the module's - the repaint is drawn now, as before.
+                 * paints at once for a write naming none). While no roll's dice are falling on this browser
+                 * (`anyDiceFalling`) the repaint is drawn now, as before.
                  */
-                if (!anyDiceFalling()) settle(root, () => repaintInPlace(this.document, root, this));
-                else {
-                    const actorId = this.document.id, name = `sheet:${this.id ?? actorId}`;
-                    queueMicrotask(() => holdPaint(takeActorDice(actorId), name, repaint));
-                }
+                if (!anyDiceFalling() && !owed.full) settle(root, () => repaintInPlace(this.document, root, this));
+                else return hold(this);
                 return Promise.resolve(this);
             } catch (err) {
                 // A sheet that renders is the safe failure.
                 error("Could not repaint a resource in place; the sheet renders", err);
             }
         }
+        /* AND A WRITE A REPAINT CANNOT DRAW (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): a roll's
+           write that carries more than the repaintable resources - a flag, an item, armour - renders, and that render
+           waits for the roll's dice as the repaint does, while any are falling here. Anything else renders now. */
+        if (this.document?.type === "character" && root && Boolean(this.rendered) && byUpdate(args) && anyDiceFalling()) {
+            owed.full = true;
+            owed.args = args;
+            return hold(this);
+        }
         return original.apply(this, args);
     };
     render[RENDER_PLAN] = true;
     Object.defineProperty(app, "render", { configurable: true, writable: true, value: render });
+}
+
+/** Whether a render's arguments are the ones an actor's update hands its windows (`renderPlan`'s two shapes). */
+function byUpdate(args) {
+    const list = Array.isArray(args) ? args : [];
+    const options = list.length === 1 && isOptions(list[0]) ? list[0] : list.length === 2 && list[0] === false && isOptions(list[1]) ? list[1] : null;
+    return Boolean(options && !options.force && options.renderContext === "updateActor");
 }
 
 /**

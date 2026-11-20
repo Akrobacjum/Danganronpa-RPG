@@ -55051,7 +55051,7 @@ const INVARIANTS = [
             poolWrite: /game\.settings\.set\(MODULE_ID, SETTINGS\.despairPools, store, dice \? \{ \[DICE_OPTION\]: dice \} : \{\}\)/.test(fnSource(src("despair.mjs"), "writePool")),
             poolsChange: new RegExp(`options\\?\\.${H.DICE_OPTION}\\b`).test(fnSource(src("settings.mjs"), "onDespairPoolsChange"))
                 && /holdPaint\(dice, "despair"/.test(fnSource(src("settings.mjs"), "onDespairPoolsChange")),
-            sheet: /holdPaint\(takeActorDice\(actorId\), name, repaint\)/.test(fnSource(src("sheet-repaint.mjs"), "installRenderPlan")),
+            sheet: /holdPaint\(takeActorDice\(actorId\), name, paintOwed\)/.test(fnSource(src("sheet-repaint.mjs"), "installRenderPlan")),
             registered: /safely\("Dice hold", registerDiceHold\)/.test(src("module.mjs"))
                 && /Hooks\.on\("createChatMessage", message => noteRollMessage\(message\)\)/.test(fnSource(src("dice-hold.mjs"), "registerDiceHold"))
         };
