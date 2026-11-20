@@ -104403,6 +104403,137 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ top: true, told: true, written: false, still: true }),
             "Move up on the top of a column did not stay, wrote the kept order, or said nothing (top: it stood at the top, told: the notice, written: the meta row changed, still: at the top after)");
     }],
+
+    ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
+        /*
+         * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet
+         * removed through the planner's road (`dropCaseNode`, what the editor's Remove calls after its question). Read: the
+         * deductions' and the counter's lists, and the check's "missing" for the four. Red at b5a29e73: both deductions kept
+         * naming the bullet and the check named it twice, for good.
+         */
+        const S = await import("./case-schema.mjs");
+        const ch = getClock().chapter;
+        const ids = { bullet: "bullet-suite-cut", a: "deduction-suite-cut-a", b: "deduction-suite-cut-b", c: "counter-suite-cut" };
+        let read = null;
+        try {
+            await S.setCaseNode(ch, ids.bullet, { kind: "bullet", label: "SUITE cut bullet" });
+            await S.setCaseNode(ch, ids.a, { kind: "deduction", label: "SUITE cut a", inputs: [ids.bullet] });
+            await S.setCaseNode(ch, ids.b, { kind: "deduction", label: "SUITE cut b", inputs: [ids.bullet, ids.a] });
+            await S.setCaseNode(ch, ids.c, { kind: "counter", label: "SUITE cut c", refutes: [ids.a] });
+            await gmStoresIdle();
+            await S.dropCaseNode(ch, ids.bullet);
+            await gmStoresIdle();
+            const rows = S.caseRows(ch).rows;
+            const missing = S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && Object.values(ids).includes(p.node)).map(p => [p.node, p.ref]);
+            read = { bullet: Boolean(rows[ids.bullet]), a: rows[ids.a]?.inputs ?? null, b: rows[ids.b]?.inputs ?? null, c: rows[ids.c]?.refutes ?? null, missing };
+        } finally {
+            for (const id of Object.values(ids)) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ bullet: false, a: [], b: [ids.a], c: [ids.a], missing: [] }),
+            "the bullet's removal did not take its links (bullet: its row there, a and b: the deductions' inputs, c: the counter's targets, missing: the check's)");
+    }],
+
+    ["a reference left by a removal before 1.2.119 is cut when a GM opens the investigation dashboard, and one to a node still there is kept (case-schema.mjs `pruneDroppedRefs`; the line claude/plan-119)", async () => {
+        /*
+         * The shape of a world from before this line: a planned bullet and a deduction resting on it and on a second bullet,
+         * then the first bullet's row dropped bare from the GMs' store - as `dropCaseNode` did until now, leaving the
+         * deduction naming it. The dashboard opened as a GM opens it. Read: the deduction's inputs and the check's
+         * "missing" for it, before the open and after. Red at b5a29e73: the reference stayed, and the check named it.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore } = await import("./gm-stores.mjs");
+        const ch = getClock().chapter;
+        const ids = { gone: "bullet-suite-old-gone", kept: "bullet-suite-old-kept", d: "deduction-suite-old" };
+        let win = null;
+        const read = {};
+        const missingOf = () => S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && p.node === ids.d).map(p => p.ref);
+        try {
+            await S.setCaseNode(ch, ids.gone, { kind: "bullet", label: "SUITE old gone" });
+            await S.setCaseNode(ch, ids.kept, { kind: "bullet", label: "SUITE old kept" });
+            await S.setCaseNode(ch, ids.d, { kind: "deduction", label: "SUITE old", inputs: [ids.gone, ids.kept] });
+            await caseSchemaStore.drop(S.caseKeyOf(ch, ids.gone));
+            await gmStoresIdle();
+            read.before = { inputs: S.caseRows(ch).rows[ids.d]?.inputs ?? null, missing: missingOf() };
+            win = await drawnCaseWindow({ view: "map" });
+            await until(() => (S.caseRows(ch).rows[ids.d]?.inputs ?? []).length === 1, 3000).catch(() => {});
+            read.after = { inputs: S.caseRows(ch).rows[ids.d]?.inputs ?? null, missing: missingOf() };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of Object.values(ids)) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ before: { inputs: [ids.gone, ids.kept], missing: [ids.gone] }, after: { inputs: [ids.kept], missing: [] } }),
+            "the old removal's reference was not cut at the dashboard's open, or the live one went (before and after: the deduction's inputs and the check's missing)");
+    }],
+
+    ["a reference to something gone that no removal cut is drawn in the node's list ticked, and unticked it comes off at the window's close (investigation.mjs `schemaEditor`; the line claude/plan-119)", async () => {
+        /*
+         * A token deleted on the map by hand, a Key slot gone and the like leave a reference no road cuts. Here a deduction
+         * resting on a Remnant key no scene holds, the dashboard drawn on the Map: its "Rests on" list read for a box named
+         * for the key, ticked; the box unticked and the window closed (which saves, the owner's 13.11.2026). Read: the box,
+         * then the deduction's inputs and the check's "missing". Red at b5a29e73: no box - the reference could not be taken off.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "deduction-suite-gone-box", ref = "SCENENONE0000000.TOKNONE000000000";
+        let win = null;
+        const read = {};
+        try {
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE gone box", inputs: [ref] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const box = () => root?.querySelector(`[name="${CSS.escape(`case:${ch}:${id}:in:${ref}`)}"]`) ?? null;
+            await until(() => box(), 3000).catch(() => {});
+            read.box = box() ? { checked: box().checked, said: box().closest("label")?.textContent.trim() === game.i18n.format("DRPG.CaseMap.goneRef", { ref }) } : null;
+            if (box()) { box().checked = false; box().dispatchEvent(new Event("change", { bubbles: true })); }
+            await win.close();
+            win = null;
+            await until(() => (S.caseRows(ch).rows[id]?.inputs ?? [ref]).length === 0, 4000).catch(() => {});
+            read.inputs = S.caseRows(ch).rows[id]?.inputs ?? null;
+            read.missing = S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && p.node === id).length;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ box: { checked: true, said: true }, inputs: [], missing: 0 }),
+            "a reference to something gone was not drawn ticked, or unticked did not come off (box: drawn, ticked and named; inputs after the close; missing: the check's)");
+    }],
+
+    ["a Remnant deleted from the dashboard takes the planner's links to it with it (investigation.mjs `deleteTraceRow`, case-schema.mjs `cutRemnantRefs`; the coordinator's point 3, 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * A trace placed on the scene on screen and a deduction resting on it and on nothing else gone; the trace deleted
+         * through the dashboard's road (`deleteTraceRow`, its question answered Yes from the queue). Read: the token, the
+         * deduction's inputs and the check's "missing" for it. Red at b5a29e73: the deduction kept naming the deleted trace.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const scene = canvas.scene, ch = getClock().chapter, id = "deduction-suite-remnant-cut";
+        let trace = null, read = null;
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 140, y: 60, note: "SUITE remnant cut" });
+            must(trace?.id, "the trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE remnant cut" });
+            const key = R.keyOf(trace);
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE remnant cut", inputs: [key] });
+            await gmStoresIdle();
+            globalThis.__dialogAnswers?.push(true);
+            const gone = await I.deleteTraceRow(`${scene.id}__${trace.id}`);
+            await gmStoresIdle();
+            read = { gone, token: scene.tokens.has(trace.id), inputs: S.caseRows(ch).rows[id]?.inputs ?? null,
+                missing: S.checkCase(S.caseGraph(ch, { chapters: "all" })).filter(p => p.code === "missing" && p.node === id).length };
+        } finally {
+            if (trace && scene.tokens.has(trace.id)) { await R.dropRemnantSecret(trace).catch(() => {}); await scene.deleteEmbeddedDocuments("Token", [trace.id]).catch(() => {}); }
+            await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, token: false, inputs: [], missing: 0 }),
+            "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

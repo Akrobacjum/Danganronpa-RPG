@@ -62824,6 +62824,46 @@ const INVARIANTS = [
         }), stableJson({ judged: true, today: true, told: true, greyed: true }),
             "the routing [the GM judges by the project's limit | refuses 'today' under day | tells the owners their uses | the rows grey by the same rule]");
     }],
+    ["R7800 - removing a node takes its links with it (the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119): case-schema.mjs `refsCut` over a chapter's rows and the ids gone answers each other row's list without them - a bullet two deductions rest on, one of them also on a Remnant, and a counter refuting one: the two lists cut, the counter's and the Remnant's kept, the bullet's own row not written - and the case drawn after the cut has no \"missing\", where the bare removal's had two", async () => {
+        /* Red at b5a29e73 (v1.2.118): no `refsCut` - a removal kept every reference to what it removed (E97 C8). Pure. */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.refsCut === "function", "case-schema.mjs has no refsCut - a removal cuts nothing");
+        const rows = {
+            "bullet-r7800": { kind: "bullet", label: "R7800 bullet", recipient: "A1" },
+            "deduction-r7800a": { kind: "deduction", label: "R7800 a", inputs: ["bullet-r7800", "S.T1"] },
+            "deduction-r7800b": { kind: "deduction", label: "R7800 b", inputs: ["bullet-r7800"] },
+            "counter-r7800": { kind: "counter", label: "R7800 c", refutes: ["deduction-r7800a"] }
+        };
+        const cut = S.refsCut(rows, ["bullet-r7800"]);
+        const { "bullet-r7800": gone, ...left } = rows;
+        const after = Object.fromEntries(Object.entries(left).map(([id, row]) => [id, { ...row, ...(cut[id] ?? {}) }]));
+        const traces = [{ key: "S.T1", type: "prep", name: "R7800 knife" }];
+        const missing = r => S.checkCase(S.graphOf({ chapter: 4, rows: r, traces })).filter(p => p.code === "missing").map(p => [p.node, p.ref]);
+        equal(stableJson({ cut, bare: missing(left), after: missing(after) }), stableJson({
+            cut: { "deduction-r7800a": { inputs: ["S.T1"] }, "deduction-r7800b": { inputs: [] } },
+            bare: [["deduction-r7800a", "bullet-r7800"], ["deduction-r7800b", "bullet-r7800"]],
+            after: []
+        }), "{cut: the lists written, bare: the check's missing after the row alone goes, after: the check's missing after the cut}");
+    }],
+    ["R7801 - the references a removal left before 1.2.119 are found to be cut: case-schema.mjs `droppedRefs` names each id the chapter's rows name that is a row id with a tombstone and no live row - never a planned Autopsy's id (drawn with no row), a Remnant's or a Key slot's key (no row id), a row still there, or one with no tombstone; `pruneDroppedRefs` runs when a GM opens the investigation dashboard, before the window reads the case (the line claude/plan-119, 20.11.2026)", async () => {
+        /* Red at b5a29e73: no `droppedRefs`, nothing cut - a world whose bullet was removed before this line holds the
+           reference for good (its editor draws no box for it, the Save keeps what it did not draw). Pure, and a text read. */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.droppedRefs === "function", "case-schema.mjs has no droppedRefs - an old removal's references stay");
+        const rows = {
+            "deduction-r7801": { kind: "deduction", label: "R7801", inputs: ["bullet-gone", "bullet-kept", "autopsy", "S1.T9", "key:2"] },
+            "counter-r7801": { kind: "counter", label: "R7801 c", refutes: ["deduction-gone", "deduction-r7801"] },
+            "bullet-kept": { kind: "bullet", label: "R7801 kept" }
+        };
+        const tombstoned = id => ["bullet-gone", "deduction-gone", "autopsy", "S1.T9", "key:2", "bullet-kept"].includes(id);
+        const src = new Map(await moduleSources());
+        const open = fnSource(src.get("investigation.mjs") ?? "", "openInvestigationDashboard");
+        const at = re => { const m = re.exec(open); return m ? m.index : -1; };
+        equal(stableJson({ gone: S.droppedRefs(rows, tombstoned), none: S.droppedRefs(rows, () => false),
+            onOpen: at(/await pruneDroppedRefs\(\)/) > at(/if \(!game\.user\.isGM\)/) && at(/await pruneDroppedRefs\(\)/) < at(/const \{ finalRemnants, finalTruthPlacedThisChapter \}/) }),
+        stableJson({ gone: ["bullet-gone", "deduction-gone"], none: [], onOpen: true }),
+            "{gone: the ids found to cut, none: with no tombstone, onOpen: the dashboard cuts them after its GM check and before it reads the case}");
+    }],
 ];
 
 /**

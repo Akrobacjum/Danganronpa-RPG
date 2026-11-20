@@ -29,7 +29,7 @@
 import { MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, RECIPIENT_EVERYONE } from "./config.mjs";
 import { isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions } from "./remnants.mjs";
+import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions, keyOf } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
@@ -38,7 +38,7 @@ import { plural, wirePortraitPickers, log, workingScene, esc, placeRoomOptions, 
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan, pruneDroppedRefs, cutRemnantRefs } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
@@ -1483,16 +1483,26 @@ function schemaEditor(graph, node) {
        under a line naming how many are ticked, and opens in place. Its boxes stay in the form, read by Save as before. */
     const foldedList = (boxes, ticked) => `<details class="drpg-case-fold-list"><summary data-drpg-chosen${tipAttr("DRPG.Tips.Case.foldedListTooltip")}>${esc(F("DRPG.CaseMap.chosenOf", { n: ticked, of: boxes.length }))}</summary>`
         + `<div class="drpg-case-checklist">${boxes.join("")}</div></details>`;
+    /* WHAT IT NAMES THAT IS GONE (the line claude/plan-119, 20.11.2026): each reference the graph could not join
+       (case-schema.mjs `graphOf`'s `missing`, what the consistency check names) drawn ticked, so the GM unticks it and the
+       Save takes it off - the Save keeps every id it did not draw (`applySchemaSave`), and until this line such an id was
+       never drawn, so nothing could remove it. A removal and a Remnant's Delete cut theirs at once (case-schema.mjs
+       `dropCaseNode`, `cutRemnantRefs`); what is left here is a token deleted on the map, a slot gone, and the like. */
+    const gone = (field, list) => (graph.missing ?? []).filter(m => m.node === node.id && list.includes(m.ref)).map(m => m.ref)
+        .filter((ref, i, all) => all.indexOf(ref) === i)
+        .map(ref => `<label class="drpg-case-check"><input type="checkbox" name="${esc(name(`${field}:${ref}`))}"${tipAttr("DRPG.Tips.Sweep.Case.goneRefBoxTooltip")} checked /> ${esc(F("DRPG.CaseMap.goneRef", { ref }))}</label>`);
     if (node.kind === "counter") {
         const targets = others.filter(n => !n.evidence);
         const on = n => node.refutes.includes(n.id);
-        rows.push(editRow(L("DRPG.CaseMap.field.refutes"), targets.length ? foldedList(targets.map(n => box("ref", n, on(n))), targets.filter(on).length)
+        const lost = gone("ref", node.refutes);
+        rows.push(editRow(L("DRPG.CaseMap.field.refutes"), targets.length || lost.length ? foldedList([...targets.map(n => box("ref", n, on(n))), ...lost], targets.filter(on).length + lost.length)
             : `<div class="drpg-case-checklist"><em>${esc(L("DRPG.CaseMap.nothingToRefute"))}</em></div>`));
     } else {
         const inputs = new Set(node.inputs);
         const candidates = others.filter(n => n.kind !== "solution");
         const on = n => inputs.has(n.id) || Boolean(n.trace && inputs.has(n.trace));
-        rows.push(editRow(L("DRPG.CaseMap.field.inputs"), foldedList(candidates.map(n => box("in", n, on(n))), candidates.filter(on).length)));
+        const lost = gone("in", node.inputs);
+        rows.push(editRow(L("DRPG.CaseMap.field.inputs"), foldedList([...candidates.map(n => box("in", n, on(n))), ...lost], candidates.filter(on).length + lost.length)));
     }
     rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
     return rows.join("");
@@ -1960,8 +1970,9 @@ async function moveCaseNode(reading, id, step) {
     return true;
 }
 
-/** A schema node removed from the case, asked first (E97 C6): what rested on it keeps naming it, and the consistency
- *  check says so (C8). Answers whether it went. */
+/** A schema node removed from the case, asked first (E97 C6): every reference to it in the chapter's other nodes goes
+ *  with it (case-schema.mjs `dropCaseNode`; the owner's ruling of 19.11.2026, the line claude/plan-119 - until then what
+ *  rested on it kept naming it, and the consistency check named it for good). Answers whether it went. */
 async function dropMapNode(chapter, id) {
     if (!id || !game.user?.isGM) return false;
     const name = caseNodeOf(caseRows(chapter).rows[id])?.label || id;
@@ -2003,7 +2014,11 @@ export async function deleteTraceRow(key) {
         rejectClose: false
     });
     if (!sure) return false;
-    return Boolean(await removeRemnant(trace.token));
+    const named = keyOf(trace.token);
+    const gone = Boolean(await removeRemnant(trace.token));
+    // what the case's nodes rested on goes with it, as a removed node does (case-schema.mjs `cutRemnantRefs`, the line claude/plan-119)
+    if (gone) await cutRemnantRefs(named).catch(err => error("A deleted Remnant's references in the case could not be cut", err));
+    return gone;
 }
 
 /*
@@ -2236,6 +2251,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    /* A removal before 1.2.119 kept what named the node it removed, and no Save could take it off: those references are
+       cut now, before the window reads the case (case-schema.mjs `pruneDroppedRefs`; the line claude/plan-119). */
+    await pruneDroppedRefs().catch(err => error("The case's references to removed nodes could not be cut", err));
 
     // The Final Key Remnant planner lived on the Mastermind screen, where it
     // shared a window with the one secret the module guards hardest - a GM
