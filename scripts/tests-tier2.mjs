@@ -17966,6 +17966,43 @@ const SCENARIOS = [
             "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
     }],
 
+    ["E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's item C through the coordinator: "a GM's Despair Call on a masked student names
+         * them on the public card". A Call's effect writes the lines its card carries (call-effects.mjs `applyCall`'s
+         * `done`), and a Despair Call's card is public (calls.mjs, `announce`): one document every browser holds, which no
+         * reader's cut reaches, so a line naming the target named the masked killer to the table. Driven on this GM: the
+         * killer masked (mask-gm.mjs `maskKiller`), Silence applied to them as a GM's Despair Call applies it; read the
+         * lines the card would carry. Red at f5c8f041.
+         */
+        needs(env.primaryGm(), "the masks are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const E = await import("./call-effects.mjs"), K = await import("./mask-gm.mjs"), M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        must(!K.maskStands(killer.id) && !E.isCallSilenced(killer), "a mask stands, or the killer is silenced - this would measure something else");
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? null);
+        const messagesWas = new Set(game.messages.contents.map(m => m.id));
+        let lines = null;
+        try {
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
+            await settle();
+            const out = await E.applyCall(null, "silence", "despair", { target: killer });
+            lines = out?.lines ?? null;
+            await settle();
+        } finally {
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (restrictionsWas !== null) await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            for (const m of game.messages.contents.filter(m => !messagesWas.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        must(Array.isArray(lines) && lines.length > 0, "Silence wrote no line - this would measure nothing");
+        equal(stableJson([lines.some(l => l.includes(killer.name)), lines.some(l => l.includes("?"))]), stableJson([false, true]),
+            "the line for the card [names the masked killer, names a \"?\"] - " + JSON.stringify(lines));
+    }],
+
     ["E112 - the masks end before the Class Trial is entered, a token copied from a masked one without its flag is not kept as \"?\", and the hall's own tokens go at the trial's exit", async () => {
         /*
          * E112, 16.11.2026; the owner's confirmation through the coordinator of 15.11: the masks end before the Class Trial is
