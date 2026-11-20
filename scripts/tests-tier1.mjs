@@ -19716,6 +19716,23 @@ const INVARIANTS = [
         const ids = fnSource(fog, "studentIds");
         ok(/studentActors\(\)/.test(ids), "studentIds does not read monokuma.mjs studentActors, the roster the Fog tab draws");
     }],
+    ["R7863 - the primary's judge of an arrival leaves a Spectator's token unjudged, by the flag the GMs hold, before any verdict, count or record", async () => {
+        /*
+         * 1.2.119 line F; the auditor's finding domain-map-b-movement-1 (audit/findings-1.2.118/verify-urgent-2.json on
+         * claude/audit-119): a Spectator's walk was counted in an Eclipse, recorded as a crossing and settled for Keep
+         * Watch, which whispered a kept death's watcher under the victim's name. Scenario 93 "ghost" drives the walk;
+         * this holds what it cannot tell apart, read off the source: the exemption reads the flag the GMs hold
+         * (`judgeReaders.flagsHeldNow`, sheet-audit.mjs), not the document's, which a player's own write could set on
+         * their student until the primary puts it back - and it stands before the verdict, the count and the record.
+         */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText).then(stripComments);
+        const body = fnSource(src, "judgeArrival");
+        const exempt = body.search(/judgeReaders\.flagsHeldNow\(actor\)\s*:\s*actor\)\.getFlag\?\.\(MODULE_ID, FLAGS\.spectator\)\)\s*now = standingHere\(tokenDoc\)/);
+        const verdict = body.search(/arrivalVerdict\(/), sighting = body.search(/eclipseSighting\(/), record = body.search(/noteCrossing\(/);
+        ok(exempt > 0, "judgeArrival does not leave a Spectator's token unjudged by the GMs' held flag");
+        ok(exempt > 0 && exempt < verdict && exempt < sighting && exempt < record,
+            `the Spectator's exemption does not stand before the verdict, the count and the record (${[exempt, verdict, sighting, record]})`);
+    }],
     ["R573 - the GMs' overlay follows the floor: drawn again for another floor of the scene it shows that floor's passages and the ones on no floor, and no other floor's or scene's; and a floor switched is a new canvas, on which the overlay draws every layer again from the camera", async () => {
         /*
          * E79 fix r2-G3, 16.10.2026; review round 2, O3. The harm: a GM switches floors and the overlay still shows the
