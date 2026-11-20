@@ -1,0 +1,407 @@
+{
+ "reader": "domain-item-a",
+ "checkout": "branch claude/audit-119; scripts/ as on main b5a29e73 (1.2.118). base-run.json did not exist when this file was written, so no test result is cited as read.",
+ "files_read": [
+  {
+   "file": "scripts/inventory.mjs",
+   "lines": 1402,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/use-items.mjs",
+   "lines": 1079,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "lines": 1879,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/stash-reach.mjs",
+   "lines": 848,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/palm.mjs",
+   "lines": 932,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/traps.mjs",
+   "lines": 1178,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/lockpick-gm.mjs",
+   "lines": 223,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/facilities.mjs",
+   "lines": 442,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/facility-uses.mjs",
+   "lines": 129,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/facility-editor.mjs",
+   "lines": 176,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/facilities-gm.mjs",
+   "lines": 220,
+   "read": "whole"
+  }
+ ],
+ "count_expected": 8508,
+ "count_note": "11 files, 8508 lines by wc -l, every one read start to end; the sum matches the scope's 8508. Function lengths by a short acorn walk over the same 11 files (script in the scratchpad, not the repository).",
+ "neighbours_followed": [
+  "scripts/config.mjs (ITEM_CATEGORIES 652-700, LIMIT_GROUPS 952-979, ACTIONS.palm 1768-1830, TRAP_TRIGGERS 3222-3310, FACILITIES 2240-2300)",
+  "scripts/i18n.mjs (localizeConfig 90-130: the config labels the item windows print are swapped in place, so no English literal reaches a Polish page from them)",
+  "scripts/bridge-table.mjs (rows action.plant 397-417, vault.findStash 470-482, action.steal 483-499, vault.steal 500-515)",
+  "scripts/bridge-runs-acts.mjs (handleFacilityUse 106-152, palmRolls 635-640, handlePlant 649-664, handleFindStash 670-687, handleSteal 692-706, handleVaultSteal 771-777)",
+  "scripts/bridge-guards.mjs (the runner's answer of a run, 1795-1822)",
+  "scripts/bridge-asks.mjs (requestSteal 1155-1170, requestPlant 1251-1263)",
+  "scripts/sheet-audit.mjs (meansWrite and its note 1000-1048)",
+  "scripts/resource-guard.mjs (trustedWrite / trustedCreate / trustedDelete 350-368, WRITE_REASONS 260-270)",
+  "scripts/actions.mjs (setActions 280-300: a GM road held to the GMs' marks)",
+  "scripts/movement.mjs (holdsPass 1210-1214)",
+  "scripts/crossing-settle.mjs (the CROSSING_SETTLED event's fields 52-58)",
+  "scripts/doors-gm.mjs (hasPendingBedroomNote 379-383, onDoorCrossing 495-510)",
+  "scripts/infiltrate-reroll.mjs (settlePick 98-125: the only other reader of a pass row)",
+  "scripts/tables-pools.mjs (drawFrom 712-740), scripts/action-search.mjs (grantDrawn 340-375)",
+  "scripts/chapter.mjs (its re-exports of isDeadForGm and livingStudentsForGm, 38-66)",
+  "scripts/clock.mjs (one session is one in-fiction day, 6, 476-486: the marks that carry the session are not a second boundary)",
+  "lang/en.json and lang/pl.json (DRPG.Vault.*, DRPG.Steal.*, DRPG.Items.*, DRPG.TruthBullet.*, DRPG.Facility.*, DRPG.Trap.* keys these files print)",
+  "audit/findings-1.2.118/old-1.2.42-items.json and controls-06-items-sheet.json (to give old ids and not to repeat the window pass)"
+ ],
+ "strengths": [
+  "One road for an item that changes owner: a give, a loot, a rifle, a steal and a Plant all end in transferItem on a GM, which reads what moves and the hands it lands in off the GMs' marks after one wait for both sheets, chains both sheets in one sorted order, joins a piece to its stack by the carried identity, and rolls a copy back when the piece changed on the way (scripts/inventory.mjs:1136-1305).",
+  "One gate before anything is read: transferRefusal answers every mode's room, lives, phase and person before a Palm's rolls are read, so a refusal hands the action back on the Palm's browser and a refusal after the rolls keeps it spent, told as nothing carried out (scripts/inventory.mjs:1078-1106; scripts/palm.mjs:612-618, 699-706).",
+  "The planted item is a name, not a mark: every module item carries a random drpgItemId, preservedFlags carries it through every transfer, and which identity is poisoned lives only in the GMs' trapLedger; a used card's identity is held to its writer owning the character and still holding the item (scripts/inventory.mjs:30-49, 141-181; scripts/traps.mjs:443-446, 923-931, 1128-1159).",
+  "A trap disarms itself before its card, in the projects' queue, and a card that could not stamp is not sent; the card goes gmOnly so the killer's thread never learns who walked in (scripts/traps.mjs:280-373).",
+  "A stash's free reach is counted once a time of day in a GM store, stamped with no wait between read and write, taken off again when nothing moved, and a hidden stash's refusal reads like an empty one so a packet learns nothing of a hiding place (scripts/stash-reach.mjs:386-400, 452-537).",
+  "The owner of a rifled stash hears of it on walking in, once, never who or when, by two roads chained per owner so a paid crossing does not tell twice (scripts/stash-reach.mjs:570-653).",
+  "A use reads the item again after its windows, and a creative ruling is held one at a time per item on the GM and read again after the GM's window (scripts/use-items.mjs:555-568, 1003-1043).",
+  "Durability is worn on the roll that fills it and read off the GMs' copy where a GM's road holds one, so a mend a console wrote a moment before spares nothing (scripts/inventory.mjs:233-300; scripts/use-items.mjs:174-282).",
+  "The project-action use copy and the pass copy are sent addressed to their owner only, for their own characters only, taken only from a GM, and only grey a row: the GM's run stays the authority (scripts/facility-uses.mjs:1-14, 32-44, 95-108; scripts/lockpick-gm.mjs:22-28, 128-139, 188-201).",
+  "Everything a facility use is judged by is read on the GM: the room the GMs hold the character in, the action looked up in that room alone, the Overflow, the limit in one serial step per action key, and the roll off the GMs' record (scripts/bridge-runs-acts.mjs:106-152; scripts/facilities-gm.mjs:38-52)."
+ ],
+ "findings": [
+  {
+   "id": "domain-item-a-1",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A room action's Hope, Health and Sanity effects read the sheet as it stands, not as the GMs hold it: the E29 r2-H24 class reopened by E93",
+   "where": "scripts/facilities-gm.mjs:144-158 (applyEffects reads target.system.resources and writes with trustedWrite); scripts/sheet-audit.mjs:1000-1048 (meansWrite and the list of roads it covers); scripts/bridge-runs-acts.mjs:106-152 (handleFacilityUse: no judgedFor, no meansWrite before applyEffects)",
+   "what_happens": "applyEffects computes Health and Sanity from `target.system.resources[path].value`, and Hope from `r.hope.value` with the sheet's `r.hope.max`, then writes the result as a GM (`trustedWrite`, reason facility). sheet-audit.mjs's note on meansWrite records that a GM's write over a path supersedes a put-back pending on it, measured for seven roads that wrote Hope from a console's 5 for the GMs' 2 (E29 fix r2-H24), and that a Hope maximum is the world's less the scars, whatever the sheet says. Every road of that list now reads the GMs' marks through meansWrite (use-items.mjs `restore` among them); the E93 effects were written later and are not on the list and do not. handleFacilityUse waits on nothing of the student's queue before it applies the effects.",
+   "evidence": "facilities-gm.mjs:146  const r = target.system?.resources ?? {};\nfacilities-gm.mjs:155  const now = Number(r.hope?.value) || 0, max = Number(r.hope?.max) || STARTING.hopeMax;\nfacilities-gm.mjs:156  const next = Math.min(max, now + effect.n);\nfacilities-gm.mjs:157  if (next !== now) await trustedWrite(target, { \"system.resources.hope.value\": next }, { reason: \"facility\" });\nuse-items.mjs:725   const { meansWrite } = await import(\"./sheet-audit.mjs\");\nuse-items.mjs:726   return meansWrite(actor, async (held, maxOf) => {",
+   "failure_scenario": "A player's console raises their own Hope from 2 to 5 and at once uses a project's room action that gives +1 Hope: the primary writes 6 as a GM's write before the put-back of 5 lands, and the student keeps 6 Hope where the GMs held 2.",
+   "expected": "The effects read and write the student's means as the GMs hold them, in one meansWrite job, as every other GM road that restores or spends a resource does since E29 fix r2-H24.",
+   "fix_sketch": "Wrap the health, sanity and hope branches of applyEffects in meansWrite(target, (held, maxOf) => ...), and add the road to meansWrite's list.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a wait or a held read on the facility road: handleFacilityUse calls gmPlaceOf, offerAt, overflowNow, the use store and spendAction (for a project's cost) and then applyEffects, with no judgedFor or itemAsHeld between; trustedWrite (resource-guard.mjs:350-354) only stamps the write and moves the GMs' mark to it (noteOwnWrite), which is the superseding the note describes. A GM's own action (the GM's roll on a GM's action) has the same read but no console behind it. Health and Sanity are flagged to the GMs rather than put back, so a console gains nothing there; Hope, put back at once, is the case that moves a number. Not run: no tier-2 test drives a facility Hope effect beside a pending put-back (git grep applyEffects over the tests finds E93-T5's timed trait only).",
+   "tests_near": "Tier 2 'E93-T5 - a room action's temporary +X to a trait ...' (scripts/tests-tier2.mjs:100449) drives applyEffects for a timed trait only; tier 1 R6911 (scripts/tests-tier1.mjs:39008) reads applyEffects' source for giveBack. Results not read (no base-run.json).",
+   "live_check": ""
+  },
+  {
+   "id": "domain-item-a-2",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A Pick the Lock pass follows its holder by the room's name alone: a crossing on another scene into a room of the same name marks it used, and walking out there ends it",
+   "where": "scripts/lockpick-gm.mjs:70-81 (onPassCrossing); scripts/crossing-settle.mjs:55 (the event carries sceneId); scripts/movement.mjs:1210-1214 (holdsPass compares the scene)",
+   "what_happens": "A pass row holds `sceneId` and `room`, and holdsPass, the reader that lets the holder through, compares both. onPassCrossing, which marks the pass entered and ends it on the way out, compares only `event.to` and `event.from` with `row.room`, though the settled crossing hands it `sceneId`. A character with a token on a second scene that has a room of the same name - the case E12 wrote the scene rules for (traps.mjs:147-156, stash-reach.mjs:226-232) - marks the pass entered by walking into that other room, so it survives the time of day's end unused, and ends it by walking out of that other room before the lock was ever passed.",
+   "evidence": "lockpick-gm.mjs:73  const row = lockpickStore.get(event.actorId);\nlockpick-gm.mjs:75  if (event.to === row.room && !row.entered) {\nlockpick-gm.mjs:79  if (row.entered && event.from === row.room && event.to !== row.room) return endPass(event.actorId);\ncrossing-settle.mjs:55  const event = { actorId, from: entry.from, to: entry.to, via: entry.via ?? null, eclipse: entry.eclipse ?? null, sceneId: entry.sceneId ?? null };\nmovement.mjs:1213  return Boolean(row) && row.sceneId === scene.id && row.room === room;",
+   "failure_scenario": "A student picks the school's Storage lock, then their token on the Annex walks into and out of the Annex's Storage: the pass is ended and the school's door they paid to open is shut to them again.",
+   "expected": "The pass's crossings are read on the pass's own scene, as holdsPass reads it.",
+   "fix_sketch": "In onPassCrossing, also require event.sceneId === row.sceneId (and leave an event with no sceneId to the room alone, as today).",
+   "confidence": "read",
+   "refutation_tried": "Checked the event's shape (crossing-settle.mjs:55: sceneId present) and the other reader of the row (infiltrate-reroll.mjs:105-107, a Reroll, which compares the room alone too but only for the roller's own last pick). The tier-2 tests of onPassCrossing (scripts/tests-tier2.mjs:102348-102371) pass no sceneId, so nothing pins either answer. The situation needs one character with tokens on two scenes and two rooms of one name; the module treats both as real (E12), so the case stands, rare.",
+   "tests_near": "Tier 2 near scripts/tests-tier2.mjs:102348 (onPassCrossing with { actorId, from, to }, no scene). Result not read.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-item-a-3",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "flow",
+   "title": "A Plant of an item the planter no longer carries is answered as done: the planter reads 'In a moment you learn...' and nothing follows",
+   "where": "scripts/palm.mjs:795-835 (plantOnPerson's early `return null` and `return refuse(...)`, which answers null); scripts/bridge-runs-acts.mjs:649-664 (handlePlant passes on only `refused`); scripts/bridge-guards.mjs:1817-1820",
+   "what_happens": "plantOnPerson refuses with `{ refused }` for the one gate and an undecided item, but for an item that is no longer in the planter's pockets as the GMs hold them (`pool.find` misses) it calls `refuse(...)`, which logs and answers null; handlePlant then returns nothing and the runner answers the asker done. The planter's browser reads `res.ok` with no refusal and prints DRPG.Steal.plantSent ('In a moment you learn whether the item reached their pocket'), and no card follows because plantOnPerson returned before its whisper. The trust model's step 3 asks a run that did no work to answer 'nothing was carried out: ...'. stealFromPerson's two null answers (thief or victim gone, or the same sheet) are the same shape.",
+   "evidence": "palm.mjs:832  const held = pool.find(i => i.id === item.id);\npalm.mjs:833  if (!held) {\npalm.mjs:834      return refuse(`\"${item.name}\" is not something they are carrying`);\npalm.mjs:800  const refuse = why => {\npalm.mjs:802      return null;\nbridge-runs-acts.mjs:663  if (out?.refused) return { refused: out.refused };\npalm.mjs:225  text: res.ok && !res.value?.refused ? game.i18n.format(\"DRPG.Steal.plantSent\", { name: victim.name }) : \"\"",
+   "failure_scenario": "A player picks a kit to Plant, and while their two roll windows are open the GM takes the kit away (or a usable of it is spent): the Palm card says the result comes in a moment, the action stays paid, and no result ever comes.",
+   "expected": "'.claude/rules/trust-model.md', How to add a bridge action, step 3: a resolver that answers null for work it did not do is a refusal, 'nothing was carried out: ...', told as refused.",
+   "fix_sketch": "Answer { refused: \"nothing was carried out: ...\" } where plantOnPerson and stealFromPerson now answer null.",
+   "confidence": "read",
+   "refutation_tried": "Looked for an honest road that reaches line 834: palmablePool and pocketsFrom build the same pool (carried, no Truth Bullet, a known category), so only a change between the Palm window and the GM's read reaches it - a GM's Take, a theft by another student, a use of the last charge does not (a broken item stays in the pool). The bridge's guards (owns plannerId) keep a packet from naming someone else's item, so what remains is a timing and a hand-written packet.",
+   "tests_near": "R164 holds refusal texts to the closed list; git grep 'not something they are carrying' finds only palm.mjs:834. Result not read.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-item-a-4",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "text",
+   "title": "The overflow whisper names the item's category plural where the limit hit is the shared Gear's",
+   "where": "scripts/inventory.mjs:843-847 (grantItem's overflow whisper); scripts/inventory.mjs:1371-1376 (capacityLabel)",
+   "what_happens": "When full hands push a find, a loot, a rifle or a steal into the stash, the owner is whispered DRPG.Vault.overflowed with `ITEM_CATEGORIES[category].plural`. For a Murder Weapon, a Cleaning Tool or a Tool the limit that was hit is the shared two-slot Gear group, and the three refusals beside it say so through capacityLabel since ITEM-11; this one was left.",
+   "evidence": "inventory.mjs:843  await whisperToOwner(actor, `<p>${game.i18n.format(\"DRPG.Vault.overflowed\", {\ninventory.mjs:845      category: foundry.utils.escapeHTML(\ninventory.mjs:846          ITEM_CATEGORIES[category]?.plural ?? category)\nen.json DRPG.Vault.overflowed: \"You cannot carry any more {category}, so “{item}” went into your stash.\"",
+   "failure_scenario": "A student holding one tool and one knife finds a rag: the whisper says 'You cannot carry any more Cleaning Tools', though they carry none, and the sheet beside it reads Gear 2/2.",
+   "expected": "capacityLabel(category), as the overCap and full refusals above and below it use.",
+   "fix_sketch": "",
+   "confidence": "read",
+   "refutation_tried": "Checked that the label is not swapped elsewhere: capacityLabel is used at 819 and 851 in the same function and not here; the key's text takes the category as a noun phrase, so Gear would read right in both languages.",
+   "old_id": "ITEM-11 (its fix left this fourth sentence; noted as a new observation by old-1.2.42-items.json)",
+   "tests_near": "",
+   "live_check": ""
+  },
+  {
+   "id": "domain-item-a-5",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "text",
+   "title": "The Take window titles itself from the argument while its 'Take it from' select can be changed",
+   "where": "scripts/gm-items.mjs:1787-1798 (the title), 1805-1812 (the select's change rebuilds the list, not the title); scripts/gm-items.mjs:430 (the hub always passes a student)",
+   "what_happens": "Opened from the hub, takeItemDialog always receives the hub's student, so the title reads 'Take an item from Hiro'; changing the select to Aiko rebuilds the item list and leaves the title. ITEM-13 fixed the same shape on the three give windows ('Generic on purpose', gm-items.mjs:497-498).",
+   "evidence": "gm-items.mjs:1792  : actor\ngm-items.mjs:1793      ? game.i18n.format(\"DRPG.Items.takeFrom\", { actor: actor.name })\ngm-items.mjs:1811  if (who) form.elements.namedItem(\"item\").innerHTML = optionsFor(who);",
+   "failure_scenario": "A GM opens Take from Hiro's row, switches the select to Aiko and reads 'Take an item from Hiro' over Aiko's list.",
+   "expected": "A generic title, as the give windows have, or one the select keeps.",
+   "fix_sketch": "",
+   "confidence": "read",
+   "refutation_tried": "Looked for a title update in the render callback: there is none. Same as controls-06-items-sheet-5's first half; kept here for its old id.",
+   "old_id": "ITEM-13 (its fix covered the give windows, not this one)",
+   "tests_near": "",
+   "live_check": ""
+  },
+  {
+   "id": "domain-item-a-6",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "flow",
+   "title": "The key rule's branch answers a stuck removal as a clean move: ok, stuck false, and the GMs not told",
+   "where": "scripts/inventory.mjs:1211-1226 (the key rule), 1188-1206 (takeOne), 1121-1125 (the documented answer)",
+   "what_happens": "Where the taker already holds a key to the room, transferItem copies nothing and takes the giver's key off with takeOne. takeOne answers `{ stuck: true, left: 1 }` when the delete did not land (a refused write resolves quietly) and `{ stuck: true, left: count }` when a count write did not; the branch only asks `\"left\" in taken`, so both answer `{ ok: true, ..., stuck: false }`, the taker is whispered that they still hold one key, and no GM card goes out. The function's own doc says `stuck` is true when the giver's piece could not be taken off and that the GMs are told either way; the main road below does both (1297-1301).",
+   "evidence": "inventory.mjs:1218  const taken = await takeOne({ copied: false });\ninventory.mjs:1219  if (taken.gone) return { missing: true };\ninventory.mjs:1220  if (!(\"left\" in taken)) return { failed: true };\ninventory.mjs:1225  return { ok: true, copy: null, left: taken.left, keyHeld: keyRoom, stuck: false };\ninventory.mjs:1201  return from.items?.has(id) ? { stuck: true, left: 1 } : { left: 0 };",
+   "failure_scenario": "A thief who already holds a key to Room 3 lifts the stash's copy and the delete is refused on the GM: the thief reads 'You take Room 3 key out of Aiko's stash', Aiko's stash still holds it, and no GM is told.",
+   "expected": "As the main road: stuck true and the TRANSFER_STUCK line to the GMs when takeOne answers stuck.",
+   "fix_sketch": "",
+   "confidence": "read",
+   "refutation_tried": "Looked for a caller that reads `left` against the count to notice it: stealFromVault, stealFromPerson and the hand-over read ok, copy, keyHeld and stuck only. The trigger is a write a pre-hook refused, which the comment at 1180-1182 says resolves as quietly as one that landed, so it is possible but rare; practical harm is small, since the taker held a key already.",
+   "tests_near": "Tier 2 'H84-01: one key per room ...' (named at inventory.mjs:1216) drives the branch on a delete that lands. Result not read.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-item-a-7",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "flow",
+   "title": "Throwing a broken thing away does not read the item again after its two windows, as using one does since S08-35",
+   "where": "scripts/use-items.mjs:884-997 (discardBroken: checks at 893-902, then the confirm 906-916 and the roll 922-929, then the trace 938-951 and the delete 979-983); against 555-568 (useItem's read after its windows)",
+   "what_happens": "discardBroken asks broken and not stashed once, before the confirm and the Shadow roll, both of which wait on the player. useItem reads the item again after its windows because 'the item can go meanwhile - stolen, handed over, used up by a second click, put away' (S08-35); discardBroken does not. An item taken by a Palm, a GM's Take or mended by a finished Repair between the confirm and the roll still gets its trace placed, the delete aimed at it, and the card 'You threw away X'.",
+   "evidence": "use-items.mjs:893  if (!isBroken(item)) {\nuse-items.mjs:906  const go = await drpgConfirm({\nuse-items.mjs:923  const roll = await rollTrait(actor, BROKEN_ITEMS.trait, {\nuse-items.mjs:938  const placed = await dropRemnant(actor, {\nuse-items.mjs:980      await trustedDelete(item, { reason: \"discard\" });\nuse-items.mjs:562  if (!again) {\nuse-items.mjs:563      const now = actor.items.get(item.id);",
+   "failure_scenario": "A student opens 'Throw it away' on a broken knife, another student Palms the knife while the roll window is open, and the thrower is told they threw it away and leaves a discard trace for a knife now in someone else's pocket.",
+   "expected": "The same read after the windows that useItem makes: gone, mended or stashed, and nothing is placed or deleted.",
+   "fix_sketch": "",
+   "confidence": "read",
+   "refutation_tried": "Looked for the GM refusing the trace for an item no longer held: handleRemnant files the type by its own reading (use-items.mjs:827-829, 939) but the trace is placed at the console's word with its band (trust model, layer two), and nothing on that road reads the item. What the delete does on a document already deleted on Foundry 14 was not read (not_established).",
+   "tests_near": "",
+   "live_check": ""
+  },
+  {
+   "id": "domain-item-a-8",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "perf",
+   "title": "The trap listeners no longer start with the armed map: a crossing reads two GM stores first, and any actor write drops the map",
+   "where": "scripts/traps.mjs:33-39 (the header's rule), 938-964 (onCrossed: hasPendingStashNotice and hasPendingBedroomNote before armed()), 749-751 (updateActor drops the index), 986-992",
+   "what_happens": "The header says every listener 'starts with a lookup in armed() - a Map built once and rebuilt only when the projects change - and returns on a miss before touching an actor, a token or a setting'. Since 1.2.112 onCrossed first awaits the rifle store's hydration and scans its rows, then imports doors-gm.mjs and scans the bedroom notes, on every crossing the primary hears, before the map. And the map is dropped on every updateActor, so a paid crossing (an action spent is an actor write) makes the next event rebuild it from projectMeta and every countdown.",
+   "evidence": "traps.mjs:35  * once and rebuilt only when the projects change - and returns on a miss before\ntraps.mjs:946  if (actor && await hasPendingStashNotice(actor)) {\ntraps.mjs:955  const D = await import(\"./doors-gm.mjs\");\ntraps.mjs:961  if (!armed().byRoom.has(to)) return;\ntraps.mjs:751  Hooks.on(\"updateActor\", () => forgetArmedTraps());",
+   "failure_scenario": "No player sees it; on the primary every crossing costs two store scans and, after any sheet write, a rebuild of the trap map - a cost the header says is not paid.",
+   "expected": "The header and the code to agree; a cost per crossing measured by scenario 86 (frame-work) if it matters.",
+   "fix_sketch": "",
+   "confidence": "read",
+   "refutation_tried": "Both stores are small (rows only while a notice waits) and the rebuild is linear in projects, so this is a comment that stopped being true more than a slowdown; not measured.",
+   "tests_near": "R10 times armedIn only (traps.mjs:139-146), not onCrossed. Result not read.",
+   "live_check": ""
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A rifle made while the stash's owner stands in the room tells the owner nothing and does not redraw their sheet (quiet always); the GMs' card says the owner 'saw it'.",
+   "source": "scripts/stash-reach.mjs:570-594 (1.2.112, the owner's decision of 13.11.2026); en.json DRPG.Vault.gmWatched. A UX question remains: the owner's player sees nothing unless the GM narrates it."
+  },
+  {
+   "what": "A planted trap item comes out as the searcher's category and tier, so it can spring only for someone who searched for a usable.",
+   "source": "scripts/traps.mjs:679-697 (A23; Dawid, 03.09), said to the GM in DRPG.Trap.plantUsableNote."
+  },
+  {
+   "what": "A discard's trace is placed at the thrower's browser's word, with the band it names; the GM files only its type.",
+   "source": ".claude/rules/trust-model.md, layer two ('a forged discard trace earns its ticket'); scripts/use-items.mjs:938-951."
+  },
+  {
+   "what": "A relayed action event's project is taken as sent, and a Search's success is the reporter's claim, so a player's own character can stamp a trap in its room spent (the GM is carded and can Rearm).",
+   "source": "scripts/traps.mjs:838-858 (E31's design wrote it down rather than fixed it)."
+  },
+  {
+   "what": "Under the Overflow's Toll a GM's room action's extra action is paid by the roller's browser and the draw's ticket proves one payment, not its size.",
+   "source": "scripts/facilities-gm.mjs:27-30 ('Watched, not caught', docs/dev/e93/STATUS.md)."
+  },
+  {
+   "what": "A console reads every room's GM actions (region flags) and every project's action (projectMeta).",
+   "source": "scripts/facilities.mjs:24-28 (the owner's Q-E93-2, default taken)."
+  },
+  {
+   "what": "A Plant into full pockets is refused, stays paid, and tells the victim nothing.",
+   "source": "scripts/palm.mjs:862-873, 895-898 (D42, the owner's option 1)."
+  },
+  {
+   "what": "Two GMs ruling a creative use of one item at once on two browsers are not held.",
+   "source": "scripts/use-items.mjs:1003-1012 (read in the code, stated there)."
+  },
+  {
+   "what": "A GM's give outranks the carry cap, with a warning.",
+   "source": "scripts/inventory.mjs:813-822; scripts/gm-items.mjs:597-600, DRPG.Items.overCapNote."
+  },
+  {
+   "what": "The steal's item picker opens only on a critical, after the dice, on the thief's browser.",
+   "source": "scripts/palm.mjs:248-275 (traps 92-93)."
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/use-items.mjs:23-26",
+   "comment_says": "EQUIP: 'One per category - you have two hands'.",
+   "code_does": "toggleEquipped puts down everything readied whatever its category (358-361): one thing in a hand in all (Dawid, 27.08, the function's own note at 301-310)."
+  },
+  {
+   "where": "scripts/use-items.mjs:773-775",
+   "comment_says": "A used-up usable 'still counts against the two you may carry'.",
+   "code_does": "Usables cap at three (config.mjs ITEM_CATEGORIES.usable.limit 3, Dawid 02.09.2026)."
+  },
+  {
+   "where": "scripts/inventory.mjs:1365-1369 and 1381-1382",
+   "comment_says": "Four screens 'have to say \"2/3 Gear\"'; the summary reads 'Gear: 2/3'.",
+   "code_does": "The Gear group's limit is 2 since D10c (config.mjs LIMIT_GROUPS.gear.limit), so the screens read 'Gear: 2/2'."
+  },
+  {
+   "where": "scripts/stash-reach.mjs:215-217",
+   "comment_says": "Finding a concealed stash 'is what the Search action's own stash branch is for, at a penalty, with a roll'.",
+   "code_does": "Since 1.2.112 a Search reaches into no stash; a hidden stash opens to Analyze's Find Stash alone (resolveStashSearch, 699-782; the note at 452-458)."
+  },
+  {
+   "where": "scripts/stash-reach.mjs:766-771",
+   "comment_says": "The owner discovers a find 'when something goes missing, which is `stealFromVault`'s job and has its own Despair test'.",
+   "code_does": "stealFromVault rolls nothing since 1.2.112: the rifle is free, and the owner is told on walking in (570-582)."
+  },
+  {
+   "where": "scripts/stash-reach.mjs:784",
+   "comment_says": "'GM: look inside anybody's stash, and pull things out of it.'",
+   "code_does": "openVaultInspector is read-only, footer Close alone (839-846); its note sends the GM to Give / take items to take things out."
+  },
+  {
+   "where": "scripts/palm.mjs:504-506",
+   "comment_says": "'`stealFromVault` above owns the rules about hiding places'.",
+   "code_does": "stealFromVault is in stash-reach.mjs since E41 C6; nothing above it in palm.mjs."
+  },
+  {
+   "where": "scripts/palm.mjs:94 and 566-569",
+   "comment_says": "'was 14 beaten, was 15 beaten' ... 'decided on this side against `ACTIONS.steal`'.",
+   "code_does": "The hand's bar is ACTIONS.palm.threshold 12 (config.mjs:1809) and the function reads `ACTIONS.palm` (621); there is no ACTIONS.steal."
+  },
+  {
+   "where": "scripts/traps.mjs:20-24, 44-48",
+   "comment_says": "'SIX LISTENERS FOR NINE TRIGGERS ... It was five'; 'Seven triggers are answered from the trap's row ... The eighth - the planted item'.",
+   "code_does": "Nine triggers (config.mjs TRAP_TRIGGERS, passage added by E80 C3): eight are answered from the row and the ninth is the item."
+  },
+  {
+   "where": "scripts/traps.mjs:33-39",
+   "comment_says": "Every listener starts with a lookup in armed(), a map rebuilt only when the projects change, before touching a setting.",
+   "code_does": "onCrossed reads the rifle store and the bedroom notes first (946-960), and updateActor drops the map on any actor write (751). Finding 8."
+  },
+  {
+   "where": "scripts/facilities.mjs:12-15",
+   "comment_says": "A completed project's action: 'Once per person per time of day'.",
+   "code_does": "Since P2 its limit is none, once a time of day or once a day per character (cleanFacility 117-119, usedUp 144-149; facility-uses.mjs header)."
+  },
+  {
+   "where": "scripts/facilities-gm.mjs:98-102",
+   "comment_says": "applyEffects 'answers the lines its card says, in the table's language'.",
+   "code_does": "The lines are game.i18n on the primary GM's browser (107-108), the GM's own language, not the world's document language (utils.mjs worldLocalize is not used)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 5,
+  "functions_150_to_300_list": [
+   "stealFromVault, scripts/stash-reach.mjs:380 (219 lines)",
+   "stealFromPerson, scripts/palm.mjs:587 (176)",
+   "transferItem, scripts/inventory.mjs:1136 (170)",
+   "takeItemDialog, scripts/gm-items.mjs:1722 (158)",
+   "performPalm, scripts/palm.mjs:277 (151)"
+  ],
+  "duplicated_helpers": [
+   "rifleMark (scripts/stash-reach.mjs:368-370) and facilityMark (scripts/facilities.mjs:130-132) are the same five-field join; facilities.mjs:127-128 says so.",
+   "The owner's-copy machinery is written twice: lockpick-gm.mjs passesFor / sendPassesTo / askForPasses / onPassesSocket / retellPasses (128-201) and facility-uses.mjs usesFor / sendUsesTo / askForUses / onUsesSocket / retellUses (32-108), down to the comment on the init-time ready ask (lockpick-gm.mjs:216-218, facility-uses.mjs:122-124).",
+   "keepGearShape's quiet branch re-types readyForShape's search for a working stowed piece (scripts/inventory.mjs:974-975 against 933-935).",
+   "deadHands (scripts/use-items.mjs:292-296) and refuseTheDead (scripts/stash-reach.mjs:146-150) are one body under two names.",
+   "Three item labels for a select, each its own shape: palm.mjs describeItem (469-472, no tier), stash-reach.mjs rifleStashDialog's describe (295-300, with tier) and gm-items.mjs takeItemDialog's label (1777-1780, category first, tier, place, broken).",
+   "stealablePool (scripts/palm.mjs:449-454) and pocketsFrom (532-542) build the same pool; documented as deliberate (menu against authority, 445-447)."
+  ],
+  "dead_code": [
+   "The pass row's `mark` and `at` (scripts/lockpick-gm.mjs:44, 57): written at the grant, read by nothing - passesAtNewTimeOfDay ends by `entered` alone, and the other readers (movement.mjs holdsPass, infiltrate-reroll.mjs settlePick) read sceneId, room and entered (git grep over scripts, tests aside).",
+   "plantOnPerson's `const done = landed;` (scripts/palm.mjs:886): an alias read in place of `landed`.",
+   "openStashHere (scripts/stash-reach.mjs:267-269) and pinItemIcons (scripts/inventory.mjs:482) are reached from scripts/api.mjs alone (game.drpg), by no control; openStashHere is kept for macros, as its note says."
+  ],
+  "magic_numbers": [
+   "resolveStashSearch's fallback `ACTIONS.analyze?.stashThreshold ?? 16` (scripts/stash-reach.mjs:732) beside the config value.",
+   "standsIn's `pause(300)` (scripts/traps.mjs:908).",
+   "The Give windows' tier selected by default `t === 2` (scripts/gm-items.mjs:1021).",
+   "The effect amount stepper's `max: 10` (scripts/facility-editor.mjs:42) against each kind's own `amount`, which cleanEffect clips to (facilities.mjs:63).",
+   "Identity and id lengths: randomID(16) (inventory.mjs:185, facilities-gm.mjs:188), randomID(12) and the 24 of the id pattern (facilities.mjs:90)."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Plant the item (traps.mjs openPlantDialog 632-707): with no name typed, Plant closes the window and nothing is said (677) - controls-06-items-sheet-7.",
+   "Give a room key of a key the student already holds: giveKeyNow says nothing when grantBedroomKey makes none (gm-items.mjs:572-583) - controls-06-items-sheet-2."
+  ],
+  "stale_windows": [
+   "Give / take items: only the holdings line is kept live (gm-items.mjs:149-155); the Give tab's category counts, catalogue, key list and Remnant list are drawn once (controls-06-items-sheet-1).",
+   "Room actions editor and project action editor (facility-editor.mjs:104-119, 158-176): drawn once, no keepLive; Save writes the room's whole list, so of two GMs editing one room the later Save wins without either seeing the other's change.",
+   "Look inside the stashes (stash-reach.mjs:785-848): drawn once, and raised rather than redrawn when opened again (controls-06-items-sheet-3).",
+   "Rifle (stash-reach.mjs:279-351) and the steal's pick (palm.mjs:475-499): one-question pickers drawn once (controls-06-items-sheet-13)."
+  ],
+  "for_the_live_lists": [
+   "Finding 1 can be driven headless: a probe that writes a player's Hope +3 from that player's page and asks facility.use with a +1 Hope project action in the same tick, then reads the Hope after the put-back."
+  ]
+ },
+ "not_established": [
+  {
+   "question": "Whether item.delete() on a document deleted meanwhile throws or resolves on Foundry 14 (finding 7's last step): if it resolves, the thrower's card and trace stand with no error logged.",
+   "settles_by": "new live check: delete an embedded item, then call delete() on the stale reference in the console; read whether it throws.",
+   "l1": {
+    "what": "Whether a second delete() of an already deleted embedded Item throws on Foundry 14.370",
+    "recipe": [
+     "As GM, open the console on any world with a character holding a module item",
+     "const i = game.actors.getName('<name>').items.contents[0]; await i.delete();",
+     "await i.delete().then(() => 'resolved', e => 'threw: ' + e.message)"
+    ],
+    "clients": "one GM",
+    "theme": "default",
+    "settles_if": "'threw' - finding 7 ends in an error line and no card; 'resolved' - the card and the trace stand for an item that was not there",
+    "priority": "nit"
+   }
+  },
+  "Whether a room action's 'everyone in the room' effects reach a body lying there: targetsOf takes movement.mjs occupantsOf, whose countsAsPresent was not traced for the dead in this pass (facilities-gm.mjs:91-96).",
+  "Whether a rifle should be refused to a side of the running incident, as a Palm and a Frisk are (personActionRefusal): transferRefusal's 'rifle' mode asks only the Eclipse, the trial and the thief's death (inventory.mjs:1100-1105). Read as a question for the owner, not a defect.",
+  "Whether passesAtNewTimeOfDay can run before the primary's lockpick store is hydrated (it reads entries() without whenHydrated, lockpick-gm.mjs:84-90); with the row's `mark` unread, nothing would end such a pass later. Not measured; a GM that changes the clock has normally been loaded long enough.",
+  "The cost of onCrossed's two store scans and of the trap map's rebuild per crossing (finding 8): not measured; scenario 86 counts work per event and could include it."
+ ]
+}
