@@ -57808,6 +57808,51 @@ const INVARIANTS = [
             none: {}, folded: true, defaults: null
         }), "[leaving the hour; stamped already; a rehearsal; another hour; a row with no day; a second announcement; no rows; the advance's write; the default]");
     }],
+    ["R7882 - a player's Actors directory ties the \"?\" to no name while a mask stands (scripts/mask-gm.mjs `maskDirectory`, `registerMasks`; the audit's reading of 20.11.2026 through the coordinator: \"a killer behind a ? still named in every player's Actors list\"): with a student's portrait the mask's, every student the viewer does not own wears the \"?\" in the list, the viewer's own as they are; with no mask, nothing changes; a GM's and a Spectator's list are left as drawn; both `src` and a lazy `data-src` are covered; and the list's render hook is registered", async () => {
+        /* 20.11.2026 (1.2.119 line D). Every student is at `ownership.default` OBSERVER (anonymity.mjs), so every player's
+           list draws every student's `img` beside their name, and a mask writes the killer's `img` (E112 item 2b): the one
+           "?" in the list sat beside the killer's real name. A browser holds no real portrait of a masked student (the GMs'
+           store `masks` does), so the list wears the "?" for every student the viewer does not own: the mask is public on
+           the map already, and a uniform "?" names nobody. Built over a hand-made list in the shape the module's
+           stylesheet reads (`.directory-item.document[data-entry-id]` with an image; Foundry v14's own markup is
+           LIVE-119-D1), with hand-made actors; the registration read off the source. */
+        const K = await import("./mask-gm.mjs");
+        if (typeof K.maskDirectory !== "function") { ok(false, "mask-gm.mjs has no maskDirectory"); return; }
+        const src = stripComments((await moduleSources()).get("mask-gm.mjs") ?? "");
+        const reg = fnSource(src, "registerMasks");
+        must(reg.length > 200, "registerMasks was not read - this reads nothing");
+        const viewer = { id: "U1", isGM: false };
+        const actor = (id, img, mine = false, type = "character") => ({ id, img, type, testUserPermission: (u, level) => mine && u?.id === "U1" && level === "OWNER" });
+        const list = (actors, lazy = false) => {
+            const el = document.createElement("ol");
+            el.innerHTML = actors.map(a => `<li class="directory-item document" data-entry-id="${a.id}"><img class="thumbnail" ${lazy ? `data-src="${a.img}" src="icons/svg/book.svg"` : `src="${a.img}"`}><strong>${a.id}</strong></li>`).join("");
+            return el;
+        };
+        const read = (el, attr = "src") => [...el.querySelectorAll("[data-entry-id]")].map(li => [li.dataset.entryId, li.querySelector("img").getAttribute(attr)]);
+        const run = (actors, { lazy = false, user = viewer, watcher = false } = {}) => {
+            const byId = new Map(actors.map(a => [a.id, a]));
+            const el = list(actors, lazy);
+            const n = K.maskDirectory(el, { actorOf: id => byId.get(id) ?? null, user, watcher });
+            return [n, read(el, lazy ? "data-src" : "src")];
+        };
+        const Q = K.MASK_IMG;
+        const cast = [actor("own", "a.webp", true), actor("killer", Q), actor("other", "c.webp"), actor("npc", "m.webp", false, "npc")];
+        equal(stableJson({
+            masked: run(cast),
+            lazy: run(cast, { lazy: true }),
+            none: run([actor("own", "a.webp", true), actor("other", "c.webp")]),
+            gm: run(cast, { user: { id: "G", isGM: true } }),
+            watcher: run(cast, { watcher: true }),
+            hooked: /Hooks\.on\("renderActorDirectory"/.test(reg) && /maskDirectory\(/.test(reg)
+        }), stableJson({
+            masked: [1, [["own", "a.webp"], ["killer", Q], ["other", Q], ["npc", "m.webp"]]],
+            lazy: [3, [["own", "a.webp"], ["killer", Q], ["other", Q], ["npc", "m.webp"]]],
+            none: [0, [["own", "a.webp"], ["other", "c.webp"]]],
+            gm: [0, [["own", "a.webp"], ["killer", Q], ["other", "c.webp"], ["npc", "m.webp"]]],
+            watcher: [0, [["own", "a.webp"], ["killer", Q], ["other", "c.webp"], ["npc", "m.webp"]]],
+            hooked: true
+        }), "[the list with a mask: images changed, then each row's picture; the same with a lazy image; no mask; a GM's list; a Spectator's; the render hook]");
+    }],
     ["R4402 - the day's boards wear the frame of the module's ordinary windows, in both themes (styles/danganronpa.css, styles/stained-glass.css; the owner's report at a real table on 1.2.109: the boards' frame was pink): read through the module's cascade, the end-of-day and start-of-day boards win the same edge and the same shadow as a module window - Monokuma Legacy's one-pixel window edge and its drop shadow, Stained Glass's window glass (the inset highlights, the accent's glow, the drop shadow); the trial's band and the \"spilling\" mood word keep the sequences' band colour", async () => {
         /* 12.11.2026. Red at 1ff4bc77: the boards' edge was three units of `--drpg-seq-band` (Stained Glass's Despair pink,
            Legacy's red) and they had no shadow. The cascade is the text's (tests-kit.mjs `styleCascade`), not a layout. */

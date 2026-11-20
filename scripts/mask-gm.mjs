@@ -303,7 +303,9 @@ export async function endMask(killerId, why = "end") {
  * killer's place on every browser's board drew no picture, the masked one being refused, and named the killer by
  * elimination (tier 2 "E112 - the start-of-day board ...", red at 9cc67507 on both roads). On a GM, before the clock's
  * write, so each portrait's write reaches every browser ahead of the board's: the time of day the mask was for ends with
- * that write either way. Answers how many.
+ * that write either way. Since 1.2.119 before every advance (clock.mjs `advanceTimeOfDay`), since every board can play
+ * on one: the end board at Night and the discovery's two after any hour (tier 2 "E119 - the masks end before every
+ * advance"); and before the Class Trial's entry (clock.mjs `setClock`). Answers how many.
  */
 export async function endMasksBeforeTheBoard() {
     if (!game.user?.isGM) return 0;
@@ -673,8 +675,42 @@ function drawMaskName(token) {
 let spectatorViewerOf = () => false;
 const isSpectatorViewer = () => spectatorViewerOf();
 
-/** At ready: the primary's end at a new time of day, the GMs' and Spectators' names, the killer's question. */
+/**
+ * THE ACTORS LIST TIES THE "?" TO NO NAME (1.2.119, 20.11.2026; the audit's reading through the coordinator: "a killer
+ * behind a "?" still named in every player's Actors list"). Every student is at `ownership.default` OBSERVER
+ * (anonymity.mjs), so every player's Actors list draws every student's `img` beside their name, and the mask writes the
+ * killer's `img` (E112 item 2b, `portraitOf` above): the one "?" in the list sat beside the killer's real name. A player's
+ * browser holds no real portrait of a masked student - the GMs' store `masks` does, and a copy kept on each browser would
+ * miss a page opened during the mask - so while any student's portrait is the mask's, the list on a player's browser
+ * wears the "?" for every student its user does not own: the mask is public on the map already, and the same "?" on
+ * every row names nobody. The user's own students are left as drawn (a masked killer's own row is their own "?"), and so
+ * are a GM's list and a Spectator's, who see through the mask (`drawMaskName`). Foundry draws the list again when an
+ * actor changes, so the mask's start and end redraw it. `root` the list's element (or a jQuery of it); answers how many
+ * pictures it changed. R7882; Foundry v14's own markup of the list (`[data-entry-id]` rows with an image, as the
+ * module's stylesheet reads them) is LIVE-119-D1.
+ */
+export function maskDirectory(root, { actorOf = id => game.actors?.get?.(id) ?? null, user = game.user, watcher = isSpectatorViewer() } = {}) {
+    const el = root?.jquery ? root[0] : root;
+    if (!el?.querySelectorAll || !user || user.isGM || watcher) return 0;
+    const rows = [...el.querySelectorAll("[data-entry-id]")].map(li => [li, actorOf(li.dataset.entryId)]).filter(([, a]) => a?.type === "character");
+    if (!rows.some(([, a]) => a.img === MASK_IMG)) return 0;
+    let n = 0;
+    for (const [li, a] of rows) {
+        if (a.testUserPermission?.(user, "OWNER")) continue;
+        for (const img of li.querySelectorAll("img")) {
+            for (const attr of ["src", "data-src"]) {
+                if (img.hasAttribute(attr) && img.getAttribute(attr) !== MASK_IMG) { img.setAttribute(attr, MASK_IMG); n++; }
+            }
+        }
+    }
+    return n;
+}
+
+/** At ready: the primary's end at a new time of day, the GMs' and Spectators' names, the killer's question, the list. */
 export function registerMasks() {
+    Hooks.on("renderActorDirectory", (app, html) => {
+        try { maskDirectory(html); } catch (err) { error("Could not draw the Actors list behind the mask", err); }
+    });
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) masksAtNewTimeOfDay().catch(err => error("The masks could not end with the time of day", err));
     });

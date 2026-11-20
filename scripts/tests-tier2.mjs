@@ -17808,6 +17808,90 @@ const SCENARIOS = [
         }
     }],
 
+    ["E119 - the masks end before every advance of the clock, so no day's board draws a masked killer: a mid-day hour (where the discovery's boards play), Evening to Night and the Night Eclipse's end", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's reading through the coordinator: "the end-of-day board, the cast's board since
+         * F118, plays at Evening to Night while a mask stands and shows the masked killer's letter and real name". A mask
+         * stands until its time of day ends (mask-gm.mjs `masksAtNewTimeOfDay`, on `drpgTimeOfDayChanged`, after the clock's
+         * write), and the boards are drawn on that write (transitions.mjs `onClockHeard`): only the roll-over and the Morning
+         * Eclipse's start ended the masks first (`endMasksBeforeTheBoard`). A direct murder on Hope (the killer masked), the
+         * incident closed; then the clock moved by the advance (clock.mjs `advanceTimeOfDay`) on three roads. At each clock
+         * write that lands on the new time of day, read on this browser: the time of day, the picture the day's board
+         * composes for the killer then (sequence.mjs `dayEndBoard`) and whether a mask still stands. Red at ad0baade.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./clock.mjs"), E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const faceWas = [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const real = "worlds/suite/e119-board-killer.webp";
+        const reads = [];
+        let expect = null;
+        const watch = Hooks.on("updateSetting", setting => {
+            if (setting?.key !== `${MODULE_ID}.${SETTINGS.clock}` || !expect || getClock().timeOfDay !== expect || isEclipse()) return;
+            expect = null;
+            const b = Q.dayEndBoard({ clock: getClock(), students: studentActors() });
+            reads.push([getClock().timeOfDay, b.cast.find(c => c.id === killer.id)?.img ?? null, K.maskStands(killer.id)]);
+        });
+        const masked = async timeOfDay => {
+            await setClock({ phase: "dailyLife", timeOfDay, refilledFor: null });
+            await settle();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(K.maskStands(killer.id), `the opening on Hope put up no mask at ${timeOfDay} - this would measure nothing`);
+        };
+        try {
+            await killer.update({ img: real });
+            await settle();
+            await masked("afternoon");
+            expect = "evening";
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await masked("evening");
+            expect = "night";
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await masked("evening");
+            await E.startEclipse();
+            await settle();
+            const atStart = K.maskStands(killer.id);
+            expect = "night";
+            await E.endEclipse({ advance: true });
+            await settle();
+            Q.endSequence("cut");
+            equal(stableJson([reads, atStart]), stableJson([[["evening", real, false], ["night", real, false], ["night", real, false]], true]),
+                "a mask still stood as the clock landed, or the board drew the killer behind it (each landing: the time of day, the killer's picture on the board, a mask standing; a mask standing through the Night Eclipse's start)");
+        } finally {
+            Hooks.off("updateSetting", watch);
+            Q.endSequence("cut");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await killer.update(faceWas[1] ? { img: faceWas[0], "prototypeToken.texture.src": faceWas[1] } : { img: faceWas[0] });
+            await settle();
+        }
+    }],
+
     ["E112 - the masks end before the Class Trial is entered, a token copied from a masked one without its flag is not kept as \"?\", and the hall's own tokens go at the trial's exit", async () => {
         /*
          * E112, 16.11.2026; the owner's confirmation through the coordinator of 15.11: the masks end before the Class Trial is
