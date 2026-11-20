@@ -1,0 +1,989 @@
+{
+ "refuter": "verify-old-1.2.42-tasks",
+ "of": "old-1.2.42-tasks",
+ "scope_note": "Every item of status fixed, partly or obsolete (116 of 125) and five open items checked the other way (S2.3-L11, S5-T14a, S5-T14b, S5-T14d, S9.1a-2). The file's seven new_observations are all nit, so none is checked as a finding (the prompt asks for minor and above); two were re-read in passing and hold: gm-panel.mjs:229-230 against :325-331, and skip-baseline.json's 17 against its 27. Items that only cite a domain reader's id are held to that id's refuter file where one exists (verify-old-1.2.42-case.json, verify-old-1.2.42-comms.json) and otherwise to my own reading of the cited lines; an id neither re-read nor refuted leaves its row weakened. Nothing was run but read-only scripts: a woff2 cmap reader and an espree function census (/tmp/verify-old-1-2-42-tasks/s/), git ls-remote and gh api for tags and four commits.",
+ "checked": [
+  {
+   "ref": "S0-V1",
+   "claim": "S0-V1 fixed: Verdict, blocker 1: the Remnant ledger answered any sender with the whole answer key (CASE-01)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-01 (verify-old-1.2.42-case.json: stands, fixed).",
+   "evidence": "CASE-01: confirmed by verify-old-1.2.42-case.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S0-V2",
+   "claim": "S0-V2 fixed: Verdict, blocker 2: the incident cast in world data and the killer blind to his own trace (CASE-02, MAP-01)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-02 (verify-old-1.2.42-case.json: stands, fixed); MAP-01 (re-read here).",
+   "evidence": "MAP-01: visibility.mjs:764-782 murderState asked for `active` alone; `const ids = new Set(incidentParticipants());` and `if (cast.thirdId && cast.thirdSide !== \"killer\") ids.delete(cast.thirdId);`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S0-V3",
+   "claim": "S0-V3 fixed: Verdict, blocker 3: the season reset carried the assembly, the rules and the rests over (CORE-02/03/04)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-02 (verify-old-1.2.42-core.json: stands, fixed); CORE-03 (verify-old-1.2.42-core.json: stands, fixed); CORE-04 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-02: call-world.mjs:180 `registerSeasonState({ group: \"assembly\", clear: clearSeasonAssembly, settings: [SETTINGS.pendingGather] })` | CORE-03: rules.mjs:334 `registerSeasonState({ group: \"rules\", clear: clearSeasonRules, settings: [SETTINGS.killingGameRules] })` | CORE-04: season-wipe.mjs:489 `for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S0-G1",
+   "claim": "S0-G1 partly: Grade \"functions end to end\" 7 -> 8.5; to 10: CASE-03/04, ROLL-02..06, ITEM-02/03/04, DESP-04/05",
+   "verdict": "stands",
+   "why": "Checked: CASE-03 (verify-old-1.2.42-case.json: stands, fixed); CASE-04 (verify-old-1.2.42-case.json: stands, fixed); ROLL-02 (re-read here); ITEM-02 (verify-old-1.2.42-items.json: stands, fixed); ITEM-03 (verify-old-1.2.42-items.json: stands, fixed); ITEM-04 (verify-old-1.2.42-items.json: weakened, partly); DESP-04 (verify-old-1.2.42-despair.json: stands, fixed); DESP-05 (verify-old-1.2.42-despair.json: stands, fixed). Not re-traced here (no refuter file for its domain, cited from the reader only): ROLL-03, ROLL-04, ROLL-05, ROLL-06. A refuter moved a cited status: ITEM-04 decision -> partly by verify-old-1.2.42-items.json; the row's own status is unchanged by it. The row is partly on the strength of a partly id confirmed above; an unchecked fixed id could only leave it partly or worse.",
+   "evidence": "ROLL-02: partly confirmed: reroll.mjs:1242 `if (bookmark.claimed === false) {` and action-pipeline.mjs:532 ROLL_CLAIMS.search `claimed: \"bool\"` - the flag is the roller's claim | ITEM-02: room-setup.mjs:1049 '\"Stash hidden\" is the Stashes tab's business (ITEM-02)'; concealment drawn only in the Stashes matrix (:153) | ITEM-03: projects.mjs:2098-2100 `const audience = hidden ? Array.from(new Set([...viewers, ...ownerIdsOfId(killerId ?? by)])) : [];` | ITEM-04: inventory.mjs:918 `if (item && location === LOCATIONS.carried) await keepGearShape(actor, item, { quiet });` | DESP-05: monocub.mjs:1146-1152 `if (!gmOnline()) { sayNotDone(\"monocub.ability\", \"noGm\", { nothingSpent: true }); return null; }`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S0-G2",
+   "claim": "S0-G2 fixed: Grade \"texts\" 8 -> 9; to 10: COMM-06, TEXT-14, the terminology drift of section 3",
+   "verdict": "refuted",
+   "why": "The row's way to 10 names three things: COMM-06, TEXT-14 and the terminology drift of section 3. The reader settles the first two and calls the third out of scope, yet marks the row fixed. Its own items say the third is not done: S9.1a-2 (open, 'Waits on 1.3.0') and S9.1-D8 (still_wrong: the GM/Monokuma and student/character/player sweeps D8 left to 1.3.0). 1.3.0 has not shipped (module.json 1.2.118). Read here: the Remnant/trace half has moved - en.json has 313 values with 'Remnant' and 12 with 'trace' in any case, most of them action names ('Erase a Trace', 'Reshape a Trace', 'Follow My Traces', 'Hide the Traces') - but the GM/Monokuma and student/character/player halves were not read by anyone. A row with one of its three named parts open is partly, not fixed.",
+   "evidence": "audit/findings-1.2.118/old-1.2.42-tasks.json S9.1a-2 status 'open'; AUDIT-1.2.42.md:694 '**Nie ruszone, do Twojego przebiegu 1.3.0:** masowe ujednolicenie Remnant/trace (56+78 kluczy), GM/Monokuma w prozie, student/character/player poza dwoma kluczami'; module.json:5 `\"version\": \"1.2.118\"`; en.json DRPG.Cleanup.action 'Erase a Trace'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S0-G3",
+   "claim": "S0-G3 fixed: Grade \"flow module -> GM -> player\" 6.5 -> 8; to 10: COMM-02, COMM-03, COMM-04",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: COMM-02 (verify-old-1.2.42-comms.json: stands, fixed); COMM-03 (verify-old-1.2.42-comms.json: stands, fixed); COMM-04 (verify-old-1.2.42-comms.json: stands, fixed).",
+   "evidence": "COMM-02: confirmed by verify-old-1.2.42-comms.json | COMM-03: confirmed by verify-old-1.2.42-comms.json | COMM-04: confirmed by verify-old-1.2.42-comms.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S0-G4",
+   "claim": "S0-G4 partly: Grade \"look, UX, UI\" 8 -> 8.5; to 10: UI-09/10/11, MAP-02",
+   "verdict": "stands",
+   "why": "Checked: MAP-02 (re-read here). Not re-traced here (no refuter file for its domain, cited from the reader only): UI-09, UI-10, UI-11. The row is partly on the strength of a partly id confirmed above; an unchecked fixed id could only leave it partly or worse.",
+   "evidence": "MAP-02: partly confirmed: visibility.mjs:503-507 `const at = roomAt(token.x, token.y, token.document); if (at && !myRooms().has(at)) hide(token);` - a sprite in no room (the gap between two rooms that do not touch) is not hidden",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S0-G5",
+   "claim": "S0-G5 partly: Grade \"ease for the GM\" 6 -> 8; to 10: ITEM-07, ROLL-08/11/12, CORE-10/19",
+   "verdict": "stands",
+   "why": "Checked: ITEM-07 (verify-old-1.2.42-items.json: stands, fixed); ROLL-08 (re-read here); CORE-10 (verify-old-1.2.42-core.json: stands, fixed); CORE-19 (verify-old-1.2.42-core.json: stands, partly). Not re-traced here (no refuter file for its domain, cited from the reader only): ROLL-11, ROLL-12. The row is partly on the strength of a partly id confirmed above; an unchecked fixed id could only leave it partly or worse.",
+   "evidence": "ITEM-07: use-items.mjs:593-595 the card carries three answers (comment \"Three answers on the card (ITEM-07)\") | ROLL-08: action-dynamic.mjs:111-114 `if (picked === false) { await whisperToOwner(actor, ...DRPG.Action.dynamicRefused...); return null; }` before the price at :119-122",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S0-G6",
+   "claim": "S0-G6 partly: Grade \"fps\" 8 -> 8.5; to 10: MAP-07, MAP-13, CORE-12, UI-05/16",
+   "verdict": "weakened",
+   "why": "The status partly holds (MAP-13 partly, as cited). But the evidence sentence 'No frame rate of the module has been read at a real table' is wrong: E58 recorded perf() and fps() on Foundry 14.370 on 16.11.2026 - in four headed windows Stained Glass ran about 43 ms a frame and Legacy about 34 ms, and with the GM alone in one focused window 60 fps in both themes, the blur, the pulse and the canvas each held changing the frame by at most 0.15 ms. What is still unmeasured is the budget machine (LIVE-E33-05, LIVE-E53-01, LIVE-E88-01) and perf-baseline.json's run, which is what the reader should have said.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:345 '| fps(), run 2 | the GM alone in one focused window, both themes | 300 frames in 5 s, 60 fps, median 16.7 ms, p95 16.8 ms, none over 33 ms, in both themes; the blur, the pulse and the canvas each held changed the frame by at most 0.15 ms |'; :354 'the weakest player's machine (LIVE-E53-01, LIVE-E33-05, LIVE-E88-01) are still not measured.'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S0-G7",
+   "claim": "S0-G7 partly: Grade \"code hygiene\" 6.5 -> 7; to 10: section 6 (functions of 300-700 lines, five copies of \"who is a student\", 8 dead keys, 40 dead selectors)",
+   "verdict": "stands",
+   "why": "The reader's own re-measurement, repeated here: 6 non-test functions over 300 lines by espree, none of the fourteen 1.2.42 names over 300, one studentActors; dead selectors only in comments; dead keys - the ten named gone. Partly holds for the two ordinary functions over 300 and the five Stained Glass readers.",
+   "evidence": "/tmp/verify-old-1-2-42-tasks/s/fn.mjs 'over300 6'; monokuma.mjs:77",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S2.1-CASE-01",
+   "claim": "S2.1-CASE-01 fixed: 1.2.43 fix (2.1): remnants.mjs: the ledger socket refuses non-GM senders and answers only to senderId",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-01 (verify-old-1.2.42-case.json: stands, fixed).",
+   "evidence": "CASE-01: confirmed by verify-old-1.2.42-case.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.1-CASE-02",
+   "claim": "S2.1-CASE-02 fixed: 1.2.43 fix (2.1): murder.mjs: lastCrisis in CAST_FIELDS, the Reroll receipt in the client-scoped cast",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-02 (verify-old-1.2.42-case.json: stands, fixed).",
+   "evidence": "CASE-02: confirmed by verify-old-1.2.42-case.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.1-MAP-01",
+   "claim": "S2.1-MAP-01 fixed: 1.2.43 fix (2.1): visibility.mjs: myIncidentTrace reads the cast, the third on the victim side does not see the killer's trace",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: MAP-01 (re-read here).",
+   "evidence": "MAP-01: visibility.mjs:764-782 murderState asked for `active` alone; `const ids = new Set(incidentParticipants());` and `if (cast.thirdId && cast.thirdSide !== \"killer\") ids.delete(cast.thirdId);`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.1-TEXT-03",
+   "claim": "S2.1-TEXT-03 fixed: 1.2.43 fix (2.1): events.mjs: \"A murder is under way\" from the cast, not shown to a direct murder's victim",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: TEXT-03 (re-read here).",
+   "evidence": "TEXT-03: events.mjs:171-172 `const seats = incidentSeats(cast, state, { stage: \"openingRoll\" }); if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.1-COMM-01",
+   "claim": "S2.1-COMM-01 fixed: 1.2.43 fix (2.1): gm-bridge.mjs: player -> GM requests addressed to the GMs (emitToGms), not broadcast",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: COMM-01 (verify-old-1.2.42-comms.json: stands, fixed).",
+   "evidence": "COMM-01: confirmed by verify-old-1.2.42-comms.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.1-COMM-12",
+   "claim": "S2.1-COMM-12 fixed: 1.2.43 fix (2.1): safeword.mjs: the GM card names the sender by senderId, not payload.who",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: COMM-12 (verify-old-1.2.42-comms.json: stands, fixed).",
+   "evidence": "COMM-12: confirmed by verify-old-1.2.42-comms.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.1-DESP-03",
+   "claim": "S2.1-DESP-03 fixed: 1.2.43 fix (2.1): despair/call-effects/overflow: public cards without the pool's and the overflow's numbers",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: DESP-03 (verify-old-1.2.42-despair.json: stands, fixed). A refuter moved a cited status: DESP-03 decision -> fixed by verify-old-1.2.42-despair.json; the row's own status is unchanged by it.",
+   "evidence": "DESP-03: despair.mjs:963-968 `name: ...poolLabel(user)..., cost: call.cost` (no remainder); en.json:4198 overflowFed \"{n} Despair poured into the Overflow.\" where n is call.feedsOverflow, the Call's constant (call-effects.mjs:1068-1069), not the overflow's count; en.json:4279 cardLeft has no number",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CORE-02/03/04",
+   "claim": "S2.2-CORE-02/03/04 fixed: 1.2.43 fix (2.2): season-setup.mjs: the reset clears pendingGather, killingGameRules, restsTaken, betrayalWindow",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-02 (verify-old-1.2.42-core.json: stands, fixed); CORE-03 (verify-old-1.2.42-core.json: stands, fixed); CORE-04 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-02: call-world.mjs:180 `registerSeasonState({ group: \"assembly\", clear: clearSeasonAssembly, settings: [SETTINGS.pendingGather] })` | CORE-03: rules.mjs:334 `registerSeasonState({ group: \"rules\", clear: clearSeasonRules, settings: [SETTINGS.killingGameRules] })` | CORE-04: season-wipe.mjs:489 `for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CORE-05",
+   "claim": "S2.2-CORE-05 fixed: 1.2.43 fix (2.2): End of chapter always reachable in the console and as a panel tile",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-05 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-05: season-setup.mjs:828 `${endChapterPart()}`; :1213 `if (endAsked) return endTheChapter(() => import(\"./chapter.mjs\").then(m => m.openChapterEndDialog()));`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CORE-01",
+   "claim": "S2.2-CORE-01 fixed: 1.2.43 fix (2.2): the Next line points at the Eclipse; Next time of day beside the clock",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-01 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-01: gm-panel.mjs:999 `: { text: game.i18n.localize(\"DRPG.Panel.nextAllDone\"), action: \"eclipse\" };`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CORE-08",
+   "claim": "S2.2-CORE-08 fixed: 1.2.43 fix (2.2): the day summary names the time of day by its label",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-08 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-08: day-summary.mjs:269 `${summaryLede(esc(timeOfDayLabel(timeOfDay)), game.user.isGM)}`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CORE-11",
+   "claim": "S2.2-CORE-11 fixed: 1.2.43 fix (2.2): doneSweep/doneFaint/doneKeys as plural() families",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-11 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-11: chapter.mjs:655-664 `plural(\"DRPG.Chapter.doneSweep\", { n: (await sweepTruthBullets()).removed })` and the three like it",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CORE-14",
+   "claim": "S2.2-CORE-14 fixed: 1.2.43 fix (2.2): \"Eclipse still on\" only when the time of day changed",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-14 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-14: gm-campaign.mjs:363-367 `const moved = result.timeOfDay !== before.timeOfDay || ... ; if (before.eclipse && moved) {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-ROLL-01",
+   "claim": "S2.2-ROLL-01 fixed: 1.2.43 fix (2.2): a Reroll after Palm reaches settleSteal",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: ROLL-01 (re-read here).",
+   "evidence": "ROLL-01: reroll.mjs:1128-1129 `case \"palm\":` / `case \"steal\": return await settleSteal(actor, bookmark, after, done);`; settleSteal defined at :1736",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-ROLL-07",
+   "claim": "S2.2-ROLL-07 fixed: 1.2.43 fix (2.2): Direct Murder checks for a GM before spending the action",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: ROLL-07 (re-read here).",
+   "evidence": "ROLL-07: action-murder.mjs:364-370 `if (!game.user.isGM && !gmOnline()) { sayNotDone(\"murder.park\", \"noGm\", { nothingSpent: true }); return null; }` before `spendAction`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-ROLL-09",
+   "claim": "S2.2-ROLL-09 fixed: 1.2.43 fix (2.2): askForHint gets the real cost",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: ROLL-09 (re-read here).",
+   "evidence": "ROLL-09: action-analyze.mjs:167 `: askForHint(actor, def, roll, asked?.request ?? \"\", charge);` (the charge paid, not def.cost)",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CASE-05",
+   "claim": "S2.2-CASE-05 fixed: 1.2.43 fix (2.2): the dashboard Save writes only the rows in the form",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-05 (verify-old-1.2.42-case.json: stands, fixed).",
+   "evidence": "CASE-05: confirmed by verify-old-1.2.42-case.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CASE-07",
+   "claim": "S2.2-CASE-07 fixed: 1.2.43 fix (2.2): drpgBallotsChanged; the trial console live on the ballot count",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-07 (verify-old-1.2.42-case.json: stands, fixed).",
+   "evidence": "CASE-07: confirmed by verify-old-1.2.42-case.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CASE-08",
+   "claim": "S2.2-CASE-08 partly: 1.2.43 fix (2.2): guards for a null game.user in the handlers",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-08 (verify-old-1.2.42-case.json: weakened, partly).",
+   "evidence": "CASE-08: confirmed by verify-old-1.2.42-case.json",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S2.2-ITEM-01",
+   "claim": "S2.2-ITEM-01 fixed: 1.2.43 fix (2.2): preservedFlags keeps wear on a transfer",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: ITEM-01 (verify-old-1.2.42-items.json: stands, fixed).",
+   "evidence": "ITEM-01: inventory.mjs:170-171 `const worn = wearOf(item); if (worn) flags[ITEM_FLAGS.wear] = worn;`; :1267 `extraFlags: preservedFlags(held),`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-ITEM-05",
+   "claim": "S2.2-ITEM-05 fixed: 1.2.43 fix (2.2): stow() takes equipped off",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: ITEM-05 (verify-old-1.2.42-items.json: weakened, fixed (for stows since 1.2.43; an item stashed readied before it is not cleaned up - unmeasured, nit)). A refuter moved a cited status: ITEM-05 fixed -> fixed (for stows since 1.2.43; an item stashed readied before it is not cleaned up - unmeasured, nit) by verify-old-1.2.42-items.json; the row's own status is unchanged by it.",
+   "evidence": "ITEM-05: stash-reach.mjs:118-122 `[...location]: LOCATIONS.vault, ... [`flags.${MODULE_ID}.equipped`]: false,`; the one other write of LOCATIONS.vault (inventory.mjs:838, the overflow on a create) makes a new item whose flags carry no equipped (preservedFlags, inventory.mjs:150-175)",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-ITEM-11",
+   "claim": "S2.2-ITEM-11 fixed: 1.2.43 fix (2.2): capacity refusals by capacityLabel",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: ITEM-11 (verify-old-1.2.42-items.json: stands, fixed).",
+   "evidence": "ITEM-11: inventory.mjs:1339, stash-reach.mjs:171, handover.mjs:568 and :1006 all `capacityLabel(category)`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-DESP-01",
+   "claim": "S2.2-DESP-01 fixed: 1.2.43 fix (2.2): a Hope Call waiting on the GM counts from the value after the ruling",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: DESP-01 (verify-old-1.2.42-despair.json: stands, fixed).",
+   "evidence": "DESP-01: calls.mjs:249-260 `const now = hopeHeld(actor); ... held = now;`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-DESP-02",
+   "claim": "S2.2-DESP-02 fixed: 1.2.43 fix (2.2): Breakdown/Wounded sounds keyed by STATES.*.id",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: DESP-02 (verify-old-1.2.42-despair.json: stands, fixed).",
+   "evidence": "DESP-02: states.mjs:363 `const SFX_FOR_STATE = { [STATES.breakdown.id]: \"breakdown\", [STATES.wounded.id]: \"wounded\" };`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-DESP-07",
+   "claim": "S2.2-DESP-07 fixed: 1.2.43 fix (2.2): the \"armed\" whisper tells the truth",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: DESP-07 (verify-old-1.2.42-despair.json: stands, fixed).",
+   "evidence": "DESP-07: call-effects.mjs:309-311 `const voice = kind === \"despair\" ? \"DRPG.Calls.armedByMonokuma\" : kind === \"hope\" ? (...) : \"DRPG.Calls.armedByNobody\";`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-COMM-08",
+   "claim": "S2.2-COMM-08 fixed: 1.2.43 fix (2.2): gmAsk sound for a GM who wrote the card",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: COMM-08 (verify-old-1.2.42-comms.json: stands, fixed).",
+   "evidence": "COMM-08: confirmed by verify-old-1.2.42-comms.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-UI-03/04/05",
+   "claim": "S2.2-UI-03/04/05 fixed: 1.2.43 fix (2.2): glass.mjs unmount, one resize listener, matchMedia cached, paneAt bbox first",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: UI-03 (re-read here); UI-04 (re-read here); UI-05 (re-read here).",
+   "evidence": "UI-03: glass.mjs:2292 `document.querySelectorAll(\"#scene-controls, #sidebar\").forEach(e => { e.style.marginTop = \"\"; ... e.style.maxHeight = \"\"; e.style.overflow = \"\"; });` | UI-04: glass.mjs:3680 `if (!resizeWatched) { resizeWatched = true; addEventListener(\"resize\", schedule); }` | UI-05: glass.mjs:2181-2182 `const REDUCED_MQ = matchMedia(...)` made once at import",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-UI-08",
+   "claim": "S2.2-UI-08 fixed: 1.2.43 fix (2.2): Reduced motion under both themes",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: UI-08 (re-read here).",
+   "evidence": "UI-08: look.mjs:33-37 themeOnlyKeys: glass `[glassPulse, hudTicker, glassBlur]`, Legacy `[pixelFont]` - reducedMotion in neither",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-MAP-04/05/06/08/09",
+   "claim": "S2.2-MAP-04/05/06/08/09 partly: 1.2.43 fix (2.2): fog.mjs: per-scene ledger, outline fades, Mastermind, one reducedMotion, freeOwned before destroy",
+   "verdict": "stands",
+   "why": "Checked: MAP-08 (re-read here). Not re-traced here (no refuter file for its domain, cited from the reader only): MAP-04, MAP-05, MAP-06, MAP-09. The row is partly on the strength of a partly id confirmed above; an unchecked fixed id could only leave it partly or worse.",
+   "evidence": "MAP-08: standing part confirmed: fog.mjs:4687-4688 with motionOff() the arrival still calls flashOutline(... { standing }) unquieted, and fog-reveal.mjs:1407 `if (!quiet) landOutline(group, grid);` - landOutline (:1235, BOUNCE_MS 520 at :212) asks no motion switch",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S2.2-TEXT-01..15",
+   "claim": "S2.2-TEXT-01..15 fixed: 1.2.43 fix (2.2): nine text fixes (TEXT-01/02/04/05/06/07/08/10/15)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: TEXT-01 (re-read here); TEXT-02 (re-read here); TEXT-04 (re-read here); TEXT-05 (re-read here); TEXT-06 (re-read here); TEXT-07 (re-read here); TEXT-08 (re-read here); TEXT-10 (re-read here); TEXT-15 (re-read here).",
+   "evidence": "TEXT-01: en.json: no value holds \"Needs 18\" (python over the flattened file) | TEXT-02: en.json: no value holds \"Twelve Despair\" | TEXT-04: explain.mjs:125-127 `eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES)` fills {reach} from a plural family | TEXT-05: en.json DRPG.Investigation.createNote = \"Place puts a row's Key Remnant on the map at once, in the room you pick ...\" | TEXT-06: config.mjs:5326 cleanupFailed.hint \"A Tamper, Erase a Trace, Reshape a Trace, Misleading Trail or Move the Body roll misses. Heard by the player who rolled it.\" | TEXT-07: en.json: no value holds \"2 Health, 2 Sanity\" | TEXT-08: en.json: no value holds \"That is a loss for the students\" | TEXT-10: scripts/: \"free Move available\"/\"free Move used\" only in comments (movement.mjs:1288, resource-guard.mjs:238) | TEXT-15: en.json: DRPG.Chapter.tidyNote and DRPG.Season.note absent; DRPG.Vote.blackenedRuleIntro has no reference to the guide",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.2-CORE-07/09",
+   "claim": "S2.2-CORE-07/09 fixed: 1.2.43 fix (2.2): endNote and \"body found\" tell the truth",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CORE-07 (verify-old-1.2.42-core.json: stands, fixed); CORE-09 (verify-old-1.2.42-core.json: stands, fixed).",
+   "evidence": "CORE-07: lang/en.json: DRPG.Chapter.endNote and DRPG.Chapter.tidyNote absent (python over the flattened file); no value holds \"Nothing else here deletes\"",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L1",
+   "claim": "S2.3-L1 fixed: The language setting: client, en/pl, English by default, requiresReload",
+   "verdict": "stands",
+   "why": "Re-read.",
+   "evidence": "settings.mjs:1714-1723 `scope: \"client\", config: false, ... choices: { ...LANGUAGES }, default: \"en\", requiresReload: true`; :4152 `export const LANGUAGES = Object.freeze({ en: \"English\", pl: \"Polski\" });`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L2",
+   "claim": "S2.3-L2 fixed: \"Language\" select at the top of the Look window and in the module settings; a change asks for a reload",
+   "verdict": "stands",
+   "why": "Re-read: language first in the Look section of the DRPG Settings window, reload asked by askReload (SettingsConfig.reloadConfirm), confirmLanguageReload 0 hits outside tests.",
+   "evidence": "settings-window.mjs:83 `section(\"client\", \"look\", \"fa-image\", [\"language\", \"theme\", ...])`; :393-398 `async function askReload({ world = false } = {}) {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L3",
+   "claim": "S2.3-L3 fixed: Loading: fetch at init, merge at i18nInit, deliberately not through module.json languages",
+   "verdict": "stands",
+   "why": "Re-read: module.json lists en alone; i18n.mjs fetches modules/<id>/lang/<lang>.json and falls back to English.",
+   "evidence": "i18n.mjs:72-73 `export function fetchLanguageFile(lang, ...) { const path = `modules/${MODULE_ID}/lang/${lang}.json`;`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L4",
+   "claim": "S2.3-L4 fixed: config.mjs prose swapped in place by localizeConfig (484 sentences then)",
+   "verdict": "stands",
+   "why": "Re-read: localizeConfig (i18n.mjs:116) walks the config prose; 553 DRPG.Config.* keys in pl.json (python). The prose check itself not run.",
+   "evidence": "i18n.mjs:116-118 `function localizeConfig() { walkConfigProse(CONFIG_TABLES_SOURCE, (key, value, set) => {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L5",
+   "claim": "S2.3-L5 fixed: plural() by Intl.PluralRules(moduleLanguage()); pl one/few/many/other",
+   "verdict": "stands",
+   "why": "Re-measured: 267 .one families in en.json, every one with .few and .many in pl.json; plural() reads pageLanguage(). Tried a second road: requirements.mjs:245 builds its own PluralRules from a language it is handed, for the requirements window that runs before the module's file - by design, with an English fallback.",
+   "evidence": "utils.mjs:573 `form = new Intl.PluralRules(pageLanguage()).select(n);`; requirements.mjs:245 `form = new Intl.PluralRules(lang).select(n);`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L6",
+   "claim": "S2.3-L6 fixed: lang/pl.json covers every en.json key, glossary in English",
+   "verdict": "stands",
+   "why": "Re-measured: en 6369 leaves, pl 7456, en keys missing from pl 0, pl-only 1087 (553 Config + few/many), 94 DAGGERHEART.*.",
+   "evidence": "python over lang/en.json and lang/pl.json: '6369 7456 0 1087'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L7",
+   "claim": "S2.3-L7 fixed: Fonts: each face has a Latin-Ext file with Polish letters; unicode-range covers U+0100-017F",
+   "verdict": "stands",
+   "why": "Measured here, not only read: a short node reader over each woff2's cmap (brotli by node:zlib) finds every Polish letter in the pair a face is served from - the LatinExt files and pixel-ext.woff2 hold ą ć ę ł ń ś ź ż and their capitals, the Regular files hold ó Ó (U+00F3, U+00D3, inside the base files' U+0000-00FF range); the unicode-range lines send U+0100 onward to the Ext files.",
+   "evidence": "node /tmp/verify-old-1-2-42-tasks/s/cmap.mjs fonts/*.woff2: 'VT323-LatinExt.woff2 cps 233 missing PL: óÓ', 'VT323-Regular.woff2 cps 224 missing PL: ąćęłńśźżĄĆĘŁŃŚŹŻ' (and the same pattern for Special Elite and the pixel face); stained-glass.css:35 `unicode-range: U+0100-02BA, ...`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L8",
+   "claim": "S2.3-L8 fixed: Version stamp: module.json, --drpg-css-version, release notes; the workflow checks all three",
+   "verdict": "stands",
+   "why": "Re-read.",
+   "evidence": "module.json:5 `\"version\": \"1.2.118\"`; danganronpa.css:35 `--drpg-css-version: \"1.2.118\";`; release.yml:197 `run: node tools/check.mjs stamps notes --release \"$TAG\"`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L9",
+   "claim": "S2.3-L9 fixed: Handbooks PL/EN in docs/handbooks/",
+   "verdict": "stands",
+   "why": "Re-read: six handbooks, 2485/1227/107 lines each in both languages; brochure header 'Module 1.2.118 on Daggerheart'.",
+   "evidence": "docs/handbooks/player-brochure.en.md:3 '*One page. Module 1.2.118 on Daggerheart.*'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L10",
+   "claim": "S2.3-L10 fixed: What is deliberately not translated: the glossary, the Situational playlist name, diagnostics.mjs",
+   "verdict": "stands",
+   "why": "Re-read; the glossary does stay English in pl.json (python: 'Truth Bullet' in 224 values, 'Class Trial' 136, 'Despair' 208; 'Rozpacz', 'Pocisk Prawdy' 0).",
+   "evidence": "i18n.mjs:26-29 'WHAT IS NOT. The glossary: Truth Bullet, Remnant, ...'; config.mjs:4901 `export const SITUATIONAL_PLAYLIST = \"Situational\";`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S2.3-L11",
+   "claim": "S2.3-L11 open: Two things to look at live: Polish 15-25% longer (fitTileText), HUD and status strip max-content",
+   "verdict": "stands",
+   "why": "Open checked the other way: no reading of Polish widths in live-readings-e58.json, -other or -e58-delta (grep for Polish, Polski, fitTileText finds only a toast's language).",
+   "evidence": "live-readings-e58.json: the one Polish hit is 'PlayerOne's toast in Polish (\"... nie została wykonana. ...\")'",
+   "status_after": "open"
+  },
+  {
+   "ref": "S5-T1",
+   "claim": "S5-T1 fixed: Task 1 - close LIVE-001: whisper metadata and actor flags",
+   "verdict": "stands",
+   "why": "CASE-03/04 confirmed by verify-old-1.2.42-case.json; MAP-12's decision read (settings.mjs ledger by role). Point 6 by WORLD_SECRET_RULES, R9, R190 and 72-canary: rows exist in docs/dev/R-REGISTRY.md (R9, R190) and the scenario file exists; their results not read.",
+   "evidence": "world-secrets.mjs:67 `export const WORLD_SECRET_RULES = Object.freeze({`; R-REGISTRY.md:200 '| R190 | 1 | E05 | the world-secrets rule finds every secret planted in a world snapshot and nothing in a clean one |'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S5-T2",
+   "claim": "S5-T2 fixed: Task 2 - one channel to the GM: cards with buttons for everything",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: COMM-02 (verify-old-1.2.42-comms.json: stands, fixed); COMM-04 (verify-old-1.2.42-comms.json: stands, fixed); COMM-06 (verify-old-1.2.42-comms.json: stands, fixed); COMM-07 (verify-old-1.2.42-comms.json: stands, fixed); ITEM-07 (verify-old-1.2.42-items.json: stands, fixed); ROLL-08 (re-read here); COMM-16 (verify-old-1.2.42-comms.json: stands, fixed); DESP-05 (verify-old-1.2.42-despair.json: stands, fixed).",
+   "evidence": "ITEM-07: use-items.mjs:593-595 the card carries three answers (comment \"Three answers on the card (ITEM-07)\") | ROLL-08: action-dynamic.mjs:111-114 `if (picked === false) { await whisperToOwner(actor, ...DRPG.Action.dynamicRefused...); return null; }` before the price at :119-122 | DESP-05: monocub.mjs:1146-1152 `if (!gmOnline()) { sayNotDone(\"monocub.ability\", \"noGm\", { nothingSpent: true }); return null; }`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S5-T3",
+   "claim": "S5-T3 partly: Task 3 - the messenger through secret.mjs",
+   "verdict": "stands",
+   "why": "COMM-03 fixed and COMM-15 partly, both confirmed by verify-old-1.2.42-comms.json; the KEEP pitfall re-read.",
+   "evidence": "secret.mjs:147 `const KEEP = TIMING.secretCardsKept;`; :554 `const KEEP_PINNED = 2000;`; :814 `for (const [pinnedToo, cap] of [[false, KEEP], [true, KEEP_PINNED]]) {`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T4",
+   "claim": "S5-T4 partly: Task 4 - a Reroll true to the action it repeats",
+   "verdict": "stands",
+   "why": "Checked: ROLL-02 (re-read here); CASE-06 (verify-old-1.2.42-case.json: stands, fixed). Not re-traced here (no refuter file for its domain, cited from the reader only): ROLL-03, ROLL-04, ROLL-05, ROLL-06, ROLL-13. The row is partly on the strength of a partly id confirmed above; an unchecked fixed id could only leave it partly or worse.",
+   "evidence": "ROLL-02: partly confirmed: reroll.mjs:1242 `if (bookmark.claimed === false) {` and action-pipeline.mjs:532 ROLL_CLAIMS.search `claimed: \"bool\"` - the flag is the roller's claim",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T5",
+   "claim": "S5-T5 fixed: Task 5 - items: rules enforced where they were broken",
+   "verdict": "weakened",
+   "why": "Every id the row rests on was checked: ITEM-02 (verify-old-1.2.42-items.json: stands, fixed); ITEM-03 (verify-old-1.2.42-items.json: stands, fixed); ITEM-04 (verify-old-1.2.42-items.json: weakened, partly); ITEM-06 (verify-old-1.2.42-items.json: stands, fixed); ITEM-08 (verify-old-1.2.42-items.json: stands, fixed); ITEM-09 (verify-old-1.2.42-items.json: stands, fixed); ITEM-14 (verify-old-1.2.42-items.json: stands, fixed); ITEM-16 (verify-old-1.2.42-items.json: stands, fixed); ITEM-10 (verify-old-1.2.42-items.json: stands, fixed). A refuter moved a cited status: ITEM-04 decision -> partly by verify-old-1.2.42-items.json; the row's own status is unchanged by it. A row of status fixed cannot stand on an id now partly: partly.",
+   "evidence": "ITEM-02: room-setup.mjs:1049 '\"Stash hidden\" is the Stashes tab's business (ITEM-02)'; concealment drawn only in the Stashes matrix (:153) | ITEM-03: projects.mjs:2098-2100 `const audience = hidden ? Array.from(new Set([...viewers, ...ownerIdsOfId(killerId ?? by)])) : [];` | ITEM-04: inventory.mjs:918 `if (item && location === LOCATIONS.carried) await keepGearShape(actor, item, { quiet });` | ITEM-06: handover.mjs:976 `if (isStashed(held)) { ... DRPG.Handover.stashed ... return null; }` before the key branch | ITEM-08: projects.mjs:1930 `after.push(async () => (await import(\"./traps.mjs\")).pruneTrapsFor(new Set(Object.keys(rows))));`; :2717-2718 the reset`s pruneTrapsFor(null) | ITEM-09: season-wipe.mjs:499-502 `stashesFound: async () => { await forgetAllStashesFound([actor]); await unconcealStashes(actor.id); }` | ITEM-14: projects-ui.mjs:1271-1274 `if (result.murder && !killerId) { ui.notifications.warn(... \"DRPG.Project.needsKiller\" ...); return null; }` | ITEM-16: gm-items.mjs:371-379 the Give tab reads allBedroomsAnywhere | ITEM-10: en.json DRPG.Vault.rifleNote \"It costs no action and no roll. A hidden stash you have not found has to be found first, with Analyze's Find Stash.\"; no value holds \"they will notice it is gone\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T6",
+   "claim": "S5-T6 fixed: Task 6 - the Despair economy with two GMs and the darkening",
+   "verdict": "weakened",
+   "why": "Every id the row rests on was checked: DESP-04 (verify-old-1.2.42-despair.json: stands, fixed); DESP-11 (verify-old-1.2.42-despair.json: stands, fixed); DESP-12 (verify-old-1.2.42-despair.json: stands, fixed); DESP-13 (verify-old-1.2.42-despair.json: stands, fixed); DESP-14 (verify-old-1.2.42-despair.json: stands, fixed); DESP-15 (verify-old-1.2.42-despair.json: weakened, fixed); DESP-16 (verify-old-1.2.42-despair.json: stands, fixed); DESP-08 (verify-old-1.2.42-despair.json: stands, fixed); DESP-09 (verify-old-1.2.42-despair.json: stands, fixed); DESP-10 (verify-old-1.2.42-despair.json: stands, fixed); DESP-18 (verify-old-1.2.42-despair.json: refuted, partly); DESP-19 (verify-old-1.2.42-despair.json: stands, fixed); DESP-20 (verify-old-1.2.42-despair.json: stands, fixed). A refuter moved a cited status: DESP-18 fixed -> partly by verify-old-1.2.42-despair.json; the row's own status is unchanged by it. A row of status fixed cannot stand on an id now partly: partly.",
+   "evidence": "DESP-04: confirmed by verify-old-1.2.42-despair.json | DESP-11: confirmed by verify-old-1.2.42-despair.json | DESP-12: confirmed by verify-old-1.2.42-despair.json | DESP-13: confirmed by verify-old-1.2.42-despair.json | DESP-14: confirmed by verify-old-1.2.42-despair.json | DESP-15: confirmed by verify-old-1.2.42-despair.json | DESP-16: confirmed by verify-old-1.2.42-despair.json | DESP-08: confirmed by verify-old-1.2.42-despair.json | DESP-09: confirmed by verify-old-1.2.42-despair.json | DESP-10: confirmed by verify-old-1.2.42-despair.json | DESP-18: confirmed by verify-old-1.2.42-despair.json | DESP-19: confirmed by verify-old-1.2.42-despair.json | DESP-20: confirmed by verify-old-1.2.42-despair.json",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T7",
+   "claim": "S5-T7 partly: Task 7 - the case and the trial: loose ends",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-10 (verify-old-1.2.42-case.json: stands, fixed); CASE-11 (verify-old-1.2.42-case.json: weakened, fixed); CASE-12 (verify-old-1.2.42-case.json: weakened, fixed); CASE-13 (verify-old-1.2.42-case.json: stands, fixed); CASE-14 (verify-old-1.2.42-case.json: stands, partly); CASE-15 (verify-old-1.2.42-case.json: stands, fixed); CORE-17 (verify-old-1.2.42-core.json: stands, fixed); CORE-19 (verify-old-1.2.42-core.json: stands, partly). A refuter moved a cited status: CASE-11 decision -> fixed by verify-old-1.2.42-case.json; the row's own status is unchanged by it.",
+   "evidence": "CASE-10: confirmed by verify-old-1.2.42-case.json | CASE-11: confirmed by verify-old-1.2.42-case.json | CASE-12: confirmed by verify-old-1.2.42-case.json | CASE-13: confirmed by verify-old-1.2.42-case.json | CASE-14: confirmed by verify-old-1.2.42-case.json | CASE-15: confirmed by verify-old-1.2.42-case.json | CORE-17: confirmed by verify-old-1.2.42-core.json | CORE-19: confirmed by verify-old-1.2.42-core.json",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T8",
+   "claim": "S5-T8 partly: Task 8 - the map: the token showing through and room names",
+   "verdict": "stands",
+   "why": "MAP-02 partly as cited; the key merge re-read (en.json has DRPG.Move.notConnected and no Eclipse.notConnected).",
+   "evidence": "en.json DRPG.Move.notConnected '{to} is not connected to {from}. From here you can reach: {rooms}'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T9",
+   "claim": "S5-T9 partly: Task 9 - performance: what runs every frame and every write",
+   "verdict": "stands",
+   "why": "Checked: MAP-13 (re-read here); CORE-12 (verify-old-1.2.42-core.json: stands, fixed). Not re-traced here (no refuter file for its domain, cited from the reader only): MAP-07, ROLL-17, UI-14, UI-16. The row is partly on the strength of a partly id confirmed above; an unchecked fixed id could only leave it partly or worse.",
+   "evidence": "MAP-13: standing part confirmed: fog.mjs:3088-3089 `doorRooms = { ..., rooms: regions.map(region => ({ shading: ..., polygons: regionShapes(region, { x: 0, y: 0 }) })) };` above the unchanged-picture shortcut",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T10",
+   "claim": "S5-T10 partly: Task 10 - UX and look",
+   "verdict": "stands",
+   "why": "Checked: ITEM-12 (verify-old-1.2.42-items.json: stands, fixed); ITEM-13 (verify-old-1.2.42-items.json: stands, fixed); DESP-06 (verify-old-1.2.42-despair.json: stands, fixed); DESP-17 (verify-old-1.2.42-despair.json: weakened, fixed); COMM-11 (verify-old-1.2.42-comms.json: stands, partly); COMM-13 (verify-old-1.2.42-comms.json: stands, obsolete); COMM-14 (verify-old-1.2.42-comms.json: stands, fixed); CORE-06 (verify-old-1.2.42-core.json: stands, fixed); CORE-10 (verify-old-1.2.42-core.json: stands, fixed); CORE-18 (verify-old-1.2.42-core.json: stands, fixed). Not re-traced here (no refuter file for its domain, cited from the reader only): UI-09, UI-10, UI-11, UI-12, ROLL-11, ROLL-12. The row is partly on the strength of a partly id confirmed above; an unchecked fixed id could only leave it partly or worse.",
+   "evidence": "ITEM-12: confirmed by verify-old-1.2.42-items.json | ITEM-13: confirmed by verify-old-1.2.42-items.json | DESP-06: confirmed by verify-old-1.2.42-despair.json | DESP-17: confirmed by verify-old-1.2.42-despair.json | COMM-11: confirmed by verify-old-1.2.42-comms.json | COMM-13: confirmed by verify-old-1.2.42-comms.json | COMM-14: confirmed by verify-old-1.2.42-comms.json | CORE-06: confirmed by verify-old-1.2.42-core.json | CORE-10: confirmed by verify-old-1.2.42-core.json | CORE-18: confirmed by verify-old-1.2.42-core.json",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T11",
+   "claim": "S5-T11 partly: Task 11 - code hygiene (section 6): one \"who is a student\", one own-character, onSocket as a table, fog-diagnostics.mjs, the long functions split, the dead code and keys removed, magic numbers into config, comments, FOG_BUILD",
+   "verdict": "stands",
+   "why": "Each point re-read where it is code: one studentActors (monokuma.mjs:77, :120, :131), the fourteen long functions under 300 (espree), performGeneric/chooseTrait/buildGmBody/MAX_SHIFT/STRIP_SLACK gone, the magic numbers in TIMING; the two ordinary functions over 300 and the five glass readers stand.",
+   "evidence": "/tmp/verify-old-1-2-42-tasks/s/fn.mjs; monokuma.mjs:77 `export function studentActors({ held = null } = {}) {`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T12",
+   "claim": "S5-T12 fixed: Task 12 - three rule decisions (DC shown? discovered rooms an alibi? Despair pools public?)",
+   "verdict": "stands",
+   "why": "D1 (TEXT-14), D2 (MAP-12), D3 (DESP-03): D3's card shape re-read here (despair.mjs:963-968 no remainder; overflowFed's {n} is the Call's constant).",
+   "evidence": "despair.mjs:963-968; call-effects.mjs:1068-1069 `done.push(game.i18n.format(\"DRPG.Calls.overflowFed\", { n: call.feedsOverflow, ...`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S5-T13a",
+   "claim": "S5-T13a fixed: Task 13 item 1 - a tool listing the en.json keys changed since a commit, so the Polish is re-read",
+   "verdict": "stands",
+   "why": "Re-read: tools/stale-pl.mjs --check and --sheet --since <ref> as described.",
+   "evidence": "tools/stale-pl.mjs:5-13 '--sheet [--since <git ref>] ... with --since, also every key whose English or Polish differs from <ref>'s'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S5-T13b",
+   "claim": "S5-T13b partly: Task 13 item 2 - the Polish read through by a person who will play",
+   "verdict": "stands",
+   "why": "Re-measured: tools/pl-reviewed.json holds 6824 keys, 6463 of them stamped ':b' (the baseline 'written from the tree, not a read'); the read rows are E57 C12's 212 and smaller.",
+   "evidence": "tools/pl-reviewed.json stamped[0].note 'E57 C1: the baseline ... written from the tree, not a read'; Counter of key suffixes: ('b', 6463)",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T13e",
+   "claim": "S5-T13e partly: Task 13 pitfalls: languages without pl; plural falls back to other; PROSE_KEYS outside string-compared labels; DRPG.Safeword.word kept; confirmLanguageReload",
+   "verdict": "stands",
+   "why": "Re-read: DRPG.Safeword.word gone (14 Safeword keys, none 'word'), the word a setting (settings.mjs:288), the migration's source DRPG.Legacy.safeword; confirmLanguageReload gone.",
+   "evidence": "settings.mjs:288 'Default \"Safe Word\". Worlds that predate this setting keep MISIUBOMBO,'; migrate.mjs:395-396 'Before E15 the safeword was a string in the language file (now `DRPG.Legacy.safeword` ...'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S5-T14a",
+   "claim": "S5-T14a open: Task 14 item 1 - one annotated screenshot in the brochure",
+   "verdict": "stands",
+   "why": "Open checked the other way: no image in any handbook (grep -c '![' and <img>/.webp/.png: 0 in all six).",
+   "evidence": "grep -c '!\\[' docs/handbooks/*.md: 0 for each",
+   "status_after": "open"
+  },
+  {
+   "ref": "S5-T14b",
+   "claim": "S5-T14b open: Task 14 item 2 - the owner's own Forge and Dungeondraft settings in the GM Handbook section 2",
+   "verdict": "stands",
+   "why": "Open checked the other way: no Dungeondraft and no owner-specific grid or asset settings; Isometric Perspective is named only generically (gm-handbook.en.md:32, :41).",
+   "evidence": "gm-handbook.en.md:168 '## 2. The season setup checklist'; grep -ci dungeondraft: 0 in all six",
+   "status_after": "open"
+  },
+  {
+   "ref": "S5-T14d",
+   "claim": "S5-T14d open: Task 14 item 4 and pitfall - the brochure fits one A4 page; the brochure has no rules beyond the actions per time of day",
+   "verdict": "stands",
+   "why": "Open checked the other way: the brochure is 107 lines, 2056 words (pl 1977), header still 'One page.'; no page count built here either.",
+   "evidence": "docs/handbooks/player-brochure.en.md:3 '*One page. Module 1.2.118 on Daggerheart.*'; wc -w 2056",
+   "status_after": "open"
+  },
+  {
+   "ref": "S6-H1",
+   "claim": "S6-H1 obsolete: Scripts / lines (1.2.42: 97 / 89 963; largest fog.mjs 5 884, action-rolls.mjs 4 402, murder.mjs 4 008, config.mjs 4 025, sheet.mjs 3 935)",
+   "verdict": "stands",
+   "why": "A measurement row, not a defect; re-counted: 271 scripts, 434 614 lines, 13 test files 208 332 lines; largest non-test config.mjs 5646, fog.mjs 4833. The 1.2.42 figures are a past state, so obsolete is the right word.",
+   "evidence": "ls scripts/*.mjs | wc -l = 271; cat scripts/*.mjs | wc -l = 434614",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "S6-H2",
+   "claim": "S6-H2 fixed: CSS: 20 490 lines; !important danganronpa.css 689, stained-glass.css 260; :root declared 15 times in danganronpa.css",
+   "verdict": "weakened",
+   "why": "The :root half holds (danganronpa.css: one top-level :root at :24 and two inside @media at :17249, :17788 - read). The !important half is not 'fixed': counted the only way a 1.2.42 figure could be compared (every occurrence), danganronpa.css has 711 against 1.2.42's 689 (more, in a sheet half again as long), stained-glass.css 243 against 260. What changed is that a budget now holds the count (tools/css-budget.json, outside comments 612 / 199), not that the count fell. The row is a measurement; read against itself it is better on :root and worse on !important in one sheet.",
+   "evidence": "grep -o '!important' styles/danganronpa.css | wc -l = 711; styles/stained-glass.css = 243; AUDIT-1.2.42.md:565 '`!important`: danganronpa.css 689, stained-glass.css 260; `:root` zadeklarowany 15 razy'; styles/danganronpa.css:24 `:root {`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S6-H3",
+   "claim": "S6-H3 partly: Functions over 300 lines (14 named: onSocket 770 ... applyCall 295)",
+   "verdict": "stands",
+   "why": "Re-measured with espree over every function node of the 258 non-test scripts: 17 089 functions, 6 over 300 lines - registerSettings 1971, createGmStoreEngine 941, createNoticeEngine 710, steps 416, openProjectDialog 377, applyCrisisAction 306 - and none of the fourteen 1.2.42 names over 300 (largest openInvestigationDashboard 260). Same numbers as the reader.",
+   "evidence": "/tmp/verify-old-1-2-42-tasks/s/fn.mjs output 'fns 17089 over300 6 150-300 75'; projects-ui.mjs:957 openProjectDialog 377; murder-rules.mjs:1658 applyCrisisAction 306",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S6-H4",
+   "claim": "S6-H4 partly: Functions of 150-300 lines: about 40",
+   "verdict": "stands",
+   "why": "Re-measured: 75 non-test functions of 150-300 lines, as the reader says.",
+   "evidence": "/tmp/verify-old-1-2-42-tasks/s/fn.mjs '150-300 75'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S6-H5",
+   "claim": "S6-H5 partly: Duplicated helpers: who-is-a-student x5, own character x2, local esc x8, spendStress/restoreStress x2, themeOn x3, glassOn x4, reducedMotion x2, seam glow x4, polyline length x4, recipient option x7, avclientActive x2, ownerId",
+   "verdict": "stands",
+   "why": "Partly holds; re-read: glassOn (motion.mjs:38-46, setting else body class), themeOn (glass.mjs:2186, else false), isStainedGlass (look.mjs:20-22, else false), stainedGlass (death-fade.mjs:131-137, else false), private-rolls.mjs:401-404 (else body class) - five readers, two fallbacks; one studentActors (monokuma.mjs:77). The esc count is slightly off: grep finds 26 local `const esc = foundry.utils.escapeHTML` aliases in 14 files (verdict.mjs:314 is one with a second declarator; messenger.mjs:248's `const esc = foundry.utils.escapeHTML(body)` is a value, not an alias), against the reader's 25 in 15.",
+   "evidence": "utils.mjs:34 `export const esc = value => foundry.utils.escapeHTML(String(value ?? \"\"));`; verdict.mjs:314 `const esc = foundry.utils.escapeHTML, deadShort = ...`; messenger.mjs:248 `const esc = foundry.utils.escapeHTML(body).replace(/\\n/g, \"<br>\");`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S6-H6",
+   "claim": "S6-H6 fixed: Dead code: performGeneric, chooseTrait, two buildGmBody branches, settleSteal, the placeTiles tail, MAX_SHIFT, STRIP_SLACK, export regionsAt, ownTokenClearances, CLEANUP.transform.types, reportRemnants with no UI, one-shot migr",
+   "verdict": "stands",
+   "why": "Holds, with one citation wrong. The reader's 'placeTiles: fog.mjs:3902 is a live function' is a different function (the fog's drift tiling). The 1.2.42 finding (findings-1.2.42/ui.md:91-92) was glass.mjs's placeTiles, whose 12 unreachable lines after a return used MAX_SHIFT; today glass.mjs:3428-3435 is the padding clear alone, ending in `return moved;` with nothing after it. performGeneric/chooseTrait deleted (action-rolls.mjs:306-307), buildGmBody/MAX_SHIFT/STRIP_SLACK 0 hits outside tests, regionsAt not exported (movement.mjs:2594), settleSteal reached (reroll.mjs:1129 -> :1736) - each read.",
+   "evidence": "glass.mjs:3428-3435 `function placeTiles() { let moved = false; ... return moved; }`; movement.mjs:2594 `function regionsAt(scene, x, y, tokenDoc, level = levelOf(tokenDoc)) {`; reroll.mjs:1129 `case \"steal\": return await settleSteal(actor, bookmark, after, done);`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S6-H7",
+   "claim": "S6-H7 fixed: Dead i18n keys: 8 of 2 212, plus 2 read only by tests",
+   "verdict": "stands",
+   "why": "The ten named keys are gone: none of DRPG.Sound.launcherTooltip, Look.redraw, Investigation.clue, Murder.addThird, whoWalkedIn, nobodyElse, noStressLeft, betrayalConfirm, betrayTileLabel, betrayTileHint is in en.json (python). The reader's '0 dead of 6369' is its own scratch run of tools/e56/keys.mjs, not repeated here.",
+   "evidence": "findings-1.2.42/text.md:348-358 the list; lang/en.json flattened: each of the ten absent",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S6-H8",
+   "claim": "S6-H8 fixed: Dead CSS selectors: #drpg-settings-launcher 7, #drpg-notice 10, body.drpg-no-glass-effects 23, .drpg-compact 9",
+   "verdict": "stands",
+   "why": "Re-grepped: #drpg-settings-launcher only in a comment (stained-glass.css:3626), #drpg-notice only in a comment (:2203), drpg-no-glass-effects 0, .drpg-compact only in a comment (danganronpa.css:4650).",
+   "evidence": "styles/stained-glass.css:3626 '`#drpg-settings-launcher` left both lists with it: no script builds that element (R1380). */'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S6-H9",
+   "claim": "S6-H9 partly: Magic numbers outside config: about 25 (bridge timeouts 8 s/180 s/300 s, DICE_SETTLE_MS, REROLL_WINDOW_MINUTES, PENDING_TTL_MS, KEEP 500, MAX_ATTEMPTS 3, curtain geometry x12, 1120x1160, SHEET_MIN_HEIGHT 980, AUTO_DISMISS_MS)",
+   "verdict": "stands",
+   "why": "Partly holds; each named TIMING read re-read (action-report.mjs:138, config.mjs:388, observe.mjs:89, murder-rules.mjs:4661, sync.mjs:234, sheet-fit.mjs:395); secret.mjs:554 KEEP_PINNED = 2000 is the local literal beside its TIMING twin. One evidence slip: '1120/1160: 0 hits' is not so - config.mjs:525 holds them, which is where they belong.",
+   "evidence": "config.mjs:525 `export const SHEET_SIZE = { minHeight: 980, glass: { width: 1120, height: 1160 } };`; secret.mjs:554 `const KEEP_PINNED = 2000;`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S6-H10",
+   "claim": "S6-H10 partly: Comments contradicting code: about 30; the main ones gm-bridge.mjs:1802, messenger.mjs:7, config.mjs:88 (betrayalWindow), cleanup.mjs:1596 (recreationDataFor), api.mjs:320/327/330, hud.mjs:14",
+   "verdict": "stands",
+   "why": "Partly holds; the new stale comment is confirmed: gm-panel.mjs:229-230 says the voice reset 'is a tile under Between sessions' while :325-331 puts it in the diagnostics section since E49 A2.",
+   "evidence": "gm-panel.mjs:229-230 'The voice reset it also carried is a tile under Between sessions.'; :328-329 'Here since E49 A2 (the owner, 10.11.2026 ...): ... it was in Between sessions.'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S6-W",
+   "claim": "S6-W fixed: \"What works, do not touch\": one write authority and senderId; client-scoped ledgers; keepLive; setClock as the one clock write; migrate.mjs idempotent clauses with read-back; secret.mjs; roll privacy by subject; wipeSeason as in",
+   "verdict": "stands",
+   "why": "Re-read: the only `game.settings.set(MODULE_ID, SETTINGS.clock, ...)` is clock.mjs:287 inside setClock (clock.mjs:135); the season reset's clock goes through setClock (season-wipe.mjs:669); senderOf is bridge-guards.mjs:61. Not traced: whether a world-settings Restore writes the clock raw.",
+   "evidence": "clock.mjs:287 `await game.settings.set(MODULE_ID, SETTINGS.clock, next);`; season-wipe.mjs:669 `await setClock({`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S8",
+   "claim": "S8 obsolete: How to release 1.2.43: merge the branch to main, Actions -> Release with v1.2.43, check releases/latest, update on Forge and run tier 1",
+   "verdict": "stands",
+   "why": "No v1.2.43 tag on origin (git ls-remote --tags: v1.2.44 9f480eee, v1.2.45 1592103b, v1.2.46 d46fa471, v1.2.47 fb52a0dd); a v1.2.43.md notes file exists in .github/release-notes, but it is a notes file, not a release.",
+   "evidence": "git ls-remote --tags origin | grep v1.2.4[3-7]: four tags, none v1.2.43",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "S9-TABLE",
+   "claim": "S9-TABLE fixed: Section 9 table: tasks 1-13 and Hygiene A-D, one commit each, every commit through the suite (117 pass / 12 fail) and the scenarios",
+   "verdict": "stands",
+   "why": "Four of the named commits looked up on origin through gh api and found with the dates the reader gives (90c6988c05 2026-09-12, 31599e50b3, 12109493bf, 7e40243301 2026-09-13).",
+   "evidence": "gh api repos/<origin>/commits/90c6988c05 -> '90c6988c05 2026-09-12T21:38:22Z'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9-34",
+   "claim": "S9-34 partly: \"34 ids closed under other names\" (checked by hand in the code 13.09)",
+   "verdict": "stands",
+   "why": "The line holds 34 ids (CORE 4, DESP 6, ITEM 1, MAP 5, TEXT 14, UI 4; counted from AUDIT-1.2.42.md:634); MAP-08 and CORE-15 are partly in their files, so partly holds.",
+   "evidence": "AUDIT-1.2.42.md:634 'CORE-03/04/09/15, DESP-08/09/10/16/18/20, ITEM-10, MAP-05/06/08/09/10, TEXT-02/04/05/06/07/08/10/11/12/13/15/16/17/18, UI-01/02/04/05'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9-T13",
+   "claim": "S9-T13 partly: Task 13 (7e40243): \"25 findings that did not enter tasks 1-11, closed here\"",
+   "verdict": "stands",
+   "why": "Partly holds; the list as printed names 24 ids (counted from AUDIT-1.2.42.md:632). One cited status is out of date: COMM-18 is partly by the comms refuter (inline English GM-facing voice and music sentences still reach the failure log), not fixed - which only adds a sixth partly id to the five the row already carries.",
+   "evidence": "AUDIT-1.2.42.md:632 '(COMM-05/09/17/18, CORE-16, ITEM-17/18, MAP-15, ROLL-10/14/15/16, TEXT-09/11/12/13/15/16/17/18/19, UI-06/07/13)'; verify-old-1.2.42-comms.json COMM-18 verdict 'weakened', status_after 'partly'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9-BAL",
+   "claim": "S9-BAL partly: The balance after task 13: 152 findings - 49 closed in 1.2.43, 78 in tasks 1-11 and 13, 4 awaiting a decision (ITEM-04, MAP-12, DESP-03, CASE-11), the rest live checks; and 9.1a: \"all 152 ids are closed or settled by a decisi",
+   "verdict": "stands",
+   "why": "Partly holds, and the 157 is right (grep -cE '^### [A-Z]+-[0-9]+' over the nine findings files: 15+18+19+20+18+15+17+19+16 = 157, all distinct). Its per-status sums move by one each after the refuters: COMM-18 is partly, not fixed (verify-old-1.2.42-comms.json), CASE-09 obsolete, not fixed, and CASE-11 fixed, not decision (verify-old-1.2.42-case.json), so 128 fixed, 19 partly, 4 decision, 5 obsolete, 1 open; the still_wrong list of 18 partly ids lacks COMM-18.",
+   "evidence": "audit/findings-1.2.118/verify-old-1.2.42-comms.json COMM-18 status_after 'partly'; verify-old-1.2.42-case.json CASE-09 'obsolete', CASE-11 'fixed'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9-REL144",
+   "claim": "S9-REL144 fixed: Released as 1.2.44 (the 13.09 decision \"release the whole as 1.2.X\" replacing D10 B)",
+   "verdict": "stands",
+   "why": "Tag v1.2.44 at 9f480eee on origin; v1.2.44.md:81-83 'Removed. `game.drpg.returnToDiscussion` (use `returnToDebate`) and the legacy `blackened` world setting'.",
+   "evidence": "git ls-remote: 9f480eee... refs/tags/v1.2.44",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3-d6b069e",
+   "claim": "S9.3-d6b069e fixed: 1.2.45: the phase owns its state on every road (setClock reconciles), the incident card reads the cast, the curtain recuts on visibilitychange, the reset clears a running incident",
+   "verdict": "stands",
+   "why": "Re-read: setClock reconciles a phase change (clock.mjs:306-309), the incident card reads the cast (events.mjs:206), the curtain recuts on visibilitychange (glass.mjs:3836), the reset carries 'incident' (season-wipe.mjs:407).",
+   "evidence": "clock.mjs:308 `await reconcilePhase(before.phase, next.phase);`; events.mjs:206 `const state = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}), ...incidentCast() };`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3-c7014db",
+   "claim": "S9.3-c7014db fixed: 1.2.45 A: screen breakpoints in one place (BREAKPOINTS in settings.mjs), drpg-stacked / drpg-short on body, the curtain's own gate and the flat backdrop",
+   "verdict": "stands",
+   "why": "Re-read: BREAKPOINTS in settings.mjs alone, the body classes toggled there, drpg-glass-flat in glass.mjs (2 hits); no media query in styles/ carries 1224.",
+   "evidence": "settings.mjs:4344 `export const BREAKPOINTS = { narrow: 1224, short: 620, low: 800 };`; :4571-4572 `document.body.classList.toggle(\"drpg-stacked\", narrowScreen());`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3-aa9b9a6",
+   "claim": "S9.3-aa9b9a6 fixed: 1.2.45 B: under 1200 px the blocks leave Foundry's columns and stack (narrow.mjs, narrow.css loaded last); Despair pips 18 -> 13 px",
+   "verdict": "stands",
+   "why": "narrow.mjs exists, narrow.css is last of module.json's styles (module.json:57), the stack starts below 1224.",
+   "evidence": "module.json:57 `\"styles/narrow.css\"` last in the list",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3-240f0ff",
+   "claim": "S9.3-240f0ff fixed: 1.2.45 C: stackShapes cuts the stacked screen by lines; pinRightColumn off under the stack",
+   "verdict": "stands",
+   "why": "Re-read.",
+   "evidence": "glass-geometry.mjs:937 `export   function stackShapes(W, H, rnd, boxes, page) {`; glass.mjs:982 `if (!themeOn() || narrowLayout()) { unpinRightColumn(); return; }`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3-M",
+   "claim": "S9.3-M obsolete: 1.2.45 measurements (headless Chromium, curtain harness): overlaps / blocks off their pane / edge gaps per size, clean from 280x653; suite 122/12; config-prose 490/490",
+   "verdict": "weakened",
+   "why": "Marked obsolete as 'a September Chromium reading', but the thing it measured - overlaps, blocks off their pane and edge gaps per size, 0/0/0 from 280x653 up - is not replaced, only its instrument (audit/glass-sweep.mjs, 23 sizes) is; whether the curtain still reads 0/0/0 on b5a29e73 was not measured by anyone in this audit (no sweep result in the folder). That is not established, not obsolete. Phones are out of scope by the owner (9.2 item 461), so the 360-500 px rows have no object; the desk and tablet rows do.",
+   "evidence": "AUDIT-1.2.42.md:650-660 the table '1024x768 | 2/12/0 | 0/0/0' ... 'Czysto od 280x653 w górę'; audit/findings-1.2.118/ has no glass-sweep result",
+   "status_after": "open (not re-measured)"
+  },
+  {
+   "ref": "S9.3-scale",
+   "claim": "S9.3-scale fixed: autoScale left alone: the 0.7 floor protects type; too big on a phone was layout, not scale",
+   "verdict": "stands",
+   "why": "autoScale keeps its 0.7 floor untouched; type takes its own 0.85 clamp, which is what 9.3 described ('podłoga typografii 0.85').",
+   "evidence": "settings.mjs:4421 `return Math.round(Math.min(1, Math.max(0.7, f)) * 100) / 100;`; :4470 `return Math.round(sliderScale() * Math.max(0.85, autoScale()) * 100) / 100;`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3-LC",
+   "claim": "S9.3-LC partly: 9.3 and 9.3c live checks numbered 18-25 (Edit campaign closes the floor; the event panel survives the opening roll; tab switch; phone and tablet; footer pinned in the same frame; who may find another's project; the 1200-1247",
+   "verdict": "stands",
+   "why": "Cited from live-items-18.json, which reads as quoted; 22 obsolete (pinFooterAcrossScroll retired) and 25 obsolete (decided) are that file's.",
+   "evidence": "audit/findings-1.2.118/live-items-18.json items 9.3-18..25",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9.1-D1",
+   "claim": "S9.1-D1 fixed: D1 thresholds shown: A, dynamically - every briefing prints the thresholds for this character, the roll window says \"beat N\" (5858b2a)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: TEXT-14 (re-read here).",
+   "evidence": "TEXT-14: action-briefing.mjs:228 `try { facts.push(...thresholdFacts(actor, actionKey, def)); } ...` (comment \"D1, Dawid 13.09\")",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D2",
+   "claim": "S9.1-D2 fixed: D2 the discovered-rooms ledger: B, secret per player (f78de10, scenario 60-ledger)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: MAP-12 (re-read here).",
+   "evidence": "MAP-12: settings.mjs:3507-3511 `discoveryLedger()`: a GM reads gmStoreByName(\"discovery\"), a player readMine(\"fog\")",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D3",
+   "claim": "S9.1-D3 fixed: D3 Despair pools: C, numbers public, overflow masked (1210949)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: DESP-03 (verify-old-1.2.42-despair.json: stands, fixed). A refuter moved a cited status: DESP-03 decision -> fixed by verify-old-1.2.42-despair.json; the row's own status is unchanged by it.",
+   "evidence": "DESP-03: despair.mjs:963-968 `name: ...poolLabel(user)..., cost: call.cost` (no remainder); en.json:4198 overflowFed \"{n} Despair poured into the Overflow.\" where n is call.feedsOverflow, the Call's constant (call-effects.mjs:1068-1069), not the overflow's count; en.json:4279 cardLeft has no number",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D4",
+   "claim": "S9.1-D4 fixed: D4 Gear \"one in hand\": A, auto-ready on every way in with a whisper to the owner (1210949)",
+   "verdict": "weakened",
+   "why": "Every id the row rests on was checked: ITEM-04 (verify-old-1.2.42-items.json: weakened, partly). A refuter moved a cited status: ITEM-04 decision -> partly by verify-old-1.2.42-items.json; the row's own status is unchanged by it. A row of status fixed cannot stand on an id now partly: partly.",
+   "evidence": "ITEM-04: inventory.mjs:918 `if (item && location === LOCATIONS.carried) await keepGearShape(actor, item, { quiet });`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9.1-D5",
+   "claim": "S9.1-D5 fixed: D5 tying traces during an incident: B, only participants or the incident's room, the rest the GM's (1210949)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: CASE-11 (verify-old-1.2.42-case.json: weakened, fixed). A refuter moved a cited status: CASE-11 decision -> fixed by verify-old-1.2.42-case.json; the row's own status is unchanged by it.",
+   "evidence": "CASE-11: confirmed by verify-old-1.2.42-case.json",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D6",
+   "claim": "S9.1-D6 fixed: D6 a failed sabotage: B, told to the room and the GMs only (1210949)",
+   "verdict": "stands",
+   "why": "Every id the row rests on was checked: TEXT-LC5 (re-read here).",
+   "evidence": "TEXT-LC5: action-project.mjs:1367-1369 `// The room, not the table (D6) ... whisper: roomAudience(actor),`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D7",
+   "claim": "S9.1-D7 fixed: D7 LiveKit listening-in: removed in full; the voice reset as a tile under Between sessions (1210949)",
+   "verdict": "stands",
+   "why": "The GM's listen-in is gone and the comment nit is real (gm-panel.mjs:229-230 vs :325-331). Tried: whether E69 C6's player eavesdrop reopens D7's reason (LiveKit shows the listener). It does carry the same visibility question, but it is a later owner decision on another road, recorded as such (eavesdrop-gm.mjs:4-12, LIVE-E69-03), not D7 undone.",
+   "evidence": "eavesdrop-gm.mjs:9-12 'What LiveKit itself shows there - the listener is one more participant of the channel ... is not hidden here ... LIVE-E69-03 measures it at a real table.'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D8",
+   "claim": "S9.1-D8 fixed: D8 the text pass: B, first pass by 3.2 and 3.3 (\"phase\" -> time of day in two keys; verdictNoteKnown \"every Blackened\"; \"Which student?\"; \"Students\"; \"Final Truth Remnant\"; \"Free Move\" capitalised in 11 keys; OBJECTION in cap",
+   "verdict": "stands",
+   "why": "Fixed for the first pass D8 made; the counts re-read: en.json 313 values with 'Remnant', 12 with 'trace' in any case (python), most of them action names.",
+   "evidence": "lang/en.json DRPG.Cleanup.transformAction 'Reshape a Trace'; DRPG.Observe.followTraces 'Follow My Traces'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D9",
+   "claim": "S9.1-D9 fixed: D9 the alias and SETTINGS.blackened: B, removed now (noted in 1.2.44)",
+   "verdict": "stands",
+   "why": "grep of scripts/ (tests aside) finds neither returnToDiscussion nor SETTINGS.blackened.",
+   "evidence": "git grep: 0 lines; .github/release-notes/v1.2.44.md:81",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-D10",
+   "claim": "S9.1-D10 fixed: D10 the 1.2.44 release: B changed 13.09 to \"release the whole as 1.2.X\"",
+   "verdict": "stands",
+   "why": "Tag v1.2.44 on origin; no v1.2.43 tag.",
+   "evidence": "git ls-remote --tags origin: 9f480eee... refs/tags/v1.2.44",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1-X",
+   "claim": "S9.1-X fixed: Also (13.09): an event card for the Despair overflow on the Event panel (1c0dde8); the Eclipse card taken off on a second ask (ffd4543)",
+   "verdict": "stands",
+   "why": "Confirmed here, where the reader only suspected it: the Event panel draws an overflow card (events.mjs:680-697, overflowCard, the count to a GM only) and its card list holds no Eclipse card.",
+   "evidence": "events.mjs:1083-1084 `const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), cubCard()].filter(Boolean);`; :691-693 `meta: game.user.isGM ? game.i18n.format(\"DRPG.Events.overflowMetaGm\", ...) : overflowWhat(key, rule)`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.1a-1",
+   "claim": "S9.1a-1 partly: 9.1a item 1: the live checks of sections 7 and 9.2 on a real Foundry, after updating to 1.2.44",
+   "verdict": "stands",
+   "why": "Partly: some live checks are read (e58 readings), most are not; cited to the live lane.",
+   "evidence": "audit/findings-1.2.118/live-readings-e58.json; BRIEF.md 'L1 ... is paused until after the audit'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9.1a-2",
+   "claim": "S9.1a-2 open: 9.1a item 2: the hand text pass by 3.1-3.3 (Remnant/trace 56+78 keys, GM/Monokuma in prose, the \"Behind Closed Doors\" / \"Public Announcement\" labels) for 1.3.0",
+   "verdict": "stands",
+   "why": "Open checked the other way: 1.3.0 has not shipped (module.json 1.2.118); the GM/Monokuma and student/character/player sweeps D8 left are not done by any recorded commit read here.",
+   "evidence": "module.json:5 `\"version\": \"1.2.118\"`; AUDIT-1.2.42.md:694",
+   "status_after": "open"
+  },
+  {
+   "ref": "S9.1a-3",
+   "claim": "S9.1a-3 fixed: 9.1a item 3: registerSettings (505 lines of a flat registration list) and steps() (a data table) stay long by nature",
+   "verdict": "stands",
+   "why": "Holds as a recorded exception; registerSettings measured 1971 lines (settings.mjs:1484), steps 416.",
+   "evidence": "/tmp/verify-old-1-2-42-tasks/s/fn.mjs: `[ 1971, 'registerSettings', 'settings.mjs:1484' ]`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3b-1",
+   "claim": "S9.3b-1 fixed: 9.3b point 1 (6693b47): the stack keeps off Foundry's tab bar and tool rail (48 px behind the tabs, the notice tile on the tool rail)",
+   "verdict": "stands",
+   "why": "Re-read.",
+   "evidence": "narrow.mjs:247 and :299 `const tabs = document.querySelector(\"#sidebar-tabs\");`; :226 `function noticesClearOfTheTools() {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3b-2",
+   "claim": "S9.3b-2 fixed: 9.3b point 2 (b85316e): re-triage of the 12 accepted failures - 3 were the harness, 1 innerText, 1 the backpack limit, 9 need a browser and are skipped by needs(); 126 pass, 0 fail, 9 skipped; the scenario holds the skips fro",
+   "verdict": "stands",
+   "why": "The rule stands and the nit is real: skip-baseline.json's 'measured' line says 17 skipped at 1.2.63, its 'skips' list has 27 entries.",
+   "evidence": "audit/harness/skip-baseline.json measured '01-runtests on the E05 branch at C13, 27.09.2026, module 1.2.63: 17 skipped, ...'; len(skips) = 27",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3b-4",
+   "claim": "S9.3b-4 fixed: 9.3b point 4 (7d2bff4): accessibility - a11y.mjs names icon-only controls, game.drpg.a11y(), aria-live polite on the notice stack and the event card, focus into a module window, forced-colors, prefers-contrast: more, the prep",
+   "verdict": "stands",
+   "why": "Re-read; one slip: the prefers-contrast hit in danganronpa.css (:17259) is a comment ('decided in JavaScript'), the rule is stained-glass.css:305 alone; the forced-colors rule is danganronpa.css:17516.",
+   "evidence": "api.mjs:1485 a11y; popup.mjs:219 `el.setAttribute(\"aria-live\", \"polite\");`; styles/stained-glass.css:305 `@media (prefers-contrast: more) {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3b-5",
+   "claim": "S9.3b-5 partly: 9.3b point 5 (4cd10a5): performance - headless pulse 91 ms/frame at 1920x993; game.drpg.perf() takes the number where people play",
+   "verdict": "weakened",
+   "why": "Partly holds, but its still_wrong ('No frame cost of the theme read on real hardware') and evidence ('The table number has never been taken') are contradicted by a recorded F reading on b5a29e73's own LOCAL-REPORT: perf() and fps() run on Foundry 14.370 on an RTX 4080 through WSLg, both themes, 16.11.2026, at 80dfaf06. Those numbers are a high-end desktop on the seed's small flat scene, so the part still open is the budget machine (D27 (b): a 1366x768 laptop, the largest isometric map) and perf-baseline.json's run (status not-measured, 0 runs, 3 attempts). The defect left is 'not measured on the machine that matters', not 'never measured'.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:344 '| perf() and fps(), run 1 | ... Stained Glass: about 43 ms a frame (23 fps) on both, ... Legacy about 34 ms (29 fps)'; :349-350 'Machine, date, commit: AMD Ryzen 9 9900X ... NVIDIA GeForce RTX 4080 SUPER through WSLg's D3D12, ... 16.11.2026, 80dfaf06'; audit/perf-baseline.json \"status\": \"not-measured\", \"runs\": 0",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9.3b-7",
+   "claim": "S9.3b-7 fixed: 9.3b point 7 (df52472): CLAUDE.md and CONTRIBUTING.md, both export-ignore",
+   "verdict": "stands",
+   "why": "Re-read.",
+   "evidence": ".gitattributes: `CLAUDE.md export-ignore`, `.claude/ export-ignore`, `CONTRIBUTING.md export-ignore`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3b-REL",
+   "claim": "S9.3b-REL fixed: Released as 1.2.46",
+   "verdict": "stands",
+   "why": "Tag v1.2.46 at d46fa471 on origin.",
+   "evidence": "git ls-remote: d46fa47164f69dfba86e416e47e3cf7de496c360 refs/tags/v1.2.46",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3c-1",
+   "claim": "S9.3c-1 fixed: 9.3c (1.2.47): the two-tier Remnant description (Observe buys the first, Analyze the second); murder seen only by its people; perf()/whySlow(); Pack grouping and tags gone; projects on the map with one knowsProject; three sel",
+   "verdict": "stands",
+   "why": "Re-read: the public copy holds name, img, playerText and analyzedText (remnants.mjs:1300-1325), analyzedText marked as not public to every copy (:1414-1416); knowsProject at projects.mjs:271.",
+   "evidence": "remnants.mjs:1325 `analyzedText: entry?.described?.analyzedText || \"\"`; projects.mjs:271 `export function knowsProject(countdownId, user = game.user) {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3c-2",
+   "claim": "S9.3c-2 partly: 9.3c, not touched then: the launchers overlap the tab bar by 34 px, the same at 1920x993; at 280-320 px the Projects tile touches the launchers",
+   "verdict": "stands",
+   "why": "clearLaunchers exists (glass.mjs:1105); the phone half has no object by the owner's decision. Partly is fair; the 34 px overlap at 1920x993 itself was not re-measured by anyone.",
+   "evidence": "glass.mjs:1105 `function clearLaunchers() {`",
+   "status_after": "partly"
+  },
+  {
+   "ref": "S9.3d-1",
+   "claim": "S9.3d-1 fixed: 9.3d remark 1: the notice too small for its tile - flex: 1 0 auto on the card, the old max-height rule (148px * --drpg-sg-scale) deleted",
+   "verdict": "stands",
+   "why": "flex: 1 0 auto is on the card and the 148 px rule survives only in a comment; a max-height still stands on the card, but it is the fit variable times the scale, with the card's own scroll (overflow-y: auto).",
+   "evidence": "stained-glass.css:3508-3510 `flex: 1 0 auto; max-height: calc(var(--drpg-note-fit, var(--drpg-note-h)) * var(--drpg-note-scale)); overflow-y: auto;`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3d-2",
+   "claim": "S9.3d-2 fixed: 9.3d remark 2: a project's token gets the same frame as the Remnants (frameFor's project branch, colour from the token's own tint)",
+   "verdict": "stands",
+   "why": "Re-read.",
+   "evidence": "remnant-ring.mjs:33-37 'A PROJECT'S TOKEN WEARS THE SAME FRAME (Dawid, 16.09 ...)' and `import { projectIdOf } from \"./projects-map.mjs\";`; :845 `export function frameFor(tokenDoc, isRemnant) {`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3d-3",
+   "claim": "S9.3d-3 fixed: 9.3d remark 3: the right-hand tiles over the projects section - pinRightColumn reserves swing + slack; the filler cut from the band on its whole height; clearLaunchers; the strip ending past the floor",
+   "verdict": "stands",
+   "why": "Re-read.",
+   "evidence": "glass.mjs:1038 `const slack = r ? 14 + Math.round(r.height * Math.tan(STRIP_ANGLE)) : 0;`",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3d-T",
+   "claim": "S9.3d-T fixed: 9.3d measurement trap: liveSignature reads only BLOCKS, so rails added after load are not recut; a fifteen-tab rail must be in the HTML before load (written into CLAUDE.md)",
+   "verdict": "stands",
+   "why": "The warning stands in .claude/rules/code.md ('The glass harness does not recut for Foundry's own rails').",
+   "evidence": ".claude/rules/code.md 'A fifteen-tab rail has to be in the HTML before the page loads (rewrite the response with `page.route`).'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S9.3d-R",
+   "claim": "S9.3d-R fixed: 9.3d rejected after measurement: cutting the section pane out of the rail band; the pin from the band; calibrating the containing block for the column alone",
+   "verdict": "weakened",
+   "why": "The reader itself only suspected it ('not every rejected variant was matched to a comment line'); not matched here either. The three rejected variants (cutting the section pane out of the rail band; the pin from the band; calibration) were not each found in a comment.",
+   "evidence": "not read; the reader's confidence 'suspected'",
+   "status_after": "fixed (not established)"
+  }
+ ],
+ "counts": {
+  "checked": 121,
+  "stands": 112,
+  "weakened": 8,
+  "refuted": 1
+ },
+ "not_established": [
+  "Whether the curtain still reads 0 overlaps / 0 blocks off their pane / 0 edge gaps at the desk and tablet sizes of 9.3 on b5a29e73 (S9.3-M): audit/glass-sweep.mjs not run by anyone in this audit.",
+  "The GM/Monokuma and student/character/player halves of 3.2's terminology drift (S0-G2): not read key by key by the reader or here.",
+  "The 1.3.0-era frame cost on the budget machine (S0-G6, S9.3b-5): LIVE-E33-05, LIVE-E53-01, LIVE-E88-01; the high-end reading exists (LOCAL-REPORT.md:344-346).",
+  "The 9.3d rejected variants matched to their comments (S9.3d-R).",
+  "Whether a world-settings Restore writes the clock without setClock (S6-W).",
+  "The reader's '0 dead keys of 6369' (S6-H7) - its scratch run of tools/e56/keys.mjs was not repeated."
+ ]
+}

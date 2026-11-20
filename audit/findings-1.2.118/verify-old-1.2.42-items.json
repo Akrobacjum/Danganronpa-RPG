@@ -1,0 +1,332 @@
+{
+ "refuter": "verify-old-1.2.42-items",
+ "of": "old-1.2.42-items",
+ "checked": [
+  {
+   "ref": "ITEM-01",
+   "claim": "preservedFlags carries wear, and every change of owner copies through transferItem with preservedFlags",
+   "verdict": "stands",
+   "why": "Read preservedFlags and transferItem. Wear is written on the copy; the five transferItem callers are the five roads; the other grantItem callers make new things; the only other Item creation roads (trustedCreate at inventory.mjs:870, the overflow, and sheet-audit.mjs:2876, an Undo that re-creates the whole snapshot) are not copies of an owned item. The stack-join branch joins only a twin whose carriedAs - category, tier and preservedFlags, wear included - is the same, so a worn piece never joins a fresh stack. The tier-2 test seeds wear 2 and compares it on the copy; its result was not read (no base-run.json).",
+   "evidence": [
+    "scripts/inventory.mjs:169-170 'const worn = wearOf(item); if (worn) flags[ITEM_FLAGS.wear] = worn;'",
+    "scripts/inventory.mjs:1265-1266 '// Broken, wear, roles, identity, kind and a key's room, as the GMs hold them. extraFlags: preservedFlags(held),'",
+    "scripts/inventory.mjs:1313-1314 'function carriedAs(held) { return JSON.stringify([... category ..., ... tier ..., preservedFlags(held)]);'",
+    "scripts/tests-tier2.mjs:77186 'extraFlags: { [F.wear]: 2, [F.broken]: { at: from } } });'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-02",
+   "claim": "Room Setup's Bedrooms tab no longer writes the legacy concealment flag; the Stashes tab owns concealment",
+   "verdict": "stands",
+   "why": "git grep of drpgVaultConcealed and VAULT_FLAGS.concealed over scripts/ outside the tests: no writer but the reset's clear to false; setVaultRoom has no concealed parameter; Apply's row write passes none; the Stashes matrix writes through setStash and acts only on a cell the GM changed. The reader's stale-comment note holds: the flag is also read by unconcealStashes and carried by pieceData.",
+   "evidence": [
+    "scripts/vault-store.mjs:1409 '// `concealed` is never written here any more: `setStash` owns it (ITEM-02).'",
+    "scripts/room-setup.mjs:1049-1051 '// \"Stash hidden\" is the Stashes tab's business (ITEM-02): ...'",
+    "scripts/vault-store.mjs:1070 'if (legacy) update[`flags.${MODULE_ID}.${VAULT_FLAGS.concealed}`] = false;'",
+    "scripts/vault-store.mjs:123 'LEGACY, and read only through `stashesIn`'s fallback.' (also read at :1063)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-03",
+   "claim": "A proposed murder approved with nobody ticked keeps its proposer in the sealed audience",
+   "verdict": "stands",
+   "why": "createProject builds the audience from the viewers plus the owners of killerId ?? by; the approval window names the proposer first through killerIdFor and passes by. The tier-2 test creates an indirect murder with by alone and asks canSee for the builder on the GM; its result was not read.",
+   "evidence": [
+    "scripts/projects.mjs:2098-2100 'const audience = hidden ? Array.from(new Set([...viewers, ...ownerIdsOfId(killerId ?? by)])) : [];'",
+    "scripts/projects-ui.mjs:1577 'if (byActorId) return byActorId;'",
+    "scripts/tests-tier2.mjs:43788 'made = await P.createProject({ name: \"SUITE F3 trap\", indirectMurder: true, by: builder.id });'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-04",
+   "claim": "D4 is implemented: every way a Gear arrives readies it (status written as 'decision')",
+   "verdict": "weakened",
+   "why": "Status 'decision' is not one of the four of section 11.3. Every module road goes through grantItem or retrieve and both end on keepGearShape. But the old finding named 'compendium drag' among the acquisition roads, and that road is still counted by slots alone: preCreateItem asks canCarry and nothing else, and no createItem hook calls keepGearShape (git grep). A GM who drops a module Gear item from the sidebar, a compendium or another sheet onto a character holding one stowed Gear and an empty hand leaves two stowed. The reader itself wrote this road as a note and left it open. Part fixed, part open: partly, minor.",
+   "evidence": [
+    "scripts/inventory.mjs:918 'if (item && location === LOCATIONS.carried) await keepGearShape(actor, item, { quiet });'",
+    "scripts/inventory.mjs:1336-1337 'const room = canCarry(actor, category); if (room.ok) return;'",
+    "scripts/inventory.mjs:1319-1320 'Enforce the carry limits when items arrive by any other route - dragged from a compendium, handed over by another player, granted by the GM.'",
+    "audit/findings-1.2.42/items.md:136-137 'Every acquisition path - Search loot, GM give, handover, loot, theft, plant, `retrieve` from the stash, compendium drag - only asks `canCarry`'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "ITEM-05",
+   "claim": "stow clears the readied flag in its one write; retrieve runs the shape rule",
+   "verdict": "weakened",
+   "why": "Confirmed for every stow since the fix: the only writer of the stash location outside grantItem's overflow is stow, and it writes equipped false. But nothing clears the flag on an item that was stowed readied before the fix: migrate.mjs has no read of 'equipped' (grep: no hit), retrieve still writes only the place, and keepGearShape returns at once for an item already readied, so such an item comes out readied beside the one in the hand - the old defect, on legacy data. No test stows a readied item and reads the flag (the reader says so).",
+   "evidence": [
+    "scripts/stash-reach.mjs:122 '[`flags.${MODULE_ID}.equipped`]: false,'",
+    "scripts/stash-reach.mjs:193-194 '[`flags.${MODULE_ID}.${ITEM_FLAGS.location}`]: LOCATIONS.carried, [`flags.${MODULE_ID}.${ITEM_FLAGS.stashRoom}`]: null'",
+    "scripts/inventory.mjs:970 'if (isEquipped(item)) return false;'"
+   ],
+   "status_after": "fixed (for stows since 1.2.43; an item stashed readied before it is not cleaned up - unmeasured, nit)"
+  },
+  {
+   "ref": "ITEM-06",
+   "claim": "giveItem and lootBody refuse a stashed item; transferItem asks again",
+   "verdict": "stands",
+   "why": "Read all three: giveItem's stash test stands before the Truth Bullet and key branches; lootBody refuses a stashed item before transferItem; transferItem answers missing for a stashed item unless the mode is a rifle, which covers steal and plant too.",
+   "evidence": [
+    "scripts/handover.mjs:976 'if (isStashed(held)) {'",
+    "scripts/handover.mjs:547 'if (isStashed(held)) {'",
+    "scripts/inventory.mjs:1164 'if (!held || !doc || isStashed(held) !== (mode === \"rifle\")) return { missing: true };'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-07",
+   "claim": "The Tier 0 creative-use card carries Works, No effect and Refuse, each wired",
+   "verdict": "stands",
+   "why": "The card's three actions are in messenger-app's action table and reach one handler that consumes, opens the effect window or writes the refusal back.",
+   "evidence": [
+    "scripts/use-items.mjs:606-608 '{ action: \"itemWorks\", ... }, { action: \"itemNoEffect\", ... }, { action: \"itemRefuse\", ... }'",
+    "scripts/messenger-app.mjs:1399-1401 'itemWorks: ruleItemWorksOrItemNoEffectOrItemRefuse, itemNoEffect: ..., itemRefuse: ...'",
+    "scripts/messenger-app.mjs:953 'const ask = action === \"itemNoEffect\" ? async () => ({ amounts: {}, consume: true }) : () => askItemEffect(item);'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-08",
+   "claim": "Deleting a project in the manager and the season reset prune its plants and ledger rows",
+   "verdict": "stands",
+   "why": "Both roads the old finding named prune: a remove change queues pruneTrapsFor with the surviving ids, and clearAllProjects calls pruneTrapsFor(null) inside its step. No test pins it (the reader says so); the road through Daggerheart's own countdown window is closed for a GM by the tray's removed edit button, and a plant with no project is the reader's own open note.",
+   "evidence": [
+    "scripts/projects.mjs:1930 'after.push(async () => (await import(\"./traps.mjs\")).pruneTrapsFor(new Set(Object.keys(rows))));'",
+    "scripts/projects.mjs:2717-2718 'const { pruneTrapsFor } = await import(\"./traps.mjs\"); await pruneTrapsFor(null);'",
+    "scripts/projects-ui.mjs:122 'root.querySelector('[data-action=\"editCountdowns\"]')?.remove();'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-09",
+   "claim": "The finder's note is cleared by the season reset and when a stash is removed",
+   "verdict": "stands",
+   "why": "The reset's stashesFound group unsets the flag and unconceals; setStash with present false runs forgetStashFound, now before the return; the Stashes matrix removes a stash only through setStash present false.",
+   "evidence": [
+    "scripts/season-wipe.mjs:499-502 'stashesFound: async () => { await forgetAllStashesFound([actor]); await unconcealStashes(actor.id); }'",
+    "scripts/vault-store.mjs:956-958 'if (present === false) { try { await forgetStashFound(room, actorId, scene);'",
+    "scripts/room-setup.mjs:1155 'if (await setStash(room, actorId, { present: false, scene })) changed.add(room);'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-10",
+   "claim": "The free rifle's promise is gone, and the owner is now told of an unseen reach",
+   "verdict": "stands",
+   "why": "The sentence is not in lang/en.json (grep of 'notice it is gone': no hit); rifleNote reads as quoted; an unwatched reach leaves a pending notice delivered on entry through arrival-notices.mjs.",
+   "evidence": [
+    "lang/en.json:3222 '\"rifleNote\": \"It costs no action and no roll. A hidden stash you have not found has to be found first, with Analyze's Find Stash.\"'",
+    "scripts/stash-reach.mjs:582 'if (owner.id !== thief.id && !watched) await rifleStore.patch(reach, { unseen: true });'",
+    "scripts/arrival-notices.mjs:36 'm.tellStashDisturbed(actor, room, scene)'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-11",
+   "claim": "preCreateItem, retrieve and giveItem name the shared budget through capacityLabel",
+   "verdict": "stands",
+   "why": "git grep of capacityLabel and '.plural' over scripts/: the three refusals and the loot refusal read capacityLabel; the remaining category plural is the overflow whisper, the reader's own nit observation.",
+   "evidence": [
+    "scripts/inventory.mjs:1339 'category: capacityLabel(category),'",
+    "scripts/stash-reach.mjs:171 'category: capacityLabel(category),'",
+    "scripts/handover.mjs:1006 'category: foundry.utils.escapeHTML(capacityLabel(category)),'",
+    "scripts/inventory.mjs:846 'ITEM_CATEGORIES[category]?.plural ?? category)'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-12",
+   "claim": "The Take picker marks a stashed and a broken item",
+   "verdict": "stands",
+   "why": "Read the label builder; both keys exist under DRPG.Items in both language files (read by script: 'in the stash'/'w skrytce', 'Broken'/'Zepsuty').",
+   "evidence": [
+    "scripts/gm-items.mjs:1779-1780 '${isStashed(item) ? ` - ${game.i18n.localize(\"DRPG.Items.inStash\")}` : \"\"}${ isBroken(item) ? ` - ${game.i18n.localize(\"DRPG.Items.broken\")}` : \"\"}'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-13",
+   "claim": "The three give windows have generic titles",
+   "verdict": "stands",
+   "why": "Listed every title: in gm-items.mjs; the three give windows localize a key with no actor. The Take window still formats its title from the argument (gm-items.mjs:1790-1794), the reader's own nit.",
+   "evidence": [
+    "scripts/gm-items.mjs:499 'title: game.i18n.localize(\"DRPG.Vault.giveKey\"),'",
+    "scripts/gm-items.mjs:1055 'title: game.i18n.localize(\"DRPG.Items.give\"),'",
+    "scripts/gm-items.mjs:1487 'title: game.i18n.localize(\"DRPG.TruthBullet.give\"),'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-14",
+   "claim": "Create, the edit window and the manager refuse an indirect murder with nobody behind it",
+   "verdict": "stands",
+   "why": "All three window refusals read; announceTrapReady and traps.mjs read killerId ?? by, so the manager's acceptance when only by is set still has a killer. The console road the reader notes is real and outside the windows the finding named.",
+   "evidence": [
+    "scripts/projects-ui.mjs:1271-1273 'if (result.murder && !killerId) { ui.notifications.warn(game.i18n.localize(\"DRPG.Project.needsKiller\")); return null; }'",
+    "scripts/projects-ui.mjs:640 'if (!meta.killerId && !meta.by) {'",
+    "scripts/projects.mjs:2475-2476 'const killer = game.actors.get(meta.killerId ?? \"\") ?? game.actors.get(meta.by ?? \"\");'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-15",
+   "claim": "refreshTableCopy renames a table only from a name the module once gave it",
+   "verdict": "stands",
+   "why": "Read the whole loop: the one name write is behind the 'ours' test over the English candidates.",
+   "evidence": [
+    "scripts/tables-pools.mjs:290-291 'const ours = tableNameCandidates(category, tier, goal, { localized: false }).includes(table.name); if (ours && table.name !== wanted && !game.tables.getName(wanted)) update.name = wanted;'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-16",
+   "claim": "Key lists and a shared key's owner read every scene",
+   "verdict": "stands",
+   "why": "giveKeyDialog and the hub read allBedroomsAnywhere; grantBedroomKey falls back to bedroomOwnerAnywhere when no scene is named, and shareKey names none. git grep of workingScene(): no reader in the key roads.",
+   "evidence": [
+    "scripts/vault-store.mjs:311-312 'const owner = game.actors.get((scene ? vaultOwnerOf(room, scene) : null) ?? bedroomOwnerAnywhere(room) ?? \"\");'",
+    "scripts/gm-items.mjs:458 'const allBedrooms = typeof bedrooms === \"function\" ? bedrooms : allBedroomsAnywhere;'",
+    "scripts/handover.mjs:160 'const copy = await grantBedroomKey(to, room, { silent: true });'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-17",
+   "claim": "grantItem's doc comment names the shared Gear group",
+   "verdict": "stands",
+   "why": "The comment matches LIMIT_GROUPS (gear limit 2, maxStowed 1). Aside, not this item: the same comment's 'Refuses when the category is full' passes over the overflow into the stash (inventory.mjs:835-848).",
+   "evidence": [
+    "scripts/inventory.mjs:768-769 'Refuses when the category is full rather than silently exceeding the limit - the carry limits (see LIMIT_GROUPS: one shared two-slot Gear group) are the rule.'",
+    "scripts/config.mjs:964 'limit: 2,'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "ITEM-18",
+   "claim": "One recipientOptions builder in gm-items.mjs; no other student option builder left",
+   "verdict": "weakened",
+   "why": "The gm-items.mjs half holds: one helper, five callers. The old finding also counted 'once in projects-ui'; the task-13 commit b888c066 did not touch projects-ui.mjs, and the option builder there before it (b888c066^:scripts/projects-ui.mjs:619, '.map(u => `<option value=\"${u.id}\">...') stands today at projects-ui.mjs:1720. It lists users, not students, so it may not be the same builder - but the reader's grep ('.map(a => `<option') could not see it either way.",
+   "evidence": [
+    "scripts/gm-items.mjs:32 'function recipientOptions(students, selectedId) {'",
+    "scripts/projects-ui.mjs:1720 '.map(u => `<option value=\"${u.id}\">${foundry.utils.escapeHTML(u.name)}</option>`)'"
+   ],
+   "status_after": "fixed (gm-items.mjs); the projects-ui.mjs builder left, nit"
+  },
+  {
+   "ref": "ITEM-LC1",
+   "claim": "The live check's box does not exist any more",
+   "verdict": "stands",
+   "why": "Room Setup has no Stash hidden column (R7301's row names the leftover cell removed in 1.2.115); concealment is the Stashes matrix's per-stash state.",
+   "evidence": [
+    "scripts/room-setup.mjs:143 'return entry.concealed ? \"hidden\" : \"open\";'",
+    "docs/dev/R-REGISTRY.md:1680 '| R7301 | 1 | E56 | Room setup draws every cell it builds ...'"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "ITEM-LC2",
+   "claim": "Live check 2 answered by code: the proposer is in the sealed audience",
+   "verdict": "weakened",
+   "why": "Status 'fixed' is not a live check's status. A live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3 lists read, open, partly, obsolete for a live check - not 'fixed'). The reader found no reading in live-readings-e58.json or live-readings-other.json; the code read answers the headless half only. Also one cited step is wrong: ownershipMap does not read the audience - it gives every player OBSERVER and the module's tray and canSee filter by the GMs' store, with the player's own browser reading only a card (toldSight). The Daggerheart tray on the proposer's real client is what the check asks and was not read.",
+   "evidence": [
+    "scripts/projects-secrecy.mjs:376-379 'const map = { default: NONE }; for (const user of game.users) { if (user.isGM) continue; map[user.id] = OBSERVER; }'",
+    "scripts/projects-secrecy.mjs:336 'if (!game.user?.isGM) return user?.id === game.user?.id && toldSight(countdownId)?.in === true;'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "ITEM-LC3",
+   "claim": "Live check 3 answered by code: one badge stands",
+   "verdict": "weakened",
+   "why": "Status 'fixed' is not a live check's status. A live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3 lists read, open, partly, obsolete for a live check - not 'fixed'). The reader found no reading in live-readings-e58.json or live-readings-other.json; the code read answers the headless half only. The badge count on a real sheet was not read, and the legacy road of ITEM-05 (an item stashed readied before 1.2.43) still gives two readied.",
+   "evidence": [
+    "scripts/stash-reach.mjs:122 '[`flags.${MODULE_ID}.equipped`]: false,'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "ITEM-LC4",
+   "claim": "Live check 4 answered by code: the plant is pruned",
+   "verdict": "weakened",
+   "why": "Status 'fixed' is not a live check's status. A live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3 lists read, open, partly, obsolete for a live check - not 'fixed'). The reader found no reading in live-readings-e58.json or live-readings-other.json; the code read answers the headless half only. No test and no run covers the sequence (the reader says so).",
+   "evidence": [
+    "scripts/traps.mjs:605 'const deadPlants = Object.entries(plants()).filter(([, entry]) => !alive(entry?.projectId)).map(([key]) => key);'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "ITEM-LC5",
+   "claim": "Live check 5 answered by code: the GM's name stays",
+   "verdict": "weakened",
+   "why": "Status 'fixed' is not a live check's status. A live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3 lists read, open, partly, obsolete for a live check - not 'fixed'). The reader found no reading in live-readings-e58.json or live-readings-other.json; the code read answers the headless half only.",
+   "evidence": [
+    "scripts/tables-pools.mjs:290 'const ours = tableNameCandidates(category, tier, goal, { localized: false }).includes(table.name);'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "ITEM-LC6",
+   "claim": "Live check 6 answered by code: keys listed from every scene",
+   "verdict": "weakened",
+   "why": "Status 'fixed' is not a live check's status. A live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3 lists read, open, partly, obsolete for a live check - not 'fixed'). The reader found no reading in live-readings-e58.json or live-readings-other.json; the code read answers the headless half only.",
+   "evidence": [
+    "scripts/vault-store.mjs:1189-1191 'export function allBedroomsAnywhere() { const seen = new Map(); for (const scene of game.scenes ?? []) {'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "ITEM-LC7",
+   "claim": "Live check 7 answered by code: the hub's holdings follow a stow",
+   "verdict": "weakened",
+   "why": "Status 'fixed' with the reader's own confidence 'suspected' contradict each other. A live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3 lists read, open, partly, obsolete for a live check - not 'fixed'). The reader found no reading in live-readings-e58.json or live-readings-other.json; the code read answers the headless half only. The keepLive region and the item hooks are as cited; nothing reads the region after another client's write.",
+   "evidence": [
+    "scripts/gm-items.mjs:149-155 'keepLive(dialog, { region: \".drpg-holdings-live\", build: holdings, ... watch: { items: true, actors: true } });'",
+    "scripts/live.mjs:72 'const ITEM_HOOKS = [\"createItem\", \"deleteItem\", \"updateItem\"];'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "ITEM-LC8",
+   "claim": "Live check 8 answered by code: the gmOnly alert is filed in no thread",
+   "verdict": "weakened",
+   "why": "Status 'fixed' is not a live check's status. A live check is closed only by a recorded reading, never by reasoning (section 11.2 U11; 11.3 lists read, open, partly, obsolete for a live check - not 'fixed'). The reader found no reading in live-readings-e58.json or live-readings-other.json; the code read answers the headless half only. The code claim holds (gmOnly gives no owner thread). The pin is weaker than written: 30-security 7l2 measures that p2's copy of the card holds no name of the trap, not that the card is absent from the killer's messenger thread; the base run's result of it was not read (no base-run.json). LOCAL-REPORT.md:432 lists the firing trap as not driven.",
+   "evidence": [
+    "scripts/call-gm.mjs:951 'const owner = gmOnly ? null : threadOf(actor, thread);'",
+    "audit/harness/scenarios/30-security.mjs:2351 'check(\"SECURITY: a trap's alert card names the trap in the GMs' words, and nowhere in p2's copy of the card\",'",
+    "docs/dev/e58/LOCAL-REPORT.md:432 '| S7-6, S7-10, S7-11, 16 | left | not yet driven: a trap that fires ...'"
+   ],
+   "status_after": "open"
+  }
+ ],
+ "counts": {
+  "checked": 26,
+  "stands": 16,
+  "weakened": 10,
+  "refuted": 0
+ },
+ "status_changes": [
+  "ITEM-04 decision -> partly: 'decision' is no status of 11.3; the Foundry-drop road the old finding named (compendium drag) still counts slots only, preCreateItem with no keepGearShape",
+  "ITEM-LC2 fixed -> open: a live check closes only on a recorded reading; ownershipMap does not read the audience",
+  "ITEM-LC3 fixed -> open: no reading; code answers the headless half",
+  "ITEM-LC4 fixed -> open: no reading, no test",
+  "ITEM-LC5 fixed -> open: no reading",
+  "ITEM-LC6 fixed -> open: no reading",
+  "ITEM-LC7 fixed -> open: no reading; reader's own confidence suspected",
+  "ITEM-LC8 fixed -> open: no reading; 30-security 7l2 pins the card's words on p2, not the thread"
+ ],
+ "notes": [
+  "The reader's file has no item with status 'open', so the sample of 5 open items checked the other way could not be drawn: zero open items to sample.",
+  "Every new_observations entry is severity nit; none is minor or above, so none was in scope. Two were glanced at and hold: the Take window's title from the argument (gm-items.mjs:1790-1794) and the overflow whisper's category plural (inventory.mjs:846).",
+  "Aside, not an item of this file: projects-secrecy.mjs:347-349 says secrecy is 'enforced through the countdown's own ownership map - default NONE, with explicit access for the killer', while ownershipMap (:370-381) gives every player OBSERVER and the GMs' store decides; a comment against code, nit."
+ ],
+ "not_established": [
+  "ITEM-04: whether Daggerheart 2.x's own item drop on a character sheet keeps the module's flags (category, location, equipped) as dragged; new live check: as GM drag a module Gear from one sheet (or the sidebar) onto a student holding one stowed Gear and an empty hand, read the student's Gear shape.",
+  "ITEM-05: whether any live world holds an item stashed readied before 1.2.43; new live check: on an old world, list stashed items with flags equipped true (a console read), retrieve one beside a readied item, count readied.",
+  "No pinning test's result was read: audit/findings-1.2.118/base-run.json does not exist at the time of this check.",
+  "ITEM-LC2 to LC8: the readings themselves (a real table), as each check states."
+ ]
+}

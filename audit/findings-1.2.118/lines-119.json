@@ -1,0 +1,672 @@
+{
+ "audited": "main b5a29e73 (1.2.118)",
+ "method": "U13, audit/AUDIT-1.2.42.md 11.2",
+ "lines": [
+  {
+   "branch": "claude/plan-119",
+   "exists": true,
+   "head": "3b73017a19402226449d9f60a55e06f0bd87a91d",
+   "merge_base": "b5a29e73",
+   "commits": [
+    "3b73017a A refutes-loop no longer recurses the planner's layout without end, so the Map opens on it",
+    "de1d5072 The open planner also redraws on the map's changes it shows, and while the GM types",
+    "88ad9a26 The open planner redraws when the case changes with a GM's focus in a field nobody typed in",
+    "54dfe583 A node removed from the planner takes its links with it, and what an old removal left is cut",
+    "0f904621 The planner's Move up and down act on the column the Map draws, and say when a node cannot move further"
+   ],
+   "files_changed": 10,
+   "files": [
+    "docs/dev/R-REGISTRY.md",
+    "lang/en.json",
+    "lang/pl.json",
+    "scripts/case-layout.mjs",
+    "scripts/case-schema.mjs",
+    "scripts/investigation.mjs",
+    "scripts/live.mjs",
+    "scripts/remnants.mjs",
+    "scripts/tests-tier1.mjs",
+    "scripts/tests-tier2.mjs"
+   ],
+   "what": [
+    "case-layout.mjs layoutCase/depthOf: a `working` set; a node reached again while its depth is worked out reads as 1, so two counters refuting each other, or a counter refuting the deduction resting on it, no longer recurse until RangeError and the Map opens (R7802).",
+    "live.mjs keepLive: new opt-in `whileEditing` - the region rebuilds with the focus in a named field, typed in or not; text carried by capture/restore, focus and caret given back (keptFocus, giveFocusBack), a field changed under the GM marked drpg-moved-under; a SELECT, a nameless field and an IME composition (compositionstart/end) still hold the rebuild. Only investigation.mjs openInvestigationDashboard (region .drpg-case-live, the Map and the Table) passes it.",
+    "live.mjs listenFor: new `watch.where` [[hook, test]]; investigation.mjs CASE_WATCH hears a Remnant token made/deleted or its flag changed (remnants.mjs traceTokenHeard, new), a region made/deleted/renamed/marked a room, a scene made/deleted/renamed; no player token move.",
+    "case-schema.mjs: dropCaseNode now cuts the removed id from every other row's inputs and refutes (refsCut, pure), a planned Autopsy's id excepted; pruneDroppedRefs (droppedRefs, pure) runs at every openInvestigationDashboard and cuts references to tombstoned rows; cutRemnantRefs called from investigation.mjs deleteTraceRow. The schema editor draws each reference the graph could not join as a ticked 'gone' box (DRPG.CaseMap.goneRef) so a Save can drop it. DRPG.CaseMap.removeAsk reworded.",
+    "investigation.mjs: caseMapGraph(reading) split out of caseMapRegion; moveCaseNode now takes `reading` and lays out the Map's own graph (Key slots unwritten, planned Autopsies), and tells the GM DRPG.CaseMap.moveEnd.up/down when a node cannot move."
+   ],
+   "papers": "No docs/dev/*119*/ folder and no release-notes draft on the branch. Its papers are the five commit messages (owner quotes of 19-20.11.2026, red-first readings, mutants) and R-REGISTRY rows R7800-R7802."
+  },
+  {
+   "branch": "claude/planlook-119",
+   "exists": true,
+   "head": "1096f76a8c281a6e203e056b8bae7ec338080ae9",
+   "merge_base": "b5a29e73",
+   "commits": [
+    "1096f76a line P round 4b: a trial mode a shade of the deduction's or counter's colour",
+    "240a5d94 line P round 4: a deduction and its lines in its Class Trial mode's colour",
+    "d921c9cf line P round 3: arrows grouped by source, in its colour, no shared stretch",
+    "87b21526 line P round 2: square grouped arrows, the schema's kinds in colour",
+    "0da0a479 line P: the legend's measured cost, and a faces capture for the shots",
+    "850c64f9 line P: the planner's Remnant types in colour, its arrows readable"
+   ],
+   "files_changed": 11,
+   "files": [
+    "audit/harness/probes/08-capture-windows.mjs",
+    "docs/dev/R-REGISTRY.md",
+    "docs/handbooks/gm-handbook.en.md",
+    "docs/handbooks/gm-handbook.pl.md",
+    "lang/en.json",
+    "lang/pl.json",
+    "scripts/case-map.mjs",
+    "scripts/case-view.mjs",
+    "scripts/tests-tier0.mjs",
+    "styles/components.css",
+    "tools/contrast-pairs.json"
+   ],
+   "what": [
+    "Presentation only, the planner's Map. case-map.mjs: CASE_TYPE_ORDER, caseTypeOf, CASE_KIND_ORDER, CASE_MODE_ORDER, typeAttrs - each Remnant node in its type's colour, a deduction/counter/solution in its kind's, a deduction or counter with a Class Trial mode in a shade of its kind's colour; caseLegendHtml, a legend in the camera strip (cameraHtml gains `legend`); arrowDefs, one arrowhead pair per colour; lines in their source's colour over halos; pointer/focus lights a node's edges (lightEdges).",
+    "case-view.mjs: routeEdges (square routes grouped by source, one track per source, own ports on the target, three track orders tried for fewest crossings), edgeEnd, ROUTE constants; relayoutCaseMap routes again at measured places.",
+    "styles/components.css: the colour tokens; tools/contrast-pairs.json: 28 mode pairs and the type/kind pairs at AA. lang: DRPG.CaseMap.legendLabel 'Colors on the Map'. GM handbook section 14."
+   ],
+   "papers": "No docs/dev/*119*/ folder; commit messages (owner quotes 20.11.2026, Chromium measurements via audit/case-map-sweep.mjs and probe 08), R-REGISTRY rows (R7821-R7832 range per the messages), GM handbook section 14 EN/PL."
+  },
+  {
+   "branch": "claude/trial-119",
+   "exists": true,
+   "head": "cdcb27f99bda7e3fa863ff4abfd261d1486804aa",
+   "merge_base": "b5a29e73",
+   "commits": [
+    "cdcb27f9 line T: Logic Dive and Scrum Debate never close early; the Closing's music waits for its speaker"
+   ],
+   "files_changed": 17,
+   "files": [
+    "audit/harness/scenarios/68-trial-zones.mjs",
+    "docs/dev/R-REGISTRY.md",
+    "docs/handbook-facts.player-handbook.en.json",
+    "docs/handbooks/gm-handbook.en.md",
+    "docs/handbooks/gm-handbook.pl.md",
+    "docs/handbooks/player-handbook.en.md",
+    "docs/handbooks/player-handbook.pl.md",
+    "lang/en.json",
+    "lang/pl.json",
+    "scripts/config.mjs",
+    "scripts/events.mjs",
+    "scripts/hud.mjs",
+    "scripts/music-states.mjs",
+    "scripts/tests-tier1.mjs",
+    "scripts/trial-floor.mjs",
+    "scripts/trial-zones.mjs",
+    "scripts/zone-machine.mjs"
+   ],
+   "what": [
+    "Logic Dive: zone-machine.mjs zoneStep's `due` is refused before the phase's clock runs out whatever the sides; `unanimous` (zone-machine.mjs), `zoneEarly` (trial-zones.mjs) and config.mjs TRIAL.modes.zones.dive.earlyAfterSeconds removed; trial-floor.mjs isDue moves a zone mode by its clock alone; zoneCtxOf no longer passes `participants` (R7840).",
+    "Scrum Debate: zone-machine.mjs scrumTurn - a camp emptied in the turns ends nothing; a turn falling to an empty camp runs its turnSeconds with holderId null and the card DRPG.Zones.scrum.noSpeaker; after the last turn exactly one empty camp gives the other camp's answer as the Finding (scrumEmpty). hud.mjs trialSlotFace says DRPG.Hud.trialNoSpeaker; events.mjs trialFloorCard shows no name for such a turn (R7841).",
+    "Music: music-states.mjs ownModeState gives the Closing Argument its own state only in `speak` and `decide` (CLOSING_OWN_PHASES); `volunteer` and `choice` play the discussion's row (R7842). lang DRPG.Music trialNote extended."
+   ],
+   "papers": "No docs/dev/*119*/ folder; one commit message (owner items #4, #5, #9; red at b5a29e73, mutants 6/6), R-REGISTRY R7840-R7842 and R3907 reworded, GM handbook 15.2 and 17, player handbook 12 and 17.12 EN/PL, the player handbook facts file, scenario 68 C5-C7."
+  },
+  {
+   "branch": "claude/fog-119",
+   "exists": true,
+   "head": "fc190a65e135664d78ff816364daa9a4a70ab57f",
+   "merge_base": "b5a29e73",
+   "commits": [
+    "fc190a65 GM handbook PL 8: 'zadne Eclipse', neuter (T11, the text lint's loanGender)",
+    "0e359c53 F119: a Spectator's walk is no crossing on the primary - no Eclipse count, no record, no Keep Watch",
+    "19a04e88 F119: a deleted actor's row in R7862 and in scenario 97 J; the handbook says a character put back brings its rooms",
+    "2c87b5b9 F119: the GM's fog counts the Fog tab's students alone, so Hide all clears the GM's map",
+    "09c3a3f8 F119: a write is stamped above a reset whose cut runs ahead of this clock; the GM is told"
+   ],
+   "files_changed": 14,
+   "files": [
+    "audit/AUDIT-1.2.42.md",
+    "audit/harness/README.md",
+    "audit/harness/scenarios/93-spectator.mjs",
+    "audit/harness/scenarios/97-two-gms.mjs",
+    "docs/dev/R-REGISTRY.md",
+    "docs/handbooks/gm-handbook.en.md",
+    "docs/handbooks/gm-handbook.pl.md",
+    "lang/en.json",
+    "lang/pl.json",
+    "scripts/fog.mjs",
+    "scripts/gm-store.mjs",
+    "scripts/movement.mjs",
+    "scripts/tests-text.mjs",
+    "scripts/tests-tier1.mjs"
+   ],
+   "what": [
+    "movement.mjs judgeArrival: a token whose actor carries the Spectator flag as the GMs hold it (judgeReaders.flagsHeldNow, else the document) is treated as a token of no character (standingHere): no verdict, no eclipseSighting count, no noteCrossing record, so no crossing settle and no Keep Watch arrival whisper. Cites the audit finding domain-map-b-movement-1 (R7863, scenario 93 'ghost').",
+    "fog.mjs ledgerRooms: counts only the rows of studentActors() (new `students` option, studentIds helper), the Mastermind still left out; used on the GM's branches (fog.mjs:1852, 2812), so Hide all on Room setup's Fog tab clears the GM's map; nothing deleted (R7862, scenario 97 J).",
+    "gm-store.mjs: stampOver/floorOf - patch, patchMany, drop, dropMany and clear are stamped above every stamp their keys (or, for clear, the section) hold, so a reset whose cut runs ahead of this browser's clock no longer cuts every later write; tellAhead posts a permanent notice once per store and browser (DRPG.GmStore.cutAhead, plural, EN/PL); receiveCopy caps incoming stamps at max(now, cut) + skew so a player's copy accepts the GMs' rows (R7860, R7861, scenario 97 I).",
+    "GM handbook sections 8 and 9.2 EN/PL; AUDIT 9.2 items 664 (LIVE-F119-01) and 665 (LIVE-F119-02)."
+   ],
+   "papers": "No docs/dev/*119*/ folder; commit messages, R-REGISTRY R7860-R7863, AUDIT-1.2.42.md 9.2 items 664-665, harness README rows 93 and 97, GM handbook 8 and 9.2."
+  },
+  {
+   "branch": "claude/day-119",
+   "exists": true,
+   "head": "90f1c51c51574da2285b7508e27e1e4d32a9be0f",
+   "merge_base": "b5a29e73",
+   "commits": [
+    "90f1c51c A Call's lines for its card name a masked student '?'",
+    "f5c8f041 The words a GM kept under a mask stay cut after it ends, unless the killer revealed",
+    "336a28b7 Red first: a card's words kept under a mask stay cut after it ends (test only)",
+    "937a98b0 A Call aimed at a masked student names them '?' on the buyer's screen",
+    "50a2de6b Drop the Actors list change: a player has no Actors list",
+    "a46dbe4a The Actors list's contract row in the table's words",
+    "a8d4efb8 The Actors list's hook in the contract register and the census",
+    "b503f869 The mask ends before every advance, and a player's Actors list ties the '?' to no name",
+    "ad0baade The hour of a body's announcement ends on the day's board, twice in a row"
+   ],
+   "files_changed": 15,
+   "files": [
+    "audit/harness/scenarios/21-masked-killer.mjs",
+    "audit/harness/scenarios/69-day-boards.mjs",
+    "docs/dev/R-REGISTRY.md",
+    "docs/handbooks/gm-handbook.en.md",
+    "docs/handbooks/gm-handbook.pl.md",
+    "scripts/call-effects.mjs",
+    "scripts/calls.mjs",
+    "scripts/clock.mjs",
+    "scripts/mask-gm.mjs",
+    "scripts/secret.mjs",
+    "scripts/sequence.mjs",
+    "scripts/settings.mjs",
+    "scripts/tests-tier1.mjs",
+    "scripts/tests-tier2.mjs",
+    "scripts/transitions.mjs"
+   ],
+   "what": [
+    "calls.mjs describeChoice: the target named nameAsSeen(choice.target) instead of choice.target.name, so the confirmation's 'Aimed at' line on the buyer's screen shows a masked student as '?'; call-effects.mjs refusalBeforePaying names the target nameAsSeen too (937a98b0; scenario 21 'outside the fight').",
+    "call-effects.mjs: cardName (isMaskedActor ? MASK_NAME : name) on the five effect lines that go onto a Call's card - grantEffect (armed), hopeFromDespairEffect (hopeGranted), damageEffect (damaged), silenceEffect, chainEffect - so a Despair Call's public card names a masked target '?' for every reader (90f1c51c).",
+    "secret.mjs: remember keeps on a GM `hid` (who stood behind a mask when the words came, from mask-gm.mjs maskedNow through setNameMask's new `masked`); wordsFor(userId, html, hid) also cuts those names (heldMaskNames) for every non-GM reader who does not own the actor; answerWordsRequest and updateSecret/sendWords pass the held hid; forgetHeldMask(actorId) drops them on endMask(..., 'reveal') (f5c8f041).",
+    "clock.mjs advanceTimeOfDay: endMasksBeforeTheBoard runs before every advance, not only the roll-over (b503f869, kept part).",
+    "Body-announcement boards: sequence.mjs bodyBoardPatch (pure) stamps clock.bodyBoard when an advance leaves the time of day of an official announcement; transitions.mjs bodyBoardsOf plays the end then the start board on every browser; settings.mjs DEFAULT_CLOCK.bodyBoard null; playDayStart/playDayEnd take a key (ad0baade; scenario 69 'body').",
+    "Tried and reverted: a renderActorDirectory 'maskDirectory' for the players' Actors list (b503f869, a8d4efb8, a46dbe4a reverted by 50a2de6b, on the reading that body.drpg-player hides #sidebar so no player reaches the Actors list in the interface). The final diff of mask-gm.mjs carries only maskedNow, the reveal hook and setNameMask's `masked`."
+   ],
+   "papers": "No docs/dev/*119*/ folder; the nine commit messages (audit items B and C and the blocker relayed through the coordinator 20.11.2026, red readings, mutants), R-REGISTRY rows (R7880-R7882, R7882 marked removed), GM handbook EN/PL (the killer behind a '?', the clock's boards), scenarios 21 and 69."
+  },
+  {
+   "branch": "claude/sheet-119",
+   "exists": true,
+   "head": "7d34d3bab7861955d7b99eeb0ba9a58de6e05439",
+   "merge_base": "b5a29e73",
+   "commits": [
+    "7d34d3ba LIVE-S119-03 (AUDIT 9.2 item 675): an item that is not broken thrown away at a table",
+    "bc1a0457 an item can be thrown away whether or not it is broken; what the module only copies cannot",
+    "f5319776 #11 more (1/5 fix) - the sheet's render reads the character check once",
+    "4fdcc9e9 #11 more - LIVE-S119-01 names the five places added",
+    "761e1f51 #11 more (5/5) - the token HUD waits for a roll's dice",
+    "1567303c #11 more (4/5) - the Party sheet waits for a roll's dice",
+    "c2e5d6be #11 more (3/5) - a roll's spill into the Overflow waits for the dice on the GM that writes it",
+    "a87c7f82 #11 more (2/5) - a Reroll's Hope and Despair wait for the Reroll's dice",
+    "a06d2b9c #11 more (1/5) - a roll's write the sheet renders in full waits for the dice too",
+    "893bfad1 #11 fix - the repaint waits only while a roll's dice are in flight here",
+    "fff080ad #11 - a roll's Hope and Despair are shown when this browser's dice of the roll have landed",
+    "8d038e0f #10 - the sheet's effect badges pile on one another instead of stretching the header"
+   ],
+   "files_changed": 33,
+   "files": [
+    "audit/AUDIT-1.2.42.md",
+    "audit/harness/client-entry.mjs",
+    "audit/harness/cluster.mjs",
+    "audit/harness/scenarios/40-flow.mjs",
+    "audit/pending-pile.mjs",
+    "docs/dev/R-REGISTRY.md",
+    "docs/handbooks/gm-handbook.en.md",
+    "docs/handbooks/gm-handbook.pl.md",
+    "docs/handbooks/player-handbook.en.md",
+    "docs/handbooks/player-handbook.pl.md",
+    "eslint.config.mjs",
+    "lang/en.json",
+    "lang/pl.json",
+    "scripts/despair-award.mjs",
+    "scripts/despair.mjs",
+    "scripts/dice-hold.mjs",
+    "scripts/hud.mjs",
+    "scripts/inventory.mjs",
+    "scripts/module.mjs",
+    "scripts/private-rolls.mjs",
+    "scripts/reroll.mjs",
+    "scripts/roll-draw.mjs",
+    "scripts/settings.mjs",
+    "scripts/sheet-audit.mjs",
+    "scripts/sheet-header.mjs",
+    "scripts/sheet-inventory.mjs",
+    "scripts/sheet-repaint.mjs",
+    "scripts/sheet.mjs",
+    "scripts/tests-tier1.mjs",
+    "scripts/tests-tier2.mjs",
+    "scripts/use-items.mjs",
+    "styles/danganronpa.css",
+    "tools/css-budget.json"
+   ],
+   "what": [
+    "New scripts/dice-hold.mjs: a roll's writes name its chat message (drpgDiceOf); each browser draws a roll's Hope and Despair only when its own dice of that message have landed (Dice So Nice's waitFor3DAnimationByMessageID and the module's throws, bounded by diceSettleMs). Values are written as before; only the drawing waits. Held: sheet-repaint.mjs installRenderPlan (repaint and, while dice fall, the full render), settings.mjs onDespairPoolsChange and onOverflowStoreChange, the Party sheet (holdAppRenders at sheet.mjs renderPartySheet) and the token HUD (hud.mjs renderTokenHUD listener).",
+    "Writers stamped: roll-draw.mjs throwDrawn (stampRollWrites) and playBack (noteThrow); despair-award.mjs awardRollDespair gains `dice` and names the message on adjustDespair/spillFrom/takeOverflow; despair.mjs adjustDespair, writePool and spillFrom gain `dice` (stampLocal around addOverflow); reroll.mjs makeReroll and settleDespair; private-rolls.mjs relayRerolledDice/showRelayedDice note throws.",
+    "Sheet header: sheet-header.mjs pendingStack ends in pileStack/pileIndexAt - the effect badges stack in one grid cell, the one under the pointer raised; danganronpa.css 'THE PILE' (R7900).",
+    "Discard: inventory.mjs onlyCopied (a Truth Bullet or a bedroom key); sheet-inventory.mjs addDiscardButton, use-items.mjs discardBroken and sheet-audit.mjs itemFindings ask onlyCopied instead of isBroken, so any other item can be thrown away by the same priced road; DRPG.Items.discardOnlyBroken replaced by DRPG.Items.discardNever (R7906, S119-T7, scenario 40).",
+    "AUDIT 9.2 items 664 (LIVE-S119-01), 665 (LIVE-S119-02), 675 (LIVE-S119-03); handbooks EN/PL one sentence each."
+   ],
+   "papers": "No docs/dev/*119*/ folder; the twelve commit messages, R-REGISTRY rows (R7900-R7906), AUDIT-1.2.42.md 9.2 items 664, 665 and 675, audit/pending-pile.mjs (a Chromium measurement script), handbooks. Note: fog-119 adds AUDIT 9.2 items 664 and 665 too (LIVE-F119-01/02), so the two lines number two different live checks 664 and 665."
+  }
+ ],
+ "matches": [
+  {
+   "finding_id": "domain-comm-b-calls-1",
+   "severity": "blocker",
+   "line": "claude/day-119",
+   "relation": "addresses",
+   "evidence": "calls.mjs describeChoice (937a98b0): `-    if (choice.target?.name) return choice.target.name;` / `+    if (choice.target?.name) return nameAsSeen(choice.target);` - the 'Aimed at' line confirmCall builds from describeChoice (calls.mjs:721, 769-770) now reads '?' on a bystander's or the victim's screen while the mask stands; call-effects.mjs refusalBeforePaying also `const name = target ? nameAsSeen(target) : \"\"` for the refusals read before paying. The commit reports scenario 21 'outside the fight' red at 50a2de6b (named true, aimedAtQ false) and green after; not rerun here."
+  },
+  {
+   "finding_id": "domain-comm-b-calls-2",
+   "severity": "major",
+   "line": "claude/day-119",
+   "relation": "addresses",
+   "evidence": "call-effects.mjs (90f1c51c): `const cardName = actor => (isMaskedActor(actor) ? MASK_NAME : actor?.name ?? \"\");` used in grantEffect (`name: cardName(beneficiary)`, Obstacle/Approval), hopeFromDespairEffect, damageEffect (Pain, Paranoia), silenceEffect and chainEffect - the `done` lines calls.mjs:525-534 puts on the public card. cardName reads the mask on the posting browser and writes '?' for every reader, GMs included. Not checked: lines of other effects (e.g. destroyItemEffect) and the card's `note` blockquote, which the finding does not name."
+  },
+  {
+   "finding_id": "domain-core-b-secret-1",
+   "severity": "major",
+   "line": "claude/day-119",
+   "relation": "addresses",
+   "evidence": "secret.mjs (f5c8f041): remember stores `hid` (`heldMaskOf(read()[id]?.hid, maskedNow())`, GM only); `wordsFor(userId, html, hid)` cuts `[...nameMask(userId), ...heldMaskNames(userId, hid)]`; answerWordsRequest passes `entry.hid`, updateSecret passes `{ hid: read()[message.id]?.hid }` to sendWords; mask-gm.mjs endMask calls forgetHeldMask only on why === 'reveal'. Left as the line says: a card remembered before 1.2.119 carries no hid, and another GM's store keeps the words cut after a reveal. The commit reports the tier 2 'E119 - a card's words kept while a mask stood ...' red at 937a98b0 and green; not rerun here."
+  },
+  {
+   "finding_id": "domain-map-c-rooms-1",
+   "severity": "major",
+   "line": "none",
+   "relation": "unrelated",
+   "evidence": "handover.mjs is in no line's diff. day-119's mask-gm.mjs hunk adds maskedNow after nameAsSeen (148-158), nameAsSeen itself unchanged (it masks a masked actor, not a veiled one); fog-119's movement.mjs hunk is judgeArrival at 1055, not countsAsPresent at 3761-3816. The veiled killer in the hand-over list stands as on b5a29e73."
+  },
+  {
+   "finding_id": "domain-comm-c-voice-1",
+   "severity": "major",
+   "line": "none",
+   "relation": "unrelated",
+   "evidence": "voice.mjs, voice-tile.mjs and camera-view.mjs are in no line's diff; day-119's mask-gm.mjs change (maskedNow, reveal hook) does not reach mask-gm.mjs:14-17 or 370-375 nor the veil. Stands as on b5a29e73."
+  },
+  {
+   "finding_id": "domain-map-b-movement-1",
+   "severity": "major",
+   "line": "claude/fog-119",
+   "relation": "addresses",
+   "evidence": "movement.mjs judgeArrival (0e359c53): `-    if (!actor || actor.type !== \"character\") now = standingHere(tokenDoc);` / `+    if (!actor || actor.type !== \"character\" || (judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor).getFlag?.(MODULE_ID, FLAGS.spectator)) now = standingHere(tokenDoc);` - a Spectator's token skips the verdict, eclipseSighting and noteCrossing, so no crossingStore row and no settle for Keep Watch's onWatchCrossing. The commit cites this finding by id and reports scenario 93 'ghost' 18/19 red on 19a04e88 and 19/19 green, R7863; not rerun here. Not measured per the line: a real drag on v14 (LIVE-F119-02)."
+  },
+  {
+   "finding_id": "refresh-01-04-1",
+   "severity": "major",
+   "line": "claude/plan-119",
+   "relation": "addresses",
+   "evidence": "In part. live.mjs keepLive (88ad9a26, de1d5072): `+        const keep = !force && whileEditing && !composing && isEditing(element) ? keptFocus(element) : null;` / `-        if (!force && isEditing(element)) {` `+        if (!force && !keep && isEditing(element)) {` and `if (keep) giveFocusBack(next, keep);` after the rebuild. Only investigation.mjs openInvestigationDashboard passes `whileEditing: true` (git grep on the branch), whose region .drpg-case-live is the Map and the Table, so the finding's Planner/Table case (a GM typing in a node while an Observe lands) now redraws with the text carried. Not changed: remnant-ring.mjs:252-257 (a GM's Remnant card) and mastermind.mjs:700-706 (the Hope box) do not opt in, and a focused SELECT still holds every region (keptFocus answers null for SELECT). IME composition hold not measured (jsdom composes nothing, says the line)."
+  },
+  {
+   "finding_id": "controls-10-setup-config-1",
+   "severity": "major",
+   "line": "none",
+   "relation": "unrelated",
+   "evidence": "season-setup.mjs is in no line's diff (all six diffstats). Reset the season in Season setup (season-setup.mjs:1200-1204, 1213-1215) stands as on b5a29e73."
+  },
+  {
+   "finding_id": "domain-case-g-death-chapter-1",
+   "severity": "major",
+   "line": "none",
+   "relation": "unrelated",
+   "evidence": "Same place as controls-10-setup-config-1 (season-setup.mjs:1200-1204, 1213-1215); no line changes season-setup.mjs."
+  },
+  {
+   "finding_id": "domain-case-f-planner-stores-1",
+   "severity": "major",
+   "line": "claude/plan-119",
+   "relation": "addresses",
+   "evidence": "case-layout.mjs layoutCase/depthOf (3b73017a): `+    const working = new Set();` `+        if (working.has(id)) return 1;` `+        working.add(id);` ... `+        working.delete(id);` - the recursion through a counter's targets ends; the commit cites 'the audit's reading' and reports RangeError measured on b5a29e73 and de1d5072, R7802 and a tier 2 Map-opens test red then green. case-trial.mjs:66 reaches the same layoutCase, so the trial console's graph is covered by the same guard (not tested separately per the message)."
+  },
+  {
+   "finding_id": "controls-03-investigation-planner-1",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "addresses",
+   "evidence": "investigation.mjs moveCaseNode (0f904621): `-    const graph = caseGraph(chapter);` / `+    const { chapter, graph } = caseMapGraph(reading);` - the move lays out the graph the Map draws (Key slots unwritten, planned Autopsies); a move that cannot happen now tells the GM (DRPG.CaseMap.moveEnd.up/down). onMove passes `reading`. Tier 2 Autopsy-move and top-of-column tests reported red at b5a29e73 and green."
+  },
+  {
+   "finding_id": "controls-03-investigation-planner-3",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "touches",
+   "evidence": "caseMapRegion's slot/Autopsy reading moved into caseMapGraph; the line `caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies })` is unchanged context, and mapEditors (1294-1303), where the finding says another chapter's Key nodes take the running chapter's slot fields and Place, is not in the diff. Nothing shows the finding moved."
+  },
+  {
+   "finding_id": "controls-03-investigation-planner-5",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "touches",
+   "evidence": "schemaEditor's foldedList count now adds the 'gone' references (`targets.filter(on).length + lost.length`); live.mjs restore is unchanged. With whileEditing the dashboard now rebuilds while a field holds the focus, so a redraw that draws the minigame rows and the 'Ticked' line from the store can come without the focus leaving - the finding's road is reached more often, not closed. Not measured."
+  },
+  {
+   "finding_id": "controls-03-investigation-planner-2",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "unrelated",
+   "evidence": "onPlace, placeIncident and placePlannedFinal are unchanged; the hunk beside them is onMove's argument."
+  },
+  {
+   "finding_id": "controls-03-investigation-planner-12",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "unrelated",
+   "evidence": "wireCaseFilters (1998-2004), onFold and live.mjs restore are unchanged; planlook-119's case-map.mjs hunks near 168-194 are the colour classes, not the folded nodes."
+  },
+  {
+   "finding_id": "controls-03-investigation-planner-14",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "unrelated",
+   "evidence": "onCheck and the check's reading of the stored case are unchanged; only the redraw timing changes (whileEditing)."
+  },
+  {
+   "finding_id": "refresh-01-04-2",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "touches",
+   "evidence": "The dashboard's watch gains `where: CASE_WATCH` (Remnant tokens, regions, scenes) but its stores list is unchanged - remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore - and the Truth Bullets' answer keys (truth-bullets.mjs secretOf reads bulletStore) are still not heard."
+  },
+  {
+   "finding_id": "domain-ui-b-kit-hud-1",
+   "severity": "minor",
+   "line": "claude/plan-119",
+   "relation": "touches",
+   "evidence": "live.mjs keptFocus: `if (!active || !element.contains(active) || active.tagName === \"SELECT\") return null;` - the new opt-in keeps a focused SELECT holding the rebuild on purpose ('its list may be open under the pointer'), and sound-panel.mjs does not opt in. The finding stands."
+  },
+  {
+   "finding_id": "controls-01-trial-console-1",
+   "severity": "minor",
+   "line": "claude/planlook-119",
+   "relation": "unrelated",
+   "evidence": "case-map.mjs's fold button (b5a29e73 line 224) and its wiring (445, 495) are unchanged; planlook's hunk at 229 is the edges' SVG line."
+  },
+  {
+   "finding_id": "controls-02-trial-zones-verdict-1",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "The side-pick window (trial-zones-ui.mjs:437-441) is not in the diff; zone-machine.mjs's hunks near 221-246 are scrumTurn and the removed `unanimous`, and trial-zones.mjs's near 58-74 is zoneCtxOf dropping `participants`. With no early close a stale pick can no longer end a question before its clock, but it is still counted at the clock's end, which is the finding's failure."
+  },
+  {
+   "finding_id": "refresh-01-04-6",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "Same window (trial-zones-ui.mjs:434-458) untouched; zone-machine.mjs's changed lines are the early close and scrumTurn."
+  },
+  {
+   "finding_id": "domain-case-e-trial-scene-vote-2",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-zones-ui.mjs:437-441 untouched; zone-machine.mjs:133-136 unchanged."
+  },
+  {
+   "finding_id": "controls-01-trial-console-3",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-floor.mjs changes only isDue and the trial-zones import; the Closing's refusals, floorFamily and the Overrule offer are untouched."
+  },
+  {
+   "finding_id": "domain-case-d-trial-floor-3",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-floor.mjs changes only isDue and the trial-zones import; the Closing's refusals, floorFamily and the Overrule offer are untouched."
+  },
+  {
+   "finding_id": "domain-case-d-trial-floor-4",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-floor.mjs changes only isDue and the trial-zones import; the Closing's refusals, floorFamily and the Overrule offer are untouched."
+  },
+  {
+   "finding_id": "domain-case-d-trial-floor-5",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-floor.mjs changes only isDue and the trial-zones import; the Closing's refusals, floorFamily and the Overrule offer are untouched."
+  },
+  {
+   "finding_id": "controls-02-trial-zones-verdict-3",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-zones.mjs changes zoneCtxOf and removes zoneEarly only; the set editor, the hall zones' save and the Findings writes are untouched."
+  },
+  {
+   "finding_id": "domain-case-e-trial-scene-vote-3",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-zones.mjs changes zoneCtxOf and removes zoneEarly only; the set editor, the hall zones' save and the Findings writes are untouched."
+  },
+  {
+   "finding_id": "domain-case-e-trial-scene-vote-4",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-zones.mjs changes zoneCtxOf and removes zoneEarly only; the set editor, the hall zones' save and the Findings writes are untouched."
+  },
+  {
+   "finding_id": "refresh-01-04-4",
+   "severity": "minor",
+   "line": "claude/trial-119",
+   "relation": "unrelated",
+   "evidence": "trial-zones.mjs changes zoneCtxOf and removes zoneEarly only; the set editor, the hall zones' save and the Findings writes are untouched."
+  },
+  {
+   "finding_id": "domain-ui-b-kit-hud-5",
+   "severity": "minor",
+   "line": "claude/trial-119, claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "hud.mjs hunks are trialSlotFace (trial, ~1160) and a renderTokenHUD listener (sheet, ~256); the Eclipse chevron's tooltip at 1313-1316 is untouched."
+  },
+  {
+   "finding_id": "domain-map-a-fog-2",
+   "severity": "minor",
+   "line": "claude/fog-119",
+   "relation": "touches",
+   "evidence": "fog.mjs ledgerRooms (2c87b5b9): `+        if (!students.has(actorId)) continue;` with students = studentActors() ids (no Spectator) - a Spectator's seeded row no longer lights the GM's map (ledgerRooms is read on the GM branches, fog.mjs:1852 and 2812). seedCells (1691-1711) still seeds the row, the Monocubs' maps are not read through ledgerRooms, and the handbook now says a character made a student again brings its rooms back - so the finding's other two failures stand."
+  },
+  {
+   "finding_id": "domain-map-a-fog-1",
+   "severity": "minor",
+   "line": "claude/fog-119",
+   "relation": "unrelated",
+   "evidence": "A dead victim is still a student (studentActors leaves out a Monokuma, a character out of the class and a Spectator only), so ledgerRooms still counts the body's row; reactToMove/recordDiscovery unchanged."
+  },
+  {
+   "finding_id": "controls-11-map-rooms-2",
+   "severity": "minor",
+   "line": "claude/fog-119",
+   "relation": "unrelated",
+   "evidence": "Room Setup still has one keepFresh; the fog.mjs hunk near 1529 is ledgerRooms' student filter, not a redraw of the Fog matrix."
+  },
+  {
+   "finding_id": "domain-item-b-gm-panel-1",
+   "severity": "minor",
+   "line": "claude/fog-119",
+   "relation": "touches",
+   "evidence": "judgeArrival's Spectator exemption removes the crossing settle that Keep Watch's onWatchCrossing whispers on; watch-gm.mjs namesIn (start card) and tail-gm.mjs standingIn (critical tail card), the two cards the finding names, are untouched."
+  },
+  {
+   "finding_id": "domain-case-f-planner-stores-2",
+   "severity": "major",
+   "line": "claude/fog-119",
+   "relation": "unrelated",
+   "evidence": "gm-store.mjs changes write stamps (stampOver, floorOf, tellAhead) and receiveCopy's cap; previewSection, mergeSections and compact are untouched."
+  },
+  {
+   "finding_id": "domain-case-f-planner-stores-4",
+   "severity": "minor",
+   "line": "claude/fog-119",
+   "relation": "unrelated",
+   "evidence": "gm-store.mjs changes write stamps (stampOver, floorOf, tellAhead) and receiveCopy's cap; previewSection, mergeSections and compact are untouched."
+  },
+  {
+   "finding_id": "domain-case-e-trial-scene-vote-1",
+   "severity": "blocker (weakened)",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "The line wrote mask-gm.mjs maskDirectory on renderActorDirectory (b503f869, a8d4efb8, a46dbe4a) and reverted it in 50a2de6b on the coordinator's correction: styles/danganronpa.css hides #sidebar for body.drpg-player and module.mjs sets drpg-player on every non-GM, so no player reaches the Actors list in the interface; a console already reads a token's actorId. The final diff carries no list change. This is a reading bearing on the finding's weakened verdict, not a fix; it was not checked here."
+  },
+  {
+   "finding_id": "domain-core-b-secret-2",
+   "severity": "minor",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "remember gains `hid` only; readers, authorHold and updateSecret's remember-on-a-reader rule are unchanged."
+  },
+  {
+   "finding_id": "domain-comm-b-calls-4",
+   "severity": "minor",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "destroyItemEffect is not among the five lines given cardName and still tells nobody."
+  },
+  {
+   "finding_id": "domain-core-e-utils-clock-4",
+   "severity": "minor",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "call-effects.mjs hunks are the import/cardName, refusalBeforePaying and the five effect lines; armCall/appendArmedCall untouched."
+  },
+  {
+   "finding_id": "controls-07-messages-calls-6",
+   "severity": "minor",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "calls.mjs gains the nameAsSeen import and describeChoice's line; the Call windows' live watch is unchanged."
+  },
+  {
+   "finding_id": "controls-13-case-death-chapter-6",
+   "severity": "minor",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "clock.mjs changes advanceTimeOfDay only (masks ended before every advance, bodyPatch folded into the write); applyTimeOfDayChange and the phase reads the finding cites are untouched."
+  },
+  {
+   "finding_id": "domain-core-e-utils-clock-1",
+   "severity": "minor",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "clock.mjs changes advanceTimeOfDay only (masks ended before every advance, bodyPatch folded into the write); applyTimeOfDayChange and the phase reads the finding cites are untouched."
+  },
+  {
+   "finding_id": "domain-desp-a-2",
+   "severity": "minor",
+   "line": "claude/day-119",
+   "relation": "unrelated",
+   "evidence": "clock.mjs changes advanceTimeOfDay only (masks ended before every advance, bodyPatch folded into the write); applyTimeOfDayChange and the phase reads the finding cites are untouched."
+  },
+  {
+   "finding_id": "domain-desp-a-7",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "touches",
+   "evidence": "despair-award.mjs awardRollDespair's head gains `dice` (`const named = dice ?? message?.id ?? null;`), but the shield branch still asks `delta > 0 && message && ...`, and roll-draw.mjs grantRolls still calls awardRollDespair(actor, 1) with no message, so the protection is still not asked."
+  },
+  {
+   "finding_id": "domain-desp-a-5",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "the Despair bar's + stepper (1300-1305) is untouched; adjustDespair/spillFrom only gain `dice`."
+  },
+  {
+   "finding_id": "domain-desp-a-1",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "routeToPrimary and spendDespairCall are untouched."
+  },
+  {
+   "finding_id": "controls-09-hud-overlays-3",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "the overflow caption's title (despair.mjs:1142-1147) is untouched."
+  },
+  {
+   "finding_id": "domain-comm-b-calls-6",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "call-world.mjs is untouched; despair.mjs's writePool hunks add `dice` only."
+  },
+  {
+   "finding_id": "domain-roll-a-draw-4",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "playBack gains noteThrow(messageId, start.started); readHere/keep is untouched."
+  },
+  {
+   "finding_id": "controls-08-rolls-actions-10",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "reroll.mjs hunks are makeReroll's stamping (674-690) and dualityOfRoll (1028); settleGmRuling (1933-1964) untouched."
+  },
+  {
+   "finding_id": "domain-roll-b-actions-4",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "settleActionRefund (reroll.mjs:2081-2100) untouched."
+  },
+  {
+   "finding_id": "controls-06-items-sheet-10",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "sheet-header.mjs hunks are freeMovePip (~417) and pendingStack/pileStack (~481); the Ultimate field (841-869) untouched."
+  },
+  {
+   "finding_id": "controls-06-items-sheet-9",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "sheet-header.mjs's Level Up mark (654-713) untouched."
+  },
+  {
+   "finding_id": "controls-06-items-sheet-12",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "sheet.mjs adds the Party sheet's render hold; sheet-inventory.mjs changes addDiscardButton's gate; the room-bound parts' redraw is untouched."
+  },
+  {
+   "finding_id": "controls-13-case-death-chapter-2",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "use-items.mjs changes discardBroken (863-896, onlyCopied in place of isBroken); 316-366 untouched."
+  },
+  {
+   "finding_id": "domain-item-a-1",
+   "severity": "minor",
+   "line": "claude/sheet-119",
+   "relation": "unrelated",
+   "evidence": "sheet-audit.mjs changes itemFindings's discard test (onlyCopied); meansWrite (1000-1048) untouched."
+  }
+ ],
+ "not_established": [
+  "No line's tests, scenarios or mutants were run here (the brief forbids the harness and npm): every red-then-green reading quoted above is the commit message's, not measured in this audit.",
+  "Whether the six lines merge together cleanly was not tried (it would write objects). Text overlap seen in the diffs: all six edit docs/dev/R-REGISTRY.md's 'Next free' line; plan/planlook/trial/fog/sheet edit lang/en.json and lang/pl.json; trial-119 and sheet-119 both edit scripts/hud.mjs; day-119 and sheet-119 both edit scripts/settings.mjs; fog-119 and sheet-119 both add AUDIT-1.2.42.md 9.2 items numbered 664 and 665 for different live checks; trial/fog/day/sheet all edit the GM handbook EN/PL.",
+  "Which of the six lines 1.2.119 will actually carry is not established: none is merged to main at the time read (heads committed 20.11.2026 17:30-21:00 UTC), and no release-notes draft exists on any line.",
+  "refresh-01-04-1 is addressed only for the case dashboard; whether the whileEditing rebuild keeps a typed field's caret and text right in a real browser, and under an IME, is not measured (the line says jsdom composes nothing).",
+  "domain-comm-b-calls-2: cardName writes '?' from the posting browser's mask reading; whether every Despair Call's card is posted on a browser where isMaskedActor already reads the mask (a non-primary GM, a Monokuma player's road) was not traced.",
+  "domain-core-b-secret-1: cards remembered before 1.2.119 carry no `hid`, so a mask that stood and ended before the update still serves the name; the line does not claim otherwise.",
+  "Findings of severity nit were not matched (the brief asks minor and above); e.g. domain-item-a-7 (throwing a broken thing away) sits in use-items.mjs discardBroken, which sheet-119 changes.",
+  "planlook-119's colour and routing changes were matched only by file and line; no minor-or-above finding names case-view.mjs, and its effect on the Map's layout at a table is the line's own Chromium measurement, not read here."
+ ]
+}
