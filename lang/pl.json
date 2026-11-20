@@ -4226,6 +4226,42 @@
       },
       "gmHint": "{trait}, próg {dc}",
       "projectHint": "Z projektu {project} · {life}",
+      "gives": {
+        "health": {
+          "one": "+{n} Health",
+          "few": "+{n} Health",
+          "many": "+{n} Health",
+          "other": "+{n} Health"
+        },
+        "sanity": {
+          "one": "+{n} Sanity",
+          "few": "+{n} Sanity",
+          "many": "+{n} Sanity",
+          "other": "+{n} Sanity"
+        },
+        "hope": {
+          "one": "+{n} Hope",
+          "few": "+{n} Hope",
+          "many": "+{n} Hope",
+          "other": "+{n} Hope"
+        },
+        "freeMove": "+{n} Free Move",
+        "searchToken": "Search Tokeny pokoju +{n}",
+        "overflowDown": "Despair w Overflow -{n}",
+        "text": "wiadomość od GM-a",
+        "advantage": "przewaga przy następnym rzucie",
+        "durability": "+{n} wytrzymałości dla najbardziej zużytego przedmiotu",
+        "endWounded": "koniec stanu Wounded",
+        "endBreakdown": "koniec stanu Breakdown",
+        "projectProgress": {
+          "one": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju",
+          "few": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju",
+          "many": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju",
+          "other": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju"
+        }
+      },
+      "givesScoped": "{what} ({who})",
+      "givesNothing": "bez efektu",
       "forGood": "na stałe",
       "projectLine": "{action} w Facilities, {life}",
       "notLive": {
