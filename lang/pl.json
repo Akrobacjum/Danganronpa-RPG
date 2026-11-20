@@ -8667,6 +8667,7 @@
         "hook-dice-so-nice-roll-start": "każda kość Hope i Despair rysuje się w wyglądzie, który nadał jej Daggerheart osoby rzucającej, a raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce",
         "hook-livekit-initialized": "pokoje głosowe, kafelek głosu i mówcy rozprawy nie podążają za klientem głosu",
         "hook-image-popout-header": "okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł",
+        "hook-actor-directory-render": "znak zapytania zamaskowanego zabójcy stoi przy jego prawdziwym imieniu na liście aktorów każdego gracza",
         "token-bars-reserve": "paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity",
         "state-icons-off-token": "ikony Breakdown i Wounded są widoczne na każdym żetonie, dla każdego",
         "dead-icon-own": "nakładka zmarłego to nagrobek z Daggerheart",
@@ -8788,6 +8789,7 @@
         "hook-dice-so-nice-roll-start": "Dice So Nice zaczyna rzut na tym ekranie",
         "hook-livekit-initialized": "klient A/V uruchamia pokój (głos włączony w tym świecie)",
         "hook-image-popout-header": "w tej przeglądarce otwiera się okno obrazu (ImagePopout)",
+        "hook-actor-directory-render": "w tej przeglądarce rysuje się lista aktorów na pasku bocznym",
         "hook-party-sheet-render": "ta przeglądarka rysuje arkusz drużyny"
       }
     },
