@@ -1,0 +1,42 @@
+{
+ "refuter": "verify-domain-case-g-death-chapter",
+ "of": "domain-case-g-death-chapter",
+ "checkout": "claude/audit-119 (014f9a83); scripts/ and lang/ as on b5a29e73 (1.2.118)",
+ "scope_note": "Checked every finding of severity minor or above (1, 2, 3) and the one control the file names as dead in hints_for_other_passes.dead_controls (Season setup / Reset the season, which is finding 1). Findings 4-8 are nits and were not re-checked. The file has no controls list of its own, so no other dead, throws, mislabeled or wrong_audience verdict was there to check. base-run.json and probe-42/43.json were not present; no test result is cited as read.",
+ "checked": [
+  {
+   "ref": "domain-case-g-death-chapter-1 (and Season setup / Reset the season, dead)",
+   "claim": "Reset the season in Season setup closes the window and never opens the reset; no other road in the interface reaches resetSeason.",
+   "verdict": "stands",
+   "why": "The press sets resetAsked and calls dialog.close(). drpgWindow ends in DialogV2.wait(config) and passes no close handler of its own; with rejectClose: false a window closed with no button resolves null (Foundry's DialogV2.wait, and the harness shim's own model at shim.mjs:1795-1802). Line 1214 returns null on !result before 1215 reads resetAsked, while End the chapter works only because 1213 reads endAsked before the null test. The order was written so in 59e1997a (the hunk's lines 1233-1234) and never changed. Other roads looked for: grep of resetSeason and of any import of season-wipe.mjs over scripts/ outside tests finds only the facade re-export (season-setup.mjs:74) and the call at 1215; api.mjs does not name resetSeason; the GM panel's tile is a comment since E49 A1d (gm-panel.mjs:305-308). The two tests that name the line are source-text regexes (tests-tier1.mjs:20350, 20694) and press nothing. The season's only reset door does nothing and says nothing: major holds (a GM's ordinary work at a season's end is blocked).",
+   "evidence": "scripts/season-setup.mjs:1200-1204 'dialog.element.querySelector(\"[data-drpg-reset-season]\")?.addEventListener(\"click\", ev => { ev.preventDefault(); resetAsked = true; dialog.close(); });'; :1211 'rejectClose: false'; :1213-1215 'if (endAsked) return endTheChapter(...); if (!result || result === \"close\") return null; if (resetAsked) return (await import(\"./season-wipe.mjs\")).resetSeason();'; scripts/ui-kit.mjs:1344 'return DialogV2.wait(config);'; audit/harness/lib/shim.mjs:1802 'if (rejectClose) reject(new Error(\"Dialog was dismissed without pressing a button.\"));'; scripts/gm-panel.mjs:305 '// RESET THE SEASON IS NO TILE SINCE E49 A1d'; scripts/tests-tier1.mjs:20694 '/if \\(resetAsked\\) return \\(await import\\(\"\\.\\/season-wipe\\.mjs\"\\)\\)\\.resetSeason\\(\\);/.test(open)'",
+   "severity_after": "major"
+  },
+  {
+   "ref": "domain-case-g-death-chapter-2",
+   "claim": "The death window's 'keep it for the GMs' box is ticked for the incident's victim at open and stays ticked when the GM picks another student, so that student's death is kept by the GMs.",
+   "verdict": "stands",
+   "why": "secretByDefault is computed once before the window (739) and written into the markup (762). The window's only render hook is chooseFirst (779), whose one listener on the select toggles the button's disabled state (795-803); nothing else listens to the select or the box. The answer carries f.secret.checked (773) and killCharacter takes it before its own default (176: secret ?? isIncidentVictim), so a non-victim is recorded by recordSecretDeath with no guard on who the actor is (458-489); incidentKnowers answers [] for a non-victim (incident-store.mjs:1225-1230), so only the GMs and the owners know. The road opens only with the picker (no actor), which is the GM panel's window; the Students window's Kill passes its actor and computes the box for that actor (739). No test was found that changes the select with the box drawn ticked (grep of tests for secretByDefault and keepSecretUntilFound: the only name=\"secret\" hits are a project edit window, tests-tier2.mjs:74903, and a fixture, tests-tier1.mjs:46516). The label is visible beside the select, so minor (a particular situation, the GM can see the tick) holds rather than major.",
+   "evidence": "scripts/death.mjs:739 'const secretByDefault = actor ? actor.id === victimId : alive.some(a => a.id === victimId);'; :762 '<input type=\"checkbox\" name=\"secret\"${secretByDefault ? \" checked\" : \"\"} />'; :773 'return id ? { id, keepBullets: f.keepBullets.checked, secret: f.secret.checked } : false;'; :779 'render: (event, dialog) => chooseFirst(dialog, \"actor\"),'; :800-801 'const sync = () => { button.disabled = !select.value; }; select.addEventListener(\"change\", sync);'; :176 'let secretly = secret ?? await isIncidentVictim(actor);'; scripts/incident-store.mjs:1228 'if (!state?.active || state.victimId !== actor.id) return [];'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-g-death-chapter-3",
+   "claim": "Split evenly deals the dead (and Monocubs) too, while the Season checklist's despairSplit row counts the living only, so a split made after deaths can read uneven at once after the toast says even.",
+   "verdict": "stands",
+   "why": "autoAssign walks students(), which is studentActors() sorted by name; studentActors filters Monokumas, Not in the class and Spectators only (monokuma.mjs:77-84), so the dead and Monocubs are dealt seats in turn. despairSplitCounts skips isDeadForGm (season-setup.mjs:721) and despairSplitEven allows a difference of one living student. The Split evenly button is drawn whenever the roster has anyone (gm-team-dialog.mjs:185-195) with no phase or death gate, and its branch toasts DRPG.Assign.splitDone unconditionally (349-352). With eight students in name order dealt A B A B A B A B and two dead at A seats, the living read 2 and 4: the row's own rule fails. Nothing found that re-deals or warns. The hint itself says 'advice only' (en.json step/hint.despairSplit), and Despair still flows: minor holds.",
+   "evidence": "scripts/assignments.mjs:144 'for (const actor of students()) {'; :149-150 'map[actor.id] = gms[index % gms.length].id; index++;'; scripts/monokuma.mjs:82 'return !isMonokuma(flags) && !isNotInClass(flags) && !isSpectator(flags);'; scripts/season-setup.mjs:721 'if (isDeadForGm(actor)) continue;          // the dead do not roll, so they are no weight on a pool'; :736 'return counts[0].n - counts[counts.length - 1].n <= 1;'; scripts/gm-team-dialog.mjs:350-351 'await autoAssign(); ui.notifications.info(game.i18n.localize(\"DRPG.Assign.splitDone\"));'; lang/en.json:624 '\"splitDone\": \"Students split evenly between Monokumas.\"'",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 3,
+  "stands": 3,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "None of the three was run: base-run.json and the probe files were not present. A harness probe would measure each: press Reset the season in Season setup and watch for resetSeason's window; open A character dies mid-incident, change the select to a bystander and confirm, then read the deaths store; split evenly with two dead at the same pool's seats and read the despairSplit row.",
+  "Findings 4-8 (nits) were not re-checked by this refuter."
+ ]
+}

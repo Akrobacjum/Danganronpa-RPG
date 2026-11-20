@@ -1,0 +1,436 @@
+{
+ "reader": "domain-core-d-api-diag",
+ "source": "main b5a29e73 (1.2.118), read on branch claude/audit-119; audit/findings-1.2.118/base-run.json not present when this file was written, so no test result is cited as read",
+ "files_read": [
+  {
+   "file": "scripts/api.mjs",
+   "lines": 1712,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/diagnostics.mjs",
+   "lines": 2358,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/explain.mjs",
+   "lines": 520,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/a11y.mjs",
+   "lines": 413,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/state-check.mjs",
+   "lines": 118,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/patches.mjs",
+   "lines": 1656,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/enforced.mjs",
+   "lines": 1028,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/perf-counters.mjs",
+   "lines": 148,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/perf-timings.mjs",
+   "lines": 76,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/open-cost.mjs",
+   "lines": 322,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/style-snapshot.mjs",
+   "lines": 201,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/handbooks.mjs",
+   "lines": 564,
+   "read": "whole"
+  }
+ ],
+ "count_expected": {
+  "files": 12,
+  "lines": 9116
+ },
+ "count_note": "12 files, 9116 lines, as the scope names them; each read start to end. The two data tables (api.mjs DrpgApi 292-1614, patches.mjs PATCHES 292-1252) were read row by row; style-snapshot.mjs STYLE_SURFACES read row by row.",
+ "neighbours_followed": [
+  "scripts/utils.mjs gmReport 782-789 (a report is a card whispered to the caller alone), the privately note 791-799 (every browser receives every message: 717 on a player's browser, the same as the GM's), error 338-341, primaryGmId 485-496 (an Assistant GM is primary when no full Gamemaster is connected), wirePortraitPickers 1307-1365",
+  "scripts/private-rolls.mjs header 14-45, neutralRollSource 700-725 and its call 818-827 (a roll the module throws names nobody), rollSubjectNow 1361-1391",
+  "scripts/secret.mjs diagnoseSecrets 1715-1729",
+  "scripts/season-setup.mjs foundryReport 1440-1466, preSessionReport 1480-1501 (the contract moved to Diagnostics' Foundry and modules in E101 item 2), the rooms step's Check rooms button 232-234 and wireRoomCheck 1016-1022",
+  "scripts/gm-panel.mjs the Diagnostics section 319-347 (Debug log, voice reset, the case window)",
+  "scripts/room-tile.mjs ensureRoomTile 201-223 (the tile is the HUD's sibling, not inside it), the fold's aria-controls / aria-expanded 296, 454; scripts/voice-tile.mjs 382, 1689-1690; scripts/fog.mjs renderFloorSwitcher 3465-3495 and diagnoseFog 2474-2532; scripts/narrow.mjs tileRow 95-111; scripts/popup.mjs cornerButton 118-165",
+  "scripts/hud-elapsed.mjs buildElapsed and setText 225-272",
+  "scripts/vote.mjs header 1-40 (ballots in the GMs' store since 1.2.71); scripts/music.mjs header 14-36; scripts/actions.mjs actionBudget 39-69",
+  "scripts/settings.mjs DEFAULT_CLOCK 1225-1244, getClock 3883-3885, SETTINGS.mastermind note 1010-1021 and registration 3004-3010, enforcePlayerFiles 1592-1601",
+  "scripts/gm-items.mjs openItemManager 331-400, holdingsHtml 78-84, keyChoices 542-546",
+  "scripts/search-tokens.mjs class SearchTokens 54 (how api.mjs actorPosition reads a class's source)",
+  "scripts/ui-kit.mjs WINDOW_HELP and dressHelp 1217-1268 (every '?' is a GM window's and opens the GM handbook)",
+  "scripts/module.mjs 408-416 (watchSheetRenders on every client, announceAtReady and checkState on the primary GM)",
+  "scripts/overflow.mjs overflowPool 727-730, overflowStatus 1285-1305",
+  "scripts/tests-tier0.mjs R126 5663-5683 and the fixture strings at 18412 and 25321-25322; scripts/tests-kit.mjs 1322-1324; scripts/tests.mjs 40-55",
+  ".gitattributes (scripts/tests*.mjs are not export-ignored: they ship in module.zip)",
+  "lang/en.json and lang/pl.json for every key the twelve files read in the windows and notices they draw (DRPG.Explain.*, DRPG.Diagnostics.*, DRPG.Diagnose.*, DRPG.Contract.notice, DRPG.Panel.noActorNamed / actorNameShared / noSceneNamed, DRPG.GiveBack.*, DRPG.Enforced.*), read by script"
+ ],
+ "strengths": [
+  "The one report holds a player's text to what that player may know: the parts that read the GMs' stores, the traces, the traps, the cast or other rooms are gmOnly and are named, not run (diagnostics.mjs:2219-2248, 2263-2278), the dice part filters the rolls to the ones the player may see (68-70), and the token frames' part keeps only the visible tokens (2238-2242).",
+  "Every diagnostic report is a card whispered to its caller alone (diagnostics.mjs:1536-1546 through utils.mjs:782-789), never a public card.",
+  "checkState is read-only and answers null on a player's browser instead of reading a world copy that is not the GMs' (state-check.mjs:113-118).",
+  "The contract never reads 'cannot tell' as a pass: a probe that throws is failed, no mark is unknown, a hook not seen firing is unknown, and the trust rows (relay guard, roll draw) take their state from their own files and never turn a failed one into a looser one (patches.mjs:1432-1454, 1306-1339).",
+  "A failed contract row is told once per row per load, so a row that fails later (the first sheet, a Levels throw) still reaches the GM in a notice of its own (patches.mjs:1489-1528).",
+  "enforced.mjs writes the value before it tries to hide the box, never throws, reads the entry back, holds Daggerheart's welcome flag only on this browser's copy of the account (updateSource), queues the permissions' holds one at a time and gives each part of Give back on its own (enforced.mjs:181-191, 208-258, 455-472, 516-577, 829-878).",
+  "The explainers ask the widget's own question: projects as this reader last saw them, never the season's list; a room's project said to exist, never named; the Overflow's count only to a GM (explain.mjs:187-225, 279-315, 383-413).",
+  "The accessibility sweep never invents a name, never names a field by its content, and leaves a kept card's snapshot untouched (a11y.mjs:82-97, 133-191).",
+  "open-cost.mjs warms only by import, template and font at idle, holds while a sequence, a turn or a transition plays, and renders no window and writes nothing (open-cost.mjs:24-26, 76-119).",
+  "perf-counters.mjs and perf-timings.mjs are leaves with no imports and are passive: nothing is made to happen for a reading (perf-counters.mjs:11-15; perf-timings.mjs:159-168).",
+  "The handbook window gives headings no ids, its contents list no href (so Foundry's document-wide link handler opens no second client), and the GM's book is not offered on a player's tab bar (handbooks.mjs:30-35, 78-81, 321-331, 483-514).",
+  "The API's name-or-id normaliser warns on a name that finds nobody or two, and the three scene-taking shorthands warn instead of acting on no scene (api.mjs:260-290, 1644-1666); the suite is behind a thunk, so no player's browser fetches it at start (api.mjs:1272-1285).",
+  "Old items closed on today's code: CORE-15 (the stale advanceTimeOfDay, gmPanel and editClock comments, api.mjs:371-383 now say what the code does); TEXT-11 (diagnoseCharacters' lines are lang keys, 'Despair Flow' and no 'Broken Down', diagnostics.mjs:1422-1527); 1.2.13 A15's fileSizes list of twelve files (a crawl now, diagnostics.mjs:1069-1135); 1.2.13 A17's explain.mjs .replace (game.i18n.format throughout); 1.2.13 A18's register (patches.mjs); 1.2.13 C2's suite import (api.mjs:1285); 1.2.13 C3's four report() copies (one left, diagnostics.mjs:1536)."
+ ],
+ "findings": [
+  {
+   "id": "domain-core-d-api-diag-1",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "fileSizes() reports five files that do not exist as 'DID NOT ARRIVE', and fetches the whole suite twice to get there",
+   "where": "scripts/diagnostics.mjs:1095-1135 (loadedFiles' crawl), 1153-1178 (fileSizes); scripts/api.mjs:1285 (the runTests thunk the crawl follows); scripts/tests-tier0.mjs:18412, 25321-25322 and scripts/tests-kit.mjs:1322-1324 (the fixture strings it reads as imports)",
+   "what_happens": "loadedFiles crawls from module.mjs every `from \"./x.mjs\"` and `import(\"./x.mjs\")` it finds in a file's text, comments and string literals included. api.mjs's `import(\"./tests.mjs\")` takes it into the suite (13 files, about 17 MB on disk, shipped in module.zip: .gitattributes does not leave them out), and the suite's fixtures and comments name x.mjs, y.mjs, b.mjs, lazy.mjs and missing.mjs. Each is fetched, fails, is kept in the list (`scripts.add(file)` before the `text === null` test), and fileSizes then prints it as `HTTP 404  ← DID NOT ARRIVE`. Every suite file is fetched once by the crawl and again with cache: \"reload\" by fileSizes. A static run of the same regex from module.mjs over today's tree reaches 276 names for 271 files in scripts/: the five extra are those fixtures.",
+   "evidence": "diagnostics.mjs:1109  scripts.add(file);\ndiagnostics.mjs:1110  if (text === null) continue;\ndiagnostics.mjs:1111  for (const m of text.matchAll(/(?:from|import\\()\\s*\"\\.\\/([\\w-]+\\.mjs)\"/g)) {\ndiagnostics.mjs:1167  lines.push(`${file.padEnd(30)} HTTP ${res.status}  ← DID NOT ARRIVE`);\napi.mjs:1285  runTests: (...args) => import(\"./tests.mjs\").then(m => m.runTests(...args)),\ntests-tier0.mjs:25322  [\"b.mjs\", `export const b = () => import('./a.mjs');\\nexport const gone = () => import(\"./missing.mjs\");`],",
+   "failure_scenario": "A GM on a hosted world told to run `await game.drpg.fileSizes()` after an update pastes a report that says five module files did not arrive, on an install where every file did, after the browser pulled about 34 MB of test scripts past its cache.",
+   "expected": "The list the tool exists to give: the files a table loads, the suite at most as one line, and no name that is only text inside a test; a file that 404s because it does not exist in the repository is not a file of the module.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a filter on the crawl (none: the only test is `scripts.has(file)`), for a reason the suite should be listed (the header 1069-1093 argues for following lazy imports so an edited file is seen, which the suite is not at a table), and for a test pinning the list's shape: R126 (tests-tier0.mjs:5663-5683) checks only that the manifest's stylesheets, languages, module.json and module.mjs are present, not that nothing else is. Ran the same regex over the source in Python from module.mjs: 276 names reached, 271 files exist, the five missing are exactly x, y, b, lazy and missing. The double fetch is read from the two `fetch` calls (1103, 1165); its byte count on a hosted server is not measured.",
+   "tests_near": "R126 (tier 0); result not read (no base-run.json)."
+  },
+  {
+   "id": "domain-core-d-api-diag-2",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "leak",
+   "title": "game.drpg.diagnoseDespair() on a player's browser prints the newest roll of the world, a whisper to other users included; diagnose() marks the same part GM-only",
+   "where": "scripts/diagnostics.mjs:210-220 (the newest roll, no visibility filter), 2228 (the part gmOnly in the one report); scripts/api.mjs:1195 (diagnoseDespair on game.drpg, no gate); compare scripts/diagnostics.mjs:68-70 (the dice part's filter, E52-15)",
+   "what_happens": "diagnoseDespair picks `[...game.messages].reverse().find(m => rolls)` with no `visible` test, prints its type, `speaker.actor` and the subject rollSubjectNow names, and logs Daggerheart's reading of its duality (readDuality) to the console. On a player's browser that message can be another user's whisper: every browser receives every message (utils.mjs:794-799). The one report runs this part only on a GM (`gmOnly: true`), and its dice part filters to `m.visible !== false` for exactly this reason, but the console command on game.drpg runs it for anyone. A roll the module throws is emptied of its speaker (private-rolls.mjs:18-25, 818-827), so for those the line names nobody; what stays is the rolls the module did not throw - Daggerheart's own item rolls, a Monocub's Meddle, a /r, a sheet statistic thrown with no GM connected - whose speaker the document keeps.",
+   "evidence": "diagnostics.mjs:210  const last = [...game.messages].reverse().find(m => (m.rolls?.length ?? 0) > 0);\ndiagnostics.mjs:213  lines.push(`Most recent roll message: type \"${last.type}\", speaker actor \"${last.speaker?.actor ?? \"(none)\"}\", `\ndiagnostics.mjs:214      + `about \"${rollSubjectNow(last)?.name ?? \"(nobody this browser can tell)\"}\"`);\ndiagnostics.mjs:216  const outcome = m.readDuality(last);\ndiagnostics.mjs:2228  part(\"despair\", \"Despair\", [\"diagnoseDespair\"], () => diagnoseDespair({ toChat: false }), { gmOnly: true }),\ndiagnostics.mjs:70  const rolls = game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0 && (gm || m.visible !== false)).slice(-6);",
+   "failure_scenario": "A player asked by the GM to paste `game.drpg.diagnoseDespair()` because their Despair is not counting posts a card that names the student whose whispered item roll came last, and the console line under it says whether that roll landed with Hope or Fear.",
+   "expected": "The direct call holds to the rule the one report holds it to: on a player, only rolls that player may see, or the GM-only answer the report gives.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the data is already in the player's browser (utils.mjs:794-799: it is, so a console could read it; the finding is that the module paints it, which E52-15 fixed for the dice part only). Checked that module-thrown rolls are neutral (private-rolls.mjs:700-725): they are, which narrows the exposure to the rolls named above. Checked who sees the card: the caller alone (utils.mjs:782-789). Looked for a gate on game.drpg.diagnoseDespair (api.mjs:1195: none) and inside the function (194-200 only add a sentence for a player). Not measured on a real table: what a non-recipient's copy of a whispered Daggerheart item roll holds."
+  },
+  {
+   "id": "domain-core-d-api-diag-3",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "ux",
+   "title": "The four explainer windows never redraw: their 'right now' lines stay as they were when the window opened",
+   "where": "scripts/explain.mjs:49-58 (one drpgWindow, nothing kept live), 187-225 (room, Search Tokens left), 279-315 (every pool's count, the Overflow hat), 322-376 (actions left, the free Move, Hope held), 383-413 (projects as seen)",
+   "what_happens": "Each explainer is a one-shot drpgWindow built from a read at open; explain.mjs imports nothing from live.mjs and registers no hook that rebuilds an open explainer. The windows print live facts - 'You have 2 of 2 actions left', 'You hold 3 of 6 Hope', each pool's 'held / max', 'Search Tokens here: 2 of 3', the room - and these go stale the moment the clock, a pool or a sheet changes, until the window is closed and opened again. The owner's standing rule of 20.11.2026 (BRIEF.md) is that windows redraw at once when what they show changes.",
+   "evidence": "explain.mjs:51  return drpgWindow({\nexplain.mjs:352  esc(t(\"DRPG.Explain.status.actionsNow\", {\nexplain.mjs:353      left: actionsLeft(actor), max: actionsMax(actor)\nexplain.mjs:288  return esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}${debt ? ...}`);\nexplain.mjs:213  lines.push(esc(t(\"DRPG.Explain.room.tokens\", {\nexplain.mjs:214      left: SearchTokens.left(room, place.scene), max: SearchTokens.max",
+   "failure_scenario": "A new player clicks the action strip to read what it means, leaves the window open, Searches the room, and the window beside the strip still says 'You have 2 of 2 actions left' while the strip says 1.",
+   "expected": "An explainer that shows a number either redraws when that number changes (keepLive over the clock, the pools, the actor and the room), or carries no number and points at the widget that does.",
+   "confidence": "read",
+   "refutation_tried": "Looked for keepLive, alreadyOpen or a Hooks.on in explain.mjs (none; its imports at 26-37 hold none of live.mjs), and for a caller that rebuilds an open explainer (explainOnce 476-482 only closes the old before opening a new one on the next click). Whether the owner counts a help window under the rule is the owner's; the window does print live values, so it is written here. Probe 43 was not read (no probe-43.json)."
+  },
+  {
+   "id": "domain-core-d-api-diag-4",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "With only an Assistant GM connected, the primary-GM hold of core.permissions is tried and, by the module's own reading of Foundry, refused - logged, told to nobody",
+   "where": "scripts/enforced.mjs:557-577 (holdPermissions: isPrimaryGm and the switch, no role test), 579-584 (again on every core.permissions update), 1021-1026 (at ready); scripts/utils.mjs:485-496 (an Assistant GM is primary with no full Gamemaster connected); scripts/enforced.mjs:813-820 (canGiveBack: 'Foundry lets only a full Gamemaster write core.permissions')",
+   "what_happens": "holdPermissions writes `core.permissions` from whichever GM is primary. primaryGmId picks an Assistant GM when no full Gamemaster is connected. The same file says, for Give back, that Foundry lets only a full Gamemaster write that setting and that an Assistant GM's write threw. So on a session where an Assistant GM is primary and the stored permissions are not as held (the switch turned on, or the hold never run by a full GM), keepOriginal writes the module's record, the `game.settings.set(\"core\", \"permissions\")` throws, and the error goes to the console and the Debug log at every ready and every permissions update. Nobody gets a notice, and the players keep browsing and uploading files for that session.",
+   "evidence": "enforced.mjs:559  if (readyAt === null || !isPrimaryGm() || !wanted(row)) return false;\nenforced.mjs:565  await keepOriginal(\"permissions\", permissionsOriginal(stored, row));\nenforced.mjs:566  await game.settings.set(\"core\", \"permissions\", held);\nenforced.mjs:814  * Who may press Give back (E20 fix round, the correctness review's C-6): a full Gamemaster. Foundry lets only a full\nenforced.mjs:815  * Gamemaster write `core.permissions`, and an Assistant GM's Give back wrote the switch and the automations and then\nutils.mjs:494  const pool = full.length ? full : assistants.sort();",
+   "failure_scenario": "An Assistant GM runs a session while the owner is away, on a world where the file-permission switch was turned on since the owner last loaded it: the players can still open a file browser, and the Assistant GM's Debug log holds a red 'Could not hold the file permissions' line each load with no word on screen.",
+   "expected": "The hold asks the same role canGiveBack asks, and an Assistant-GM primary either leaves the row for a full Gamemaster and says so, or is told why the files are not held.",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a role test on the road (holdPermissions, onWorldSettingUpdated, applyEnforced): none. The Foundry rule is the module's own reading at enforced.mjs:814-816, not read on v14 here, so this stays suspected; LIVE-E79-11 is the nearest live item (which roads v14 opens for a player) and does not ask it. With a full Gamemaster ever primary the stored value is already held and nothing is written, so the road needs the situation above."
+  },
+  {
+   "id": "domain-core-d-api-diag-5",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "bug",
+   "title": "game.drpg.manageItems(\"name or id\") is not normalised: the one API function whose actor parameter has a default beside an options bag",
+   "where": "scripts/api.mjs:1668-1685 (actorPosition), 564 (manageItems: openItemManager); scripts/gm-items.mjs:331 (`openItemManager(actor = null, { give = null } = {})`), 361-400 (the target used as an actor)",
+   "what_happens": "actorPosition reads a function's parameter text. When it holds a `{`, it answers 0 only when the first parameter is literally `actor`, so `actor = null, { give = null } = {}` answers -1 and the function is handed on unwrapped. api.mjs's note promises that every API function taking an actor positionally accepts an actor, an id or a name; for manageItems a string reaches openItemManager as `target`, and the window is built around it (`recipientOptions(students, target.id)` with an undefined id, `holdingsHtml(target)`, `keyChoices(target, ...)`). A static pass over the 418 names on game.drpg finds this the only one so affected.",
+   "evidence": "api.mjs:1677  if (params.includes(\"{\")) {\napi.mjs:1678      const flat = params.split(\",\").map(p => p.trim());\napi.mjs:1679      return flat[0] === \"actor\" ? 0 : -1;\ngm-items.mjs:331  export async function openItemManager(actor = null, { give = null } = {}) {\ngm-items.mjs:361  const target = actor ?? students[0] ?? null;",
+   "failure_scenario": "A GM's macro `game.drpg.manageItems(\"Aoi\")` opens the item window with no student picked or throws inside it, where `game.drpg.killCharacter(\"Aoi\")` works.",
+   "expected": "The same coercion as every other actor-taking entry (the parameter named `actor`, with or without a default).",
+   "confidence": "read",
+   "refutation_tried": "Read openItemManager for its own coercion (none: `actor ?? students[0]`). Ran actorPosition's rule in Python over the definitions of the names api.mjs hands on: openItemManager is the only one with `actor` among its parameters and -1 as the answer. The exact symptom (a throw or a blank recipient) was not run."
+  },
+  {
+   "id": "domain-core-d-api-diag-6",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "game.drpg.a11y() does not look at the room tile, the voice tile or the floor switcher, though its disclosure list says it reads the room tile",
+   "where": "scripts/a11y.mjs:34-55 (SURFACES), 292-322 (disclosuresOnPage, whose note names 'the room tile'); scripts/room-tile.mjs:201-223 (the tile is placed after #drpg-hud, a sibling), 296, 454 (its fold's aria-controls and aria-expanded); scripts/voice-tile.mjs:382, 1689-1690; scripts/fog.mjs:3465-3495 (#drpg-floors after #drpg-hud)",
+   "what_happens": "The sweep, the report and the disclosure list walk only the hosts in SURFACES and what is inside them. On a desk the room tile and the floor switcher stand beside #drpg-hud, not in it, and the voice tile is in the left column or the body; none is in SURFACES. Their controls carry names their own files set, so a screen reader is not left without words today, but `a11y()`'s 'every control in the module's own chrome has a name' and its disclosure lines say nothing about these three, and the room tile's fold - named in the note at 295 as one it lists - is never listed.",
+   "evidence": "a11y.mjs:35  \"#drpg-hud\", \"#drpg-despair\", \"#drpg-player-status\", \"#countdowns\",\na11y.mjs:295  * (action-menus.mjs `detailsHtml`), the tray's fold, the room tile, the case map's nodes - has a name, so the list\na11y.mjs:304  for (const el of document.querySelectorAll(SURFACES.map(s => `${s} [aria-expanded]`).join(\",\"))) {\nroom-tile.mjs:219  if (after.nextElementSibling !== tile) after.after(tile);",
+   "failure_scenario": "A GM checking accessibility runs `game.drpg.a11y()` and reads 'every control ... has a name' with no disclosure line for the room tile's description, and takes the room tile as checked when it was not read.",
+   "expected": "The report reads the module's tiles too, or says which hosts it reads.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether any of the three is placed inside a SURFACES host: on a desk no (room-tile.mjs:216-222, fog.mjs:3491-3495); on a stacked screen the tiles' row (narrow.mjs:103-111) was not followed into its parent, so that layout is not settled. Checked that their controls name themselves (room-tile.mjs:277, 337, 352-353, 455; floor buttons carry their text): they do, so the cost is in the report, not at the reader."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "Every diagnostic report and the one report are English text, not lang keys.",
+   "source": "CLAUDE.md house style ('diagnostics.mjs's console stays English'); diagnostics.mjs:2147-2152 ('The text is English like the console: it is pasted to whoever helps'); the Season checklist part (diagnoseCharacters) is the exception, in the table's language since E20 C2 (diagnostics.mjs:1423-1426)."
+  },
+  {
+   "what": "An unnamed inline stylesheet of 200+ rules is only a console line and a line of diagnoseStyles, never a notice.",
+   "source": "diagnostics.mjs:297-305 (E52 C5, audit S01-39)."
+  },
+  {
+   "what": "A stylesheet whose stamp disagrees with the version is not re-attached and gets no notice.",
+   "source": "diagnostics.mjs:787-792, 806-822."
+  },
+  {
+   "what": "Every pool's Despair count is printed to every reader of the Despair explainer; only the Overflow's count is a GM's.",
+   "source": "explain.mjs:259-268 (E15 C3, D3)."
+  },
+  {
+   "what": "The GM handbook is a file any browser could fetch; it is only left off a player's tab bar.",
+   "source": "handbooks.mjs:30-35, 78-81; the handbooks ship in module.zip (.gitattributes, 'docs/handbooks SHIPS (1.2.55)')."
+  },
+  {
+   "what": "checkState holds three invariants and no more.",
+   "source": "state-check.mjs:6-19 ('what else a world must hold is not guessed here')."
+  },
+  {
+   "what": "A User Configuration window is closed only on its first render, within 30 s of ready, with no user activation.",
+   "source": "enforced.mjs:623-646 (E79 C9, N2; LIVE-E79-10)."
+  },
+  {
+   "what": "The dice look's row is not given back by Give back Foundry's settings.",
+   "source": "enforced.mjs:679-684 (E20 fix round G-7)."
+  },
+  {
+   "what": "fileSizes reports sizes, not checksums.",
+   "source": "diagnostics.mjs:1142-1145."
+  },
+  {
+   "what": "A contract row only a table check reads stays unknown and is left out of the console line.",
+   "source": "patches.mjs:1508-1517 (E91 C1, the owner's note of 09.11)."
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/patches.mjs:21-23 (also 1384 'as the notice and Pre-season name it', 1415 'for Pre-season's fold of the unread rows')",
+   "comment_says": "A failed row is told to the GM 'and Pre-season's checks list the same (season-setup.mjs `preSessionReport`)'.",
+   "code_does": "preSessionReport no longer holds the contract: since E101 item 2 it is Diagnostics' 'Foundry and modules' window (season-setup.mjs:1497-1500, `foundryReport` 1459-1466, opened from gm-panel.mjs:745)."
+  },
+  {
+   "where": "scripts/api.mjs:1049-1052",
+   "comment_says": "The ballots 'are addressed to the GMs over the socket and counted in memory'.",
+   "code_does": "Since 1.2.71 a ballot travels on the bridge and is kept in the GMs' store `ballotStore`; 'Until 1.2.71 the ballots were a Map in the collecting GM's memory' (vote.mjs:23-31)."
+  },
+  {
+   "where": "scripts/api.mjs:1477-1481",
+   "comment_says": "checkRegions is 'Also on a button in Room setup ▸ Fog'.",
+   "code_does": "The Check rooms button is in Season setup's rooms step (season-setup.mjs:232-234, wireRoomCheck 1016-1022); Room setup's Fog tab (room-setup.mjs:394) wires fog switches, not the region check."
+  },
+  {
+   "where": "scripts/api.mjs:1366",
+   "comment_says": "actionBudget: '2 per time of day, or 1 while all Health is marked'.",
+   "code_does": "A wound takes the action only in Daily Life and the Investigation, a Monocub loses none, and a darkened time of day takes one more, floored (actions.mjs:41-69)."
+  },
+  {
+   "where": "scripts/api.mjs:1631-1635",
+   "comment_says": "The parameter named `actor` is 'used consistently across all 117 of them'.",
+   "code_does": "A static pass of actorPosition's rule over the definitions of today's 418 game.drpg names finds about 107 wrapped (approximate: a script over source text, not the running object), and one with an `actor` parameter left unwrapped (finding 5)."
+  },
+  {
+   "where": "scripts/diagnostics.mjs:1529-1535",
+   "comment_says": "`toChat: false` 'is for callers that put the result on screen themselves - the Pre-session checks tile shows both reports in one window'.",
+   "code_does": "No window calls diagnoseCharacters or diagnoseDespair any more (git grep: only api.mjs and the one report's parts at 2228 and 2234); the Season checklist's rows check the same since E101 (api.mjs:1197-1198)."
+  },
+  {
+   "where": "scripts/style-snapshot.mjs:73-74",
+   "comment_says": "The kit's rows read 'the style harness's kit gallery ... until E21 moves the module's windows onto it'.",
+   "code_does": "E21 has moved them (handbooks.mjs:348-349 'ON THE KIT'S FRAME (E21 C6a, 07.11.2026)'; explain.mjs:50 'On the kit's frame (E21 C5a)'), so the rows read real windows too."
+  },
+  {
+   "where": "scripts/hud-elapsed.mjs:258-268 (a neighbour, not in this scope)",
+   "comment_says": "`#drpg-hud` 'lives in `#ui-left-column-1`, which a11y.mjs observes with `subtree: true`', and the elapsed line ticks 'a one-second one for the whole length of a Class Trial'.",
+   "code_does": "Since E48 K4 a11y.mjs watches each SURFACES host and the body's additions, not the left column (a11y.mjs:379-411); buildElapsed's period is 10 000 ms always and the debate's per-second clock is the Event panel's (hud-elapsed.mjs:232-235)."
+  },
+  {
+   "where": "scripts/diagnostics.mjs:1418-1419",
+   "comment_says": "'see `injectInitButton` in sheet.mjs'.",
+   "code_does": "It lives in sheet-header.mjs:605 since E54 (sheet.mjs:53 imports it)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": [
+   "diagnostics.mjs perfReport 1749-1923 (175)",
+   "diagnostics.mjs frameCostRun 1990-2142 (153)"
+  ],
+  "data_tables_over_300": [
+   "api.mjs DrpgApi 292-1614 (1323 lines, a table of names)",
+   "patches.mjs PATCHES 292-1252 (961 lines, a table of rows)"
+  ],
+  "duplicated_helpers": [
+   "Three percentile rules in two files: perf-timings.mjs stats (nearest rank, lower middle, 209-214) and diagnostics.mjs rankOf (the same rule copied, 1644-1647); frameCostRun's pick (floor(q*n), the upper middle for an even count, 2025); perfReport's window probe 'median of six' takes opens[3], the upper middle (1832), where rankOf's note (1889-1890) says the median of an even count is the lower middle reading; open-cost.mjs summarizeOpens' middle (the lower middle, 279-282).",
+   "The same 'is the configured token class Foundry's Token' check written three times in patches.mjs (464-466, 668-673, 1208-1213).",
+   "A frame's promise (`new Promise(r => requestAnimationFrame(r))`) written in frameBeat (1721-1726), perfReport (1825-1829) and frameCostRun (1994).",
+   "explain.mjs's 'own count, not a Monokuma' test spelt twice (actionsOf 114-118, actionsExplained 147-148)."
+  ],
+  "dead_code": [
+   "state-check.mjs worldSnapshot is exported and read only inside the file (git grep: no importer, no test names it).",
+   "diagnoseCharacters and diagnoseDespair are reached only from game.drpg and the one report: no control calls either (git grep).",
+   "handbooks.mjs show() does not hold the book to booksFor (432-446) where the constructor does (379); no road calls it with the GM's book on a player today (every '?' is a GM window's, ui-kit.mjs:1217-1228), so this is latent."
+  ],
+  "magic_numbers": [
+   "diagnostics.mjs: the last 6 rolls (70), 12 students listed (206), 10 bullets listed (1234), 200 rules for an inline sheet (331), 6 window probes of 460 x 320 px (1817-1821), 200 runs a hot lookup (1853), 15 rows of whySlow (1634), 20 CHANGE events for a storm (1050); all local literals.",
+   "lang DRPG.Diagnostics.cast.experiencesFix 'Each at +2' and its Polish twin carry the number config.mjs keeps as STARTING.experienceValue (config.mjs:316); diagnoseCharacters passes `n: STARTING.experiences` to the line above it but not the value.",
+   "a11y.mjs: 120 characters of outerHTML (175, 283), KIND_REFS 32 (80).",
+   "open-cost.mjs: START_DELAY_MS 4000, TEMPLATE_BATCH 6, INPUT_WINDOW_MS 10000, OPENS_KEPT 300, QUIET_AFTER_CLOCK_MS 3500 and RECHECK_MS 400, each named with its reason.",
+   "enforced.mjs: START_WINDOW_MS 30000 and RTC_SETTLE_MS 250, both named and said to be choices, not readings (128-129, 423-426)."
+  ],
+  "fragile": [
+   "api.mjs wrap reads a class's source like a function's: game.drpg.searchTokens (SearchTokens, search-tokens.mjs:54) is left a class only because the first '(' in its text is a comment's '(Z10)'; a comment reading '(actor ...' there would replace the class with a wrapper function and drop its static methods.",
+   "diagnoseDespair's `import(\"./despair-award.mjs\").then(...)` has no catch (diagnostics.mjs:215-218): a throw in readDuality is an unhandled rejection."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [],
+  "stale_windows": [
+   "The four explainers (explain.mjs:232-413): a snapshot at open, no keepLive (finding 3).",
+   "The one report's window (diagnostics.mjs:2295-2345): a snapshot by design ('the report read now'); Copy and Show again bring back the same text, not a new reading.",
+   "Give back Foundry's settings (enforced.mjs:944-974): its facts are read at open; another GM's Give back or Hold again while it stands is not shown until it is opened again."
+  ],
+  "controls_read": [
+   "The explainers' panels: a click on #drpg-hud, #drpg-despair, #drpg-player-status or #countdowns outside a control, or Enter / Space on the focused panel, opens the window and closes any other explainer (explain.mjs:428-512).",
+   "The one report: Copy report, Show again per silence, Close (diagnostics.mjs:2314-2344).",
+   "Give back: Give them back (full Gamemaster only), Hold them again, Close; the start question Hold them again / Not now (enforced.mjs:944-1007).",
+   "The handbook launcher, its three tabs, the contents list and the section links (handbooks.mjs:357-564)."
+  ],
+  "perf": [
+   "a11y.mjs:406-410 runs `matches` and `querySelectorAll` over SURFACES (16 selectors) for every element added anywhere in the body, chat and tooltips included; it sweeps only when a host is born. Not measured; scenario 86 counts no a11y work (perf-counters.mjs names none)."
+  ]
+ },
+ "not_established": [
+  {
+   "item": "Finding 4's premise: whether Foundry 14 refuses an Assistant GM's write of core.permissions. The module says so (enforced.mjs:814-816); no reading in docs/dev/e39/CALIBRATION.md or the e58 report was found for it.",
+   "l1": {
+    "what": "Whether an Assistant GM can write core.permissions on Foundry 14.370, and what the hold does when an Assistant GM is the primary",
+    "recipe": [
+     "Log in as an Assistant GM alone (no full Gamemaster connected) on a world with the file-permission switch on",
+     "Before that, as the full Gamemaster, give FILES_BROWSE back to the Player role in Foundry's permission window, then log out",
+     "As the Assistant GM, reload and read the console and game.drpg Debug log for 'Could not hold the file permissions'",
+     "As a player, try to open a file browser (a journal image)"
+    ],
+    "clients": "1 Assistant GM, 1 player, no full Gamemaster",
+    "theme": "default",
+    "settles_if": "A refused write and a working file browser for the player confirm finding 4; a written value and a closed browser refute it",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 2's reach: what a non-recipient's copy of a whispered Daggerheart item roll or Monocub Meddle holds (speaker, rolls).",
+   "l1": {
+    "what": "What a player's browser holds of another user's whispered roll that the module did not throw",
+    "recipe": [
+     "With rolls forced private, have player A roll a Daggerheart item roll from the sheet",
+     "On player B's browser run game.drpg.diagnoseDespair()",
+     "Read the card's 'Most recent roll message' line and the console's 'last roll read as' line"
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "A's character named on B's card confirms finding 2 at a table; '(nobody this browser can tell)' and no duality refutes it for that roll kind",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 1's cost on a hosted server: the bytes and seconds fileSizes takes with the suite in the crawl.",
+   "l1": {
+    "what": "The time and transfer of game.drpg.fileSizes() on the owner's hosted world",
+    "recipe": [
+     "Open DevTools' Network tab with the cache enabled",
+     "Run await game.drpg.fileSizes()",
+     "Read the transferred total, the time, and the rows marked DID NOT ARRIVE"
+    ],
+    "clients": "1 GM",
+    "theme": "default",
+    "settles_if": "Five DID NOT ARRIVE rows (x, y, b, lazy, missing) and the tests-*.mjs files listed confirm finding 1",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 3: whether the owner counts the explainers (help windows) under the rule that windows redraw at once; probe-43.json was not present to read.",
+   "l1": {
+    "what": "Whether an open explainer shows a stale count after a change",
+    "recipe": [
+     "As a player, click the action strip to open 'Actions, Move, and Hope'",
+     "Leave it open and take a Search",
+     "Compare the window's 'You have N of M actions left' with the strip"
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "both",
+    "settles_if": "A mismatch until the window is reopened confirms the stale window; an updated line refutes it",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Whether checkState warns at the primary GM's start on a world whose stored clock lacks `day` or `session`: it reads the raw setting (state-check.mjs:45-48, 77) where every reader merges DEFAULT_CLOCK (settings.mjs:3883-3885). setClock writes the merged clock (`const next = { ...before, ...patch }`, clock.mjs:158), so such a stored value needs an old world never moved since; not traced to a world that has one.",
+   "l1": {
+    "what": "Whether checkState flags a clock field the defaults fill",
+    "recipe": [
+     "On an old world, read game.settings.get('danganronpa-rpg','clock') at the console",
+     "Run game.drpg.checkState()"
+    ],
+    "clients": "1 GM",
+    "theme": "default",
+    "settles_if": "A 'clock's day is undefined' problem with getClock().day === 1 confirms a false warning; no problem refutes it",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "The stacked (narrow) layout of finding 6: whether the tiles' row sits inside a SURFACES host.",
+   "l1": {
+    "what": "Whether game.drpg.a11y() lists the room tile's fold on a stacked screen",
+    "recipe": [
+     "Open the world at a phone-sized window so the stack is drawn",
+     "Open the room tile's description",
+     "Run game.drpg.a11y()"
+    ],
+    "clients": "1 player",
+    "theme": "both",
+    "settles_if": "A disclosure line for the room tile on the stack and none on a desk confirms finding 6 for the desk only",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "No number printed by perf(), fps(), counters() or openTimes() was read for this file: their readings are a table's (LIVE-E33-05, LIVE-E88-01), and no base-run.json was present to cite R1009, R1556, R4200-R4204 or R126 results.",
+   "l1": {
+    "what": "The readings E88 and the perf-open line name",
+    "recipe": [
+     "As the owner's table already plans in LIVE-E33-05 and LIVE-E88-01"
+    ],
+    "clients": "GM and players",
+    "theme": "both",
+    "settles_if": "As those items say",
+    "priority": "not graded"
+   }
+  }
+ ]
+}

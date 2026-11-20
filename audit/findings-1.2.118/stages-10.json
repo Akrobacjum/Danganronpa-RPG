@@ -1,0 +1,898 @@
+{
+ "reader": "stages-10",
+ "checkout": "claude/audit-119 at 435007dc; scripts/, lang/, styles/, tools/ and docs/ as on b5a29e73 (1.2.118). The repository is a shallow clone: E16's part 2 C0-C4 and all of part 1's commits, and E17's C0-C9 with most of its fix rounds, are not in it; E87's and E88's are.",
+ "count_expected": 4,
+ "count_note": "4 of 4 stages, in tools/stages.json order E16, E17, E87, E88. Read: the release notes v1.2.86 (197), v1.2.87 (309), v1.2.88 (191) and v1.2.89 (235) whole, and v1.2.80's E16 part 1 sections (about 90 of 308 lines); the four stages.json rows; 42 registry rows by title (13 E16, 16 E17, 2 E87, 11 E88), and their status in the base run's shard 1/8 log by script (all 42 ok); about 30 tier-2 titles by grep and 2 bodies in part (E16-T28, E16-T31); AUDIT 9.2 items 267-270 and 304-330 (31 items) by id; live-items-08.json, -293.json and -327.json for those items; the three live-readings files by script; code at the file:line given in each promise, about 1400 lines in 35 files, none whole. No docs/dev papers exist for any of the four stages.",
+ "stages": [
+  {
+   "id": "E16",
+   "version": "1.2.86",
+   "shipped": "2026-10-26",
+   "what": "Two parts: part 1 in 1.2.80 (Daggerheart's roll window wrapped before its context, a locked window's summary line and chips, one Dice So Nice look for the table held by the primary GM); part 2 in 1.2.86 (the actions' windows show the number the GM judges - Sabotage's bar, Dynamic's 'beat N' and its success card -, one card per GM-ruled action, 'Nothing was there.' paid, the Class Trial's one Analyze filter and the GMs' refusal of a stash hunt in a trial, Body first for a trap's victim, a failed concealment told to the room, Tamper's number, the Reroll and Resolve windows' words, a Loaded Die that held, the Projects tile outside a room, the Rest tile's reasons, an old Observe card, the found-stash list held by the GMs), with H83 riding along (the room tile's picture and the voice tile's portrait lean with their pane; Create an item's picture grid) - 13 registry rows stamped E16.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.86.md (1-197, whole: the stage 3-10, Before installing 12-26, At the table 28-90, Changed 92-120, Known gaps 122-154, Checked 156-197)",
+    ".github/release-notes/v1.2.80.md (1-308; E16 part 1's parts read: the head 1-6, Before installing item 2 and 9 (11-23, 48-57), 'The roll window and one dice look' 154-170, Changed 185-195, Known gaps 219-225 and 265-282, Checked 296-308)",
+    "no papers folder: docs/dev/ holds no e16/ or h83/ (ls docs/dev); the ledger the notes quote (part 1: 26 rows; part 2: 24 rows, 23 answered, 1 live) is not in the repository; the notes and the commits are the claim",
+    "tools/stages.json row E16 (planned and shipped 1.2.86, 2026-10-26, touches sockets and rolls, drills none)",
+    "docs/dev/R-REGISTRY.md: 13 rows stamped E16 (R800-R806 part 1, R985-R990 part 2 and H83); none stamped H83",
+    "git: 556c7d25 (the 1.2.86 merge, #33) over 10 commits in the shallow checkout (4f35731d C5, 5e99120f and 05ffd835 H83, 43b39060, 586e990f, 359308ca the fix round e1-G1..G3, 81f59e48 and 0b8dd4aa fix ci-1/ci-2, aa8cea72 the version, 9f727e07 the gate record); part 2's C0-C4 and all of part 1's commits are behind the shallow boundary (cad376ef, the 1.2.80 merge, shows only E80's last four; 2ec9f48a merged line B with E16 part 1)",
+    "audit/AUDIT-1.2.42.md 9.2 items 267-270 (lines 1141-1144, LIVE-E16-01 to -04) and 304-305 (lines 1178-1179, LIVE-E16-05, -06), found by id",
+    "audit/findings-1.2.118/first-session/live-items-08.json items 267-270 and live-items-293.json items 304-305; live-readings-other.json (LIVE-E16-04, item 269)"
+   ],
+   "commits": 10,
+   "promises": [
+    {
+     "promise": "Sabotage's window shows the bar the GM's band judges: one function gives both",
+     "source": "v1.2.86.md 32-33",
+     "code": "scripts/action-project.mjs:1276 sabotageBar, :1052 (the window's dc), :1286-1287 sabotageHit reads the same bar",
+     "holds": "yes",
+     "test": "R985 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "R985 holds each window number to the least total sabotageHit puts in its band, with and without Despair and with tools."
+    },
+    {
+     "promise": "Dynamic says 'beat N' (the band's lower number) in both windows; one card per Dynamic action, none left 'Awaiting a ruling.'; a GM's own posts none",
+     "source": "v1.2.86.md 34-36",
+     "code": "scripts/action-dynamic.mjs:303 dynamicBar, :296-302 (its comment)",
+     "holds": "yes",
+     "test": "tier 2 E16-T21 (tests-tier2.mjs:83646), E16-T25 (:83928); not read in the base run",
+     "test_kind": "behaviour",
+     "note": "The engine was unchanged; only the shown number moved to the engine's."
+    },
+    {
+     "promise": "A Dynamic success hands the GM a card with Create an item (prefilled), Give and Reply; a Reroll into a success posts it, a Reroll into a miss ends an unanswered card",
+     "source": "v1.2.86.md 37-41",
+     "code": "scripts/action-dynamic.mjs:201 offerDynamicFind, :260 withdrawDynamicFind; scripts/reroll.mjs:1497 settleDynamic",
+     "holds": "yes",
+     "test": "tier 2 E16-T26 (tests-tier2.mjs:83990); not read in the base run",
+     "test_kind": "behaviour",
+     "note": "The withdrawn card's words were reworded since (lang/en.json:976 'A Reroll turned this roll into a miss, so it gives nothing.'): a text sweep, not a change of rule."
+    },
+    {
+     "promise": "'Nothing was there.' keeps the action spent, 'Refuse the attempt' gives it back; the hint card's 'No help.' keeps it spent",
+     "source": "v1.2.86.md 42-44",
+     "code": "scripts/action-pipeline.mjs:1072 ruledMissAction; lang/en.json:5018",
+     "holds": "yes",
+     "test": "tier 2 E16-T24 (tests-tier2.mjs:83815); not read in the base run",
+     "test_kind": "behaviour",
+     "note": "E16-T24's CRLF red on 81f59e48 was the test's (the refund stops at the GMs' maximum), fixed by 0b8dd4aa; no module change."
+    },
+    {
+     "promise": "In a Class Trial Analyze offers only what identifies Truth Bullets (one filter), the GMs refuse a stash hunt whoever asks before its throw is read, and the price or the Reroll comes back",
+     "source": "v1.2.86.md 45-49, 67-69",
+     "code": "scripts/action-analyze.mjs:47-57 ANALYZE_TRIAL_FILTER, :59 analyzeRowShut, :312 locateStash; scripts/stash-reach.mjs:702 (resolveStashSearch refuses in classTrial); scripts/reroll.mjs:1817 settleStashFind",
+     "holds": "yes",
+     "test": "tier 2 E16-T27 (:84282), E16-T28 (:84345, ok in shard 2/8); R989 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "E70 C9 appended the Reveal's copy as an open bullet row (action-analyze.mjs:52-56): an extension, not a change."
+    },
+    {
+     "promise": "A trap's victim throws Body first on Leave a clue and Secure a trace",
+     "source": "v1.2.86.md 50-51",
+     "code": "scripts/config.mjs:3885 and :3919 (indirectVictim traits ['body','hand','leg'])",
+     "holds": "yes",
+     "test": "R987 (ok in shard 1/8)",
+     "test_kind": "source",
+     "note": "R987 reads the lists and the default pick."
+    },
+    {
+     "promise": "A failed concealment of an indirect murder's work is told to the room on its own, naming no project",
+     "source": "v1.2.86.md 52, 84-86",
+     "code": "scripts/action-project.mjs:708 concealProjectIntent; lang/en.json:4509 concealSeen",
+     "holds": "yes",
+     "test": "tier 2 E16-T30 (:84808); not read in the base run",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "A Palm or a Plant the module could not send to a GM gives the action back; one sent but not answered stays paid",
+     "source": "v1.2.86.md 53-54",
+     "code": "scripts/palm.mjs:239 nobodyTook",
+     "holds": "yes",
+     "test": "tier 2 E16-T37 (:85131) drives it on the GM; not read in the base run",
+     "test_kind": "behaviour",
+     "note": "The notes say a player's own client refund is read in the source only (Known gaps 150-153)."
+    },
+    {
+     "promise": "Tamper's window shows the chosen trace's number",
+     "source": "v1.2.86.md 63",
+     "code": "scripts/cleanup.mjs:207-208 (each row carries dc, cleanupDc), :215 cleanableTracesForPlayer",
+     "holds": "yes",
+     "test": "tier 2 E16-T22 (:83706); not read in the base run",
+     "test_kind": "behaviour",
+     "note": "Driven on the GM's page; a real player's browser not driven (Known gaps 150)."
+    },
+    {
+     "promise": "The Reroll window names the roll it takes back; Resolve says the next roll asks the statistic",
+     "source": "v1.2.86.md 64-65",
+     "code": "lang/en.json:5655 lastRoll",
+     "holds": "partly",
+     "test": "tier 2 E16-T23 (:83764, ok in shard 2/8)",
+     "test_kind": "behaviour",
+     "note": "As stated in the notes (138): after a reload it names no roll - this browser's memory only."
+    },
+    {
+     "promise": "A Loaded Die counts only where the die held",
+     "source": "v1.2.86.md 72-73",
+     "code": "scripts/forced-roll.mjs:91 loadedDieHeld; callers scripts/action-pipeline.mjs:295, scripts/roll-draw.mjs:1726",
+     "holds": "yes",
+     "test": "tier 2 E16-T35 (:85033); not read in the base run",
+     "test_kind": "behaviour",
+     "note": "Whether Daggerheart's real roll keeps the config loadedDieHeld reads is LIVE-E16-06 (open)."
+    },
+    {
+     "promise": "Projects is not struck through outside a room, Search still is",
+     "source": "v1.2.86.md 74",
+     "code": "scripts/sheet-actions.mjs:962 roomBlockFor, :975-980 (roomBound without project)",
+     "holds": "yes",
+     "test": "R986 (ok in shard 1/8)",
+     "test_kind": "source",
+     "note": ""
+    },
+    {
+     "promise": "Rest, when neither rest can be taken, is dimmed with both reasons and its window shows both rows greyed with one Close",
+     "source": "v1.2.86.md 74-76",
+     "code": "scripts/sheet-actions.mjs:968-969 (the 'rest' key reads facilitiesShutReason); scripts/action-facilities.mjs:105-120 facilitiesRows, facilitiesShutReason",
+     "holds": "superseded",
+     "test": "tier 2 E16-T33 (:84975); not read in the base run",
+     "test_kind": "behaviour",
+     "note": "Superseded by E93 C3/C4 (the tile is now Facilities, the rests plus the room's actions) and fix line 113f (13.11.2026): the tile is dimmed only when every row is, the reasons row by row. The rule of the promise stands, widened."
+    },
+    {
+     "promise": "An old Observe card no longer shows a player the GMs' sentence; a GM reads it whole",
+     "source": "v1.2.86.md 79-80",
+     "code": "scripts/secret.mjs:357 dropOldGmLines; callers scripts/messenger-app.mjs:623, :683, scripts/secret.mjs:1024",
+     "holds": "yes",
+     "test": "tier 2 E16-T36 (:85090); not read in the base run",
+     "test_kind": "behaviour",
+     "note": "Matches the reader's language only (Known gaps 141-142); a real old world is LIVE-E16-06 (2)."
+    },
+    {
+     "promise": "The found-stash list (drpgStashesFound) is the GMs' to write: a player's own write is put back; a mark taken before it was marked reads the sheet's list and puts nothing back",
+     "source": "v1.2.86.md 15-20",
+     "code": "scripts/sheet-audit.mjs:164 GM_FLAGS, :206-213 FLAGS_MARKED_LATER and flagsMarkedBy, :840 flagsHeldNow, :3024 compareOne, :3057",
+     "holds": "yes",
+     "test": "tier 2 E16-T29 (:84495), E16-T38 (:84666); not read in the base run",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "A weapon a Search takes out of a stash leaves a Prep Remnant; a thing that is no weapon leaves none",
+     "source": "v1.2.86.md 70-71",
+     "code": "scripts/action-search.mjs:228-235 (searchStash gone in 1.2.112)",
+     "holds": "superseded",
+     "test": "tier 2 E16-T31 (:84889, ok in shard 2/8) now pins the opposite: a Search beside an open stash takes nothing out of it",
+     "test_kind": "behaviour",
+     "note": "Superseded by E108's train (1.2.112, feba55c3: 'Stashes: a roll to discover, no roll to take'): a Search never reaches into a stash (gm-handbook.en.md:355). R989's own row says its second half went in 1.2.112."
+    },
+    {
+     "promise": "H83: under Stained Glass the room tile's picture and the voice tile's portrait lean with their pane, still cut to it",
+     "source": "v1.2.86.md 87-90",
+     "code": "scripts/glass.mjs:534 seatRoomArt, :579 paneLayer, :590 tileTurn, :594 layOnPane, :676 seatVoiceArt; called at :2303, :2307, :3397-3398",
+     "holds": "yes",
+     "test": "R988 (ok in shard 1/8); glass harness in Chromium (notes 187-189, not re-run)",
+     "test_kind": "both",
+     "note": "A real picture on v14 is the owner's look, with no LIVE id (Known gaps 130-132)."
+    },
+    {
+     "promise": "H83: Create an item picks its picture from a grid of the module's item drawings, 'Category's own' first, 'Another file...' last",
+     "source": "v1.2.86.md 55-59",
+     "code": "scripts/tables-editor.mjs:848 wireItemPicture, :1739",
+     "holds": "partly",
+     "test": "R990 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "A drawing picked in the grid does not survive game.drpg.pinItemIcons({ apply: true }) (inventory.mjs:451-457, :497), as the notes say (133-134); finding E16-1."
+    },
+    {
+     "promise": "Part 1: the roll window wraps D20RollDialog before its context, a failure is said on the console, a locked window shows one summary line with chips; the opening rolls' titles lose 'your roll'",
+     "source": "v1.2.80.md 154-168",
+     "code": "scripts/roll-dialog.mjs:186-222 wrapPrepareContext (live-items-08.json item 267's note)",
+     "holds": "partly",
+     "test": "R800, R801, R805 (ok in shard 1/8)",
+     "test_kind": "both",
+     "note": "The collapse of the player's window (E16 C2) was retired by E60 C5c (7bfa6fe4, 1.2.98): a player's window is the GM's. At the owner's table on 1.2.80 the roll's title stood letter under letter (H81-07, 20.10.2026), fixed in 1.2.81 (dc351047); not read at a table since (LIVE-E16-02, item 268)."
+    },
+    {
+     "promise": "Part 1: one Dice So Nice look for the table - the primary GM writes the source GM's look onto every user below a full Gamemaster and puts a change back; Assistant GMs held to it",
+     "source": "v1.2.80.md 11-23, 169-170",
+     "code": "scripts/dice-sync.mjs; scripts/settings.mjs:37, :1516 diceLookSource; scripts/dice-look.mjs:1-30 (E60's diagnostic)",
+     "holds": "partly",
+     "test": "R802, R804, R806 (ok in shard 1/8); tier 2 'a player's or an Assistant's write of a character's dice look goes back to the GMs' (tests-tier2.mjs:76011); scenario 17 G2",
+     "test_kind": "both",
+     "note": "The owner reported after installing 1.2.97 that the dice's look did not agree between players (dice-look.mjs:4-5); E60 C5b-C5d (1.2.98) added a diagnostic and one Hope/Despair look, E108 (1.2.112) a choice of looks (diceLookKind, settings.mjs:1187). Not read at a table since (LIVE-E16-03 open, LIVE-E16-04 part (3) only)."
+    }
+   ],
+   "registry_rows": 13,
+   "tests_read": [
+    {
+     "test": "R985 (registry row, tier 1)",
+     "measures": "yes",
+     "why": "Holds every number the window shows to the least total the judge scores in that band, for the Despair penalty and the tools: the window and the judge cannot drift apart while it is green."
+    },
+    {
+     "test": "R987 (registry row, tier 1)",
+     "measures": "yes",
+     "why": "Reads each indirectVictim list (Body first, no Shadow) and the default pick where nobody chooses."
+    },
+    {
+     "test": "R986 (registry row and sheet-actions.mjs:975-980)",
+     "measures": "weak",
+     "why": "A call of roomBlockFor for a character standing nowhere and a count of the roomBound list: pins the rule, draws no sheet."
+    },
+    {
+     "test": "tier 2 E16-T28 (tests-tier2.mjs:84345, title and fixtures read)",
+     "measures": "yes",
+     "why": "Opens a trial and sends the four roads (the picker, a packet, a GM's own search, a Reroll of a hunt from before) and reads that nothing is found and the price or Reroll comes back. ok in shard 2/8."
+    },
+    {
+     "test": "tier 2 E16-T31 (tests-tier2.mjs:84889-84970, read)",
+     "measures": "yes",
+     "why": "Rewritten for 1.2.112: grants a knife and an apple into an open stash, Searches beside it and reads both still in the stash with no trace - the opposite of the stage's own promise, which it replaced. ok in shard 2/8."
+    },
+    {
+     "test": "R990 (registry row)",
+     "measures": "yes",
+     "why": "One radio cell per drawing itemIcon names, the cell's value into img.new and the preview; it does not read what pinItemIcons does to the pick afterwards."
+    },
+    {
+     "test": "R804 (registry row)",
+     "measures": "weak",
+     "why": "Holds the GMs' copy of the dice looks to a row from a full Gamemaster's browser; what Dice So Nice draws is no test's (LIVE-E16-03)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E16-T21",
+    "tier 2: E16-T22",
+    "tier 2: E16-T24",
+    "tier 2: E16-T25",
+    "tier 2: E16-T26",
+    "tier 2: E16-T27",
+    "tier 2: E16-T29",
+    "tier 2: E16-T30",
+    "tier 2: E16-T33",
+    "tier 2: E16-T35",
+    "tier 2: E16-T36",
+    "tier 2: E16-T37",
+    "tier 2: E16-T38",
+    "tier 2: E16-T39",
+    "tier 2: 'a player's or an Assistant's write of a character's dice look goes back to the GMs'",
+    "scenario 17 (G2)",
+    "scenario 40-flow"
+   ],
+   "scenarios": [
+    "No register row names E16 (audit/harness/README.md: grep E16 hits only the shim's notes at :474-478 and :664-671, LIVE-E16-01 and -04's models)",
+    "The notes: no scenario file changed in 1.2.86 (v1.2.86.md:113); part 1's 1.2.80 added checks to scenarios 01, 15, 17, 30, 33, 40, 65, 72, 76 and 83 (v1.2.80.md:194), not separated by stage"
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "267 LIVE-E16-01 open (no reading; the sandbox holds Daggerheart 2.12.9, neither version the item names). 268 LIVE-E16-02 partly, result defect: the owner's 1.2.80 table saw the title stand vertically, fixed in 1.2.81, nothing read since. 269 LIVE-E16-04 partly, mixed: part (3) read on 14.370 (CALIBRATION.md:38-43, 16.11.2026: noHook skips only the pre hook, where the harness skips both - the harness's model, D9 not built). 270 LIVE-E16-03 open (the owner's report on 1.2.97 is not a digest reading). 304 LIVE-E16-05 and 305 LIVE-E16-06 open. None read whole."
+   },
+   "findings": [
+    {
+     "id": "E16-1",
+     "severity": "nit",
+     "title": "A picture picked in H83's grid is reset by pinItemIcons, whose own header says a picture a GM picked is left alone",
+     "where": "scripts/inventory.mjs:451-457 replaceableIcon (any path under /icons/item- is the module's), :472-475 (the header: 'an item a GM picked art for, is left alone'), :497 (the skip); scripts/tables-editor.mjs:848 wireItemPicture",
+     "what_happens": "The grid stores one of the module's own item drawings in the item's img. pinItemIcons treats every module drawing as its own placeholder, so with apply it replaces the GM's pick with the category's drawing. The notes say so (v1.2.86.md:133-134); the function's header was not changed and still promises the GM's pick is kept.",
+     "failure_scenario": "A GM picks the knife drawing for a usable item in Create an item, later runs game.drpg.pinItemIcons({ apply: true }) to fix old items, and the item comes back with the usable category's drawing although the console help said chosen art is left alone.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a mark the grid leaves that pinItemIcons reads (none: the grid writes img alone) and for a later stage that changed replaceableIcon (none; the SUPERSEDED set and the /icons/item- test are as described). The behaviour is a stated known gap; what remains is the header's sentence against the code."
+    }
+   ],
+   "superseded_by": [
+    "E60 C5c (7bfa6fe4, 1.2.98): the player's roll window collapse of E16 C2 retired - the player's window is the GM's",
+    "E60 C5b-C5d (1.2.98) and E108 (1.2.112): the one dice look gained a diagnostic, one Hope/Despair look and a choice of looks, after the owner's report on 1.2.97 that looks disagreed",
+    "E108's train (feba55c3, 1.2.112): a Search no longer reaches into a stash, so 'a weapon a Search takes out of a stash leaves a Prep Remnant' has no road; E16-T31 pins the new rule",
+    "E93 C3/C4 and fix line 113f (1.2.113): the Rest tile became Facilities; its dimming reads every row of the window"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "On 1.2.118 every part-2 promise that still has a road is in the code as worded, and the 13 registry rows are all ok in the base run's shard 1/8 (R800-R806, R985-R990); of the stage's tier-2 tests E16-T23, -T28 and -T31 are ok in shard 2/8 and the rest were not read. Against an 8: (1) part 1's main promise, one dice look for the table, was seen to fail at the owner's table on 1.2.97 and stands today on E60's and E108's answers, which no table has read; part 1's roll window had a defect at the owner's table on 1.2.80 (fixed in 1.2.81, unread since); (2) several parts are held by reading alone, as the notes list (a player's own refund of a stash hunt, a Palm's refund on a player's client, Tamper's number on a player's browser, the leaning layers' readers R508/R543 that need layout); (3) two promises are delivered in part (the Reroll window after a reload; the grid's pick lost to pinItemIcons, E16-1 nit); (4) of six live items none is read whole, one carries a recorded table defect. Two promises were replaced by later stages (the stash Search, the Rest tile), which is recorded, not counted against the stage.",
+   "missing_to_10": "A table's reading of LIVE-E16-03 on 1.2.118's dice looks (and LIVE-E60-05) and of LIVE-E16-01, -02, -04, -05, -06; tier 2 E16-T21 to -T39 joined from the base run; a test that drives a player's own refund of a stash hunt and of a Palm/Plant on the player's page; pinItemIcons keeping a grid pick, or its header corrected (E16-1)."
+  },
+  {
+   "id": "E17",
+   "version": "1.2.87",
+   "shipped": "2026-10-27",
+   "what": "Two parts, with E18's last commit (C7) in the same train. Part 1: one queue on the primary GM (Despair, search tokens, the clock, the overflow, the Eclipse's count, a tunnel's price, the trial's seizures, a project's row, each under its own key), the primary GM's put-back of a player's move into a room the rules shut and the delete of a refused sidebar drop, the Eclipse counted on the primary, Refund last crossing, a late search token's return, Despair's one writer. Part 2: the HUD's minutes played, no Eclipse over a running incident and the chevron's question, a boundary refilled once and taken back within five minutes, the motive due in an incident, the player's strip and room tile, a rest per chapter, the fog's dissolve, the Mastermind and public projects. E18 C7: a Frisk's ask ends with its wait, a Sabotage sent again answers its first result - 16 registry rows stamped E17 (R1006 is E18 C7's).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.87.md (1-309, whole: the stage 3-14, Before installing 16-46, At the table 48-141, Changed 143-197, Known gaps 199-257, Checked 259-309)",
+    "no papers folder: docs/dev/ holds no e17/; the ledgers the notes quote (part 1: 24 answered, 1 open, 4 live; part 2: 18 rows, 15 answered, 1 open E17-34, 2 live) and the end reviews' findings are not in the repository",
+    "tools/stages.json row E17 (planned and shipped 1.2.87, 2026-10-27, touches null - not declared - drills none)",
+    "docs/dev/R-REGISTRY.md: 16 rows stamped E17 (R991-R1006)",
+    "git: 3719a0c8 (the 1.2.87 merge) over 11 commits in the shallow checkout (f7ac1e9d fix p2-G3, e0bc676c, 823174bc, 1224b727, 15f204c5, c9df4dd4 the ci fixes, 112abc27 the version, and others); C0-C9 and fix rounds e1-G1..G4, p2-G1, p2-G2 are behind the boundary (22 commits name E17 in the log, most of them later stages')",
+    "audit/AUDIT-1.2.42.md 9.2 items 306-316 (lines 1180-1190, LIVE-E17-06, -01..-05, -07..-11), found by id",
+    "audit/findings-1.2.118/live-items-293.json items 306-316; live-readings-e58.json (S7-9, LOCAL-REPORT.md:431) and live-readings-e58-delta.json (LIVE-E39-12, CALIBRATION.md:153-222 on claude/e58-local)"
+   ],
+   "commits": 11,
+   "promises": [
+    {
+     "promise": "Every shared count the primary writes is written in a step of its own key, so ten changes at once give exact sums and a click waits only for its own key",
+     "source": "v1.2.87.md 4-5, 52-57",
+     "code": "scripts/despair.mjs:287 DESPAIR_KEY; scripts/search-tokens.mjs:41 SEARCH_KEY; scripts/clock.mjs:132 CLOCK_KEY; scripts/overflow.mjs:283 OVERFLOW_KEY; scripts/trial.mjs:759 SEIZE_KEY; scripts/movement.mjs:3438 crossingKey; scripts/projects-secrecy.mjs:70 COUNTDOWNS_KEY",
+     "holds": "yes",
+     "test": "R991 (tier 0), R992 (tier 1), both ok in shard 1/8",
+     "test_kind": "both",
+     "note": "R991 is a census of the source; R992 drives the queue's independence. E70 C0 extended the list (R991's row)."
+    },
+    {
+     "promise": "Despair has one writer: an Assistant GM's pip and Feed the Overflow are asked of the primary, only the primary sweeps the pools, a pip stops at the maximum and spills nothing",
+     "source": "v1.2.87.md 75-77",
+     "code": "scripts/despair.mjs:330-372 adjustDespair (routeToPrimary, the primary asked again inside the step, clamp), :79 prunePools, :293 setDespair",
+     "holds": "yes",
+     "test": "R991; tier 2 (part 1's Despair titles, not read here)",
+     "test_kind": "both",
+     "note": "The notes' known gap (235-236: setDespair, fill, empty on the GM's own browser) was closed later by E37 C7 (despair.mjs:290-291)."
+    },
+    {
+     "promise": "The primary GM puts back a player's move into a room the rules shut (the incident's room, a lock, a seal, Chained, another's bedroom, the courtroom, an Eclipse crossing past the allowance) to where the token last stood lawfully, whatever wrote it, in either audit mode; the player is told the rule",
+     "source": "v1.2.87.md 19-24, 58-62, 104-108",
+     "code": "scripts/movement-audit.mjs:275 auditMove, :300-309 (ctx.ruleRefused); scripts/movement.mjs:1050 judgeArrival, :3511 sendBack (through putBackWrite, :3482-3495)",
+     "holds": "yes",
+     "test": "R993 (tier 0, ok in shard 1/8); tier 2 'the incident holds its people where they fight (E17-T2)' (ok in shard 2/8); scenario 66 (I1-I4, P2)",
+     "test_kind": "both",
+     "note": "On the harness. A put-back's write on 14.370 is in doubt: line L1 read (18-19.11.2026, after b5a29e73) that a diff:false write from a GM copy out of step did not land (LIVE-E39-12, defect; live-readings-e58-delta.json); whether the ordinary put-back's copy is in step was not read (not_established). A seal, Chained and the courtroom are put back by the same road, not driven one by one (Known gaps 249)."
+    },
+    {
+     "promise": "A token a player drops from the sidebar into such a room is deleted and the GMs told; a GM's own drop stands",
+     "source": "v1.2.87.md 21-22, 63-65",
+     "code": "scripts/movement.mjs:694 removeDrop",
+     "holds": "yes",
+     "test": "tier 2 part 1's drop test (not read); LIVE-E17-04 (2) open",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The Eclipse is counted on the primary where it sees a crossing; the one past the allowance is put back, a jump counts the rooms between, an undo within 5 s is not counted",
+     "source": "v1.2.87.md 66-69",
+     "code": "scripts/eclipse.mjs:1077 judgeEclipseCrossing",
+     "holds": "yes",
+     "test": "R992 (the count's key); tier 2 part 1 titles (not read)",
+     "test_kind": "behaviour",
+     "note": "Known gaps 225-227: a console move can undo each counted crossing once within 5 s; roomsApart reads no floor."
+    },
+    {
+     "promise": "Refund last crossing: one click per crossing on the Students window gives back the token's place and exactly the crossing's price, also after the time of day moved on",
+     "source": "v1.2.87.md 70-74, 109-112",
+     "code": "scripts/movement.mjs:1407-1441 refundLastCrossing (refunded marked before anything is written, :1414-1415); scripts/gm-students.mjs:293 refundButton; scripts/gm-stores.mjs:1230 crossingStore",
+     "holds": "partly",
+     "test": "tier 2 'Refund last crossing (E17-T6)' (ok in shard 2/8)",
+     "test_kind": "behaviour",
+     "note": "Since E64 D059 (the owner's default, confirmed 12.11.2026; movement.mjs:1418-1421) a Free Move taken before a boundary is not given back after it: the promise's 'also after the time of day moved on' is narrowed for the Free Move, by a recorded decision. A second GM's own click is not driven (Known gaps 232)."
+    },
+    {
+     "promise": "A search token the player's browser stopped waiting for comes back once within two minutes; a 'No search' room tells the player and gives the action back; a darkening's Shift never adds a token",
+     "source": "v1.2.87.md 78-81, 113-115",
+     "code": "scripts/search-tokens.mjs:183, :301-307 (the return on the primary), :637 guardTokenReturn",
+     "holds": "yes",
+     "test": "R994 (ok in shard 1/8); tier 2 part 1 titles (not read)",
+     "test_kind": "both",
+     "note": "The late return on a player's own page is not driven (Known gaps 251)."
+    },
+    {
+     "promise": "No Eclipse over a running incident's opening or fight (not at Stage 6), the chevron dimmed with the same words; the chevron asks first and 'Do it' does not",
+     "source": "v1.2.87.md 82-87",
+     "code": "scripts/eclipse.mjs:135 startRefusal, :147-175 startRefusalOf (the incident's refusal); scripts/boundary.mjs:152 askEclipse, :183 eclipseQuestion",
+     "holds": "yes",
+     "test": "R1004 (ok in shard 1/8); tier 2 part 2 titles (not read)",
+     "test_kind": "both",
+     "note": "The chevron's dimming now reads the same startRefusalOf (A113-C2-7, eclipse.mjs:142-145). Stage 6 kept open: E17-34 OPEN in the ledger, the owner's."
+    },
+    {
+     "promise": "A boundary refills once and can be taken back within five minutes; two advances by two rewinds",
+     "source": "v1.2.87.md 88-92",
+     "code": "scripts/clock.mjs:507 TAKE_BACK_MS, :535 TAKE_BACK_DEPTH, :654 takeBackBoundary, :688 rewindTimeOfDay; scripts/gm-stores.mjs:1263 takeBackStore",
+     "holds": "yes",
+     "test": "tier 2 'the boundary taken back (E17-T10)' (not read)",
+     "test_kind": "behaviour",
+     "note": "The take-back moved from the clock setting to the GMs' store before release (e0bc676c), after 72-canary read every character's id on the public clock."
+    },
+    {
+     "promise": "The HUD's minutes are the minutes played: a pause, a reload and the break between sessions add nothing; no line in an Eclipse",
+     "source": "v1.2.87.md 135-136, 99-100",
+     "code": "scripts/hud-elapsed.mjs:46 settleElapsedPause, :154 beatClock, :166 shownClock; scripts/gm-stores.mjs:1247 clockBeatStore",
+     "holds": "yes",
+     "test": "R996 (ok in shard 1/8); tier 2 'the stopwatch (E17-T9)' (ok in shard 2/8)",
+     "test_kind": "behaviour",
+     "note": "Moved by E41 C7b into hud-elapsed.mjs (a pure move). Over two real sessions: LIVE-E17-01, open."
+    },
+    {
+     "promise": "During an incident the clock of everybody outside it stays where it stood at the opening, also after a reload; the motive due is told once and posted at the close",
+     "source": "v1.2.87.md 93-94, 137-139",
+     "code": "scripts/incident-store.mjs:199 clockHiddenHere; scripts/hud-elapsed.mjs:166 shownClock; scripts/rules.mjs:183 tickMotive, :262 announceOwedMotive; scripts/events.mjs:98 motiveCard",
+     "holds": "yes",
+     "test": "tier 2 E17-T10's motive titles (tests-tier2.mjs:87120, not read)",
+     "test_kind": "behaviour",
+     "note": "S7-9 on 14.370 (16.11.2026, LOCAL-REPORT.md:431) read a bystander's clock staying on the last public hour with no reload - LIVE-E17-07 partly, agrees."
+    },
+    {
+     "promise": "The player's strip in an Eclipse (a foot per crossing, 'place anywhere'), a Monocub's line, a dead student's one row; the room tile's 'n/m searches' and second-person project line",
+     "source": "v1.2.87.md 116-120",
+     "code": "scripts/player-status.mjs:407 stillPlacing, :423 showsDeathOnly; scripts/room-tile.mjs buildSearchPips",
+     "holds": "yes",
+     "test": "R997, R998, R999 (ok in shard 1/8)",
+     "test_kind": "source",
+     "note": "The feet were redrawn by E49 B2 (R997's row: two feet, each lit or spent) and the free placement kept by the owner's D197 (player-status.mjs:372-373)."
+    },
+    {
+     "promise": "A rest is counted within its chapter; one taken before the update in that time of day stays taken",
+     "source": "v1.2.87.md 121-122",
+     "code": "scripts/rest.mjs:135-138 restStamp (c<chapter>...), :167 legacyRestStamp",
+     "holds": "yes",
+     "test": "R1002 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The fog's dissolve settles its own pictures before the next repaint and stops on a scene change",
+     "source": "v1.2.87.md 140-141",
+     "code": "scripts/fog.mjs:2279 endDissolves, :2287 swapInFog, :460-463 (canvasTearDown)",
+     "holds": "yes",
+     "test": "R1003 (ok in shard 1/8; a fake ticker)",
+     "test_kind": "behaviour",
+     "note": "On a real canvas: LIVE-E17-06, open."
+    },
+    {
+     "promise": "The Mastermind's player knows a public project in any room of their scene; a passage's cards name every room to the Mastermind's character",
+     "source": "v1.2.87.md 123-124",
+     "code": "scripts/projects.mjs:711 hasStoodIn; scripts/passages-gm.mjs:2177 roomNamerFor",
+     "holds": "yes",
+     "test": "R1000, R1005 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "E18 C7: a Frisk's ask ends when its searcher stops waiting or its primary leaves; a Sabotage sent again answers its first result",
+     "source": "v1.2.87.md 125-131",
+     "code": "scripts/frisk.mjs:982 expireFriskAsk; scripts/bridge-runs-records.mjs:355 sabotageAgain",
+     "holds": "yes",
+     "test": "R1006 (ok in shard 1/8); tier 2 two E18 C7 titles (not read)",
+     "test_kind": "behaviour",
+     "note": "Graded with E18 in stages-08.json; listed here because the train carried it."
+    },
+    {
+     "promise": "The hook drpgTimeOfDayChanged fires once per calendar change, a phase its own drpgPhaseChanged",
+     "source": "v1.2.87.md 38-40",
+     "code": "scripts/sync.mjs:450, :545",
+     "holds": "yes",
+     "test": "R995 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": ""
+    }
+   ],
+   "registry_rows": 16,
+   "tests_read": [
+    {
+     "test": "R991 (tier 0, registry row)",
+     "measures": "yes",
+     "why": "A census of every write of the named stores in the source: each must lie in a step of its own key. Fails on a new write outside the queue; says nothing of timing."
+    },
+    {
+     "test": "R992 (tier 1, registry row)",
+     "measures": "yes",
+     "why": "Holds a step on one character's key and reads another key's step and another character's count run meanwhile, and a throwing step failing its own caller alone."
+    },
+    {
+     "test": "R993 (tier 0, registry row)",
+     "measures": "weak",
+     "why": "Reads auditMove's source: the judge's verdict asked once after the walls and floors, from a closure that reads no option. Pins the shape, drives no move."
+    },
+    {
+     "test": "tier 2 'the incident holds its people where they fight (E17-T2)' (title)",
+     "measures": "yes",
+     "why": "A participant a console carries out of the incident's room is put back and the third may leave after Averted eyes. ok in shard 2/8. The harness's put-back writes; a real Foundry's is the L1 question."
+    },
+    {
+     "test": "tier 2 'Refund last crossing (E17-T6)' (title)",
+     "measures": "yes",
+     "why": "Gives back the token's place and the crossing's exact price with one click. ok in shard 2/8."
+    },
+    {
+     "test": "R1003 (tier 1)",
+     "measures": "weak",
+     "why": "A fake ticker: settles a dissolve's sprites before the queued repaint and stands one down on endDissolves. No canvas (LIVE-E17-06)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: the part 1 titles E17-T1, -T3 to -T5, -T7, -T8 and the part 2 titles E17-T10 (19 titles for E17-T1..T10 by the notes)",
+    "tier 2: the two E18 C7 titles",
+    "scenario 66-rooms (I1-I4, P2)",
+    "scenario 01-runtests (the primary's beat)",
+    "scenario 72-canary (the take-back off the public clock)",
+    "scenario 30-security"
+   ],
+   "scenarios": [
+    "No register row names E17 (audit/harness/README.md, grep: 0 hits)",
+    "The notes: 01-runtests lets the primary's beat move; 66-rooms reads a jump past a lock as the primary's put-back (v1.2.87.md:189-190); 72-canary caught the take-back on the public clock before release (275-281)"
+   ],
+   "live": {
+    "items": 11,
+    "read": 0,
+    "ids_read": [],
+    "note": "306 LIVE-E17-06, 307 -01, 308 -02, 309 -03, 310 -04, 311 -05, 313 -08, 314 -09, 315 -10, 316 -11: open, no reading in the three digests. 312 LIVE-E17-07: partly, agrees (S7-9, 14.370, 16.11.2026: the bystander's clock without a reload). Line L1's LIVE-E39-12 defect (a diff:false put-back from a copy out of step not written) bears on the road of 308-310 but is not a reading of them."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E64 D059 (12.11.2026): a Free Move is given back only in the time of day it was taken (movement.mjs:1418-1421)",
+    "E37 C7: setDespair, the fill, the zero and the roster also go to the primary (despair.mjs:290-291), closing the notes' known gap on the GM's own Despair writes",
+    "E49 B2: the strip's two feet, each lit or spent (R997's row)",
+    "A113-C2-7 (13.11.2026): the chevron's dimming reads startRefusalOf, the same answer as the gate",
+    "E41 C7b: the stopwatch moved into hud-elapsed.mjs (a move, no change of rule)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of both parts is in today's code as worded, with two narrowed by later recorded decisions (the Free Move's refund across a boundary, E64 D059; the strip's feet, E49 B2) and one gap closed later (Despair's own GM writes, E37 C7). All 16 registry rows are ok in the base run's shard 1/8; the tier-2 tests for the put-back, Refund last crossing and the stopwatch are ok in shard 2/8, the rest not read. Reading found no defect. Against a 9: the notes' own 'Not driven by a test' list is long (a seal, Chained and the courtroom one by one, each crisis action, a Monocub, two GMs in an Eclipse, a player's late token return on their own page, the strip on a player's browser, a rest across a chapter's end on a world), so several parts hold by reading only; and the stage's main promise, the put-back, writes through putBackWrite, of which line L1 recorded on 14.370 that a diff:false write from a GM copy out of step did not land - whether the put-back's own copy is in step at that moment is not established. Of 11 live items none is read whole and one in part; the grade is capped at 9 by them.",
+   "missing_to_10": "A table's reading of LIVE-E17-02 to -04 (the put-back and the refund landing on 14.370, with the GM copy's state at the write), LIVE-E17-01, -05 to -11; the tier-2 titles joined from the base run; a test that puts back a seal, Chained and the courtroom one by one, and one that drives the late token return on a player's own page; the owner's answer on Stage 6 (E17-34)."
+  },
+  {
+   "id": "E87",
+   "version": "1.2.88",
+   "shipped": "2026-10-27",
+   "what": "H84: seven fixes from the owner's live session of 27.10 on 1.2.85 - one bedroom key per room (H84-01), one Truth Bullet of a trace per character (H84-02), the voice tile's state word level with its buttons under Stained Glass (H84-03), a public project known to its proposer and to whoever stands in its room (H84-04), the Projects tray's icons keep Font Awesome (H84-05), a GM's Clear of the Despair overflow (H84-06), the GM's name first in the trace picker (H84-07) - 2 registry rows stamped E87, 4 tier-2 titles.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.88.md (1-191, whole: the stage 3-9, Before installing 11-38, At the table 40-82, Changed 84-116, Known gaps 118-160, Checked 162-191)",
+    "no papers folder: docs/dev/ holds no e87/ or h84/; the ledger the notes quote (7 answered, 0 open, 0 live, six rows with a table check) and the end review's 20 findings are not in the repository",
+    "tools/stages.json row E87 (planned and shipped 1.2.88, 2026-10-27, touches sockets, drills none)",
+    "docs/dev/R-REGISTRY.md: 2 rows stamped E87 (R1007, R1008)",
+    "git: 7aaaf4ca (the 1.2.88 merge, #35) over 12 commits, all in the checkout: 7a79b30c, de0626e1, 774b28a9, 477bd5b2, 385febe7, 68aa984e, d5fa1a6e (G1), b9540ce7 (G2), 4a17f888 (G3), d5e233b1 (ci-1), dbd3f2f2 (the version) and the gate record",
+    "audit/AUDIT-1.2.42.md 9.2 items 317-322 (lines 1191-1196, LIVE-H84-01 to -06), found by id",
+    "audit/findings-1.2.118/live-items-293.json items 317-322"
+   ],
+   "commits": 12,
+   "promises": [
+    {
+     "promise": "H84-01: two grants of a student's key at once on one browser make one key; the key check keeps one key of the owner's to their own bedroom, takes the others and tells the GM, and points the owner's own dead key at the bedroom; a thief whose own key is stashed gets no copy",
+     "source": "v1.2.88.md 14-21, 49-53",
+     "code": "scripts/vault-store.mjs:275 grantBedroomKey (tidy), :292 grantKeyNow, :366 repointDeadKey, :407 tidyRoomKeys, :450 reconcileBedroomKeys; scripts/module.mjs:616 issueMissingKeys (primary only); scripts/inventory.mjs:1136 transferItem, :1222 keyAlreadyHeld",
+     "holds": "yes",
+     "test": "tier 2 'H84-01: one key per room ...' (not read in the base run); R304 census",
+     "test_kind": "behaviour",
+     "note": "Two GMs granting at once on two browsers are not queued (Known gaps 135); E64 D008 later made every copy of a bedroom's key go with the room when its owner changes (live-items-293.json item 317's note)."
+    },
+    {
+     "promise": "H84-02: a trace whose find the GM is still describing is not offered to the character's next Observe; an Observe closed before the roll holds nothing; a second copy is refused with 'You already hold a Truth Bullet of this trace.'; a second resolve of one Observe is refused",
+     "source": "v1.2.88.md 32-33, 57-60, 67-69",
+     "code": "scripts/observe.mjs:300 observeCandidates, :329 pendingTracesOf, :420 noteHeldOnPrimary, :1172 alreadyHeld",
+     "holds": "yes",
+     "test": "tier 2 'H84-02: one trace, one Truth Bullet per character ...' (not read in the base run)",
+     "test_kind": "behaviour",
+     "note": "Two Observes declared before the first is described both aim at the trace, the second told it is held - by design since fix G1, for the owner (Known gaps 141-143). The hand-over's and the GM's give were brought into one step by E60 C4b (0d3fb396, D153), closing the notes' stated gap."
+    },
+    {
+     "promise": "H84-03: under Stained Glass the voice tile's state word stands level with the microphone and lifts with the buttons",
+     "source": "v1.2.88.md 78-80",
+     "code": "styles/components.css:2341 (--drpg-voice-lift read; set by scripts/glass.mjs:611, :665)",
+     "holds": "yes",
+     "test": "R589 (tier 0, changed; ok in shard 1/8); glass harness in Chromium (notes 93-95, not re-run)",
+     "test_kind": "source",
+     "note": "The rule moved from stained-glass.css (the notes) to components.css since. On v14 with LiveKit: LIVE-H84-03, open."
+    },
+    {
+     "promise": "H84-05: under Stained Glass the Projects tray's minus, plus, eye-slash and repeat keep their Font Awesome face",
+     "source": "v1.2.88.md 81-82",
+     "code": "styles/stained-glass.css:1186 (#countdowns *:not(i):not([class*=\"fa-\"]))",
+     "holds": "yes",
+     "test": "R1007 (ok in shard 1/8)",
+     "test_kind": "source",
+     "note": "The harness has no Font Awesome font: the face is measured, the glyph is not (Known gaps 153-154; LIVE-H84-04)."
+    },
+    {
+     "promise": "H84-04: a public project is known to its proposer from its approval, wherever it is put, by a private card; and to a player whose character stands in its room now; who proposed it stays in the GMs' data; older projects' proposers are told once at the primary's load",
+     "source": "v1.2.88.md 22-30, 61-63, 70-73",
+     "code": "scripts/projects.mjs:271-321 knowsProject, :338-343 proposedBy, :641-650 projectsToldHere, :661 tellProposer, :677-688 tellProposers, :711 hasStoodIn, :1963-1965 (toldHere forgotten on a chat message's create or delete); scripts/fog.mjs:1877 roomsStoodInNow; scripts/module.mjs:608 tellProposersOnLoad",
+     "holds": "partly",
+     "test": "tier 2 'a public project is known to whoever proposed it ... (H84-04)' (not read in the base run); R1000 (ok in shard 1/8); scenario 66 E4",
+     "test_kind": "behaviour",
+     "note": "On the proposer's own browser the knowledge is read off the private card in the chat; with the card gone the proposer is back to the room rule and nothing tells them again - finding E87-1."
+    },
+    {
+     "promise": "H84-06: 'Clear the overflow' on Despair Flow's Overflow tab asks first, zeroes the count only on the primary whichever GM presses it; a player's request is refused",
+     "source": "v1.2.88.md 44-48",
+     "code": "scripts/overflow.mjs:505-517 resetOverflow (countOnly), :545-553 clearOverflowAsGm; scripts/gm-team-dialog.mjs:128 clearOverflowFromTab; scripts/bridge-table.mjs:1003 (overflow.clear row); scripts/bridge-wire.mjs:41",
+     "holds": "yes",
+     "test": "tier 2 'a GM clears the overflow from Despair Flow's Overflow tab ... (H84-06)' (not read); scripts/tests-flows.mjs Despair row",
+     "test_kind": "behaviour",
+     "note": "No scenario sends overflow.clear (Known gaps 151)."
+    },
+    {
+     "promise": "H84-07: each option of the trace picker leads with the GM's name for the trace, then visibility and type, tie, subject, DC; no name starts with the type",
+     "source": "v1.2.88.md 54-56",
+     "code": "scripts/observe.mjs:592-600 remnantPickLabel, :607 askWhichRemnant",
+     "holds": "yes",
+     "test": "R1008 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": ""
+    }
+   ],
+   "registry_rows": 2,
+   "tests_read": [
+    {
+     "test": "R1008 (tier 1)",
+     "measures": "yes",
+     "why": "Calls remnantPickLabel on traces with and without a name and reads the order of the parts; and that askWhichRemnant draws its options with it."
+    },
+    {
+     "test": "R1007 (tier 1)",
+     "measures": "weak",
+     "why": "Reads the stylesheets for a rule that sets a face on the tray's icons under Stained Glass; the glyph itself is not drawn (no Font Awesome in the harness)."
+    },
+    {
+     "test": "tier 2 'a public project is known to whoever proposed it ... (H84-04)' (title)",
+     "measures": "weak",
+     "why": "By its title and the notes, the card and the tray on the proposer's page; it does not delete the card and read again (no test found that clears the chat and asks knowsProject)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: H84-01: one key per room",
+    "tier 2: H84-02: one trace, one Truth Bullet per character",
+    "tier 2: a GM clears the overflow from Despair Flow's Overflow tab (H84-06)",
+    "tier 2: a public project is known to whoever proposed it (H84-04)",
+    "tier 2: a project's token is known to the people who know the project, and to nobody else",
+    "scenario 66-rooms (E4)"
+   ],
+   "scenarios": [
+    "No register row names E87 or H84 (audit/harness/README.md, grep: 0 hits)",
+    "The notes: 66-rooms gains E4, a public project p1's character proposed, read on p1 and p2 (v1.2.88.md:110)"
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "317-322 (LIVE-H84-01 to -06): all open, no reading in the three digests; 321's pre-1.2.88 half needs the owner's world (triage F)."
+   },
+   "findings": [
+    {
+     "id": "E87-1",
+     "severity": "minor",
+     "title": "A proposer knows their public project only while the GM's private card is in the chat: a cleared chat takes it off their tray and map, and nothing tells them again",
+     "where": "scripts/projects.mjs:338-343 proposedBy (a player's browser reads projectsToldHere), :641-650 projectsToldHere (game.messages, cards a GM wrote with PROJECT_KNOWN), :1963-1965 (toldHere forgotten on deleteChatMessage); :683-685 tellProposers skips a project marked proposerTold; :2143 (proposerTold set at approval)",
+     "what_happens": "On a player's browser proposedBy answers from the private card alone; the GMs' row holds who proposed but marks proposerTold at the approval, so the load's catch-up never posts again. When the chat no longer holds that card - a GM's Clear Chat Log, or the card deleted - the next read (the hook's forget, or a reload) finds no card, and the proposer knows the project only by the room rule, as anybody else. secret.mjs askForWords gives a card's words again, not a card that is gone.",
+     "failure_scenario": "A player proposes a public project; the GM approves it in the Library, where the player's character has never stood; the player sees it on their tray. At the end of the session the GM clears the chat log. Next session the project is gone from the proposer's tray and map although the handbook says the proposer sees it 'from the moment you approve it, wherever you put it' (gm-handbook.en.md:984).",
+     "confidence": "read",
+     "refutation_tried": "Looked for a second road on the proposer's browser: the public meta holds no proposer since fix G3 (sealedViewers only for a sealed project), the discovery record covers only rooms stood in, knowsWithoutRoom reads the same proposedBy. Looked for a repost: tellProposers skips every row with proposerTold, which approval sets (:2143). Looked for a module road that deletes chat: season-wipe.mjs:382 (the season reset, which also ends projects) - so the ordinary road is Foundry's own Clear Chat. Not run: whether Foundry 14.370's Clear Chat fires deleteChatMessage on each browser does not matter, since a reload reads game.messages afresh. The notes name the card as the carrier and the away browser's case (Known gaps 147-150), not the card's loss.",
+     "expected": "The proposer's knowing a public project held in something that outlives the chat (a player copy of the GMs' row, or the card posted again when it is missing)",
+     "l1": {
+      "what": "Whether a proposer keeps their public project after the chat is cleared",
+      "recipe": [
+       "One GM, one player; the player's character stands in Dorm A and has never stood in the Library",
+       "The player proposes a public project; the GM approves it with room Library",
+       "Read the player's Projects tray and the map: the project shows",
+       "The GM presses Foundry's Clear Chat Log",
+       "The player reloads; read the tray and the map again"
+      ],
+      "clients": "one GM, one player",
+      "theme": "default",
+      "settles_if": "agrees with this finding: the project is gone from the player's tray and map after step 5; refutes it: it still shows",
+      "priority": "minor"
+     }
+    }
+   ],
+   "superseded_by": [
+    "E60 C4b (0d3fb396, D153): a hand-over's and the GM's give's copy check in the receiver's finds' queue - closes the notes' Truth Bullet gap (two hand-overs at once)",
+    "E64 D008 (8bf1aa5): every copy of a bedroom's key goes with the room when its owner changes - a case beside H84-01's",
+    "E70 C12 (cc541bdc): Tamper's Truth Bullet to its author, one of the owner's items the notes sent to E70"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "All seven fixes are in today's code as the notes word them; R1007 and R1008 are ok in the base run's shard 1/8; the four tier-2 titles were not read. Two of the notes' own gaps were closed by later stages (E60 C4b, E64 D008). Against a 9: one promise is delivered in part - the proposer's knowledge stands on a chat card and is lost with it (E87-1, minor). The styling fixes (H84-03, -05) are held by Chromium on stand-ins and a stylesheet read, and the main promises - one key and one bullet with several players and two GMs - by the harness alone: all six live items are open, so the grade is capped at 9 in any case.",
+   "missing_to_10": "The proposer's knowledge carried by something that outlives the chat (E87-1); a table's reading of LIVE-H84-01 to -06; the tier-2 titles joined from the base run; a test or scenario that sends overflow.clear; two GMs' key grants queued or read."
+  },
+  {
+   "id": "E88",
+   "version": "1.2.89",
+   "shipped": "2026-10-27",
+   "what": "The frame-rate work after the owner's session of 27.10 on 1.2.85, counted and not measured in frames: C0 the counters, game.drpg.fps(), scenario 86, glass-sweep --frame-cost and the GM handbook's 'When the table lags'; C1 the rings' and room outline's light drawn once into a texture; C2 another player's move one token's refresh; C3 the fog's raster and backdrop held as pictures; C4 a Despair write renders the Monokumas' sheets alone, the strip only for settings it reads; C5 the glass's pulse loop trimmed; C6 a token outside every room keeps its voice room; C7 the books; fixes G1-G4 - 11 registry rows stamped E88.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.89.md (1-235, whole: the stage 3-14, Before installing 16-33, At the table 35-111 with the table of counts 89-103, Changed 113-156, Known gaps 158-208, Checked 210-235)",
+    "no papers folder: docs/dev/ holds no e88/; the ledger the notes quote (14 rows: 10 answered, 2 open E88-10 and E88-13, 2 live) and the end review are not in the repository",
+    "tools/stages.json row E88 (planned and shipped 1.2.89, 2026-10-27, touches sockets and scenes, drills none)",
+    "docs/dev/R-REGISTRY.md: 11 rows stamped E88 (R1009-R1019)",
+    "git: 88d0e920 (the 1.2.89 merge, #36) over 13 commits, all in the checkout: 41cf2e9f C1, da2965ac C2, 7baff238 C3, 23e6ca4e C4, addc1522 C5, c506a879 C6, 001e9af5 C7, 0b1e4413 G1, 00bcd809 G2, 4553c17d G3, 0e32fbe9 G4, 0ff95b04 the version, and C0 (before 41cf2e9f)",
+    "audit/AUDIT-1.2.42.md 9.2 items 323-330 (lines 1197-1204, LIVE-E88-01, -05, -02, -03, -04, -06, -07, -08), found by id",
+    "audit/findings-1.2.118/live-items-293.json items 323-326, live-items-327.json items 327-330; live-readings-e58.json and live-readings-other.json (LIVE-E88-01: docs/dev/e58/PERF-READINGS.md:96-160, 231-357, LOCAL-REPORT.md:344-354)"
+   ],
+   "commits": 13,
+   "promises": [
+    {
+     "promise": "C0: the module's counters (counters(), counters({ reset: true })) and fps(): five seconds of frames, then each effect held alone for 60 frames or one second and put back; a second call refused; prints a console line first",
+     "source": "v1.2.89.md 24-33, 39-49",
+     "code": "scripts/perf-counters.mjs:90-127 (count, snapshot, reset, delta, liveCanvasFilters); scripts/diagnostics.mjs:1952 HOLD_MS, :1967 countersNow, :1976 frameCost, :1978 (the refusal), :1990 frameCostRun, :2093-2124 (the holds); scripts/api.mjs:1510, :1513",
+     "holds": "yes",
+     "test": "R1009, R1017 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "Read on 14.370 on the sandbox desktop (16.11.2026, PERF-READINGS.md): the output, counters and holds printed for the GM and PlayerOne in both themes - LIVE-E88-01 partly, agrees; the weakest machine, the look after the run and the second call's refusal not recorded."
+    },
+    {
+     "promise": "C1: the rings' and the room outline's light drawn once into a texture, one texture per frame shape, a live filter kept where it cannot be drawn once; with 'Glass blurs the map' off the light is drawn without blur",
+     "source": "v1.2.89.md 72-77",
+     "code": "scripts/fog-reveal.mjs:928 restrikeHalos, :933 haloBlurOn, :949 ringHalo, :1014 bakeTexture, :1059 releaseHalo, :1074 sweepHalos, :1091 wearHalo, :1167 HALO_NAMES, :1181 bakeOutlineHalo",
+     "holds": "yes",
+     "test": "R1010, R1018 (ok in shard 1/8); scenario 86",
+     "test_kind": "behaviour",
+     "note": "Its pixels are compared with the live filter nowhere (Known gaps 189). The sandbox printed '1 texture(s) worn by 3 ring(s)' and no live ring filter (LIVE-E88-02 partly, agrees: counters, not screenshots)."
+    },
+    {
+     "promise": "C2: another player's move costs the other browsers that token's refresh; a ring whose drawing stands is kept; a GM's every move is that token alone",
+     "source": "v1.2.89.md 56-57, 92-95",
+     "code": "scripts/visibility.mjs:232 SWEEP_MS, :235 reassertNextFrame, :301 movePass, :432 passForTokenUpdate; scripts/fog-reveal.mjs:1131 positionOnly, :1146 ringKept; scripts/remnant-icons.mjs:169 dressTrace; scripts/utils.mjs:1181 forgetCssColours",
+     "holds": "yes",
+     "test": "R1011 (ok in shard 1/8); scenario 86",
+     "test_kind": "behaviour",
+     "note": "Every canvas count stands on the harness's model of a token's refresh (LIVE-E88-05, open): one refresh a move where v14 slides frame by frame."
+    },
+    {
+     "promise": "C3: the fog's masked raster and backdrop drawn into pictures and redrawn only when they change; the drift steps a whole pixel at most every 100 ms; reduced motion stands still",
+     "source": "v1.2.89.md 78-81",
+     "code": "scripts/fog.mjs:3982 RASTER_STEP_MS, :3995 driftStep, :4026 heldGate, :4112 holdStill, :4133 redrawHeld, :4167 releaseHeld",
+     "holds": "yes",
+     "test": "R1012 (ok in shard 1/8; pieces on stand-ins)",
+     "test_kind": "behaviour",
+     "note": "The hold's wiring is not run by a test (Known gaps 198-199). The sandbox's fps() counted fog.held.backdrop and .raster about 8-10 a second (live-readings-other.json item 323)."
+    },
+    {
+     "promise": "C4: a Despair write renders the Monokumas' sheets alone, a minimised sheet renders once on its restore; the status strip rebuilds only for the settings it reads",
+     "source": "v1.2.89.md 82-84",
+     "code": "scripts/clock.mjs:940 refreshSheets({ only }), :965 renderOnRestore; scripts/sync.mjs (SYNC.despair); scripts/player-status.mjs:672 stripReadsSetting",
+     "holds": "yes",
+     "test": "R1013 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "Only the Despair write was narrowed (Known gaps 200-201). On real sheets: LIVE-E88-07, open."
+    },
+    {
+     "promise": "C5: the glass's pulse draws only a job whose fills moved, from polygons scaled once and fill strings made once a step",
+     "source": "v1.2.89.md 85-86, 103",
+     "code": "scripts/glass.mjs:2090-2124 (its comments), :2107 DARK_FILLS, :2120 scaledPoly, :2125-2149 pulseJob",
+     "holds": "partly",
+     "test": "R1014, R1019 (ok in shard 1/8); headless Chromium (notes 103, not re-run)",
+     "test_kind": "behaviour",
+     "note": "The skip seldom fires: a pane's fill moves more than one stored step a frame for most of its cycle (glass.mjs:2112-2117; 455 of 455 frames drawn at 24 panes) - the stage's own open row E88-10, the owner's call. The polygons and strings saving stands (38.5-65.6 to 29.7-46.9 ms in software Chromium)."
+    },
+    {
+     "promise": "C6: a token outside every room keeps the voice room it came from while that room stands, so a door changes the voice room once; a Monokuma goes to the main room; only a primary's own, a living player's and a judged move's rooms are kept (G1)",
+     "source": "v1.2.89.md 50-55, 61-63",
+     "code": "scripts/voice.mjs:137 standDownRoomsKept, :170 keepRoomsThroughGaps, :894 voiceTargets; scripts/movement.mjs:307 moveVerdict",
+     "holds": "yes",
+     "test": "R1015 (ok in shard 1/8); scenario 75 (three checks in part I), scenario 17 V1",
+     "test_kind": "behaviour",
+     "note": "Whether the table's voice drops were such walks is LIVE-E88-03 (open); a doorway player when the primary reloads is read in the code, not run."
+    },
+    {
+     "promise": "C7: the books - the GM handbook's section 20 (recipe and how to read fps()), 9.5's doorway, the player's Look and Voice",
+     "source": "v1.2.89.md 39-49, 61-68, 153-154",
+     "code": "docs/handbooks/gm-handbook.en.md section 20 (live-items-327.json item 327's note: section 20.6 holds the recipe)",
+     "holds": "yes",
+     "test": "R1016 (ok in shard 1/8)",
+     "test_kind": "source",
+     "note": "R1016 holds each fps() heading's words and the switches' order in both languages."
+    },
+    {
+     "promise": "No world data, setting, flag, store, socket or hook added; counters and pictures in each browser's memory",
+     "source": "v1.2.89.md 19-23",
+     "code": "scripts/perf-counters.mjs (module memory)",
+     "holds": "yes",
+     "test": "R1009",
+     "test_kind": "source",
+     "note": "Not separately read beyond the new file's header."
+    }
+   ],
+   "registry_rows": 11,
+   "tests_read": [
+    {
+     "test": "R1011 (tier 1, registry row)",
+     "measures": "yes",
+     "why": "Reads that a token's update asks the whole pass only for the viewer's own move or a change of hidden, another token's move its own refresh alone, and a kept ring on a move-only refresh: the counts scenario 86 records rest on it. On the harness's model of the refresh (LIVE-E88-05)."
+    },
+    {
+     "test": "R1014 and R1019 (tier 1, registry rows)",
+     "measures": "yes",
+     "why": "A stand-in job: a frame with no pane moved by a 1/255 step draws nothing; one moved draws the job whole. They measure the rule, not how often it fires on a real curtain (E88-10)."
+    },
+    {
+     "test": "R1015 (tier 1, registry row)",
+     "measures": "yes",
+     "why": "A crossing through a gap is one assignment, a step into the gap and back none; another scene, floor, a deleted room, an Eclipse or the trial give the main room; a Monokuma and an unjudged entry keep nothing."
+    },
+    {
+     "test": "R1009 (tier 1, registry row)",
+     "measures": "yes",
+     "why": "fps() reads a window, refuses a second call while it runs and puts back every hold; milliseconds are jsdom's timer, so it measures the bookkeeping, not frames."
+    },
+    {
+     "test": "scenario 86-frame-work (register row audit/harness/README.md:220)",
+     "measures": "yes",
+     "why": "The counts the notes' table gives, per event, on a GM and four players with 16 tokens and 30 Remnants in both themes. Work counts, not frame time; its result in this audit's base run was not read (scenarios not yet run)."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 86-frame-work",
+    "scenario 75-voice-tile (part I)",
+    "scenario 17-assistant (V1)"
+   ],
+   "scenarios": [
+    "86-frame-work (the one register row naming E88, audit/harness/README.md:220, layer ci): counts at rest, for another player's move, an own move, a Despair write, the clock and a ledger write, both themes",
+    "75-voice-tile gains three checks in part I (the gap crossing, the step and back, the counters); 17-assistant gains V1 (a GM that stops being primary forgets the rooms it kept) - from the notes (v1.2.89.md:142-146), not read"
+   ],
+   "live": {
+    "items": 8,
+    "read": 0,
+    "ids_read": [],
+    "note": "323 LIVE-E88-01 partly, agrees (fps() on the sandbox desktop in both themes, 16.11.2026; not the weakest machine, not a player alone in fog, the look after and the refusal not recorded). 325 LIVE-E88-02 partly, agrees (the counter half on the sandbox; no screenshots). 324 -05, 326 -03, 327 -04 (the stage's doneWhen: fps() before and after), 328 -06, 329 -07, 330 -08: open."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E88-13 (the repository's command table): closed later - CLAUDE.md's table now lists fps() ('What a table lags on, effect by effect', since E88 (1.2.89)) and scenario 86 ('What one event costs every browser')",
+    "E53 C2 (d78dd134): the performance budget held to every run a table measured - builds on C0's counters"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every change C0-C7 and G1-G4 is in today's code; all 11 registry rows are ok in the base run's shard 1/8; scenario 86 exists in the ci layer (its result in this audit's run not read). The notes claim counts of work and say plainly that no frame-rate gain is claimed; reading found nothing the counts contradict. Against an 8: one promise is delivered in part - C5's skip of an unmoved pulse frame seldom fires on a curtain (E88-10, the stage's own open row, glass.mjs:2112-2117); one count rose and is not traced (p4's clock move, 3 to 5 rings, Known gaps 196-197); the fog hold's wiring and the light's pixels are run by no test. The stage's main promise - a table that lags less - is LIVE-E88-04, unread, and every canvas count rests on the harness's model of a token's refresh (LIVE-E88-05, unread): capped at 9 by those alone. Two live items are read in part on the sandbox, agreeing.",
+   "missing_to_10": "LIVE-E88-04 (fps() before and after the train on the GM's and the weakest player's machine), LIVE-E88-05 (the refresh model against v14), LIVE-E88-02/-06/-08 screenshots, -03 the voice drops, -07 real sheets; scenario 86 joined from the base run; the pulse's skip made to fire or its claim narrowed (E88-10, the owner's); the p4 ring count traced."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "base-run.json was not on the branch when this was written (20.11.2026). The base run's shard 1/8 and 2/8 logs were read (central scratch, 20:00Z and 20:12Z): all 42 registry rows of the four stages ok, and the tier-2 titles E16-T23, -T28, -T31, E17-T2, -T6, -T9 ok; the other tier-2 titles and every scenario were not read and are listed in tests_to_join.",
+   "l1": null
+  },
+  {
+   "what": "Whether E17's put-back lands on Foundry 14.370. It writes through movement.mjs putBackWrite with diff:false (:3482-3495, :3511); line L1 recorded on 14.370 (18-19.11.2026, CALIBRATION.md:153-222 on claude/e58-local; live-readings-e58-delta.json, LIVE-E39-12) that such a write from a GM copy out of step did not land, and in one probe a write from a copy in step did not either. Whether the primary's copy holds the player's new spot when the put-back is written (in step) was not read.",
+   "l1": {
+    "what": "A player's move into a locked room put back by the primary GM, on 14.370, and the GM copy's position at the moment of the write",
+    "recipe": [
+     "One GM (primary), one player; a scene with two rooms joined by a door, the second locked (the player holds no key)",
+     "The player drags their token through the door into the locked room",
+     "Read on the player's and the GM's browser where the token stands 1 s and 5 s after; read the GMs' whisper",
+     "Repeat by the console: canvas.tokens.controlled[0].document.update({x, y}) into the locked room",
+     "With Verbose console logging on, record the put-back's log line and the token's x, y on the server (a third browser's copy)"
+    ],
+    "clients": "one GM, one player, a second player watching",
+    "theme": "default",
+    "settles_if": "agrees: the token stands back on every browser within a second, the player told the rule; defect: it stays in the locked room on any browser, or only the GM's copy moves",
+    "priority": "E17's grade cap (major if it does not land)"
+   }
+  },
+  {
+   "what": "Whether one dice look for the table (E16 part 1, as E60 and E108 left it) draws the same dice on every screen at a real table: the owner saw looks disagree after 1.2.97; nothing has been read since the answers.",
+   "l1": {
+    "what": "The table's dice look on 1.2.118 across several players",
+    "recipe": [
+     "One GM (full Gamemaster) and two players with Dice So Nice; 'One dice look for the table' on",
+     "Each player runs game.drpg.diagnoseDiceLook() and sends the text",
+     "Each player throws an action roll and a statistic from the sheet; the GM throws one",
+     "Screenshot the dice on each screen in the same throw",
+     "A player changes their own look in Dice So Nice's window; throw again"
+    ],
+    "clients": "one GM, two players",
+    "theme": "both",
+    "settles_if": "agrees: every screen draws the GM's look and the change goes back, with the once-a-session line; defect: any screen differs",
+    "priority": "E16's grade cap"
+   }
+  },
+  {
+   "what": "E88's frame-rate gain at a table (LIVE-E88-04, the stage's doneWhen) and whether the harness's model of a token's refresh matches v14's (LIVE-E88-05): every count in the notes stands on it.",
+   "l1": {
+    "what": "fps() before and after the E88 train, and the refreshes one step costs another browser on v14",
+    "recipe": [
+     "On the GM's machine and the weakest player's, both themes, everyone standing, one player alone in a fogged room",
+     "Run await game.drpg.fps({ toChat: false }) on 1.2.88 (before) and on 1.2.118 (after); keep both outputs",
+     "Run game.drpg.counters({ reset: true }), have another player take one step, then game.drpg.counters(): read the refresh counts",
+     "Repeat with a drag across three squares"
+    ],
+    "clients": "one GM, at least two players",
+    "theme": "both",
+    "settles_if": "agrees: frames faster or equal after, one refresh per step on the other browsers; defect: slower, or many refreshes per step",
+    "priority": "E88's grade cap"
+   }
+  },
+  {
+   "what": "The voice word and tray icon fixes (H84-03, H84-05) and the leaning pictures (H83) were read in Chromium on the glass harness by the notes; those sweeps were not re-run here and the stylesheets were read only at the lines named.",
+   "l1": null
+  },
+  {
+   "what": "The ledgers and end reviews the four notes quote (E16 part 2: 24 rows; E17: two parts; E87: 7 rows; E88: 14 rows) and the mutant counts are not in the repository and could not be checked.",
+   "l1": null
+  }
+ ]
+}
