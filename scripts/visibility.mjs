@@ -1008,7 +1008,7 @@ export function installSightRule(TokenClass = globalThis.CONFIG?.Token?.objectCl
  * same rule the map hides it by, so the voice tile and the map agree. Never on a GM's browser, nor for the viewer's own
  * account, nor for a GM's. The voice tile asks it of each participant of its Room (voice-tile.mjs `voiceWatch`'s
  * `veiled`): the killer stays in the room's channel and hears it (E112), and is counted, listed and drawn on no tile the
- * veil hides them from. `viewer` and `scenes` are the suite's (R7864, R7865).
+ * veil hides them from. `viewer` and `scenes` are the suite's (R7864).
  */
 export function voiceVeiledHere(user, { viewer = viewerHere(), scenes = game.scenes ?? [] } = {}) {
     if (!user || user.isGM || viewer?.gm || user.id === game.user?.id) return false;
