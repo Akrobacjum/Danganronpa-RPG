@@ -11,3 +11,12 @@ default): one placed Remnant of each of the eight types beside the probe's case,
 - `*-allopen-<theme>-<size>-view.png`: every node open, the legend under the graph.
 
 Not shown: the hover and focus highlight (the sweep does not hover; R7823 holds it headless), Polish (captured in English).
+
+## Round 3 (claude/planlook-119 d921c9cf; before = round 2, 87b21526)
+
+- `round3-<theme>-<size>-shotcase{,-view,-fit}.png`: the same case as round 2's `round2-faces-*`, All open off.
+- `round3-<theme>-<size>-crowd{,-view,-fit}.png` and `round2-<theme>-<size>-crowd*.png`: probe 08's
+  `investigation--map-crowd`, the case with three more deductions resting on many Remnants and a second counter.
+- `gutter100-round{2,3}-<theme>-{crowd,shotcase}.png`: the gutter between Evidence and Deductions at 100% (a crop of the
+  1920x1080 Fit to view shot taken at device scale 2.5, where the fit is 0.4: one image pixel a canvas pixel) - where the
+  owner's photo was taken.
