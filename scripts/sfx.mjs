@@ -671,7 +671,7 @@ export function soundFilesHtml(key, files = ownSoundsFor(key), { open = openFile
             const name = fileName(path);
             return `<li class="drpg-sound-files-item" data-drpg-sfx-file="${i}"><span class="drpg-sound-files-name" title="${esc(path)}">${esc(name)}</span>`
                 + iconButton({ icon: "fa-solid fa-play", label: F("DRPG.Sound.playFile", { name }), attrs: { "data-drpg-sfx-play-file": String(i) } })
-                + iconButton({ icon: "fa-solid fa-trash", label: F("DRPG.Sound.removeFile", { name }), attrs: { "data-drpg-sfx-remove": String(i) } })
+                + iconButton({ icon: "fa-solid fa-trash-can", label: F("DRPG.Sound.removeFile", { name }), attrs: { "data-drpg-sfx-remove": String(i) } })
                 + `</li>`;
         }).join("") + `</ul>`;
     return { chip, list };

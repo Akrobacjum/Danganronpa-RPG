@@ -3039,6 +3039,17 @@ body .application.drpg-window-sound button.drpg-sound-chip.drpg-sound-files-togg
     background: transparent;
     cursor: pointer;
 }
+/* under the glass the panel's button brush and its 28 px floor (stained-glass.css, 0,7,2 and 0,8,2) drew the chip as a
+   full button that pushed the event's description out of its two lines (Chromium, 1366x768, 20.11.2026): the chip keeps
+   the chip's size there */
+body.drpg-theme-stained-glass .application.drpg-window-sound.drpg-panel button.drpg-sound-chip.drpg-sound-files-toggle:not(.drpg-action-button):not(.drpg-call-button):not(.drpg-mini-button):not(.header-control) {
+    min-height: 0;
+    height: auto;
+    padding: 2px 6px;
+    line-height: 1.1;
+    letter-spacing: 0.06em;
+    clip-path: none;
+}
 .application.drpg-window-sound .drpg-sound-files-toggle::after { content: " \25B8"; }
 .application.drpg-window-sound .drpg-sound-files-toggle[aria-expanded="true"]::after { content: " \25BE"; }
 .application.drpg-window-sound .drpg-sound-files { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 0; list-style: none; }
