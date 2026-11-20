@@ -1,0 +1,124 @@
+{
+ "refuter": "verify-domain-case-a-incident",
+ "of": "domain-case-a-incident",
+ "scope_note": "Every finding of severity minor or above (findings 1-7) was checked. Findings 8 and 9 are nits and were not checked. The reader's file is a domain file and carries no control verdicts (dead, throws, mislabeled, wrong_audience); its hints_for_other_passes are hints, not findings, and were not each verified. One stale_windows hint was spot-checked because it bears on D-A1: the tracker's keepLive watch is { actors, tokens, settings: [murderState], hooks: [drpgCastChanged] } (murder-ui.mjs:759) and live.mjs keeps item hooks behind a separate `watch.items` (live.mjs:72, 309), so an item flag changed alone does not redraw it, as the hint says.",
+ "checked": [
+  {
+   "ref": "domain-case-a-incident-1",
+   "claim": "A victim's (or third's) menu and roll window leave out the killer's defence when their cast copy holds killerId null (a mask, every trap), while the GM judges and prints the threshold with it.",
+   "verdict": "stands",
+   "why": "crisisDefense reads the defender's id off state.killerId and returns 0 when it is null. On the roller's browser murderState() is the world half (active, stage) merged with readCast(), the copy castCopyFor built, which nulls killerId for every non-killer holder when the incident is indirect or a mask stands. availableCrisisActions (menu hint, drawn by action-murder.mjs) and takeCrisisAction's dc both run there; applyCrisisAction runs crisisThreshold on the GM's own state, which holds the killer. DEFENSE.cap is 1, and four rows (selfDefence, survive, roleReversal, sharedEscape) carry defense side killer. announceCrisis prints 'total >= / < threshold' with the GM's number. opensMask is true for a direct, not self-inflicted opening on Hope or a critical, an ordinary result. The only test of the defence (R3961) calls crisisThreshold with a hand-made state and traitOf; no test reads a masked or trap copy. No other source of killerId on the roller's browser was found. The error is at most one point (cap 1) and only when the killer's statistic is 1 or more, but it is the one number the menu exists to show and the comment at 248-252 promises the three readings cannot differ; major kept, with the rule itself (should a hidden killer's defence count) left to the owner as the reader says.",
+   "evidence": [
+    "scripts/murder-rules.mjs:258-260: `const id = rule.side === \"victim\" ? state.victimId : rule.side === \"killer\" ? state.killerId : null; ... if (!id || !dh) return 0;`",
+    "scripts/murder-rules.mjs:1183: `dc: crisisThreshold(key, murderState() ?? state),`",
+    "scripts/murder-rules.mjs:1773: `const threshold = crisisThreshold(key, state);`",
+    "scripts/incident-store.mjs:187-191: `const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}; ... return { ...stored, ...readCast() };`",
+    "scripts/incident-store.mjs:586-588: `const masked = !killer && Boolean(theirs.killerId && maskStore.get(theirs.killerId)); if ((!seen.indirect && !masked) || killer) return { copy, withheld }; return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };`",
+    "scripts/config.mjs:3791: `export const DEFENSE = Object.freeze({ cap: 1 });`; rows with `defense: { side: \"killer\" ...}` at 3938 (selfDefence), 3995 (survive), 4014 (roleReversal), 4186 (sharedEscape)",
+    "scripts/mask-gm.mjs:61-62: `return Boolean(success && !indirect && !selfInflicted && (band === \"hope\" || band === \"critical\"));`",
+    "scripts/murder-rules.mjs:4323: `<p>${total} ${success ? \"≥\" : \"<\"} ${threshold}`"
+   ],
+   "severity_after": "major"
+  },
+  {
+   "ref": "domain-case-a-incident-2",
+   "claim": "A secret death is written known to, and sent to, the third of an earlier incident whose betrayal offer still stands, though they hold no seat in the incident that killed.",
+   "verdict": "stands",
+   "why": "incidentKnowers returns castOwners(readCast(), ...) and castOwners always asks incidentAudienceIds with betrayal: true, which adds state.betrayal.thirdId unconditionally. openMurder restores a fresh state with keep: ['betrayal'], and sweepBetrayalWindows drops the offer only when chapter or day differ, so a second incident the same day carries the first one's offer. recordSecretDeath in death.mjs writes that list into the row's `known`, knowsOfDeath reads it as written and deathsFor sends the row. No narrowing to seats was found on the road. A second incident with its own third candidate would overwrite the offer before the kill (finding 6), so the case is a same-day second incident with no new third, as the reader says. Minor kept: a particular evening, but a death nobody has found reaches a player.",
+   "evidence": [
+    "scripts/incident-store.mjs:1225-1230: `export function incidentKnowers(actor) { ... return [...castOwners(readCast(), { ...state, stage: \"resolution\" })]; }`",
+    "scripts/incident-store.mjs:454-457: `return new Set(incidentAudienceIds({ ...live, ...cast, indirect: incidentIndirect(cast, live) }, { betrayal: true }));`",
+    "scripts/incident-store.mjs:402: `...(betrayal ? [state?.betrayal?.thirdId] : []),`",
+    "scripts/murder-rules.mjs:542-543: `restoreState(freshIncidentState({ ... }), { keep: [\"betrayal\"], expect: { active: null } });`",
+    "scripts/incident-store.mjs:916: `if (open.chapter === clock?.chapter && open.day === clock?.day) return;`",
+    "scripts/death.mjs:465-470: `const { incidentKnowers } = await import(\"./murder.mjs\"); known = incidentKnowers(actor); ... await deathStore.patch(actor.id, { ...record, ..., known });`",
+    "scripts/incident-store.mjs:1236: `if (Array.isArray(row.known) && row.known.includes(user.id)) return true;`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-a-incident-3",
+   "claim": "A tracker opened from the GM panel's Murder tile hands the panel back at every stage change, because the tracker's self-reopen runs outside the awaited chain.",
+   "verdict": "stands",
+   "why": "The Murder tile runs openMurderDialog, which returns openIncidentTracker() when an incident stands (59) or awaits it after opening one (348). openIncidentTracker awaits drpgWindow, which returns DialogV2.wait(config) with rejectClose false. The keepLive `after` closes the dialog on a signature change and reopens the tracker from a .then(); the close resolves the awaited window with null, which matches no action branch, so openIncidentTracker returns null, the tile's run resolves, and the panel's click handler calls openGmPanel (it skips only RAISED). The comment at 341-343 states the opposite intent. Minor kept: a window that should not appear appears, nothing is lost.",
+   "evidence": [
+    "scripts/murder-ui.mjs:59: `if (murderState()) return openIncidentTracker();`",
+    "scripts/murder-ui.mjs:766-769: `const again = now !== null; dialog.close() .then(() => (again ? openIncidentTracker() : null))`",
+    "scripts/murder-ui.mjs:772-774, 802: `}), rejectClose: false }); ... return null;`",
+    "scripts/ui-kit.mjs:1344: `return DialogV2.wait(config);`",
+    "scripts/gm-panel.mjs:605-617: `await dialog.close(); ... answer = await item.run(); ... if (answer === RAISED) return; openGmPanel()`",
+    "scripts/gm-panel.mjs:256: `run: () => import(\"./murder.mjs\").then(m => m.openMurderDialog())`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-a-incident-4",
+   "claim": "With two killers, Cancel on the 'victim ran out' question is asked again up to three times per action and at each later one, and its note points to End the murder, which records no body.",
+   "verdict": "stands",
+   "why": "applyCrisisAction calls checkVictimSpent before the card (1914) and again after passTurn (1957) while the stage is still incident; Cancel returns false and writes nothing (2429). The updateActor hook sets victimOwed while `resolving` (the action's own damage to Health or Sanity), and resolveCrisisAction's finally runs checkVictimNow -> checkVictimSpent a third time. The note (en.json 2975) says 'end it from the tracker later'; End the murder at stage incident leaves endedBy unset, and leftABody is true only for BODY_ENDINGS (finishingBlow, ranOut, selfInflicted) or a victim dead by isDeadForGm, which a spent but living victim is not; afterNoBody then prints afterInterrupted for a stage that is not resolution. A later action re-asks, which is the other road out, so the GM is not stuck, only misled and nagged. Minor kept.",
+   "evidence": [
+    "scripts/murder-rules.mjs:1914: `const ranOut = await checkVictimSpent(done, receipt.killed);`",
+    "scripts/murder-rules.mjs:1955-1957: `await passTurn(); // The drain at the victim's turn is the pass's; the hook leaves it to this check. await checkVictimSpent(null, receipt.killed);`",
+    "scripts/murder-rules.mjs:1583-1586: `if (!resolving && victimOwed) { victimOwed = false; checkVictimNow();`",
+    "scripts/murder-rules.mjs:3204-3207: `if (resolving) { victimOwed = true; return; }`",
+    "scripts/murder-rules.mjs:2429: `if (!now) return false;`",
+    "lang/en.json:2975: `\"ranOutTwoKillersNote\": \"End it now and the incident moves to the Tamper stage. Or let the turns go on, ... and end it from the tracker later.\"`",
+    "scripts/incident-store.mjs:1795, 1815-1817: `const BODY_ENDINGS = Object.freeze([\"finishingBlow\", \"ranOut\", \"selfInflicted\"]); ... return BODY_ENDINGS.includes(state.endedBy) || Boolean(deadNow(state.victimId));`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-a-incident-5",
+   "claim": "The opening roll's invitation is one socket packet; after the invited player's reload nothing offers the roll again or tells the GM, while their card says the window comes back.",
+   "verdict": "stands",
+   "why": "rollOpening calls askOpeningRoll once (a socket emit to the owner) and whispers the 'openingYours' card. throwOpeningRoll is reached only from rollOpening (GM's own throw), the tracker's re-ask (which calls rollOpening) and onOpeningAsk. The player's ready road (onGmReady) re-sends the bridge's waiting requests, asks for Level Up offers and fires drpgPrimaryReady; none starts an opening. git grep for userConnected found no handler that re-asks the opening. The 'did not make the opening roll' whisper is sent from the throwOpeningRoll loop on the roller's page, which a reload ends. The mask-gm.mjs comment at 390 ('offered again (throwOpeningRoll)') refers to the loop's retries on a closed window, not a reload. The tracker's Ask again is the remedy, and nothing prompts it. Minor kept.",
+   "evidence": [
+    "scripts/gm-bridge.mjs:212-217: `export function askOpeningRoll(...) { if (!userId || !game.users.get(userId)?.active) return false; game.socket.emit(SOCKET_EVENT, { action: ACTION_OPENING_ASK, ... }, { recipients: [userId] }); return true; }`",
+    "scripts/murder-rules.mjs:4438-4446: `if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait, hindrance })) { openingInvited = ...; keepOpeningNotice(await whisperToOwner(actor, ... \"DRPG.Murder.openingYours\" ...)); return { asked: true, of: owner.name }; }`",
+    "scripts/gm-bridge.mjs:89-99: `resendOnGmReady(); ... askForOffers(); ... Hooks.callAll(\"drpgPrimaryReady\", senderId);`",
+    "lang/en.json:2926: `\"openingYours\": \"This opening roll is yours, and you cannot skip it. If you close the window, it opens again, and after a few refusals the GMs are told.\"`",
+    "scripts/murder-rules.mjs:4695-4701: `if (openingStillWanted(side, actorId)) { ... whisperToGms({ ... \"DRPG.Murder.openingDeclined\" ...`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-a-incident-6",
+   "claim": "A second body the same day overwrites the standing betrayal offer of an earlier third, with no word.",
+   "verdict": "stands",
+   "why": "armBetrayalWindow writes `betrayal` into the cast with a spread of readCast() whenever writeState sees the move to resolution and betrayalCandidate names a third; it does not ask whether cast.betrayal already holds another third's offer. The cast holds one betrayal field. giveBetrayalOfferBack does refuse while another offer stands, so the file knows the one-slot case on the way back. Minor kept: two bodies with a third candidate each on one day.",
+   "evidence": [
+    "scripts/incident-store.mjs:851-853: `if (before.stage !== \"resolution\" && next.stage === \"resolution\") { try { await armBetrayalWindow(next);`",
+    "scripts/incident-store.mjs:876-893: `const third = betrayalCandidate(state, killer); if (!killer || !third) return null; ... await writeCast({ ...readCast(), betrayal: { thirdId: third.id, killerId: killer.id, chapter: ..., day: ... } });`",
+    "scripts/murder-rules.mjs:4124: `if (cast.betrayal || offer.chapter !== clock?.chapter || offer.day !== clock?.day) return false;`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-a-incident-7",
+   "claim": "The after-incident screen offers, and its button opens, a betrayal against a dead killer (or by a dead third): the living test is asked only on the tile and at the lights.",
+   "verdict": "stands",
+   "why": "betrayalCandidate checks the killer's actor exists (`!killer`) and that there is a body, not that the killer or third is alive, against its own comment. afterIncident uses it for the note and the destructive button and calls openBetrayal(traitor, killer) with no `taken`; openBetrayal's dead test runs only `if (taken && ...)`; takeBetrayalOffer matches ids alone; openMurder's body shows no living check (no 'dead', 'living' or 'alive' read in 440-535 besides a comment). Rare (the killer dead by another road before the close), minor kept.",
+   "evidence": [
+    "scripts/incident-store.mjs:1887-1895: `export function betrayalCandidate(state, killer) { if (!state?.thirdId || !killer) return null; if (!leftABody(state)) return null; ... return third; }`",
+    "scripts/murder-rules.mjs:3771: `const traitor = getClock()?.phase === \"classTrial\" ? null : betrayalCandidate(state, killer);`",
+    "scripts/murder-rules.mjs:3820: `if (action === \"betrayal\") return openBetrayal(traitor, killer);`",
+    "scripts/murder-rules.mjs:4025: `if (taken && (isDeadForGm(third) || isDeadForGm(killer))) return refuseBetrayal(third, \"dead\", { asked, offer: taken });`",
+    "scripts/murder-rules.mjs:4108: `if (!open || open.thirdId !== third?.id || open.killerId !== killer?.id) return null;`"
+   ],
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 7,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 1: whether a hidden or absent killer's defence is meant to count (the owner's rule) - the refutation confirms only that the shown and judged numbers differ. No harness run was made; a tier-2 test opening a trap with a builder of Body 1 and reading the victim's availableCrisisActions threshold against applyCrisisAction's would measure it.",
+  "Finding 3: which of the two windows (GM panel, new tracker) ends on top on a real screen is not settled from source.",
+  "Finding 4: the number of repeats (two or three) depends on whether the action's own damage reaches the updateActor hook while `resolving` is above 0 on the primary; read, not run.",
+  "Finding 5: Foundry's own behaviour on a reload mid DialogV2 (the Daggerheart roll window) was not read; the source holds no road that re-offers the roll.",
+  "The nits (8, 9) and the hints for other passes were not refuted here."
+ ]
+}
