@@ -1,0 +1,642 @@
+{
+ "reader": "stages-01",
+ "checkout": "claude/audit-119 at 069cbf82; the code under audit is main b5a29e73 (1.2.118), module.json version 1.2.118",
+ "count_expected": 4,
+ "count_note": "Four stages given (E01, E27, E02, E03, in tools/stages.json order), four written. None has a docs/dev/<id>/ folder (ls docs/dev: no e01, e27, e02 or e03), so each stage's papers are its tools/stages.json row, its release notes (read whole), its registry rows, the comments its code carries and the 9.2 rows naming it. The stages' commits are not in this checkout (shallow history from 14.10.2026, no tags), so `commits` is 0 reachable for each. base-run.json did not exist when this was written: no test result is claimed; every test named is listed in tests_to_join.",
+ "stages": [
+  {
+   "id": "E01",
+   "version": "1.2.57",
+   "shipped": "2026-09-24",
+   "what": "The first stage of the 1.3.0 plan: tests that measure what they say (skips only as facts of the environment, real windows on the harness's GM, every chat message delivered to every client), tier 1 safe during play with a purity line at its end, three bridge requests held to the sender (Hope Call and Dynamic action, project progress, tying a trace), fileSizes() reading the manifest, a warning for a Daggerheart newer than the verified one, Daggerheart 2.6.5 as the minimum, and a release workflow that refuses other branches, takes a title, checks the version stamps and publishes a manifest pointing at its own zip.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.57.md (1-66, whole)",
+    "tools/stages.json row E01 (planned and shipped 1.2.57, 2026-09-24, touches sockets, drills none)",
+    "docs/dev/R-REGISTRY.md rows R125, R126, R130 (Since 1.2.57; the registry stamps these rows by version, not by stage id)",
+    "no docs/dev/e01/ folder; no 9.2 row names E01 (grep of audit/AUDIT-1.2.42.md for E01: 0 hits); the 1.2.57 notes carry no 'Not checked in a real Foundry' line",
+    "The checkout's history starts at 14.10.2026 (db6c51d3, shallow; `git rev-parse --is-shallow-repository` true) and holds no tags (`git tag`: 0), so none of the stage's own commits of 24.09.2026 can be read; `git log --oneline --grep` finds no commit naming the stage"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "A Hope Call and a Dynamic action request is refused unless the character it names belongs to the player who sent it",
+     "source": "v1.2.57.md 11-13",
+     "code": "scripts/bridge-table.mjs:628-638 (ACTION_HOPE_CALL: knownSender, notSpectator, owns(\"actorId\", \"sender does not own that character\")), :660-666 (ACTION_DIFFICULTY, the same three guards)",
+     "holds": "yes",
+     "test": "R1b (tier 0, reads every declaration of the tables: each id a run receives has a guard naming it); tier 2 tests of the `owns` guard factory itself (tests-tier2.mjs:11842, :11951)",
+     "test_kind": "source",
+     "note": "Held by the declaration's guards and by R1b's read of the table. No driven check sends a Hope Call or a Dynamic difficulty naming another player's student from a player's page and reads the refusal: grep of 30-security.mjs and 33-bridge-paths.mjs for call.approve and dynamic.difficulty finds only roads of the player's own character (30-security.mjs:283, :949, :1470)."
+    },
+    {
+     "promise": "Project progress from a player is taken only for a project that player can see, and is credited to the sender Foundry names, not to the packet's userId",
+     "source": "v1.2.57.md 14-17",
+     "code": "scripts/bridge-table.mjs:739 (canSeeProject(\"countdownId\", \"sender may not see that project\") with the E01 comment 728-738); scripts/bridge-guards.mjs:1784 (ctx.asker is the senderId Foundry gave); scripts/bridge-runs-records.mjs:45 (addProgress(..., { by: asker, ... }))",
+     "holds": "yes",
+     "test": "R1b; scenario 30 part 7b (progress onto a sabotaged project, from another room, naming no roll, naming another project's roll: 30-security.mjs:1145, :1194, :1222, :1235)",
+     "test_kind": "both",
+     "note": "The secrecy half itself - progress on a secret project the sender cannot see - was not found among 30-security's checks by grep (\"may not see that project\" appears in no test or scenario); the checks found drive the later guards beside it (frozen, room, roll). Since E08+E28 C16 the declaration also asks owns(\"actorId\") and reads the amount off the GMs' record of the roll."
+    },
+    {
+     "promise": "Only the player holding an object can tie its trace to a murder",
+     "source": "v1.2.57.md 18",
+     "code": "scripts/bridge-table.mjs:799-806 (ACTION_TIE_TRACE); scripts/bridge-guards.mjs:832-843 guardTieTraceHolder (a participant of the running incident the sender plays, holding the item as the GMs hold it, sheet-audit.mjs itemsAsHeld)",
+     "holds": "yes",
+     "test": "scenario 30 \"SECURITY: a trace is not tied to the crime by its holder while no fight is running\" (30-security.mjs:2298-2299); scenario 33 C (33-bridge-paths.mjs:2289)",
+     "test_kind": "behaviour",
+     "note": "The guard has grown since: the holder must also be in the running incident's cast."
+    },
+    {
+     "promise": "runTests({ tier: 1 }) is safe during play: no check opens the Class Trial or walks a student into a room, and tier 1 checks at its end that nothing in the world moved, naming what did",
+     "source": "v1.2.57.md 19-23",
+     "code": "scripts/tests.mjs:381 (worldDump before tiers 0-1 in shard 1), :28 and :286-402 (the comparison after tier 1, named in the header); the test author contract's rule 6 (.claude/rules/tests.md)",
+     "holds": "yes",
+     "test": "R159 (the dump covers every document type and setting a write names); scenario 01-runtests parts A and B (tiers 0-1 read-only mid-game)",
+     "test_kind": "behaviour",
+     "note": "The purity line is the runner's; R159 and 01-runtests are not stamped E01."
+    },
+    {
+     "promise": "game.drpg.fileSizes() lists every stylesheet and the Polish file",
+     "source": "v1.2.57.md 24-25",
+     "code": "scripts/diagnostics.mjs:1095 loadedFiles (reads the manifest)",
+     "holds": "yes",
+     "test": "R126",
+     "test_kind": "behaviour",
+     "note": "R126 asks loadedFiles() against module.json's styles (seven today) and i18n.mjs LANGUAGES, so a new stylesheet is held without editing the test."
+    },
+    {
+     "promise": "A GM is warned once per Daggerheart version when Daggerheart is newer than the verified one, can silence it for that version, and is told of any place the module hooks into Daggerheart that it could not find; newer versions still load",
+     "source": "v1.2.57.md 29-32",
+     "code": "scripts/requirements.mjs:276 systemCompatibility, :292 newerSystemFindings, :370-413 announceNewerSystem (the silence kept per version in SETTINGS.systemWarningSilenced, :373-379, :413); module.json relationships.systems[0].compatibility (minimum 2.6.5, verified 2.12.9, no maximum)",
+     "holds": "yes",
+     "test": "R130",
+     "test_kind": "behaviour",
+     "note": "R130 hands the versions in (the harness's Daggerheart is the verified one); the window itself and the silence are not driven by it. E52 C4 added Show again (requirements.mjs:310-324)."
+    },
+    {
+     "promise": "Daggerheart 2.6.5 is the minimum",
+     "source": "v1.2.57.md 33-34",
+     "code": "module.json relationships.systems[0].compatibility.minimum \"2.6.5\"",
+     "holds": "yes",
+     "test": "R130 (asks that verified and minimum are stated)",
+     "test_kind": "source",
+     "note": "The verified version is 2.12.9 today; the sentence \"2.6.5 is the version the module is verified on\" is history."
+    },
+    {
+     "promise": "The release workflow refuses branches other than main, takes a title, checks that the README and the six handbooks name the version, and publishes a manifest that installs its own zip",
+     "source": "v1.2.57.md 63-65",
+     "code": ".github/workflows/release.yml:106 (GITHUB_REF must be refs/heads/main), :75-76 and :243-251 (title input), :211-225 (manifest download rewritten to releases/download/<tag>/module.zip)",
+     "holds": "yes",
+     "test": "R125 (the suite's half of the stamp check)",
+     "test_kind": "source",
+     "note": "The workflow's own steps have no test in the suite; read off release.yml."
+    },
+    {
+     "promise": "The suite's skipped means only a fact of the environment; the headless harness draws the dialogs the suite reads; it delivers every chat message to every client",
+     "source": "v1.2.57.md 48-62",
+     "code": "the test author contract rule 2 (R158 fails a needs() on anything but env.* and world.*); audit/harness/scenarios/01-runtests.mjs:205 (\"REAL WINDOWS ON THE GM (E01, 24.09.2026)\"); audit/harness/skip-baseline.json",
+     "holds": "yes",
+     "test": "R158; scenario 01-runtests (the skips held to skip-baseline.json test by test)",
+     "test_kind": "behaviour",
+     "note": "The counts the notes quote (268 passed, 0 failed, 16 skipped) are 1.2.57's; CLAUDE.md's latest figure is 937/0/17 at 1.2.69."
+    }
+   ],
+   "registry_rows": 3,
+   "tests_read": [
+    {
+     "test": "R125 (tests-tier0.mjs:5632-5661)",
+     "measures": "yes",
+     "why": "Fetches the six handbooks and the README as the module serves them and fails on any whose first five lines (README: 'describe version X.') do not carry module.json's version."
+    },
+    {
+     "test": "R126 (tests-tier0.mjs:5663-5683)",
+     "measures": "yes",
+     "why": "Calls diagnostics.mjs loadedFiles and compares with the manifest's styles, every language file and module.json; asks first that at least nine files are expected, so an empty manifest read fails rather than passes."
+    },
+    {
+     "test": "R130 (tests-tier1.mjs:1832-1855)",
+     "measures": "yes",
+     "why": "Calls newerSystemFindings with the verified version (must be null) and 99.0.0 (must name it), and holds the missing list to rows of patches.mjs marked as Daggerheart's. It does not open the GM's window or the silence."
+    },
+    {
+     "test": "R1b (tests-tier0.mjs:329)",
+     "measures": "weak",
+     "why": "Not stamped E01. Reads the tables' declarations: holds every id a run receives to a guard naming it. It would fail if the owns guard were taken off the Hope Call row, but sends no packet."
+    }
+   ],
+   "tests_to_join": [
+    "R125",
+    "R126",
+    "R130",
+    "R1b",
+    "R158",
+    "R159",
+    "scenario 01-runtests",
+    "scenario 30 (part 7b; the tie of a trace)",
+    "scenario 33 (C)"
+   ],
+   "scenarios": [
+    "01-runtests (its part B's real windows carry the comment 'E01, 24.09.2026', 01-runtests.mjs:205); audit/harness/README.md's register names no scenario with stage E01",
+    "30-security: progress refusals (part 7b) and the tie of a trace outside a fight - not stamped E01 in the register (its row says <=1.2.50)"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "No 9.2 row names E01 and the 1.2.57 notes list nothing as not checked at a table. The newer-Daggerheart warning on a real Foundry with a newer Daggerheart is not recorded anywhere I found."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E08+E28 C16: the progress declaration also asks owns(\"actorId\") and takes the amount off the GMs' record of the roll (bridge-table.mjs:740-760)",
+    "E18 C2: the Hope Call and the Dynamic difficulty answer without patience and resend (bridge-table.mjs:636-637, :664-665)",
+    "E52 C4: the newer-Daggerheart warning's silence can be emptied again (Show again, requirements.mjs:310-324)",
+    "the verified Daggerheart moved from 2.6.5 to 2.12.9 (module.json); the 2.10.5 note in v1.2.57.md 36-44 is history"
+   ],
+   "grade": 8,
+   "grade_reasons": "Every promise of 1.2.57 is in today's code at the place named, and the module's own checks (the version stamps, fileSizes, the newer-Daggerheart rule, the purity line, the skip rule) are each held by a test that would fail on the defect. Against a 9: the stage's three security fixes - a Hope Call or Dynamic action for somebody else's student, progress on a secret project the sender cannot see - are held by the declarations and R1b's structural read alone; no driven check from a player's page sends either and reads the refusal (grep of 30-security and 33-bridge-paths), so one promise holds by reading. No finding. No live check exists for the stage. The stage's commits cannot be read here and its tests' results in the base run were not available.",
+   "missing_to_10": "A driven check in scenario 30 that sends call.approve and dynamic.difficulty naming another player's student, and project.progress on a secret project the sender is not let in on, and reads each refused with nothing moved; the newer-Daggerheart window and its silence read on a real Foundry with a newer Daggerheart; the base run's results for the tests listed."
+  },
+  {
+   "id": "E27",
+   "version": "1.2.58",
+   "shipped": "2026-09-24",
+   "what": "Two things every player met every session: the handbook's contents list no longer opens a second tab of the game (a link with no address that only scrolls), and Isometric Perspective's welcome window held closed on every client with its box taken out of Configure Settings, behind a world switch, in a table built for more such rows (enforced.mjs).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.58.md (1-37, whole)",
+    "tools/stages.json row E27 (planned and shipped 1.2.58, 2026-09-24, touches none, drills none)",
+    "docs/dev/R-REGISTRY.md rows R127, R131 (Since 1.2.58)",
+    "scripts/enforced.mjs header (1-62), the stage's own record of what it does and will not do",
+    "no docs/dev/e27/ folder; no 9.2 row names E27 (grep: 0 hits)",
+    "The checkout's history starts at 14.10.2026 (db6c51d3, shallow; `git rev-parse --is-shallow-repository` true) and holds no tags (`git tag`: 0), so none of the stage's own commits of 24.09.2026 can be read; `git log --oneline --grep` finds no commit naming the stage"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "A click on a section in the handbook's contents list only scrolls to it, by mouse or with Enter, and opens no second copy of the game",
+     "source": "v1.2.58.md 8-11",
+     "code": "scripts/handbooks.mjs:495-515 fillContents (an <a> with role link, tabIndex 0 and no href; click and Enter prevent the default, stop propagation and scroll)",
+     "holds": "yes",
+     "test": "R127",
+     "test_kind": "behaviour",
+     "note": "R127 builds the list with the real function and a listener standing in for Foundry's _onClickHyperlink (closest(\"a[href]\")) and counts window.open: zero. The real Foundry listener was not read at a table (the notes' own last line)."
+    },
+    {
+     "promise": "Isometric Perspective's welcome window stays closed for everyone: the value is held on every client, GM included, before Isometric Perspective reads it at its ready, and a change by hand is put back",
+     "source": "v1.2.58.md 15-19, 32-34",
+     "code": "scripts/enforced.mjs:93 (the isoWelcome row, toggle SETTINGS.enforceIsoWelcome), :182-196 (config false, given back), the clientSettingChanged put-back named in the header (enforced.mjs:20-24); scripts/settings.mjs:1566 (the switch registered)",
+     "holds": "yes",
+     "test": "tier 2 \"the table's held settings keep Isometric Perspective's welcome closed and its box out of sight\" (tests-tier2.mjs:51760-51822); scenario 15 (15-held.mjs:82-96: held at ready, held after boot, the box out of Configure Settings, a change by hand does not stick, on p1 and p2)",
+     "test_kind": "behaviour",
+     "note": "The harness stands in for Isometric Perspective and reads the value at its own ready (__isoWelcomeAtReady); whether the real module still decides in Hooks.once(\"ready\") is not read at a table."
+    },
+    {
+     "promise": "The checkbox is taken out of everyone's Configure Settings; a box that cannot be hidden still has its value held",
+     "source": "v1.2.58.md 17-19, 33-34",
+     "code": "scripts/enforced.mjs:182-196",
+     "holds": "yes",
+     "test": "the same tier-2 test (entry.config false; a probe setting with a read-only config still held); scenario 15 \"the player's box for it is out of Configure Settings\"",
+     "test_kind": "behaviour",
+     "note": "`config` on a registry entry is not public API (the header says so); a real Configure Settings window drawn without the row is not read at a table."
+    },
+    {
+     "promise": "With the GM's switch \"Keep Isometric Perspective's welcome window closed for everyone\" off, the box comes back and each browser can switch the window on again; with the module absent nothing is written",
+     "source": "v1.2.58.md 19-22",
+     "code": "scripts/enforced.mjs:196 (config given back), the row's toggle; settings-window.mjs:102 (the switch listed)",
+     "holds": "yes",
+     "test": "the same tier-2 test (switched off: config not false, a change by hand stands); R131 (a row of a module that is not installed holds nothing)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Written so that more such settings can be held the same way",
+     "source": "v1.2.58.md 23-24",
+     "code": "scripts/enforced.mjs ENFORCED table: today the voice rows (E19 C1), dhWelcome and playerFiles (E79 C9) beside isoWelcome",
+     "holds": "yes",
+     "test": "scenario 15 (N1, N4a-N4e beside the welcome)",
+     "test_kind": "behaviour",
+     "note": ""
+    }
+   ],
+   "registry_rows": 2,
+   "tests_read": [
+    {
+     "test": "R127 (tests-tier1.mjs:1858-1890)",
+     "measures": "yes",
+     "why": "Real fillContents on three headings; fails if an entry carries an href, is not a focusable link, does not answer a click or Enter, or if a Foundry-like listener or window.open saw anything."
+    },
+    {
+     "test": "R131 (tests-tier1.mjs:2196-2208)",
+     "measures": "weak",
+     "why": "One call of applyEnforced with a row for a module that is not installed: holds that nothing is held; that nothing was written rests on tier 1's purity line, not on this test."
+    },
+    {
+     "test": "tier 2 \"the table's held settings keep Isometric Perspective's welcome closed and its box out of sight\" (tests-tier2.mjs:51760-51822)",
+     "measures": "yes",
+     "why": "Switches the world switch on and off on this client and reads the value, the registry entry's config, a hand change put back and then standing, and a box that cannot be hidden; it asks world.moduleActive and settingRegistered first, as rule 1 asks."
+    },
+    {
+     "test": "scenario 15-held, the welcome part (15-held.mjs:79-96)",
+     "measures": "yes",
+     "why": "On p1 and p2 after a normal boot: the value at Isometric Perspective's ready (the stand-in), after boot, config false, and a hand change that does not stick."
+    }
+   ],
+   "tests_to_join": [
+    "R127",
+    "R131",
+    "tier 2: the table's held settings keep Isometric Perspective's welcome closed and its box out of sight",
+    "scenario 15"
+   ],
+   "scenarios": [
+    "15-held (the register's one row naming E27, audit/harness/README.md:178): other modules' client settings held on every client, since extended by E08+E28 C18, E29 C7 and E79 C9"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "The notes' own 'Not checked at a real table yet' (v1.2.58.md 35-37: one GM and two players with fresh browsers, first and second start; the Configure Settings row gone for a player; the contents list clicked in Foundry) never became 9.2 rows, and no reading of any of the three is in docs/dev/e58/LOCAL-REPORT.md or docs/dev/e39/CALIBRATION.md (grep for welcome, showWelcome, contents: 0 hits) - finding E27-1. LIVE-E20-06 (B-E20-6) reads the welcome given back with Foundry's other settings, and LIVE-E79-09 Daggerheart's welcome, not this row."
+   },
+   "findings": [
+    {
+     "id": "E27-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "The stage's three checks at a real table were never written into 9.2, so no tally counts them as open",
+     "where": ".github/release-notes/v1.2.58.md:35-37; audit/AUDIT-1.2.42.md 9.2 (no row naming E27, Isometric Perspective's welcome or the handbook contents)",
+     "what_happens": "The notes name three things not checked at a table. 9.2, which is \"the honest statement of what this module has not yet proved\" (CLAUDE.md), holds none of them, and the sandbox readings of 16-17.11.2026 took none.",
+     "evidence": "v1.2.58.md 35-37: \"- Not checked at a real table yet: one GM and two players with fresh browsers, first start and a second start; the real Configure Settings row gone for a player; and the handbook's contents list clicked in Foundry.\" grep of audit/AUDIT-1.2.42.md for E27 and showWelcome: 0 hits; grep of docs/dev/e58/LOCAL-REPORT.md for welcome: 0 hits.",
+     "failure_scenario": "The owner plans a table session from 9.2 and the triage of docs/dev/e58: neither lists the welcome on a fresh player browser or the contents click in Foundry, so a regression in Isometric Perspective's ready order would reach players unseen.",
+     "expected": "Three LIVE-E27 rows in 9.2 (or a line saying where they are kept).",
+     "confidence": "read",
+     "refutation_tried": "Searched 9.2 by id, by 'Isometric', 'welcome', 'handbook' and 'spis treści' (audit/AUDIT-1.2.42.md lines 550, 854, 1034, 1043, 1114, 1120, 1526 are other items: LIVE-E79-09 is Daggerheart's welcome, LIVE-E57-03 the handbook on a tablet, LIVE-E20-06 the give-back); looked in live-items-07.json (first session) and both live-readings files: none reads this row."
+    }
+   ],
+   "superseded_by": [
+    "E19 C1: the voice rows (LiveKit's useExternalAV, the rtc dock) in the same table",
+    "E79 C9: rows that are not another module's client setting (Daggerheart's welcome by a user flag, core.permissions) and the unasked User Configuration window",
+    "E20: 'Give Foundry's settings back' (enforced.mjs giveBackFoundry, :858) can hand the welcome row back with the rest",
+    "E57 C4: the handbooks' section jumps; fillContents itself is unchanged in shape"
+   ],
+   "grade": 9,
+   "grade_reasons": "Both promises are in today's code and each is held by a test that drives the real function and would fail on the defect: R127 for the contents list with a stand-in for Foundry's hyperlink listener, the tier-2 test and scenario 15 for the welcome row on, off and unhideable, on two players' browsers. One nit (E27-1). Capped at 9 by the rule of 11.4: the main promise rests on what no table has read - Isometric Perspective's own ready order, Foundry's own hyperlink listener and the Configure Settings window - and those checks are not even in 9.2. The base run's results were not available.",
+   "missing_to_10": "The three checks of v1.2.58.md 35-37 written as 9.2 rows and read at a table (one GM and two players on fresh browsers, the row gone from a player's Configure Settings, the contents list clicked in Foundry); the base run's results for R127, R131, the tier-2 test and scenario 15."
+  },
+  {
+   "id": "E02",
+   "version": "1.2.59",
+   "shipped": "2026-09-24",
+   "what": "The first security stage: what a player writes, or sends from the console, is drawn as words and not as markup on the GM's and other players' screens - private cards cleaned when they come from a player, names, pictures and item fields escaped, sounds for the GMs and above the slider kept to a GM's message, evidence and objection cards shown only from their author's own character, no private card published for want of readers, cards kept per account and per world, and limits on the private-card store.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.59.md (1-57, whole)",
+    "tools/stages.json row E02 (planned and shipped 1.2.59, 2026-09-24, touches sockets, drills none)",
+    "docs/dev/R-REGISTRY.md rows R128, R129 (Since 1.2.59)",
+    "the code's E02 comments (git grep E02 in scripts/: 20 sites, among them secret.mjs:150, :564, :1177, :1632; sfx-play.mjs:691; call-gm.mjs:230; trial.mjs:603; traps.mjs:290; utils.mjs:804; cleanup-reshape.mjs:295; observe.mjs:729; camera-view.mjs:288)",
+    "audit/harness/scenarios/30-security.mjs part 6 (733-1025) and audit/harness/lib/futil.mjs:67-90 (the stand-in for Foundry's cleanHTML)",
+    "no docs/dev/e02/ folder; no 9.2 row names E02; the code names 'the E02 verification' with defects D01, D08 and D13 (secret.mjs:564, notice-history.mjs:174, :910, room-tile.mjs:30, ui-kit.mjs:774), a paper not in this checkout",
+    "The checkout's history starts at 14.10.2026 (db6c51d3, shallow; `git rev-parse --is-shallow-repository` true) and holds no tags (`git tag`: 0), so none of the stage's own commits of 24.09.2026 can be read; `git log --oneline --grep` finds no commit naming the stage"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "A private card's words from a player are cleaned before they are shown, and cards stored before the release are cleaned when they are read; a GM's own cards keep their buttons",
+     "source": "v1.2.59.md 48-52",
+     "code": "scripts/secret.mjs:569-578 cleanCardHtml (Foundry's cleanHTML, or the words escaped where there is none or it throws), :662 (an entry not the GM's cleaned once per session), :781 (trusted ? html : cleanCardHtml(html)), :981",
+     "holds": "yes",
+     "test": "scenario 30 part 6: \"XSS: a player's private-card words reach the GM without their handler\", \"XSS: the card's button and data attributes survive the cleaning\", \"XSS: words stored before the fix are cleaned when they are read\" (30-security.mjs:775-778, 942)",
+     "test_kind": "behaviour",
+     "note": "Measured on the harness's stand-in for cleanHTML (futil.mjs:77-90), which by its own header measures the module's choice to clean, not the cleaner. What Foundry's real cleanHTML lets through is not read on record (LIVE-E81-01 open, live-items-05.json). The code says the E02 verification's D01 and D13 in this cleaning are E83's to fix and 'not in this build' (secret.mjs:563-565, notice-history.mjs:171-175); E83 is unshipped (tools/stages.json: planned 1.2.119, version null)."
+    },
+    {
+     "promise": "Names, pictures and item details are escaped wherever they were printed as markup (a reshaped trace's name, incident cards, the GM panel's next line, the Observe note, a camera tile's hover, a tool's name on a project or sabotage card, an item's picture, tier and roles, the Hope Call price taken from the GM's table)",
+     "source": "v1.2.59.md 53-59",
+     "code": "scripts/cleanup-reshape.mjs:292 plainText and :295 (every angle bracket left over); scripts/observe.mjs:729; scripts/camera-view.mjs:288; scripts/sheet-item.mjs:343; scripts/murder-rules.mjs:2439; scripts/call-gm.mjs:230-236 (the price from HOPE_CALLS; since E31 `cost` is off the whitelist, bridge-table.mjs:631-634)",
+     "holds": "yes",
+     "test": "R128 (plainText), R129 (source scan); scenario 30 part 6 \"the Hope Call card prints the price from the GM's table\", \"a renamed character's name reaches the GM's own Observe note as text\" (30-security.mjs:961-963, :995)",
+     "test_kind": "both",
+     "note": "R129's scan looks for `${...format(..., { x: y.name })}` only on a line that builds markup (contains '<'); a name formatted into a toast is outside it by design. On Foundry 14.370 a toast draws markup (sanitised, not escaped; docs/dev/e58/LOCAL-REPORT.md:425), so that design premise does not hold - see finding E03-2, placed with the stage whose toast it is."
+    },
+    {
+     "promise": "Only a GM's message can play a sound for the GMs or one that ignores the volume slider, except the real safeword card; a player's private card cannot insist on interrupting a GM's screen as a notice",
+     "source": "v1.2.59.md 60-63",
+     "code": "scripts/sfx-play.mjs:689-719 soundFromMessage; scripts/popup.mjs:1264 (popupForce only from a GM)",
+     "holds": "yes",
+     "test": "R128 (soundFromMessage on a player's and a GM's message, with and without the safeword flag); scenario 30 \"a player's private card cannot ring the safeword's siren at the GMs\" and \"cannot ask the GMs for a notice\" (30-security.mjs:844, :821)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "An evidence or objection card is shown to the table only when its author plays the character it speaks as and that character holds the evidence",
+     "source": "v1.2.59.md 64-65",
+     "code": "scripts/trial.mjs:599-640 (since E79 C16 and E70 fix p2-G2 no player's card is raised at all; the primary marks it refused)",
+     "holds": "yes",
+     "test": "scenario 30 (the Present and Objection posted by a player's console, measured at 2fc865ac per trial.mjs:626-627)",
+     "test_kind": "behaviour",
+     "note": "Superseded by a stricter rule: the card is posted by a GM (objectOnPrimary, presentOnPrimary) and a player's card with the flag is refused whatever it holds."
+    },
+    {
+     "promise": "A private card with nobody to read it is not posted at all",
+     "source": "v1.2.59.md 66-68",
+     "code": "scripts/utils.mjs:804-822 privately (an empty whisper list or a veiled card with no readers returns null); scripts/secret.mjs:1171",
+     "holds": "yes",
+     "test": "none found stamped or named for this road (grep of tier files and 30-security for \"nobody to read\")",
+     "test_kind": "source",
+     "note": "Held by reading. The world it guards against has no GM user, which the harness never builds."
+    },
+    {
+     "promise": "Private cards belong to the account that received them, and only this world's cards of deleted messages are removed at start-up",
+     "source": "v1.2.59.md 69-75",
+     "code": "scripts/secret.mjs:652-665 secretHtml (entry.user against game.user.id), :973 (the same on a GM's answer), :1632 (this world's cards only)",
+     "holds": "yes",
+     "test": "scenario 30 \"store: the start-up tidy keeps another world's private cards and this world's unknown ones\", \"... removes this world's cards whose message is gone\" (30-security.mjs part 6)",
+     "test_kind": "behaviour",
+     "note": "The account half (two logins on one browser) was not found as a check by grep; read in source."
+    },
+    {
+     "promise": "The private-card store has limits and says when it is full: a player's card limited to 32 KB and the player told, messenger threads keep their newest 2000, a GM told once if the browser can no longer save",
+     "source": "v1.2.59.md 71-75",
+     "code": "scripts/secret.mjs:169-170 MAX_PLAYER_BYTES 32 KB, :1177-1185 (DRPG.Secret.tooLong to the writer), :547-554 KEEP_PINNED 2000, :147 KEEP (config.mjs:433 secretCardsKept 500 for unpinned cards), :606-638 (DRPG.Secret.storeFull once, permanent, GM only)",
+     "holds": "yes",
+     "test": "none found driving the limits (grep for tooLong, storeFull, KEEP_PINNED in the tier files and scenarios returned no assertion on them)",
+     "test_kind": "source",
+     "note": "Held by reading. Since E81 C6 a full storage first asks the notice history to give back room (secret.mjs:614-624)."
+    },
+    {
+     "promise": "A trap that watches an object names the room where the object was used, and its title shows an apostrophe as an apostrophe",
+     "source": "v1.2.59.md 76-78",
+     "code": "scripts/traps.mjs:290-296 (the holder's room for an item trigger)",
+     "holds": "yes",
+     "test": "none stamped; the trap's card is driven in tier 2's trap tests (not read for this row)",
+     "test_kind": "source",
+     "note": "The title half was not traced."
+    }
+   ],
+   "registry_rows": 2,
+   "tests_read": [
+    {
+     "test": "R128 (tests-tier0.mjs:5685-5721)",
+     "measures": "yes",
+     "why": "Calls plainText on the unclosed-tag case and an ordinary name, and soundFromMessage on stand-in messages from a player and a GM: would fail if a player's message played the safeword or reached the GMs with a sound."
+    },
+    {
+     "test": "R129 (tests-tier0.mjs:5723-5772)",
+     "measures": "weak",
+     "why": "A source scan for three raw patterns (src=\"${...}\" without escape, a tier on a markup line, drpg-role-${ without classSafe) and for a .name formatted into a markup line. It reads the shapes it lists; a name reaching markup by any other spelling (a toast, a variable built earlier) passes it."
+    },
+    {
+     "test": "scenario 30 part 6 (30-security.mjs:733-1025)",
+     "measures": "yes",
+     "why": "From p1's page: posts a card and sends hostile words by socket, then reads on the GM what the store hands back - the handler gone, the button and data kept, the pin refused; also a stored card from before the fix, the Hope Call price, the Observe note, the safeword's siren, a notice, and the world-only tidy. Its cleaner is the harness's stand-in."
+    }
+   ],
+   "tests_to_join": [
+    "R128",
+    "R129",
+    "scenario 30 (part 6)"
+   ],
+   "scenarios": [
+    "30-security part 6 \"SCRIPT FROM A PLAYER'S CONSOLE ON THE GM'S SCREEN (E02, 24.09.2026)\" and the two E02-review checks (30-security.mjs:965, :999); the register's row for 30 says <=1.2.50, and no row names E02"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "No 9.2 row names E02. The notes' one check not made in a real Foundry (v1.2.59.md 90-94: that Foundry's own cleaner keeps the buttons on a request a player sends to the GM) has no LIVE id; the nearest, LIVE-E81-01 (item 183, the real cleanHTML on R294's vectors), is open (live-items-05.json). The sandbox's reading of item 23 (toasts sanitised, LOCAL-REPORT.md:425) bears on R129's premise."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E79 C16 and E70 fix p2-G2: no player's Objection or Present card is raised at all; both are posted by a GM (trial.mjs:619-630)",
+    "E05 C7: a card's facts travel with its words and are kept as plain fields only (30-security part 6)",
+    "E81 C2 and C6: cleanCardHtml exported for the notice history, which adds its own allowlist; a full storage first takes the history's room",
+    "E31: the Hope Call's cost is off the declaration's whitelist",
+    "E83 (planned 1.2.119, unshipped): the fixes of the E02 verification's D01 and D13 in the cleaning, named in secret.mjs:563-565"
+   ],
+   "grade": 8,
+   "grade_reasons": "Every promise of 1.2.59 is in today's code, and its core - a player's private-card words and the fields a player can set reaching the GM as words - is driven from a player's page in scenario 30 part 6, with checks that would fail on the defect. Against a 9: three parts hold by reading alone (no published card with no readers, the store's 32 KB, 2000 and full-storage limits, the trap's room), and R129, the stage's one guard against a new raw name, is a pattern scan whose premise (a sentence off a markup line is plain text) is not true of v14's toasts. The cleaning itself is Foundry's cleanHTML, measured only on the harness's stand-in, and the code records known defects of it (the E02 verification's D01 and D13) left for E83, whose paper is not in this checkout. No finding of the stage's own: the toast with a raw name is placed with E03 (E03-2). The base run's results were not available.",
+   "missing_to_10": "A reading of Foundry's real cleanHTML on a player's card (buttons kept, handlers and the A7 design's srcdoc and data-tooltip-html readings gone: LIVE-E81-01 or a new LIVE-E02 row); E83's fixes of D01 and D13 shipped, with the verification's paper in the repository; driven checks of a card with no readers, of the 32 KB refusal told to the writer and of the full-storage notice; R129 widened to toasts or toasts escaped (E03-2); the base run's results."
+  },
+  {
+   "id": "E03",
+   "version": "1.2.60",
+   "shipped": "2026-09-24",
+   "what": "The second security stage and layer one of the trust model (D2): every request a player's browser sends to the GM's is judged there against who sent it and what the world says - projects and sabotage, Observe, the clean-up, Analyze, crisis actions, Calls, traces, search tokens, traps, fog and a token sent back - and Daggerheart's own GM relay is put behind a guard (relay-guard.mjs); a refused request changes nothing and is told; an undo needed a Reroll just before; the anonymity ceiling is put back after Configure Ownership; a player's edit of a Truth Bullet is put back; Fear is not rationed; a lone Despair pool shows its name; the sheet's resource lock follows its setting.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.60.md (1-79, whole)",
+    "tools/stages.json row E03 (planned and shipped 1.2.60, 2026-09-24, touches sockets, rolls, scenes; drills none)",
+    "docs/dev/R-REGISTRY.md rows R132-R150 (19 rows Since 1.2.60; R134 and R135 'removed in E08')",
+    "audit/AUDIT-1.2.42.md 9.2 items 18-24 ('Po E03 (1.2.60)', lines 835-842) and 'Znane luki po E03' (lines 1658-1666)",
+    ".claude/rules/trust-model.md 'Layer one (E03, 1.2.60)'",
+    "scripts/relay-guard.mjs header (1-62), anonymity.mjs:66-78 and :785-846, truth-bullets.mjs:1296-1320",
+    "audit/findings-1.2.118/live-items-01.json items 18-24; live-readings-e58.json readings 18-23; live-readings-other.json readings 20, 22, 23; docs/dev/e58/LOCAL-REPORT.md:415-436; docs/dev/e39/CALIBRATION.md:38-43, :141-145 (D9)",
+    "The checkout's history starts at 14.10.2026 (db6c51d3, shallow; `git rev-parse --is-shallow-repository` true) and holds no tags (`git tag`: 0), so none of the stage's own commits of 24.09.2026 can be read; `git log --oneline --grep` finds no commit naming the stage"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "The requests a player's browser sends are judged on the GM's: who sent it, whether that player plays the character or may see the project, and whether the room, the incident's stage and the turn allow it (projects and sabotage, Observe, clean-up, Analyze, crisis actions, Calls, traces, search tokens, traps, fog, a token sent back)",
+     "source": "v1.2.60.md 11-16",
+     "code": "scripts/bridge-table.mjs (BRIDGE_ACTIONS, every row's guards), scripts/bridge-guards.mjs:1784 (judge; ctx.asker is Foundry's senderId); unsabotageRefusal projects.mjs:2329, observeResolveRefusal observe.mjs:672 (called :741), playerArmRefusal call-effects.mjs, narrowPlayerRemnant remnants.mjs, sendBackRefusal movement.mjs, searchSpendRefusal search-tokens.mjs, usedItemRefusal traps.mjs, crisisUndoRefusal murder-rules.mjs:1015 (called by reroll.mjs:417), fog.mjs:1321-1346 (an answer taken only when asked)",
+     "holds": "yes",
+     "test": "R136, R137, R138, R139, R140, R141, R142, R144, R145, R148, R150; R1b; scenario 30 part 7 (30-security.mjs:1026 on); scenario 33",
+     "test_kind": "both",
+     "note": "Each rule function is called by its road today (grep of callers). Several rows were reworked after E03 - the table moved to bridge-table.mjs (E41 C5b), every refusal told with a reason (E31), and the undo roads became the GM's own Reroll (E08+E28 C8) - and the rules E03 wrote are what the guards still ask."
+    },
+    {
+     "promise": "Daggerheart's own requests are judged the same way: what its features send for a player passes, anything else is refused; placing an area, starting a countdown and healing or harming another student with an ability stop with a refusal",
+     "source": "v1.2.60.md 17-22",
+     "code": "scripts/relay-guard.mjs:1-62 (the header), judgeRelay and its table; :505-512 (the sub-actions); module.mjs:167 (registerRelayGuard in init, before requirementsMet at :187)",
+     "holds": "yes",
+     "test": "R132, R133, R147; scenario 30 part 8 (Daggerheart's relay copied verbatim in audit/harness/lib/dh-relay.mjs)",
+     "test_kind": "both",
+     "note": "On Foundry 14.370 with Daggerheart 2.12.9 the guard reads state ok and the socket has listeners, off, on and prependAny (LOCAL-REPORT.md:422, item 19). The table was read off 2.10.5 and checked against 2.6.5 (header); later Daggerheart builds were met by E75 C2 and E08+E28 C9 (DhTransferItem)."
+    },
+    {
+     "promise": "Taking something back needs a Reroll just before: the GM accepts an undo only right after the same player rerolled a roll of the same character, once per kind",
+     "source": "v1.2.60.md 23-26",
+     "code": "replaced: scripts/reroll-receipts.mjs keeps only each roll's first dice; bridge-guards.mjs guardUndoIsTheGms refuses a player's undo (named at bridge-table.mjs:727-729)",
+     "holds": "no",
+     "test": "R134 and R135, both 'removed in E08' (docs/dev/R-REGISTRY.md:144-145)",
+     "test_kind": "n/a",
+     "note": "Superseded on purpose, not broken: since E08+E28 C8 (1.2.67) the Reroll is the primary GM's own transaction and a player's undo is refused whatever it carries - stricter than the receipt. Not counted against the grade."
+    },
+    {
+     "promise": "A refused request changes nothing; most refusals tell the player and leave a line with their name in the Debug log; a Daggerheart change the game does not expect puts a card in the GM's chat; a request waited on stops waiting at once",
+     "source": "v1.2.60.md 27-31",
+     "code": "scripts/bridge-guards.mjs (judge; tellRefused); relay-guard.mjs:1204-1220 noSender and unknownSender (one toast and one whisper to the GMs, once), the GMs' card for an unknown shape (header 36-49)",
+     "holds": "yes",
+     "test": "R1b; R162-R166 (E31); scenario 33 (what a player is told)",
+     "test_kind": "both",
+     "note": "Since E31 (1.2.62) every refusal of a table action is told with a code of REASONS, so 'most' became every one but four quiet reports."
+    },
+    {
+     "promise": "While sheets are kept anonymous, a character shared as Owner with every player is put back to Observer, including from Configure Ownership, and the GMs are told",
+     "source": "v1.2.60.md 32-34",
+     "code": "scripts/anonymity.mjs:68 (preUpdateActor guard), :70 (updateActor -> lowerOwnership), :73-76 (closeDocumentOwnershipConfig on the window's GM), :77-79 (a sweep at ready), :820-846 lowerOwnership (any GM for the window it closed, the primary for the rest; whisper with the name escaped)",
+     "holds": "yes",
+     "test": "R143 (text guard since E40 item 4); scenario 30 phase 7i 'ownership' (named in R143's comment); 9.2 item 20 read on Foundry 14.370",
+     "test_kind": "both",
+     "note": "Read on the owner's sandbox 16.11.2026 with two GMs, the non-primary saving 'All Players: Owner' in the real window: updateActor reached the primary with options.noHook true, closeDocumentOwnershipConfig fired on the window's GM, ownership.default went back to 2 (LOCAL-REPORT.md:423, CALIBRATION.md:42). The harness still skips both hooks on noHook (D9, CALIBRATION.md:141-145, not built), so headless only the window road is driven; on v14 both roads fire."
+    },
+    {
+     "promise": "A player's edit of what their Truth Bullet says or is, is put back, and never carried to the other copies of the trace",
+     "source": "v1.2.60.md 35-36",
+     "code": "scripts/truth-bullets.mjs:1296-1320 (what a player cannot change; the guard copy in memory), :1404 revertPlayerBulletEdit, :1518 onBulletWrite; resource-guard.mjs:121 (BULLET_GUARDED on the player's own client, a courtesy)",
+     "holds": "partly",
+     "test": "R143; scenario 30 phase 7i 'Truth Bullet edits'",
+     "test_kind": "both",
+     "note": "Holds while a GM is connected. An edit made with no GM online is not put back at load: since E29 it is only listed (sheet-audit.mjs compareOne, verdict 'listed'), as 'Znane luki po E03' records (AUDIT-1.2.42.md:1660) and the owner deferred to E43 (unshipped). The notes' sentence carries no such limit."
+    },
+    {
+     "promise": "Fear is not rationed; a player's client moving it more than four times in ten seconds gives the GM a note",
+     "source": "v1.2.60.md 37-39",
+     "code": "scripts/relay-guard.mjs:161-162 FEAR_STEPS_NOTED 4, :697-708 judgeFear (one step either way, busy past four), :1004 and :1225-1229 noteBusyFear (an info toast, the name through plainWhat)",
+     "holds": "yes",
+     "test": "R133 (fearSteps in the world stand-in; the Fear row of the table)",
+     "test_kind": "behaviour",
+     "note": "The note is a toast on the GM's screen, as the notes say."
+    },
+    {
+     "promise": "The Despair bar shows a pool's name even when it is the only pool, and so does the line a Reroll writes when it moves Despair",
+     "source": "v1.2.60.md 40-44",
+     "code": "scripts/despair.mjs:235 poolLabel, :783, :839",
+     "holds": "yes",
+     "test": "R149",
+     "test_kind": "behaviour",
+     "note": "R149 reads the drawn bar against poolLabel for every pool; the Reroll's line was not traced."
+    },
+    {
+     "promise": "With the setting that stops players editing their own sheet off, players can click Hope and the traits again",
+     "source": "v1.2.60.md 45-47",
+     "code": "styles/danganronpa.css (the locks under body.drpg-player.drpg-resources-locked, :1504-1517 per live-items-01.json item 24); scripts/module.mjs:695 and settings.mjs:3150-3158 (the class stamped and toggled)",
+     "holds": "yes",
+     "test": "R146 (source and stylesheet read)",
+     "test_kind": "source",
+     "note": "How the locked sheet looks is 9.2 item 24, open."
+    }
+   ],
+   "registry_rows": 19,
+   "tests_read": [
+    {
+     "test": "R132 (tests-tier1.mjs:5008-5027)",
+     "measures": "yes",
+     "why": "Reads relayGuardStatus on the running table and fails unless a listener is wrapped and, at state ok, every case of its fingerprint was reviewed; a table where nothing was wrapped fails, as it should."
+    },
+    {
+     "test": "R133 (tests-tier1.mjs:5029 on)",
+     "measures": "yes",
+     "why": "Calls judgeRelay on some thirty made-up packets against a made-up world: each shape only a console makes is refused, Daggerheart's own shapes for a player pass, and a feature kept to the GM is 'refused' rather than called forged. Pure; the real relay is scenario 30 part 8."
+    },
+    {
+     "test": "R136, R137, R139, R140, R141, R142, R148, R150 (tests-tier1.mjs:5288-5480)",
+     "measures": "yes",
+     "why": "Each calls the rule function its road asks (unsabotageRefusal, observeResolveRefusal, playerArmRefusal, narrowPlayerRemnant, sendBackRefusal, searchSpendRefusal and usedItemRefusal, removalRefusal, crisisUndoRefusal) on hand-built cases, honest and not; each function's callers on the road were confirmed by grep. They do not send packets."
+    },
+    {
+     "test": "R138 (tests-tier0.mjs:5774-5806)",
+     "measures": "weak",
+     "why": "Source read: takeCrisisAction asks crisisRefusal in its first 1200 characters, and a guard of murder.crisis asks crisisRefusal(actor, payload.key); a read of the shape, not a refused crisis action."
+    },
+    {
+     "test": "R143, R144, R145 (tests-tier0.mjs:5808-5913)",
+     "measures": "weak",
+     "why": "Text guards since E40 item 4 (13.11.2026): they read the hooks' wiring and orders; the driven halves are in tier 2 ('four doors a console used...', 'Analyze on the GM refuses...', 'Stage 6's own refusals...') and scenario 30 phase 7i."
+    },
+    {
+     "test": "R146, R147 (tests-tier0.mjs:5915-5948)",
+     "measures": "weak",
+     "why": "R146 reads the stylesheet's selectors and the class's stamp and toggle; R147 reads that registerRelayGuard comes before requirementsMet() in init's first 3000 characters. Both fail on the defect they name; neither draws a sheet or boots a module that stops."
+    },
+    {
+     "test": "R149 (tests-tier1.mjs:5439-5458)",
+     "measures": "yes",
+     "why": "Asks world.atLeast('fullGms') first, then draws the bar and compares each row's name with poolLabel."
+    }
+   ],
+   "tests_to_join": [
+    "R132",
+    "R133",
+    "R136",
+    "R137",
+    "R138",
+    "R139",
+    "R140",
+    "R141",
+    "R142",
+    "R143",
+    "R144",
+    "R145",
+    "R146",
+    "R147",
+    "R148",
+    "R149",
+    "R150",
+    "R1b",
+    "tier 2: four doors a console used are shut on the side that writes",
+    "tier 2: Analyze on the GM refuses a bullet it may not read now and an undo with no throw this chapter",
+    "tier 2: Stage 6's own refusals give the killer back the step they paid and no more",
+    "scenario 30 (parts 7 and 8)",
+    "scenario 33",
+    "scenario 17-assistant"
+   ],
+   "scenarios": [
+    "30-security part 7 'THE GM BRIDGE JUDGES WHAT A PLAYER ASKS FOR (E03, 24.09.2026)' (30-security.mjs:1026), the turn and Stage 6 parts (:428, :592) and part 8 'DAGGERHEART'S GM RELAY (E03, 24.09.2026)' (:5674); the register's row for 30 says <=1.2.50 and no row names E03",
+    "33-bridge-paths (E31): every legal road and what the player is told",
+    "17-assistant (E30): an Assistant's relay packets judged like a player's"
+   ],
+   "live": {
+    "items": 7,
+    "read": 3,
+    "ids_read": [
+     "9.2 item 19",
+     "9.2 item 20",
+     "9.2 item 23"
+    ],
+    "note": "Items 18-24 carry no LIVE id. Item 18 (the sender on system.daggerheart): partly - the sender's id came as the second argument and no unknownSender, but on a packet Daggerheart's switch ignores, not a Hope roll's (LOCAL-REPORT.md:421). Item 19 (the socket API): read, as expected. Item 20 (noHook and the ownership window): read, as the module needs; the harness's model differs (D9). Item 21 (the Reroll receipt's order): obsolete since 1.2.67. Item 22 (a route through rooms): partly - one update per route with every step in options._movement; a drag by mouse not read (LIVE-E39-11); the reading showed a module defect in the Eclipse's allowance, fixed in 1.2.118 (67d525f6, LIVE-E05-13). Item 23 (toasts): read, 'sanitised, not escaped' - a player's character name with markup drawn as markup in the GM's DRPG.Anonymity.blocked toast (LOCAL-REPORT.md:425; finding E03-2). Item 24 (the locked sheet's look): open."
+   },
+   "findings": [
+    {
+     "id": "E03-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "Three comments of the stage still say the v14 behaviour they lean on is unmeasured, after the sandbox measured it",
+     "where": "scripts/anonymity.mjs:810-818; scripts/relay-guard.mjs:1096-1097 and :1197-1199",
+     "what_happens": "lowerOwnership's header says whether noHook silences updateActor 'has not been read off a live v14 table'; noSender's says whether v14 names a sender on the system channel 'is NOT measured'; plainWhat's says a toast's escaping 'is not something this file has measured on v14'. Each was read on Foundry 14.370 on 16.11.2026 (9.2 items 20, 18, 23).",
+     "evidence": "anonymity.mjs:810-812: \"Whether `noHook` also silences the `updateActor` hook for that save has not been read off a live v14 table (AUDIT §9)\"; relay-guard.mjs:1197: \"Whether Foundry v14 names them there is NOT measured\"; relay-guard.mjs:1096-1097: \"A toast's escaping is not something this file has measured on v14\". Against them: LOCAL-REPORT.md:421, :423, :425 and CALIBRATION.md:42.",
+     "failure_scenario": "A developer reading lowerOwnership to change the ownership put-back takes the harness's pessimistic model (both hooks skipped) as the only knowledge and drops the updateActor road, which is the one the primary GM hears on a real v14 table.",
+     "expected": "Each comment names the reading (date, paper) and what is still not read (item 18's Hope roll packet; the harness's D9).",
+     "confidence": "read",
+     "refutation_tried": "Looked for a later sentence in the same comments that cites the readings (none in anonymity.mjs:805-818 or relay-guard.mjs:1094-1203); live-items-01.json items 18 and 23 note the relay-guard comments independently. The anonymity comment's other clause, that the harness skips both, is still true (shim.mjs:355-373)."
+    },
+    {
+     "id": "E03-2",
+     "severity": "nit",
+     "category": "leak",
+     "title": "The GM's ownership toast prints a player-chosen character name unescaped, and v14 draws a toast's markup",
+     "where": "scripts/anonymity.mjs:800 (onPreUpdateActor); the same name escaped in the whisper at :837-839; 47 toasts module-wide format a document's .name straight into ui.notifications (grep)",
+     "what_happens": "When a write raises a student's default ownership past Observer through a road that runs pre hooks, the GM's browser shows DRPG.Anonymity.blocked with the actor's name as given. On Foundry 14.370 a toast is sanitised, not escaped: <b>, <img> and <a> are drawn, handlers and scripts stripped. A name a player gave their own character with an <img src> in it makes the GM's browser fetch that address.",
+     "evidence": "anonymity.mjs:800: `ui.notifications.warn(game.i18n.format(\"DRPG.Anonymity.blocked\", { actor: actor.name }));` and :837-839: `body: `<p>${game.i18n.format(\"DRPG.Anonymity.reverted\", { actor: foundry.utils.escapeHTML(actor.name) })}</p>``. LOCAL-REPORT.md:425: \"A name PlayerOne gave its own character with markup in it was stored as typed and drawn as markup in a GM toast (`DRPG.Anonymity.blocked`), its handler stripped.\"",
+     "failure_scenario": "A player renames their student to include an image tag pointing at their own server; when the GM later raises that student's ownership by a macro, the GM's browser loads the image from that server, telling it the GM's address and the moment.",
+     "expected": "A name reaching a toast escaped, as the whisper beside it already is, or R129's rule extended to toasts.",
+     "confidence": "measured",
+     "refutation_tried": "Checked whether the toast is ever reached: Configure Ownership saves with noHook, which skips the pre hook on v14 (CALIBRATION.md:43), so the window road never shows it - only a write through Document#update (a macro, a module) does; that narrows the road, and the reading shows it drawn. Checked whether the module wraps ui.notifications to escape: no such wrapper found in utils.mjs or notice-history.mjs. It is a recorded default: the sandbox paper filed it as question 6, 'Default: left as it is' (LOCAL-REPORT.md:307-308; v1.2.117.md 174-176), so it stays a nit, not a minor. The 47 other sites were counted, not each read."
+    }
+   ],
+   "superseded_by": [
+    "E08+E28 C8 (1.2.67): the Reroll receipts and the player's undo roads - the Reroll is the primary GM's transaction, a player's undo refused (guardUndoIsTheGms); R134 and R135 removed",
+    "E31 (1.2.62): every refusal of a table action told to the asker with a REASONS code; the bridge's declarations judged by one runner",
+    "E40 item 4 (13.11.2026): R143, R144 and R145 trimmed to text guards, their rules driven in tier 2",
+    "E41 C5b: the table moved to bridge-table.mjs and the guards to bridge-guards.mjs",
+    "E75 C2 and E08+E28 C9: the relay guard on a player's client passes only REVIEWED_NAMES; DhTransferItem refused from a player",
+    "E29 (1.2.68): a Truth Bullet changed with no GM online is listed at the primary's ready, not put back (the gap 'Znane luki po E03' keeps open for E43)"
+   ],
+   "grade": 8,
+   "grade_reasons": "Layer one as E03 built it is in today's code and is what every later bridge stage builds on: each rule function the notes describe is called by its road, the relay guard stands at init before the requirements check, and on Foundry 14.370 the two facts the guard leans on hardest were read (the socket API and state ok, item 19; the sender named, item 18 in part) as was the ownership put-back with two GMs (item 20). The promise of the receipt Reroll is gone on purpose (E08), stricter. Against a 9: (1) one promise holds in part - a Truth Bullet edited with no GM online is listed, not put back, which the notes do not say; (2) most stamped tests are pure calls or source reads (R138, R143-R147 weak), the driven halves being in scenario 30 and tier 2, and the harness's noHook model still differs from v14 (D9), so the ownership road the primary hears on a real table is not driven headless; (3) of seven live items three are read, two partly, one obsolete, one open (24). Two nits (E03-1, E03-2). The base run's results were not available.",
+   "missing_to_10": "9.2 item 18 read on a Hope roll's own packet; item 24 (the locked sheet) shot in both themes; the harness's noHook rebuilt to v14's reading (D9) so the updateActor road is driven, with the card count read when two GMs both lower; a Truth Bullet changed with no GM online put back at the primary's ready (E43) or the notes' sentence corrected; E03-1's comments brought up to the readings; E03-2's toast escaped; the base run's results for the 17 live rows and scenario 30."
+  }
+ ],
+ "not_established": [
+  "No test or scenario result is cited: audit/findings-1.2.118/base-run.json did not exist when this was written. Every test named above is listed in its stage's tests_to_join; none is claimed to pass.",
+  "The four stages' commits (24.09.2026) are outside this checkout: the history is shallow from 14.10.2026 and holds no tags, so what each commit changed, and whether the notes' 'with the fix taken out, four of them fail' (v1.2.59.md 82-84) and 'some were also run with their fix taken out' (v1.2.60.md 52-56) were so, cannot be read.",
+  "The E02 verification named in the code (its defects D01, D08 and D13: secret.mjs:564, notice-history.mjs:174, :910, room-tile.mjs:30, ui-kit.mjs:774) is not in the repository (git grep for 'E02-D' and 'E02 verification' finds only the code's comments). What D13 is, and whether a player's private card can carry through Foundry's real cleanHTML the two readings the A7 design names (an iframe's srcdoc, data-tooltip-html), was not established: no Foundry source is in the checkout. LIVE-E81-01 would settle it; new live check: a player's private card holding an iframe with srcdoc and a span with data-tooltip-html, read on the GM in the chat log and the messenger on 14.370.",
+  "On a table with two GMs, whether both roads of lowerOwnership (the window's close on the non-primary, updateActor on the primary, both firing on v14) post one card to the GMs or two: the sandbox reading records the ownership put back (LOCAL-REPORT.md:423), not the number of cards. New live check: the same reading with the GMs' whispers counted.",
+  "Whether the notice the stage promises for a request Daggerheart sends that the game does not expect, and for a Fear burst, reach a GM on 14.370 with Daggerheart 2.12.9: only state ok and an ignored packet were read (items 18, 19).",
+  "The three E01 security roads were read in the declarations and R1b only; whether some tier-2 test drives a Hope Call or a Dynamic difficulty for another player's student was searched by the refusal texts and action names only."
+ ]
+}

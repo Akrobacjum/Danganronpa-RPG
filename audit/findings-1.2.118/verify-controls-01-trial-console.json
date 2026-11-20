@@ -1,0 +1,155 @@
+{
+  "refuter": "verify-controls-01-trial-console",
+  "of": "controls-01-trial-console",
+  "checked": [
+    {
+      "ref": "controls-01-trial-console-1 (the case schema in the console's slot / Not tied to the murder: {n})",
+      "claim": "The schema's fold button in the trial console is dead: wireCaseMap gets no onFold there, so the press runs an empty default.",
+      "verdict": "stands",
+      "why": "The console's schema is drawn with fold: true and wired with a camera alone; wireCaseMap's onFold defaults to an empty function and the graph's click listener returns on the fold after calling it. The only caller that hands an onFold is the Map (investigation.mjs:1860). No CSS rule hides the button in .drpg-window-trial: components.css:3528 and :3543 style it there, both themes. The author's own note at case-map.mjs:222 says the press folds nothing there, which names the state but no owner decision; the button keeps aria-expanded=false and looks like a toggle. The only test reading it (tests-tier0.mjs:24408) reads aria-expanded, not a press.",
+      "evidence": [
+        "scripts/case-trial.mjs:98        wireCaseMap(region, { camera: { get: () => camera, set: cam => { camera = cam; } } });",
+        "scripts/case-map.mjs:445 export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFold = () => {}, ...",
+        "scripts/case-map.mjs:495             if (t?.closest?.(\"[data-drpg-case-fold]\")) { onFold(); return; }",
+        "scripts/case-map.mjs:222     // the fold's tooltip only on the Map: the trial console's graph is always folded, and its press folds nothing there",
+        "styles/components.css:3528 body .application:is(.drpg-window-case, .drpg-window-trial) button.drpg-case-fold {"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-01-trial-console-2 (the speaker's prompt / Keep speaking)",
+      "claim": "Keep speaking, the X and Escape close Your turn for the rest of the turn, so Done and Pass cannot be reached again.",
+      "verdict": "stands",
+      "why": "promptTurn sets promptedFor to the turn's key before drawing; any answer other than done, pass or thesis returns at :217 without resetting it, and the once-a-second tick calls promptTurn, which returns at :175 for the same key. promptedFor is put back only on the thesis road (:214). git grep requestTurn: the only Done/Pass sender is this window (trial-prompt.mjs:220); hud.mjs and the voice tile draw no Done or Pass. The window's body and both handbooks (player-handbook.en.md:894, 896) tell the speaker to press Done. The E70 fix p2-G3 note (:194-197) chose Keep speaking as the default so Enter ends nothing; it does not say the window stays closed. The verdict 'mislabeled' is a loose fit (the label is honest, the window's promise is not kept), but the failure scenario holds.",
+      "evidence": [
+        "scripts/trial-prompt.mjs:175     if (promptedFor === key || alreadyOpen(WINDOW_CLASS)) return;",
+        "scripts/trial-prompt.mjs:176     promptedFor = key;",
+        "scripts/trial-prompt.mjs:214         if (turnKey(trialFloor()) === key) promptedFor = null;",
+        "scripts/trial-prompt.mjs:217     if (choice !== \"done\" && choice !== \"pass\") return;",
+        "lang/en.json DRPG.Trial.turn.body: \"{mode}: you have the floor. Press Done when you finish, or Pass to give up your turn.\""
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-01-trial-console-3 (the Class Trial console / Confirm the speaker, who continues, Resume; the Closing's pick window / Pick a speaker)",
+      "claim": "The Closing's buttons refuse with 'The Closing Argument did not change.' and never the machine's reason.",
+      "verdict": "stands",
+      "why": "runClosingOp runs the op with no barRefusal-like question first; closingCall warns notDone on a null; FLOOR_OPS calls closingStepInStep without why, so a refusal of the machine (closing.absent, noDrawn, nothingToResume ...) is returned as null; on another GM floorStep maps a refused trial.gm to null the same way. closingConsole draws Confirm whenever closing.choice is confirm, with no check of the drawn volunteer's presence and no reason line. The only why: true caller is the volunteer's claim (trial-modes.mjs:336). git grep of closing.absent and nothingToResume in scripts/ outside tests: returned by floor-machine.mjs only, localized nowhere.",
+      "evidence": [
+        "scripts/trial-floor-ui.mjs:1073 function runClosingOp(op, actorId = null) {",
+        "scripts/trial-modes.mjs:273     if (written === null) ui.notifications.warn(game.i18n.localize(\"DRPG.Floor.closing.notDone\"));",
+        "scripts/trial-floor.mjs:413     closingConfirm: () => closingStepInStep({ type: \"confirm\" }),",
+        "scripts/trial-floor.mjs:592     if (result.refused) return why ? { refused: result.refused } : null;",
+        "scripts/trial-floor.mjs:741     return res.ok ? (res.value ?? null) : null;",
+        "scripts/floor-machine.mjs:272             if (absent.has(ctx.drawn) || !among(ctx.drawn)) return { refused: \"DRPG.Floor.closing.absent\" };"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-01-trial-console-4 (the speaker's prompt and the volunteers' question / opening)",
+      "claim": "The participants' clock does not start on the floor's first write in a world, because only updateSetting is heard, not createSetting.",
+      "verdict": "weakened",
+      "why": "The road in the module is as the reader says: renderTrialPrompt has two callers, the ready hook and updateSetting for the floor's key; the setting's onChange goes to sync.mjs onWorldChange and does not reach it; five other files of the module hear createSetting for their keys (fog.mjs:344, voice.mjs:334, trial-scene.mjs:1715, gm-store.mjs:1753, visibility.mjs:93), voice.mjs for this very key. What was not confirmed: that Foundry v14 fires createSetting and not updateSetting on a world setting's first write is read from the module's own notes (gm-store.mjs:1750-1752), not from Foundry or a recorded reading. The window is also narrow: it is the floor's first write in the world's whole life, and the console's default first step is Open the debate (trial-floor-ui.mjs:1416), whose write would create the document before any round or Closing; a season reset writes the floor empty (trial.mjs:767). The reader's own confidence is suspected, so this is a question with a live check, not a finding.",
+      "evidence": [
+        "scripts/trial-prompt.mjs:275     Hooks.once(\"ready\", () => { renderTrialPrompt(); });",
+        "scripts/trial-prompt.mjs:276     Hooks.on(\"updateSetting\", setting => {",
+        "scripts/settings.mjs:2967         onChange: () => onWorldChange(SETTINGS.trialQueue)",
+        "scripts/voice.mjs:334     for (const hook of [\"createSetting\", \"updateSetting\"]) {",
+        "scripts/gm-store.mjs:1750-1752 A world whose clock was never written makes the Setting document on its first write, and that is `createSetting` in Foundry; the harness fires `updateSetting` for both"
+      ],
+      "severity_after": "minor (suspected)"
+    },
+    {
+      "ref": "controls-01-trial-console-7 (the Re-point window / Re-point)",
+      "claim": "Re-point opens on the current target and Re-point pressed on it is refused as 'You cannot do that right now.', the written reason never shown.",
+      "verdict": "stands",
+      "why": "repointDialog marks floor.targetId selected when that student is among the connected participants; repointRefusal answers repointSame for it; repointObjectionInStep turns any refusal into null; repointOnPrimary words every null as 'the student named may not be objected to now', which bridge-guards.mjs:452 maps to cannotNow. git grep repointSame and repointAbsent: returned by trial-floor.mjs and floor-machine.mjs, localized nowhere outside tests. When the current target's player is not connected the window opens on another student, so the scenario needs the ordinary case of a present target.",
+      "evidence": [
+        "scripts/trial.mjs:1543-1544 ...${choices.map(student => `<option value=\"${student.id}\"${ student.id === floor.targetId ? \" selected\" : \"\"}>",
+        "scripts/trial-floor.mjs:1258     if (targetId && targetId === floor.targetId) return \"DRPG.Floor.repointSame\";",
+        "scripts/trial-floor.mjs:1274     if (repointRefusal(floor, targetId)) return null;",
+        "scripts/trial.mjs:1285     if (!(await repointObjection(targetId))) return { refused: \"the student named may not be objected to now\" };",
+        "scripts/bridge-guards.mjs:452     [\"cannotNow\", /^the student named may not be objected to now$/],"
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-01-trial-console-8 (the Class Trial console / Finish the verdict)",
+      "claim": "Finish the verdict is drawn, enabled, on a GM who is not the verdict's runner, and every press there is refused.",
+      "verdict": "stands",
+      "why": "The footer adds Finish whenever `stopped` (verdictStopped(progress), :748), with no test of verdictRunner; finishVerdict refuses every GM but the runner with finishOtherGm. The fix r2-G2 note (:800-805) removes the default on those GMs, not the button. The press is told, so wrong_audience at nit is the right weight.",
+      "evidence": [
+        "scripts/trial-floor-ui.mjs:1447                 ...(stopped",
+        "scripts/trial-floor-ui.mjs:1448                     ? [{ action: \"finishVerdict\", label: game.i18n.localize(\"DRPG.Vote.finishVerdict\"),",
+        "scripts/verdict.mjs:1110     if (runner && runner !== game.user.id) {",
+        "scripts/verdict.mjs:1111         ui.notifications.warn(game.i18n.format(\"DRPG.Vote.finishOtherGm\", { name: game.users.get(runner)?.name ?? \"?\" }));"
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-01-trial-console-9 (the case schema in the console's slot / Start {mode} from {name})",
+      "claim": "A tile's start is greyed with 'Another mode is running. End it first.' during a plain Nonstop Debate, while the mode picker starts the same mode.",
+      "verdict": "stands",
+      "why": "trialSchemaState sets floorOpen to Boolean(trialFloor()) and the tile disables on it; modePickerHtml greys a start only when the floor's mode is not the debate (busy), and its press path starts the mode. startFromNode calls the same startTrialMode the picker reaches, so the greyed tile is the only difference. In an Objection or Rebuttal both grey, so the mismatch is the plain debate only. The header at case-trial.mjs:14-15 ('the console offers no start then either') no longer matches the picker.",
+      "evidence": [
+        "scripts/case-trial.mjs:52             start: start?.action ? { action: start.action, mode: n.mode, label: modeLabel(n.mode), disabled: floorOpen,",
+        "scripts/case-trial.mjs:66     return { ..., floorOpen: Boolean(trialFloor()),",
+        "scripts/trial-floor-ui.mjs:1133     const busy = floor && floor.mode !== FLOOR_MODES.debate ? game.i18n.localize(\"DRPG.Floor.round.busy\") : null;",
+        "lang/en.json:7484       \"floorOpen\": \"Another mode is running. End it first.\","
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-01-trial-console-10 (OBJECTION! on the trial bar and the voice tile / OBJECTION!)",
+      "claim": "In Straw Poll, Logic Dive and Scrum Debate OBJECTION! is held with the words written for a running Objection.",
+      "verdict": "stands",
+      "why": "The three zone modes have object: false; floorRefusal names round modes and the Closing, and every other mode falls to objectionDuringObjection. objectionButtonState asks floorRefusal when no Objection is open, and hud.mjs shows its text as the tooltip and the press's warning. hud.mjs has no zone-mode branch that hides the button.",
+      "evidence": [
+        "scripts/trial-floor.mjs:107     [MODES.straw]: Object.freeze({ family: \"zones\", speak: \"all\", present: \"all\", object: false, target: \"any\", adjust: true }),",
+        "scripts/trial-floor.mjs:938         return game.i18n.localize(\"DRPG.Trial.objectionDuringObjection\");",
+        "scripts/trial.mjs:1500     const blocked = (objectionOpen() ? null : floorRefusal())",
+        "scripts/hud.mjs:1572             if (state.held) return void ui.notifications.warn(state.text);"
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-01-trial-console-11 (the Class Trial console / Nonstop Debate in the mode picker)",
+      "claim": "The picker's greyed Nonstop Debate says 'The debate is already running.' in a round, the Closing and the zone modes.",
+      "verdict": "stands",
+      "why": "The openDebate branch is asked before `busy` and answers inDebate for any floor; a press on an aria-disabled pick warns with its title (:1753).",
+      "evidence": [
+        "scripts/trial-floor-ui.mjs:1135         if (action === \"openDebate\") return floor ? game.i18n.localize(\"DRPG.Floor.bar.inDebate\") : null;",
+        "scripts/trial-floor-ui.mjs:1753                     if (pick.getAttribute(\"aria-disabled\") === \"true\") return void ui.notifications.warn(pick.title);",
+        "lang/en.json:1666         \"inDebate\": \"The debate is already running.\","
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-01-trial-console-13 (the Class Trial console / Enter)",
+      "claim": "Enter on any focused control of the console does nothing while a mode other than the debate runs.",
+      "verdict": "weakened",
+      "why": "The source road is confirmed: a capture keydown listener on the window's root prevents and stops every Enter while exchangeRuns(), and exchangeRuns is true for any floor whose mode is not the debate - a round, the Closing, a zone mode as well as an Objection and its Rebuttal. Its own comment (:880, 'Whether an Objection or its rebuttal holds the floor') and the note at :1777-1779 speak of the exchange only, so the comment does not match the code. Tier 2's test (tests-tier2.mjs:48044, its keydown at line +44) pins defaultPrevented on a button during an Objection. Not confirmed from source: that a browser then gives the focused button no activation (standard HTML behaviour, but not measured here, and jsdom cannot show it). The reader marked it suspected.",
+      "evidence": [
+        "scripts/trial-floor-ui.mjs:881 function exchangeRuns(floor = trialFloor()) {",
+        "scripts/trial-floor-ui.mjs:882     return getClock().phase === \"classTrial\" && Boolean(floor) && floor.mode !== FLOOR_MODES.debate;",
+        "scripts/trial-floor-ui.mjs:1780             dialog.element?.addEventListener(\"keydown\", event => {",
+        "scripts/trial-floor-ui.mjs:1781                 if (event.key !== \"Enter\" || !exchangeRuns()) return;"
+      ],
+      "severity_after": "nit"
+    }
+  ],
+  "counts": {
+    "checked": 10,
+    "stands": 8,
+    "weakened": 2,
+    "refuted": 0
+  },
+  "not_established": [
+    "Scope: the ten items above are every finding of severity minor or above (1-4) and every control whose verdict is dead, throws, mislabeled or wrong_audience (1, 2, 7, 8, 9, 10, 11, 13; no control is 'throws'). Findings 5, 6 and 12 (nit; stale_state and silent) and 14 (nit) were not re-checked. Finding 14's control verdict 'stale-state' reads as 'dead' by the brief's vocabulary (a press that moves nothing); its severity was not re-weighed.",
+    "D-A1 (keepLive's wait-for-focus): none of the live regions of this reader's surfaces holds a field as far as read - .drpg-trial-console (trial-floor-ui.mjs:1639), .drpg-case-trial-live (case-trial.mjs:121), .drpg-vote-status (trial-floor-ui.mjs:1984), .drpg-objection-live (trial.mjs:1703); the topic input (trial-floor-ui.mjs:344), the Closing's pick select (:1000) and the Reveal's textarea (:1044) are in windows of their own with no keepLive. So rule 1 (live.mjs:157-163, isEditing :375-382) is not reached on these surfaces, and no major REFR finding follows from D-A1 here; not measured.",
+    "The reader's file has no `refresh` block on any of its 20 surfaces, which the brief asks of the resumed lane (reads, listens, verdict, gaps, focus_rule); its counts of stale_state rest on per-control readings only.",
+    "U9 counts: the reader's `read` gives trial.mjs 1432 of 1711 lines, trial-floor.mjs 1776 of 1835, case-map.mjs 170 of 556, with no count_note; finding 7 cites trial.mjs:1531-1544, past the 1432 given.",
+    "Finding 4 needs a live check: new live check - in a world whose trialQueue setting document does not exist yet, a GM starts Testimony or the Closing Argument as the floor's first write; a player's browser should open 'Your turn' / 'I'll sum up'. Settles: opens -> refuted; does not open, and a second write opens it -> stands.",
+    "Finding 13 needs a browser reading: new live check - in a Testimony, a GM tabs to Skip on the console's bar and presses Enter; the round should move on. Settles: nothing moves -> stands; it moves -> refuted."
+  ]
+}

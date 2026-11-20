@@ -1,0 +1,51 @@
+{
+ "refuter": "verify-controls-02-trial-zones-verdict",
+ "of": "controls-02-trial-zones-verdict",
+ "scope": "The four findings of severity minor (1, 2, 3, 5). The file lists no control as dead, throws, mislabeled or wrong_audience (counts: 0 each; every control's verdict read by script), so none of those to check. The three nits (4, 6, 7) are outside the brief and were not checked. Static reading of b5a29e73's source on claude/audit-119 (scripts/ identical); no harness, probe or run.",
+ "checked": [
+  {
+   "ref": "controls-02-trial-zones-verdict-1",
+   "claim": "A token-less participant's side pick is offered once per mode opening and kept across a Logic Dive's questions, with no control to change it.",
+   "verdict": "stands",
+   "why": "offerSidePick returns when pickOpenFor equals `${mode}|${openedAt}` or when zone.picks holds the actor. openedAt and picks are set only in zoneStart; phase() spreads the old zone and patches only what diveQuestion names (question, answers, counts, set), so both survive every question. sidesNow reads the kept pick for an actor with no hall token. The machine would take a different pick (only the same side is refused), but sideOnPrimary is reached only through requestTrialSide, whose one caller is offerSidePick (grep of scripts/ outside tests: bridge-asks.mjs:366 definition, gm-bridge.mjs:54 re-export, trial-zones-ui.mjs:456 the call). No GM-side road found: game.drpg has zoneSides (a read) and no side writer (api.mjs:1126). No test in scripts/tests*.mjs or audit/harness presses .drpg-side-pick or pins picks across questions (grep: 0 hits). The handbook (player-handbook.en.md:932) says only 'With no token in the hall you get a window to pick a side', which neither allows nor forbids once a set.",
+   "evidence": "scripts/zone-machine.mjs:135 `zone: { ...zone, ...patch, phase: name, step: (Number(zone.step) || 0) + 1 }`; :161 `picks: {}, stands: ctx.stands ?? {}, openedAt: now`; :232 `phase(floor, \"vote\", seconds, now, { question, answers, counts: null, set: { ...zone.set, index } })`; scripts/trial-zones-ui.mjs:437-440 `const key = `${floor.mode}|${zone.openedAt}`; if (pickOpenFor === key) return; ... || zone.picks?.[mine.actor.id]) return;`; scripts/trial-zones.mjs:62 `const side = token ? tokenZone(zones, token) : (picks[actor.id] === \"a\" || ...`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-02-trial-zones-verdict-2",
+   "claim": "Cancel, the close or Escape on the side-pick window leaves the participant with no side for the rest of the mode and nothing says so.",
+   "verdict": "stands",
+   "why": "pickOpenFor = key is written at :441 before the window opens, and nothing in scripts/ writes it again (grep: lines 428, 438, 441 only). A dismissal answers null or 'cancel' and :454 returns with no notice. Every later renderTrialFloor (trial-floor.mjs:1814-1818, the one caller of onZoneFloor) reaches :438 and returns, for every later question of a Logic Dive too. The same holds when requestTrialSide is refused (the bridge says why, sayNotDone at bridge-asks.mjs:370) - no second offer either. A reload clears the module variable; no other road found. Not checked: the finding's side remark on the ballot's 'Send another ballot'.",
+   "evidence": "scripts/trial-zones-ui.mjs:428 `let pickOpenFor = null;`; :441 `pickOpenFor = key;`; :454 `if (asked !== \"a\" && asked !== \"b\") return;`; scripts/trial-floor.mjs:1817 `import(\"./trial-zones-ui.mjs\").then(m => m.onZoneFloor(floorNow))`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-02-trial-zones-verdict-3",
+   "claim": "The set editor's Save (and the picker's Start) is judged only after the window has closed: a refused set is a toast and what was typed is lost.",
+   "verdict": "stands",
+   "why": "The primary's callback is readSetForm alone (:216); DialogV2.wait resolves on that answer (ui-kit.mjs:1344 `return DialogV2.wait(config)`, the kit adds no hold), and setRefusal runs in saveDiveSet after the wait (:222, :140-144), warns and answers null. editDiveSet hands back null; openDiveSets' list handler only redraws the list; the 'new' road (:361) ends there too. No `required`, no disabled Save, no reopen with the typed values. The picker's Start is the same shape (:310-324 then startZone's warnings, trial-zones.mjs:261-272). The core claim stands; the parenthetical 'Enter in any field presses Save' rests on DialogV2 parsing the content into its own form, which utils.mjs dialogContent (:1030-1034, a detached div holding the body's own <form>) does not settle and the reader itself puts under not_established - that part is not established here either. The verdict word 'stale-state' fits poorly (nothing redraws late; the window refuses after it closed); the substance and the severity stand.",
+   "evidence": "scripts/trial-zones-ui.mjs:216 `primary: { action: \"save\", ..., callback: (e, b, d) => readSetForm(d.element) }`; :221-222 `if (!asked || asked === \"cancel\") return null; return saveDiveSet(id, asked);`; :140-143 `const refused = setRefusal(set); if (refused) { ui.notifications.warn(refused); return null;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-02-trial-zones-verdict-5",
+   "claim": "The zone picker's set list is drawn once; a set made, changed or deleted through its own 'Logic Dive sets...' button does not reach the open picker.",
+   "verdict": "stands",
+   "why": "openZonePicker passes no `live` (ui-kit.mjs:1340 `if (live) keepLive(dialog, live)` starts it only for one); its render's paint only toggles hidden and the hint, and reads the select that was drawn. diveSetStore is registered with no onChange (settings.mjs:2711-2712 'No onChange: the set editor and the console read it at each redraw') and no hook, keepLive source or rerender of .drpg-zone-picker was found in scripts/ (grep of drpg-zone-picker and diveSetStore outside tests: only reads and the store's own writes). The picker is not modal (drpgWindow's modal defaults false), so the sets window opens beside it and the picker stays as drawn. A deleted set still chosen reaches startZone, whose zoneArgsRefusal answers null when diveEventOf finds nothing (trial-zones.mjs:250-251), so the primary's refusal comes back as DRPG.Zones.notStarted - as the finding says.",
+   "evidence": "scripts/trial-zones-ui.mjs:290 `body: pickerHtml({ mode: isZoneMode(mode) ? mode : ZONE_MODES.straw, plan }),`; :305 `root.querySelector(\"[data-drpg-dive-edit]\")?.addEventListener(\"click\", () => openDiveSets()...`; scripts/settings.mjs:2711 `// Logic Dive's sets (E73 C4): a GM store (`diveSetStore`), a row per set with each question's truth. No `onChange`:`",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 4,
+  "stands": 4,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 3's 'Enter in any field presses Save': whether Foundry v14's DialogV2 drops the body's own <form> (so the fields belong to the dialog's form and its first submit button) is not read off v14; utils.mjs:1030-1034 hands it a detached div that keeps the inner <form>. New live check: on a real v14, open game.drpg.editDiveSet(), type a name, press Enter in the name field, and read whether the window closed with the warning DRPG.Zones.dive.editor.count.",
+  "Every one of the reader's 16 surfaces carries `refresh: null`, so the file makes no statement under D-A1. One surface it lists is on keepLive's rule 1: the Mastermind window's Hope box (mastermind.mjs:700-706, keepLive with region .drpg-mm-live, watch actors and drpgDespairOwedChanged, no option to redraw while editing; live.mjs:157-163 defers while focus is in the region's select or stepper, live.mjs:375-381). DECISIONS.md D-A1 already names 'the Mastermind Hope box' as an open major for 1.2.120; the reader's file has no finding for it. Not a refutation of this file's findings, a gap in its coverage.",
+  "Finding 2's comparison with the ballot ('Send another ballot') and finding 1's probe were not read or run.",
+  "The nits 4, 6 and 7 were not checked (below the brief's minor threshold)."
+ ]
+}
