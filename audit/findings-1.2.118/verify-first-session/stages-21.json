@@ -1,0 +1,553 @@
+{
+ "refuter": "verify-first-session/stages-21",
+ "of": "first-session/stages-21",
+ "checked": [
+  {
+   "ref": "E74-3",
+   "claim": "The hindrance die of Keep Watch is read off a watch that is already gone when a murder declared in the dark is opened (major).",
+   "verdict": "stands",
+   "why": "openingHindrance answers 0 unless the victim's row has a post (watch-gm.mjs:42-47); a post is written only by startWatches at drpgEclipseChanged true (:97-113) and endWatches drops every row at drpgEclipseChanged false (:138-153, :156-161). That hook is fired from the clock's sync row (sync.mjs:451, SYNC.clock and SYNC.eclipse rows) once advanceTimeOfDay writes eclipse: false (eclipse.mjs:474-477). judgePendingMurders, which calls openMurder for every parked declaration, runs LAST, after the clock has moved (eclipse.mjs:520-529, :879-893), and rollOpening reads openingHindrance only then (murder-rules.mjs:4426-4440); the GM's draw reads it again at the press (roll-draw.mjs:2240-2248). A direct murder is declared only in an Eclipse (eclipse.mjs:544-555 header), so on the ordinary road the row is gone or going when the opening is invited and certainly gone when the roll is drawn. Nothing keeps the watch for the lights: endEclipse takes only the betrayals' offers before the clock (:404-418). E74-T10 writes the row by hand with a post at noon and calls openMurder directly (tests-tier2.mjs, the E74-T10 body), so it cannot see the order. The promise in the notes is general (v1.2.111.md:102-104 'whoever opens a murder on the watcher'), and the stage's own DA44 row says the same (docs/dev/e74/STATUS.md:17). Not run.",
+   "evidence": "scripts/watch-gm.mjs:43-45 \"const row = watchStore.get(state.victimId); if (!row?.post) return 0;\"; :149-151 \"await watchStore.drop(actorId);\"; scripts/eclipse.mjs:520 \"// LAST, and after the clock has moved.\" then :529 \"await judgePendingMurders(ending, taken);\"; scripts/roll-draw.mjs:2247 \"return night - (side ? watch.openingHindrance(side, state) : 0);\"; tests-tier2.mjs E74-T10: \"await setClock({ timeOfDay: \\\"noon\\\" }); await watch({}); await M.openMurder({ killerId: actor.id, victimId: other.id, openingTrait: \\\"body\\\" });\"",
+   "severity_after": "major",
+   "grade_after": null
+  },
+  {
+   "ref": "E74-1",
+   "claim": "A barricade outlives its author's leaving when the author did not walk out (minor).",
+   "verdict": "stands",
+   "why": "onDoorCrossing ends a barricade only on a CROSSING_SETTLED event of its author out of the room (doors-gm.mjs:495-502); the other ends are drpgTimeOfDayChanged, an Eclipse's start (:505-510), Force the Door (:174) and the reset (actions.mjs:499-500, the flag only). crossing-settle.mjs's header (11-15) says a gather, a GM's drag and a send-back are not recorded and settle nothing. The body's discovery calls gatherEveryone (body.mjs:315-316), as do the called assembly and the trial. barricadedFrom refuses every non-GM walk into the room by the public flag alone, which carries no author (movement.mjs:2115-2124). grep of scripts/ for endBarricade, endAllBarricades and setRoomBarricaded finds no other caller and no GM control. The failure scenario's 'Investigation in the same time of day' holds as far as read: a discovery is no drpgTimeOfDayChanged. Not run.",
+   "evidence": "scripts/doors-gm.mjs:499 \"if (row?.authorId === event.actorId && row.room === event.from && event.to !== row.room && (await endBarricade(key))) n++;\"; scripts/crossing-settle.mjs:14-15 \"A GM dragging a token, a gather, a Public Announcement and a send-back are no player's lawful crossing and are not recorded, so they settle nothing.\"; scripts/movement.mjs:2119 \"if (roomBarricaded(scene, to)) return refusal(keyed, \\\"barricaded\\\", ...)\"",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E74-2",
+   "claim": "A lock-pick pass in use is kept for good when its holder leaves the room without walking out (minor).",
+   "verdict": "stands",
+   "why": "endPass is called from onPassCrossing (a settled crossing out of the pass's room once entered), passesAtNewTimeOfDay and endPassesAtEclipseStart, both of which skip a row with entered true (lockpick-gm.mjs:71-107), and from the Reroll (infiltrate-reroll.mjs:104-108); grep finds no other caller. holdsPass compares only the scene and the room, no time and no place of the holder (movement.mjs:1210-1214). A gather is no recorded crossing (crossing-settle.mjs:14-15), so a holder carried out keeps an entered pass across days. Not run.",
+   "evidence": "scripts/lockpick-gm.mjs:87 \"if (!row?.entered && (await endPass(actorId))) n++;\"; :102 \"if (row?.entered) continue;\"; scripts/movement.mjs:1212-1213 \"const row = game.user?.isGM ? lockpickStore.get(actor.id) : (lockpickCopy.read() ?? {})[actor.id]; return Boolean(row) && row.sceneId === scene.id && row.room === room;\"",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E64-1",
+   "claim": "A victim whose copy of the cast names no killer is shown a crisis number one lower than the GM judges (minor).",
+   "verdict": "stands",
+   "why": "crisisDefense reads state.killerId for the killer-defended rows (murder-rules.mjs:254-263); the menu's threshold and defense (:316-318) and the roll window's dc (:1183) read murderState() on the browser, which is the world half spread with this browser's cast copy (incident-store.mjs:186-190). castCopyFor nulls killerId and killerTurnId for every non-killer holder when the incident is indirect or the killer is masked (incident-store.mjs:584-588). The GM scores with crisisThreshold on its own state (murder-rules.mjs:1773). Self-Defense and Survive keep their killer-side defence in a trap (config.mjs:3938, :3995; only the reversals are denied in a trap, murder-rules.mjs:292-298). R3961 is the only test that calls crisisDefense (tests-tier1.mjs:60555) and hands a state with both ids. Not run.",
+   "evidence": "scripts/murder-rules.mjs:258 \"const id = rule.side === \\\"victim\\\" ? state.victimId : rule.side === \\\"killer\\\" ? state.killerId : null;\"; scripts/incident-store.mjs:586-588 \"if ((!seen.indirect && !masked) || killer) return { copy, withheld }; return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };\"; scripts/config.mjs:3937-3939 \"selfDefence: { side: \\\"victim\\\", ... defense: { side: \\\"killer\\\", trait: \\\"body\\\" }, threshold: 18\"",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E72-1",
+   "claim": "LIVE-E72-03 was never written into AUDIT 9.2 (nit).",
+   "verdict": "stands",
+   "why": "grep 'LIVE-E72' finds 0 lines in audit/AUDIT-1.2.42.md and in the three live-readings files; docs/dev/e72/STATUS.md:222 and v1.2.110.md:314 name it.",
+   "evidence": ".github/release-notes/v1.2.110.md:314 \"(LIVE-E72-03 in docs/dev/e72/STATUS.md, not written into AUDIT 9.2)\"",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E74-4",
+   "claim": "DA47's known-leaks row and README paragraph for the barricade flag were never written (nit).",
+   "verdict": "stands",
+   "why": "known-leaks.json holds 11 ids, none of the barricade; grep 'barricad' over audit/harness/known-leaks.json, audit/harness/README.md and README.md: no hit. The notes say so (v1.2.111.md:589-590).",
+   "evidence": ".github/release-notes/v1.2.111.md:589-590 \"its known-leaks row and README paragraph are not in this line's commits\"",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 1",
+   "claim": "The fresh-scene discount holds only while an incident runs or a body of this chapter lies unfound (holds yes).",
+   "verdict": "stands",
+   "why": "freshSceneBonus returns the bonus only for a running incident or unfoundBodyIn; on a GM with the roller handed in, only the deaths one of its players may know (cleanup.mjs:404-458); CLEANUP.freshScene.onlyWith is ['incident','unfoundBody'] (config.mjs:4516).",
+   "evidence": "scripts/config.mjs:4516 \"freshScene: { bonus: 3, until: [\\\"investigation\\\", \\\"classTrial\\\"], onlyWith: [\\\"incident\\\", \\\"unfoundBody\\\"] }\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 2",
+   "claim": "No clean-up number falls below 8 after its reliefs (holds yes).",
+   "verdict": "stands",
+   "why": "atLeastFloor is Math.max(minDc, n) (cleanup.mjs:387-389), minDc 8 (config.mjs:4491); read at :377, :652, :656, :812 and :1794 (grep).",
+   "evidence": "scripts/cleanup.mjs:388 \"return Math.max(Number(CLEANUP.minDc) || 0, n);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 3",
+   "claim": "Tamper costs one action and no Sanity outside the killer's Stage 6, refused with no action left (holds yes).",
+   "verdict": "stands",
+   "why": "tamperPriceSkip skips the Sanity step for anyone not the cleaner (cleanup.mjs:1316-1323); with no step charged on the action's road the attempt is refused before scoring (:1198-1211). The 'no cap a time of day' half rests on R3958, a source read, not read here.",
+   "evidence": "scripts/cleanup.mjs:1322 \"return isCleaner(actor) ? [\\\"action\\\"] : [\\\"stress\\\"];\"; :1208-1210 \"if (viaAction && !paidStep) { await forgetAttempt(actorId); return { refused: ... } }\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 4",
+   "claim": "Wounded costs an action in Daily Life and the Investigation, not in the Class Trial (holds yes).",
+   "verdict": "stands",
+   "why": "actionBudget takes the action only where STATES.wounded.actionsLostIn names the phase (actions.mjs:39-72), and that list is ['dailyLife','investigation'] (config.mjs:3394).",
+   "evidence": "scripts/config.mjs:3394 \"actionsLostIn: [\\\"dailyLife\\\", \\\"investigation\\\"]\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 6",
+   "claim": "A critical carries the body two rooms, any other hit stops between, never through a bedroom (holds yes).",
+   "verdict": "stands",
+   "why": "bodyReach drops bedrooms (vaultOwnerOf) from both steps; bodyLanding gives a far room only at reach 2 and else the room it is reached through (cleanup.mjs:2723-2748); the GM's side reads the band's reach (:1955-1957). On a real map it is LIVE-E64-01, unread.",
+   "evidence": "scripts/cleanup.mjs:2746 \"if (far.includes(chosen)) return reach >= 2 ? { room: chosen, short: false } : { room: via[chosen] ?? near[0] ?? null, short: true };\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 7",
+   "claim": "Level Up offers no +1 Health or Sanity; Head raises the Sanity maximum, Body or Leg the Health maximum (holds yes).",
+   "verdict": "stands",
+   "why": "LEVEL_UP_OPTIONS has three rows, none a resource (config.mjs:3417-3421); LEVEL_UP_TRAIT_RESOURCES maps knowledge to stress and strength and agility to hitPoints (:3436-3440).",
+   "evidence": "scripts/config.mjs:3436-3439 \"knowledge: Object.freeze({ stress: 1 }), strength: Object.freeze({ hitPoints: 1 }), agility: Object.freeze({ hitPoints: 1 })\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 8",
+   "claim": "Old picks are brought under the new rule once per world in a window where the GM ticks each change; only a stamped sheet is read; a reset takes the rises (holds yes).",
+   "verdict": "stands",
+   "why": "da39RowOf returns null with no sheetAtStart stamp or for Monokuma (level-up.mjs:1345-1353); applyDa39Migration writes each confirmed take in the student's queue and marks levelUpsMigrated whatever was confirmed (:1391-1431); startDa39Migration asks only while the setting is false (:1446-1457); the reset unsets da39Rises (season-wipe.mjs:478-479). The window itself (offerDa39Migration) was not read here either; tier 2 'E64 DA39 migration' exists and its shard was green (base-run.json).",
+   "evidence": "scripts/level-up.mjs:1349 \"if (!stamp?.traits || flags.getFlag(MODULE_ID, FLAGS.monokuma)) return null;\"; :1431 \"await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, true);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 9",
+   "claim": "Confusion's first tier at 11, a sabotage hit at 12 needs a repair of 2, night as day for a trap's victim, Palm 12, a fair shuffle (holds yes).",
+   "verdict": "stands",
+   "why": "simpleRepair 2 (config.mjs:1931) read by action-project.mjs:1305; nightDisadvantage false (config.mjs:3744); the Confusion row's first band min 11 (config.mjs:3531-3535); '12 SINCE E64' for Palm (config.mjs:1805); utils.mjs:917 shuffle is Fisher-Yates and both draws use it (tables-pools.mjs:928, :964).",
+   "evidence": "scripts/utils.mjs:919-922 \"for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 10",
+   "claim": "Observe's critical hint is written on the finder's own Truth Bullet only (holds yes).",
+   "verdict": "stands",
+   "why": "findTexts joins the hint only on a critical, and the comment above says the hint is never in what createFind writes back to the trace (observe.mjs:1083-1093). The box's place in the window was not read; it rests on the stage's Chromium reading and R3960.",
+   "evidence": "scripts/observe.mjs:1091 \"const hint = isCritical ? String(written?.critHint ?? \\\"\\\").trim() : \\\"\\\";\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 11",
+   "claim": "A Loaded Die that did not hold gives its Call back, on a GM's own roll and on a drawn one (holds yes).",
+   "verdict": "stands",
+   "why": "action-pipeline.mjs:296-301 gives it back where this browser threw; roll-draw.mjs:1717-1727 on the drawn road, after fillRollFacts (the 2.12 fix).",
+   "evidence": "scripts/roll-draw.mjs:1727 \"if (loads && !dieHeld) await giveBackLoadedDie(actor, applied.find(call => call?.grants === \\\"critical\\\" && call.nonce === loaded));\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 promise 13",
+   "claim": "The Investigation's GM tools are tidier (holds yes).",
+   "verdict": "weakened",
+   "why": "The reader says 'by the green rows, not by my reading', and R3969 and R3970 are source reads; neither the reader nor this pass read investigation.mjs's bar or the table. 'yes' is the tests' word only; the fit at 1366x768 is the stage's own harness-page reading.",
+   "evidence": "first-session/stages-21.json E64 promise 13 note: \"By the green rows, not by my reading.\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 1",
+   "claim": "A dead player becomes a Monocub only by accepting the Monocub Rule; the old window is gone (holds yes).",
+   "verdict": "stands",
+   "why": "setMonocub(actor, true) has one caller, answerMonocubOffer after an accept of an open invite on a dead student (monocub.mjs:459-481); the other callers pass false (gm-students.mjs:649, :653; season-wipe.mjs:457); game.drpg.monocubDialog opens the Students window (api.mjs:1014-1015).",
+   "evidence": "scripts/monocub.mjs:478-479 \"await patchCubRow(actor.id, { invite: null, acceptedRule: { at: serverNow(), by: sender?.id ?? null } }); await setMonocub(actor, true);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 2",
+   "claim": "A move costs nothing until its checks pass, one Monocub at a time (holds yes).",
+   "verdict": "stands",
+   "why": "cubAbilityOnGm runs under serialWrite per Monocub, refuses before the price, takes the price before the dice (monocub.mjs:1270-1322).",
+   "evidence": "scripts/monocub.mjs:1272 \"return serialWrite(`drpg-cub-ability:${actorId}`, async () => {\"; :1312 \"if (price.cost > 0 && !await spendAction(actor, price.cost, { quiet: true })) return { unpaid: true };\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 3",
+   "claim": "Each student takes one Monocub move per time of day and two per game day, a failed one counted (holds yes).",
+   "verdict": "stands",
+   "why": "cubCapRefusal against caps { perTimeOfDay: 1, perDay: 2 } (config.mjs:3514); noteCubMove is written in the target's lock before the roll is thrown, so a failure counts (monocub.mjs:1233-1252, :1302-1319).",
+   "evidence": "scripts/monocub.mjs:1314 \"await noteCubMove(row, target);\" (before :1321 \"await CUB_ROLLS[row.roll]()\")",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 4",
+   "claim": "Redeem (+1 Hope once a game day, free) and Ask for Hope (holds yes).",
+   "verdict": "stands",
+   "why": "redeemHope writes +1 held under the limit less the purse and stamps redeemDay; the row refuses a second the same day (monocub.mjs:1511-1519, :832).",
+   "evidence": "scripts/monocub.mjs:832 \"refuses: actor => (isToday(cubRowOf(actor)?.redeemDay) ? \\\"Redeem was used today\\\" : null)\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 5",
+   "claim": "Tinker, the purse, Bribe, Bounty, a move to order, the Ghost Bet (holds yes).",
+   "verdict": "stands",
+   "why": "Only priceOf (monocub.mjs:1214-1218) and the functions' presence were read here, as by the reader. The support is the tests: the named tier-2 tests exist (tests-tier2.mjs) and the base run's eight shards hold 1 failure (XI07, not E72's) and only skip-baseline's skips, none of them these (base-run.json suite_shards, suite_merge; audit/harness/skip-baseline.json). The purse's sheet signal is a recorded limit (known-leaks.json foundry-cub-purse, severity low), not a broken promise.",
+   "evidence": "audit/findings-1.2.118/base-run.json suite_merge: \"3387 passed, 1 failed, 27 skipped, 0 red\"; scripts/monocub.mjs:1216 \"if (exec && orderOpen(actor)) return { cost: Number(exec.cost) || 0, hopeCost: Number(exec.hopeCost) || 0, toOrder: true };\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 8",
+   "claim": "The GM can move a death kept secret out of its room at once (Silence now), from the Students row and the tracker (holds yes).",
+   "verdict": "stands",
+   "why": "silenceDeadNow writes the cast's silencedDead for a GM-held unpublished death (incident-store.mjs:978-985), deathVoiceGone reads it (voice.mjs:1269), and both surfaces wire it (gm-students.mjs:423, murder-ui.mjs:784). Its own header still says the voice goes 'to its account's own room', which E62 C3b replaced with the Spectators' room (voice.mjs:962-963): a stale comment, nit.",
+   "evidence": "scripts/incident-store.mjs:972 \"is sent to its account's own room now\"; scripts/voice.mjs:963 \"since E62 C3b (13.11.2026, the owner's Q-C3b-5) it is the Spectators' room (`SPECTATOR_ROOM`)\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 9",
+   "claim": "Call windows look like the Action window; Experience and Ultimate are one tile, Talent (holds yes).",
+   "verdict": "stands",
+   "why": "callWindow and the pickers draw with layout 'action' (call-pickers.mjs:85, :161-170, :305, :347); the rest by R3817, R3818, R3822, which the reader cites and which are 'ok' in the first session's tier 0-1 log as relayed.",
+   "evidence": "scripts/call-pickers.mjs:170 \"call, kind, layout: \\\"action\\\",\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 10",
+   "claim": "The crime witness's mark lives in the GMs' record, lifted off the actor flag by a 'since 1.2.110' migration (holds yes).",
+   "verdict": "stands",
+   "why": "isCrimeSilenced reads cubRowOf(actor).witness (monocub.mjs:577-581); the migrate row liftCubWitness carries since '1.2.110' (migrate.mjs:1058-1071).",
+   "evidence": "scripts/migrate.mjs:1059-1062 \"key: \\\"liftCubWitness\\\", ... since: \\\"1.2.110\\\",\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 11",
+   "claim": "A wrong verdict tells the Monocubs of the case judged and this chapter's crime witnesses, naming nobody (holds yes).",
+   "verdict": "stands",
+   "why": "wrongVerdictTouches answers for the case judged (caseOpen) or a witness mark of this chapter and season since the last verdict (monocub.mjs:112-119).",
+   "evidence": "scripts/monocub.mjs:113 \"if (caseOpen(death, { chapter }, { chapter, lastVerdictAt: before ?? null }, epoch)) return true;\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E72 promise 12",
+   "claim": "No dead student finds a body (holds yes).",
+   "verdict": "stands",
+   "why": "The finder readers return false for a dead view (body.mjs:659, :693-696, :977), a Monocub included.",
+   "evidence": "scripts/body.mjs:693-696 \"// No dead student finds a body (E72 C3 ...) ... if (deadIn(view, pending) && !(monocubs && view.getFlag(MODULE_ID, FLAGS.monocub))) return false;\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E91 promise 1",
+   "claim": "The Mastermind can lock or open their room with the GM's own lock and seal a passage at their door; a refusal names no role (holds yes).",
+   "verdict": "stands",
+   "why": "lockLair: primary only, actsAsMastermind, the store's room, writeRoomLock on each scene that draws it, one refusal sentence (mastermind.mjs:298-313); bridge rows mastermind.lairLock and passage.lairSeal exist (bridge-table.mjs:368, :376). sealLairPassage's body was not read here, as by the reader.",
+   "evidence": "scripts/mastermind.mjs:299 \"const no = { refused: \\\"nothing was carried out: the room's lock was not changed\\\" };\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E91 promise 3",
+   "claim": "A student with several owners is treated as owned by each (holds yes).",
+   "verdict": "stands",
+   "why": "The betrayal offer goes to any owner of the third through playerOwns (incident-store.mjs:577-579); the rest is R3812's census, not re-read.",
+   "evidence": "scripts/incident-store.mjs:577-578 \"const owns = id => Boolean(id) && playerOwns(game.actors.get(id), game.users.get(userId)); const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E91 promise 4",
+   "claim": "game.drpg.passages.makePublic and makeSecret (holds yes).",
+   "verdict": "stands",
+   "why": "The API's passages block has makePublic (api.mjs:1594-1601) and names both as the tab's buttons (:1592).",
+   "evidence": "scripts/api.mjs:1601 \"makePublic: passageId => makePassagePublic(passageId),\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E91 promise 5",
+   "claim": "The contract's console logs only failed rows as warnings (holds yes).",
+   "verdict": "stands",
+   "why": "announceContract writes unread rows as one console.info line and warns only on failed rows (patches.mjs:1503-1525). The reader held this by the green row alone; read here.",
+   "evidence": "scripts/patches.mjs:1513-1517 \"if (unread.length) { console.info(...) } if (contract.failed.length) { warn(...)\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E91 promise 7",
+   "claim": "Smaller fixes: D037, D072, D076, D068's migration, D090's quiet Gear (holds yes).",
+   "verdict": "stands",
+   "why": "chapterRestStamps since '1.2.110' (migrate.mjs:1075-1089); keepGearShape readies another piece only into an empty hand (inventory.mjs:974-980); D072 and D076 are present (action-search.mjs:200, action-dynamic.mjs:320). The three 'unknown' items the reader left (D053, D067) are also in the code: a refused Find Passage refunds (action-analyze.mjs:418-424), the Fog tab's Mastermind column is drawn ticked and disabled (room-setup.mjs:93-97).",
+   "evidence": "scripts/inventory.mjs:977 \"if (!other || readiedItems(actor).length) {\"; scripts/action-analyze.mjs:422-423 \"if (res.ok ? res.value === false : Boolean(res.refused)) { if (charge) await refundPrice(actor, charge);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 1",
+   "claim": "The Rest tile is named Facilities (key 'rest') and offers the two rests and the room's actions (holds yes).",
+   "verdict": "stands",
+   "why": "ACTIONS.rest.label 'Facilities' (config.mjs:1699-1701); the window's offer was not read here and rests on R3754 and tier 2 E93-T3/E93-T16 (shards green, base-run.json).",
+   "evidence": "scripts/config.mjs:1701 \"label: \\\"Facilities\\\",\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 2",
+   "claim": "A GM's room action is rolled, drawn on the primary, one person per time of day, closed for everyone on any use, a failure too (holds yes).",
+   "verdict": "stands",
+   "why": "facility.use's row reads the total off the GMs' record (rolled ... kind 'facility', bridge-table.mjs:150-163); handleFacilityUse judges and writes the use in one serialWrite and calls closeForAll for a GM's action whatever the result (bridge-runs-acts.mjs:119-147); the draw refuses a closed action (roll-draw.mjs:1994-2007). The closing at the use, not the draw, is the reader's nit E93-1, which also stands as read.",
+   "evidence": "scripts/bridge-runs-acts.mjs:136-138 \"await facilityUseStore.patch(offer.key, { mark, actorId: actor.id, ... success }); ... if (offer.source === \\\"gm\\\") await closeForAll(offer.key, mark);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 3",
+   "claim": "A completed project's room action: no roll, once a person per time of day (now the GM's pick), costing an action (holds yes).",
+   "verdict": "stands",
+   "why": "handleFacilityUse: a project's success is set without a roll, its limit is facility.limit with timeOfDay the default, and its cost is taken there (bridge-runs-acts.mjs:122-135).",
+   "evidence": "scripts/bridge-runs-acts.mjs:124 \"const limit = offer.source === \\\"project\\\" ? offer.facility.limit ?? \\\"timeOfDay\\\" : \\\"timeOfDay\\\";\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 4",
+   "claim": "The closed list of effects, timed ones among them, shown on the owner's sheet (holds yes).",
+   "verdict": "stands",
+   "why": "timed-effects.mjs holds KINDS (:52), giveTimed (:184), endTimedEffect (:201), the boundaries at the time of day and the Eclipse (:396-406); the header says a GM's hand edit is taken down again at the end (:20-22). Three parts are held by reading alone, as the notes and the reader say; 'yes' stands with that caveat.",
+   "evidence": "scripts/timed-effects.mjs:401-403 \"Hooks.on(\\\"drpgEclipseChanged\\\", active => { if (active === true && isPrimaryGm()) endAtEclipseStart()...\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 5",
+   "claim": "Five new Overflow states: Lockdown, Insomnia, Toll, Jitters, Power cut (holds yes).",
+   "verdict": "stands",
+   "why": "All five are rows with on: true (config.mjs:2670-2681); facilityShut is asked by the use and by the draw (bridge-runs-acts.mjs:114, roll-draw.mjs:2004).",
+   "evidence": "scripts/config.mjs:2681 \"powercut: { kind: \\\"state\\\", on: true, reader: \\\"facility.use\\\" },\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 6",
+   "claim": "Every use leaves a faint Subtle trace (holds yes).",
+   "verdict": "stands",
+   "why": "leaveTrace is called on every use, after a failure too, before the report (bridge-runs-acts.mjs:143-145).",
+   "evidence": "scripts/bridge-runs-acts.mjs:145 \"await leaveTrace(actor, offer.label);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 7",
+   "claim": "A secret project's action is offered to its insiders and told to their browsers alone (holds yes).",
+   "verdict": "stands",
+   "why": "offerAt reads projectActionsAt(place, sender) for a project's action (facilities-gm.mjs:42-48); on a player projectFacilityOf reads the GMs' sight copy and falls back to the newest GM-authored secret card (facilities.mjs:329-364). Scenario 33 E93-B has no result in the base run yet (pending).",
+   "evidence": "scripts/facilities.mjs:357 \"if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E93 promise 8",
+   "claim": "A player's browser holds its own characters' uses and timed effects after a load (holds yes).",
+   "verdict": "stands",
+   "why": "Both first asks are at ready now (facility-uses.mjs:118-127, timed-effects.mjs:396-411). The F-class reading is in docs/dev/e58/LOCAL-REPORT.md item 3 (lines 529-542 on b5a29e73: 36/37 red, then 00-boot 37/37 and no registration failure on the sandbox); the reader's ':529' is the item's first line, the 37/37 is at :540. Scenario 00 was green in the first session's run (first-session/README.md).",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:540 \"Green: 00-boot 37/37; mutants 4/4 killed\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E69 promise 1",
+   "claim": "The Listen tile is named Infiltrate and opens one list of rows with their prices (holds yes).",
+   "verdict": "stands",
+   "why": "INFILTRATE in config.mjs:2193-2214 holds the rows' traits and costs; the list itself rests on R3755, R3756.",
+   "evidence": "scripts/config.mjs:2193 \"export const INFILTRATE = Object.freeze({\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E69 promise 2",
+   "claim": "Dash: a Leg roll drawn on the GM; the free crossings off the GMs' record; one roll one Dash (holds yes).",
+   "verdict": "stands",
+   "why": "dash.settle's row names the roll (rolled kind 'dash', bridge-table.mjs:165-175); handleDash grants by the bands 12/18 and the critical (bridge-runs-acts.mjs:171-189; config.mjs:2199-2201: 2, 3, 4).",
+   "evidence": "scripts/config.mjs:2200-2201 \"bands: Object.freeze([Object.freeze({ min: 12, moves: 2 }), Object.freeze({ min: 18, moves: 3 })]), critical: Object.freeze({ moves: 4 })\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E69 promise 3",
+   "claim": "Tail Someone and its ends (holds yes).",
+   "verdict": "stands",
+   "why": "tail-gm.mjs's header (1-26) states each end and the code registers the crossing, the body's announcement and the time of day (:168-174); not read whole here. Its one known shape: the tailer's place is read by the GM, so a gather of the tailer may end it as 'lost' - in line with the notes.",
+   "evidence": "scripts/tail-gm.mjs:23-26 \"THE ENDS. With a card: ... a new day, a body announced ... Silent: the tailer or the target dead, an incident running\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E69 promise 4",
+   "claim": "A settled crossing: one event about 2 s after a recorded crossing (holds yes).",
+   "verdict": "stands",
+   "why": "SETTLE_MS 2000 and the run rule are as the notes say (crossing-settle.mjs:16-28); only recorded crossings settle, which is what E74-1 and E74-2 stand on.",
+   "evidence": "scripts/crossing-settle.mjs:26 \"export const SETTLE_MS = 2000;\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E69 promise 5",
+   "claim": "The eavesdrop: after a good Listen roll the listener is sent into the room's voice channel, microphone held (holds yes).",
+   "verdict": "weakened",
+   "why": "Neither the reader nor this pass read eavesdrop-gm.mjs past its header (1-30) or voice.mjs listeningRow. Its main effect is a real LiveKit move and block, measured only against the harness's shim, and LIVE-E69-03 is unread; the header itself says what LiveKit shows (one more participant) is not hidden. 'yes' should read 'yes headless, unread where it lives'. The header also ends an eavesdrop on a settled crossing out of the room, so a gather of the listener leaves the same gap as E74-1 until the time of day (not traced here).",
+   "evidence": "scripts/eavesdrop-gm.mjs:19-21 \"WHEN IT ENDS (the answer (c), and the plan's C6): the listener's settled crossing out of the room they listen from ... a new time of day; an Eclipse; an incident; a Class Trial\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E69 promise 6",
+   "claim": "Echoes: a row that names the nearest room holding a living student of another player (holds yes).",
+   "verdict": "stands",
+   "why": "echoes-gm.mjs's header states the rule read on the GM (1-20) and a pure nearest-room function under R6023; R6023, R6024, R6026 are E54-stamped rows of tier 1. LIVE-E69-06 unread.",
+   "evidence": "scripts/echoes-gm.mjs:9-11 \"WHO COUNTS ...: a living student of another player, read on the GM\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E69 promise 7",
+   "claim": "The murder's privacy: the killer behind a '?' (holds yes).",
+   "verdict": "weakened",
+   "why": "The cut every private card passes is read (secret.mjs:447-499) and the cast copy holds no killer for a non-killer (incident-store.mjs:584-588). But the owner saw the real token twice at a table after it shipped, the second cause 'not established' by the paper, and since then one sandbox reading on three pages with the hosted server, the give-back and the voice half unread (the reader's own note); a console still resolves the token's actorId to the killer (known-leaks.json foundry-masked-token-actor). And the base run's one tier-2 failure (shard 3, grid XI07) is a bystander's copy naming a killer the model holds null, which passes alone and is read as order-dependent (base-run.json xi07_alone) - not this stage's mask, but the same copy field. A promise with an unexplained table failure and a partial reading is not a confirmed 'yes'; 'partly, after L1' fits the evidence.",
+   "evidence": "audit/harness/known-leaks.json foundry-masked-token-actor: \"a player's browser console resolves the \\\"?\\\" to the killer's actor and name\"; base-run.json shard 3: \"PlayerTwo's copy names the killer Aiko Hoshino, the model's null\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E74 promise 2",
+   "claim": "Force the Door against everything that holds it at once (a tie holds, 18 for a lock or seal, a critical all) (holds yes).",
+   "verdict": "stands",
+   "why": "forceDoor: passes = critical or sum > barricade, sum >= lockDc (18) for the rest, every hold must pass; a pass ends the barricade, breaks the lock, lifts the seal; the banging goes to the rooms next to either with no name (doors-gm.mjs:157-204; config.mjs:2206).",
+   "evidence": "scripts/doors-gm.mjs:170-171 \"const passes = what => isCritical || (what === \\\"barricade\\\" ? sum > holds.barricade : sum >= INFILTRATE.force.lockDc); const forced = held.length > 0 && held.every(passes);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E74 promise 4",
+   "claim": "Keep Watch: Body 12 before an Eclipse, post at its start, cards, a summary, held to the post, a Despair miss marks a Sanity (holds yes).",
+   "verdict": "stands",
+   "why": "watchRefusal refuses in an Eclipse and before Night; declareWatch keeps at dc 12 or a critical and marks a Sanity on a Despair miss; startWatches, onWatchCrossing and endWatches do the cards (watch-gm.mjs:50-153); watchHolds holds the post (movement.mjs:1217-1220).",
+   "evidence": "scripts/watch-gm.mjs:64 \"const kept = Boolean(isCritical) || (Number(total) || 0) >= INFILTRATE.keepWatch.dc;\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E74 promise 5",
+   "claim": "A watch of 18 or more puts one hindrance die on the opening roll of whoever opens a murder on the watcher (holds no).",
+   "verdict": "stands",
+   "why": "As E74-3: the die exists only while the Eclipse's post stands, and a murder declared in that Eclipse opens after endWatches.",
+   "evidence": "scripts/eclipse.mjs:520-529; scripts/watch-gm.mjs:43-45, :138-153",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E74 promise 6",
+   "claim": "Repair the Lock preset and Room Setup's Broken column (holds yes).",
+   "verdict": "stands",
+   "why": "lockRepairsOf, repairLockRefusal, repairLockDone, unrepairLock, dropLockRepairs (doors-gm.mjs:263-307) and the completion row 'repairsLock' (projects.mjs:1397) are present; their bodies were not read here; tier 2 E74-T5, E74-T8 exist and their shards were green.",
+   "evidence": "scripts/projects.mjs:1397 \"key: \\\"repairsLock\\\",\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E74 promise 7",
+   "claim": "Remnants: a barricade subtle, a forced door evident where heard, a pick by its roll (holds yes).",
+   "verdict": "stands",
+   "why": "forceDoor leaves 'evident' when loud (a pass or a Despair miss), 'subtle' otherwise (doors-gm.mjs:195); pickTrace answers by the roll (:468-471).",
+   "evidence": "scripts/doors-gm.mjs:195 \"if (held.length) await leaveDoorTrace(actor, forced || !withHope ? \\\"evident\\\" : \\\"subtle\\\", \\\"force\\\", room);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E74 promise 9",
+   "claim": "A bedroom's owner is warned of a careless pick and a forced door (DA30), built in 1.2.113 (holds yes).",
+   "verdict": "stands",
+   "why": "noteBedroom and tellBedroomNotes are there (doors-gm.mjs:358-423) and forceDoor calls noteBedroom on a forced lock (:197). The 'on walking back in' half listens to a settled crossing (arrival-notices.mjs per crossing-settle.mjs:8-9), so it shares the gather gap of E74-1; not traced.",
+   "evidence": "scripts/doors-gm.mjs:200 \"if (forced && holds.lock) await noteBedroom({ scene: place.scene, room, kind: \\\"forced\\\", told: saw, by: actor });\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E64 grade",
+   "claim": "E64 grade 8.",
+   "verdict": "stands",
+   "why": "One minor that stands (E64-1), one promise unread in code (the orphans) whose tier-2 tests now have a green shard result (base-run.json), and one promise held by green source-read rows only (promise 13, weakened). Section 11.4's 8: 'one holds only by code reading or has a minor'. LIVE-E64-01 is a side promise, not the stage's main one, so the L1 cap does not bind; the reader's file carries no l1 block for it.",
+   "evidence": "audit/findings-1.2.118/base-run.json suite_shards (7 of 8 green; shard 3's one failure is grid XI07)",
+   "severity_after": null,
+   "grade_after": "8"
+  },
+  {
+   "ref": "E72 grade",
+   "claim": "E72 grade 9.",
+   "verdict": "stands",
+   "why": "No finding above nit stands against it (E72-1 nit; a stale comment in silenceDeadNow's header, nit). The promise the reader left 'unknown' (the Monocub's crossing) is in the code (movement.mjs:2089-2092 refuses a running murder's room on the GM; :1779, :1952 the free step) and its tier-2 tests sit in green shards. 9 needs every promise delivered with only nits or unread live checks left: LIVE-E72-03 and the dead's voice on LiveKit are unread, so the grade is provisional after L1, which the reader's file does not mark (BRIEF, 'The real-table line L1').",
+   "evidence": "scripts/movement.mjs:2089 \"if (isMonocubActor(actor) && game.user?.isGM && !(mover ? mover.gm : true) && to === incidentRoomForGm(scene)) {\"",
+   "severity_after": null,
+   "grade_after": "9 (provisional, after L1)"
+  },
+  {
+   "ref": "E91 grade",
+   "claim": "E91 grade 9.",
+   "verdict": "stands",
+   "why": "Nothing found against it. The three items the reader left to tier 2 are in the code (action-analyze.mjs:418-424, room-setup.mjs:93-97, action-search.mjs:200, action-dynamic.mjs:320) and the contract's console rule too (patches.mjs:1513-1517); their tier-2 tests sit in green shards. What stops a 10 is the owner's word on D038 and A113-C5-5 and unread code (sealLairPassage), as the reader says. No live item of E91 exists, so no L1 cap.",
+   "evidence": "scripts/room-setup.mjs:93-96 \"THE MASTERMIND'S COLUMN (E91 C4; the owner's deferred item D067) ... their boxes are drawn ticked and disabled\"",
+   "severity_after": null,
+   "grade_after": "9"
+  },
+  {
+   "ref": "E93 grade",
+   "claim": "E93 grade 8.",
+   "verdict": "stands",
+   "why": "Delivered on the road read (facility.use, the closing, the cost, the trace, the Overflow states); one nit (E93-1); three parts by reading alone by the notes' own word; LIVE-E93-01..03 unread while two real-table faults have already been found and fixed. 8 is within 11.4; part of the reason is unread live checks, so it is provisional after L1, not marked by the reader.",
+   "evidence": "audit/AUDIT-1.2.42.md:1437-1439 (items 475-477, LIVE-E93-01..03)",
+   "severity_after": null,
+   "grade_after": "8 (provisional, after L1)"
+  },
+  {
+   "ref": "E69 grade",
+   "claim": "E69 grade 8.",
+   "verdict": "stands",
+   "why": "No finding; the reader's 8 rests on the two heaviest promises (the eavesdrop and the mask) being unproved where they live, which this pass weakens further rather than less (E69 promises 5 and 7). LIVE-E69-03, -04, -05 (in part) and -06 unread: the cap makes any grade here provisional after L1, not marked by the reader.",
+   "evidence": "audit/AUDIT-1.2.42.md:1440, :1514, :1516, :1518 (LIVE-E69-04, -03, -06, -05)",
+   "severity_after": null,
+   "grade_after": "8 (provisional, after L1)"
+  },
+  {
+   "ref": "E74 grade",
+   "claim": "E74 grade 6.",
+   "verdict": "stands",
+   "why": "One major that stands (E74-3, a promise not delivered) and two minors that stand (E74-1, E74-2), plus a nit (E74-4). 11.4's 6 is 'one major / one promise not delivered'; the two minors push towards the bottom of it but do not make 'several majors'. No live item of E74 exists, so no L1 cap; the absence of any live check is itself in missing_to_10.",
+   "evidence": "scripts/watch-gm.mjs:43-45; scripts/doors-gm.mjs:495-502; scripts/lockpick-gm.mjs:84-107",
+   "severity_after": null,
+   "grade_after": "6"
+  }
+ ],
+ "counts": {
+  "checked": 59,
+  "stands": 56,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  "Not run, by the audit's rule: no finding here was driven in the harness. E74-3's road (declare a watch of 18+, start an Eclipse, park a direct murder on the watcher, end the Eclipse, read the opening's situation in the GM's draw) is the probe that would measure it; new live check: the same at a v14 table with a GM and two players, default theme, reading the killer's roll window for 'a hindrance die'. Priority: major (E74 grade cap 6).",
+  "E74-1 and E74-2: new live check - barricade the Dorm (or pick a bedroom's lock and walk in), have a body found elsewhere so the discovery gathers everyone, then walk back to the Dorm as the author (or to the bedroom days later): settles if refused / let through. Clients: GM and two players; either theme. Priority: minor.",
+  "E64-1: new live check - a trap built by a student with Body 1 springs on another player's student: read the victim's Self-Defense tile and roll window ('Beat 18') and the GM's scoring of an 18. Clients: GM, two players. Priority: minor.",
+  "base-run.json gives shard counts, not per-test rows: a named tier-2 test is read as passed because its shard's failures list holds only XI07 and none of these names is in skip-baseline.json; the per-test result was not read. The ci scenarios (33 E74-A/B/C, E93-A/B/C, E69-A/B/C, A20-A22, 21, 30, 65, 83) are still pending in base-run.json; nothing here claims their result.",
+  "The reader's file has no l1 block on any stage and no 'provisional' mark on any grade (the BRIEF's rule came at about 19:40Z, after the first session's readers stopped). This refuter marks E72, E93 and E69 provisional after L1 in grade_after; their l1 blocks are not written here.",
+  "The base run's one tier-2 failure (grid XI07, a betrayal declared in an Eclipse after Night: 'PlayerTwo's copy names the killer Aiko Hoshino, the model's null') touches the cast copy's killerId, the field E64-1 and the E69 mask turn on. It passes alone (base-run.json xi07_alone) and is read as order-dependent; whether a bystander's copy can name a killer under load was not established.",
+  "Not read here: offerDa39Migration's window, sealLairPassage, scoreTinker, the Bribe and Bounty bodies, eavesdrop-gm.mjs and echoes-gm.mjs past their headers, mask-gm.mjs, infiltrate-reroll.mjs. The three promises the reader marked 'unknown' (E64 orphans, E72 crossing, E69/E74 Reroll) were not verdicted here, as the task asks only of 'yes' and 'no'; E72's crossing and E91's three were looked at for the grades.",
+  "Comment against code (nit, not a finding of the reader): incident-store.mjs:970-976, silenceDeadNow's header, still says the dead voice 'is sent to its account's own room'; since E62 C3b it goes to the Spectators' room (voice.mjs:962-963, voice-client.mjs:470)."
+ ]
+}

@@ -1,0 +1,107 @@
+{
+ "refuter": "verify-live-items-03",
+ "of": "live-items-03",
+ "checked": [
+  {
+   "ref": "91",
+   "claim": "LIVE-E08-03 partly read, as expected: the order of userConnected(false) and active read on v14 (CALIBRATION.md:30, LOCAL-REPORT.md:508)",
+   "verdict": "weakened",
+   "why": "The reading exists, is on Foundry 14.370 with module 1.2.116 (recent enough), and says what the reader quotes. But it is a player's page closing, filed under item 30 (LIVE-E30-05); item 91 asks the order for a leaving GM, `userConnected(gm, false)`, and whether the new primary then reads itself as primary through isPrimaryGm({ leaving }). No paper records a GM leaving, so the part counted as read is a neighbour's reading carried over by reasoning, which section 11.2 U11 does not let close or part-close an item. The reader itself says a stricter count gives open. Everything else the item asks (a Reroll as the primary changes, the journal on the new primary, an Observe's Reroll across a change of primary, the second GM's undo against the tombstone) has no reading in either digest, the delta digest or the L1 branch's papers (grep of 'userConnected', 'primary', 'Reroll' in LR-l1 and CAL-l1).",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:30 '| LIVE-E30-05 | a GM page listening on `userConnected`; PlayerOne's page closed; ... the hook came once, `(user, false)` - two arguments - with `user.active` already false inside it.'",
+    "audit/AUDIT-1.2.42.md:925 'Czy na v14 `userConnected(gm, false)` przychodzi przed czy po tym, jak `active` odchodzacego GM-a staje sie false - czyli czy nowy glowny juz wtedy czyta siebie jako glownego (`isPrimaryGm({ leaving })`)' (the line carries Polish marks in the file)",
+    "scripts/reroll.mjs:495-496 'Two primaries in the same moment (one leaving, one arriving) could both pass before either row arrives; that window is the store's sync, not measured (LIVE-E08-03).'"
+   ],
+   "status_after": "open (a neighbour's reading, item 30's, for a player leaving; the GM case not read)"
+  },
+  {
+   "ref": "97",
+   "claim": "LIVE-E28-04 partly read, as expected: on Daggerheart 2.12.9 the GM drew players' rolls, so the seam's review answered ok; 2.6.5 and the fallback not read",
+   "verdict": "stands",
+   "why": "Both readings exist and are dated: LOCAL-REPORT.md:268-270 (third run, 17.11.2026, at d5907e1b) and :477 (16.11.2026), Foundry 14.370, Daggerheart 2.12.9. I traced the step the reader adds: registerRollDraw wraps DualityRoll.build only when seamFor(cls) answers ok (reviewBuild, then reviewTraitRoad), and otherwise sets seam to 'changed' and returns without wrapping (roll-draw.mjs:201-216); a roll drawn on the GM needs that wrap, and standInSeam, the suite's stand-in, wraps nothing (:174-185), so a GM-drawn opening read on a bystander's console (:477) and no duality roll evaluated on a player's page with a GM connected (:268-270) mean the review answered ok on 2.12.9 on the clients that rolled. roll-draw.mjs, roll-marks.mjs and reroll.mjs are byte-identical between d5907e1b and b5a29e73 (git diff --stat, empty), so the reading carries to 1.2.118. 2.12.9 is module.json's verified version, so 'the current version' half is the one read. Not read, as the reader says: 2.6.5, a changed build going back to the player's browser, the one notDrawnHere message. Neither paper names this item: the mapping is a reader's, but it is a code-implied consequence of a recorded reading, not a guess.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:268-270 'a recorder on each player's page logged every duality roll evaluated there through the whole third run: none. ... With a GM connected the module draws a player's roll on the GM'",
+    "docs/dev/e58/LOCAL-REPORT.md:477 'the GM's drawn roll of the killer's opening (a Hope opening, Daggerheart 2.12.9) as PlayerTwo's (a bystander's) console holds it'",
+    "scripts/roll-draw.mjs:201-205 'const decided = seamFor(cls); if (decided.state !== \"ok\") { seam = decided; warn(...); return; }'",
+    "module.json relationships.systems[0].compatibility {minimum: 2.6.5, verified: 2.12.9}"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "89",
+   "claim": "LIVE-E08-01 open: no reading found; tier 2's five Reroll tests failed on the sandbox and no later run is recorded",
+   "verdict": "weakened",
+   "why": "True of the two digests and of b5a29e73's LOCAL-REPORT.md (the five Reroll tests at :236 and :284-286 as still to read), but the L1 branch's paper (origin/claude/e58-local 7875554f, the brief's class F) records two later readings that bear on the item's first clause, 'the harness does not reroll a real Daggerheart roll (Roll#reroll in rerollOnGm)': on 18.11 the five Reroll tests' failure was traced to the tests' stand-in roll, and 'on a real roll the module writes a whole one (Daggerheart's reroll answers DualityRoll.fromData(...)'; in batch 1 (19.11) the Reroll tests were made to reroll a real roll ('Daggerheart's DualityRoll#reroll rebuilds by that name ... it now carries the real class's name') and the batch's 23 tests read 16 green, 4 skip, 3 red with the three reds named as Frisk tests. The paper does not list the Reroll tests' results one by one, so 'they passed' is read from the batch's counts. reroll.mjs is identical between the batch's runtime tree 179c2644 and b5a29e73 (git diff --stat, empty). live-readings-e58-delta.json (written after this reader's file, 19:39 against 19:09) maps both readings to item 89 'in part'. Not read anywhere: Hope paid on the GM as a person sees it, Dice So Nice showing the new dice, the struck card and its line, v14 redrawing on a flag change, REROLL_SHOWN reaching other clients, the critical Strike, the Tier 3 item and the Observe Reroll.",
+   "evidence": [
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:269-272 'Then the rest of the Reroll tests: `rerollableRealRoll`'s subclass wrote its own name in the roll's data, and Daggerheart's `DualityRoll#reroll` rebuilds by that name (\"Unable to recreate TableReroll instance\") - it now carries the real class's name'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:280-281 'after the Reroll fix and E47-T4's probe **16 green, 4 skip (env.replaceable), 3 red** - the three Frisk tests'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:338-339 'On a real roll the module writes a whole one (Daggerheart's `reroll` answers `DualityRoll.fromData(...)`; the roll `toMessage` gets is a `DualityRoll` of 5 terms, read).'",
+    "audit/findings-1.2.118/live-readings-e58-delta.json, entry LOCAL-REPORT.md:266-272 (branch): 'by this reader's mapping the Reroll half of item 89 (LIVE-E08-01) in part'"
+   ],
+   "status_after": "partly (a real Daggerheart roll rerolled through the module on v14 by tier 2's Reroll tests, tests' faces, no person; the table's half unread)"
+  },
+  {
+   "ref": "92",
+   "claim": "LIVE-E08-04 open: no reading of keepId on Foundry 14",
+   "verdict": "stands",
+   "why": "No 'keepId', 'same id' or 'its own id' reading in docs/dev/e58/, docs/dev/e39/CALIBRATION.md or the L1 branch's two papers (grep); the digests hold none under 92 or 196. cleanup.mjs still places the trace with keepId.",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:219 '| 196 | LIVE-E81-14 | K | ... keepId create on unviewed scene |' (a plan, not a reading)"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "94",
+   "claim": "LIVE-E28-01 open: no reading of Dice So Nice's dice per audience",
+   "verdict": "stands",
+   "why": "Every mention of Dice So Nice in b5a29e73's LOCAL-REPORT.md and the branch's is its version (6.4.5) or its first-use cards in the world inventory (:390, :495, :510 on b5a29e73's copy); none reads whose screen shows which dice. No entry of the three digests names the item.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:390 '(kept: Foundry's tour, Dice So Nice's first-use cards, the module's first-login notes)'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "98",
+   "claim": "LIVE-E28-05 open: with no GM, the refusal before payment, the reaction marker and Grant all not read",
+   "verdict": "stands",
+   "why": "The only no-GM roll reading is the recorder's check (a player's own roll thrown on its page), as the reader says; the one no-GM card test the sandbox ran, 'the GMs' card of a roll thrown with no GM says what it claimed ...', is listed among untriaged failures of 17.11 (LOCAL-REPORT.md:67), a tier 2 result, not a reading of the item's three steps.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:269 'Checked that it works: with no GM online a player's own roll was caught (`1d12h + 1d12f + 0`).'",
+    "docs/dev/e58/LOCAL-REPORT.md:67 '\"the GMs' card of a roll thrown with no GM says what it claimed ...\" (\"did not come to its dice and Agility\")'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "107",
+   "claim": "LIVE-E28-14 open: the header of a GM-drawn sheet statistic's card not read",
+   "verdict": "stands",
+   "why": "No paper reads the header of Daggerheart's card for a drawn statistic; the header reading at LOCAL-REPORT.md:480 is item 71's safeword card. The tier 2 test that reads it (tests-tier2.mjs:11282) has no per-test result recorded on the sandbox in either copy of the paper (grep 'headed by', 'roller's character': nothing).",
+   "evidence": [
+    "scripts/tests-tier2.mjs:11282 '\"a statistic the GM drew is headed by its roller's character in Daggerheart's card, never by the GM\"'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "116",
+   "claim": "LIVE-E29-07 open: Daggerheart's card and the roller's private card for an uncounted modifier not read",
+   "verdict": "stands",
+   "why": "No reading of either card. A neighbour the reader does not name: tier 2's 'a drawn statistic's card carries the GM's modifiers ...' failed on the sandbox on 17.11 ('[[],7]' against '[[0],13]'), listed as not triaged and later traced, with the other drawn-roll failures, to tests scripting dice a table does not read (LOCAL-REPORT.md:111-113 group); a failing test of the tests' own making, not a reading of this item.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:66-67 '\"a drawn statistic's card carries the GM's modifiers ...\" (`[[],7]` against `[[0],13]`)'"
+   ],
+   "status_after": "open"
+  }
+ ],
+ "counts": {
+  "checked": 8,
+  "stands": 6,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "not_established": [
+  "The reader's 11 observations carry no severity and no finding has one, so none was checked as a finding of minor or above. Spot-checked without a verdict: the count (34 items, 83-116, at AUDIT lines 914-953) holds; module.json at v1.2.67 already required dice-so-nice and had compatibility.minimum 14.364 (git show v1.2.67:module.json), as the observation on items 95 and 110 says.",
+  "Item 91's GM case: whether Foundry 14.370 handles a GM's disconnect in the same order as a player's was not read in Foundry's source here; a table reading would settle it (a second GM's page listening on userConnected while the primary GM's page closes, reading game.users.get(id).active and isPrimaryGm() inside the hook).",
+  "Item 89: the branch paper gives the batch's counts (16 green, 4 skip, 3 red, the reds named as Frisk tests), not each Reroll test's result; that the five Reroll tests (35, 40-43) passed is read from those counts.",
+  "Items 89 and 97 rest on L1 readings taken at d5907e1b, 179c2644 and 7875554f; roll-draw.mjs, roll-marks.mjs and reroll.mjs were compared with b5a29e73 and are identical; the rest of the runtime tree differs (21 files between 179c2644 and b5a29e73) and was not read for its bearing on these readings."
+ ]
+}
