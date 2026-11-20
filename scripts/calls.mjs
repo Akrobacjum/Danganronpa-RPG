@@ -21,6 +21,7 @@ import { announce, whisperToOwner, log, error, esc, proseOf, gmIds } from "./uti
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass, callRowsHtml, pickedRow, callPriceShort } from "./call-pickers.mjs";
 import { alreadyOpen } from "./live.mjs";
+import { nameAsSeen } from "./mask-gm.mjs";
 
 import { tipText } from "./ui-kit.mjs";
 
@@ -877,7 +878,12 @@ export async function askHopeCallApproval(payload = {}) {
 /** Human-readable summary of whatever the Call was pointed at. */
 function describeChoice(choice = {}) {
     if (choice.text) return choice.text;
-    if (choice.target?.name) return choice.target.name;
+    /* THE TARGET AS THIS VIEWER SEES THEM (1.2.119, 20.11.2026; the audit's adversarial pass, a blocker: "Support's
+       confirmation window names the masked killer"). The player picker lists a masked student as "?" (call-pickers.mjs
+       `pickPlayer`, mask-gm.mjs `nameAsSeen`) and hands back the actor, and this line printed the actor's own name on
+       the "Aimed at" line of the buyer's window: a player picked the "?", read the name and cancelled, paying nothing
+       (scenario 21 "outside the fight", red at 50a2de6b: Support's window on the bystander's browser held "Chie Mori"). */
+    if (choice.target?.name) return nameAsSeen(choice.target);
     if (choice.room) return choice.room;
     if (choice.item?.name) return choice.item.name;
     if (choice.project) {

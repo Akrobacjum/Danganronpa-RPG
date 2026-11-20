@@ -36,7 +36,7 @@ import { esc, wholeNumber, proseOf } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 import { choiceRowHtml } from "./ui-columns.mjs";
-import { nameAsSeen } from "./mask-gm.mjs";
+import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 
 
 
@@ -402,7 +402,8 @@ async function pickPlayer(actor, ask) {
     // (bridge-guards.mjs `guardArmOtherCharacter`).
     const sameRoomOnly = kind === "hope";
     const students = new Set(studentActors().map(a => a.id));
-    const reachable = (sameRoomOnly ? othersInRoom(actor) : studentActors())
+    // the room as this browser sees it: a veiled killer it does not draw is not offered (mask-gm.mjs `seenHere`, 1.2.119)
+    const reachable = (sameRoomOnly ? seenHere(othersInRoom(actor)) : studentActors())
         .filter(a => students.has(a.id) && a.id !== actor.id);
 
     /*

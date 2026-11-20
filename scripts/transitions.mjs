@@ -154,6 +154,24 @@ export function boardsOf(t, before, clock) {
 }
 
 /**
+ * Whether the move `t` from `before` to `clock` ends the time of day of a body's official announcement (1.2.119,
+ * 20.11.2026; the owner's option B, "Dwa razy pod rzad"): the day's board twice in a row, as a chapter's end plays it -
+ * the end board, then the start board - once. Pure. Answers `{ key }`, the key the boards' sequences take (`body:<key>:end`,
+ * `body:<key>:start`), or null. It plays on a move forward (an hour, a new day, an Eclipse's end) to a clock that carries
+ * the GM's stamp (`bodyBoard`, clock.mjs `advanceTimeOfDay` through sequence.mjs `bodyBoardPatch`) at its own day and
+ * time of day, when the clock this page saw before carried another one: a page that loads after it was told nothing
+ * (`seen` is the clock at ready), the same stamp heard again plays nothing, and Edit campaign and the rewind, which
+ * write none, carry the old one or none. How it sits with the move's own boards is `onClockHeard`'s. R7880.
+ */
+export function bodyBoardsOf(t, before, clock) {
+    const stamp = clock?.bodyBoard;
+    if (!t || !stamp || !["hour", "newDay", "eclipseOut"].includes(t.kind)) return null;
+    if (Number(stamp.day) !== (Number(clock.day) || 0) || stamp.timeOfDay !== clock.timeOfDay) return null;
+    if (before?.bodyBoard != null && before.bodyBoard.upTo === stamp.upTo) return null;
+    return { key: String(stamp.key ?? stamp.upTo) };
+}
+
+/**
  * The clock this page sees moved from `seen` to `clock` (E62 C1): hand the curtain its direction, schedule the flashes
  * and their sounds, hold Escape for the length. Answers the transition or null. `on` is the table's switch as read now.
  */
@@ -165,14 +183,23 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
        AFTER THE TRIAL'S EXIT (the owner's decision of 12.11.2026: a chapter's end that closes the trial and opens the
        next morning in one Finish plays the exit first, then the boards): a board started while the exit plays would cut
        it, so the boards wait for its end (sequence.mjs `whenTrialExitEnds`), at once when none was asked for. */
-    const which = boardsOf(t, before, clock);
+    const own = boardsOf(t, before, clock);
+    /* THE HOUR OF THE BODY'S ANNOUNCEMENT ENDS ON THE BOARD TWICE (1.2.119; the owner's option B, `bodyBoardsOf`): both
+       boards, as a chapter's end plays them, and not stacked on the move's own: a move that plays one by its own stamp
+       (Night's end board, the roll-over's start board) plays it under its own key - so it stays played, and a late page
+       finds it so - and the other under the discovery's, two boards in all. A board the move does not play by its own
+       stamp takes the discovery's key, so the day's real end at Night and its real start still play. */
+    const body = bodyBoardsOf(t, before, clock);
+    const which = body ? "both" : own;
+    const endKey = body && own !== "end" && own !== "both" ? `body:${body.key}:end` : null;
+    const startKey = body && own !== "start" && own !== "both" ? `body:${body.key}:start` : null;
     const boards = () => whenTrialExitEnds().then(() => {
         if (which === "start") return playDayStart(clock, { on });
         if (which === "end") return playDayEnd(before, clock, { on, keep });
         // "both": the day that ends, then the day that begins (`playDayEnd` hands on to it however it ends)
         return before
-            ? playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) })
-            : playDayStart(clock, { on });
+            ? playDayEnd(before, clock, { on, keep, key: endKey, then: () => playDayStart(clock, { on, key: startKey }).catch(() => null) })
+            : playDayStart(clock, { on, key: startKey });
     }).catch(() => null);
     /* THE TRIAL'S EXIT (the owner's decision of 12.11.2026): E61's sequence, started here because this is where the
        clock's move out of the trial is read against the clock before it; nothing for an exit Edit campaign wrote

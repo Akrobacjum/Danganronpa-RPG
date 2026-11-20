@@ -20,11 +20,12 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { tipAttr } from "./ui-kit.mjs";
-import { nameAsSeen } from "./mask-gm.mjs";
+import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 
 /** Whom this character may tail from here, as this browser sees the room: students on tokens it can see, no Monocub or Monokuma. */
 export function tailTargets(actor) {
-    return othersInRoom(actor).filter(a => a?.type === "character" && !isMonokuma(a) && !a.getFlag(MODULE_ID, FLAGS.monocub));
+    // a veiled killer this browser does not draw is not one (mask-gm.mjs `seenHere`, 1.2.119)
+    return seenHere(othersInRoom(actor)).filter(a => a?.type === "character" && !isMonokuma(a) && !a.getFlag(MODULE_ID, FLAGS.monocub));
 }
 
 /** Tail Someone: the window, the GM's pick, the action, the two rolls, the ask. Answers `{ seen, target }` or null. */

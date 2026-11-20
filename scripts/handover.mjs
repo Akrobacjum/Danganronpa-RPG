@@ -27,7 +27,7 @@ import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, 
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
-import { nameAsSeen } from "./mask-gm.mjs";
+import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 
 
 /* ==========================================================================
@@ -57,7 +57,8 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
        room, and has not asked the camera since E12 C3, the other half of S08-23). */
     const { othersInRoom, locateActor } = await import("./movement.mjs");
     const room = locateActor(actor)?.room ?? null;
-    const here = room ? othersInRoom(actor) : [];
+    // as this browser sees the room: a veiled killer it does not draw is not listed (mask-gm.mjs `seenHere`, 1.2.119)
+    const here = room ? seenHere(othersInRoom(actor)) : [];
     if (!here.length) {
         ui.notifications.warn(room
             ? game.i18n.format("DRPG.Handover.nobodyHere", { room })

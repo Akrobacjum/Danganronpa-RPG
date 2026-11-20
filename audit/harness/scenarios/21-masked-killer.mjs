@@ -241,6 +241,33 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         JSON.stringify(consoles), { knownLeak: "foundry-veiled-token-actor", measured: veiled.mic === false && tokenIds.length > 0 });
     check("road: the GMs' store of the veil holds nothing on the victim's and the bystander's browsers, and Chie's row on the GM's",
         consoles.gm.store === 1 && consoles.victim.store === 0 && consoles.bystander.store === 0, JSON.stringify(consoles), { flow: "murder-incident" });
+    /* THE PICKERS WHILE THE VEIL STANDS (1.2.119, the audit's adversarial pass of 20.11.2026, a blocker: "the hand-over
+       picker names the killer hidden by the opening's veil"). The room's people (movement.mjs `othersInRoom`) leave out a
+       GM's `hidden` alone, and since E112v the veil writes only its flag - it keeps the killer a witness, a target and a
+       finder on the GM's side (`countsAsPresent`) - so every picker a player's browser builds from the room listed the
+       veiled killer by name (`nameAsSeen` hides a masked character, not a veiled one). On p1, Aiko in Dorm A with Chie
+       veiled: the lists of the hand-over (handover.mjs `askWhoIsHere`, Give, Share and Show the passage), Palm, Tail
+       (action-tail.mjs `tailTargets`) and a Hope Call's target in the room (call-pickers.mjs `pickTarget`), each window
+       read as p1's browser builds it and cancelled. Read: whether Chie's name, or a "?" for her, is in any of them. */
+    const PICKERS = `const out = {};
+        const actor = game.actors.get("${ids.aiko}"), chie = game.actors.get("${ids.chie}").name;
+        const grab = async run => { let html = null;
+            globalThis.__dialogAnswers.push(cfg => { const c = cfg?.content; html = typeof c === "string" ? c : (c?.outerHTML ?? ""); return null; });
+            try { await run(); } catch (e) { html = html ?? ("threw " + String(e?.message ?? e)); } finally { globalThis.__dialogAnswers.length = 0; }
+            return html; };
+        const H = await import("${repoUrl}/scripts/handover.mjs"), T = await import("${repoUrl}/scripts/action-tail.mjs");
+        const P = await import("${repoUrl}/scripts/call-effects.mjs"), CFG = await import("${repoUrl}/scripts/config.mjs");
+        out.handover = await grab(() => H.askWhoIsHere(actor, { title: "S21", intro: room => room, note: "", okLabel: "S21" }));
+        out.palm = await grab(() => game.drpg.performAction(actor, "palm", {}));
+        out.call = await grab(() => P.pickTarget(actor, CFG.HOPE_CALLS.support, "hope"));
+        const tail = T.tailTargets(actor).map(a => a.name);
+        const names = html => { const w = document.createElement("div"); w.innerHTML = html ?? ""; return [...w.querySelectorAll("option, label, button")].map(n => n.textContent.trim()).filter(Boolean); };
+        return { drawn: [out.handover, out.palm, out.call].map(h => h !== null && !String(h).startsWith("threw")),
+            named: [out.handover, out.palm, out.call].some(h => String(h ?? "").includes(chie)) || tail.includes(chie),
+            lists: { handover: names(out.handover), palm: names(out.palm), call: names(out.call), tail } };`;
+    const pickers = await p1.eval(PICKERS, { timeout: 90000 });
+    check("road: while the veil stands, no picker on the victim's browser lists Chie - the hand-over's, Palm's, Tail's and a Hope Call's in the room name neither her nor a \"?\" for her",
+        !pickers.named && Object.values(pickers.lists).every(l => !l.includes("?")), JSON.stringify(pickers), { flow: "murder-incident" });
     // Let the held roll go: the opening is offered again on p3 (`throwOpeningRoll`), thrown on the forced faces, drawn and scored.
     await p3.eval(RELEASE);
     await gm.eval(`for (let i = 0; i < 100 && game.drpg.murderState()?.stage === "openingRoll"; i++) await new Promise(r => setTimeout(r, 100)); return true;`, { timeout: 30000 });
@@ -385,6 +412,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         const wrap = document.createElement("div"); wrap.innerHTML = html ?? "";
         return [...wrap.querySelectorAll('select[name="who"] option')].map(o => o.textContent).sort();`;
     const listed = await p2.eval(PICKER, { timeout: 60000 });
+    /* A CALL'S CONFIRMATION (1.2.119, the audit's adversarial pass of 20.11.2026, a blocker: "Support's confirmation
+       window names the masked killer"). The player picker lists the masked student as "?" (call-pickers.mjs `pickPlayer`,
+       `nameAsSeen`) and hands back the actor; the confirmation printed the chosen target's own name on its "Aimed at"
+       line (calls.mjs `confirmCall`, `describeChoice`). On p2, Botan's Support aimed at the "?" - the window as Botan's
+       browser builds it, read and cancelled (nothing is paid) - and a Despair Call's refusal before paying, as a
+       Monokuma's browser would show it, for a Call that marks Health on a student with none left to mark (call-effects.mjs
+       `refusalBeforePaying`, handed Chie through a Proxy whose Health is all marked; nothing is written). Read: whether Chie's name is anywhere in
+       either, and whether the line names a "?". */
+    const CONFIRM = `const C = await import("${repoUrl}/scripts/calls.mjs"), CFG = await import("${repoUrl}/scripts/config.mjs");
+        const E = await import("${repoUrl}/scripts/call-effects.mjs");
+        const actor = game.actors.get("${ids.botan}"), target = game.actors.get("${ids.chie}");
+        let html = null;
+        globalThis.__dialogAnswers.push(cfg => { const c = cfg?.content; html = typeof c === "string" ? c : (c?.outerHTML ?? ""); return null; });
+        try { await C.confirmCall(CFG.HOPE_CALLS.support, { kind: "hope", held: 9, choice: { target }, actor }); } finally { globalThis.__dialogAnswers.length = 0; }
+        const aimed = game.i18n.localize("DRPG.Calls.aimedAt");
+        const refusal = E.refusalBeforePaying({ damage: { hitPoints: 1 } }, { target: new Proxy(target, { get: (t, k) => (k === "system"
+            ? { resources: { hitPoints: { value: 6, max: 6 } } } : Reflect.get(t, k)) }) }) ?? "";
+        return { drawn: html !== null, named: (html ?? "").includes(target.name) || refusal.includes(target.name),
+            aimedAtQ: (html ?? "").includes(aimed + ":</strong> ?"), refusal };`;
+    const confirmed = await p2.eval(CONFIRM, { timeout: 60000 });
+    check("outside the fight: with the mask standing, a Call aimed at the \"?\" names it \"?\" on the buyer's own screen - Support's confirmation on p2 says \"Aimed at: ?\", and neither it nor a Despair Call's refusal before paying holds Chie's name",
+        confirmed.drawn && !confirmed.named && confirmed.aimedAtQ && confirmed.refusal.length > 0, JSON.stringify(confirmed), { flow: "give-take-stash" });
     const PALM = (value, faces) => `const actor = game.actors.get("${ids.chie}");
         globalThis.__dialogAnswers.push(() => ({ value: "${value}", form: { querySelector: sel => (sel.includes("who") ? { value: "${ids.botan}" } : null) } }));
         const faces = ${JSON.stringify(faces)};

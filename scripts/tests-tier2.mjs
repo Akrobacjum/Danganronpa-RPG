@@ -17808,6 +17808,201 @@ const SCENARIOS = [
         }
     }],
 
+    ["E119 - the masks end before every advance of the clock, so no day's board draws a masked killer: a mid-day hour (where the discovery's boards play), Evening to Night and the Night Eclipse's end", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's reading through the coordinator: "the end-of-day board, the cast's board since
+         * F118, plays at Evening to Night while a mask stands and shows the masked killer's letter and real name". A mask
+         * stands until its time of day ends (mask-gm.mjs `masksAtNewTimeOfDay`, on `drpgTimeOfDayChanged`, after the clock's
+         * write), and the boards are drawn on that write (transitions.mjs `onClockHeard`): only the roll-over and the Morning
+         * Eclipse's start ended the masks first (`endMasksBeforeTheBoard`). A direct murder on Hope (the killer masked), the
+         * incident closed; then the clock moved by the advance (clock.mjs `advanceTimeOfDay`) on three roads. At each clock
+         * write that lands on the new time of day, read on this browser: the time of day, the picture the day's board
+         * composes for the killer then (sequence.mjs `dayEndBoard`) and whether a mask still stands. Red at ad0baade.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./clock.mjs"), E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const faceWas = [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const real = "worlds/suite/e119-board-killer.webp";
+        const reads = [];
+        let expect = null;
+        const watch = Hooks.on("updateSetting", setting => {
+            if (setting?.key !== `${MODULE_ID}.${SETTINGS.clock}` || !expect || getClock().timeOfDay !== expect || isEclipse()) return;
+            expect = null;
+            const b = Q.dayEndBoard({ clock: getClock(), students: studentActors() });
+            reads.push([getClock().timeOfDay, b.cast.find(c => c.id === killer.id)?.img ?? null, K.maskStands(killer.id)]);
+        });
+        const masked = async timeOfDay => {
+            await setClock({ phase: "dailyLife", timeOfDay, refilledFor: null });
+            await settle();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(K.maskStands(killer.id), `the opening on Hope put up no mask at ${timeOfDay} - this would measure nothing`);
+        };
+        try {
+            await killer.update({ img: real });
+            await settle();
+            await masked("afternoon");
+            expect = "evening";
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await masked("evening");
+            expect = "night";
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await masked("evening");
+            await E.startEclipse();
+            await settle();
+            const atStart = K.maskStands(killer.id);
+            expect = "night";
+            await E.endEclipse({ advance: true });
+            await settle();
+            Q.endSequence("cut");
+            equal(stableJson([reads, atStart]), stableJson([[["evening", real, false], ["night", real, false], ["night", real, false]], true]),
+                "a mask still stood as the clock landed, or the board drew the killer behind it (each landing: the time of day, the killer's picture on the board, a mask standing; a mask standing through the Night Eclipse's start)");
+        } finally {
+            Hooks.off("updateSetting", watch);
+            Q.endSequence("cut");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await killer.update(faceWas[1] ? { img: faceWas[0], "prototypeToken.texture.src": faceWas[1] } : { img: faceWas[0] });
+            await settle();
+        }
+    }],
+
+    ["E119 - a card's words kept while a mask stood stay cut for a reader outside it after the mask ends, served or rewritten, unless the killer revealed themselves", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's adversarial pass through the coordinator: "a card that hid a masked killer as
+         * "?" gives the name in clear when its words are served or rewritten after the mask ends". A GM keeps a private
+         * card's uncut words (secret.mjs `remember`) and cuts them for each reader when they are served again
+         * (`answerWordsRequest`) or rewritten (`updateSecret`), by the masks standing then (`wordsFor`, `nameMask`): after
+         * the time of day ended the mask without a reveal, a reader who was away got the name. Driven on this GM, as
+         * E18 fix e1-G6's test drives the answer: the killer masked (mask-gm.mjs `maskKiller`), a card naming them to a
+         * player who does not play them and to this GM; that player's ask answered while the mask stands, after it ended
+         * with the time of day, and the card rewritten after it; then a second card under a second mask ended by the
+         * reveal, and asked. Every `secret.card` this browser sends kept here and dropped. Read: whether the killer's name
+         * is in what that player is sent, each time. Red at 937a98b0.
+         */
+        needs(env.primaryGm(), "the masks are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const S = await import("./secret.mjs"), K = await import("./mask-gm.mjs"), M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const reader = game.users.find(u => !u.isGM && !killer.testUserPermission(u, "OWNER"));
+        must(reader && !K.maskStands(killer.id), "no reader outside the mask, or a mask stands - this would measure something else");
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") { out.push(String(packet.html ?? "")); return true; }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const named = () => out.some(html => html.includes(killer.name));
+        const ask = (card, from = reader) => { out.length = 0; S.answerWordsRequest({ action: "secret.request", ids: [card.id] }, from.id); return [out.length > 0, named()]; };
+        // and the killer's own player, who reads their name throughout (a card is cut only for readers outside the mask)
+        const theirs = owner(killer);
+        const popups = new Set(document.querySelectorAll(".drpg-popup"));
+        const cards = [];
+        const read = {};
+        try {
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
+            await settle();
+            const card = await S.postSecret({ content: `<p>E119B ${foundry.utils.escapeHTML(killer.name)} was seen</p>`, whisper: [reader.id, theirs.id, game.user.id] });
+            must(card, "the card was not posted - this would measure nothing");
+            cards.push(card);
+            read.masked = ask(card);
+            await K.endMask(killer.id, "timeOfDay");
+            await settle();
+            read.ended = ask(card);
+            read.ownerEnded = ask(card, theirs);
+            out.length = 0;
+            // its readers named, as the callers that rewrite a card do (`settleCall`): the card was veiled while the mask stood
+            await S.updateSecret(card, `<p>E119B again ${foundry.utils.escapeHTML(killer.name)}</p>`, [reader.id, game.user.id]);
+            await settle();
+            read.rewritten = [out.length > 0, named()];
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the second mask did not go up - this would measure nothing");
+            await settle();
+            const second = await S.postSecret({ content: `<p>E119B ${foundry.utils.escapeHTML(killer.name)} again seen</p>`, whisper: [reader.id, game.user.id] });
+            cards.push(second);
+            await K.revealMask(killer.id);
+            await settle();
+            read.revealed = ask(second);
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            for (const node of [...document.querySelectorAll(".drpg-popup")].filter(node => !popups.has(node))) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const c of cards) await c?.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, was);
+            S.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ masked: [true, false], ended: [true, false], ownerEnded: [true, true], rewritten: [true, false], revealed: [true, true] }),
+            "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
+    }],
+
+    ["E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's item C through the coordinator: "a GM's Despair Call on a masked student names
+         * them on the public card". A Call's effect writes the lines its card carries (call-effects.mjs `applyCall`'s
+         * `done`), and a Despair Call's card is public (calls.mjs, `announce`): one document every browser holds, which no
+         * reader's cut reaches, so a line naming the target named the masked killer to the table. Driven on this GM: the
+         * killer masked (mask-gm.mjs `maskKiller`), Silence applied to them as a GM's Despair Call applies it; read the
+         * lines the card would carry. Red at f5c8f041.
+         */
+        needs(env.primaryGm(), "the masks are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const E = await import("./call-effects.mjs"), K = await import("./mask-gm.mjs"), M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        must(!K.maskStands(killer.id) && !E.isCallSilenced(killer), "a mask stands, or the killer is silenced - this would measure something else");
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? null);
+        const messagesWas = new Set(game.messages.contents.map(m => m.id));
+        let lines = null;
+        try {
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
+            await settle();
+            const out = await E.applyCall(null, "silence", "despair", { target: killer });
+            lines = out?.lines ?? null;
+            await settle();
+        } finally {
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (restrictionsWas !== null) await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            for (const m of game.messages.contents.filter(m => !messagesWas.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        must(Array.isArray(lines) && lines.length > 0, "Silence wrote no line - this would measure nothing");
+        equal(stableJson([lines.some(l => l.includes(killer.name)), lines.some(l => l.includes("?"))]), stableJson([false, true]),
+            "the line for the card [names the masked killer, names a \"?\"] - " + JSON.stringify(lines));
+    }],
+
     ["E112 - the masks end before the Class Trial is entered, a token copied from a masked one without its flag is not kept as \"?\", and the hall's own tokens go at the trial's exit", async () => {
         /*
          * E112, 16.11.2026; the owner's confirmation through the coordinator of 15.11: the masks end before the Class Trial is
