@@ -28,3 +28,9 @@ Not shown: the hover and focus highlight (the sweep does not hover; R7823 holds 
   deduction cyan; round 4 in its mode's colour, its lines too.
 - `modes100-round{3,4}-<theme>.png`: the Deductions column and the gutter to the Solution at 100% (a crop of the
   1920x1080 Fit to view shot at device scale 2.5).
+
+## Round 4b (claude/planlook-119 1096f76a; the owner's shades: a mode a shade of the deduction's cyan or the counter's magenta)
+
+- `round4b-<theme>-<size>-modes{,-view,-fit}.png`: the same case as round 4 (deductions in Nonstop Debate, Testimony,
+  Panic Round and none), its counter in Testimony too.
+- `modes100-round4b-<theme>.png`: the Deductions column and the gutter to the Solution at 100%, as `modes100-round4-*`.
