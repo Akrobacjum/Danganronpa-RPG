@@ -104255,6 +104255,154 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(answer), stableJson(true), "the queued answer did not answer the window");
     }],
+    /* ------------------------------------------------------------------------------------------------------------------
+     * C1's block on the line claude/plan-119 (20.11.2026): the planner's logic for 1.2.119 - Move up and down (#1), a
+     * removal's links (#3), the planner redrawn when the case changes (#12); R7800-R7819 for its tier-0 and tier-1 tests.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["the planner's Move down moves a node one place down its column, in the drawing and in the chapter's kept order, and Move up moves it back (investigation.mjs `moveCaseNode`; the owner, 19.11.2026: \"Funkcja move up/down przestała działać\"; the line claude/plan-119)", async () => {
+        /*
+         * Three deductions resting on nothing - one column - written in this chapter, the dashboard drawn on the Map as this GM
+         * opens it. Read: the three's drawn order (each node's face, top to bottom), then the first one's Move down pressed
+         * and the order again, the chapter's kept order (`manual`) and sort, then Move up on the same node and the order once
+         * more. The chapter's meta row is put back as found.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const ids = ["suite-r7800-a", "suite-r7800-b", "suite-r7800-c"];
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const order = root => ids.map(id => [id, parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.top ?? root?.querySelector(`[data-drpg-node="${id}"]`)?.style.top ?? "NaN")])
+            .filter(([, y]) => Number.isFinite(y)).sort((a, b) => a[1] - b[1]).map(([id]) => id);
+        try {
+            for (const [i, id] of ids.entries()) await S.setCaseNode(ch, id, { kind: "deduction", label: `SUITE R7800 ${"abc"[i]}`, inputs: [] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => order(root).length === 3, 3000).catch(() => {});
+            const before = order(root);
+            seen.drawn = before.length;
+            const first = before[0];
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${first}"] [data-drpg-case-move="1"]`)?.click();
+            await until(() => order(root)[1] === first, 3000).catch(() => {});
+            const down = order(root);
+            seen.down = down.indexOf(first) - before.indexOf(first);
+            const meta = S.caseMetaOf(S.caseRows(ch).meta);
+            seen.kept = { sort: meta.sort, after: Number.isFinite(meta.manual[first]) && Number.isFinite(meta.manual[before[1]]) && meta.manual[first] > meta.manual[before[1]] };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${first}"] [data-drpg-case-move="-1"]`)?.click();
+            await until(() => order(root)[0] === first, 3000).catch(() => {});
+            seen.up = order(root).indexOf(first);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: 3, down: 1, kept: { sort: "manual", after: true }, up: 0 }),
+            "Move down and Move up did not move a node one place in its column, drawn and kept ({drawn: the three drawn, down: places moved by Move down, kept: the sort and whether the kept order has it after its neighbour, up: its place after Move up})");
+    }],
+
+    ["the planner's Move moves a node the evidence column draws from the Key plan and the chapter's planned Autopsies - the Autopsy's node one place in its column, drawn and kept, and back (investigation.mjs `moveCaseNode`, `caseMapGraph`; the line claude/plan-119, 20.11.2026)", async () => {
+        /*
+         * The evidence column holds nodes no schema row names: the Key plan's slots, written or not (key-remnants.mjs
+         * `keyPlan`), and the chapter's planned Autopsies, at least one (investigation.mjs `autopsyCount`). The Map draws them
+         * (`caseMapRegion`); a move laid out over a graph without them found no column for such a node and did nothing, and
+         * a node beside them was moved against a column the Map does not draw. Here: the dashboard drawn on the Map as this
+         * GM opens it, the chapter's first Autopsy's node found in the drawing's column, its Move up pressed (Move down if it
+         * stands first) and its place read, drawn and kept, then the other way. The chapter's meta row is put back as found.
+         * Red at b5a29e73 (v1.2.118).
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "autopsy";
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const columnOf = root => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top)).map(el => el.dataset.drpgEdit);
+        };
+        try {
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => columnOf(root).includes(id), 3000).catch(() => {});
+            const before = columnOf(root);
+            must(before.length > 1, `the Autopsy's column holds ${before.length} node(s) - nothing to move it past`);
+            /* up where it can: below the evidence the column draws a gap, then the loose Remnants (case-layout.mjs `gapAt`),
+               and a move across the gap is refused by design - the Autopsy is the last node above it in this world */
+            const at = before.indexOf(id), step = at > 0 ? -1 : 1;
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"] [data-drpg-case-move="${step}"]`)?.click();
+            await until(() => columnOf(root).indexOf(id) === at + step, 3000).catch(() => {});
+            seen.moved = columnOf(root).indexOf(id) - at;
+            const manual = S.caseMetaOf(S.caseRows(ch).meta).manual;
+            seen.kept = Number.isFinite(manual[id]) && Number.isFinite(manual[before[at + step]]) && Math.sign(manual[id] - manual[before[at + step]]) === step;
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"] [data-drpg-case-move="${-step}"]`)?.click();
+            await until(() => columnOf(root).indexOf(id) === at, 3000).catch(() => {});
+            seen.back = columnOf(root).indexOf(id) - at;
+            seen.step = step;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson({ moved: seen.moved, kept: seen.kept, back: seen.back }), stableJson({ moved: seen.step, kept: true, back: 0 }),
+            "the Autopsy's node did not move one place in the evidence column, drawn and kept, and back (moved: places moved, kept: the kept order agrees, back: its place after the other move against where it began)");
+    }],
+
+    ["a node at the top of the planner's column pressed Move up stays, nothing is written, and the GM is told it cannot move further up (investigation.mjs `moveCaseNode`; the coordinator's default for #1, 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * Until this line a move that could not happen returned with no word, which reads at a table as the button not
+         * working. Three deductions resting on nothing, the dashboard drawn on the Map; the topmost of the three in the
+         * drawing is moved to the column's top first if it is not there, then its Move up pressed. Read: the notices said (the
+         * GM's info, caught here), whether the chapter's meta row changed, and the node's place. The meta row is put back as
+         * found. Red at b5a29e73: no notice.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const ids = ["suite-r7802-a", "suite-r7802-b", "suite-r7802-c"];
+        const metaWas = S.caseRows(ch).meta;
+        const info = ui.notifications.info;
+        const toasts = [];
+        let win = null;
+        const seen = {};
+        const columnOf = (root, id) => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top)).map(el => el.dataset.drpgEdit);
+        };
+        try {
+            for (const [i, id] of ids.entries()) await S.setCaseNode(ch, id, { kind: "deduction", label: `SUITE R7802 ${"abc"[i]}`, inputs: [] });
+            /* the column's order kept, the three first: so the one pressed is at the top whatever else the chapter holds */
+            await S.setCaseMeta(ch, { sort: "manual", manual: { ...S.caseMetaOf(metaWas).manual, [ids[0]]: -3, [ids[1]]: -2, [ids[2]]: -1 } });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => columnOf(root, ids[0]).length > 0, 3000).catch(() => {});
+            seen.top = columnOf(root, ids[0])[0] === ids[0];
+            const metaBefore = JSON.stringify(S.caseRows(ch).meta ?? null);
+            ui.notifications.info = (message, ...rest) => { toasts.push(String(message)); return null; };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${ids[0]}"] [data-drpg-case-move="-1"]`)?.click();
+            await until(() => toasts.length > 0, 3000).catch(() => {});
+            await settle();
+            seen.told = toasts.includes(game.i18n.format("DRPG.CaseMap.moveEnd.up", { name: "SUITE R7802 a" }));
+            seen.written = JSON.stringify(S.caseRows(ch).meta ?? null) !== metaBefore;
+            seen.still = columnOf(root, ids[0])[0] === ids[0];
+        } finally {
+            ui.notifications.info = info;
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ top: true, told: true, written: false, still: true }),
+            "Move up on the top of a column did not stay, wrote the kept order, or said nothing (top: it stood at the top, told: the notice, written: the meta row changed, still: at the top after)");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

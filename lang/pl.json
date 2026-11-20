@@ -9227,6 +9227,10 @@
       "sortLabel": "Kolejność w kolumnie",
       "moveUp": "W górę",
       "moveDown": "W dół",
+      "moveEnd": {
+        "up": "Nie da się przesunąć „{name}” wyżej.",
+        "down": "Nie da się przesunąć „{name}” niżej."
+      },
       "notSaved": "Nie udało się zapisać. Twoje zmiany zostały w polach.",
       "field": {
         "img": "Obraz",

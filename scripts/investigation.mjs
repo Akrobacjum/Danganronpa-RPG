@@ -1124,18 +1124,20 @@ function mapChapterOf(reading) {
 }
 
 /**
- * THE MAP'S REGION (E97 C5): the same live region as the Table's (`.drpg-case-live`, the view's box), with the map
- * inside its form, so C6's fields ride the Table's one Save. Read off the world here, as `caseHtml` reads the Table.
+ * THE GRAPH THE MAP DRAWS (`caseMapRegion`), for the drawing and for what acts on its order (`moveCaseNode`), so the two
+ * read the same columns. The Key plan's every slot, written or not, for the chapter now running (`keyPlan`), and as many
+ * planned Autopsies as the chapter plans (`autopsyCount`); a chapter not running draws those its GM wrote, up to its count,
+ * and the ones that went out (case-schema.mjs `graphOf`). Until the line claude/plan-119 (20.11.2026) the move laid out
+ * `caseGraph(chapter)` alone - no slot no GM wrote, no Autopsy - and Move did nothing on such a node, and moved a node
+ * beside them against a column the Map does not draw (tier 2 "the planner's Move moves a node the evidence column draws"; the slots since E97 C6's fd668314, 12.11.2026, the
+ * planned Autopsy since 6964661f, 13.11.2026). Answers `{ chapter, chapters, plan, graph }`.
  */
-function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
+function caseMapGraph(reading) {
     const { chapter, chapters } = mapChapterOf(reading);
     /* EVERY SLOT THE TABLE DRAWS (E97 C6): the Key plan as the planner reads it (`keyPlan`, its slots no GM wrote
        included), so each Table row of the planner has its node here. The plan is the chapter now running's, as the
        planner's is. */
     const plan = keyPlan();
-    const status = keyPlanStatus();
-    const placed = placedKeyRemnants();
-    const limit = caseKeyCount(plan.chapter);
     const slots = plan.entries.map((e, slot) => ({ ...e, slot }));
     // the planned Autopsy's node, empty until written, as the slots are: the chapter now running's (13.11.2026)
     /* 13.11.2026: as many as the chapter plans (`autopsyCount`); a chapter not running draws those its GM wrote, up to
@@ -1145,6 +1147,18 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
         : Math.min(caseMetaOf(caseRows(chapter).meta).autopsies ?? AUTOPSY_MAX, Math.max(0, ...written));
     const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });
     for (const n of graph.nodes) if (n.kind === "autopsy") n.of = autopsies;
+    return { chapter, chapters, plan, graph };
+}
+
+/**
+ * THE MAP'S REGION (E97 C5): the same live region as the Table's (`.drpg-case-live`, the view's box), with the map
+ * inside its form, so C6's fields ride the Table's one Save. Read off the world here, as `caseHtml` reads the Table.
+ */
+function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
+    const { graph, plan } = caseMapGraph(reading);
+    const status = keyPlanStatus();
+    const placed = placedKeyRemnants();
+    const limit = caseKeyCount(plan.chapter);
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
     const finders = findersByAnyRemnant();
     const authors = new Map();
@@ -1879,7 +1893,7 @@ function wireMap(dialog, reading, refresh) {
                 .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add"));
         },
         onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
-        onMove: (id, step) => { reading.focus = id; moveCaseNode(chapterNow(), id, step).then(() => refresh(), fail("move")); },
+        onMove: (id, step) => { reading.focus = id; moveCaseNode(reading, id, step).then(() => refresh(), fail("move")); },
         onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove")),
         // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
         onCheck: () => { reading.overview = true; refresh(); },
@@ -1922,21 +1936,28 @@ export async function placeIncident(chapter, id) {
 /**
  * A node one place up or down its column (E97 C6, the proposal's arrows; its open fields' buttons since the E97 fix): the column as it is drawn now, the
  * two swapped, and every node of that column given its place in the chapter's `manual` order, the sort set to "manual"
- * so the drawn order is the one kept. A node at the column's end stays.
+ * so the drawn order is the one kept. The column is the Map's own (`caseMapGraph`, the line claude/plan-119, 20.11.2026). A node at its column's end - or at the end of its part, the loose evidence below the gap - stays, and the GM is
+ * told so (`DRPG.CaseMap.moveEnd.*`; until then nothing was said). Answers whether it moved.
  */
-async function moveCaseNode(chapter, id, step) {
-    if (!id || !game.user?.isGM) return;
-    const graph = caseGraph(chapter);
+async function moveCaseNode(reading, id, step) {
+    if (!id || !game.user?.isGM) return false;
+    const { chapter, graph } = caseMapGraph(reading);
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
     const column = layout.columns.find(c => c.includes(id));
-    if (!column) return;
+    const name = graph.nodes.find(n => n.id === id)?.label || game.i18n.localize("DRPG.CaseMap.noName");
+    const stays = () => {
+        ui.notifications.info(game.i18n.format(step < 0 ? "DRPG.CaseMap.moveEnd.up" : "DRPG.CaseMap.moveEnd.down", { name }));
+        return false;
+    };
+    if (!column) return stays();
     const at = column.indexOf(id), to = at + step;
-    if (to < 0 || to >= column.length || (layout.gapAt !== null && layout.columns[0] === column && (at < layout.gapAt) !== (to < layout.gapAt))) return;
+    if (to < 0 || to >= column.length || (layout.gapAt !== null && layout.columns[0] === column && (at < layout.gapAt) !== (to < layout.gapAt))) return stays();
     const order = [...column];
     [order[at], order[to]] = [order[to], order[at]];
     const manual = { ...(graph.meta?.manual ?? {}) };
     order.forEach((nodeId, i) => { manual[nodeId] = i; });
     await setCaseMeta(chapter, { sort: "manual", manual });
+    return true;
 }
 
 /** A schema node removed from the case, asked first (E97 C6): what rested on it keeps naming it, and the consistency

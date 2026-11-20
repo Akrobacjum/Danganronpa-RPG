@@ -7387,6 +7387,10 @@
       "sortLabel": "Order in a column",
       "moveUp": "Move up",
       "moveDown": "Move down",
+      "moveEnd": {
+        "up": "{name} cannot move further up.",
+        "down": "{name} cannot move further down."
+      },
       "notSaved": "Your changes were not saved. They are still in the fields.",
       "field": {
         "img": "Picture",
