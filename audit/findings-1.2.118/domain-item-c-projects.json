@@ -260,7 +260,7 @@
    "code_does": "No `scale` is written (a project's size is the countdown's progress.start); a secret project's room and mark are in the GMs' half, as the same line goes on to say."
   },
   {
-   "where": "scripts/projects-tray.mjs:1033-1036 header (lines 24-31)",
+   "where": "scripts/projects-tray.mjs:24-31 (the header)",
    "comment_says": "Five names exported for the hook, a sixth (showTrayToPlayer), two more (labelTrayControls, markTrayMore) and one more (addTrayTitle), beside refreshProjects and hideUndiscovered.",
    "code_does": "Fourteen names are exported: keepNarrativeShown, nameSecretRows and paintSeen are not in the account."
   },
