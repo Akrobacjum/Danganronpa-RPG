@@ -1,0 +1,66 @@
+{
+ "refuter": "verify-domain-comm-b-calls",
+ "of": "domain-comm-b-calls",
+ "checked": [
+  {
+   "ref": "domain-comm-b-calls-1",
+   "claim": "Support's confirmation prints the real name of a masked killer the picker drew as \"?\", on the buyer's own browser, before anything is paid",
+   "verdict": "stands",
+   "why": "Read the whole road. Support's target is \"player\" (config.mjs:2322), so pickTarget goes to pickPlayer (call-pickers.mjs:242), which labels the rows with nameAsSeen but answers the actor object itself (430-433). runCall checks only the price, Experience and alreadyArmed (sheet-actions.mjs:865-905; Support has target \"player\", so the alreadyArmed pre-check at 899 does not apply), then hands the choice to confirmCall unchanged (908-929). confirmCall draws describeChoice(choice) into the brief (calls.mjs:721, 769-770), and describeChoice answers choice.target.name (880). callWindow puts the brief straight into the window (call-pickers.mjs:126, 130); no card is posted, so secret.mjs wordsFor (496-499), the only place the mask's names are cut, is never asked. grep of scripts/ for MASK_NAME, namesHiddenFrom, maskNames, isMaskedActor outside mask-gm.mjs: secret.mjs, frisk.mjs, murder-rules.mjs, action-listen.mjs, anonymity.mjs, voice-tile.mjs, none on this road. No test reads describeChoice or aimedAt (grep of scripts/tests*.mjs, audit/harness/scenarios, audit/harness/probes); R7404 checks the pickers' source only. The mask's recorded Foundry limit (mask-gm.mjs:29-31) needs a console; this road needs a window and Cancel. The urgent refuter (verify-mask-urgent.json) reached the same reading. Gives the killer's identity away: blocker holds.",
+   "evidence": "call-pickers.mjs:430-433 \"const id = await choose(ask, \\\"DRPG.Calls.whichPlayer\\\", pool.map(a => ({ value: a.id, label: nameAsSeen(a) }))); if (!id) return null; return { target: pool.find(a => a.id === id) };\"; sheet-actions.mjs:929 \"let note = await confirmCall(call, { kind: despair ? \\\"despair\\\" : \\\"hope\\\", held, choice, actor, ...\"; calls.mjs:721 \"const aimed = describeChoice(choice);\"; calls.mjs:880 \"if (choice.target?.name) return choice.target.name;\"; call-pickers.mjs:126 \"return actionWindow({ ...shared, brief: `${header}${brief}`, ask: body });\" (confirmCall passes layout \"action\", calls.mjs:761)",
+   "severity_after": "blocker"
+  },
+  {
+   "ref": "domain-comm-b-calls-2",
+   "claim": "A Despair Call aimed at a masked killer names them on the public card every player reads",
+   "verdict": "stands",
+   "why": "spendDespairCallFor posts the receipt lines (done) on a card with no whisper list (calls.mjs:520-534); announce hands it to privately (utils.mjs:701-716), which for no list calls ChatMessage.create with the words as written (821-831), never postSecret, so wordsFor's mask cut is not asked. The receipt lines carry the target's real name: Obstacle and Approval (call-effects.mjs:1000-1001 `name: beneficiary.name`), Pain and Paranoia (1100-1101 `name: choice.target.name`), Silence (1288), Chained (1303). No renderChatMessage hook rewrites a public card's names (the files with such a hook: private-rolls, sheet-audit, roll-draw, trial, safeword, secret, spectator-ui, gm-bridge; grep for MASK_NAME and maskNames finds none of them using the mask on a public card). The GM's picker lists real names (pickPlayer's nameAsSeen answers the name for a GM, mask-gm.mjs:156), so the GM is not warned. Needs a GM to aim a Call at the masked character, so major rather than blocker, as the reader said.",
+   "evidence": "calls.mjs:531-533 \"await announce({ content: `<h3>${game.i18n.localize(\\\"DRPG.Despair.callTitle\\\")} - ${esc(call.label)}</h3>${body}`, flags: ...\"; utils.mjs:821-831 \"if (!list?.length) { ... return ChatMessage.create(payload);\"; call-effects.mjs:1100-1101 \"done.push(game.i18n.format(\\\"DRPG.Calls.damaged\\\", { name: choice.target.name,\"; mask-gm.mjs:156 \"if (!user?.isGM && (masked ?? isMaskedActor(actor)) && ...) return MASK_NAME;\"",
+   "severity_after": "major"
+  },
+  {
+   "ref": "domain-comm-b-calls-3",
+   "claim": "A co-owner's own call on the GM (Search for something specific, Observe, Analyze, a project proposal, a Tier 0 item's use) goes to the first owner's thread",
+   "verdict": "stands",
+   "why": "None of the five callers passes `thread` (action-search.mjs:148-, action-observe.mjs:232-, action-analyze.mjs:259-272, action-project.mjs:416-, call-gm.mjs:1306); callGm's default is null (call-gm.mjs:923); threadOf then answers ownerOf(actor) (1018-1022), the first active non-GM owner (utils.mjs:642-647); postToThread whispers that one player and the GMs (messenger.mjs:276). The comment at call-gm.mjs:1010-1017 names the same shape a bug for the Experience road (E18 fix e1-G7) and fixes only the primary-held asks. No decision found that keeps the local roads on the first owner. Co-owned characters are supported (utils.mjs:649-655 playerOwns, E91 C6), the situation is rare: minor holds.",
+   "evidence": "call-gm.mjs:951 \"const owner = gmOnly ? null : threadOf(actor, thread);\"; call-gm.mjs:1018-1021 \"function threadOf(actor, userId) { const user = userId ? game.users.get(userId) : null; if (user && !user.isGM && actor?.testUserPermission?.(user, \\\"OWNER\\\")) return user; return ownerOf(actor);\"; utils.mjs:644 \"return users.find(u => !u.isGM && u.active && actor.testUserPermission(u, \\\"OWNER\\\"))\"; messenger.mjs:276 \"const whisper = Array.from(new Set([playerUserId, ...gmIds()]));\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-comm-b-calls-4",
+   "claim": "Contraband destroys a student's item and tells nobody whose it was",
+   "verdict": "weakened",
+   "why": "The code is as cited: destroyItemEffect deletes and pushes one line with the item's name only, and no `tell` (call-effects.mjs:1355-1362); drpgDespairCall has no listener (one callAll, calls.mjs:548). But the failure scenario overstates it: the public card is a public announcement, which raises a notice on every player's browser (popup.mjs:1255-1262, \"public announcements - no whisper list at all; that IS an announcement\", tone `fear`, calls.mjs:533), so the owner does read that their Crowbar was destroyed at the moment it happens, unless two people carry items of the same name; and the item's own picker labels are a GM's (\"carried by\", call-pickers.mjs:551-552). No rule or paper was found that asks for a private notice to the owner, and an item on a body (CALL-14, call-pickers.mjs:527-535) has nobody to tell. What remains is a missing owner's notice when names repeat: a text-and-ux nit, not wrong behaviour in a particular situation.",
+   "evidence": "call-effects.mjs:1359-1361 \"const name = choice.item.name; await choice.item.delete(); done.push(game.i18n.format(\\\"DRPG.Calls.destroyed\\\", { item: name }));\"; popup.mjs:1257 \"public announcements   no whisper list at all; that IS an announcement\"; calls.mjs:533 \"flags: { [MODULE_ID]: { popupTone: \\\"fear\\\", sfx: { key: \\\"despairCall\\\", gm: true } } }\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-comm-b-calls-6",
+   "claim": "Two GMs writing a seal or a restriction at once keep only one, and restrict answers true whatever was written",
+   "verdict": "stands",
+   "why": "The race half holds on reading: sealRoom and restrict read the world setting from this browser's copy, change one entry and set the whole value (call-world.mjs:65-69, 134-139), writeWorld has no serial step and no primary hand-off (202-207), and Despair Calls are applied on the buying GM's browser (calls.mjs:416-419 refuses only players; applyCall runs locally at 481-483), with two Monokumas on two GMs a supported case (calls.mjs:405-406). No other writer of either setting serialises it (grep: passages-gm.mjs:796 also calls sealRoom). The interleaving was not measured; it needs two GM writes within one round trip, so minor holds. The second half does not hold on a real road: writeWorld answers null only for a non-GM (204), and every caller of restrict is a Despair effect on a GM's browser; a failed game.settings.set throws out of restrict into applyCall, which marks the Call failed and refunds, so a Silence or a Chain is not announced when nothing was written. That half is refuted; the finding's title claim stands.",
+   "evidence": "call-world.mjs:134-138 \"export async function restrict(actor, patch) { const all = { ...restrictions() }; all[actor.id] = { ...(all[actor.id] ?? {}), ...patch }; await writeWorld(SETTINGS.restrictions, all); return true;\"; call-world.mjs:202-206 \"async function writeWorld(key, value) { if (!game.user.isGM) return null; await game.settings.set(MODULE_ID, key, value); await announceRestrictions(); return true;\"; calls.mjs:416 \"if (!game.user.isGM) {\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "GM's own approval window / second press (hints_for_other_passes.dead_controls)",
+   "claim": "A second approval request on the GM's own side answers null and says nothing: a dead press",
+   "verdict": "refuted",
+   "why": "It is not dead: askHopeCallApproval answers null only after alreadyOpen(APPROVAL_CLASS), and alreadyOpen raises (and unfolds) the window already open rather than merely refusing (live.mjs:696-711), so the press shows the GM the question still waiting. It is a recorded decision (D176, E44 C2c; calls.mjs:847-850) and pinned by R1319 (docs/dev/R-REGISTRY.md:724). The reader itself filed it under by_decision.",
+   "evidence": "calls.mjs:851 \"if (alreadyOpen(APPROVAL_CLASS)) return null;\"; live.mjs:705-707 \"Raised rather than merely refused. A GM who presses the tile again is telling us they want to look at that window\"; R-REGISTRY.md:724 \"R1319 | 0 | E44 | D176: one approval, one Monocub ability and one call-off window at a time on a browser\"",
+   "severity_after": "none"
+  }
+ ],
+ "counts": {
+  "checked": 6,
+  "stands": 4,
+  "weakened": 1,
+  "refuted": 1
+ },
+ "not_established": [
+  "Findings 5, 7, 8 and 9 (nit) were not re-checked: below minor and not a control verdict of dead, throws, mislabeled or wrong_audience.",
+  "The stale_windows hint (a Call's confirmation: the 'Aimed at' and 'about' lines drawn once, only the header live, calls.mjs:722, 761-770) was not checked as a stale_state claim: it is a hint, not a finding of this file. Under D-A1 the Reroll's 'about' line (callAbout, calls.mjs:571-584, the roll in hand) is the part a change could make stale while the window stands; whether a new roll can land while the Reroll's confirmation is open was not read.",
+  "Finding 6's interleaving was read, not measured: a harness probe with two GM clients writing restrictions inside one round trip would settle it.",
+  "Finding 1 and 2 rest on static reading (class S); neither was run. The base run (base-run.json) was not consulted for R7404's result."
+ ]
+}

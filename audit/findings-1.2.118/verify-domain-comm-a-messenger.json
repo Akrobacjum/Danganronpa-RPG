@@ -1,0 +1,69 @@
+{
+ "refuter": "verify-domain-comm-a-messenger",
+ "of": "domain-comm-a-messenger",
+ "scope_note": "Every finding of severity minor or above (findings 1-3) was checked. Findings 4-6 are nits and were not checked. The reader's file is a domain file and carries no control verdicts (dead, throws, mislabeled, wrong_audience); its hints_for_other_passes are hints that point at controls-07 findings and were not each verified. Static reading only on today's source (014f9a83, scripts/ identical to b5a29e73); base-run.json did not exist when looked for, so no test or scenario result is claimed.",
+ "checked": [
+  {
+   "ref": "domain-comm-a-messenger-1",
+   "claim": "A ruling card's [data-drpg-call] buttons run on a GM's press with the button's own data-* as arguments, and nothing compares data.by (or data.item, data.actor) with the card's writer, so a card a player's console writes can charge a classmate Sanity or use up a classmate's item.",
+   "verdict": "stands",
+   "why": "Followed the whole road. wireCallActions takes every [data-drpg-call] button off for a player and wires it for any GM, with only the settled flag checked; the click hands { ...button.dataset } to runCallAction, which looks the rule up in CARD_ACTIONS and calls it with no other check. claimCard/claimOnPrimary refuse only a card that is gone, ruled, busy or settled. ruleObserveMiss reads game.actors.get(data.by) and calls chargeObserveMiss, which writes Sanity through trustedWrite on the GM (reason price) bounded only by the GMs' marks and maximum. ruleItemWorksOrItemNoEffectOrItemRefuse reads data.by and data.item; itemNoEffect consumes through ruleCreativeUse/grantItemEffect. The buttons survive a player's words: cleanCardHtml is foundry.utils.cleanHTML, and scenario 30 asserts a player's button[data-drpg-call][data-rid] reaches the GM (30-security.mjs:772; result not read). secret.mjs's GM_META keeps a player's meta from carrying callCard, but that only stops the no-thread wiring by flag: a thread card is wired by buildBubble regardless, and since F118 the chat log wires any card whose body holds a [data-drpg-call] button. The only rulings that compare the press with something the GMs hold are those that go by the primary's held ask (rid: approveCall, setDifficulty, pickTrait), and pickTrait checks only that data.by exists. The legitimate cards are built on the roller's browser (use-items.mjs useCreatively data { by, item }; action-pipeline.mjs missAction data { by }), so the shape a console needs is the module's own. A guard was looked for by grepping scripts/ for drpgCall and [data-drpg-call] outside tests: no reader of the writer or the thread against data.by. Severity minor holds: it needs a console write and a GM's press of a button whose label is the writer's, and the effect is one rule's price on another student, which the sheet audit does not flag because the write is the GM's.",
+   "evidence": [
+    "scripts/messenger-app.mjs:735-738: `if (!game.user.isGM) { for (const button of buttons) button.closest(\".drpg-call-actions\")?.remove(); return; }`",
+    "scripts/messenger-app.mjs:768: `const outcome = await claimCard(message, () => runCallAction(button.dataset.drpgCall, { ...button.dataset }, message));`",
+    "scripts/messenger-app.mjs:1438-1442: `const rule = CARD_ACTIONS[action]; if (!rule) return null; return rule(action, data, message);`",
+    "scripts/messenger-app.mjs:1211-1216: `const actor = game.actors.get(data.by); if (!actor) return null; ... await chargeObserveMiss(actor);`",
+    "scripts/observe.mjs:936: `await trustedWrite(actor, { \"system.resources.stress.value\": next }, { reason: \"price\" });`",
+    "scripts/messenger-app.mjs:938-940: `const actor = game.actors.get(data.by); const item = actor?.items?.get(data.item); if (!actor || !item) return null;`",
+    "scripts/call-gm.mjs:1097-1100: `if (row && !row.pending) return { taken: false, why: \"ruled\", ... }; ... if (cardFlag(message, \"settled\") || cardMeta(message, \"settled\")) return { taken: false, why: \"settled\", by: null };`",
+    "scripts/gm-bridge.mjs:157: `if (!cardFlag(message, \"callCard\") && !body?.querySelector?.(\"[data-drpg-call]\")) return;`",
+    "scripts/secret.mjs:247: `const GM_META = Object.freeze([\"gmPopup\", \"popupForce\", \"callCard\", ...` (meta only; the content's buttons are not in it)",
+    "scripts/action-pipeline.mjs:1091-1096: `action: \"observeMiss\", ... data: { by: actor.id }`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-comm-a-messenger-2",
+   "claim": "In an Eclipse the stash and bedroom arrival notices are posted unveiled, so every browser holds a card spoken by the owner's character and whispered to their player two seconds after a crossing, which tells a console where that character went and that something happened there.",
+   "verdict": "weakened",
+   "why": "The road is as described: movement.mjs recordCrossingInStep schedules a settle for every recorded crossing, an Eclipse's included (eclipse set on the row), crossing-settle fires CROSSING_SETTLED, arrival-notices calls tellStashDisturbed and tellBedroomNotes, and those post through whisperToOwner / whisperToOwnerOnly with no veiled; post() veils on its own only while murderState.active or a mask stands. So an unveiled document with the owner's speaker and the owner's (and, for the stash, the GMs') whisper list is on every browser. But the half of the failure scenario that says a console learns 'Aiko has just walked into her own bedroom' is not new: an Eclipse hides other players' tokens by drawing only (visibility.mjs returns show/hide for the draw), and the module's own notes say every browser holds every token document, so the room a token stands in is already readable from the console at the same moment. What the unveiled card adds is that a notice exists for that character (her stash was gone through, or her bedroom's door was worked on), which is a fact the GMs' stores hold (rifleStore, bedroomNoteStore). That addition is not Eclipse-specific: the same cards go out unveiled after a daytime crossing too, where the reader set the road aside because 'tokens are seen moving there' - the movement is equally readable in an Eclipse, so the Eclipse framing and the expected fix (veil in an Eclipse only) are both off. The sfx flag (stolen, bedroomEntered) is not on the document: splitFlags keeps only DOCUMENT_FLAGS and PLACEMENT_FLAGS there, so the card's kind is not readable off its flags. Severity kept at minor for the remaining half (a console reads that a classmate's stash or bedroom was touched), with the place and the scope corrected; whether 72-canary's phases cover it was not read.",
+   "evidence": [
+    "scripts/movement.mjs:1334-1341: `kind, eclipse: kind === \"eclipse\" ? eclipse ?? eclipseId() : null, ... scheduleSettle(actor.id, tokenDoc, { from, to, via, eclipse: row.eclipse }, { roomNow: roomOfToken });`",
+    "scripts/arrival-notices.mjs:45-49: `Hooks.on(CROSSING_SETTLED, event => { ... if (actor && scene) void noticesOnArrival(actor, event.to, scene); });`",
+    "scripts/stash-reach.mjs:641-643: `await whisperToOwner(owner, `<p>${game.i18n.localize(\"DRPG.Vault.noticed\")}</p>`, { flags: { [MODULE_ID]: { sfx: \"stolen\" } } });`",
+    "scripts/utils.mjs:751-757: `const ids = [...gmIds(), ...ownerIdsOf(actor)]; ... speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined, whisper: Array.from(new Set(ids)),`",
+    "scripts/secret.mjs:1103-1104: `function incidentVeils(...) { if (!incidentRuns() && !standingMask()) return false;`",
+    "scripts/secret.mjs:222-224: `const DOCUMENT_FLAGS = Object.freeze([SECRET_FLAG, VEILED_FLAG, MESSAGE_FLAG]); ... const PLACEMENT_FLAGS = Object.freeze([\"thread\", \"kind\", \"gmAsk\"]);`",
+    "scripts/visibility.mjs:580: `if (viewer.eclipse) return viewer.owns(tokenDoc) ? \"show\" : \"hide\";`",
+    "scripts/spectator.mjs:11: `browser draws is display: every browser holds every token and every world flag (the trust model, D2), so a console`"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-comm-a-messenger-3",
+   "claim": "The messenger's read map is one client setting keyed only by the thread's player id, so a GM and that player logging in on the same browser share one read stamp for that thread.",
+   "verdict": "stands",
+   "why": "messengerLastRead is registered with scope client and type Object; readMap reads it whole, markThreadRead writes { ...readMap(), [playerUserId]: newest } and threadStatsOf counts unread against readMap[thread]. No world or reader key anywhere: grep of messengerLastRead in scripts/ finds only settings.mjs's registration and messenger.mjs's read and write. A client setting is per browser, not per user (the notice history keys its one client setting by '<world id>.<user id>' for exactly that reason, notice-history.mjs:13-17, as projects-seen does per world and user). Two different worlds do not collide (user ids differ) and two players on one browser do not (each thread key is its own player); the collision is a GM and the thread's own player on one browser, so the 'particular situation' of minor fits. The registration's comment says the opposite of what the scope does ('the player's and each GM's own idea of what they have seen'), which is a comment against code the reader did not list. That v14 stores a client setting as one item per browser is the notice history's assumption too and was not read at a table here.",
+   "evidence": [
+    "scripts/settings.mjs:2106-2111: `// Read state is personal - the player's and each GM's own idea of what ... game.settings.register(MODULE_ID, SETTINGS.messengerLastRead, { scope: \"client\",`",
+    "scripts/messenger.mjs:184: `return game.settings.get(MODULE_ID, SETTINGS.messengerLastRead) ?? {};`",
+    "scripts/messenger.mjs:206-207: `const map = { ...readMap(), [playerUserId]: newest }; await game.settings.set(MODULE_ID, SETTINGS.messengerLastRead, map);`",
+    "scripts/messenger.mjs:147: `if (!(at > (readMap?.[thread] ?? 0))) continue;`",
+    "scripts/notice-history.mjs:15: `{ v: 1, sections: { \"<world id>.<user id>\": Section } }`"
+   ],
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 3,
+  "stands": 2,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "severity_changes": [],
+ "not_established": [
+  "Finding 2: whether scenario 72-canary scans a player's browser after a phase that settles a crossing into a rifled stash or a noted bedroom (not read), and whether a console on a player's browser reads the card's speaker and whisper list on v14 as the harness's documents carry them (new live check: during an Eclipse, rifle a stash, let its owner walk back in, and read game.messages on a third player's console for a card speaking as the owner within 3 s).",
+  "Finding 1: no harness run presses a card whose data.by names a character its writer does not own; the road is read, not measured (new live check: a player's console posts into its own thread a copy of an Observe card with data-by of a classmate; a GM presses 'Nothing was there'; read the classmate's Sanity and thread).",
+  "Finding 3: that Foundry 14.370 keeps a client setting as one localStorage item per browser for every user (not read at a table; LIVE id none)."
+ ]
+}
