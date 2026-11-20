@@ -17,6 +17,11 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 | claude/fog-119 | ef1a6064 (asm 5a0424c2, 21:34Z; comment fix caf01e3f) | the voice tile under the veil: visibility.mjs voiceVeiledHere, voice-tile.mjs personOf/channelCount, R7864, 9.2 item 690 LIVE-F119-03 - domain-comm-c-voice-1 |
 | claude/fog-119 | fc190a65 | the discovery cut-ahead guard (gm-store stampOver/floorOf); Hide all counts studentActors only (ledgerRooms); a Spectator's walk is not an Eclipse crossing (judgeArrival) - MAP-17 / domain-map-b-movement-1 |
 
+## Merged later
+| Branch | sha | What |
+| --- | --- | --- |
+| claude/day-119 | d76fdbbc (asm 68214026, 21:50Z) | masks end before every advance (the boards); a Call's confirmation, refusals and card name a masked student "?"; words kept under a mask stay cut after it ends unless revealed; the veil's room pickers (seenHere: hand-over, Palm, Tail, Hope Call room target, Monocub). R7880, R7881, R7883 (R7882 removed). Assembly tier 1 before this merge: 1805 passed, 0 failed, 16 skipped (the coordinator's reading) |
+
 ## Pushed, merge pending the final report
 | Branch | sha | What |
 | --- | --- | --- |
