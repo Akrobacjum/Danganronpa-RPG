@@ -59296,7 +59296,7 @@ const INVARIANTS = [
         const scenes = [{ tokens: [{ flags: { [MODULE_ID]: { masked: true } }, actor: chie }, { flags: {}, actor: { name: "Aiko", testUserPermission: () => false } }] }];
         const hidden = ["P1", "P3", "GM"].map(id => K.namesHiddenFrom(id, { scenes, users }));
         const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText), "registerMasks") ?? "");
-        equal(stableJson({ cut, hidden, wired: /setNameMask\(\s*namesHiddenFrom\s*,\s*\{\s*stands:\s*anyMaskStands\s*\}\s*\)/.test(src) }), stableJson({
+        equal(stableJson({ cut, hidden, wired: /setNameMask\(\s*namesHiddenFrom\s*,\s*\{\s*stands:\s*anyMaskStands\s*(?:,\s*masked:\s*maskedNow\s*)?\}\s*\)/.test(src) }), stableJson({
             cut: ['<h3>Frisk - ?</h3><p data-tooltip="?">? frisks Aiko. Chie Moriarty stays.</p>', html],
             hidden: [["Chie Mori"], [], []], wired: true
         }), "{cut: the words for a reader the name is hidden from, and for one it is not; hidden: from p1, from Chie's own player, from a GM; wired: registerMasks hands the cut its names}");
