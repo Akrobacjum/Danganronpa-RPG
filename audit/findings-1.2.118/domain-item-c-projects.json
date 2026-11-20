@@ -1,0 +1,390 @@
+{
+ "reader": "domain-item-c-projects",
+ "checkout": "claude/audit-119 (scripts/ as on main b5a29e73, 1.2.118); audit/findings-1.2.118/base-run.json did not exist when this was written, so no test or scenario result is cited as read",
+ "files_read": [
+  {
+   "file": "scripts/projects.mjs",
+   "lines": 2976,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "lines": 1759,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/projects-map.mjs",
+   "lines": 1008,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/projects-tray.mjs",
+   "lines": 542,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/projects-secrecy.mjs",
+   "lines": 724,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/projects-seen.mjs",
+   "lines": 406,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "lines": 1378,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "7 files, 8793 lines",
+ "count_note": "7 files and 8793 lines read, as the scope lists them (wc -l: 2976 + 1759 + 1008 + 542 + 724 + 406 + 1378). Every literal DRPG.* key in the seven files was checked against lang/en.json and lang/pl.json by a script (265 keys, none missing in either), and the keys built from a prefix (DRPG.Project.preset.<6>, DRPG.Project.<preset>Summary <4>, DRPG.Trap.trigger.<10>, DRPG.Project.glyph.<20>, DRPG.Project.card<3 states>) likewise, none missing.",
+ "neighbours_followed": [
+  "scripts/utils.mjs (announce, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, playerOwns 640-770; privately's header 790-800)",
+  "scripts/secret.mjs (header 30-62: what a private card still tells; VEILED_FLAG 88-98; GM_META and splitFlags 225-266)",
+  "scripts/world-secrets.mjs (WORLD_SECRET_RULES.settings.projectMeta and its whileSecret list 67-75)",
+  "scripts/config.mjs (PROJECT_GLYPHS 3146-3173, TRAP_TRIGGERS and their `watch` / `needs`, workableProjectCount 1970-1977)",
+  "scripts/visibility.mjs (applyToProjectToken and paintProjectTint 670-699, roomChangeTokens 343-360)",
+  "scripts/traps.mjs (armed, armedIn, trapProjects 95-215)",
+  "scripts/bridge-runs-records.mjs (the progress run 40-46, handleRemnant 109-160, handleSabotage 362-402)",
+  "scripts/bridge-guards.mjs (projectWithinReach 714-725)",
+  "scripts/call-gm.mjs (callGm 846-1000: no GM, gmOnly, veiled, receipt, the thread)",
+  "scripts/messenger-app.mjs (the card buttons' claim 740-787, ruleApproveProject / ruleDeclineProject 1024-1064, runCallAction 1438-1442)",
+  "scripts/remnant-ring.mjs (the GM's trace card, note and subject 395-433) and scripts/remnants.mjs (narrowPlayerRemnant's note and subject cut, 900-901)",
+  "scripts/facilities.mjs (completedAt readers 163-243)",
+  "scripts/movement.mjs (allRooms 3830-3832, neighbouringRooms 3846-3848)",
+  "lang/en.json (DRPG.Action.noRoomNote 1024, DRPG.Project.agreedWarning / startNote 4488-4489, noneHere 4606, proposalPrompt 4623, DRPG.Remnant.sabotageNote / projectNote 3764-3768)",
+  "audit/findings-1.2.42/items.md (ITEM-03, ITEM-08, ITEM-14, hygiene 348-378), audit/findings-1.2.42/despair.md (DESP pickProject 205-213), audit/findings-1.2.118/old-1.2.42-items.json, controls-12-projects.json (to keep off its findings)",
+  "audit/harness/scenarios/66-rooms.mjs (E4, the proposer's card, 381-401)"
+ ],
+ "strengths": [
+  "One road for every change of a project: applyProjectChange queues it on the primary under COUNTDOWNS_KEY, reads before and after inside the step, and a non-primary GM's change and one whose browser stopped being the primary mid-queue are both asked of the primary (scripts/projects.mjs:1565-1589, 1658-1660).",
+  "What a completion does is one table read in the step (COMPLETION_EFFECTS, projects.mjs:1113-1433): every row answers before anything is written, an `apply` that throws is caught and told to the GMs, a removal can be kept for the completing character's Reroll (`keep`), and a refused stretch offers the target again (heldForRepick / offerRepick 1454-1472).",
+  "A secret project carries no name and no told-apart ownership in the Countdowns every browser holds (HIDDEN_NAME, ownershipMap: projects-secrecy.mjs:128, 370-382); its name, viewers, room, murder mark, description and room action are the GMs' (PROJECT_SECRET_FIELDS 111-113, PROJECT_SECRET_WHILE_SECRET 224), and setProjectMeta moves the while-secret fields across when the secrecy changes (282-307).",
+  "An insider's sight is a client-setting copy the primary sends addressed and the player asks for at every load, so a cleared chat log no longer takes a secret project, its words or its room action out of an insider's tray (projects.mjs:441-468, 495-608).",
+  "A description too long is refused on every road, never cut: createProject, updateProject and cleanProjectChange, the last reaching another GM's project.change and a console's applyProjectChange (projects.mjs:1496-1508, 2061-2064, 2594-2597).",
+  "The sabotage pair is taken back only as written: unsabotageRefusal is pure and ties the undo to the repair that froze the target and to the saboteur who asked (projects.mjs:2329-2337); a repair is made and its target frozen in one step, which refuses a gone, frozen or repair target (createInStep 1878-1886).",
+  "What only the roller saw of a Work or a Sabotage - tool relief, concealment bonus or penalty - is held to the rules by one pair of readers on the GM, against the tools as the GMs hold them (action-project.mjs:680-704).",
+  "A watched sabotage of a secret project or an indirect murder names no project to the room (sabotageWatchedLine, action-project.mjs:1256-1263); a failed concealment of an indirect murder is told to the room in a sentence that names no project (737-744).",
+  "What a player saw last is kept on that player's own browser, written only when one of their characters stands in the room; another player's move costs a bystander nothing (projects-seen.mjs:378-385), and a repair is known only from a visit that listed it (asSeen 172-176).",
+  "A Daggerheart countdown keeps its direction at the module's first write to it (projects-secrecy.mjs:275-281), and a GM's tray -/+ on a project row is one change of the entry (projects-ui.mjs:201-215).",
+  "Project tokens carry a neutral name, are found by their own flag, orphans are removed and duplicates only warned of, and the module's own moves and deletions are marked so a GM's drag or Delete is read as a choice (projects-map.mjs:79-100, 386-494, 656-722).",
+  "Every literal DRPG.* key the seven files use has an English and a Polish twin (265 checked by script, and the prefix families)."
+ ],
+ "findings": [
+  {
+   "id": "domain-item-c-projects-1",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A GM running a student's Work on Project or Sabotage acts as the GM's account: every secret project in the room is offered, and the Work is filed as the GM's own change, not that student's work",
+   "where": "scripts/action-project.mjs:66, 108, 474 and 1165 (the lists built with the default user); scripts/projects.mjs:938-941, 954-956, 968-990 (`user = game.user`); scripts/projects.mjs:1036-1037 (kind \"gm\" when the mover is this GM), 1067, 1592 (noteProjectWork only for player, call, reroll); scripts/bridge-runs-records.mjs:45 (a non-primary GM's progress filed \"gm\")",
+   "what_happens": "performProject, workOnProject and performSabotage build their lists with projectsAvailableIn(place), projectsListedIn(place) and sabotageTargetsIn(place, { anyRoom }), whose `user` defaults to game.user. On a GM's browser canSee answers true for every project, so a GM who plays an absent player's student - the flow sabotageTargets' own comment names as supported ('to play an absent player's character', action-project.mjs:1149-1158) - is offered every secret project standing in that room, another player's indirect murder among them, preselected when it is the first workable row (projectOptionsHtml 833-845). The progress then goes through addProgress with no `by` and no `kind`, which files it as kind \"gm\" (projects.mjs:1036-1037), and applyProjectChange notes a student's work this time of day only for player, call and reroll (1592): the Monocub's Tinker rule (E72 C13, DC23/DC24, 'only while a living student worked on it this time of day') does not count that student's Work. The bridge holds a player's request to the sender (bridge-guards.mjs:718-724) - this is only the GM's own road.",
+   "evidence": "action-project.mjs:66   const here = room ? projectsAvailableIn(place) : [];\naction-project.mjs:108  const breakable = sabotageTargetsIn(place, { anyRoom: isMonokuma(actor) });\nprojects.mjs:954  export function projectsAvailableIn(place, user = game.user) {\nprojects-secrecy.mjs:331      if (user?.isGM) return true;\nprojects.mjs:1036  const result = await applyProjectChange(countdownId, { delta: amount },\nprojects.mjs:1037      { by: { kind: kind ?? (mover === game.user.id ? \"gm\" : \"player\"), userId: mover, actorId } });\nprojects.mjs:1592  if (result?.changed && !result.removed && clean.delta > 0 && WORK_KINDS.has(who.kind) && who.actorId) {",
+   "failure_scenario": "A GM plays absent Bea's student in the Kitchen, opens Work on Project and presses Roll on the default row: progress lands on Aiko's secret poison trap, which Bea's student cannot know exists, and later a Monocub's Tinker is refused there because no student worked on it this time of day.",
+   "expected": "The lists of a student's action read the character's players (as the bridge reads the sender: projectsAvailableIn(place, owner)), and a GM's Work on a student's behalf counts as that student's work.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a narrowing to the character's owner on the GM's road: none in performProject, workOnProject, performSabotage, chooseProject or projectOptionsHtml; room-tile.mjs:146 says outright that 'a GM sees the secret ones' for its own count, which is the GM's view, not a student's. The bridge's projectWithinReach (bridge-guards.mjs:718-724) passes `sender`, but a GM's own client never goes through it (addProgress writes directly on a GM, projects.mjs:1007, 1036). No test of a GM-run student's Work list was found (grep of the tier files for projectsAvailableIn with a GM reader)."
+  },
+  {
+   "id": "domain-item-c-projects-2",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A new target on a countdown that counts down (one made in Daggerheart's own window) keeps what was left, not what was done: raising it adds progress, lowering it takes progress away",
+   "where": "scripts/projects.mjs:1773-1774 (the clamp in changeStep), 2609-2611 (projectEditChange's note), 807 (allProjects reads progress as start - current); reached from the project window's Save (projects-ui.mjs:1229-1255) and the manager, which list every countdown",
+   "what_happens": "For a countdown with countsUp false, allProjects reads progress done as `start - raw`. A change of target writes `{ start: target, current: Math.min(raw, target) }` for both directions, so `raw` - what is left - is kept and progress done becomes `target - raw`. A Daggerheart countdown of 8 with 6 done (raw 2) raised to 10 reads 8 done; lowered to 4 it reads 2 done (min(2, 4) = 2 left), not finished. A module project (countsUp true) is right, `current` being progress earned. The comment says the clamp is right for both directions because what is left 'cannot exceed the start either' - true, but the progress achieved is not preserved, which is what the window's 'Scale' change means.",
+   "evidence": "projects.mjs:807   const current = up ? raw : Math.max(0, start - raw);\nprojects.mjs:1773  // One clamp for both directions (updateProject's A15): `current` is progress earned or what is left, and neither exceeds the start.\nprojects.mjs:1774  if (change.target !== undefined) next.progress = { ...next.progress, start: change.target, current: Math.min(raw, change.target) };",
+   "failure_scenario": "A GM opens a countdown an adversary feature made, 6 of 8 done, and changes its Scale to Desperate (8 -> 10) in the module's window: the tray now reads 8 of 10, two points nobody earned.",
+   "expected": "For a countdown that counts down, keep progress done: current = clamp(newTarget - (oldStart - raw), 0, newTarget).",
+   "confidence": "read",
+   "refutation_tried": "Checked that such a countdown reaches the step with up = false: changeStep reads countsUp before its own meta write (projects.mjs:1669, 1814) and setProjectMeta stamps countsUp false on the first write of a countdown with no row (projects-secrecy.mjs:281), so `up` is false throughout. Checked the edit window offers the target for it: openProjectManager lists allProjects, every countdown (projects-ui.mjs:689), and Edit opens openProjectDialog with the scale select (957-1114). No tier test of a target change on a down-counting countdown was found (grep of 'what is LEFT', 'Math.min(raw' in the tier files). AUDIT-1.2.13 A15 (line 563) was the identical ternary, made one line, not this arithmetic."
+  },
+  {
+   "id": "domain-item-c-projects-3",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A proposer knows their public project only from a chat card: a cleared chat log takes it off their tray and map for good, the road E101 R2 and Open 103 took the sight and the description off",
+   "where": "scripts/projects.mjs:338-342 (proposedBy on a player's browser), 641-651 (projectsToldHere reads game.messages), 661-669 (tellProposer), 677-689 and 2143 (proposerTold set, so no second card); scripts/projects.mjs:322-327 and projects-seen.mjs:159-176 (the PV rule reads the same road)",
+   "what_happens": "On the proposer's browser knowsProject and knowsWithoutRoom answer the proposer road from the GMs' private card alone: projectsToldHere walks game.messages for a GM's secret card whose meta names the project. Clear Chat Log (or the card deleted) removes it; the GMs' row carries proposerTold, so tellProposers at the next load posts nothing again. The proposer is then known only by the room rule. The case the road was written for (H84-04: a proposer the GM placed in a room, or whose room the approval changed, who never stood there) loses the project from tray, token and asSeen. The comment at 335-336 says a card's words reach a browser that was away when a GM gives them again (secret.mjs askForWords) - that is for a card that still exists, not one deleted.",
+   "evidence": "projects.mjs:341      return user === game.user && projectsToldHere().has(countdownId);\nprojects.mjs:644      for (const message of game.messages ?? []) {\nprojects.mjs:645          if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;\nprojects.mjs:683          if (!row?.by || row.proposerTold || isComplete(project) || isSecret(project.id) || !roomOf(project.id)) continue;\nprojects.mjs:2143            ...(!hidden && by && room ? { proposerTold: true } : {})",
+   "failure_scenario": "Bea proposes a barricade, the GM approves it for the Library, which Bea's student has never entered; at the next session's start the GM clears the chat log, and Bea's tray and map no longer show the project she proposed.",
+   "expected": "The proposer's knowledge rides the same addressed copy as an insider's sight (projectSightCopy), or tellProposers resends when the card is gone.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another reader of the proposer on a player's browser: proposedBy is the only one, and sealedViewers is written only by a reveal (projects-secrecy.mjs:538). Looked for a resend: tellProposers skips every row with proposerTold (683); retellSights resends sights only (540-545). Scenario 66 E4 reads the card on p1 (66-rooms.mjs:381-401) but clears no chat; scenario 72's cleared-log phase is about sights and descriptions. Whether Foundry's Clear Chat Log fires deleteChatMessage per message (it only matters for the cache, which is read again either way) was not measured."
+  },
+  {
+   "id": "domain-item-c-projects-4",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "leak",
+   "title": "The project proposal's Room list names every room of the scene, rooms the player has never entered among them, in the window that names the rooms beyond a wall as Listen names them",
+   "where": "scripts/action-project.mjs:192-203 (rooms = allRooms(scene), the Room select), 205-218 (the same window's 'Unexplored room n' care); scripts/movement.mjs:3830-3832 (allRooms = roomNames)",
+   "what_happens": "startProject fills its Room select with allRooms(locateActor(actor)?.scene), every room name of the scene. Twenty lines below, the Secret Passage offer is drawn through listenLabels so that 'the page names no room the fog hides' (205-212), and the module names unexplored rooms 'Unexplored room n' wherever a player reads them (action-listen.mjs:35, doors-gm.mjs:187, passages-gm.mjs:576). The proposal's own select gives a player the real name of every room on the map before they set foot in it. The names are in the region documents every browser holds, so a console reads them anyway; this is the interface handing them over.",
+   "evidence": "action-project.mjs:194  const rooms = allRooms(locateActor(actor)?.scene);\naction-project.mjs:202      ...rooms.map(r => `<option value=\"${foundry.utils.escapeHTML(r)}\"${r === room ? \" selected\" : \"\"}>${foundry.utils.escapeHTML(r)}</option>`)\naction-project.mjs:209   * this player has not been in is \"Unexplored room n\" (`listenLabels`) - and the options carry an index, so the\naction-project.mjs:210   * page names no room the fog hides.",
+   "failure_scenario": "On the first morning a player opens Work on Project, Propose, and reads in the Room list 'Morgue', 'Hidden Lab' and every other room of the school that the fog still hides.",
+   "expected": "The list offers the rooms this player knows (roomsKnownToMe), or names the others as Listen does and sends an index, as the preset rows do.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a filter on the list: allRooms is roomNames(scene) with none (movement.mjs:3830-3832), and startProject applies none. Looked for a decision that room names are public in this window: the comment at 193 says only that the rooms are the character's scene's (E12 C2a). The GM's approval reads the room the card names, so a known-rooms list loses nothing the GM needs. Not in the old findings (grep of findings-1.2.42 and the 1.2.118 files)."
+  },
+  {
+   "id": "domain-item-c-projects-5",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "Show on the map pressed by a GM who is not the primary writes projectMeta whole and places the token on that GM's browser, outside the primary's queue",
+   "where": "scripts/projects-map.mjs:746-753 (showProjectOnMap), 68-70 (writeTokenRecord: a step of COUNTDOWNS_KEY on this browser), 592-599 (syncProjectToken: isGM only, its own per-project queue on this browser); scripts/projects-ui.mjs:598-605 (the manager's button, any GM); projects-secrecy.mjs:308-314 (setProjectMeta writes the setting whole)",
+   "what_happens": "Every other road to a project's token runs on the primary: a change's sync after its step (projects.mjs:1611-1617), the scene draw's syncProjectTokens (projects-map.mjs:789), the drag and the deletion hooks (657, 710). showProjectOnMap asks only game.user.isGM: on a second GM it writes { mapHidden: false } through setProjectMeta, which reads projectMeta and writes it whole, in a queue only that browser orders, then runs syncProjectToken there, which places the token and writes tokenId and tokenScene the same way. The E36 fix e1-G5 note above writeTokenRecord records the loss this queue was made to stop (E36-T10: a step's projectMeta write and a token record putting back each other's copy) - ordered on one browser, it does not order a write against the primary's steps, and syncProjectToken's per-project queue does not order it against a primary sync of the same project.",
+   "evidence": "projects-map.mjs:747  export async function showProjectOnMap(countdownId) {\nprojects-map.mjs:748      if (!game.user.isGM || !rawCountdown(countdownId)) return null;\nprojects-map.mjs:749      await writeTokenRecord(countdownId, { mapHidden: false });\nprojects-map.mjs:751      await syncProjectToken(countdownId);\nprojects-map.mjs:69      return serialWrite(COUNTDOWNS_KEY, () => setProjectMeta(countdownId, patch));\nprojects-map.mjs:593      if (!game.user.isGM || !countdownId || !game.ready) return 0;",
+   "failure_scenario": "A second GM presses Show on the map while the primary's step writes a room change of another project: one of the two projectMeta writes lands over the other, and the other project's room, or this one's token record, is lost.",
+   "expected": "Show on the map is one change of the entry on the primary (a meta change of mapHidden, whose sync then runs on the primary), as createProject's placing was moved there in E36 C4.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a primary gate in showProjectOnMap, syncProjectToken and placeProjectToken: none (isGM only). Looked for the button being drawn on the primary alone: projectManagerRows draws it for any GM with mapHidden (projects-ui.mjs:395), and openProjectManager is any GM's (684-687). The overlap itself was not measured; the road is read, and the E36-T10 class it reopens is recorded at projects-map.mjs:57-67."
+  },
+  {
+   "id": "domain-item-c-projects-6",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "leak",
+   "title": "A secret project with a room action stamps `completedAt` in the public projectMeta at its completion, which tells any console that it has one",
+   "where": "scripts/projects.mjs:1428-1431 (the facility row's meta), 1814-1817 (written through setProjectMeta); scripts/projects-secrecy.mjs:224 and scripts/world-secrets.mjs:69-74 (neither list holds completedAt)",
+   "what_happens": "The facility row runs for a project whose row, both halves, has `facility` - for a secret project the GMs' half since E93 C1 - and its crossing writes { completedAt } through setProjectMeta, which sends every field not in PROJECT_SECRET_FIELDS or PROJECT_SECRET_WHILE_SECRET to projectMeta. The room action itself is the GMs' while the project is secret ('as much the project's secret as its description', projects-secrecy.mjs:205-208); that it exists, and the time of day the project finished, is then in a world setting every browser holds. That the bar is full was already in the Countdowns.",
+   "evidence": "projects.mjs:1429  has: meta => Boolean(meta.facility),\nprojects.mjs:1430  onCrossed: ({ id }) => ({ meta: { [id]: { completedAt: facilityOrdinal() } } }),\nprojects-secrecy.mjs:224  export const PROJECT_SECRET_WHILE_SECRET = Object.freeze([\"description\", \"facility\", \"indirectMurder\", \"room\", \"roomScene\", \"roomSceneByGm\"]);",
+   "failure_scenario": "A bystander's console reads game.settings.get('danganronpa-rpg', 'projectMeta') and sees a secret countdown with completedAt set: a finished secret project that gives a room action somewhere.",
+   "expected": "completedAt goes to the GMs' half while the project is secret, and rides the insiders' sight with the action (facilityLive reads it), or the leak is written down where the others accepted are.",
+   "confidence": "read",
+   "refutation_tried": "Checked both lists and the world-secrets rule: completedAt is in none. Checked the readers: facilities.mjs:163-243 read it off metaFor, so an insider's browser needs it - the reason it may have been left public, but no note says so. Severity nit: the countdown already shows the bar full to every console (S09-05)."
+  },
+  {
+   "id": "domain-item-c-projects-7",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "text",
+   "title": "The GM's project card lists as 'Known by' a player whose map and tray do not show the project since the as-last-seen rule",
+   "where": "scripts/projects-map.mjs:927-934 (knownBy by knowsProject alone, and its comment); scripts/visibility.mjs:675 (the token also asks tokenShownAsSeen); scripts/projects-tray.mjs:211 (the row asks asSeen)",
+   "what_happens": "Known by lists every player for whom knowsProject answers true, and its comment says it is 'the same predicate that draws the token for each of them - so this list and what each player's map shows cannot disagree'. Since PV (13.11.2026) a player's token and tray row also ask projects-seen.mjs asSeen: a public project made in a room after that player's last visit is off their map and tray until they walk in again, while knowsProject, by the discovery record, still says they know it. The GM's browser cannot read a player's seen section (a client setting on that player's browser), so the card cannot ask it either.",
+   "evidence": "projects-map.mjs:927  // The same predicate that draws the token for each of them - so this list and\nprojects-map.mjs:928  // what each player's map shows cannot disagree, but for the Mastermind's player, whose own\nprojects-map.mjs:931  const knownBy = game.users.filter(u => !u.isGM && knowsProject(project.id, u))\nvisibility.mjs:675    if (knowsProject(projectId) && tokenShownAsSeen(projectId)) {",
+   "failure_scenario": "A GM builds a trap's bait project in the Gym after Bea's student left it, reads 'Known by: Bea' on its card and plays as if Bea had seen it; Bea's map shows nothing there.",
+   "expected": "The row says what it reads ('has stood in its room'), or the comment says the two can now differ.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether asSeen could answer on a GM for another user: seenSection reads this browser's client setting (projects-seen.mjs:53-61) and seesLive is true for a GM, so no. Checked the comment's date: written at E17 fix p2-G3 (26.10.2026), before PV."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A project token's picture is its glyph, secret projects included, so a console reads a secret project's kind off the token's texture (and off projectMeta's glyph).",
+   "source": "scripts/projects-map.mjs:247-258 (the owner's choice B, 13.11.2026; docs/dev/project-token-icon/STATUS.md)"
+  },
+  {
+   "what": "A secret project's existence, progress and finish are in the Countdowns every browser holds; it is hidden from the interface, not from a console.",
+   "source": "scripts/projects.mjs:254-259 (audit S09-05); scripts/projects-map.mjs:24-31"
+  },
+  {
+   "what": "A revealed project keeps in public projectMeta the user ids of who knew it while it was sealed (sealedViewers).",
+   "source": "scripts/projects.mjs:295-297 ('public since E05, the exposure S09-05 accepts'); projects-secrecy.mjs:527-539"
+  },
+  {
+   "what": "A Spectator sees every project, secret ones too - name, progress, room, murder mark and description - and is in on none.",
+   "source": "scripts/projects.mjs:404-411 and 476-479 (DRPG-D1 of 12.11.2026; Q-E92-6; Q-PM-1; A113-C5-3); projects-secrecy.mjs:333-334"
+  },
+  {
+   "what": "A player who stopped being a Spectator is taken off every secret project they do not build, shares made before included; the GM shares them again.",
+   "source": "scripts/projects.mjs:2879-2888"
+  },
+  {
+   "what": "A viewer list that is every player of a table of two or more is replaced by the builder's owners on a seal.",
+   "source": "scripts/projects-secrecy.mjs:575-588 (F4 review, 17.09)"
+  },
+  {
+   "what": "A failed concealment of an indirect murder is told to the room; a failed sabotage concealment cannot be walked away from.",
+   "source": "scripts/action-project.mjs:727-744 (E16 part 2 C4, the owner's Q5 of 19.10); 1207-1217 (Dawid 18.09, R40)"
+  },
+  {
+   "what": "A finished project's card goes to its proposer's players and the GMs, not to whoever filled the bar; an indirect murder's and a repair's finish say nothing on this card.",
+   "source": "scripts/projects.mjs:2381-2438 (E10)"
+  },
+  {
+   "what": "A description is required in the GM's edit window too, so an older project, a repair or a Daggerheart countdown edited there must be given words.",
+   "source": "scripts/projects-ui.mjs:1204-1210; scripts/projects.mjs:2041-2045 (E44 C9, the owner's Q-C9-3)"
+  },
+  {
+   "what": "No Work on Project from outside every room, a roomless project included: the window, the tile's count and the bridge's guard all ask for a room first.",
+   "source": "scripts/action-project.mjs:66 and 125-126; scripts/config.mjs:1975; scripts/bridge-guards.mjs:723 (consistent, no paper found naming it; recorded here so the next reader does not take it for a slip)"
+  },
+  {
+   "what": "The project token is not hidden: who sees it is decided per browser by knowsProject and asSeen.",
+   "source": "scripts/projects-map.mjs:337-340; scripts/visibility.mjs:670-680"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/projects-secrecy.mjs:347-349",
+   "comment_says": "'Secrecy is enforced through the countdown's own `ownership` map - default NONE, with explicit access for the killer and anyone they (or the GM) later choose to let in.'",
+   "code_does": "Since S17-31 ownershipMap gives every player OBSERVER (370-382); who is in on a project is the GMs' `viewers` and the player's sight copy, and the tray takes the row out (projects-tray.mjs:192-216)."
+  },
+  {
+   "where": "scripts/projects.mjs:254-258",
+   "comment_says": "Daggerheart's Countdowns 'with the name, the progress and the ownership map' is a world setting every browser holds.",
+   "code_does": "A secret countdown carries HIDDEN_NAME and one level for every player (changeStep 1760-1771; createInStep 1890-1896); the name and the list are the GMs'."
+  },
+  {
+   "where": "scripts/projects-map.mjs:985-989",
+   "comment_says": "'A share, a revoke, a seal and a reveal change the countdown's ownership, which `knowsProject` reads', so the Countdowns' updateSetting is what re-runs the visibility pass.",
+   "code_does": "A share or a revoke writes no countdown since S17-31 (projects.mjs:1966-1967 says so); the pass for it comes from drpgProjectSightChanged through sync.mjs (projects.mjs:1971-1973)."
+  },
+  {
+   "where": "scripts/projects-map.mjs:927-930",
+   "comment_says": "Known by uses 'the same predicate that draws the token for each of them - so this list and what each player's map shows cannot disagree'.",
+   "code_does": "The token also asks tokenShownAsSeen (visibility.mjs:675) since PV; see finding 7."
+  },
+  {
+   "where": "scripts/projects-ui.mjs:1017-1027",
+   "comment_says": "'THE NINE TRIGGERS' and 'putting it beside the eight the module watches'.",
+   "code_does": "TRAP_TRIGGERS has ten rows, nine with a `watch` (alone, enters, search, rest, item, project, sabotage, stash, passage) and manual."
+  },
+  {
+   "where": "scripts/projects.mjs:2525-2530",
+   "comment_says": "'Seven of the eight watch a place; this one watches an OBJECT'.",
+   "code_does": "Nine triggers watch; besides the item, project and sabotage watch another project, stash a stash and passage a passage (config.mjs TRAP_TRIGGERS)."
+  },
+  {
+   "where": "scripts/projects-ui.mjs:609-611",
+   "comment_says": "applyProjectManager writes every row back: 'image, room, the murder flag and secrecy'.",
+   "code_does": "No picture is read or written by the manager since E49 FT batch 3 (its own note at 525-534); the loop writes room, murder flag and secrecy (618-667)."
+  },
+  {
+   "where": "scripts/projects-secrecy.mjs:72",
+   "comment_says": "projectMeta rows are '{ room, indirectMurder, scale, glyph }'.",
+   "code_does": "No `scale` is written (a project's size is the countdown's progress.start); a secret project's room and mark are in the GMs' half, as the same line goes on to say."
+  },
+  {
+   "where": "scripts/projects-tray.mjs:1033-1036 header (lines 24-31)",
+   "comment_says": "Five names exported for the hook, a sixth (showTrayToPlayer), two more (labelTrayControls, markTrayMore) and one more (addTrayTitle), beside refreshProjects and hideUndiscovered.",
+   "code_does": "Fourteen names are exported: keepNarrativeShown, nameSecretRows and paintSeen are not in the account."
+  },
+  {
+   "where": "scripts/projects-tray.mjs:343-348",
+   "comment_says": "paintSeen is 'Exported for the suite (R5644)'.",
+   "code_does": "R5644 (tests-tier1.mjs:40835) reaches it through paintProgress; no test or file imports paintSeen by name (git grep)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [
+   "openProjectDialog, scripts/projects-ui.mjs:957-1333 (377 lines; the module's rule keeps only registerSettings and steps() over 300)"
+  ],
+  "functions_150_to_300": 5,
+  "functions_150_to_300_list": [
+   "changeStep projects.mjs:1658 (200)",
+   "createProject projects.mjs:2008 (153)",
+   "startProject action-project.mjs:188 (277)",
+   "workOnProject action-project.mjs:466 (162)",
+   "performSabotage action-project.mjs:974 (172)"
+  ],
+  "data_tables_over_300": [
+   "COMPLETION_EFFECTS, scripts/projects.mjs:1113-1433 (321 lines, eight rows of closures)"
+  ],
+  "duplicated_helpers": [
+   "`const esc = foundry.utils.escapeHTML` declared again inside four functions of projects-ui.mjs (354, 378, 820, 1055) while `esc` is imported from utils.mjs at 30 - the 1.2.42 items hygiene line (findings-1.2.42/items.md:361) standing in this file.",
+   "The scale options built twice: action-project.mjs:196-199 (the proposal) and projects-ui.mjs:985-990 (the GM's window); the room options twice: action-project.mjs:200-203 and roomSelectOptions (projects-ui.mjs:353-363).",
+   "The time-of-day slot compared twice by the same four keys: noteProjectWork and workersNow (projects.mjs:1079, 1088).",
+   "projects-seen.mjs builds the pass cache by the same line in tokenShownAsSeen and tintAsSeen (207, 227).",
+   "Each render of a player's tray reads seesLive, seenSection and standingNow twice (hideUndiscovered 203-205, paintProgress 309-311) and allProjects three times (198, 229, 307).",
+   "The default countdown picture 'icons/magic/time/hourglass-yellow-green.webp' typed four times: projects.mjs:1895, 2010, 2110 and projects-ui.mjs:539 (DEFAULT_PROJECT_IMG, which projects.mjs does not read)."
+  ],
+  "dead_code": [
+   "setProjectImage, scripts/projects.mjs:2569 - `git grep -w setProjectImage -- scripts` finds its definition and tier 2 alone (tests-tier2.mjs:81340); the manager stopped writing a picture in E49 FT batch 3 and api.mjs does not export it.",
+   "paintSeen's export (projects-tray.mjs:349): read inside the file only; its note says the suite reads it, the suite reads it through paintProgress."
+  ],
+  "magic_numbers": [
+   "sabotageProject's default difficulty 3 (projects.mjs:2219) beside ACTIONS.sabotage.simpleRepair and PROJECT_SCALE.trivial, which the callers pass.",
+   "offsetFor's 0.75 of a square and rows of 3 (projects-map.mjs:231-232); the grid fallback 100 twice (195, 227).",
+   "The project card's width 480 (projects-map.mjs:883), the trace card's number again.",
+   "The tray's 'more below' threshold Math.max(1, row / 2) (projects-tray.mjs:425)."
+  ],
+  "stale_counts": [
+   ".claude/rules/code.md's row for projects.mjs says '49 names of its own, 16 re-exported': the file has 63 export statements of its own and re-exports 17 (projects.mjs:56-60, whose header says seventeen).",
+   "The same table says projects-ui.mjs has '8 names of its own' (19 now) and action-project.mjs '11 names exported' (12 now)."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "None new here beyond controls-12-projects.json's findings (the tray menu's Delete with no question, Share and Revoke silent on a refusal, Show on the map's silent removal)."
+  ],
+  "stale_windows": [
+   "The Share window (projects-ui.mjs:1703-1759): its project and player lists are read once at open; a project made secret, revealed or deleted while it stands is not redrawn.",
+   "The GM's project window: 'Which project' for a trap's trigger is allProjects at open (projects-ui.mjs:1044-1047); a project made or deleted meanwhile is not offered or still offered.",
+   "The proposal window (action-project.mjs:188-326): the preset rows (walls, known passages, breaches, broken items, broken locks) are read once at open from where the character stood then."
+  ],
+  "for_the_comm_lane": [
+   "ruleApproveProject (messenger-app.mjs:1024-1052) takes the proposer from the card's button data (`data.by`), which the proposer's browser wrote (action-project.mjs:432-445); whether anything holds `by` to the card's writer or thread owner was not traced here. If not, a console write of a proposal naming another student makes that student the builder - and, for an indirect murder, the killer (killerIdFor, projects-ui.mjs:1576-1584)."
+  ],
+  "for_the_perf_pass": [
+   "allProjects reads metaFor eight or more times per project and descriptionOf the sight copy once per secret project (projects.mjs:796-847); knowsProject on a player's browser walks every place scene and every character for each row (hasStoodIn 711-737); a player's tray render runs it per row twice."
+  ]
+ },
+ "not_established": [
+  {
+   "item": "Whether `data.by` on a project proposal's Approve button is held to the card's writer anywhere (see hints_for_other_passes.for_the_comm_lane).",
+   "live_check": "new live check: a probe that posts a proposal card from p1 naming p2's actor in `by`, approves it on the GM and reads secretsOf(id).by and builderIds(id)",
+   "l1": {
+    "what": "who a proposal's approval records as its builder when the card names another student",
+    "recipe": [
+     "1. As player A, run startProject's card post from the console with data.by set to player B's actor id",
+     "2. As GM, press Approve and Create",
+     "3. Read game.drpg project secrets: by, killerId, and who got the 'you proposed' card"
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "by is A's actor or the approval refuses: no defect; by is B's actor: a defect for the comm lane",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 5's overlap - a second GM's Show on the map landing over a primary step's projectMeta write - was read, not measured.",
+   "live_check": "new live check: two GMs, the second presses Show on the map while the primary's tray +1 runs on another project; read both projects' rows after",
+   "l1": {
+    "what": "whether a second GM's Show on the map loses another project's projectMeta change or makes a second token",
+    "recipe": [
+     "1. Two GM clients, the second not the primary; a project with mapHidden true and another with a room",
+     "2. On the primary change the other project's room in the manager and Save while, at once, the second GM presses Show on the map",
+     "3. Read projectMeta for both projects and count the first project's tokens"
+    ],
+    "clients": "two GMs",
+    "theme": "default",
+    "settles_if": "both changes stand and one token: the overlap did not happen this time (repeat); a change lost or two tokens: finding 5 measured",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 3 at a table: whether Clear Chat Log removes the proposer's card on a player's browser and the project leaves the tray.",
+   "live_check": "new live check",
+   "l1": {
+    "what": "a proposer's public project after the chat log is cleared",
+    "recipe": [
+     "1. Player proposes a public project; GM approves it for a room the player's character has never entered",
+     "2. Read the player's tray: the row is there",
+     "3. GM clears the chat log; player reloads",
+     "4. Read the player's tray and map"
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "row still there: the finding falls; row gone: finding 3 measured",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Whether Daggerheart's tray draws a secret project's '???' row, with its progress, on a player's screen for a frame before the module's render hook removes it.",
+   "live_check": "new live check: record the tray on a player's browser while a GM changes a secret project's progress (LIVE-E36-02 reads the tray's controls, not this)"
+  },
+  {
+   "item": "Whether game.settings.get of projectMeta returns a copy per call on Foundry 14 (each metaFor in allProjects would then clone the whole setting).",
+   "live_check": "new live check: on a table, time 1000 calls of game.drpg.allProjects() with ten projects, or read Foundry 14's ClientSettings#get"
+  },
+  {
+   "item": "Finding 2 was read, not run.",
+   "live_check": "new live check, or a harness probe: make a countdown with no projectMeta row at 8 with current 2, Save it at target 10 in the module's window, read allProjects()'s current"
+  }
+ ]
+}
