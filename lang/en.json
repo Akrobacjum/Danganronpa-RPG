@@ -7337,6 +7337,7 @@
       "editLabel": "Fields of {name}",
       "toolsLabel": "Map tools",
       "cameraLabel": "Camera",
+      "legendLabel": "Colors on the Map",
       "zoomOut": "Zoom out",
       "zoomIn": "Zoom in",
       "zoomLevel": "Zoom",

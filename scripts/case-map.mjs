@@ -22,7 +22,7 @@
 import { esc } from "./utils.mjs";
 import { tipAttr } from "./ui-kit.mjs";
 import { REMNANT_TYPES, TRUTH_BULLET_TYPES } from "./config.mjs";
-import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER } from "./case-view.mjs";
+import { MAP_GEOMETRY, mapPlace, routeEdges, relayoutCaseMap, wireCaseCamera, lightEdges, CAMERA_LIMITS, TILE_GUTTER } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
    places the drawn nodes at their measured size and moves the camera; read here, and by E99, under these names. */
@@ -87,6 +87,93 @@ const STATE_GLYPHS = { held: "held", onMap: "on-map", planned: "planned", sent: 
  */
 export const glyphHtml = name => `<span class="drpg-case-glyph" data-drpg-glyph="${name}" aria-hidden="true"></span>`;
 
+/**
+ * A REMNANT'S TYPE BY ITS COLOUR (1.2.119, the owner: "Kodowanie kolorystyczne typów remnantów"). The eight types of
+ * config.mjs REMNANT_TYPES in the order the legend names them; each has a colour and an ink in both themes
+ * (components.css `--drpg-case-type-<type>`, `--drpg-case-type-ink`; tools/contrast-pairs.json `case-type-*` holds each
+ * pair at AA). The colour is never the only cue: the node's first line still names its type in words.
+ */
+export const CASE_TYPE_ORDER = Object.freeze(["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"]);
+
+/**
+ * An evidence node's type for its colour: a Key slot, and a Remnant placed in one, Key; a planned Incident Remnant its
+ * planned type, Incident where none is written (as `kindLabel` reads it); a planned Truth Bullet its real type; an
+ * Autopsy and a Final Truth their own; a placed Remnant its type. Null for a schema node and a type the list lacks. Pure.
+ */
+export function caseTypeOf(node) {
+    if (!node?.evidence) return null;
+    const t = node.kind === "key" ? "key" : node.kind === "autopsy" ? "autopsy" : node.kind === "final" ? "final"
+        : node.kind === "incident" && node.planned ? (node.type ?? "incident") : node.kind === "bullet" ? (node.realType ?? node.type) : node.type;
+    return CASE_TYPE_ORDER.includes(t) ? t : null;
+}
+
+/** The schema's kinds that carry a colour (round 2), in the legend's order after the types. */
+export const CASE_KIND_ORDER = Object.freeze(["deduction", "counter", "solution"]);
+
+/**
+ * THE TRIAL MODES A DEDUCTION MAY CARRY, EACH A COLOUR (1.2.119 round 4; the owner: "dedukcje niech maja tez rozne kolory i
+ * kolory strzalek zaleznie od tego, jaki class trial mode maja przypisany"): case-schema.mjs `caseModes()` as it lists them
+ * (floor-machine.mjs `MODES` less Objection and Rebuttal, which a player starts), spelled here so this file imports no
+ * trial code; R7831 holds the two lists equal. A deduction with a mode takes the mode's colour - its band, its kind's chip
+ * and its lines - and keeps its kind's class after it; one with none keeps the Deduction's; a counter and the solution
+ * keep their own whatever mode they carry. `data-drpg-trial-mode`, not `data-drpg-mode`: the kit's mode bars and the
+ * trial console's start button answer to that one.
+ */
+export const CASE_MODE_ORDER = Object.freeze(["debate", "testimony", "panic", "closing", "straw", "dive", "scrum"]);
+
+/** A node's type, kind or mode classes and attributes, or nothing: an evidence node by `caseTypeOf`, a schema node by its
+ *  kind, a deduction with a trial mode by the mode first (its colour wins; `colourOf` reads the first class). */
+function typeAttrs(t, node = null) {
+    if (t) return { cls: [`drpg-case-type--${t}`], attr: ` data-drpg-type="${t}"` };
+    const k = !node?.evidence && CASE_KIND_ORDER.includes(node?.kind) ? node.kind : null;
+    if (!k) return { cls: [], attr: "" };
+    const m = k === "deduction" && CASE_MODE_ORDER.includes(node?.mode) ? node.mode : null;
+    return m ? { cls: [`drpg-case-mode--${m}`, `drpg-case-kind--${k}`], attr: ` data-drpg-kind="${k}" data-drpg-trial-mode="${m}"` }
+        : { cls: [`drpg-case-kind--${k}`], attr: ` data-drpg-kind="${k}"` };
+}
+
+/**
+ * THE LEGEND (1.2.119): each type the drawn case holds, once, in CASE_TYPE_ORDER, its colour's swatch beside the type's
+ * own name (REMNANT_TYPES' label, the words the nodes use). Drawn at the left of the camera's strip under the graph, which
+ * stands there anyway; since round 2 the schema's kinds after the types (`CASE_KIND_ORDER`). Measured in Chromium (audit/case-map-sweep.mjs, a case holding all eight types, 20.11.2026): under
+ * the glass the graph's viewport keeps its height (972x295 at 1366x768, 972x599 at 1920x1080); under Legacy, whose pixel
+ * font is wider, the legend wraps to three lines and the viewport loses 29 px (319 -> 290, 623 -> 594); the owner kept it
+ * visible (20.11.2026). Nothing for a case with neither typed evidence nor a schema node.
+ */
+export function caseLegendHtml(graph) {
+    const held = new Set((graph?.nodes ?? []).map(caseTypeOf).filter(Boolean));
+    const types = CASE_TYPE_ORDER.filter(t => held.has(t));
+    // the schema's kinds after the types (round 2), named by the words their chips carry
+    const kinds = CASE_KIND_ORDER.filter(k => (graph?.nodes ?? []).some(n => !n.evidence && n.kind === k));
+    // the trial modes the Map's deductions carry, after the kinds (round 4), by the floor's own words
+    const modes = CASE_MODE_ORDER.filter(m => (graph?.nodes ?? []).some(n => !n.evidence && n.kind === "deduction" && n.mode === m));
+    if (!types.length && !kinds.length) return "";
+    const swatch = `<span class="drpg-case-legend-swatch" aria-hidden="true"></span>`;
+    return `<ul class="drpg-case-legend" aria-label="${esc(L("DRPG.CaseMap.legendLabel"))}">`
+        + types.map(t => `<li class="drpg-case-legend-item drpg-case-type--${t}" data-drpg-type="${t}">${swatch}${esc(REMNANT_TYPES[t]?.label ?? t)}</li>`).join("")
+        + kinds.map(k => `<li class="drpg-case-legend-item drpg-case-kind--${k}" data-drpg-kind="${k}">${swatch}${esc(L(`DRPG.CaseMap.kind.${k}`))}</li>`).join("")
+        + modes.map(m => `<li class="drpg-case-legend-item drpg-case-mode--${m}" data-drpg-trial-mode="${m}">${swatch}${esc(modeLabel(m))}</li>`).join("")
+        + `</ul>`;
+}
+
+/* THE ARROWHEADS (1.2.119, "Czytelność strzałek"): in this canvas's own SVG and named for it alone, since the Map and the
+   Class Trial console can stand in one page. Drawn in user space (the head the same size whatever the line's width) with
+   its tip as its reference point, so the head ends where the path ends, on the target's left edge (case-view.mjs
+   `edgeEnd`), not under the node. 8 px tall since round 3: a target's ports stand `ROUTE.port` (10 px) apart. ONE PAIR
+   PER COLOUR (round 3, the owner: "Niech maja kolory pasujace do typu bulleta"): a line takes its source's colour, so
+   each source type or kind drawn has a head and a lit head carrying its class (`drpg-case-type--*`, `drpg-case-kind--*`),
+   whose fill is `--drpg-case-type` (components.css); "plain" for a source with neither. */
+let arrowSets = 0;
+function arrowDefs(colours) {
+    const base = `drpg-case-arrow-${++arrowSets}`;
+    const keys = [...new Set(colours.map(c => c ?? "plain"))];
+    const ids = Object.fromEntries(keys.map(k => [k, `${base}-${String(k).replace(/[^\w-]/g, "")}`]));
+    const marker = (id, cls) => `<marker id="${id}" class="drpg-case-arrow ${cls}" viewBox="0 0 10 8" refX="10" refY="4" markerUnits="userSpaceOnUse"`
+        + ` markerWidth="10" markerHeight="8" orient="auto"><path d="M0 0 L10 4 L0 8 z"/></marker>`;
+    const defs = `<defs>${keys.map(k => marker(ids[k], k === "plain" ? "" : esc(k)) + marker(`${ids[k]}-lit`, `drpg-case-arrow--lit${k === "plain" ? "" : ` ${esc(k)}`}`)).join("")}</defs>`;
+    return { defs, head: c => ids[c ?? "plain"], lit: c => `${ids[c ?? "plain"]}-lit` };
+}
+
 /** The name a node shows: its label, else a slot's number, else "(no name)". */
 function nameOf(node) {
     if (node.label) return node.label;
@@ -110,15 +197,16 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
     const r = reachOf(node, reach);
     const reachText = r ? F(r.reachable ? "DRPG.CaseMap.reachYes" : "DRPG.CaseMap.reachNo", { held: r.held, of: r.of }) : "";
     const text = String(node.text ?? "").trim();
+    const typed = typeAttrs(caseTypeOf(node), node);
     const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : "", text,
         ...marks.filter(m => MARK_KEYS[m]).map(m => L(MARK_KEYS[m]))].filter(Boolean).join(", ");
     const cls = ["drpg-case-node", `drpg-case-node--${node.kind}`, `is-${state}`, ...(loose ? ["is-loose"] : []),
-        ...(selected ? ["is-selected"] : []), ...(editing ? ["is-editing"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(controlled ? ["has-controls"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
+        ...(selected ? ["is-selected"] : []), ...(editing ? ["is-editing"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(controlled ? ["has-controls"] : []), ...typed.cls];
     /* THE WHOLE CONTENT, ALWAYS (E97 fix; the owner's "zawsze wyswietlaly cala swoja zawartosc"): the head's parts wrap
        onto a second line rather than cut the kind, the name is whole, and the node's own words (a schema node's note, a
        Remnant's or a slot's description) stand under it whole. The button opens its fields (`aria-expanded`). */
     // its tooltip only on the Map (`editable`): the Class Trial console draws the same face read only, a press opening nothing
-    return `<button type="button" class="${cls.join(" ")}" data-drpg-node="${esc(node.id)}" style="left: ${p.x}px; top: ${p.y}px"`
+    return `<button type="button" class="${cls.join(" ")}" data-drpg-node="${esc(node.id)}"${typed.attr} style="left: ${p.x}px; top: ${p.y}px"`
         + `${selected ? ` aria-current="true"` : ""} aria-expanded="${selected ? "true" : "false"}" aria-label="${esc(said)}"${editable ? tipAttr("DRPG.Tips.Case.nodeOnTheMapTooltip") : ""}>`
         + nodeHeadHtml(node, { state, reach, warn })
         + `<span class="drpg-case-node-name">${esc(name)}</span>`
@@ -179,8 +267,24 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         heads.push(`<span class="drpg-case-col-head" data-drpg-col-head="${c}" style="left: ${place.cols[c]?.x ?? MAP_GEOMETRY.pad + c * (MAP_GEOMETRY.nodeW + MAP_GEOMETRY.colGap)}px">${esc(L(key))}</span>`);
     }
     const shownEdges = (graph?.edges ?? []).filter(e => place.at[e.from] && place.at[e.to]);
-    const edges = shownEdges.map(e =>
-        `<path class="drpg-case-edge drpg-case-edge--${esc(e.kind)}" data-drpg-edge="${esc(e.from)}>${esc(e.to)}" data-drpg-ends="${esc(JSON.stringify([e.from, e.to]))}" d="${edgePath(place.at[e.from], place.at[e.to])}"/>`);
+    /* EACH EDGE OVER A HALO (1.2.119, "Czytelność strzałek"): the same path, wider and in the graph's ground
+       (components.css), so a line keeps a margin from the column heads and the lines it crosses. The halos stand in one
+       layer under every line (round 2): the square routes meet in trunks (case-view.mjs `routeEdges`), and a halo drawn
+       between two lines cut a branch off its trunk where they join. A halo carries no `data-drpg-ends`, so case-view.mjs
+       reads the edges alone (`relayoutCaseMap` routes it again with its edge, `lightEdges` lights it with its edge). */
+    // a line in its source's colour (round 3): the source's type or kind class, as its band takes it
+    const colourOf = e => { const n = nodes.get(e.from); return n ? typeAttrs(caseTypeOf(n), n).cls[0] ?? null : null; };
+    const arrows = arrowDefs(shownEdges.map(colourOf));
+    const routes = routeEdges(shownEdges, place.at, MAP_GEOMETRY);
+    const halos = [], edges = [];
+    for (const e of shownEdges) {
+        const d = routes.get(`${e.from}>${e.to}`) ?? "";
+        const colour = colourOf(e);
+        const head = arrows.head(colour);
+        halos.push(`<path class="drpg-case-edge-halo" data-drpg-halo="${esc(e.from)}>${esc(e.to)}" d="${d}"/>`);
+        edges.push(`<path class="drpg-case-edge drpg-case-edge--${esc(e.kind)}${colour ? ` ${colour}` : ""}" data-drpg-edge="${esc(e.from)}>${esc(e.to)}" data-drpg-ends="${esc(JSON.stringify([e.from, e.to]))}"`
+            + ` data-drpg-arrow="${head}" data-drpg-arrow-lit="${arrows.lit(colour)}" marker-end="url(#${head})" d="${d}"/>`);
+    }
     const buttons = [], fields = [];
     for (const [id, p] of Object.entries(place.at)) {
         const node = nodes.get(id);
@@ -226,7 +330,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
     const width = place.width;
     return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}"${open ? ` data-drpg-all-open="1"` : ""}>`
         + heads.join("")
-        + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${edges.join("")}</svg>`
+        + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${arrows.defs}<g class="drpg-case-halos">${halos.join("")}</g><g class="drpg-case-lines">${edges.join("")}</g></svg>`
         + gap + buttons.join("") + fields.join("") + controlled.join("") + `</div>`;
 }
 
@@ -291,7 +395,9 @@ function nodeEditHtml({ graph, node, p, open, allOpen = false, state = null, fin
     const cells = String(html ?? "");
     // The node's facts only where it has no field of its own (another chapter's Remnant); otherwise its warnings alone
     const said = nodeInfoHtml({ graph, node, finders, authors, reach, problems, rows: !cells.trim() });
-    return `<fieldset class="drpg-case-edit" data-drpg-edit="${esc(node.id)}" aria-label="${esc(F("DRPG.CaseMap.editLabel", { name: nameOf(node) }))}"`
+    // its type's or kind's colour on its fields too (1.2.119): with every node open, the fields are all of the node that shows
+    const typed = typeAttrs(caseTypeOf(node), node);
+    return `<fieldset class="${["drpg-case-edit", ...typed.cls].join(" ")}" data-drpg-edit="${esc(node.id)}"${typed.attr} aria-label="${esc(F("DRPG.CaseMap.editLabel", { name: nameOf(node) }))}"`
         // with every node open the fields are the node: they take the focus the hidden face cannot (owner-116, 16.11.2026)
         + ` style="left: ${p.x}px; top: ${p.y}px"${allOpen ? ` tabindex="0"` : ""}${open ? "" : " hidden"}>` + head + said + cells + moves + `</fieldset>`;
 }
@@ -338,7 +444,7 @@ export function caseMapHtml({ graph, layout, finders = null, authors = null, rea
     return `<div class="drpg-case-map">${tools}`
         + caseOverviewHtml({ graph, finders, problems, open: Boolean(reading.overview), summary })
         + `<div class="drpg-case-graph" tabindex="-1">${caseGraphHtml({ graph, layout, finders, authors, selected: picked?.id ?? null, fold: Boolean(reading.fold), label, reach, problems,
-            editors: editors ?? new Map(), allOpen: reading.allOpen === true })}</div>${cameraHtml(reading.camera?.z ?? 1)}`
+            editors: editors ?? new Map(), allOpen: reading.allOpen === true })}</div>${cameraHtml(reading.camera?.z ?? 1, caseLegendHtml(graph))}`
         + `</div>`;
 }
 
@@ -412,9 +518,10 @@ export function caseToolsHtml({ sort = "kind", sorts = [], allOpen = null } = {}
  * THE CAMERA'S BUTTONS (E97 fix), over the graph's bottom right corner, so the tools above keep one row at 1366x768: zoom
  * out, the zoom read out, zoom in, fit the case to the view. This window's alone; nothing is written.
  */
-export function cameraHtml(zoom = 1) {
+export function cameraHtml(zoom = 1, legend = "") {
     const cam = (what, text, key) => `<button type="button" class="drpg-case-cam" data-drpg-case-camera="${what}" aria-label="${esc(L(key))}" title="${esc(L(key))}">${esc(text)}</button>`;
-    return `<div class="drpg-case-camera" role="group" aria-label="${esc(L("DRPG.CaseMap.cameraLabel"))}">`
+    // the Map's legend at the strip's left (1.2.119, `caseLegendHtml`); the Class Trial console hands none
+    return `<div class="drpg-case-camera${legend ? " has-legend" : ""}" role="group" aria-label="${esc(L("DRPG.CaseMap.cameraLabel"))}">${legend}`
         + cam("out", "-", "DRPG.CaseMap.zoomOut")
         + `<output class="drpg-case-zoom" data-drpg-case-zoom-level aria-label="${esc(L("DRPG.CaseMap.zoomLevel"))}">${Math.round(clampZoomOf(zoom) * 100)}%</output>`
         + cam("in", "+", "DRPG.CaseMap.zoomIn")
@@ -538,6 +645,21 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
             event.preventDefault();
             graph.querySelector(fields ? `.drpg-case-edit[data-drpg-edit="${CSS.escape(next)}"]` : `[data-drpg-node="${CSS.escape(next)}"]`)?.focus();
         });
+    }
+    /* A NODE'S ARROWS LIT (1.2.119, "Czytelność strzałek"; case-view.mjs `lightEdges`): the node under the pointer, else
+       the one holding the focus - its face or anything in its fields - lights the edges it has at an end and the rest dim;
+       off every node, and with the focus gone from the nodes, all are drawn alike again. Wired once per viewport, and it
+       reads the canvas drawn now, so a redraw keeps it. */
+    if (graph && !graph.dataset.drpgLitWired) {
+        graph.dataset.drpgLitWired = "1";
+        let hover = null, focus = null;
+        const nodeOf = el => { const n = el?.closest?.("[data-drpg-node], .drpg-case-edit[data-drpg-edit]") ?? null; return n && graph.contains(n) ? n : null; };
+        const idOf = el => { const n = nodeOf(el); return n ? (n.dataset.drpgNode ?? n.dataset.drpgEdit ?? null) : null; };
+        const light = () => { const c = graph.querySelector(":scope > .drpg-case-canvas"); if (c) lightEdges(c, hover ?? focus); };
+        graph.addEventListener("pointerover", event => { const id = idOf(event.target); if (id !== hover) { hover = id; light(); } });
+        graph.addEventListener("pointerleave", () => { if (hover !== null) { hover = null; light(); } });
+        graph.addEventListener("focusin", event => { focus = idOf(event.target); light(); });
+        graph.addEventListener("focusout", event => { focus = idOf(event.relatedTarget); light(); });
     }
     if (canvas) {
         relayoutCaseMap(canvas);
