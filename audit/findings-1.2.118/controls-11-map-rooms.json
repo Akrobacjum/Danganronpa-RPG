@@ -1,0 +1,1814 @@
+{
+ "reader": "controls-11-map-rooms",
+ "read": [
+  {
+   "file": "scripts/room-setup.mjs (60-100, 150-200, 290-1399: the cells, the tabs, every wire, Apply's writers, the opener)",
+   "lines_read": 1220
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "lines_read": 404
+  },
+  {
+   "file": "scripts/facility-editor.mjs",
+   "lines_read": 176
+  },
+  {
+   "file": "scripts/handover.mjs (1-215: askWhoIsHere and the two dialogs; the GM side's verify)",
+   "lines_read": 215
+  },
+  {
+   "file": "scripts/room-tile.mjs (100-771: the view, the tile, its buttons, the window, the popout, the hooks)",
+   "lines_read": 672
+  },
+  {
+   "file": "scripts/passages-gm.mjs (2560-3010 the pick and its window; 3255-3304 the GM hooks; 1272-1276, 1398-1440, 1778-1930 by grep of the tab's writers' refusals; 2028-2040)",
+   "lines_read": 620
+  },
+  {
+   "file": "scripts/passages.mjs (270-322 passageSpot, viewPassage; 638-655)",
+   "lines_read": 70
+  },
+  {
+   "file": "scripts/facilities.mjs (50-130 the cleaners; 270-345 the writers)",
+   "lines_read": 156
+  },
+  {
+   "file": "scripts/fog.mjs (268-470 registerFog; 705-711; 1125-1127; 1505-1545; 2925-3030 door controls; 3080-3095; 3165-3182; 3369-3500 the floor switcher)",
+   "lines_read": 520
+  },
+  {
+   "file": "scripts/fog-diagnostics.mjs (1-60; 640-800 the check's rows and Show on map)",
+   "lines_read": 220
+  },
+  {
+   "file": "scripts/boundary.mjs (1-60; 90-247; 290-310; 420-575: which windows it holds, none a canvas control)",
+   "lines_read": 395
+  },
+  {
+   "file": "scripts/look.mjs, scripts/selection.mjs, scripts/bedroom-keys.mjs (whole)",
+   "lines_read": 211
+  },
+  {
+   "file": "scripts/rooms.mjs (218-262, 315-340), scripts/movement.mjs (130-175), scripts/doors-gm.mjs (150-185, 280-319), scripts/eclipse.mjs (1028-1060), scripts/vault-store.mjs (763-770 by grep)",
+   "lines_read": 200
+  },
+  {
+   "file": "scripts/live.mjs (40-110, 296-370, 820-884: the hooks keepLive and keepFresh hear, keepFresh's no-focus rule)",
+   "lines_read": 200
+  },
+  {
+   "file": "scripts/movement.mjs, movement-audit.mjs, search-tokens.mjs, own-ring.mjs, visibility.mjs, fog-reveal.mjs, fog-doorways.mjs, facility-uses.mjs (searched, not read whole: every addEventListener, button, drpgWindow/Confirm/Prompt, DrpgApp, Hooks.on, chat card and notification by grep; search-tokens.mjs 395-435 and 540-560 read)",
+   "lines_read": 90
+  },
+  {
+   "file": "styles/*.css (base, components, danganronpa, motion, narrow, pixel-icons, stained-glass): every rule naming the surfaces' classes, by a script that splits the rules and looks for display none, visibility hidden, pointer-events none and opacity 0",
+   "lines_read": 0
+  }
+ ],
+ "count_note": "docs/dev/e59/WINDOWS.md names 13 kit sites in these files: room-setup openRoomSetupDialog, room-tile roomWindowClass and openRoomImage, passages-gm pickPrompt, passages-tab askRevoke and confirmDelete, facility-editor editRoomActions and editProjectFacility, handover askWhoIsHere, and boundary's four (noFirst, placementTable, roundWindow, promptPlayer). A grep of these 23 files for drpgWindow(, drpgConfirm(, drpgPrompt(, DrpgApp( and ImagePopout finds the same 13 and no other; its line column is a few lines off today's call lines (room-setup 1279 vs the call at 1284, passages-gm 2765 vs 2781, handover 70 vs 72, facility-editor 155 vs 161), which changes no count. This file holds the first 9 as surfaces; boundary's 4 are GM-panel windows left to controls-05 as the prompt says, and boundary.mjs holds no canvas control. Seen in passing for that reader: boundary.mjs placementTable (193-226) has no render and no keepLive - the table of who has crossed and where they stand, which its own comment says the GM holds open to answer (203-205), does not follow a crossing, where the round window beside it does (keepLive on eclipseMoveStore, 514-523). Room Setup is split into its frame and its eight tabs (9 surfaces of one window). Added to the window list, outside the kit: the HUD's room tile, the floor switcher, the player's door controls, and Show on map (a control fog-diagnostics.mjs draws into Season setup, whose window is controls-10's). Not counted as surfaces, having no control: movement.mjs's and movement-audit.mjs's whisper cards and notices (sent back, cannot reach, flag kept, drop removed), search-tokens.mjs's GM readout, passages.mjs's engine-off notice; own-ring.mjs, visibility.mjs, selection.mjs, fog-reveal.mjs and fog-doorways.mjs only paint the canvas (every display object eventMode none, fog-reveal.mjs:829, 1211, 1310, fog.mjs:2377, 3669, 3721, 4660, own-ring.mjs:305); look.mjs's openLookDialog opens settings-window.mjs's window (controls-10); the tunnel's 'Go through' is a sheet action (movement.mjs:2320-2370 judges it; its button is the sheet's lane). No probe-42.json, probe-43.json or base-run.json existed when this file was written, so no row here comes from a run.",
+ "surfaces": [
+  {
+   "surface": "Room Setup - the frame: header, tab strip, footer (title \"Room Setup - <scene>\")",
+   "file": "scripts/room-setup.mjs",
+   "opener": "openRoomSetupDialog:1200 (GM panel gm-panel.mjs:285; Season setup season-setup.mjs:506, 535; game.drpg.roomSetup api.mjs:669)",
+   "audience": "gm (a player is refused with DRPG.Panel.gmOnly, 1207-1210)",
+   "controls": [
+    {
+     "label": "? (help)",
+     "key": "DRPG.Help.gm",
+     "kind": "button",
+     "selector": ".window-header > .drpg-help-button",
+     "handler": "ui-kit.mjs dressHelp (help row WINDOW_HELP.roomSetup, room-setup.mjs:1285)",
+     "effect": "opens the GM handbook at the row's section",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Rooms / Doors / Passages / Searching / Facilities / Stashes / Description / Fog",
+     "key": "DRPG.Vault.tabRooms ... DRPG.Vault.tabFog (ROOM_SETUP_TABS 382-394)",
+     "kind": "tabs",
+     "selector": ".drpg-tabs button[data-drpg-tab]",
+     "handler": "ui-kit.mjs wireKitTabs (room-setup.mjs:1319)",
+     "effect": "shows the tab's pane; the window keeps the width of its widest tab (fit: true, 1295)",
+     "gate": "any GM",
+     "how_read": "code; tier 2 'Room Setup draws fixed columns with its counter on one line ...' (tests-tier2.mjs:68820) reads the DOM; result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Apply",
+     "key": "DRPG.Panel.apply",
+     "kind": "button (footer primary, action ok)",
+     "selector": "footer button[data-action=ok]",
+     "handler": "callback readRoomSetupForm (532-586) -> openRoomSetupDialog 1364-1398: bedroomClaimedTwice, applyDiscoveryChanges (changed fog boxes only), applyRoomRows (963-1117), applyStashMatrix (changed cells only), seedOwnerStashes, reconcileBedroomKeys",
+     "effect": "writes every row whose drawn values differ from the region's flags as they are NOW, then the changed fog boxes and stash cells; says 'N rooms changed on <scene>'",
+     "gate": "any GM; held (disabled, reason as its label) while one student has two bedrooms (setApplyBlock 871-887, wireTwoRoomsCheck 834-860)",
+     "how_read": "code; tier 2 'E74-T5 - Room setup's Broken column shows a forced lock and mends it' (tests-tier2.mjs:101845) and 'Room Setup writes to the scene it was opened on ...' (:67091, named in live-items-05) answer the window through a stand-in DialogV2.wait; results not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "stale_state",
+     "detail": "A row the GM never touched is written back as it was drawn when the world changed it since the window opened (finding 1)."
+    },
+    {
+     "label": "Cancel / the window's cross",
+     "key": "the kit's cancel role",
+     "kind": "button (footer close)",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "drpgWindow footer close (1299)",
+     "effect": "closes; nothing of Apply's is written (the token steppers, the facility editor and every Passages button wrote at once already, as the apply line says)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "region flags of every named region of the scene the window was opened on (owner, table, favours, hinders, description, image, rest short/long, locked, lockedAtStart, broken, sealed, notShared, room mark, neighbours, the GM's room actions) - room-setup.mjs roomCells, read at open (1280)",
+     "the region list itself (namedByName, 1240): which names are rows",
+     "the discovery ledger, a GM store (fog.mjs discoveredFor, 1523; read at open, room-setup.mjs:1276)",
+     "the stash lists on the regions (stashMatrixRows) and stashItemsIn for the refusal",
+     "the student actors and their names (monokuma.mjs studentActors, 1247) and the Mastermind (mastermind.mjs mastermindActor)",
+     "the room stock RollTables (roomStockTables)",
+     "the search-token setting (SearchTokens.left, the Searching tab's steppers)",
+     "the passage stores map, season, access, mastermind and the primary's TOLD record (the Passages tab, passages-tab.mjs passagesTabBody)",
+     "sceneUncoveredPercent (the Fog tab's warning)"
+    ],
+    "listens": [
+     "keepFresh on the setting searchTokens (room-setup.mjs:1358-1361), with live.mjs's WORLD_HOOKS drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged - rewrites the token fields alone (recountTokenCells, 67-73)",
+     "keepFresh on the passage stores and the hooks userConnected, drpgPassagesTold (passages-tab.mjs:402) - redraws the Passages box alone",
+     "the Facilities count after this GM's own editor Save (room-setup.mjs:719-729)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "updateRegion / createRegion / deleteRegion not heard (room-setup.mjs:1358-1361 names the token setting alone): a lock forced by a player's Force the Door (doors-gm.mjs:175 setRoomBroken), a Repair the Lock completed (doors-gm.mjs:290), a breach cut (passages-gm.mjs:773), another GM's Apply, a room drawn or deleted on the map - none shows until the window is reopened, and Apply then writes the drawn row back over it (finding 1)",
+     "the discovery ledger (a GM store) not heard: a room a player finds while the window is open stays unticked on the Fog tab (fog.mjs:1529-1532 says so: 'drawn when Room Setup opens and never refreshed') - Apply is safe since ROOM-01 (only changed boxes are written), the display is not (finding 2)",
+     "createActor / deleteActor / updateActor not heard: a student made while the window is open has no column on Stashes or Fog and is not offered in the Passages tab's '+', a rename keeps the old name in the Owner selects",
+     "the stash lists (region flags) not heard: another GM's stash write shows on reopen only (Apply is safe since E89 C7, room-setup.mjs:1136-1144)",
+     "a scene change: the window is bound to the scene it was opened on (room-setup.mjs:1213-1228, by decision E12 C4, its title names the scene) - viewing another scene changes nothing in it, which is the intended reading"
+    ],
+    "focus_rule": "keepFresh has no focus rule (live.mjs:828-831): the Searching tab's count is written into its number field even while the GM types in it, and the Passages box is rebuilt whole (an open '+' menu closes, a way select being chosen from is replaced); the rest of the form is never redrawn, so nothing typed elsewhere is lost - and nothing elsewhere follows the world either"
+   }
+  },
+  {
+   "surface": "Room Setup - the Rooms tab (This is a room, Owner, No privacy, the census line)",
+   "file": "scripts/room-setup.mjs",
+   "opener": "the frame's tab strip",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "This is a room",
+     "key": "DRPG.Vault.isRoomColumn",
+     "kind": "switch (kit toggle)",
+     "selector": "input[name='isroom:<room>']",
+     "handler": "read by readRoomSetupForm (547) on Apply; wireRoomRatio counts it once changed (611-653)",
+     "effect": "Apply writes the room mark on every piece that can be a room (setRoomFlag, 1085-1088); a name with no such piece draws the box disabled",
+     "gate": "any GM",
+     "how_read": "code; R1500 (wireRoomRatio on a form of its own) named in the comment at 608-610; result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Owner",
+     "key": "DRPG.Vault.owner",
+     "kind": "select",
+     "selector": "select[name='owner:<room>']",
+     "handler": "readRoomSetupForm (539); wireTwoRoomsCheck on change (856-858); wireRoomRatio (644-649)",
+     "effect": "Apply writes the bedroom's owner (setVaultRoom 1052-1060), gives the new owner a stash (seedOwnerStashes) and keys (reconcileBedroomKeys 1395); two rooms of one owner hold Apply",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "No privacy",
+     "key": "DRPG.Vault.notSharedColumn",
+     "kind": "checkbox",
+     "selector": "input[name='notshared:<room>']",
+     "handler": "readRoomSetupForm (546); wireRoomRatio",
+     "effect": "Apply writes VAULT_FLAGS.notShared (1077-1079); the census line follows the tick at once",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the room mark, owner and notShared flags (roomCells 297-333)",
+     "the student actors for the selects (people, at open)"
+    ],
+    "listens": [
+     "none of its own; the census line follows the form's own ticks (wireRoomRatio 644-652)"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "updateRegion not heard: another GM's owner or mark change shows on reopen only, and Apply puts the drawn value back (finding 1)",
+     "updateActor / createActor not heard: the Owner selects keep the names and the students of the open"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "Room Setup - the Doors tab (Locked, Locked at start, Broken, Neighbours)",
+   "file": "scripts/room-setup.mjs",
+   "opener": "the frame's tab strip",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Locked",
+     "key": "DRPG.Vault.lockedColumn",
+     "kind": "checkbox",
+     "selector": "input[name='locked:<room>']",
+     "handler": "readRoomSetupForm (542) -> applyRoomRows 1111 writeRoomLock",
+     "effect": "Apply locks or unlocks the room through vault-store.mjs writeRoomLock (763-770), its card when it opens",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Locked at start",
+     "key": "DRPG.Vault.lockedAtStartColumn",
+     "kind": "checkbox",
+     "selector": "input[name='startlocked:<room>']",
+     "handler": "readRoomSetupForm (543) -> applyRoomRows 1106-1107",
+     "effect": "Apply writes ROOM_FLAGS.lockedAtStart on every changed row",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Broken",
+     "key": "DRPG.Vault.brokenColumn",
+     "kind": "checkbox",
+     "selector": "input[name='broken:<room>']",
+     "handler": "readRoomSetupForm (544) -> applyRoomRows 1042-1046 setRoomBroken, and dropLockRepairs when unticked",
+     "effect": "a forced lock shown ticked; unticked and applied the lock holds again and a Repair the Lock under way on it is deleted with a note to the GMs (doors-gm.mjs:307-319)",
+     "gate": "any GM",
+     "how_read": "code; tier 2 E74-T5 (tests-tier2.mjs:101845) unticks it and reads [broken false, locked kept]; result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Neighbours",
+     "key": "DRPG.Vault.neighboursColumn",
+     "kind": "text field",
+     "selector": "input[name='neighbours:<room>']",
+     "handler": "readRoomSetupForm (548, neighboursTyped 929-939) -> applyRoomRows 1094-1102",
+     "effect": "Apply writes the list on every piece; a name that is no room after this Apply is kept and the GM warned (DRPG.Vault.neighboursUnknown)",
+     "gate": "any GM",
+     "how_read": "code; tier 2 'Room Setup warns of a Neighbours name that is no room ...' (named in stages-23.json); result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The neighbours' rules (fold)",
+     "key": "DRPG.Vault.neighboursLine",
+     "kind": "details",
+     "selector": "details[data-drpg-neighbours]",
+     "handler": "the browser's own <details>",
+     "effect": "opens the note DRPG.Vault.neighboursNote; the keyboard opens it (R4470)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "ROOM_FLAGS.locked, lockedAtStart, broken, neighbours of every piece (roomCells 322-338); neighbouringRooms for the placeholder"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "updateRegion not heard: a lock forced during the open window (doors-gm.mjs:175), a repair completed (doors-gm.mjs:290), a breach (passages-gm.mjs:773) or the Mastermind's lair lock (mastermind.mjs:311) is not shown, and Apply of any other row reverts it (finding 1)",
+     "updateWall / createWall not heard: the Neighbours placeholder (the rooms the walls connect) is the open's"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "Room Setup - the Searching tab (Sealed, Search tokens, Item table, Good or bad place)",
+   "file": "scripts/room-setup.mjs",
+   "opener": "the frame's tab strip",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Sealed (no search)",
+     "key": "DRPG.SearchTokens.sealedColumn",
+     "kind": "checkbox",
+     "selector": "input[name='nosearch:<room>']",
+     "handler": "readRoomSetupForm (545) -> applyRoomRows 1071-1073",
+     "effect": "Apply writes SEARCH_FLAGS.sealed; nothing announced",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Search tokens (- n +)",
+     "key": "DRPG.SearchTokens.title, spendOne, giveOne",
+     "kind": "stepper (kit, compact)",
+     "selector": "input[data-drpg-token]",
+     "handler": "wireTokenButtons 732-746 (one change a press, ui-kit.mjs wireStepper)",
+     "effect": "writes at once: SearchTokens.setFor(room, left now + (typed - shown)), so a player's spend meanwhile is kept; the field is recounted",
+     "gate": "any GM (a world setting; SearchTokens.setFor is a GM's write)",
+     "how_read": "code; R2010 counts the writes on a stand-in (named at 711-712); result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": "Its field is rewritten by keepFresh even while focused (no focus rule); see the frame's focus_rule."
+    },
+    {
+     "label": "Refill this room",
+     "key": "DRPG.SearchTokens.refillRoom",
+     "kind": "icon button",
+     "selector": "button[data-drpg-token-refill]",
+     "handler": "wireTokenButtons 747-753",
+     "effect": "writes the room's tokens to the cap at once and recounts",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Item table",
+     "key": "DRPG.Vault.table",
+     "kind": "select",
+     "selector": "select[name='table:<room>']",
+     "handler": "readRoomSetupForm (552) -> setVaultRoom",
+     "effect": "Apply writes the room's stock table (room pools only, roomStockTables)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Good / bad place (one switch a category)",
+     "key": "PLACE_STATES keys",
+     "kind": "toggle button",
+     "selector": "button[data-drpg-place]",
+     "handler": "wirePlaceSwitches 684-700",
+     "effect": "cycles neither -> good -> bad and ticks at most one of the cell's two hidden boxes; Apply writes favours and hinders",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "SEARCH_FLAGS.sealed, VAULT_FLAGS.table, favours, hinders; the search-token setting; the RollTables"
+    ],
+    "listens": [
+     "keepFresh on the setting searchTokens (1358-1361): the steppers' numbers alone"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "updateRegion not heard for Sealed, the table and the place switches (finding 1 for what Apply then writes)",
+     "createRollTable / updateRollTable not heard: a room pool made while the window is open is not offered"
+    ],
+    "focus_rule": "the steppers' fields are rewritten even while typed in (keepFresh, no focus rule); the rest is never redrawn"
+   }
+  },
+  {
+   "surface": "Room Setup - the Facilities tab (Short rest, Long rest, the room's actions)",
+   "file": "scripts/room-setup.mjs",
+   "opener": "the frame's tab strip",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Short rest",
+     "key": "DRPG.Rest.shortColumn",
+     "kind": "checkbox",
+     "selector": "input[name='short:<room>']",
+     "handler": "readRoomSetupForm (540) -> rest.mjs setRestRoom (1064)",
+     "effect": "Apply writes the rest flag",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Long rest",
+     "key": "DRPG.Rest.longColumn",
+     "kind": "checkbox",
+     "selector": "input[name='long:<room>']",
+     "handler": "readRoomSetupForm (541) -> setRestRoom",
+     "effect": "Apply writes the rest flag",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Edit (the room's actions) and its count",
+     "key": "DRPG.Facility.editor.edit",
+     "kind": "icon button",
+     "selector": "button[data-drpg-facility-edit]",
+     "handler": "wireFacilityButtons 719-729 -> facility-editor.mjs editRoomActions 104-119",
+     "effect": "opens the room's action editor; after its Save the cell's count is read again (roomActions)",
+     "gate": "any GM; drawn disabled where no piece of the name may be a room (320)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "stale_state",
+     "detail": "On a name that may be a room but is not marked yet (every room of a new map before the first Apply) the editor writes on the pieces (writablePieces) and reads back only marked rooms (roomActions -> roomFlag -> roomRegions): the count stays 0 and the editor reopens empty (finding 3)."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "REST_FLAGS on every piece; the room actions (roomActions, marked rooms only)"
+    ],
+    "listens": [
+     "this GM's own editor Save rewrites the count (726-727)"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "updateRegion not heard: another GM's action edit or rest change shows on reopen only"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "Room Setup - the Stashes tab (a cell per room and student)",
+   "file": "scripts/room-setup.mjs",
+   "opener": "the frame's tab strip",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Stash cell (none / open / hidden)",
+     "key": "DRPG.Vault.stashesIntro and the legend",
+     "kind": "toggle button",
+     "selector": "button[data-drpg-stash]",
+     "handler": "wireStashCells 662-674",
+     "effect": "cycles the hidden input; Apply acts only on a cell left other than it was drawn (applyStashMatrix 1136-1164); a stash with things in it is not removed and the GM is told",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the stash lists on the regions (stashMatrixRows), the students"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "the region flags and createActor not heard: another GM's stash, or a new student's column, shows on reopen only (Apply is safe: drawn against state, E89 C7)"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "Room Setup - the Description tab (words and picture)",
+   "file": "scripts/room-setup.mjs",
+   "opener": "the frame's tab strip",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Description",
+     "key": "DRPG.Vault.descriptionColumn",
+     "kind": "textarea",
+     "selector": "textarea[name='desc:<room>']",
+     "handler": "readRoomSetupForm (549) -> setVaultRoom",
+     "effect": "Apply writes the words the room tile shows",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Picture (the thumbnail)",
+     "key": "DRPG.Vault.imageColumn",
+     "kind": "file picker on an image",
+     "selector": "img[data-drpg-portrait]",
+     "handler": "utils.mjs wirePortraitPickers (room-setup.mjs:1332), wirePictureWarnings 773-792",
+     "effect": "picks a file into the hidden field img:<room>; the cell says when it is over the limits or does not load; Apply checks it (safeRoomImage) and warns on a refused path",
+     "gate": "any GM",
+     "how_read": "code; R2015 (pictureWarning) named at 762-763; result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Remove the picture",
+     "key": "the cell's clear label",
+     "kind": "mini button",
+     "selector": "button[data-drpg-picture-clear]",
+     "handler": "inline listener 1334-1341",
+     "effect": "empties the hidden field and the thumbnail; Apply writes no picture",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "VAULT_FLAGS.description, image"
+    ],
+    "listens": [
+     "the picture's own src (a MutationObserver, 789)"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "updateRegion not heard: another GM's words or picture show on reopen only, and this GM's Apply of the row writes the drawn words back (finding 1)"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "Room Setup - the Fog tab (Discover all, Hide all, a box per room and student)",
+   "file": "scripts/room-setup.mjs",
+   "opener": "the frame's tab strip",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Discover all",
+     "key": "DRPG.Vault.discoverAll",
+     "kind": "mini button",
+     "selector": "button[data-drpg-fog-all=discover]",
+     "handler": "wireFogButtons 810-822",
+     "effect": "ticks every enabled box; Apply decides (ROOM-03)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Hide all",
+     "key": "DRPG.Vault.hideAll",
+     "kind": "mini button",
+     "selector": "button[data-drpg-fog-all=hide]",
+     "handler": "wireFogButtons 810-822",
+     "effect": "unticks every enabled box (the Mastermind's column is shut and kept); Apply decides",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A room's box for a student",
+     "key": "the student's column",
+     "kind": "checkbox",
+     "selector": "input[name='fog:<room>:<actorId>']",
+     "handler": "readRoomSetupForm 567-576 -> fog.mjs applyDiscoveryChanges 1541",
+     "effect": "Apply writes only the boxes changed against what was drawn, onto the ledger as it stands then",
+     "gate": "any GM",
+     "how_read": "code; tier 2 'Room setup's Fog tab draws the Mastermind's column as knowing every room' (tests-tier2.mjs:97101, named in old-1.2.42-map.json); result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "stale_state",
+     "detail": "A room a student finds while the window is open stays unticked: the ledger is a GM store the window never hears (finding 2)."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the discovery ledger (discoveryStore, a GM store) at open (1276)",
+     "sceneUncoveredPercent at open"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "the discovery store not named to keepFresh (room-setup.mjs:1358-1361): fog.mjs:1529-1532 records it ('drawn when Room Setup opens and never refreshed')"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "Room Setup - the Passages tab (the GMs' secret passages of the scene)",
+   "file": "scripts/passages-tab.mjs",
+   "opener": "the frame's tab strip (passagesTabHtml 235, wirePassagesTab 317)",
+   "audience": "gm (nothing is drawn on a player's browser, 216, 236)",
+   "controls": [
+    {
+     "label": "New passage",
+     "key": "DRPG.Passage.pick.new",
+     "kind": "mini button",
+     "selector": "button[data-drpg-passage-new]",
+     "handler": "390-395 -> passages-gm.mjs startPassagePick",
+     "effect": "Room Setup is tucked away and the two clicks of the pick start on the board; the box is redrawn after",
+     "gate": "any GM",
+     "how_read": "code; R561 and scenario 76-passages press the tab's buttons (passages-tab.mjs:245, 314-315); results not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Tunnel or stairs",
+     "key": "DRPG.Passage.pick.tunnel",
+     "kind": "mini button",
+     "selector": "button[data-drpg-passage-tunnel]",
+     "handler": "396-401 -> startPassagePick shape tunnel",
+     "effect": "the same pick for two ends, a click in each room",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Who knows: a student's chip (revoke)",
+     "key": "DRPG.Passage.tab.revoke",
+     "kind": "kit chip",
+     "selector": ".drpg-passage-chip[data-drpg-passage-act=revoke]",
+     "handler": "373-389 -> work revoke 345-361",
+     "effect": "a student in one of the passage's rooms is asked (askRevoke); anywhere else, or a chip already pending its leaving, revokes at once; a public passage always asks",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Who knows: '+'",
+     "key": "DRPG.Passage.tab.grant",
+     "kind": "mini button (menu)",
+     "selector": "button[data-drpg-passage-act=menu][data-drpg-menu=grant]",
+     "handler": "373-383",
+     "effect": "shows or hides the students it offers (aria-expanded follows)",
+     "gate": "any GM; drawn only when somebody is left to offer (96-97)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Who knows: a student's name in the menu",
+     "key": "the student's name",
+     "kind": "mini button",
+     "selector": "[data-drpg-menu-of=grant] button[data-drpg-passage-act=grant]",
+     "handler": "work grant 329 -> grantPassage",
+     "effect": "gives the passage to the student at once; the box is redrawn",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "stale_state",
+     "detail": "The students offered are the list handed in at open (room-setup.mjs:1247, 1321): one made while the window is open is never offered, and one deleted is offered until the refusal (finding 7)."
+    },
+    {
+     "label": "At season start: a student's chip",
+     "key": "DRPG.Passage.tab.startRemove",
+     "kind": "kit chip",
+     "selector": "[data-drpg-passage-act=start-off]",
+     "handler": "work start-off 331 -> setStartAccess false",
+     "effect": "takes the student off the season's start list at once",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "At season start: '+'",
+     "key": "DRPG.Passage.tab.startAdd",
+     "kind": "mini button (menu)",
+     "selector": "button[data-drpg-menu=start]",
+     "handler": "373-383",
+     "effect": "shows or hides the students it offers",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "At season start: a student's name in the menu",
+     "key": "the student's name",
+     "kind": "mini button",
+     "selector": "button[data-drpg-passage-act=start-on]",
+     "handler": "work start-on 330 -> setStartAccess true",
+     "effect": "adds the student to the next season's start list; nothing now",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Way (tunnel or stairs)",
+     "key": "DRPG.Passage.tab.way, wayBoth, wayOnly",
+     "kind": "select",
+     "selector": "select[data-drpg-passage-way]",
+     "handler": "365-372 -> work way 332 -> setPassageWay",
+     "effect": "both ways, or from one end's room to the other; drawn on a tunnel alone",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Show",
+     "key": "DRPG.Passage.tab.show",
+     "kind": "mini button",
+     "selector": "[data-drpg-passage-act=show]",
+     "handler": "work show 342 -> showPassage 305 -> passages.mjs viewPassage 302-312",
+     "effect": "views the passage's scene and floor and pans this GM's camera to it",
+     "gate": "any GM",
+     "how_read": "code; R607 (viewPassage) named at passages.mjs:297; result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": "Room Setup is not tucked for Show (it is for a pick): whether the pan lands behind the window is not established."
+    },
+    {
+     "label": "Pick again",
+     "key": "DRPG.Passage.pick.repick",
+     "kind": "mini button",
+     "selector": "[data-drpg-passage-act=repick]",
+     "handler": "work repick 343 -> startPassagePick with passageId",
+     "effect": "a broken passage's stretch picked again on the board",
+     "gate": "any GM; held with its reason (DRPG.Passage.tab.repickHeld) on a passage that is not broken (169-170)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close / Open",
+     "key": "DRPG.Passage.tab.close, open",
+     "kind": "mini button",
+     "selector": "[data-drpg-passage-act=close|open]",
+     "handler": "work 333-334 -> closePassage, openPassage",
+     "effect": "shuts or reopens the way; the label follows the state in its place",
+     "gate": "any GM; held on a broken passage (DRPG.Passage.tab.toggleHeld)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Make public / Make secret",
+     "key": "DRPG.Passage.tab.makePublic, makeSecret",
+     "kind": "mini button",
+     "selector": "[data-drpg-passage-act=public|secret]",
+     "handler": "work 335-336 -> makePassagePublic, makePassageSecret",
+     "effect": "changes the passage's kind at once",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Delete",
+     "key": "DRPG.Passage.tab.delete",
+     "kind": "mini button",
+     "selector": "[data-drpg-passage-act=delete]",
+     "handler": "work delete 344 -> confirmDelete then deletePassage",
+     "effect": "asks (destructive, Cancel the default), then deletes",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Close the breach",
+     "key": "DRPG.Passage.tab.closeBreach",
+     "kind": "mini button",
+     "selector": "[data-drpg-passage-act=closeBreach]",
+     "handler": "work closeBreach 337-341 -> restoreBreach",
+     "effect": "gives the wall back; a refusal is said (DRPG.Passage.tab.closeBreachRefused)",
+     "gate": "any GM; drawn on a breach's row alone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the passage stores map, season, access and mastermind (listPassages, isMastermindActor)",
+     "the primary's TOLD record (undeliveredOf, pending line - primary only)",
+     "game.actors names and ownership, game.users (the 'shared' line, playersOf 120-122)",
+     "the students list handed in at open (the '+' menus)"
+    ],
+    "listens": [
+     "keepFresh on the four stores, userConnected and drpgPassagesTold (402); a redraw after every button (work ... .then(draw))"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "updateActor / createActor / deleteActor and updateUser not heard: a student renamed, a player given or denied a student (the 'shared' line), a student made (the '+' menus, finding 7)",
+     "a wall moved breaks a passage through the stores (passages-gm.mjs onWallMoved writes the row), so the Broken state arrives by the stores"
+    ],
+    "focus_rule": "redrawn whole on every store change (keepFresh, no focus rule): an open '+' menu closes and a way select being chosen from is replaced"
+   }
+  },
+  {
+   "surface": "Revoke the passage (question; title 'Revoke <passage>')",
+   "file": "scripts/passages-tab.mjs",
+   "opener": "askRevoke:267 (a Who knows chip, 345-361)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Revoke now",
+     "key": "DRPG.Passage.tab.revokeNow (DRPG.Passage.tab.revoke on a public passage)",
+     "kind": "button (destructive)",
+     "selector": "footer button[data-action=now]",
+     "handler": "drpgWindow footer destructive (273)",
+     "effect": "answers 'now': the student forgets the passage at once",
+     "gate": "any GM",
+     "how_read": "code; R615 (revokeQuestion) named at 252; result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Revoke when they leave the room",
+     "key": "DRPG.Passage.tab.revokeLeave",
+     "kind": "button (destructive)",
+     "selector": "footer button[data-action=leave]",
+     "handler": "drpgWindow footer destructive",
+     "effect": "answers 'leave': revokeWhenLeaving; the chip carries the room until then",
+     "gate": "any GM; a secret passage's question alone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "the kit's cancel role",
+     "kind": "button (default)",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "footer close, default cancel (274-275)",
+     "effect": "nothing is revoked",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the student's name and room at the press"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "a question, never redrawn; the answer is acted on against the store as it is then"
+   }
+  },
+  {
+   "surface": "Delete the passage (question)",
+   "file": "scripts/passages-tab.mjs",
+   "opener": "confirmDelete:284 (the row's Delete, 344)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Delete the passage",
+     "key": "DRPG.Passage.tab.deleteTitle",
+     "kind": "button (destructive)",
+     "selector": "footer yes",
+     "handler": "drpgConfirm yes role destructive (286)",
+     "effect": "deletePassage at once",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "the kit's cancel",
+     "kind": "button (default)",
+     "selector": "footer no",
+     "handler": "drpgConfirm",
+     "effect": "nothing",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the passage's title at the press"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "a question"
+   }
+  },
+  {
+   "surface": "The passage pick (window 'Pick a secret passage' and the board's clicks)",
+   "file": "scripts/passages-gm.mjs",
+   "opener": "pickPrompt:2774 and startPassagePick:2883 (the Passages tab's New passage, Tunnel or stairs, Pick again; a Secret Passage project's approval with between)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Cancel / Esc / the window's cross",
+     "key": "the kit's cancel role",
+     "kind": "button (footer close)",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "drpgWindow close -> cancel (2790) -> end(null) (2917-2926)",
+     "effect": "ends the pick, clears the preview, brings Room Setup back (tuck)",
+     "gate": "any GM; ignored while the write of the second click runs (2926)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A left click on the board",
+     "key": "DRPG.Passage.pick.first / second / tunnelFirst / tunnelSecond",
+     "kind": "canvas click",
+     "selector": "canvas.stage pointerdown, button 0",
+     "handler": "canvasBoard 2813-2834 -> click 2943-2972",
+     "effect": "snaps to a wall (or a grid square for a tunnel) and says the next step or the refusal in the window (DRPG.Passage.pick.why.*); the second click writes createPassage or repickPassage and says it (DRPG.Passage.pick.made / moved / tunnelMade)",
+     "gate": "any GM",
+     "how_read": "code; scenario 76-passages and R561 replace board and prompt; results not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A right click on the board",
+     "key": "-",
+     "kind": "canvas click",
+     "selector": "canvas.stage pointerdown, button 2",
+     "handler": "canvasBoard down -> cancel",
+     "effect": "the same as Cancel",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the scene's walls and rooms, read once when the pick starts (2909-2913); the passages taken (takenOn)"
+    ],
+    "listens": [
+     "its own clicks and pointer only"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "a wall moved, or another GM's passage written, during the two clicks is not seen until the write, where createPassage asks the rule again (1398-1410)"
+    ],
+    "focus_rule": "no field"
+   }
+  },
+  {
+   "surface": "A room's actions (editor; title 'Actions of <room>')",
+   "file": "scripts/facility-editor.mjs",
+   "opener": "editRoomActions:104 (the Facilities tab's Edit)",
+   "audience": "gm (null for a player, 105)",
+   "controls": [
+    {
+     "label": "Action N: name",
+     "key": "DRPG.Facility.editor.label",
+     "kind": "text field",
+     "selector": "input[name='a<i>.label']",
+     "handler": "readRoomActions 92-101",
+     "effect": "Save keeps the action; an action with no name is dropped (facilities.mjs cleanAction 89)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Action N: the roll's statistic",
+     "key": "DRPG.Facility.editor.trait",
+     "kind": "select",
+     "selector": "select[name='a<i>.trait']",
+     "handler": "readRoomActions",
+     "effect": "stored cleaned to TRAITS",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Action N: difficulty",
+     "key": "DRPG.Facility.editor.dc",
+     "kind": "stepper",
+     "selector": "input[name='a<i>.dc']",
+     "handler": "readRoomActions",
+     "effect": "held to FACILITIES.dc",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: kind",
+     "key": "DRPG.Facility.editor.effect, noEffect",
+     "kind": "select",
+     "selector": "select[name='a<i>.e<j>.kind']",
+     "handler": "readEffects 53-60",
+     "effect": "an effect with no kind is dropped",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: amount",
+     "key": "DRPG.Facility.editor.amount",
+     "kind": "stepper",
+     "selector": "input[name='a<i>.e<j>.n']",
+     "handler": "readEffects",
+     "effect": "held to the kind's amount",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: who it falls on",
+     "key": "DRPG.Facility.editor.scope",
+     "kind": "select",
+     "selector": "select[name='a<i>.e<j>.scope']",
+     "handler": "readEffects",
+     "effect": "self for a kind that acts once (cleanEffect 58)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: statistic",
+     "key": "DRPG.Facility.editor.trait",
+     "kind": "select",
+     "selector": "select[name='a<i>.e<j>.trait']",
+     "handler": "readEffects",
+     "effect": "kept for a timed kind only (cleanEffect 71)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: until",
+     "key": "DRPG.Facility.editor.until",
+     "kind": "select",
+     "selector": "select[name='a<i>.e<j>.until']",
+     "handler": "readEffects",
+     "effect": "kept for a timed kind only",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: text",
+     "key": "DRPG.Facility.editor.text",
+     "kind": "text field",
+     "selector": "input[name='a<i>.e<j>.text']",
+     "handler": "readEffects",
+     "effect": "a kind that carries text with none is dropped (cleanEffect 59-62)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Save",
+     "key": "DRPG.Facility.editor.save",
+     "kind": "button (footer primary)",
+     "selector": "footer button[data-action=save]",
+     "handler": "callback readRoomActions (113) -> setRoomActions 298-305",
+     "effect": "writes the room's list on every writable piece at once",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "silent",
+     "detail": "What the cleaning drops - an action with no name, an effect with no text - goes without a word, and the note under the form (DRPG.Facility.editor.roomNote) does not say it (finding 4)."
+    },
+    {
+     "label": "Cancel",
+     "key": "the kit's cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "drpgWindow",
+     "effect": "nothing written",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the room's actions flag (roomActions, marked rooms only)"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "updateRegion not heard: another GM's Save of the same room shows on reopen only, and this Save writes the whole list over it (finding 5)"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "A project's action (editor; title 'Room action of <project>')",
+   "file": "scripts/facility-editor.mjs",
+   "opener": "editProjectFacility:158 (the project manager's row, projects-ui.mjs:569-577)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Name",
+     "key": "DRPG.Facility.editor.label",
+     "kind": "text field",
+     "selector": "input[name='p.label']",
+     "handler": "readProjectFacility 148-156",
+     "effect": "required: with none Save writes nothing (cleanFacility 114)",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: kind",
+     "key": "DRPG.Facility.editor.effect",
+     "kind": "select",
+     "selector": "select[name='p.e<j>.kind']",
+     "handler": "readEffects",
+     "effect": "as the room editor's",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: amount",
+     "key": "DRPG.Facility.editor.amount",
+     "kind": "stepper",
+     "selector": "input[name='p.e<j>.n']",
+     "handler": "readEffects",
+     "effect": "as the room editor's",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: who it falls on",
+     "key": "DRPG.Facility.editor.scope",
+     "kind": "select",
+     "selector": "select[name='p.e<j>.scope']",
+     "handler": "readEffects",
+     "effect": "as the room editor's",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: statistic",
+     "key": "DRPG.Facility.editor.trait",
+     "kind": "select",
+     "selector": "select[name='p.e<j>.trait']",
+     "handler": "readEffects",
+     "effect": "as the room editor's",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: until",
+     "key": "DRPG.Facility.editor.until",
+     "kind": "select",
+     "selector": "select[name='p.e<j>.until']",
+     "handler": "readEffects",
+     "effect": "as the room editor's",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Effect J: text",
+     "key": "DRPG.Facility.editor.text",
+     "kind": "text field",
+     "selector": "input[name='p.e<j>.text']",
+     "handler": "readEffects",
+     "effect": "as the room editor's",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Costs an action",
+     "key": "DRPG.Facility.editor.costsAction",
+     "kind": "switch",
+     "selector": "input[name='p.costsAction']",
+     "handler": "readProjectFacility",
+     "effect": "true unless unticked",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Lifetime",
+     "key": "DRPG.Facility.editor.lifetime",
+     "kind": "select",
+     "selector": "select[name='p.life']",
+     "handler": "readProjectFacility",
+     "effect": "for good, times of day or days",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Lifetime: how many",
+     "key": "DRPG.Facility.editor.lifetimeN",
+     "kind": "stepper",
+     "selector": "input[name='p.n']",
+     "handler": "readProjectFacility",
+     "effect": "1 to maxLifetime; kept for a counted lifetime only",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "How often",
+     "key": "DRPG.Facility.editor.limit",
+     "kind": "select",
+     "selector": "select[name='p.limit']",
+     "handler": "readProjectFacility",
+     "effect": "one of FACILITIES.limits",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Save",
+     "key": "DRPG.Facility.editor.saveProject",
+     "kind": "button (footer primary)",
+     "selector": "footer button[data-action=save]",
+     "handler": "callback readProjectFacility (168) -> setProjectFacility 313-322 -> projects.mjs applyProjectChange",
+     "effect": "gives the project its action; a completed project starts the lifetime now",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "silent",
+     "detail": "With no name, cleanFacility answers null (facilities.mjs:114), setProjectFacility returns null (316) and editProjectFacility hands it back (175) to a caller that ignores it (projects-ui.mjs:576): the window closes, nothing is written and nothing is said (finding 4)."
+    },
+    {
+     "label": "Remove the action",
+     "key": "DRPG.Facility.editor.remove",
+     "kind": "button (footer secondary)",
+     "selector": "footer button[data-action=remove]",
+     "handler": "editProjectFacility 173 -> setProjectFacility(id, null)",
+     "effect": "takes the action off at once (its tooltip says so)",
+     "gate": "any GM; drawn also on a project with no action, where it writes the same null",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "the kit's cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "drpgWindow",
+     "effect": "nothing written",
+     "gate": "any GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "projectFacilityOf (the project's meta or the GMs' secret half), at open (160)"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "the Countdowns setting and the GMs' secret half not heard: another GM's Save shows on reopen only, and this Save writes over it (finding 5)"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "Who is here (handover picker; titles 'Give <item>', 'Share <bullet>', and the sheet's 'Show the passage')",
+   "file": "scripts/handover.mjs",
+   "opener": "askWhoIsHere:46 (shareBulletDialog 110, handOverDialog 131 from sheet-inventory.mjs:1003-1012; sheet-sidebar.mjs:647 showPassageDialog; game.drpg.shareBulletDialog, giveItemDialog)",
+   "audience": "player (and a GM acting for a character)",
+   "controls": [
+    {
+     "label": "Who",
+     "key": "DRPG.Handover.who",
+     "kind": "select (a list box for Show the passage)",
+     "selector": "select[name=target]",
+     "handler": "read by the primary's callback (84)",
+     "effect": "the character to hand to, from othersInRoom at open (60)",
+     "gate": "the character's owner; refused before opening in an Eclipse (DRPG.Eclipse.actionsLocked), with nobody here (DRPG.Handover.nobodyHere) or in no room (DRPG.Handover.notInRoom)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "stale_state",
+     "detail": "The list is the room's people at the open and is never redrawn (finding 6)."
+    },
+    {
+     "label": "Give / Share / Show",
+     "key": "DRPG.Handover.give, share (okLabel)",
+     "kind": "button (footer primary)",
+     "selector": "footer button[data-action=ok]",
+     "handler": "drpgWindow -> the bridge's requestGiveItem / requestShareBullet (gm-bridge.mjs)",
+     "effect": "the GM's client checks the room and the gate again (verify 190-205, transferRefusal) and writes; a refusal goes back to the giver by its code",
+     "gate": "the character's owner",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "the kit's cancel",
+     "kind": "button",
+     "selector": "footer button[data-action=cancel]",
+     "handler": "drpgWindow",
+     "effect": "nothing sent",
+     "gate": "the character's owner",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the character's room and the people in it (movement.mjs locateActor, othersInRoom) and their names as seen (mask-gm.mjs nameAsSeen)"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "updateToken / drpgRouteSettled not heard: a character who walks in is not offered, one who walks out stays in the list until the GM's check refuses the handover"
+    ],
+    "focus_rule": "never redrawn"
+   }
+  },
+  {
+   "surface": "The room tile under the clock (HUD) and its narrow row",
+   "file": "scripts/room-tile.mjs",
+   "opener": "registerRoomTile:754 (module.mjs ready); painted by refreshRoomTile:719",
+   "audience": "gm and player (a GM sees the Monokuma's room; empty pane without one)",
+   "controls": [
+    {
+     "label": "The picture (desk)",
+     "key": "DRPG.Room.imageOpen",
+     "kind": "button over the art",
+     "selector": "#drpg-room-tile .drpg-room-tile-open",
+     "handler": "278 -> openRoomImage 545",
+     "effect": "decodes the picture and opens it in Foundry's ImagePopout on this browser alone, no share control; a picture that does not decode is a warning (DRPG.Room.imageMissing)",
+     "gate": "anybody whose viewer stands in a room with a picture",
+     "how_read": "code; R504, R505 and scenario 74-room-tile named in the file; results not read",
+     "themes": "hidden in the stacked layout (narrow.css:261 body.drpg-stacked #drpg-tile-row > #drpg-room-tile > :is(.drpg-room-tile-art, .drpg-room-tile-open, .drpg-room-tile-more, .drpg-room-tile-prose) display: none), where the thumbnail stands in its place; pointer-events: none on the trial and none states (components.css:1978); opacity 0 under a sequence's cover (danganronpa.css:18115), by design",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Read more / Read less (chevron)",
+     "key": "DRPG.Room.readMore, readLess",
+     "kind": "button",
+     "selector": ".drpg-room-tile-more",
+     "handler": "301 -> openProse 446-460",
+     "effect": "opens and closes the GM's words in the tile; a repaint of the same room keeps it as left",
+     "gate": "anybody whose room has words",
+     "how_read": "code",
+     "themes": "hidden in the stacked layout (narrow.css:261), where Describe stands in its place",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Thumbnail (narrow)",
+     "key": "DRPG.Room.imageOpen; tooltip DRPG.Tips.Setup.roomPictureThumbnailTooltip",
+     "kind": "button",
+     "selector": ".drpg-room-tile-thumb",
+     "handler": "344 -> openRoomImage",
+     "effect": "as the desk's picture",
+     "gate": "anybody whose room has a picture",
+     "how_read": "code",
+     "themes": "display: none on a desk (components.css:1975), shown in the stacked row (narrow.css:264)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Describe (narrow)",
+     "key": "DRPG.Room.describe",
+     "kind": "icon button",
+     "selector": ".drpg-room-tile-describe",
+     "handler": "358 -> openRoomWindow 436",
+     "effect": "opens the room's words in a window of its own, one at a time",
+     "gate": "anybody whose room has words",
+     "how_read": "code",
+     "themes": "display: none on a desk (components.css:1975), shown in the stacked row (narrow.css:319)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the viewer's token and room (viewerRoom, locateActor, settledPosition)",
+     "the room's description and picture (region flags)",
+     "the search-token setting and the sealed flag",
+     "projects available in the room (projectsAvailableIn)",
+     "the trial slot and the hall's flags (hallView)"
+    ],
+    "listens": [
+     "drpgRouteSettled for the viewer's own token (755-758)",
+     "canvasReady",
+     "createRegion / updateRegion / deleteRegion (760-762)",
+     "updateScene of the hall's flag (764-767)",
+     "drpgHudRendered (768): the HUD redraws on its synced settings (searchTokens's sync row names 'hud', sync.mjs:494), on every other module setting (hud.mjs:231-236) and on renderDhCountdowns (hud.mjs:242)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "no field; a repaint of the same room keeps the words as opened (paintRoomTile 247-248)"
+   }
+  },
+  {
+   "surface": "The room's words (window 'Describe the room', the narrow row's button)",
+   "file": "scripts/room-tile.mjs",
+   "opener": "openRoomWindow:436 (roomWindowClass 390, a DrpgApp)",
+   "audience": "gm and player",
+   "controls": [
+    {
+     "label": "Fold / close (the frame's)",
+     "key": "Foundry's",
+     "kind": "header controls",
+     "selector": ".window-header",
+     "handler": "ApplicationV2 (minimizable: true, 397)",
+     "effect": "folds or closes the window",
+     "gate": "anybody",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "tileView() on every render (412-414)"
+    ],
+    "listens": [
+     "refreshRoomWindow (732-737): drawn again whenever the tile is, closed when the room has no words or there is no room"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "no field"
+   }
+  },
+  {
+   "surface": "The room's picture (Foundry's ImagePopout, outside the kit)",
+   "file": "scripts/room-tile.mjs",
+   "opener": "openRoomImage:545",
+   "audience": "gm and player",
+   "controls": [
+    {
+     "label": "Close (the frame's)",
+     "key": "Foundry's",
+     "kind": "header control",
+     "selector": ".window-header",
+     "handler": "ImagePopout; every other header control stripped (stripImageControls 712-716)",
+     "effect": "closes",
+     "gate": "anybody",
+     "how_read": "code; LIVE-E77-04 is what a real v14 draws there",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the picture path at the press"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "updateRegion not heard: a picture the GM changes or removes while it is open stays shown (finding 8)"
+    ],
+    "focus_rule": "no field"
+   }
+  },
+  {
+   "surface": "The floor switcher beside the clock (#drpg-floors)",
+   "file": "scripts/fog.mjs",
+   "opener": "floorSwitcher:3425 (canvasReady 302; every repaintFog through scheduleFloorSwitcher 3014, 3450-3457)",
+   "audience": "gm and player (a player is offered the floors of their own tokens and of the rooms they found, floorOffer)",
+   "controls": [
+    {
+     "label": "A floor's button",
+     "key": "the floor's name, or DRPG.Fog.floorUnnamed; tooltip DRPG.Fog.floorsHint / floorsHintGm",
+     "kind": "button",
+     "selector": "#drpg-floors button[data-drpg-level]",
+     "handler": "3487-3490 -> scene.view({ level })",
+     "effect": "views that floor; the pressed one is the floor on screen (aria-pressed)",
+     "gate": "anybody it is offered to; none drawn when nothing or one floor is offered",
+     "how_read": "code; R7129 (the GM's words) named at 3477-3478; result not read",
+     "themes": "no hiding rule found for #drpg-floors (the same scan); how it looks under either theme is the live check's (fog.mjs:3461-3463)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the viewed scene's floors, the viewer's tokens and discovered rooms, the floor on screen"
+    ],
+    "listens": [
+     "canvasReady (302)",
+     "every repaintFog (token create, update and delete, region changes, the Eclipse, the ledger mirror)"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "a floor added or renamed on the scene (updateScene of its levels) is heard only if it repaints the fog or redraws the canvas: not established (not_established 3)"
+    ],
+    "focus_rule": "no field"
+   }
+  },
+  {
+   "surface": "Foundry's door controls on the canvas, as the fog shows them to a player (RoomDoorControl)",
+   "file": "scripts/fog.mjs",
+   "opener": "registerDoorControls (fog.mjs:3003-3009, at init: CONFIG.Canvas.doorControlClass)",
+   "audience": "player (a GM sees Foundry's own)",
+   "controls": [
+    {
+     "label": "A door's icon",
+     "key": "Foundry's",
+     "kind": "canvas control",
+     "selector": "canvas.controls.doors children",
+     "handler": "doorControlFor 2992-3001: isVisible asks doorKnown (2957-2963)",
+     "effect": "a door is drawn only where a side of it lies in a room the player sees clear or veiled; a secret door never; Foundry's open and shut are Foundry's",
+     "gate": "a player",
+     "how_read": "code; R1543 named at 2990; result not read",
+     "themes": "canvas, no stylesheet",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the shading of the last paint (doorRooms, 3088-3089)"
+    ],
+    "listens": [
+     "refreshDoorControls at the end of every repaintFog, every way out (3175-3178)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "no field"
+   }
+  },
+  {
+   "surface": "Check rooms' Show on map (drawn by fog-diagnostics.mjs into Season setup's rooms check)",
+   "file": "scripts/fog-diagnostics.mjs",
+   "opener": "roomCheckHtml:691 and wireShowOnMap:730 (season-setup.mjs; the window is controls-10's)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Show on map",
+     "key": "DRPG.Fog.check.showOnMap",
+     "kind": "mini button",
+     "selector": "button[data-drpg-show-at]",
+     "handler": "wireShowOnMap 730-740 -> showOnMap 717-727",
+     "effect": "views the checked scene (at the finding's floor) and pans this GM's camera to the point, marked with a local ping, never canvas.ping",
+     "gate": "any GM",
+     "how_read": "code; R1508, R1535 named at 714, 729; result not read",
+     "themes": "no hiding rule found (scan of styles/*.css by script: 167 rules naming drpg-room-tile, drpg-room-window, drpg-passage, drpg-fog-bulk, drpg-window-rooms, drpg-room-setup, drpg-facility, drpg-window-handover, drpg-passage-pick, drpg-floors, drpg-token-step, drpg-stash, drpg-place, drpg-picture, drpg-room-picture, drpg-window-revoke, drpg-window-delete-passage; the 10 that hide are listed per control where they apply, none under body.drpg-theme-stained-glass or the default theme for these windows)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the findings handed in"
+    ],
+    "listens": [
+     "the window's own (Season setup, controls-10)"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "the window's own"
+   }
+  }
+ ],
+ "counts": {
+  "surfaces": 21,
+  "controls": 87,
+  "ok": 80,
+  "dead": 0,
+  "throws": 0,
+  "mislabeled": 0,
+  "wrong_audience": 0,
+  "silent": 2,
+  "stale_state": 5,
+  "unknown": 0
+ },
+ "findings": [
+  {
+   "id": "controls-11-map-rooms-1",
+   "severity": "major",
+   "verdict": "stale_state",
+   "title": "Room Setup's Apply writes back every row it drew whose room the world changed since: a lock forced, repaired or breached while the window is open is undone by an Apply of another room, and a Repair the Lock under way is deleted",
+   "surface": "Room Setup - the frame (Apply), with the Doors, Rooms, Searching, Facilities and Description tabs' columns",
+   "control": "Apply",
+   "where": "scripts/room-setup.mjs:963-1117 (applyRoomRows), 1358-1361 (the only keepFresh, the search-token setting)",
+   "what_happens": "readRoomSetupForm reads every row off the form as drawn at the open (537-560). applyRoomRows compares each row with the region's flags as they are when Apply is pressed (`before`, wasLocked, wasBroken, ... 987-1040), not with what the window drew, so a row the GM never touched differs as soon as the world changed that room, and the whole row is written: setRoomBroken with the drawn value (1042-1046) and, when it unticks, dropLockRepairs, which deletes every Repair the Lock project on that lock (doors-gm.mjs:307-319); writeRoomLock with the drawn lock (1111); setVaultRoom with the drawn owner, table, description and picture (1052-1060); the rest flags, the seal, No privacy, the mark and the neighbours. Nothing redraws those cells while the window is open: keepFresh watches the search-token setting alone. The same class of fault was fixed for the Fog boxes (ROOM-01, fog.mjs:1529-1540) and the stash cells (E89 C7, room-setup.mjs:1128-1135) by acting only where the GM changed a cell against what was drawn; the row columns were not.",
+   "evidence": "const wasLocked = Boolean(flagOver(pieces, ROOM_FLAGS.locked));\n        const wasLockedAtStart = pieces.some(startLocked);\n        const wasBroken = roomBroken(scene, row.room);\n[...]\n        if (same) continue;\n        // Broken (E74 C5): written on the room's pieces by its one writer, before the rest of the row.\n        if (wasBroken !== row.broken) {\n            await setRoomBroken(scene, row.room, row.broken);\n            // Mended by hand: a Repair the Lock under way on it goes, with a note to the GMs (E74 C5).\n            if (!row.broken) await (await import(\"./doors-gm.mjs\")).dropLockRepairs(scene, row.room);\n        }\n[...]\n            keepFresh(dialog, {\n                run: recount,\n                watch: { settings: [SETTINGS.searchTokens] }\n            });",
+   "failure_scenario": "During Daily Life the GM keeps Room Setup open (its own comment at 1343-1348 says that is when it is open); a player forces the Kitchen's door (doors-gm.mjs:175 setRoomBroken) and starts nothing yet, another player starts a Repair the Lock on it; the GM types a description for the Library and presses Apply - the Kitchen's lock is mended without a word to the GM about the force, the Repair project is deleted with only the 'dropped' whisper, and the players' break is gone.",
+   "expected": "a row's column written only where the GM changed it against what the window drew (as the Fog boxes and stash cells are), or the cells redrawn when the regions change",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard: `same` (1021-1040) is the only skip and it compares with `before`/`was*`, read at Apply time from flagOver and roomBroken (movement.mjs:143-146, the current flag). Looked for a redraw: the window's only keepFresh is the token setting (1358-1361) and the Passages box's stores (passages-tab.mjs:402); no updateRegion listener in room-setup.mjs (grep of Hooks.on: none). Real writers while the window is open: forceDoor on the primary (doors-gm.mjs:175, a player's Body roll), repairLockDone (doors-gm.mjs:290), cutBreach (passages-gm.mjs:773), the Mastermind's lair lock (mastermind.mjs:311), another GM's Apply. The tier-2 test E74-T5 (tests-tier2.mjs:101845) writes the break before the window opens, so it pins the mend by hand and measures nothing about a write in between; its own comment says 'an Apply of a changed row writes every field of the row'. No test or scenario found that writes a region flag between the draw and Apply.",
+   "probe": "game.drpg.roomSetup() on the GM; on the primary, (await import('/modules/danganronpa-rpg/scripts/movement.mjs')).setRoomBroken(canvas.scene, '<room A>', true); in the window change only room B's description and press Apply; read movement.mjs roomBroken(canvas.scene, '<room A>') (true expected, false today)"
+  },
+  {
+   "id": "controls-11-map-rooms-2",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "Room Setup does not follow the map it shows: the Fog matrix, the stash cells, the owners, the locks and the room list stay as they were at the open",
+   "surface": "Room Setup - every tab but the token counts and the Passages box",
+   "control": "the Fog tab's boxes (and every cell drawn from a region flag)",
+   "where": "scripts/room-setup.mjs:1358-1361; fog.mjs:1529-1532",
+   "what_happens": "The window reads the discovery ledger (a GM store), the region flags, the region list, the students and the stash lists once (1240-1280). Its keepFresh names the search-token setting only, so a room a player finds, a stash another GM writes, a room drawn or deleted, a lock forced, a student made - none shows until the window is closed and opened again. fog.mjs states it in its own words. Apply is safe for the fog boxes and stash cells (only changed cells are acted on), so this is the standing rule's breach on screen, not a lost write (the lost write of the row columns is finding 1).",
+   "evidence": "     * IT USED TO WRITE THE WHOLE MATRIX BACK (ROOM-01, 17.09). The checkboxes are\n     * drawn when Room Setup opens and never refreshed, while `recordDiscovery`\n     * goes on adding every room a student walks into - and the window is open\n     * during Daily Life because a GM is watching that happen.",
+   "failure_scenario": "A GM watching Daily Life on Room Setup's Fog tab sees a student's column unticked for the Gym the student walked into a minute ago, and believes the fog failed to record it.",
+   "expected": "the window redrawn in place when the regions, the discovery store, the actors or the stashes change (the standing rule of 20.11.2026), with what the GM changed and not yet applied kept",
+   "confidence": "read",
+   "refutation_tried": "The keepFresh comment (1343-1357) gives the reason for not swapping the rows: a redraw would lose unapplied ticks. That is a reason for keepLive's carry of touched fields (live.mjs:36-43), not for no redraw; the rule of 20.11.2026 names no exception for forms. No other listener in room-setup.mjs. A scene change is not a gap: the window is bound to the scene it was opened on by decision (E12 C4, 1213-1228).",
+   "probe": "Room Setup open on the Fog tab; on a player's client walk a student into an unvisited room; read the box fog:<room>:<actorId> (unticked today)"
+  },
+  {
+   "id": "controls-11-map-rooms-3",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "A room's actions saved before the room is marked are written but shown as none: the count stays 0 and the editor reopens empty",
+   "surface": "Room Setup - the Facilities tab; A room's actions (editor)",
+   "control": "Edit (the room's actions) and its count",
+   "where": "scripts/room-setup.mjs:297, 318-320, 719-729; facilities.mjs:275-279, 298-305; rooms.mjs:228-241, 320-323",
+   "what_happens": "The Edit button is enabled where a piece of the name MAY be a room (`possible`, 297), which is every named region of a new map before the first Apply. The editor reads the room's actions through roomActions -> roomFlag -> roomRegions, which holds marked rooms only (isRoomWith), so it opens empty; Save writes through writablePieces, every piece that can be a room, marked or not. The cell's count is then read again through roomActions: 0. Reopened, the editor is empty again, and a second Save writes its list over the first. The actions appear once Apply marks the room.",
+   "evidence": "export function roomActions(scene, room) {\n    if (!scene || !room) return [];\n    const stored = roomFlag(scene, room, FACILITIES.flag);\n[...]\nexport async function setRoomActions(scene, room, list) {\n    if (!game.user?.isGM || !scene) return null;\n    const pieces = writablePieces(scene, room);",
+   "failure_scenario": "A GM setting up a new map opens Room Setup, goes to Facilities before pressing Apply, gives the Kitchen a 'Brew tea' action and Saves: the count still reads 0, the editor reopens empty, and the GM types it again or thinks the editor broke.",
+   "expected": "the editor and the count read the same pieces the Save writes (or the button held with its reason until the room is marked)",
+   "confidence": "read",
+   "refutation_tried": "Checked roomFlag (rooms.mjs:239-241 -> roomRegions 228-231 -> roomPieces 222-226, isRoomWith) against writablePieces (320-323, canBeRoom, marked or not): they differ exactly on an unmarked room. The isroom toggle is drawn ticked as a suggestion there (roomCells 297-299, data-drpg-undecided), which is what makes the room look like one. No test found reading the count after a Save on an unmarked room.",
+   "probe": "a scene with a named region never marked; game.drpg.roomSetup({ tab: 'rest' }); Edit on it, type a name, Save; read [data-drpg-facility-count] and the region's flag drpg facilities (count 0, flag set)"
+  },
+  {
+   "id": "controls-11-map-rooms-4",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "The action editors drop what their cleaning refuses without a word: a project's action with no name saves nothing, a room's unnamed action or an effect with no text vanishes",
+   "surface": "A project's action (editor); A room's actions (editor)",
+   "control": "Save",
+   "where": "scripts/facility-editor.mjs:104-119, 158-176; facilities.mjs:54-62, 87-90, 112-114, 313-317; projects-ui.mjs:575-577",
+   "what_happens": "Save hands the form to the cleaners. A project's action with an empty name is cleanFacility's null, setProjectFacility returns null, and the project manager's handler awaits it and goes on: the window is closed and every field typed is lost, with no message. In a room's editor an action with no name, and an effect of a kind that needs text with none, are filtered out by cleanAction / cleanEffect; the note under the form (DRPG.Facility.editor.roomNote: 'Saving writes the room's actions at once ...') does not say so.",
+   "evidence": "export function cleanFacility(raw) {\n    const label = clip(raw?.label, FACILITIES.maxLabel);\n    if (!label) return null;\n[...]\n    const facility = raw === null ? null : cleanFacility(raw);\n    if (raw !== null && !facility) return null;",
+   "failure_scenario": "A GM fills a project's room action - three effects and a lifetime - forgets the name and presses Save: the window closes, the project has no action, and nothing says why.",
+   "expected": "Save held, or a line saying what was not kept",
+   "confidence": "read",
+   "refutation_tried": "Looked for a required attribute on p.label (facility-editor.mjs:128): none; for a notice in setProjectFacility or its caller: none (projects-ui.mjs:576 discards the answer). The placeholder 'Brew tea' is a hint, not a rule.",
+   "probe": "game.drpg's project manager: a project's room action button, leave the name empty, Save; read projectFacilityOf(id).facility (null) and the notifications (none)"
+  },
+  {
+   "id": "controls-11-map-rooms-5",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The two action editors do not follow another GM's Save, and their own Save writes the whole list over it",
+   "surface": "A room's actions (editor); A project's action (editor)",
+   "control": "Save",
+   "where": "scripts/facility-editor.mjs:104-119 (no render, no keepLive), 158-176",
+   "what_happens": "Each editor is drawn once from the flag or the project's meta and has no listener. A second GM's Save while it is open is not shown, and this GM's Save replaces the room's list or the project's action whole.",
+   "evidence": "    const result = await drpgWindow({\n        title: game.i18n.format(\"DRPG.Facility.editor.roomTitle\", { room }),\n        classes: [\"drpg-panel\", \"drpg-facility-window\"],\n        width: \"tables\",\n        body: roomActionsBody(room, roomActions(scene, room)),",
+   "failure_scenario": "Two GMs edit the Kitchen's actions at once; the second to press Save removes the first's new action without either being told.",
+   "expected": "the editor redrawn (fields kept) when the flag changes, as the standing rule asks",
+   "confidence": "read",
+   "refutation_tried": "No keepLive or keepFresh in facility-editor.mjs (grep); the room editor's opener only rewrites the count after Save (room-setup.mjs:726-727). Two GMs on one room's editor is uncommon, hence nit.",
+   "probe": "two GM clients; both open editRoomActions on one room; Save on one, then on the other; read the flag (the second's list alone)"
+  },
+  {
+   "id": "controls-11-map-rooms-6",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The handover picker's list of who is here is the room at the open: a character who walks in is not offered",
+   "surface": "Who is here (handover picker)",
+   "control": "Who",
+   "where": "scripts/handover.mjs:46-90",
+   "what_happens": "askWhoIsHere reads othersInRoom once (60) and draws the select; the window has no render hook and no keepLive. A character who arrives is not in the list; one who left is still offered and the GM's check then refuses (verify 190-205, told to the giver by the bridge).",
+   "evidence": "    const room = locateActor(actor)?.room ?? null;\n    const here = room ? othersInRoom(actor) : [];\n[...]\n    const picked = await drpgWindow({\n        title,\n        classes: [\"drpg-panel\", \"drpg-window-handover\"],",
+   "failure_scenario": "A player opens Give on a crowbar while waiting for a friend; the friend's token walks into the room; the list still names only the two who were there, and the player has to close and open it again.",
+   "expected": "the list redrawn when a token of this scene settles in or out of the room",
+   "confidence": "read",
+   "refutation_tried": "The GM side re-checks the room (transferRefusal mode give), so a stale pick is refused, not written: the harm is the missing name, not a wrong write. No listener in handover.mjs for tokens (grep of Hooks.on: none).",
+   "probe": "a player opens handOverDialog; move a second student's token into the room; read the select's options (unchanged)"
+  },
+  {
+   "id": "controls-11-map-rooms-7",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The Passages tab's '+' menus offer the students of the open, and its names and 'shared' lines do not follow the actors or the users",
+   "surface": "Room Setup - the Passages tab",
+   "control": "Who knows / At season start: a student's name in the menu",
+   "where": "scripts/passages-tab.mjs:96-103, 120-122, 129, 402; room-setup.mjs:1247, 1321",
+   "what_happens": "`students` is studentActors() taken when Room Setup opened and handed to wirePassagesTab; every redraw offers that list. keepFresh hears the four passage stores, userConnected and drpgPassagesTold, not createActor, updateActor or updateUser, so a student made, renamed or given to another player (the 'shared' line, playersOf) shows on the next store change or reopen.",
+   "evidence": "    if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, ...(stores.season ? [stores.season] : []), stores.access, stores.mastermind], hooks: [\"userConnected\", \"drpgPassagesTold\"] } });",
+   "failure_scenario": "A GM adds a late student while Room Setup is open and wants to give them a passage: the '+' does not offer them until the window is reopened.",
+   "expected": "the box redrawn, and the students read again, on the actor and user hooks",
+   "confidence": "read",
+   "refutation_tried": "The access grant itself is checked on write (grantPassage refuses a non-student, passages-gm.mjs:1781), so nothing wrong is written; a student made mid-setup is rare.",
+   "probe": "Room Setup open on Passages; create a character actor; press '+' (the new student not offered)"
+  },
+  {
+   "id": "controls-11-map-rooms-8",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The room's picture window keeps the picture it opened with after the GM changes or removes it",
+   "surface": "The room's picture (ImagePopout)",
+   "control": "Close (the frame's)",
+   "where": "scripts/room-tile.mjs:545-563, 719-737",
+   "what_happens": "openRoomImage opens Foundry's ImagePopout with the path of the press. refreshRoomTile redraws the tile and the words window (refreshRoomWindow) on a region change, but not the popout, which nothing finds again.",
+   "evidence": "    const popout = new foundry.applications.apps.ImagePopout({\n        src, classes: [POPOUT_CLASS], window: { title: game.i18n.localize(\"DRPG.Room.tileLabel\"), controls: [] }, showTitle: true\n    });",
+   "failure_scenario": "A player has the Library's picture open; the GM replaces it with the scene after the murder; the player's window goes on showing the old picture until closed.",
+   "expected": "the popout closed or redrawn when the room's picture changes, as the words window is",
+   "confidence": "read",
+   "refutation_tried": "refreshRoomWindow (732-737) looks for RoomWindow instances only; stripImageControls touches the header alone. Whether showing the old picture matters at a table is the owner's call; nit.",
+   "probe": "open the tile's picture; change the room's image flag in Room Setup; read the popout's img src (old path)"
+  }
+ ],
+ "not_established": [
+  "No control was pressed in this pass (no harness run, no probe). Every row is label -> element -> listener -> handler -> effect as read in source; the tests and scenarios named are named from their text, their results not read (no base-run.json on the branch).",
+  "Whether Room Setup covers the spot the Passages tab's Show pans to: Show does not tuck the window (passages-tab.mjs:342, 305-307), the pick does (passages-gm.mjs:2839-2846, tuck). New live check: open Room Setup at 1366x768 on Passages, press Show on a passage under the window, see whether it is visible.",
+  "Whether a floor added or renamed on the scene redraws the floor switcher at once: the switcher is drawn on canvasReady and after every fog repaint (fog.mjs:302, 3014); whether v14 redraws the canvas or fires anything the fog hears on a levels change was not read. New live check: rename a floor in the scene config with the switcher on screen.",
+  "The passage pick reads the scene's walls and rooms once (passages-gm.mjs:2909-2913) and listens on canvas.stage; whether canvas.stage survives a scene change in v14 so that clicks on another scene viewed mid-pick reach the pick, snapped against the first scene's walls, was not read. New live check: start New passage, view another scene by the navigation, click two points.",
+  "Whether a disabled Apply shows its reason as a tooltip on v14 (setApplyBlock writes data-tooltip empty and the reason as aria-label, room-setup.mjs:879-884; a disabled button's pointer events and Foundry's TooltipManager fallback to aria-label are from memory, not read). The reason also stands on the Rooms tab (wireTwoRoomsCheck).",
+  "LIVE-E77-04 (what v14 draws as the ImagePopout's title) stays as written; nothing here reads it."
+ ]
+}
