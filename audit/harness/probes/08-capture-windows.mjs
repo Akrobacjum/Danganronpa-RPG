@@ -254,10 +254,12 @@ const SEED_CROWD = SEED_TYPES + `
     await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2", "probe08-d4", "probe08-d5", "probe08-d6", "probe08-d7", "probe08-d8"] });
     globalThis.__probe08case.ids.push("probe08-d6", "probe08-d7", "probe08-d8", "probe08-c2");`;
 /* 1.2.119 line P round 4 (20.11.2026; the owner: a deduction coloured by its Class Trial mode): the typed case with its
-   deductions given three modes - d1 Nonstop Debate as it was, d4 Testimony, d5 Panic Round - and d2 none. */
+   deductions given three modes - d1 Nonstop Debate as it was, d4 Testimony, d5 Panic Round - and d2 none; its counter
+   Testimony (the owner's shades: a counter's mode a shade of its colour too). */
 const SEED_MODES = SEED_TYPES + `
     await CS.setCaseNode(ch, "probe08-d4", { mode: "testimony" });
-    await CS.setCaseNode(ch, "probe08-d5", { mode: "panic" });`;
+    await CS.setCaseNode(ch, "probe08-d5", { mode: "panic" });
+    await CS.setCaseNode(ch, "probe08-c1", { mode: "testimony" });`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `

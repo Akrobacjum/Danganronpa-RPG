@@ -25352,7 +25352,7 @@ const REGRESSIONS = [
             stroke: true, head: true, dashed: true
         }), "{edges: each line's colour class, its head's, its lit head's, dashed; stroke, head: the stylesheet's colour of a line and of a head; dashed: a counter's line}");
     }],
-    ["R7831 - a deduction takes the colour of its Class Trial mode, and so do its lines (1.2.119 round 4, the owner: \"dedukcje niech maja tez rozne kolory i kolory strzalek zaleznie od tego, jaki class trial mode maja przypisany\"; case-map.mjs `CASE_MODE_ORDER`, components.css): a deduction with a mode carries `drpg-case-mode--<mode>` first and `data-drpg-trial-mode` on its face and fields, a deduction with none keeps the Deduction's colour, a counter or the solution with a mode keeps its own; a line out of a deduction with a mode carries that mode's class and its heads too; the modes are case-schema.mjs `caseModes()`, each with a colour in both themes that its class takes; the legend names the modes on the Map after the kinds, in their words", async () => {
+    ["R7831 - a deduction and a counter take their Class Trial mode's shade of their kind's colour, and so do their lines (1.2.119 round 4, the owner: \"dedukcje niech maja tez rozne kolory i kolory strzalek zaleznie od tego, jaki class trial mode maja przypisany\", then \"Dedukcje moga tez byc roznymi odcieniami tego samego koloru na przyklad, tak samo counters\"; case-map.mjs `CASE_MODE_ORDER`, components.css): a deduction with a mode carries `drpg-case-mode--<mode>` first, a counter `drpg-case-cmode--<mode>`, and `data-drpg-trial-mode` on face and fields; with none each keeps its kind's colour; the solution keeps its own; a line out of either with a mode carries that shade's class and its heads too; the modes are case-schema.mjs `caseModes()`, each with a shade per kind in both themes that its class takes; the legend names each mode on the Map after the kinds, by the floor's word, with a swatch of each shade it carries there", async () => {
         /*
          * Line P of 1.2.119, round 4, 20.11.2026. Red at d921c9cf: a deduction's colour is the Deduction's whatever its mode.
          */
@@ -25366,7 +25366,7 @@ const REGRESSIONS = [
                 "s-y": { kind: "solution", label: "R7831 y", inputs: ["d-a", "d-b", "d-c"], mode: "closing" } } });
         const d = document.createElement("div");
         d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
-        const first = el => [...el.classList].find(c => /^drpg-case-(type|kind|mode)--/.test(c)) ?? null;
+        const first = el => [...el.classList].find(c => /^drpg-case-(type|kind|mode|cmode)--/.test(c)) ?? null;
         const nodes = sel => Object.fromEntries([...d.querySelectorAll(sel)].filter(el => /^(d-|c-|s-)/.test(el.dataset.drpgNode ?? el.dataset.drpgEdit ?? ""))
             .map(el => [el.dataset.drpgNode ?? el.dataset.drpgEdit, [first(el), el.dataset.drpgTrialMode ?? null]]));
         const svg = d.querySelector("svg.drpg-case-edges");
@@ -25374,28 +25374,34 @@ const REGRESSIONS = [
             const head = svg.querySelector(`marker[id="${(p.getAttribute("marker-end") ?? "").match(/^url\(#([^)]+)\)$/)?.[1]}"]`);
             return [p.dataset.drpgEdge, [first(p), head ? first(head) : null]];
         }));
-        const legend = [...d.querySelectorAll(".drpg-case-legend li")].map(li => li.dataset.drpgType ?? (li.dataset.drpgKind ? `kind:${li.dataset.drpgKind}` : `mode:${li.dataset.drpgTrialMode}:${li.textContent.trim()}`));
+        const legend = [...d.querySelectorAll(".drpg-case-legend li")].map(li => li.dataset.drpgType ?? (li.dataset.drpgKind ? `kind:${li.dataset.drpgKind}`
+            : `mode:${li.dataset.drpgTrialMode}:${[...li.querySelectorAll("[data-drpg-mode-of]")].map(sw => first(sw)).join("+")}:${li.textContent.trim()}`));
         let rules = "";
         try { rules = await moduleStyles(); } catch { rules = ""; }
         const modes = S.caseModes();
         const tokens = modes.filter(m => (rules.match(new RegExp(`--drpg-case-mode-${m}:`, "g")) ?? []).length >= 2);
         const painted = modes.filter(m => new RegExp(`\\.drpg-case-mode--${m}\\s*\\{[^}]*--drpg-case-type:\\s*var\\(--drpg-case-mode-${m}\\)`).test(rules));
         const L = m => M.modeLabel(m);
-        equal(JSON.stringify({ order: M.CASE_MODE_ORDER, faces: nodes("button[data-drpg-node]"), fields: nodes(".drpg-case-edit[data-drpg-edit]"), lines, legend, tokens, painted }), JSON.stringify({
+        const cl = svg.querySelector('path[data-drpg-edge="c-x>d-a"]');
+        const counterLine = cl ? [first(cl), first(svg.querySelector(`marker[id="${(cl.getAttribute("marker-end") ?? "").match(/^url\(#([^)]+)\)$/)?.[1]}"]`) ?? cl)] : null;
+        const ctokens = modes.filter(m => (rules.match(new RegExp(`--drpg-case-cmode-${m}:`, "g")) ?? []).length >= 2);
+        const cpainted = modes.filter(m => new RegExp(`\\.drpg-case-cmode--${m}\\s*\\{[^}]*--drpg-case-type:\\s*var\\(--drpg-case-cmode-${m}\\)`).test(rules));
+        equal(JSON.stringify({ order: M.CASE_MODE_ORDER, faces: nodes("button[data-drpg-node]"), fields: nodes(".drpg-case-edit[data-drpg-edit]"), lines, counterLine, legend, tokens, painted, ctokens, cpainted }), JSON.stringify({
             order: modes,
-            faces: { "d-a": ["drpg-case-mode--debate", "debate"], "d-b": ["drpg-case-mode--panic", "panic"], "d-c": ["drpg-case-kind--deduction", null], "c-x": ["drpg-case-kind--counter", null], "s-y": ["drpg-case-kind--solution", null] },
-            fields: { "d-a": ["drpg-case-mode--debate", "debate"], "d-b": ["drpg-case-mode--panic", "panic"], "d-c": ["drpg-case-kind--deduction", null], "c-x": ["drpg-case-kind--counter", null], "s-y": ["drpg-case-kind--solution", null] },
+            faces: { "d-a": ["drpg-case-mode--debate", "debate"], "d-b": ["drpg-case-mode--panic", "panic"], "d-c": ["drpg-case-kind--deduction", null], "c-x": ["drpg-case-cmode--testimony", "testimony"], "s-y": ["drpg-case-kind--solution", null] },
+            fields: { "d-a": ["drpg-case-mode--debate", "debate"], "d-b": ["drpg-case-mode--panic", "panic"], "d-c": ["drpg-case-kind--deduction", null], "c-x": ["drpg-case-cmode--testimony", "testimony"], "s-y": ["drpg-case-kind--solution", null] },
             lines: { "d-a>s-y": ["drpg-case-mode--debate", "drpg-case-mode--debate"], "d-b>s-y": ["drpg-case-mode--panic", "drpg-case-mode--panic"], "d-c>s-y": ["drpg-case-kind--deduction", "drpg-case-kind--deduction"] },
-            legend: ["prep", "kind:deduction", "kind:counter", "kind:solution", `mode:debate:${L("debate")}`, `mode:panic:${L("panic")}`],
-            tokens: modes, painted: modes
-        }), "{order: the modes with a colour; faces, fields: each schema node's first colour class and its trial mode attribute; lines: each deduction's line's colour class and its head's; legend: its items; tokens: modes with a colour in both themes; painted: mode classes taking their colour}");
+            counterLine: ["drpg-case-cmode--testimony", "drpg-case-cmode--testimony"],
+            legend: ["prep", "kind:deduction", "kind:counter", "kind:solution", `mode:debate:drpg-case-mode--debate:${L("debate")}`, `mode:testimony:drpg-case-cmode--testimony:${L("testimony")}`, `mode:panic:drpg-case-mode--panic:${L("panic")}`],
+            tokens: modes, painted: modes, ctokens: modes, cpainted: modes
+        }), "{order: the modes with a shade; faces, fields: each schema node's first colour class and its trial mode attribute; lines, counterLine: each deduction's line's and the counter's line's colour class and its head's; legend: its items; tokens, ctokens: modes with a deduction's, a counter's shade in both themes; painted, cpainted: their classes taking it}");
     }],
-    ["R7832 - every trial mode's colour stands apart from the others and from every Remnant type and kind colour, and carries its ink at WCAG AA, in both themes (1.2.119 round 4; components.css `--drpg-case-mode-*`, tools/contrast-pairs.json `case-mode-*`)", async () => {
+    ["R7832 - every trial mode's shade is told apart from its family's other shades and from every colour outside its family, and carries its ink at WCAG AA, in both themes (1.2.119 round 4, the owner: shades of the Deduction's and the Counter's colour; components.css `--drpg-case-mode-*`, `--drpg-case-cmode-*`, tools/contrast-pairs.json)", async () => {
         /*
-         * Line P of 1.2.119, round 4, 20.11.2026. tests-css.mjs `themeTokens`, `labOf` and `deltaE00` (CIEDE2000, held to
-         * its published pairs by R3411) on the sheets Foundry serves; the colours were picked by a greedy search over that
-         * distance (the commit's), so the threshold is a floor under what was picked, not a target it was tuned to. Red at
-         * d921c9cf: no mode has a colour.
+         * Line P of 1.2.119, round 4, 20.11.2026. tests-css.mjs `themeTokens`, `resolveColour` (0-255), `labOf` and
+         * `deltaE00` (CIEDE2000, held to its published pairs by R3411) on the sheets Foundry serves. The shades were picked
+         * by a greedy search (the commit's): within a family the nearest two 13.3 (cyan) and 9.6 (magenta) apart, the
+         * nearest colour outside 8.9; the floors below sit under those readings, not at them. Red at d921c9cf: no shade.
          */
         needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
         const C = await import("./tests-css.mjs");
@@ -25405,29 +25411,30 @@ const REGRESSIONS = [
         const tokens = C.themeTokens(sheets);
         const S = await import("./case-schema.mjs");
         const modes = S.caseModes();
-        const others = ["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"].map(t => `--drpg-case-type-${t}`)
-            .concat(["deduction", "counter", "solution"].map(k => `--drpg-case-kind-${k}`));
+        const types = ["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"].map(t => `--drpg-case-type-${t}`);
+        const fams = { mode: ["--drpg-case-kind-deduction", ...modes.map(m => `--drpg-case-mode-${m}`)], cmode: ["--drpg-case-kind-counter", ...modes.map(m => `--drpg-case-cmode-${m}`)] };
         const colour = (theme, name) => { const c = C.resolveColour(`var(${name})`, tokens[theme]).colour; return c ? c.slice(0, 3) : null; }; // 0-255, as resolveColour answers
-        const MIN = 10;
-        const near = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, modes.map(m => {
-            const me = colour(theme, `--drpg-case-mode-${m}`);
+        const WITHIN = 8, OUTSIDE = 7.5;
+        const read = theme => Object.fromEntries(Object.entries(fams).map(([f, list]) => [f, modes.map(m => {
+            const name = `--drpg-case-${f}-${m}`, me = colour(theme, name);
             if (!me) return `${m}: none`;
-            const list = [...others, ...modes.filter(x => x !== m).map(x => `--drpg-case-mode-${x}`)];
-            const dists = list.map(n => [n, colour(theme, n)]).filter(([, c]) => c).map(([n, c]) => [n, C.deltaE00(C.labOf(me), C.labOf(c))]);
-            const worst = dists.sort((a, b) => a[1] - b[1])[0];
-            return worst && worst[1] >= MIN ? `${m}: ok` : `${m}: ${worst ? `${worst[1].toFixed(1)} from ${worst[0]}` : "nothing read"}`;
+            const outside = [...types, "--drpg-case-kind-solution", ...(f === "mode" ? fams.cmode : fams.mode)];
+            const dist = list => list.filter(n => n !== name).map(n => [n, colour(theme, n)]).filter(([, c]) => c).map(([n, c]) => [n, C.deltaE00(C.labOf(me), C.labOf(c))]).sort((a, b) => a[1] - b[1])[0];
+            const w = dist(list), o = dist(outside);
+            return w && w[1] >= WITHIN && o && o[1] >= OUTSIDE ? `${m}: ok` : `${m}: within ${w ? `${w[1].toFixed(1)} from ${w[0]}` : "-"}, outside ${o ? `${o[1].toFixed(1)} from ${o[0]}` : "-"}`;
         })]));
         let pairs = [];
         try { pairs = (await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" }).then(r => r.json())).pairs ?? []; } catch { pairs = []; }
-        const mine = pairs.filter(p => String(p.id).startsWith("case-mode-"));
-        const read = cssContrastOf(mine, cssThemeTokens(sheets));
-        const aa = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, modes.map(m => {
-            const i = mine.findIndex(p => p.theme === theme && p.on === `--drpg-case-mode-${m}` && p.text === "--drpg-case-type-ink");
-            return i < 0 ? `${m}: none` : `${m}: ${read[i].state}`;
+        const mine = pairs.filter(p => /^case-c?mode-/.test(String(p.id)));
+        const states = cssContrastOf(mine, cssThemeTokens(sheets));
+        const aa = theme => Object.fromEntries(["mode", "cmode"].map(f => [f, modes.map(m => {
+            const i = mine.findIndex(p => p.theme === theme && p.on === `--drpg-case-${f}-${m}` && p.text === "--drpg-case-type-ink");
+            return i < 0 ? `${m}: none` : `${m}: ${states[i].state}`;
         })]));
-        const ok = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, modes.map(m => `${m}: ok`)]));
-        equal(JSON.stringify({ near, aa }), JSON.stringify({ near: ok, aa: ok }),
-            `{near: each mode's nearest colour among the types, the kinds and the other modes, CIEDE2000 at least ${MIN}; aa: the ink on each mode's colour by WCAG 2 AA}`);
+        const ok = { mode: modes.map(m => `${m}: ok`), cmode: modes.map(m => `${m}: ok`) };
+        equal(JSON.stringify({ glass: read("stained-glass"), legacy: read("monokuma-legacy"), aaGlass: aa("stained-glass"), aaLegacy: aa("monokuma-legacy") }),
+            JSON.stringify({ glass: ok, legacy: ok, aaGlass: ok, aaLegacy: ok }),
+            `{glass, legacy: each shade's nearest in its family (base included) at least CIEDE2000 ${WITHIN}, its nearest outside at least ${OUTSIDE}; aaGlass, aaLegacy: the ink on each shade by WCAG 2 AA}`);
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
         /*

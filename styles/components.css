@@ -3527,31 +3527,48 @@ body.drpg-theme-stained-glass {
 .drpg-case-kind--deduction { --drpg-case-type: var(--drpg-case-kind-deduction); }
 .drpg-case-kind--counter { --drpg-case-type: var(--drpg-case-kind-counter); }
 .drpg-case-kind--solution { --drpg-case-type: var(--drpg-case-kind-solution); }
-/* EACH CLASS TRIAL MODE A COLOUR (1.2.119 round 4; the owner: "dedukcje niech maja tez rozne kolory i kolory strzalek
-   zaleznie od tego, jaki class trial mode maja przypisany"): a deduction with a mode takes its mode's colour - band, kind
-   chip, lines and heads (case-map.mjs `CASE_MODE_ORDER`); the rules stand after the kinds', so the mode wins. No module
-   place coloured a mode before (none of the sheets did, 20.11.2026), so nothing was reused. Picked by a greedy search
-   over HSL (hue every 4 degrees, saturation 55/70/85 %, lightness 55-78 %) keeping the ink at AA in both themes and
-   maximising the CIEDE2000 distance (tests-css.mjs `deltaE00`) to the eight types', the three kinds' and the modes
-   already picked, both themes' values at once: the nearest neighbour of each lies 14.2 to 17.0 apart. One set for both
-   themes. R7832 holds each at least 10 apart and at AA. */
+/* EACH CLASS TRIAL MODE A SHADE (1.2.119 round 4; the owner: "dedukcje niech maja tez rozne kolory i kolory strzalek
+   zaleznie od tego, jaki class trial mode maja przypisany", then "Dedukcje moga tez byc roznymi odcieniami tego samego
+   koloru na przyklad, tak samo counters"): a deduction with a mode takes a shade of the Deduction's cyan, a counter with
+   one a shade of the Counter's magenta - band, kind chip, lines and heads (case-map.mjs `CASE_MODE_ORDER`); with none,
+   the base colour; the solution keeps its own. These rules stand after the kinds', so the shade wins. No module place
+   coloured a mode before (none of the sheets did, 20.11.2026). Picked by a greedy search over HSL - cyan hue 174-204,
+   magenta 296-330, saturation 55-95 %, lightness 45-88 % - keeping the ink at AA in both themes and every shade at least
+   CIEDE2000 8 from every colour outside its family (types, other kinds, the other family), and maximising the distance
+   within the family from its base: the nearest two shades of the cyan family 13.3 apart, of the magenta 9.6, the nearest
+   colour outside 8.9. One set for both themes. Shades of one colour read closer than hues: the mode chip's words on the
+   node name the mode, and a line's mode is its source's. R7832 holds the distances and the contrast. */
 :root {
-    --drpg-case-mode-debate: #a0ee2b;
-    --drpg-case-mode-testimony: #97f7dd;
-    --drpg-case-mode-panic: #ee5f2b;
-    --drpg-case-mode-closing: #eecaa0;
-    --drpg-case-mode-straw: #c9e6a8;
-    --drpg-case-mode-dive: #eeafa0;
-    --drpg-case-mode-scrum: #ee2bad;
+    --drpg-case-mode-debate: #0bf9e1;
+    --drpg-case-mode-testimony: #74c5fb;
+    --drpg-case-mode-panic: #0689e0;
+    --drpg-case-mode-closing: #cce1f0;
+    --drpg-case-mode-straw: #34b2a5;
+    --drpg-case-mode-dive: #3499b2;
+    --drpg-case-mode-scrum: #c2faf4;
+    --drpg-case-cmode-debate: #f965fb;
+    --drpg-case-cmode-testimony: #f0ccde;
+    --drpg-case-cmode-panic: #f91a8d;
+    --drpg-case-cmode-closing: #f9befd;
+    --drpg-case-cmode-straw: #ce55b2;
+    --drpg-case-cmode-dive: #e6a8c8;
+    --drpg-case-cmode-scrum: #e90bf9;
 }
 body.drpg-theme-stained-glass {
-    --drpg-case-mode-debate: #a0ee2b;
-    --drpg-case-mode-testimony: #97f7dd;
-    --drpg-case-mode-panic: #ee5f2b;
-    --drpg-case-mode-closing: #eecaa0;
-    --drpg-case-mode-straw: #c9e6a8;
-    --drpg-case-mode-dive: #eeafa0;
-    --drpg-case-mode-scrum: #ee2bad;
+    --drpg-case-mode-debate: #0bf9e1;
+    --drpg-case-mode-testimony: #74c5fb;
+    --drpg-case-mode-panic: #0689e0;
+    --drpg-case-mode-closing: #cce1f0;
+    --drpg-case-mode-straw: #34b2a5;
+    --drpg-case-mode-dive: #3499b2;
+    --drpg-case-mode-scrum: #c2faf4;
+    --drpg-case-cmode-debate: #f965fb;
+    --drpg-case-cmode-testimony: #f0ccde;
+    --drpg-case-cmode-panic: #f91a8d;
+    --drpg-case-cmode-closing: #f9befd;
+    --drpg-case-cmode-straw: #ce55b2;
+    --drpg-case-cmode-dive: #e6a8c8;
+    --drpg-case-cmode-scrum: #e90bf9;
 }
 .drpg-case-mode--debate { --drpg-case-type: var(--drpg-case-mode-debate); }
 .drpg-case-mode--testimony { --drpg-case-type: var(--drpg-case-mode-testimony); }
@@ -3560,6 +3577,13 @@ body.drpg-theme-stained-glass {
 .drpg-case-mode--straw { --drpg-case-type: var(--drpg-case-mode-straw); }
 .drpg-case-mode--dive { --drpg-case-type: var(--drpg-case-mode-dive); }
 .drpg-case-mode--scrum { --drpg-case-type: var(--drpg-case-mode-scrum); }
+.drpg-case-cmode--debate { --drpg-case-type: var(--drpg-case-cmode-debate); }
+.drpg-case-cmode--testimony { --drpg-case-type: var(--drpg-case-cmode-testimony); }
+.drpg-case-cmode--panic { --drpg-case-type: var(--drpg-case-cmode-panic); }
+.drpg-case-cmode--closing { --drpg-case-type: var(--drpg-case-cmode-closing); }
+.drpg-case-cmode--straw { --drpg-case-type: var(--drpg-case-cmode-straw); }
+.drpg-case-cmode--dive { --drpg-case-type: var(--drpg-case-cmode-dive); }
+.drpg-case-cmode--scrum { --drpg-case-type: var(--drpg-case-cmode-scrum); }
 body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > :is(button.drpg-case-node[data-drpg-node], .drpg-case-edit):is([data-drpg-type], [data-drpg-kind]) {
     box-shadow: inset 5px 0 0 var(--drpg-case-type);
     padding-left: 13px;
@@ -3583,8 +3607,9 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :
 .application.drpg-window-case .drpg-case-legend-swatch { flex: 0 0 auto; width: 0.75rem; height: 0.75rem; border-radius: 2px; background: var(--drpg-case-type); border: 1px solid var(--drpg-case-type-ink); }
 /* a schema kind's swatch round, a Remnant type's square, so the two groups read apart (round 2) */
 .application.drpg-window-case .drpg-case-legend-item[data-drpg-kind] > .drpg-case-legend-swatch { border-radius: 50%; }
-/* a trial mode's swatch a diamond (round 4), so the third group reads apart from the squares and the rounds */
+/* a trial mode's shade a diamond (round 4), so the third group reads apart from the squares and the rounds */
 .application.drpg-window-case .drpg-case-legend-item[data-drpg-trial-mode] > .drpg-case-legend-swatch { border-radius: 0; transform: rotate(45deg) scale(0.8); }
+.application.drpg-window-case .drpg-case-legend-item[data-drpg-trial-mode] > .drpg-case-legend-swatch + .drpg-case-legend-swatch { margin-left: -0.125rem; }
 .application.drpg-window-case .drpg-case-legend-item.drpg-case-type--faint > .drpg-case-legend-swatch { background: transparent; border: 2px dashed var(--drpg-case-type); }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-col-head {
     position: absolute;
