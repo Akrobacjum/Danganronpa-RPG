@@ -60,6 +60,9 @@ const forgetLater = id => setTimeout(() => { THROWS.delete(id); SETTLES.delete(i
 /** A throw of `messageId`'s dice on this screen, played by the module (`promise` settles when the dice have landed). */
 export function noteThrow(messageId, promise) {
     if (!messageId || !promise || typeof promise.then !== "function") return;
+    /* A message whose dice had landed and that is thrown again - a Reroll rewrites the roll's own message (reroll.mjs
+       `makeReroll`) - falls again: its settle starts afresh, so what the Reroll moves waits for these dice (S119-T3). */
+    if (SETTLES.get(messageId)?.done) SETTLES.delete(messageId);
     if (!THROWS.has(messageId)) THROWS.set(messageId, new Set());
     throwsInFlight++;
     THROWS.get(messageId).add(Promise.resolve(promise).catch(() => {}).finally(() => { throwsInFlight--; }));

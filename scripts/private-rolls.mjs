@@ -1880,7 +1880,8 @@ export function relayRerolledDice(message, byId = null) {
         error("Could not send a Reroll's dice", err);
     }
     // The GM that made it watches them only where it is of their audience (E60 C5e): a player's roll, its Monokuma elsewhere.
-    if (audience.includes(game.user?.id)) void playRolls(message, by ?? game.user);
+    // Noted as this screen's throw of the message: what the Reroll moves is drawn here once it has landed (dice-hold.mjs, 1.2.119).
+    if (audience.includes(game.user?.id)) noteThrow(message.id, playRolls(message, by ?? game.user));
 }
 
 /** A message's rolls on this screen as `user`'s dice, or the dice sound where Dice So Nice is not. */

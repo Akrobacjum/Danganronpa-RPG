@@ -55046,7 +55046,7 @@ const INVARIANTS = [
             rollerThrow: /noteThrow\(message\.id, wait\.started\)/.test(fnSource(src("roll-draw.mjs"), "startOnMessage")),
             audienceThrow: /^\s*noteThrow\(id, new Promise\(resolve => \{ landed = resolve; \}\)\);\s*\n\s*try \{\s*\n\s*const \{ messageArrives \} = await import/m.test(relayed)
                 && /\} finally \{\s*\n\s*landed\(\);/.test(relayed),
-            award: /adjustDespair\(monokuma\.id, 1, \{ dice: message\?\.id/.test(fnSource(src("despair-award.mjs"), "awardRollDespair")),
+            award: /const named = dice \?\? message\?\.id \?\? null;[\s\S]*adjustDespair\(monokuma\.id, 1, \{ dice: named \}\)/.test(fnSource(src("despair-award.mjs"), "awardRollDespair")),
             adjust: /writePool\(userId, held \+ delta, \{ dice \}\)/.test(fnSource(src("despair.mjs"), "adjustDespair")),
             poolWrite: /game\.settings\.set\(MODULE_ID, SETTINGS\.despairPools, store, dice \? \{ \[DICE_OPTION\]: dice \} : \{\}\)/.test(fnSource(src("despair.mjs"), "writePool")),
             poolsChange: new RegExp(`options\\?\\.${H.DICE_OPTION}\\b`).test(fnSource(src("settings.mjs"), "onDespairPoolsChange"))
@@ -55059,6 +55059,26 @@ const INVARIANTS = [
             option: "drpgDiceOf", drawStamped: true, drawUnstamped: 1, primaryThrow: true, rollerThrow: true, audienceThrow: true,
             award: true, adjust: true, poolWrite: true, poolsChange: true, sheet: true, registered: true
         }), "{the option's name; a drawn roll's resource step stamped, and how many resource steps throwDrawn runs; the primary's and the roller's throws noted, and the audience's before its first await and settled at its end; the Despair point's road; the pools' redraw and the sheet's repaint held; the hooks registered}");
+    }],
+    ["R7902 - a Reroll's Hope and Despair name its message, and its dice are noted on every screen that throws them (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): reroll.mjs `makeReroll` settles the duality, the Despair and the critical's Hope inside dice-hold.mjs `stampRollWrites` with the message's id, the Despair through despair-award.mjs `awardRollDespair`'s `dice` into despair.mjs `adjustDespair` on both its roads, the GM that made it notes its own throw (private-rolls.mjs `relayRerolledDice`), and a throw noted for a message whose dice had landed starts a new settle (dice-hold.mjs `noteThrow`)", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T3 measures the second settle on one browser; this holds the Reroll's roads,
+         * read off the source. Red at 893bfad1: none of them.
+         */
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const reroll = fnSource(src("reroll.mjs"), "makeReroll");
+        const award = fnSource(src("despair-award.mjs"), "awardRollDespair");
+        const seen = {
+            stamped: /await stampRollWrites\(message\.id, \[actor\.id, actor\.system\?\.partner\?\.id\], async \(\) => \{\s*\n\s*await settleDualityReroll\(original, rerolled, actor\);[\s\S]{0,400}?await settleDespair\(actor, before, after, done, message\.id\);[\s\S]{0,200}?await settleCritHope\(actor, before, after, done\);/.test(reroll),
+            despairCarries: /awardRollDespair\(actor, delta, \{ dice \}\)/.test(fnSource(src("reroll.mjs"), "settleDespair")),
+            awardTakes: /export async function awardRollDespair\(actor, delta, \{ message = null, dice = null \} = \{\}\)/.test(award),
+            bothRoads: (award.match(/adjustDespair\(monokuma\.id, [-1]+, \{ dice: named \}\)/g) ?? []).length,
+            gmThrow: /if \(audience\.includes\(game\.user\?\.id\)\) noteThrow\(message\.id, playRolls\(message, by \?\? game\.user\)\);/.test(fnSource(src("private-rolls.mjs"), "relayRerolledDice")),
+            fresh: /if \(SETTLES\.get\(messageId\)\?\.done\) SETTLES\.delete\(messageId\);/.test(fnSource(src("dice-hold.mjs"), "noteThrow"))
+        };
+        equal(stableJson(seen), stableJson({ stamped: true, despairCarries: true, awardTakes: true, bothRoads: 2, gmThrow: true, fresh: true }),
+            "{the Reroll's three settles stamped with its message; its Despair carrying the message; the award taking it; both of the award's pool writes naming it; the GM's own throw noted; a landed message's settle started again by a new throw}");
     }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*

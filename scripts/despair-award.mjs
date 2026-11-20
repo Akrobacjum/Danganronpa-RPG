@@ -118,8 +118,12 @@ async function onChatMessage(message) {
  * off, and a point given back at a full pool came off the pool rather than the overflow it had
  * spilled to. Both now run these lines (`onChatMessage` above, reroll.mjs `settleDespair`).
  */
-export async function awardRollDespair(actor, delta, { message = null } = {}) {
+export async function awardRollDespair(actor, delta, { message = null, dice = null } = {}) {
     if (!game.user?.isGM || !actor || !delta) return null;
+    // The roll's message named on the pool's write, so each browser draws the point when its dice of it have landed
+    // (1.2.119): a fresh roll's `message`, or a Reroll's `dice` (reroll.mjs `settleDespair`, which hands no message: a
+    // message would ask the shield below again).
+    const named = dice ?? message?.id ?? null;
     // A fresh roll's point a room action's protection from Despair stops (the owner's answer to Q-E93-3, 12.11.2026):
     // used up by this point, the roll marked so its Reroll moves none either (timed-effects.mjs `takeDespairShield`).
     if (delta > 0 && message && !isMonokuma(actor) && game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) {
@@ -158,7 +162,7 @@ export async function awardRollDespair(actor, delta, { message = null } = {}) {
             if (await takeOverflow(1, { reason: `a Reroll gave back ${monokuma.name}'s point` })) return { monokuma, pool: 0, overflow: -1 };
         }
         if (before <= 0) return null;
-        await adjustDespair(monokuma.id, -1);
+        await adjustDespair(monokuma.id, -1, { dice: named });
         return { monokuma, pool: -1, overflow: 0 };
     }
 
@@ -178,8 +182,7 @@ export async function awardRollDespair(actor, delta, { message = null } = {}) {
         return { monokuma, pool: 0, overflow: next?.spill ?? 0 };
     }
 
-    // The roll's message named on the write: each browser draws the point when its dice of the roll have landed (1.2.119).
-    await adjustDespair(monokuma.id, 1, { dice: message?.id ?? null });
+    await adjustDespair(monokuma.id, 1, { dice: named });
     debug(`${actor.name} rolled with Despair -> +1 to ${monokuma.name} (${before + 1}/${despairMax()}).`);
     return { monokuma, pool: 1, overflow: 0 };
 }

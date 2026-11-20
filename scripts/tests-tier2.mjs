@@ -96629,6 +96629,42 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ start: base, mixedHeld: [0, base], thenRepaintHeld: [0, base], landed: [1, base + 2], unnamed: [2, base + 1] }),
             "{the sheet's Hope pips at the start; [the original's renders, the pips] after a roll's write with a flag, and after a Hope-only write of the same roll; [the renders, the Hope the last render drew] when the dice land, and after a write naming no roll}");
     }],
+    ["S119-T3 - a Reroll's dice on a message whose first dice have landed hold what the Reroll moves until they land too (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): with a stand-in Dice So Nice that has finished the message's first animation, a throw of the message's dice noted again (the Reroll's, private-rolls.mjs `relayRerolledDice` and `showRelayedDice`) makes the message's dice fall again here, and a paint naming the message waits for that throw", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. A Reroll rewrites the roll's own message (reroll.mjs `makeReroll`, `message.update`), so
+         * its writes name the same message as the first roll's did; on 893bfad1 the message's settle, once ended, stood
+         * ended (dice-hold.mjs `diceSettledHere` keeps one a message), and the Reroll's Hope and Despair were drawn under its
+         * falling dice. No document is written: the message is a name, as Dice So Nice's wait is keyed by it. Put back:
+         * `game.dice3d`.
+         */
+        const H = await import("./dice-hold.mjs");
+        const ROLL = `s119t3roll${Date.now().toString(36)}`;
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        let open = null;
+        const again = new Promise(resolve => { open = resolve; });
+        const read = {};
+        let painted = 0;
+        try {
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: () => Promise.resolve(true) } });
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            await settle();
+            read.firstLanded = H.diceMayFall(ROLL);
+            H.noteThrow(ROLL, again);
+            read.rerollFalling = H.diceMayFall(ROLL);
+            read.held = H.holdPaint(ROLL, "s119t3", () => { painted++; });
+            await settle();
+            read.whileFalling = painted;
+            open(true);
+            await settle();
+            read.landed = painted;
+        } finally {
+            open?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+        }
+        equal(stableJson(read), stableJson({ firstLanded: false, rerollFalling: true, held: true, whileFalling: 0, landed: 1 }),
+            "{the message's first dice landed; its dice falling again once a throw is noted; the paint held; painted while they fall; painted once they land}");
+    }],
     /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
     ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
         /*
