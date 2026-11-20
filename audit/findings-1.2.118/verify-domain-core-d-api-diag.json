@@ -1,0 +1,65 @@
+{
+ "refuter": "verify-domain-core-d-api-diag",
+ "of": "domain-core-d-api-diag",
+ "checked": [
+  {
+   "ref": "domain-core-d-api-diag-1",
+   "claim": "fileSizes() lists five names that are only text inside the suite (x, y, b, lazy, missing) as 'DID NOT ARRIVE', because loadedFiles crawls the suite through api.mjs's import('./tests.mjs') and keeps a file before checking that it loaded.",
+   "verdict": "stands",
+   "why": "Read the whole road. loadedFiles adds the name before the `text === null` test (diagnostics.mjs:1109-1110), with no other filter than `scripts.has(file)`; fileSizes fetches every listed name with cache 'reload' and prints a non-ok answer as DID NOT ARRIVE (1165-1167). The crawl reaches the suite by api.mjs:1285. Re-ran the crawl's regex over the source from module.mjs myself: 276 names reached for 271 .mjs files in scripts/, the five missing are x.mjs (via tests-kit.mjs), missing.mjs, lazy.mjs, b.mjs and y.mjs (via tests-tier0.mjs); 13 suite files, 17 007 805 bytes on disk. Tried to refute: (a) the suite being reached is deliberate (tests.mjs:49-51 and tests-lint.mjs:15 say the crawl reaches the suite files), so listing the suite itself is by design, but nothing in either comment wants names that do not exist; (b) the kit's own crawl moduleSources does the opposite and drops a name whose fetch failed (tests-kit.mjs:912-916 `if (text === null) continue;` before `out.set`), so the two crawls disagree and the diagnostics one is the one with the hole; (c) R126 (tests-tier0.mjs:5663-5683) checks only that stylesheets, languages, module.json and module.mjs are in the list, so no test pins the absence of extra rows; (d) the suite ships: .gitattributes leaves out docs/dev, tools/, audit/ and others, not scripts/tests*.mjs. One part of the scenario is overstated: the crawl's fetch has no cache option, so on a warm browser it may be served from cache, and the transfer is up to about 17 MB from the reload pass plus whatever the crawl misses in cache, not a sure 34 MB. That does not change the wrong report, which is the finding.",
+   "evidence": "diagnostics.mjs:1109  scripts.add(file);\ndiagnostics.mjs:1110  if (text === null) continue;\ndiagnostics.mjs:1167  lines.push(`${file.padEnd(30)} HTTP ${res.status}  ← DID NOT ARRIVE`);\napi.mjs:1285  runTests: (...args) => import(\"./tests.mjs\").then(m => m.runTests(...args)),\ntests-tier0.mjs:25322  [\"b.mjs\", `export const b = () => import('./a.mjs');\\nexport const gone = () => import(\"./missing.mjs\");`],\ntests-kit.mjs:915-916  if (text === null) continue;\n        out.set(file, text);",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-core-d-api-diag-2",
+   "claim": "game.drpg.diagnoseDespair() run on a player's browser names the subject of the newest roll in the world, a whisper to others included, and logs its duality, while the one report runs that part on a GM only.",
+   "verdict": "stands",
+   "why": "Read the whole road. diagnoseDespair has no gate at its top (diagnostics.mjs:178-179) and only adds a sentence for a player (196-198); the newest roll is taken with no `visible` test (210), its subject printed through rollSubjectNow (213-214) and readDuality logged (215-218). rollSubjectNow falls back from a kept subject to the speaker, the speaker's token, the system source and finally the author's single living owned character (private-rolls.mjs:1366-1391), so even a roll with no speaker can name a student if its author owns one. The dice part filters to `gm || m.visible !== false` for the stated reason (70, comment 68-69) and the one report marks the Despair part gmOnly (2228); api.mjs:1195 hands diagnoseDespair on with no gate. utils.mjs:794-799 records that every browser receives every message. Tried to refute: module-thrown rolls are emptied (private-rolls.mjs:18-25), which narrows the reach to the rolls the module did not throw, as the finding already says; the card goes to the caller alone (gmReport/privately, utils.mjs:782-789); a console could read the same document, so this is the module painting what the trust model leaves on the page, not a new road to it. Minor holds: a particular situation (a player running the console command, the newest roll being another's whisper not thrown by the module).",
+   "evidence": "diagnostics.mjs:210  const last = [...game.messages].reverse().find(m => (m.rolls?.length ?? 0) > 0);\ndiagnostics.mjs:214  + `about \"${rollSubjectNow(last)?.name ?? \"(nobody this browser can tell)\"}\"`);\ndiagnostics.mjs:70  const rolls = game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0 && (gm || m.visible !== false)).slice(-6);\ndiagnostics.mjs:2228  part(\"despair\", \"Despair\", [\"diagnoseDespair\"], () => diagnoseDespair({ toChat: false }), { gmOnly: true }),\nprivate-rolls.mjs:1387-1391  const author = game.users.get(message.author?.id ?? message.user?.id ?? \"\"); ... return living.length === 1 ? living[0] : null;",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-core-d-api-diag-3",
+   "claim": "The four explainer windows are snapshots at open: their live counts (actions left, Hope held, each pool, Search Tokens) are never redrawn while the window stands.",
+   "verdict": "stands",
+   "why": "explainer() calls drpgWindow with title, classes, body, footer and rejectClose, and no `live` (explain.mjs:49-58); drpgWindow starts keepLive only when `live` is given (ui-kit.mjs:1340 `if (live) keepLive(dialog, live)`). explain.mjs imports nothing from live.mjs (imports 26-37) and its only listeners are the document click and keydown that open a window (467-492). grep of drpg-explain and the four opener names over scripts/ outside the suite finds only api.mjs:1167-1170 (the console entries) and a comment in hud-elapsed.mjs:195; no other file redraws or closes an open explainer except explainOnce, which closes it on the next click (476-482). The texts are live counts ('You have {left} of {max} actions left this time of day.', en.json:6526; 'Search Tokens here: {left} of {max} left this time of day.', en.json:6511). The verifier of controls-09 reached the same reading for the same window (controls-09-hud-overlays-2, stands, minor). Severity: the window never redraws, which is the owner's rule broken (BRIEF.md), but it is a help window opened by a click and closed by the next; D-A1's major is written for surfaces on keepLive's wait-for-focus, which this is not. Kept minor, consistent with controls-09-2.",
+   "evidence": "explain.mjs:51-57  return drpgWindow({ title, classes: [\"drpg-panel\", \"drpg-explain\"], body: ..., footer: { close: \"close\" }, rejectClose: false });\nui-kit.mjs:1340  if (live) keepLive(dialog, live);\nexplain.mjs:352-353  esc(t(\"DRPG.Explain.status.actionsNow\", { left: actionsLeft(actor), max: actionsMax(actor)",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-core-d-api-diag-4",
+   "claim": "With only an Assistant GM connected, holdPermissions tries to write core.permissions, which by the module's own note only a full Gamemaster may write; the refusal is logged and nobody is told, and the players keep browsing and uploading files.",
+   "verdict": "weakened",
+   "why": "The road to the write is as stated: holdPermissions tests readyAt, isPrimaryGm() and wanted(row), no role (enforced.mjs:559), then keepOriginal and game.settings.set('core','permissions') (565-566); primaryGmId picks an Assistant when no full Gamemaster is connected (utils.mjs:494); the ready call and onWorldSettingUpdated catch into error() (583, 1024-1025), which is console.error plus the session log only (utils.mjs:338-341). But three parts do not hold as written. (1) The premise that v14 refuses an Assistant GM's write is the module's own comment (enforced.mjs:814-816), with no recorded reading on Foundry found; the reader marks it suspected, and the brief says a suspected item is a question, not a finding. (2) 'Told to nobody' is from the module's side only; whether Foundry itself puts up a notification for a refused setting write is not read here. (3) 'The players keep browsing' is narrowed by the backstop on each player's own browser: while the row is wanted, closePlayerFilePicker closes every file browser a player renders and disarmPortraits takes the sheet portraits' editImage off (enforced.mjs:601-621), both gated on filesHeld() and the user's own FILES_BROWSE grant, not on core.permissions. What stays is the server-side hold missing: an upload by a road that opens no FilePicker (an image pasted into an editor, a console) and the repeated red log line. Also the situation needs the switch turned on (or the hold never run) while no full Gamemaster is connected, since a connected full Gamemaster is primary and holds it on its own updateSetting hook. Kept minor, suspected, until LIVE reading of the premise.",
+   "evidence": "enforced.mjs:559  if (readyAt === null || !isPrimaryGm() || !wanted(row)) return false;\nenforced.mjs:566  await game.settings.set(\"core\", \"permissions\", held);\nenforced.mjs:617-619  export function closePlayerFilePicker(app, { user = game.user, on = filesHeld() } = {}) {\n    if (!on || !app || maySeeFiles(user)) return false;\n    app.close?.({ animate: false });\nenforced.mjs:586  const maySeeFiles = user => Boolean(user?.isGM) || user?.permissions?.FILES_BROWSE === true;\nutils.mjs:338-340  export function error(...args) { console.error(`${MODULE_ID} |`, ...args); record(\"error\", args); }",
+   "severity_after": "minor (suspected)"
+  },
+  {
+   "ref": "domain-core-d-api-diag-5",
+   "claim": "manageItems (openItemManager(actor = null, { give = null } = {})) is the one API entry with an actor parameter that actorPosition leaves unwrapped, so a name or id is not turned into an actor.",
+   "verdict": "stands",
+   "why": "actorPosition takes the text between the first '(' and the next ')', and when it holds '{' answers 0 only for a first parameter that is literally 'actor' (api.mjs:1677-1679); 'actor = null' is not, so -1 and wrap returns fn unchanged (1688-1689); api.mjs:564 hands openItemManager on as manageItems. Nit only checked for its cited lines; the exact symptom was not run.",
+   "evidence": "api.mjs:1679  return flat[0] === \"actor\" ? 0 : -1;\napi.mjs:564  manageItems: openItemManager,",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-core-d-api-diag-6",
+   "claim": "game.drpg.a11y() does not read the room tile, the voice tile or the floor switcher, though its disclosure note names the room tile.",
+   "verdict": "stands",
+   "why": "SURFACES (a11y.mjs:33-55) holds neither #drpg-room-tile nor .drpg-room-tile, the voice tile or #drpg-floors; the tile is built by ui-kit.mjs tile() with className 'drpg-room-tile' only, so it is not a .drpg-panel (ui-kit.mjs:1071-1080; room-tile.mjs:204), and is placed after #drpg-hud or #drpg-floors as a sibling (room-tile.mjs:214-219). disclosuresOnPage walks only `${s} [aria-expanded]` over SURFACES (304) while its note lists the room tile (295). Nit; the stacked layout was not followed here either.",
+   "evidence": "a11y.mjs:304  for (const el of document.querySelectorAll(SURFACES.map(s => `${s} [aria-expanded]`).join(\",\"))) {\nroom-tile.mjs:204  if (!tile) tile = kitTile({ id: TILE_ID, className: \"drpg-room-tile\", label: ... });",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 6,
+  "stands": 5,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 4's premise (v14 refuses an Assistant GM's write of core.permissions) and whether Foundry shows its own notification for the refused write: not read on a real Foundry; the reader's l1 recipe stands, and should add a check that a player's file browser is closed by the module's backstop while the server-side hold is missing (an image pasted into a journal editor is the road to try).",
+  "Finding 1's transfer: whether the crawl's first fetch (no cache option) is served from the browser cache on a warm table, so how many bytes fileSizes really moves; the reader's l1 recipe stands.",
+  "No base-run.json was present to cite R126 or R1551; neither pins the opposite of a finding by its source."
+ ]
+}
