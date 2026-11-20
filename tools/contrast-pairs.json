@@ -400,6 +400,118 @@
       "on": "--drpg-case-warn",
       "size": "small",
       "where": "the planner's problem badge (1.2.119 round 2): .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-warn"
+    },
+    {
+      "id": "case-mode-sg-debate",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-debate",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--debate"
+    },
+    {
+      "id": "case-mode-sg-testimony",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-testimony",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--testimony"
+    },
+    {
+      "id": "case-mode-sg-panic",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-panic",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--panic"
+    },
+    {
+      "id": "case-mode-sg-closing",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-closing",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--closing"
+    },
+    {
+      "id": "case-mode-sg-straw",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-straw",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--straw"
+    },
+    {
+      "id": "case-mode-sg-dive",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-dive",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--dive"
+    },
+    {
+      "id": "case-mode-sg-scrum",
+      "theme": "stained-glass",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-scrum",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--scrum"
+    },
+    {
+      "id": "case-mode-lg-debate",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-debate",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--debate"
+    },
+    {
+      "id": "case-mode-lg-testimony",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-testimony",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--testimony"
+    },
+    {
+      "id": "case-mode-lg-panic",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-panic",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--panic"
+    },
+    {
+      "id": "case-mode-lg-closing",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-closing",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--closing"
+    },
+    {
+      "id": "case-mode-lg-straw",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-straw",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--straw"
+    },
+    {
+      "id": "case-mode-lg-dive",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-dive",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--dive"
+    },
+    {
+      "id": "case-mode-lg-scrum",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-case-type-ink",
+      "on": "--drpg-case-mode-scrum",
+      "size": "small",
+      "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--scrum"
     }
   ],
   "hours": {

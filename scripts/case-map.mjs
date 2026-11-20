@@ -110,11 +110,26 @@ export function caseTypeOf(node) {
 /** The schema's kinds that carry a colour (round 2), in the legend's order after the types. */
 export const CASE_KIND_ORDER = Object.freeze(["deduction", "counter", "solution"]);
 
-/** A node's type or kind class and attribute, or nothing: an evidence node by `caseTypeOf`, a schema node by its kind. */
+/**
+ * THE TRIAL MODES A DEDUCTION MAY CARRY, EACH A COLOUR (1.2.119 round 4; the owner: "dedukcje niech maja tez rozne kolory i
+ * kolory strzalek zaleznie od tego, jaki class trial mode maja przypisany"): case-schema.mjs `caseModes()` as it lists them
+ * (floor-machine.mjs `MODES` less Objection and Rebuttal, which a player starts), spelled here so this file imports no
+ * trial code; R7831 holds the two lists equal. A deduction with a mode takes the mode's colour - its band, its kind's chip
+ * and its lines - and keeps its kind's class after it; one with none keeps the Deduction's; a counter and the solution
+ * keep their own whatever mode they carry. `data-drpg-trial-mode`, not `data-drpg-mode`: the kit's mode bars and the
+ * trial console's start button answer to that one.
+ */
+export const CASE_MODE_ORDER = Object.freeze(["debate", "testimony", "panic", "closing", "straw", "dive", "scrum"]);
+
+/** A node's type, kind or mode classes and attributes, or nothing: an evidence node by `caseTypeOf`, a schema node by its
+ *  kind, a deduction with a trial mode by the mode first (its colour wins; `colourOf` reads the first class). */
 function typeAttrs(t, node = null) {
     if (t) return { cls: [`drpg-case-type--${t}`], attr: ` data-drpg-type="${t}"` };
     const k = !node?.evidence && CASE_KIND_ORDER.includes(node?.kind) ? node.kind : null;
-    return k ? { cls: [`drpg-case-kind--${k}`], attr: ` data-drpg-kind="${k}"` } : { cls: [], attr: "" };
+    if (!k) return { cls: [], attr: "" };
+    const m = k === "deduction" && CASE_MODE_ORDER.includes(node?.mode) ? node.mode : null;
+    return m ? { cls: [`drpg-case-mode--${m}`, `drpg-case-kind--${k}`], attr: ` data-drpg-kind="${k}" data-drpg-trial-mode="${m}"` }
+        : { cls: [`drpg-case-kind--${k}`], attr: ` data-drpg-kind="${k}"` };
 }
 
 /**
@@ -130,11 +145,14 @@ export function caseLegendHtml(graph) {
     const types = CASE_TYPE_ORDER.filter(t => held.has(t));
     // the schema's kinds after the types (round 2), named by the words their chips carry
     const kinds = CASE_KIND_ORDER.filter(k => (graph?.nodes ?? []).some(n => !n.evidence && n.kind === k));
+    // the trial modes the Map's deductions carry, after the kinds (round 4), by the floor's own words
+    const modes = CASE_MODE_ORDER.filter(m => (graph?.nodes ?? []).some(n => !n.evidence && n.kind === "deduction" && n.mode === m));
     if (!types.length && !kinds.length) return "";
     const swatch = `<span class="drpg-case-legend-swatch" aria-hidden="true"></span>`;
     return `<ul class="drpg-case-legend" aria-label="${esc(L("DRPG.CaseMap.legendLabel"))}">`
         + types.map(t => `<li class="drpg-case-legend-item drpg-case-type--${t}" data-drpg-type="${t}">${swatch}${esc(REMNANT_TYPES[t]?.label ?? t)}</li>`).join("")
         + kinds.map(k => `<li class="drpg-case-legend-item drpg-case-kind--${k}" data-drpg-kind="${k}">${swatch}${esc(L(`DRPG.CaseMap.kind.${k}`))}</li>`).join("")
+        + modes.map(m => `<li class="drpg-case-legend-item drpg-case-mode--${m}" data-drpg-trial-mode="${m}">${swatch}${esc(modeLabel(m))}</li>`).join("")
         + `</ul>`;
 }
 

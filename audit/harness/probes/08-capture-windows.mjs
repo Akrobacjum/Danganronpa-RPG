@@ -253,6 +253,11 @@ const SEED_CROWD = SEED_TYPES + `
     await CS.setCaseNode(ch, "probe08-c2", { kind: "counter", label: "The guard had a key too", refutes: ["probe08-d6"] });
     await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2", "probe08-d4", "probe08-d5", "probe08-d6", "probe08-d7", "probe08-d8"] });
     globalThis.__probe08case.ids.push("probe08-d6", "probe08-d7", "probe08-d8", "probe08-c2");`;
+/* 1.2.119 line P round 4 (20.11.2026; the owner: a deduction coloured by its Class Trial mode): the typed case with its
+   deductions given three modes - d1 Nonstop Debate as it was, d4 Testimony, d5 Panic Round - and d2 none. */
+const SEED_MODES = SEED_TYPES + `
+    await CS.setCaseNode(ch, "probe08-d4", { mode: "testimony" });
+    await CS.setCaseNode(ch, "probe08-d5", { mode: "panic" });`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -374,6 +379,7 @@ export const WINDOWS = [
     { id: "investigation--map-types", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-types-faces", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "investigation--map-crowd", module: "investigation.mjs", before: SEED_CROWD, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
+    { id: "investigation--map-modes", module: "investigation.mjs", before: SEED_MODES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
     { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },
