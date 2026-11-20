@@ -96,7 +96,7 @@
    "evidence": [
     "scripts/gm-bridge.mjs:200 `if (payload.userId !== game.user.id) return;`",
     "scripts/gm-bridge.mjs:229 `if (payload.userId !== game.user.id) return;`",
-    "scripts/gm-bridge.mjs:94-95 `resendOnGmReady(); // And the Level Ups ... askForOffers();`",
+    "scripts/gm-bridge.mjs:90-92 `resendOnGmReady(); // And the Level Ups ... askForOffers();`",
     "scripts/gm-bridge.mjs:260-261 `function askForOffers() { if (game.user.isGM) return;`",
     "scripts/vote.mjs:154 `if (!game.user || game.user.isGM) return;`"
    ],
@@ -132,7 +132,7 @@
    "verdict": "weakened",
    "why": "The code reading is right (placeRemnant ties only a cast member's trace or one in the room locateActor(victim) gives), but 'decision' is not one of 11.3's four statuses. The old defect - every trace anywhere tied while an incident runs - no longer happens, and D5 (AUDIT-1.2.42.md:688) chose the replacement; that is 'fixed' by D5. The reader's own observation (the room follows the victim's token after Move the body) is a nit on that fix, not a reason to keep a status outside the vocabulary.",
    "evidence": [
-    "scripts/remnants.mjs:386-393 `let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor)); if (!tied) { const { locateActor } = ...; const where = locateActor(game.actors.get(state.victimId));`",
+    "scripts/remnants.mjs:387-391 `let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor)); if (!tied) { const { locateActor } = ...; const where = locateActor(game.actors.get(state.victimId));`",
     "audit/AUDIT-1.2.42.md:688 `| D5 | Wiązanie śladów w incydencie | **B**, tylko uczestnicy albo pokój incydentu, reszta do decyzji GMa |`"
    ],
    "status_after": "fixed"
@@ -241,7 +241,7 @@
    "evidence": [
     "scripts/murder-rules.mjs:3175-3188 `Hooks.on(\"updateToken\", (tokenDoc, changes) => { if (!isMoveChange(changes)) return; if (!isPrimaryGm()) return; ... m.maybeBodyFound(tokenDoc)`",
     "scripts/cleanup.mjs:1987 `await whilePlacing([tokenDoc], () => region.teleportTokens([tokenDoc], { placement: \"random\", snap: true, pan: false }));`",
-    "scripts/body.mjs:813-815 `if (witnesses.length > 1) { for (const w of witnesses) await tellLoneFinder(w.actor, scene, room, { company: true }); }`"
+    "scripts/body.mjs:815-816 `if (witnesses.length > 1) { for (const w of witnesses) await tellLoneFinder(w.actor, scene, room, { company: true }); }`"
    ],
    "status_after": "partly"
   },
