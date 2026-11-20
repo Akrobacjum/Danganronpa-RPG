@@ -55042,7 +55042,7 @@ const INVARIANTS = [
             option: H.DICE_OPTION,
             drawStamped: /stampRollWrites\(message\.id, \[actor\.id[^\]]*\], \(\) => config\.resourceUpdates\.updateResources\(\)\)/.test(draw),
             drawUnstamped: (draw.match(/resourceUpdates\.updateResources\(\)/g) ?? []).length,
-            primaryThrow: /noteThrow\(message\.id, thrown\)/.test(draw),
+            primaryThrow: /if \(shown\) noteThrow\(message\.id, THROWN_HERE\.get\(roll\)\)/.test(draw),
             rollerThrow: /noteThrow\(message\.id, wait\.started\)/.test(fnSource(src("roll-draw.mjs"), "startOnMessage")),
             audienceThrow: /^\s*noteThrow\(id, new Promise\(resolve => \{ landed = resolve; \}\)\);\s*\n\s*try \{\s*\n\s*const \{ messageArrives \} = await import/m.test(relayed)
                 && /\} finally \{\s*\n\s*landed\(\);/.test(relayed),
@@ -55053,6 +55053,7 @@ const INVARIANTS = [
                 && /holdPaint\(dice, "despair"/.test(fnSource(src("settings.mjs"), "onDespairPoolsChange")),
             sheet: /holdPaint\(takeActorDice\(actorId\), name, repaint\)/.test(fnSource(src("sheet-repaint.mjs"), "installRenderPlan")),
             registered: /safely\("Dice hold", registerDiceHold\)/.test(src("module.mjs"))
+                && /Hooks\.on\("createChatMessage", message => noteRollMessage\(message\)\)/.test(fnSource(src("dice-hold.mjs"), "registerDiceHold"))
         };
         equal(stableJson(seen), stableJson({
             option: "drpgDiceOf", drawStamped: true, drawUnstamped: 1, primaryThrow: true, rollerThrow: true, audienceThrow: true,

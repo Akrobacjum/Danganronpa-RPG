@@ -1702,8 +1702,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     detachOptions(roll, config);
     // The dice on this screen as the roller's, now, at the throw (H82 C6, `throwOnThisScreen`); the relay sends them on.
     // Only where this GM sees a player's dice (E60 C5e): rolls not forced private, or its Monokuma in the roller's room.
-    const thrown = seesPlayersDice(actor) ? throwOnThisScreen(roll, sender) : false;
-    const shown = Boolean(thrown);
+    const shown = seesPlayersDice(actor) ? throwOnThisScreen(roll, sender) : false;
     const rollId = foundry.utils.randomID();
     let message;
     try {
@@ -1714,7 +1713,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     }
     written?.();
     // The throw on this screen, now that it has a message: what the roll moved is drawn here when it has landed (1.2.119).
-    if (thrown) noteThrow(message.id, thrown);
+    if (shown) noteThrow(message.id, THROWN_HERE.get(roll));
     await cls.dualityUpdate(config);
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
@@ -2530,15 +2529,19 @@ function seesPlayersDice(actor) {
     return !forced || gmsInRoomOf(actor).includes(game.user?.id);
 }
 
-/* Answers the throw (a promise that settles when the dice have landed, at once for the sound alone), or false when nothing
-   was thrown: `throwDrawn` reads it as `shown` and notes it as this screen's throw of the message (dice-hold.mjs, 1.2.119). */
+/* The throw `throwOnThisScreen` started for a roll, until its message is written: `throwDrawn` notes it as this screen's
+   throw of that message (dice-hold.mjs, 1.2.119). Beside the answer, not as it: `shown` travels to the claim and the
+   relay as a boolean (R949 reads the line). */
+const THROWN_HERE = new WeakMap();
+
 function throwOnThisScreen(roll, user) {
     try {
         if (typeof game.dice3d?.showForRoll !== "function") {
             foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
-            return Promise.resolve();
+            return true;
         }
-        return Promise.resolve(game.dice3d.showForRoll(roll, user, false)).catch(err => error("Could not show the dice of a roll the GM drew", err));
+        THROWN_HERE.set(roll, Promise.resolve(game.dice3d.showForRoll(roll, user, false)).catch(err => error("Could not show the dice of a roll the GM drew", err)));
+        return true;
     } catch (err) {
         error("Could not show the dice of a roll the GM drew", err);
         return false;

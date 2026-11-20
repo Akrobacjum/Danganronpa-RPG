@@ -96504,6 +96504,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await setPool(pool);
             D.renderDespairBar();
             read.start = [pips(), despairShown()];
+            // the two rolls' messages arrive here, as `createChatMessage` hands them to dice-hold.mjs (no document is written)
+            const H0 = await import("./dice-hold.mjs").catch(() => null);
+            for (const id of [ROLL, ROLL2]) H0?.noteRollMessage?.({ id, rolls: [{}] });
             await write({ [HOPE]: base + 1 }, { [OPT]: ROLL });
             read.rollHeld = pips();
             await write({ [HOPE]: base + 2 }, { [OPT]: ROLL2 });

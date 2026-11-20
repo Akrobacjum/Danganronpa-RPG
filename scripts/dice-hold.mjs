@@ -51,6 +51,9 @@ const STAMPING = new Map();
 /** The option an actor's last update carried on this browser, read by the sheet's repaint (`takeActorDice`). */
 const LAST_ACTOR_DICE = new Map();
 
+/** The module's throws noted and not landed yet, on this browser (`anyDiceFalling`). */
+let throwsInFlight = 0;
+
 /** Forget a message's bookkeeping a while after its deadline, so neither map grows with the session. */
 const forgetLater = id => setTimeout(() => { THROWS.delete(id); SETTLES.delete(id); }, 2 * TIMING.diceSettleMs);
 
@@ -58,7 +61,8 @@ const forgetLater = id => setTimeout(() => { THROWS.delete(id); SETTLES.delete(i
 export function noteThrow(messageId, promise) {
     if (!messageId || !promise || typeof promise.then !== "function") return;
     if (!THROWS.has(messageId)) THROWS.set(messageId, new Set());
-    THROWS.get(messageId).add(Promise.resolve(promise).catch(() => {}));
+    throwsInFlight++;
+    THROWS.get(messageId).add(Promise.resolve(promise).catch(() => {}).finally(() => { throwsInFlight--; }));
     forgetLater(messageId);
 }
 
@@ -167,10 +171,25 @@ export function takeActorDice(actorId) {
     return LAST_ACTOR_DICE.get(actorId) ?? null;
 }
 
-/** Whether any of a roll's dice may still be falling on this browser at all (the sheet's repaint asks before it waits). */
+/**
+ * Whether any roll's dice may still be falling on this browser (the sheet's repaint asks before it waits): a roll's
+ * message whose settle has not ended (started as it arrives, `noteRollMessage`) or a throw of the module's not landed.
+ * False otherwise, and then the repaint is drawn in the render's own turn, as before 1.2.119: with Dice So Nice merely
+ * installed, every repaint went through a microtask, and a repaint that threw no longer fell back to the render (R1477)
+ * and nothing was drawn when the render returned (R1479), tiers 0-1 at fff080ad.
+ */
 export function anyDiceFalling() {
-    if ([...SETTLES.values()].some(entry => !entry.done)) return true;
-    return typeof game.dice3d?.waitFor3DAnimationByMessageID === "function" || [...THROWS.values()].some(set => set.size > 0);
+    return throwsInFlight > 0 || [...SETTLES.values()].some(entry => !entry.done);
+}
+
+/**
+ * A chat message with dice has arrived on this browser: its settle starts now (`diceSettledHere`), so its deadline
+ * runs from the message and `anyDiceFalling` knows of it before the roll's writes arrive. The `createChatMessage` hook's,
+ * and the suite's stand-in for one (S119-T1).
+ */
+export function noteRollMessage(message) {
+    if (!message?.id || !((message.rolls?.length ?? 0) > 0)) return;
+    void diceSettledHere(message.id);
 }
 
 /**
@@ -179,6 +198,7 @@ export function anyDiceFalling() {
  * update, before `updateActor`, on 14.365: sheet-repaint.mjs "THE ORDER"; the repaint reads it a microtask later).
  */
 export function registerDiceHold() {
+    Hooks.on("createChatMessage", message => noteRollMessage(message));
     Hooks.on("preUpdateActor", (actor, changes, options) => {
         const id = STAMPING.get(actor?.id);
         if (id && options && typeof options === "object") options[DICE_OPTION] = id;

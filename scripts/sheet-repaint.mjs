@@ -172,9 +172,10 @@ export function installRenderPlan(app) {
         if (this.document?.type === "character" && root
             && renderPlan(args, { rendered: Boolean(this.rendered) }) === "repaint") {
             try {
+                // Held, the sheet's element is read again when the paint runs (a render meanwhile replaces it).
                 const repaint = () => {
                     const now = this.element instanceof HTMLElement ? this.element : this.element?.[0];
-                    if (now?.isConnected) settle(now, () => repaintInPlace(this.document, now, this));
+                    if (now) settle(now, () => repaintInPlace(this.document, now, this));
                 };
                 /*
                  * A ROLL'S CHANGE WAITS FOR THIS BROWSER'S DICE (1.2.119; the owner, 20.11.2026: Hope "dopiero po
@@ -185,7 +186,7 @@ export function installRenderPlan(app) {
                  * paints at once for a write naming none). Where no dice can be falling on this browser - no Dice So
                  * Nice, no throw of the module's - the repaint is drawn now, as before.
                  */
-                if (!anyDiceFalling()) repaint();
+                if (!anyDiceFalling()) settle(root, () => repaintInPlace(this.document, root, this));
                 else {
                     const actorId = this.document.id, name = `sheet:${this.id ?? actorId}`;
                     queueMicrotask(() => holdPaint(takeActorDice(actorId), name, repaint));
