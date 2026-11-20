@@ -31169,8 +31169,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * ruling, and the GM's next Save wrote that back over it. Three halves, on one fixture
          * in a chapter of its own that nobody has planned:
          *   - the ruling lands while the window stands open, and the row shows it;
-         *   - a Save that changed nothing, pressed while a redraw is held off (focus inside the
-         *     window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
+         *   - a Save that changed nothing, pressed while a redraw is held off (a select focused
+         *     in the window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
          *     no ledger write, nothing refused, and no Key plan row for the chapter - which
          *     every Save used to fill in by scale, making the chapter a planned one;
          *   - a name the GM typed before a second ruling is marked, refused at Save and told
@@ -31224,7 +31224,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(win.field(`text.${key}`)?.value, "SUITE reshaped words", "the open dashboard still shows the words the ruling replaced");
 
             /* ---- a Save that changed nothing writes nothing, even over a write it has not drawn ---- */
-            win.field(`text.${key}`).focus();
+            /* The redraw held off by a focused select (live.mjs RULE 1): since the line claude/plan-119 (20.11.2026) a focused
+               text field no longer holds the dashboard's redraw (`whileEditing`), and a select still does. */
+            win.field(`vis.${key}`).focus();
             await remnants.setRemnantPublic(token, { name: "SUITE another GM's name" });
             await gmStoresIdle();
             await wait(300);
