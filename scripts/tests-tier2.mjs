@@ -96552,7 +96552,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{the Effects rows [one a SFX_EVENTS key in order, each in the kit's table, all in one table]; the warnings the Test gave; whether one holds "
             + "the English reason or a raw key}");
     }],
-    ["P119-S1 - on the Effects tab a GM removes and adds one file of an event, and the row follows at once (1.2.119, the owner: \"dodajmy opcje wyboru ktory dzwiek usuwamy/dodajemy. Aktualnie mam np. monocub changes - 2 files, ale nie moge usunac pliku ktory mnie juz nie interesuje\"; his standing rule: \"Zawsze odswiezamy okna od razu przy zmianie\"): with the Sound window open on an event of two files, its chip says 2 files and unfolds the list; Remove on the second leaves the stored files the first alone and the row says 1 file; a path typed in the row's box joins it, both stored and the box empty; a change written outside the window (as another GM's) redraws the row in place with its list still open; everything put back", async () => {
+    ["P119-S1 - on the Effects tab a GM removes and adds one file of an event, and the row follows at once (1.2.119, the owner: \"dodajmy opcje wyboru ktory dzwiek usuwamy/dodajemy. Aktualnie mam np. monocub changes - 2 files, ale nie moge usunac pliku ktory mnie juz nie interesuje\"; his standing rule: \"Zawsze odswiezamy okna od razu przy zmianie\"): with the Sound window open on an event of two files, its chip says 2 files and unfolds the list; Remove on the second leaves the stored files the first alone and the row says 1 file; a path typed in the row's box joins it, both stored and the box empty; a change written outside the window (as another GM's) redraws the row in place with its list still open; one file's own box edited replaces that file alone, in its place (the owner: \"niech kazdy wiersz wyglada jak ten pierwszy\"); everything put back", async () => {
         /*
          * Line P of 1.2.119 (the sound item), 20.11.2026. The window drawn (env.dialogs), the map written through sfx.mjs
          * `setSoundFor` and put back. Red at b5a29e73: the row has no list - its chip is a span and appears only past one
@@ -96564,7 +96564,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const M = await import("./music.mjs"), X = await import("./sfx.mjs");
         const key = Object.keys(SFX_EVENTS)[0];
         const was = getSetting(SETTINGS.sfxMap)?.[key] ?? null;
-        const A = "sounds/p119-s1-a.ogg", B = "sounds/p119-s1-b.ogg", C = "sounds/p119-s1-c.ogg", D = "sounds/p119-s1-d.ogg";
+        const A = "sounds/p119-s1-a.ogg", B = "sounds/p119-s1-b.ogg", C = "sounds/p119-s1-c.ogg", D = "sounds/p119-s1-d.ogg", E = "https://example.invalid/p119-s1-e.mp3";
         const read = {};
         let answer = null;
         const root = () => document.querySelector(".drpg-window-sound");
@@ -96592,8 +96592,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.added = [stored(), row()?.querySelector(`input[name="sfx:${key}"]`)?.value ?? null, chipText()];
             await X.setSoundFor(key, `${A} | ${C} | ${D}`);
             await until(() => chipText() === game.i18n.format("DRPG.Sound.fileCount.other", { n: 3 }), 3000);
+            const boxes = () => [...(row()?.querySelectorAll("input[data-drpg-sfx-file-box]") ?? [])];
             read.outside = [chipText(), row()?.querySelector("[data-drpg-sfx-files]")?.getAttribute("aria-expanded"), row()?.querySelector("[data-drpg-sfx-list]")?.hidden,
-                [...(row()?.querySelectorAll(".drpg-sound-files-name") ?? [])].map(n => n.textContent)];
+                boxes().map(b => b.value)];
+            // one file's own box edited (the owner: every file a box like the first): that file alone replaced, in its place
+            const second = boxes()[1];
+            if (second) { second.value = E; second.dispatchEvent(new Event("change", { bubbles: true })); }
+            await until(() => stored()[1] === E, 3000);
+            await until(() => boxes()[1]?.value === E, 3000);
+            read.edited = [stored(), boxes().map(b => b.value), chipText()];
             root().querySelector('footer.form-footer button[data-action="close"]')?.click();
             await Promise.race([answer, wait(3000)]);
         } finally {
@@ -96604,8 +96611,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         const n = (k, v) => game.i18n.format(`DRPG.Sound.fileCount.${k}`, { n: v });
         equal(stableJson(read), stableJson({ two: n("other", 2), opened: ["true", false, 2], removed: [[A], n("one", 1)], added: [[A, C], "", n("other", 2)],
-            outside: [n("other", 3), "true", false, ["p119-s1-a.ogg", "p119-s1-c.ogg", "p119-s1-d.ogg"]] }),
-            "{two: the chip of two files; opened: the chip pressed [expanded, list hidden, files listed]; removed: the second removed [stored, chip]; added: a path typed [stored, box, chip]; outside: the map written outside the window [chip, expanded, hidden, names]}");
+            outside: [n("other", 3), "true", false, [A, C, D]], edited: [[A, E, D], [A, E, D], n("other", 3)] }),
+            "{two: the chip of two files; opened: the chip pressed [expanded, list hidden, files listed]; removed: the second removed [stored, chip]; added: a path typed [stored, box, chip]; outside: the map written outside the window [chip, expanded, hidden, the boxes' values]; edited: the second file's box edited [stored, boxes, chip]}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
     ["E72 C8 Silence now - a GM's Silence now moves a kept death's voice out of its room: the cast's `silencedDead` written, read through the incident's state by `deathVoiceGone` (false before, true after), kept out of the victim's player's copy, and a second press writes nothing (E72 C8, the plan's A9)", async () => {

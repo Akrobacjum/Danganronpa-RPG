@@ -2473,6 +2473,8 @@
       "filesOf": "Pliki zdarzenia {label}",
       "playFile": "Odtwórz {name}",
       "removeFile": "Usuń {name}",
+      "editFile": "Ścieżka albo link pliku {name}",
+      "replaceFile": "Wybierz inny plik zamiast {name}",
       "fileCount": {
         "one": "{n} plik",
         "few": "{n} pliki",

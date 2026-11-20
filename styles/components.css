@@ -3029,8 +3029,7 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
 .application.drpg-window-sound .drpg-sound-file { display: flex; align-items: center; gap: 4px; }
 .application.drpg-window-sound .drpg-sound-file > input[type="text"] { flex: 1 1 0; min-width: 0; font-size: var(--drpg-text-sm); }
 /* AN EVENT'S FILES, ONE BY ONE (1.2.119; sfx.mjs `soundFilesHtml`): the "N files" chip is the one chip that is a click -
-   it unfolds the row's files under its box, its mark turning - and keeps the chip's look; each file a line of its name
-   (the path in its tooltip), Play and Remove. The name is cut rather than widen the column. */
+   it unfolds the row's files under its box, its mark turning - and keeps the chip's look; each file a box of its own. */
 body .application.drpg-window-sound button.drpg-sound-chip.drpg-sound-files-toggle {
     width: auto;
     min-width: 0;
@@ -3055,9 +3054,9 @@ body.drpg-theme-stained-glass .application.drpg-window-sound.drpg-panel button.d
 .application.drpg-window-sound .drpg-sound-files { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 0; list-style: none; }
 .application.drpg-window-sound .drpg-sound-files[hidden] { display: none; }
 .application.drpg-window-sound .drpg-sound-files-item { display: flex; align-items: center; gap: 4px; min-width: 0; margin: 0; }
-/* a name on one line, cut with an ellipsis, the whole path its tooltip (sfx.mjs `soundFilesHtml`): wrapping anywhere it
-   broke "turn-in.ogg" after its hyphen and "old chime.mp3" at its space in the narrow column (Chromium, glass, 1366x768) */
-.application.drpg-window-sound .drpg-sound-files-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--drpg-text-sm); }
+/* each file a box like the row's own (the owner: "niech kazdy wiersz wyglada jak ten pierwszy"): the item takes the row
+   box's rule (`.drpg-sound-file`: the box flexing, its buttons after it), so the boxes stand under the row's one, left
+   edges in line; its Play and Remove follow its Choose */
 .application.drpg-window-sound .drpg-sound-act { display: flex; gap: 2px; justify-content: flex-end; }
 /* the Music tab's notes on the order, folded */
 .application.drpg-window-sound details.drpg-sound-order { margin: 0 0 8px; }

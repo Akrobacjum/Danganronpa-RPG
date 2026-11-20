@@ -24976,7 +24976,7 @@ const REGRESSIONS = [
             value: "sounds/a.ogg | sounds/c.ogg", one: "sounds/a.ogg", none: null
         }), "{add, again, pasted: the files after adding; removeSecond, removeFirst, outside: after removing at 1, 0 and 5; kept: the input untouched; value, one, none: the stored value}");
     }],
-    ["R7834 - an Effects row shows its files one by one (1.2.119; sfx.mjs `soundFilesHtml`): the \"N files\" chip is a button that unfolds or folds the row's list (`aria-expanded`, `aria-controls`), the list hidden while folded; each file a line of its name - the path's last part, decoded - with the whole path as its tooltip, a Play and a Remove named by it and carrying its index; a row with no file draws neither; the words in both languages", async () => {
+    ["R7834 - an Effects row shows its files one by one (1.2.119; sfx.mjs `soundFilesHtml`; the owner: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"): the \"N files\" chip is a button that unfolds or folds the row's list (`aria-expanded`, `aria-controls`), the list hidden while folded; each file a box like the row's own - its whole stored path or link as the value, its name (the path's last part, decoded) as the tooltip and in its accessible name - with Choose, Play and Remove named by it and carrying its index; a row with no file draws neither; the words in both languages", async () => {
         /*
          * Line P of 1.2.119 (the sound item), 20.11.2026. Pure markup. Red at b5a29e73: sfx.mjs exports no soundFilesHtml
          * (the chip was a span, and the files stood in one box separated by "|").
@@ -24992,38 +24992,47 @@ const REGRESSIONS = [
             const c = d.querySelector("button[data-drpg-sfx-files]"), ul = d.querySelector("ul[data-drpg-sfx-list]");
             return { chip: c ? [c.getAttribute("aria-expanded"), c.getAttribute("aria-controls") === ul?.id, c.textContent.trim()] : null,
                 hidden: ul ? ul.hidden : null,
-                items: [...(ul?.querySelectorAll("li[data-drpg-sfx-file]") ?? [])].map(li => [li.querySelector(".drpg-sound-files-name")?.textContent, li.querySelector(".drpg-sound-files-name")?.title,
-                    li.querySelector("[data-drpg-sfx-play-file]")?.dataset.drpgSfxPlayFile, li.querySelector("[data-drpg-sfx-play-file]")?.getAttribute("aria-label"),
-                    li.querySelector("[data-drpg-sfx-remove]")?.dataset.drpgSfxRemove, li.querySelector("[data-drpg-sfx-remove]")?.getAttribute("aria-label")]) };
+                items: [...(ul?.querySelectorAll("li[data-drpg-sfx-file]") ?? [])].map(li => {
+                    const box = li.querySelector('input[type="text"][data-drpg-sfx-file-box]');
+                    return [box?.value ?? null, box?.title ?? null, box?.getAttribute("aria-label") ?? null, li.classList.contains("drpg-sound-file"),
+                        li.querySelector("[data-drpg-sfx-pick-file]")?.dataset.drpgSfxPickFile, li.querySelector("[data-drpg-sfx-pick-file]")?.getAttribute("aria-label"),
+                        li.querySelector("[data-drpg-sfx-play-file]")?.dataset.drpgSfxPlayFile, li.querySelector("[data-drpg-sfx-play-file]")?.getAttribute("aria-label"),
+                        li.querySelector("[data-drpg-sfx-remove]")?.dataset.drpgSfxRemove, li.querySelector("[data-drpg-sfx-remove]")?.getAttribute("aria-label")];
+                }) };
         };
         const F = (k, data) => game.i18n.format(k, data);
         const lang = {};
         for (const l of ["en", "pl"]) {
-            try { const S = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.Sound ?? {}; lang[l] = ["addFile", "showFiles", "filesOf", "playFile", "removeFile"].map(k => typeof S[k] === "string" && S[k].length > 0); } catch { lang[l] = null; }
+            try { const S = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.Sound ?? {}; lang[l] = ["addFile", "showFiles", "filesOf", "playFile", "removeFile", "editFile", "replaceFile"].map(k => typeof S[k] === "string" && S[k].length > 0); } catch { lang[l] = null; }
         }
         const empty = X.soundFilesHtml(key, []);
         equal(JSON.stringify({ shut: read(false), open: read(true), empty, lang }), JSON.stringify({
             shut: { chip: ["false", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: true, items: [
-                ["a.ogg", files[0], "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
-                ["wet step.mp3", files[1], "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.replaceFile", { name: "a.ogg" }), "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.replaceFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
             open: { chip: ["true", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: false, items: [
-                ["a.ogg", files[0], "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
-                ["wet step.mp3", files[1], "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
-            empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true], pl: [true, true, true, true, true] }
-        }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [name, tooltip, Play's index and name, Remove's index and name]; empty: a row with no file; lang: the five keys in each language}");
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.replaceFile", { name: "a.ogg" }), "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.replaceFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+            empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true, true, true], pl: [true, true, true, true, true, true, true] }
+        }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [its box's value, tooltip and name, a row box's class, Choose's, Play's and Remove's index and name]; empty: a row with no file; lang: the seven keys in each language}");
     }],
-    ["R7835 - an Effects row's file names stand on one line each, cut with an ellipsis, the whole path in the tooltip (1.2.119; the coordinator on the owner's shot: \"turn-\" / \"in.ogg\" broke mid-name in the narrow column; components.css `.drpg-sound-files-name`, sfx.mjs `soundFilesHtml`): the name's rule keeps it on one line (`white-space: nowrap`), hides what overflows and draws an ellipsis, and gives it the room the row's buttons leave (`min-width: 0`); no rule lets it wrap anywhere", async () => {
+    ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*
-         * Line P of 1.2.119 (the sound item), 20.11.2026. The stylesheets as served; the look is the Chromium shot's.
-         * Red at 10053acf: the name's rule wraps it anywhere (`overflow-wrap: anywhere`), no nowrap, no ellipsis.
+         * Line P of 1.2.119 (the sound item), 20.11.2026; until the owner's answer this number held "a name on one line,
+         * cut with an ellipsis" (e1c6015e), which his answer replaced the same evening: every file a box like the first.
+         * Pure. Red at e1c6015e: sfx-play.mjs exports no withSoundFileAt.
          */
-        let rules = "";
-        try { rules = await moduleStyles(); } catch { rules = ""; }
-        const rule = rules.match(/\.drpg-sound-files-name\s*\{([^}]*)\}/)?.[1] ?? "";
-        equal(JSON.stringify({ found: Boolean(rule), nowrap: /white-space:\s*nowrap/.test(rule), hidden: /overflow:\s*hidden/.test(rule), ellipsis: /text-overflow:\s*ellipsis/.test(rule),
-            shrink: /min-width:\s*0/.test(rule), wraps: /overflow-wrap:\s*anywhere|word-break:\s*break-all/.test(rule) }),
-            JSON.stringify({ found: true, nowrap: true, hidden: true, ellipsis: true, shrink: true, wraps: false }),
-            "{the name's rule: found, one line, overflow hidden, an ellipsis, may shrink, wraps anywhere}");
+        const P = await import("./sfx-play.mjs");
+        must(typeof P.withSoundFileAt === "function", "sfx-play.mjs has no way to replace one file of an event");
+        const two = ["sounds/a.ogg", "sounds/b.ogg"];
+        equal(JSON.stringify({
+            replace: P.withSoundFileAt(two, 1, "sounds/c.ogg"), emptied: P.withSoundFileAt(two, 1, "  "), double: P.withSoundFileAt(two, 1, "sounds/a.ogg"),
+            pasted: P.withSoundFileAt(two, 0, "sounds/c.ogg | sounds/d.ogg | sounds/b.ogg"), same: P.withSoundFileAt(two, 0, " sounds/a.ogg "),
+            outside: P.withSoundFileAt(two, 7, "sounds/c.ogg"), kept: two
+        }), JSON.stringify({
+            replace: ["sounds/a.ogg", "sounds/c.ogg"], emptied: ["sounds/a.ogg"], double: ["sounds/a.ogg"],
+            pasted: ["sounds/c.ogg", "sounds/d.ogg", "sounds/b.ogg"], same: two, outside: two, kept: ["sounds/a.ogg", "sounds/b.ogg"]
+        }), "{replace, emptied, double, pasted, same, outside: the files after one box's edit; kept: the input untouched}");
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
         /*

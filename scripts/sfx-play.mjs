@@ -148,6 +148,20 @@ export function withSoundFile(files, path) {
     return out;
 }
 
+/**
+ * The files with the one at `index` replaced by what its own box now holds (1.2.119; the owner: "niech kazdy wiersz
+ * wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)"): the first part in its place, a pasted list's other
+ * parts after it; a part another file already holds is dropped, so a file is never there twice; an empty box removes
+ * it. An index outside the list changes nothing. Pure.
+ */
+export function withSoundFileAt(files, index, path) {
+    const list = [...(files ?? [])];
+    if (!Number.isInteger(index) || index < 0 || index >= list.length) return list;
+    const others = list.filter((_, i) => i !== index);
+    const parts = String(path ?? "").split(SOUND_SEPARATOR).map(p => p.trim()).filter(Boolean).filter((p, i, all) => all.indexOf(p) === i && !others.includes(p));
+    return [...list.slice(0, index), ...parts, ...list.slice(index + 1)];
+}
+
 /** The files with the one at `index` taken out; the rest as they stood. Pure. */
 export function withoutSoundFile(files, index) {
     return (files ?? []).filter((_, i) => i !== index);
