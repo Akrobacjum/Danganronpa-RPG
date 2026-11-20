@@ -125,7 +125,7 @@
    "expected": "The Call applied only on the primary's answer that the price was taken (the expected pool not read as paid), or the price checked on the primary.",
    "confidence": "read",
    "refutation_tried": "Looked for an await on the ask (none: `void`), for a price check in handleDespair or guardDespairDelta (the guard checks only |delta| <= 12 and non-zero), and for spendDespairCallFor checking the answer (it checks `ok` only, calls.mjs:470-475). The timing of the two writes is not read; tier 2 E37-T8 drives the set/fill/roster asks, not a Call bought on a second GM. The earlier reader of old-1.2.42-despair.json wrote this as suspected; the road is now traced end to end.",
-   "old_id": "DESP-12 (its live check DESP-LC1 still open)"
+   "old_id": "DESP-LC1 (the live check of DESP-12, open; DESP-12's routing is what leaves this road)"
   },
   {
    "id": "domain-desp-a-2",
