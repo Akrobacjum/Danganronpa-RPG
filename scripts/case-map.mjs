@@ -113,7 +113,10 @@ const typeAttrs = t => (t ? { cls: [`drpg-case-type--${t}`], attr: ` data-drpg-t
 /**
  * THE LEGEND (1.2.119): each type the drawn case holds, once, in CASE_TYPE_ORDER, its colour's swatch beside the type's
  * own name (REMNANT_TYPES' label, the words the nodes use). Drawn at the left of the camera's strip under the graph, which
- * stands there anyway, so the legend takes none of the graph's height. Nothing for a case with no typed evidence.
+ * stands there anyway. Measured in Chromium (audit/case-map-sweep.mjs, a case holding all eight types, 20.11.2026): under
+ * the glass the graph's viewport keeps its height (972x295 at 1366x768, 972x599 at 1920x1080); under Legacy, whose pixel
+ * font is wider, the legend wraps to three lines and the viewport loses 29 px (319 -> 290, 623 -> 594). Nothing for a case
+ * with no typed evidence.
  */
 export function caseLegendHtml(graph) {
     const held = new Set((graph?.nodes ?? []).map(caseTypeOf).filter(Boolean));
