@@ -6,7 +6,9 @@ A release passes two layers (decision D47, E30):
    folder's verifier self-test, the suite and every scenario whose layers
    include `ci`, headless. `.github/workflows/ci.yml` runs it, spread over
    parallel jobs, on every push to `main` or a `claude/**` branch, and
-   `release.yml` calls it before it builds.
+   `release.yml` calls it before it builds - unless `reuse-ci.mjs` finds a
+   green run of the release commit's tree that ran every part, which is then
+   reused and named in the release's summary (INFRA, 1.2.120).
 2. **local-gate** - what the headless harness cannot do: the suite's tier 2 in
    both themes on a real Foundry v14, the whole-world diff around it, the
    scenarios whose layers include `local-gate`, and the drills a stage names in
@@ -18,6 +20,7 @@ A release passes two layers (decision D47, E30):
 | `gate-lib.mjs` | a person | what the writer and the verifier share: the schema, the digest, the bound paths, the reasons a part may not have run, when the gate is required |
 | `local-gate.mjs` | a person | the writer: `npm run gate:local` from `audit/harness` |
 | `verify-gate.mjs` | a person | the verifier: `--tag vX.Y.Z` in `release.yml`, `--self-test` in `npm test` |
+| `reuse-ci.mjs` | a person | whether `release.yml` may reuse a green CI run of the same tree instead of running `ci.yml` again: `--commit <sha>` in its reuse-ci job; its decision is driven by the verifier's self-test |
 | `local-gate.json` | **the writer only** | the last run, bound to its commit; an edited file fails its digest |
 | `evidence/` | **the writer only** | the current version's evidence; git keeps the history |
 | `waivers/` | **the owner only** | `vX.Y.Z.md`, in enforce mode; an agent never writes one |
