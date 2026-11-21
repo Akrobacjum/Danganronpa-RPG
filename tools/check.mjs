@@ -1958,6 +1958,7 @@ PARTS.comments = comments;
    listed at 1600 - must name the first two and not the third. Since its own line, as `package` and `comments` are. */
 const LENGTH_BOUND = 1500, LENGTH_CEILING = 1750;
 const LENGTHS_ACCEPTED = Object.freeze({
+    "scripts/action-project.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); 1502 after the 1.2.122 assembly's merges",
     "scripts/hud.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/bridge-table.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/vault-store.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
