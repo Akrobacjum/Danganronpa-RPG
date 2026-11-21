@@ -32483,6 +32483,104 @@ const INVARIANTS = [
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 
+    ["R8032 - a dissolve let go at its bound leaves the fog drawn, and its late end takes nothing away (1.2.121 line F; the audit of 1.2.120, r120-F-1 and r120-F-2): fog.mjs `swapInFog` on a fake ticker - the bound reached, a repaint that changes nothing, then the dissolve's own end - shows the new fog sprite; an end whose first clean-up throws still releases", async () => {
+        /*
+         * 1.2.121 line F; AUDIT 18.6 (audit/findings-1.2.118/recheck-120.json, r120-F-1). 1.2.120's bound
+         * (`queueBehindDissolve`, R8030 C) let a dissolve go by retiring its generation (`endDissolves`). While the
+         * dissolve runs only its mix is drawn - the incoming sprite and the one it replaces are kept off
+         * (`renderable = false`) - and a retired dissolve's end takes away its mix and nothing else, as a scene left
+         * wants. So: the bound reached (a background tab's timers land there), a repaint that finds the picture
+         * unchanged and draws nothing, then the dissolve's late end - and no fog sprite was drawn on the layer: the map
+         * stood uncovered until the next change. Now the bound runs the dissolve's own end, which shows the incoming
+         * sprite and drops the rest, and the late end, run again, does nothing. r120-F-2: the end's first line
+         * (`scratch.destroy`) throwing skipped the release in `finally`, which keyed on a flag set after it.
+         * C: a newer fog drawn after the bound is not taken away by the old dissolve's late end (its end runs once).
+         * Red on 03ee8de9 (1.2.120), measured: A [[], false]. Each part of the fix taken out alone, measured: the bound
+         * retiring the generation again, A [[], false]; no once, C []; `current` decided after the scratch, as 1.2.120's
+         * end did, B [true, 0, ["mix0"]]; the scratch's throw not caught, B [false, 1, ["mix0"]] (the mix left drawn).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.swapInFog === "function" && typeof F.queueBehindDissolve === "function", "fog.mjs hands out no swapInFog or queueBehindDissolve to run");
+        let throwScratch = false;
+        class Node {
+            constructor(texture = null) { this.children = []; this.destroyed = false; this.visible = true; this.renderable = true; this.alpha = 1; this.texture = texture;
+                this.position = { set: () => {} }; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            removeChild(n) { this.children = this.children.filter(c => c !== n); n.parent = null; return n; }
+            destroy() { this.destroyed = true; this.parent?.removeChild(this); for (const c of [...this.children]) c.destroy(); this.children = []; }
+        }
+        // The dissolve's scratch is the one Container it makes; a Sprite is a Node.
+        class Scratch extends Node { destroy(...a) { if (throwScratch) throw new Error("a scratch that would not be destroyed"); return super.destroy(...a); } }
+        class Graphics extends Node { clear() { return this; } beginFill() { return this; } drawRect() { return this; } endFill() { return this; } }
+        const texture = label => ({ label, destroyed: false, destroy() { this.destroyed = true; } });
+        let clock = 1000;
+        const run = () => {
+            const state = { generation: 0, busy: false, queued: false, previous: null, since: null };
+            const anims = [];
+            let repaints = 0, mixes = 0;
+            const container = new Node();
+            const io = {
+                state,
+                PIXI: { Container: Scratch, Sprite: Node, Graphics, BLEND_MODES: { ERASE: 9, ADD: 1 }, RenderTexture: { create: () => texture(`mix${mixes++}`) } },
+                animate: (attributes, options) => {
+                    let resolve;
+                    const anim = new Promise(r => { resolve = r; });
+                    anim.finish = () => { attributes[0].parent.t = 1; options.ontick(); resolve(true); anim.done?.(); };
+                    anims.push(anim);
+                    return anim;
+                },
+                // The real watchdog's shape (fog-reveal.mjs `watchdog`): its clean-up once, a throw caught and logged.
+                watchdog: (anim, ms, cleanUp) => { let once = false; anim.done = () => { if (once) return; once = true; try { cleanUp(); } catch { /* logged */ } }; },
+                renderer: () => ({ render: () => {} }),
+                layer: () => container,
+                ensureRaster: () => {},
+                dropSprite: sprite => { if (sprite && !sprite.destroyed) sprite.destroy(); },
+                showing: () => {},
+                motionOff: () => false,
+                fadeMs: () => 180,
+                now: () => clock,
+                repaint: () => { repaints += 1; }
+            };
+            const rect = { x: 0, y: 0, width: 400, height: 300 };
+            const swap = name => F.swapInFog(container, texture(name), texture(`${name}-mask`), rect, io);
+            // What the layer draws: a fog sprite (it carries `drpgTexture`) that is neither destroyed nor kept off.
+            const drawn = () => container.children.filter(c => c.drpgTexture && !c.destroyed && c.renderable !== false).map(c => c.drpgTexture.label);
+            return { state, anims, io, swap, drawn, repaints: () => repaints };
+        };
+
+        // A: A drawn, then a dissolve A -> B; the bound passes; a repaint finds nothing to change (draws nothing); B's late end.
+        const a = run();
+        a.swap("A");
+        a.swap("B");
+        clock += 10000;
+        const queued = F.queueBehindDissolve(a.io);
+        a.anims[0]?.finish();
+        equal(JSON.stringify([a.drawn(), queued]), JSON.stringify([["B"], false]),
+            "[the fog sprites the layer draws after the bound and the dissolve's late end, whether the repaint at the bound was queued]");
+
+        // C: the bound passes on a dissolve E -> F, a newer fog G is swapped in outright (no motion), then E -> F's late end.
+        const c = run();
+        c.swap("E");
+        c.swap("F");
+        clock += 10000;
+        F.queueBehindDissolve(c.io);
+        c.io.motionOff = () => true;
+        c.swap("G");
+        c.anims[0]?.finish();
+        equal(JSON.stringify(c.drawn()), JSON.stringify(["G"]),
+            "[the fog sprites the layer draws after a newer fog came and the old dissolve's late end ran]");
+
+        // B: a dissolve C -> D whose end throws at its first line (the scratch), a repaint queued behind it.
+        const b = run();
+        b.swap("C");
+        b.swap("D");
+        F.queueBehindDissolve(b.io);
+        throwScratch = true;
+        try { b.anims[0]?.finish(); } finally { throwScratch = false; }
+        equal(JSON.stringify([b.state.busy, b.repaints(), b.drawn()]), JSON.stringify([false, 1, ["D"]]),
+            "[whether a dissolve is busy after its end threw at its first line, the queued repaints run, the fog sprites the layer draws]");
+    }],
+
     ["R8030 - a dissolve whose end throws still lets the fog redraw (1.2.120 line F; the owner's report of 21.11.2026, \"Mgla u GMa nie odswieza sie wcale\"): fog.mjs `swapInFog` on a fake ticker, its clean-up throwing, leaves no dissolve busy and runs the repaint queued behind it; one whose end never comes is let go after its bound", async () => {
         /*
          * 1.2.120 line F, 21.11.2026. Every repaint that arrives while a dissolve runs is queued behind it
