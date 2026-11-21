@@ -35,6 +35,9 @@ export const ACTION_SENDBACK = "token.sendBack";
 export const ACTION_ECLIPSE_MOVE = "eclipse.move";
 export const ACTION_ARM = "call.arm";
 export const ACTION_DESPAIR = "despair.adjust";
+/** GM -> primary GM: a Despair Call's seal or restriction written by the primary, one after another (1.2.122, the audit's
+    COMM-26) - see call-world.mjs `sealRoom`, `restrict`. */
+export const ACTION_CALL_WORLD = "call.world";
 /** GM -> primary GM: add to the overflow's count (E17 C5) - see overflow.mjs `addOverflow`. */
 export const ACTION_OVERFLOW_ADD = "overflow.add";
 /** GM -> primary GM: a GM's Clear of the overflow's count (H84-06) - see overflow.mjs `clearOverflowAsGm`. */

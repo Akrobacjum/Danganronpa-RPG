@@ -185,7 +185,7 @@ export const FLOWS = Object.freeze([
     // `despair.roster`, `overflow.take`, `overflow.check`, each gmOnly); 30-security forges each from a player's console,
     // 33-bridge-paths A19 drives each from the Assistant GM, tier 2 E37-T8 judges a player's and a second GM's.
     { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
-        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"] },
+        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check", "call.world"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },

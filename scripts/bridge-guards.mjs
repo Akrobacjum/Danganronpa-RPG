@@ -201,6 +201,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
+    // call.world's kind (1.2.122, the audit's COMM-26): a seal, a silence or a chain, nothing else.
+    ["badRequest", /^kind .+ is not a seal or a restriction$/],
     // E64: an offer of statistic points alone (the DA39 migration; bridge-runs-acts.mjs `handleAdvancement`).
     ["badRequest", /^that offer is for statistics only$/],
     ["badRequest", /^a new experience has no name$/],

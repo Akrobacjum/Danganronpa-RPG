@@ -35,7 +35,7 @@ import {
 import {
     ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
-    ACTION_OVERFLOW_ADD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
+    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
     ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
@@ -65,7 +65,7 @@ import {
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
     handleRemnantEdit, sabotageAgain, handleSabotage, handleProjectChange, handleUnsabotage, handleSendback, handleLoot,
-    handleArm, handleOverflowAdd, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
+    handleArm, handleOverflowAdd, handleCallWorld, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
     handleOverflowTake, handleOverflowCheck, handleDespair, handleEclipseMove, handleNoteSave, handleRollBookmark,
     handleReroll, handleAuditDecide, handleKeysCharge, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
@@ -986,6 +986,21 @@ export const BRIDGE_ACTIONS = table({
      * with no primary to ask. A GM's alone: a player's console that could ask would darken the world. Tier 2 E17-T8
      * judges a player's ask (refused) and a second GM's (added on the primary, its count answered).
      */
+    /*
+     * A DESPAIR CALL'S SEAL OR RESTRICTION, ON THE PRIMARY GM (1.2.122, the audit's COMM-26). The sealed rooms and the
+     * restrictions are world settings written whole from one GM's copy: two GMs' Silence or Seal within one round trip
+     * kept only the second. A GM that is not the primary asks here (call-world.mjs), and the primary writes one after
+     * another (`serialWrite`). A GM's alone: a player's console that could ask would seal a room or silence a classmate.
+     */
+    [ACTION_CALL_WORLD]: {
+        label: "DRPG.Bridge.what.call.world",
+        guards: [gmOnly("only a GM seals a room or restricts a student"),
+            inRange("kind", k => ["seal", "restrict"].includes(k), value => `kind ${value} is not a seal or a restriction`)],
+        sanitize: pick({ kind: as.text, room: as.text, actorId: as.id, silenced: as.gmFlag, chained: as.gmFlag }),
+        run: handleCallWorld,
+        answer: "reply",
+        claims: { actorId: "gmOnly: a GM's own Despair Call names its target, as the GM's sheet road does" }
+    },
     [ACTION_OVERFLOW_ADD]: {
         label: "DRPG.Bridge.what.overflow.add",
         guards: [gmOnly("only a GM adds to the overflow"),

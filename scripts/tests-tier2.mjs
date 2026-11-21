@@ -102685,6 +102685,40 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         ok(sums.length === 2 && sums[1] !== sums[0], `the confirmation's header did not follow the pool's debt (read "${sums[0]}" then "${sums[1] ?? "-"}")`);
     }],
+    ["1.2.122 COMM-26 - two restrictions written at the same moment both stand, and a seal or a restriction is a GM's alone on the primary: a player's `call.world` is refused (call-world.mjs `restrict`, `writeCallWorld`; bridge-table.mjs `call.world`; the audit's COMM-26)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-26): sealRoom and restrict read the world setting on this GM's browser, added one entry
+         * and set the whole value, so two writes within one round trip kept only the second. The primary writes them one
+         * after another now (`serialWrite`), and another GM asks it (`call.world`). On this primary GM: two students
+         * Silenced in the same tick; then a player's packet judged as the bridge judges it. The restrictions are put back.
+         * Red at 21bf5d18: one of the two silenced, and no `call.world` (refused as an unknown action).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's packet is judged, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which writes the restrictions - this would measure nothing");
+        const W = await import("./call-world.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const [a, b] = cast(2);
+        must(a && b, "two students to silence - this would measure nothing");
+        const { player } = playerAndCharacters();
+        const was = foundry.utils.deepClone(W.restrictions());
+        let read = null;
+        try {
+            const answers = await Promise.all([W.restrict(a, { silenced: true }), W.restrict(b, { silenced: true })]);
+            await settle();
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, { action: "call.world", requestId: "COMM26PLAYER0001", kind: "restrict", actorId: a.id, silenced: true }, player.id,
+                { send: (to, reply) => sent.push(reply) });
+            await settle();
+            read = [answers, W.isCallSilenced(a), W.isCallSilenced(b), sent.find(r => r?.action === "bridge.refused")?.reason ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, true], true, true, "gmOnly"]),
+            "two restrictions at once did not both stand, or a player's call.world was not refused as a GM's ([both answers, the first silenced, the second silenced, the refusal's reason])");
+    }],
     ["1.2.122 COMM-36 - Contraband tells the owner of the item it destroys, privately, as Silence and Chain tell theirs (call-effects.mjs `destroyItemEffect`, `tell`; the audit's COMM-36)", async () => {
         /*
          * The audit of 1.2.118 (COMM-36): the item was deleted on the GM and the public card named only the item; its
@@ -103243,9 +103277,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const P = await import("./lockpick-gm.mjs");
         const step = async (hand, cover, withHope = true) => {
             const before = cards();
-            const out = await ask(await rolls(hand, cover, withHope));
+            let out = null;
+            // The bedroom's warning is a veiled card since 1.2.122 (the audit's COMM-22): its document names no speaker, so
+            // it is counted by the words sent with its sound; a card spoken as the owner is counted off its document.
+            const packets = await wordsSent(async () => { out = await ask(await rolls(hand, cover, withHope)); });
+            const warned = packets.filter(w => w.meta?.sfx === "bedroomEntered").length;
             const row = typeof out === "string" ? out : [out?.opened ?? null, [...(out?.held ?? [])].sort().join("+"),
-                roomNow() === A && P.passOf(actor.id)?.room === B, cards() - before];
+                roomNow() === A && P.passOf(actor.id)?.room === B, cards() - before + warned];
             if (P.passOf(actor.id)) await P.endPass(actor.id);
             if (roomNow() !== A) await backToA();
             return row;

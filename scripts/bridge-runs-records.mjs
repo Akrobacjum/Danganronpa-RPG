@@ -608,6 +608,15 @@ export async function handleOverflowAdd(payload, sender, ctx) {
     return { reply: { after } };
 }
 
+/** The run of `call.world` (1.2.122, COMM-26): the primary's own write of a seal or a restriction, its answer whether it wrote. */
+export async function handleCallWorld(payload, sender, ctx) {
+    const { writeCallWorld } = await import("./call-world.mjs");
+    const done = await writeCallWorld({ kind: payload.kind, room: payload.room ?? null, actorId: payload.actorId ?? null,
+        silenced: payload.silenced === true, chained: payload.chained === true });
+    if (!done) return { refused: "nothing was carried out: the seal or the restriction was not written" };
+    return { reply: { done: true } };
+}
+
 /** The run of `overflow.clear` (H84-06): the primary's own `resetOverflow` of the count alone, for the GM who asked. */
 export async function handleOverflowClear(payload, sender, ctx) {
     const { resetOverflow } = await import("./overflow.mjs");

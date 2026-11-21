@@ -4859,6 +4859,7 @@
         "note.save": "Pre-session note",
         "despair.adjust": "Change a Despair pool",
         "overflow.add": "Add Despair to the Overflow",
+        "call.world": "A Despair Call's seal or restriction",
         "overflow.clear": "Clear the Overflow",
         "despair.set": "Setting a Despair pool",
         "despair.all": "Filling or emptying every Despair pool",

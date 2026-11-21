@@ -5212,6 +5212,7 @@
         "note.save": "Notatka przed sesją",
         "despair.adjust": "Zmiana puli Despair",
         "overflow.add": "Dodanie Despair do Overflow",
+        "call.world": "Zapieczętowanie lub ograniczenie z Despair Call",
         "overflow.clear": "Wyczyszczenie Overflow",
         "despair.set": "Ustawienie puli Despair",
         "despair.all": "Napełnienie albo opróżnienie wszystkich pul Despair",
