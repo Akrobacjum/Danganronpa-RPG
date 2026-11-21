@@ -107387,6 +107387,162 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
     }],
 
+    ["1.2.122 ITEM-19 - a room action's Hope and Health effects count from what the GMs hold of the student, not from a write of the player's their put-back has not undone (scripts/facilities-gm.mjs `applyEffects`; sheet-audit.mjs `meansWrite`; the audit's ITEM-19)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's ITEM-19, the E29 r2-H24 class reopened by E93. `applyEffects` read the
+         * Hope, the Health and the Sanity off the sheet as it stood and wrote the sum as a GM's write, which supersedes the
+         * put-back pending on the same path: a console that raised its own Hope from 2 to 5 and at once used a +1 Hope room
+         * action kept 6. A student's means set as the GMs' (a GM's write, `gmRuling`), then a forged write the audit leaves
+         * aside (`AUDIT_ASIDE`, as the Reroll's "... the GMs hold" tests stand a write whose put-back has not landed); the
+         * effects applied on this GM for the student alone. Read: the sheet's Hope and Health marks after each. Put back:
+         * both, as the GMs'.
+         */
+        const [who] = cast(1);
+        const FG = await import("./facilities-gm.mjs");
+        const F = await import("./facilities.mjs");
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const HOPE = "system.resources.hope.value", HP = "system.resources.hitPoints.value";
+        must(!overflowBlocksHope(), "the Overflow blocks Hope now - the Hope effect would measure the block");
+        must(Number(who.system.resources.hope.max) >= 6 && Number(who.system.resources.hitPoints.max) >= 3,
+            `${who.name}'s Hope cannot reach 6 or Health 3 - the forged sums would be clamped and measure less`);
+        const hope = F.cleanEffect({ kind: "hope", n: 1, scope: "self" }), health = F.cleanEffect({ kind: "health", n: 1, scope: "self" });
+        must(hope?.kind === "hope" && health?.kind === "health", "no room action's Hope or Health effect - this would measure nothing");
+        const was = { [HOPE]: foundry.utils.getProperty(who._source, HOPE), [HP]: foundry.utils.getProperty(who._source, HP) };
+        const read = [];
+        try {
+            await trustedWrite(who, { [HOPE]: 2, [HP]: 3 }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            await who.update({ [HOPE]: 5, [HP]: 0 }, { [AUDIT_ASIDE]: true });
+            await FG.applyEffects(who, [hope, health], gmPlaceOf(who), null);
+            await sheetAuditIdle();
+            await settle();
+            read.push(foundry.utils.getProperty(who._source, HOPE), foundry.utils.getProperty(who._source, HP));
+        } finally {
+            await sheetAuditIdle();
+            await trustedWrite(who, was, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([3, 2]),
+            "[the sheet's Hope after +1 Hope from the GMs' 2 (a forged 5 on the sheet), its Health marks after one cleared from the GMs' 3 (a forged 0)]");
+    }],
+
+    ["1.2.122 MAP-25 - Refund last crossing stands the token back only while it still stands in the room the crossing put it in; moved on since, the token stays, the owner is told so and the GMs are told where it stands (scripts/movement.mjs `refundLastCrossing`; the audit's MAP-25)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-25. The GMs' record keeps a character's newest crossing with no end,
+         * and a GM's drag records none, so the crossing a refund gives back can be hours old with the token rooms away: the
+         * refund wrote the token to the crossing's start wherever it stood. A scene of the suite's own - a Hall, a Lab and a
+         * Gym side by side - and the record written as the primary writes it (`recordCrossingInStep`, Hall -> Lab, from
+         * 300,300), then the refund with the token in the Gym and, the record written again, with the token in the Lab.
+         * Read: the reply's back and movedOn, where the token stands, the owner's line, the GMs' card. Put back: the record,
+         * the scene, the cards.
+         */
+        needs(env.primaryGm(), "the record and the refund are the primary GM's (`refundLastCrossing`)");
+        const M = await import("./movement.mjs");
+        const S = await import("./gm-stores.mjs");
+        const R = await import("./rooms.mjs");
+        const SEC = await import("./secret.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        const HALL = "SUITE MAP25 Hall", LAB = "SUITE MAP25 Lab", GYM = "SUITE MAP25 Gym";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const textOf = id => { const m = game.messages.get(id); return String(SEC.secretHtml(m) ?? m?.content ?? ""); };
+        const rowWas = S.crossingStore.get(student.id) ?? null;
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE MAP25 refund", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0), room(LAB, 1000), room(GYM, 2000)]);
+            const [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === HALL, "the token does not stand in the Hall - this would measure nothing");
+            Hooks.on("createChatMessage", onMessage);
+            const refundFrom = async (x, where) => {
+                await token.update({ x, y: 300 }, { ...PLACE });
+                await settle();
+                must(M.roomOfToken(token) === where, `the token does not stand in ${where} - this would measure nothing`);
+                must(await M.recordCrossingInStep(student, token, { from: HALL, to: LAB, back: { x: 300, y: 300, elevation: 0 } }), "no crossing recorded - this would measure nothing");
+                const from = made.length;
+                const out = await M.refundLastCrossing(student.id);
+                await settle();
+                const said = made.slice(from).map(textOf);
+                return [out?.reply?.back ?? null, out?.reply?.movedOn ?? null, `${token.x},${token.y}`,
+                    said.some(t => t.includes(game.i18n.localize("DRPG.Move.refundedMoved"))), said.some(t => t.includes("data-drpg-refund-moved"))];
+            };
+            read = { movedOn: await refundFrom(2300, GYM), stillThere: await refundFrom(1300, LAB) };
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (rowWas) await S.crossingStore.patch(student.id, rowWas); else await S.crossingStore.drop(student.id);
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ movedOn: [false, true, "2300,300", true, true], stillThere: [true, false, "300,300", false, false] }),
+            "{movedOn: the token in the Gym; stillThere: the token in the Lab} as [stood back, moved on, where the token stands, the owner told it stays, the GMs told where it stands]");
+    }],
+
+    ["1.2.122 MAP-21 MAP-22 - the doors' rules name a sealed room or a bedroom only to a viewer who has found it, and a barricade gives to a step through a known passage, a tunnel or a breach, never to a walk in through its door (scripts/movement.mjs `crossingVerdict`, `restrictedFrom`, `barricadedFrom`; movement-audit.mjs `sentBackLine`; the audit's MAP-21, MAP-22)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-21: `restrictedFrom` runs before the connected-rooms rule, and its seal and
+         * bedroom sentences named `to`, the room under the drop, so a drag onto a black patch anywhere on the map came back
+         * with the name of the room under it; the primary's put-back for a bedroom (`sentBackLine`) named it too. MAP-22:
+         * `barricadedFrom` was handed "passage" whenever the character knew any passage joining the two rooms, so a knower
+         * walked in through the barricaded door itself. Read on a scene of plain objects, as R558 reads the passages: a Lab
+         * whose list names the Hall, a Vault under the Lab beyond a passage A knows, a Den (another's bedroom) and a Crypt
+         * (sealed) the Lab's list also names; `knownRooms` is the viewer's found rooms, the suite's to hand. The seal is the
+         * world setting `sealedRooms`, written here under a name no world holds and put back.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const A2 = await import("./movement-audit.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const region = (name, x, y, w, h, flags = {}) => ({ id: `MAP21R${name}`, name: `MAP21 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const LAB = "MAP21 Lab", HALL = "MAP21 Hall", VAULT = "MAP21 Vault", DEN = "MAP21 Den", CRYPT = "MAP21 Crypt";
+        const scene = { id: "MAP21S", name: "MAP21 scene", grid: { size: 100 }, levels: [],
+            regions: new Set([region("Lab", 0, 0, 400, 400, { [M.ROOM_FLAGS.neighbours]: `${HALL}, ${DEN}, ${CRYPT}` }), region("Hall", 500, 0, 400, 400),
+                region("Vault", 0, 400, 400, 200, { [M.ROOM_FLAGS.barricaded]: true }), region("Den", 1000, 0, 400, 400, { [ROOM_OWNER_FLAG]: "MAP21OWNER" }),
+                region("Crypt", 1500, 0, 400, 400)]) };
+        const A = { id: "MAP21A", name: "MAP21 A", items: [], getFlag: () => undefined };
+        const B = { id: "MAP21B", name: "MAP21 B", items: [], getFlag: () => undefined };
+        const known = { MAP21P: { sceneId: "MAP21S", level: null, passageWallId: "MAP21W", passageSeg: { x1: 100, y1: 400, x2: 200, y2: 400 }, actorIds: ["MAP21A"] } };
+        const mover = { gm: false, mastermind: false };
+        const at = (actor, to, opts = {}) => {
+            const v = M.crossingVerdict(actor, LAB, to, scene, null, { mover, pay: false, known, keyed: true, ...opts });
+            return v === true ? true : [v.code, v.text];
+        };
+        const cannot = game.i18n.localize("DRPG.Bridge.why.cannotNow");
+        const sealedWas = game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? [];
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, [...sealedWas, CRYPT]);
+            const lab = new Set([LAB]), all = new Set([LAB, DEN, CRYPT]);
+            read = {
+                named: [at(A, CRYPT, { knownRooms: lab }), at(A, CRYPT, { knownRooms: all }), at(A, DEN, { knownRooms: lab }), at(A, DEN, { knownRooms: all })],
+                sentBack: [A2.sentBackLine({ code: "cannotNow", rule: "bedroomShut", room: DEN }, lab), A2.sentBackLine({ code: "cannotNow", rule: "bedroomShut", room: DEN }, all)],
+                barricade: [at(A, VAULT, { via: null })?.[0] ?? true, at(A, VAULT, { via: "passage" }), at(B, VAULT, { via: "passage" })?.[0] ?? true,
+                    at(B, VAULT, { joined: true, via: "passage" }), at(A, VAULT, { via: "breach" })]
+            };
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            named: [["roomSealed", cannot], ["roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: CRYPT })],
+                ["cannotNow", cannot], ["cannotNow", game.i18n.format("DRPG.Vault.keyMissing", { room: DEN })]],
+            sentBack: [cannot, game.i18n.format("DRPG.Vault.keyMissing", { room: DEN })],
+            barricade: ["barricaded", true, "barricaded", true, true] }),
+            "{named: [the sealed Crypt to a viewer who has not found it, to one who has; another's Den the same]; sentBack: [the put-back's line for the Den, not found, found]; barricade: [the knower's walk in through the door, its step through the passage, a claimed passage another does not know, a tunnel, the knower through a breach]}");
+    }],
+
     ["1.2.122 MAP-18 MAP-19 - a body and a Spectator discover nothing in the GMs' ledger: the seed skips both, a body moved into a room records none, and a living student standing or moving still records its room (scripts/fog.mjs `seedCells`, `reactToMove`; movement.mjs `isCorpseToken`; the audit's MAP-18, MAP-19)", async () => {
         /*
          * 1.2.122 line MAP, 21.11.2026. The viewer's own fog had the skips (fog.mjs `isMine`: a Spectator, a Monocub's

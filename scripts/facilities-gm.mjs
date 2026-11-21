@@ -163,20 +163,33 @@ export async function applyEffects(actor, effects, place, sender = null) {
             const r = target.system?.resources ?? {};
             // What this target's writes say, left out for a reader the veil hides them from (above); the writes stand.
             const shown = lines.length;
+            /* Health, Sanity and Hope as the GMs hold them (1.2.122 line MAP; the audit's ITEM-19, the E29 fix r2-H24 class):
+               read and written in one job of the student's queue (sheet-audit.mjs `meansWrite`), the Hope's maximum the
+               GMs' (the world's less the scars). They were read off the sheet as it stood, and a GM's write over a path
+               supersedes the put-back pending on it, so a console that raised its own Hope from 2 to 5 and used a +1 Hope
+               room action at once kept 6. The job reads, computes and makes its one write; it waits on nothing else. */
             if (effect.kind === "health" || effect.kind === "sanity") {
                 const path = effect.kind === "health" ? "hitPoints" : "stress";
-                const marks = Number(r[path]?.value) || 0, cleared = Math.min(marks, effect.n);
-                if (cleared) await trustedWrite(target, { [`system.resources.${path}.value`]: marks - cleared }, { reason: "facility" });
+                const { meansWrite } = await import("./sheet-audit.mjs");
+                const cleared = await meansWrite(target, async held => {
+                    const marks = Number(held[path]) || 0, off = Math.min(marks, effect.n);
+                    if (off) await trustedWrite(target, { [`system.resources.${path}.value`]: marks - off }, { reason: "facility" });
+                    return off;
+                });
                 lines.push(t(effect.kind, { name, n: cleared }));
             } else if (effect.kind === "hope") {
                 const { overflowBlocksHope } = await import("./overflow.mjs");
                 // No `continue` past the veil's cut below: a blocked Hope's line names its target as the others do.
                 if (overflowBlocksHope()) lines.push(t("hopeBlocked", { name }));
                 else {
-                    const now = Number(r.hope?.value) || 0, max = Number(r.hope?.max) || STARTING.hopeMax;
-                    const next = Math.min(max, now + effect.n);
-                    if (next !== now) await trustedWrite(target, { "system.resources.hope.value": next }, { reason: "facility" });
-                    lines.push(t("hope", { name, n: next - now }));
+                    const { meansWrite } = await import("./sheet-audit.mjs");
+                    const gained = await meansWrite(target, async (held, maxOf) => {
+                        const now = Number(held.hope) || 0, max = Number(maxOf("hope")) || Number(r.hope?.max) || STARTING.hopeMax;
+                        const next = Math.min(max, now + effect.n);
+                        if (next !== now) await trustedWrite(target, { "system.resources.hope.value": next }, { reason: "facility" });
+                        return next - now;
+                    });
+                    lines.push(t("hope", { name, n: gained }));
                 }
             } else if (effect.kind === "freeMove") {
                 const { grantFreeMoves } = await import("./actions.mjs");

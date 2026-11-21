@@ -4480,6 +4480,8 @@
       "noBudgetLong": "You have no Free Move and no actions left, so your token was put back.",
       "refundedBack": "The GM gave back your last crossing, and your token is back where it was.",
       "refundedStays": "The GM gave back your last crossing, but your token could not be moved back. Ask the GM.",
+      "refundedMoved": "The GM gave back your last crossing. Your token has moved on since, so it stays where it is.",
+      "refundMovedGm": "{name}'s last crossing is given back, but the token has moved on since, so it stays {at}.",
       "refundedPrice": "What the crossing cost is yours again.",
       "refundedNoPrice": "No price came back for that crossing. If you paid for it, ask the GM.",
       "locked": "The door is locked.",

@@ -4815,6 +4815,8 @@
       "noBudgetLong": "Nie masz już Free Move ani akcji, więc to przejście nie jest opłacone. Token wraca na miejsce; zapytaj GM-a.",
       "refundedBack": "GM cofa twoje ostatnie przejście: token stoi tam, gdzie stał przed nim.",
       "refundedStays": "GM cofa twoje ostatnie przejście, ale tokenu nie da się postawić tam, gdzie stał. Zapytaj GM-a.",
+      "refundedMoved": "GM cofa twoje ostatnie przejście. Token od tego czasu poszedł dalej, więc zostaje tam, gdzie stoi.",
+      "refundMovedGm": "Ostatnie przejście postaci {name} cofnięte, ale token od tego czasu poszedł dalej, więc zostaje {at}.",
       "refundedPrice": "To, co przejście kosztowało, wraca do ciebie.",
       "refundedNoPrice": "Za to przejście nic do ciebie nie wraca. Jeśli coś cię kosztowało, zapytaj GM-a.",
       "locked": "Drzwi są zamknięte.",

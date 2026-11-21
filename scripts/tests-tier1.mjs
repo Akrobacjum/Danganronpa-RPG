@@ -64324,6 +64324,32 @@ const INVARIANTS = [
             stableJson({ keys: ["mastermind", "name"], same: true, under: true, state: "done", list: true }),
             "{keys: the rows after, in the steps' order; same, under: the standing row the same node, with what stood under it; state: drawn again; list: the same list}");
     }],
+    ["R8340 - the primary GM reads no Monocub's route refused for its budget, as every other road of a crossing's price does not: a Monocub pays nothing (1.2.122 line MAP; scripts/movement.mjs `refusedOnPrimary`, `crossesFree`; the audit's MAP-24)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-24. `refusedOnPrimary` counted a student's budget - the free Move,
+         * the Sprints, the Bursts, the actions - against a route's crossings and asked neither `crossesFree` nor the
+         * Monocub flag, where the veto (`cubStep`), the charge (`chargeRoute`) and the GMs' settle all do. A Monocub keeps
+         * its free Move unspent, so its budget is 1 and its actions: a route of two crossings with none left read refused,
+         * `route.stands` settled false, a passage kept "until it leaves" stayed known and the primary's voice pass waited.
+         * Read by running the function's own source with stand-ins for what it reads (the primary, the standings, the
+         * Eclipse, the movement setting, the budget's four counters and `crossesFree`): tier 1 moves no token.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
+        const body = fnSource(src, "refusedOnPrimary");
+        must(/^function refusedOnPrimary\(/.test(body), "movement.mjs has no function refusedOnPrimary - this would measure nothing");
+        const standings = new Map([["unlawful", { lawful: false }]]);
+        const stand = {
+            isPrimaryGm: () => true, standings, isEclipse: () => false, MODULE_ID, SETTINGS: { chargeMovement: "chargeMovement" },
+            game: { settings: { get: () => true } }, hasFreeMove: a => a.free, freeMovesLeft: () => 0, freeActionsLeft: () => 0,
+            actionsLeft: a => a.actions, crossesFree: a => a.cub === true
+        };
+        const run = new Function(...Object.keys(stand), `${body}\nreturn refusedOnPrimary;`)(...Object.values(stand));
+        const two = [{}, {}];
+        const read = [run({ id: "a" }, { cub: true, free: true, actions: 0 }, two), run({ id: "a" }, { cub: false, free: true, actions: 0 }, two),
+            run({ id: "a" }, { cub: false, free: true, actions: 1 }, two), run({ id: "unlawful" }, { cub: true, free: true, actions: 0 }, two)];
+        equal(JSON.stringify(read), JSON.stringify([false, true, false, true]),
+            "[a Monocub's two crossings with its free Move and no action, a student's the same, a student's with one action, a Monocub standing unlawfully] - refused on the primary");
+    }],
 ];
 
 /**
