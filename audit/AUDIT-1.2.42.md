@@ -4616,6 +4616,15 @@ Każde okno `keepLive` (20 regionów) przerysowuje się teraz od razu przy fokus
 - r121-M-2 (`facilities-gm.mjs:162`), M-3 (`secret.mjs:520`), M-4 (`sheet-actions.mjs:1014`), `minor`: odpowiedź akcji pokoju nazywa zamaskowany cel; drugi GM nie słyszy ujawnienia; karta ofiary liczy zawoalowanego zabójcę.
 - r121-R-7, `minor` (`season-setup.mjs:1008-1012`): przerysowanie wiersza listy kontrolnej sezonu bez przytrzymania naciśnięcia, więc kliknięcie może przepaść.
 
+**Sonda 43 na 1.2.121 (dopisane po jej przebiegach).** Pełny przebieg nie wyszedł:
+- Dwa razy klient GM-a harnessu wyczerpał stertę JS (domyślną, potem 8 GB), za każdym razem przy oknach mapy sprawy. Otwarto 33 z 74 okien (`probe-43-121.json`; sonda od 9b8f7722 zapisuje dowody po każdym oknie).
+- Celowy pomiar, dwa okna mapy (`investigation--map-crowd`, `--map-modes`), po jednym procesie: 1.2.121 - szczyt GM-a 2 417 MB w 12 min; 1.2.120 - 2 279 MB w 11 min 40 s. To nie jest regresja 1.2.121. Czy pamięć trzyma moduł (np. słuchacze albo pamięci podręczne mapy przy każdym przerysowaniu), czy jsdom harnessu, nie ustaliłem; przy stole nie zmierzone.
+- Odczyty z 33 okien: przytrzymanie przez fokus w polu - 0 (było 7 na 1.2.118). Z 386 "nieaktualnych" 340 to szum okien niespokojnych. 46 to prawdziwe nieaktualne odczyty w 8 oknach:
+  - Despair Flow (śmierć: sugerowany próg), jak na 1.2.118;
+  - lista kontrolna sezonu (śmierć: pokoje na ucznia);
+  - mapa sprawy w pięciu widokach (licznik problemów po Remnancie);
+  - zakładka Files okna Sound - różnica w stanie przełączników przy każdej zmianie; czy to wskaźnik odtwarzania, nie przeczytano.
+
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
 > Część II to zapis z 12.09.2026 i dopisków etapów. Stan każdej jej pozycji na 1.2.118 jest w części I (tabela "Gdzie jest każda kategoria" na górze). Nic tu nie jest przenumerowane ani skrócone.
