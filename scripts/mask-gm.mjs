@@ -318,7 +318,8 @@ export async function endMask(killerId, why = "end") {
  * write, so each portrait's write reaches every browser ahead of the board's: the time of day the mask was for ends with
  * that write either way. Since 1.2.119 before every advance (clock.mjs `advanceTimeOfDay`), since every board can play
  * on one: the end board at Night and the discovery's two after any hour (tier 2 "E119 - the masks end before every
- * advance"); and before the Class Trial's entry (clock.mjs `setClock`). Answers how many.
+ * advance"); and before the Class Trial's entry and, since 1.2.120, before any write that stamps a day's board, the chapter
+ * end's next morning among them (clock.mjs `setClock`, `writesBoardStamp`). Answers how many.
  */
 export async function endMasksBeforeTheBoard() {
     if (!game.user?.isGM) return 0;
@@ -562,6 +563,8 @@ async function settleVeilsNow() {
  * is declared in an Eclipse and opens at its lights, at the start of the next time of day (eclipse.mjs
  * `judgePendingMurders`), after the Eclipse's flag has gone - when every token is drawn again. So the killers the lights
  * will judge are veiled before the flag goes (`endEclipse`), and `lightsJudged` settles once the lights have judged.
+ * Since 1.2.120 (DOC-01) `endEclipse` hands only the killers the lights can still open - none the room alone cancels - and
+ * one cancelled at the lights is lifted as it is (`liftAtTheLights`).
  */
 export async function veilAtTheLights(killerIds = []) {
     if (!game.user?.isGM || !isPrimaryGm()) return 0;
@@ -570,6 +573,19 @@ export async function veilAtTheLights(killerIds = []) {
     let n = 0;
     for (const id of new Set(killerIds)) if (await veilActor(id, { why: "lights", tell: false })) n++;
     return n;
+}
+
+/**
+ * A killer the lights cancelled (DOC-01, 1.2.120; eclipse.mjs `judgePendingMurders`): their row of "lights" lifted at once,
+ * in the settles' order, so they are drawn again before the judgement goes on to the next declaration - not after the whole
+ * of it at `lightsJudged`. A row the opening took over, or none, is left. On the primary; answers whether it lifted.
+ */
+export function liftAtTheLights(actorId) {
+    if (!game.user?.isGM || !isPrimaryGm()) return Promise.resolve(false);
+    const run = () => (veilStore.get(actorId ?? "")?.why === "lights" ? liftVeil(actorId, "the lights cancelled it") : false);
+    const next = settling.then(run, run);
+    settling = next.catch(() => null);
+    return next;
 }
 
 export async function lightsJudged() {
