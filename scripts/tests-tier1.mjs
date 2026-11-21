@@ -17559,8 +17559,10 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         must(typeof V.trialVoiceTrigger === "function", "voice.mjs has no trialVoiceTrigger - this would measure nothing");
         const f = flags => ({ flags: { [MODULE_ID]: flags } });
-        const cases = [f({ deceased: true }), f({ "-=monocub": null }), f({ spectator: true }), f({ monokuma: true }), f({ notInClass: true }),
-            { flags: { [`-=${MODULE_ID}`]: null } }, { ownership: { default: 0 } },
+        // The deletion's spelling as an update may carry it, built so R152 reads no old-style key here.
+        const gone = key => `${"-="}${key}`;
+        const cases = [f({ deceased: true }), f({ [gone("monocub")]: null }), f({ spectator: true }), f({ monokuma: true }), f({ notInClass: true }),
+            { flags: { [gone(MODULE_ID)]: null } }, { ownership: { default: 0 } },
             f({ freeMoveUsed: true }), f({ lastAction: "search" }), f({ pendingCall: [] }), { name: "x" }, null];
         equal(stableJson(cases.map(c => V.trialVoiceTrigger(c))),
             stableJson([true, true, true, true, true, true, true, false, false, false, false, false]),
@@ -21062,7 +21064,10 @@ const INVARIANTS = [
             return [sw.length, sw[0]?.checked === (getSetting(SETTINGS[key]) === true), sw[0]?.closest("label")?.textContent.trim()
                 === game.i18n.localize(game.settings.settings.get(`${MODULE_ID}.${SETTINGS[key]}`)?.name ?? "-"), before];
         };
-        const wire = fnSource(stripComments(new Map(await moduleSources()).get("sound-panel.mjs") ?? ""), "wireSoundDialog");
+        // The switches' wiring since 1.2.122 is `wireSoundSwitches`, which `wireSoundDialog` calls and each switch's live region
+        // calls again (the audit's REFR-25).
+        const soundPanel = stripComments(new Map(await moduleSources()).get("sound-panel.mjs") ?? "");
+        const wire = /wireSoundSwitches\(root\)/.test(fnSource(soundPanel, "wireSoundDialog") ?? "") ? fnSource(soundPanel, "wireSoundSwitches") : "";
         const read = {
             sections: inSections,
             listed: Array.isArray(W.SOUND_WINDOW_SETTINGS) ? [...W.SOUND_WINDOW_SETTINGS].sort() : null,

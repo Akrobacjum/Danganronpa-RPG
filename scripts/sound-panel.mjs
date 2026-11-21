@@ -475,14 +475,19 @@ export async function openSoundDialog() {
              */
             /* The two world switches follow another GM (1.2.122, the audit's REFR-25): each its own region, woken by its own
                setting, its listener put back on the new switch. */
-            for (const key of ["musicEnabled", "sfxVary"]) {
-                keepLive(dialog, {
-                    region: `[data-drpg-sound-setting="${key}"]`,
-                    build: () => soundSettingSwitch(key),
-                    watch: { settings: [SETTINGS[key]] },
-                    after: next => wireSoundSwitches(next)
-                });
-            }
+            // One call each, not a loop: R1317 holds each region a window keeps to a `keepLive(` call of its source.
+            keepLive(dialog, {
+                region: '[data-drpg-sound-setting="musicEnabled"]',
+                build: () => soundSettingSwitch("musicEnabled"),
+                watch: { settings: [SETTINGS.musicEnabled] },
+                after: next => wireSoundSwitches(next)
+            });
+            keepLive(dialog, {
+                region: '[data-drpg-sound-setting="sfxVary"]',
+                build: () => soundSettingSwitch("sfxVary"),
+                watch: { settings: [SETTINGS.sfxVary] },
+                after: next => wireSoundSwitches(next)
+            });
             keepLive(dialog, {
                 region: "[data-drpg-sfx-region]",
                 build: soundEffectsRegion,
