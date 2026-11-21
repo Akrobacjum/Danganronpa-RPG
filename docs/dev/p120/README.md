@@ -1,4 +1,4 @@
-# Line P of 1.2.120: the planner (N119-6, OWN-119-1..3)
+# Line P of 1.2.120: the planner (N119-6, OWN-119-1..3, the lines)
 
 Shots for the owner, 21.11.2026, in Chromium. Each Map is the Investigation window at 1920x1080, drawn by
 `audit/case-map-sweep.mjs --shots --scale 2` from probe 08's captures `investigation--map-move` (before) and
@@ -34,10 +34,24 @@ The ratios are `case-map-sweep.mjs`'s hover read: the name's ink against the gro
 (the window, the node's fill and the theme's brush, composited), by WCAG 2. The high-contrast switch was read too, by
 the same probe: it changes nothing on a node under the pointer in either theme.
 
+## Lines that skip a column (item 1 of the owner's reports, "Linie w planerze - niech omijaja nodes")
+
+| File | Code | What it shows |
+| --- | --- | --- |
+| `shots/lines-1.2.119-glass.png`, `shots/lines-1.2.119-legacy.png` | e515907d | lines to a column further on cross the deductions standing between (the sweep reads them through "Somebody cleaned up after it", `probe08-d5`) |
+| `shots/lines-1.2.120-glass.png`, `shots/lines-1.2.120-legacy.png` | this line | each such line runs at its Remnant's height through a gap the deductions' column leaves for it; the deductions moved down to make room |
+
+From probe 08's capture `investigation--map-lanes`: the typed case with a deduction resting on a deduction and two
+Remnants, and the solution resting on it and a Remnant, so lines skip one column and two; "By kind", every node closed.
+`case-map-sweep.mjs` reads every drawn line against every node's box in Chromium after the measured relayout ("line ...
+through ..."): on 1.2.119's code it named lines through `probe08-d5` on every page; on this line's, none, on 20 pages
+(the lanes, crowded, typed and Move captures, both themes, both sizes). The 1.2.119 sweep ran from inside a checkout of
+e515907d (its copy of the new sweep), so its relayout and routes are 1.2.119's.
+
 ## What the shots cannot show
 
-Item 1 (a sort picked applies at once) is about when the Map redraws, not how it looks; it is held by tests, not by a
-shot.
+A sort picked applying at once (and a node's fields written as they change) is about when the Map redraws, not how it
+looks; it is held by tests, not by a shot.
 
 ## How they were made
 

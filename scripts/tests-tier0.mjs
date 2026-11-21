@@ -25286,7 +25286,10 @@ const REGRESSIONS = [
         for (let i = 0; i < 12; i++) for (const j of [i % 5, (i * 3 + 1) % 5, (i * 2 + 3) % 5]) if (!crowd.edges.some(e => e.from === `s${i}` && e.to === `t${j}`)) crowd.edges.push({ from: `s${i}`, to: `t${j}`, kind: "input" });
         crowd.edges.push({ from: "k1", to: "t1", kind: "refutes" }, { from: "k2", to: "t3", kind: "refutes" });
         for (let j = 0; j < 5; j++) crowd.edges.push({ from: `t${j}`, to: "z", kind: "input" });
-        crowd.edges.push({ from: "s5", to: "z", kind: "input" });
+        /* the line across two columns from s4 (line P of 1.2.120; s5 until then): a line that skips a column runs at its
+           source's height through the lane `mapPlace` keeps in the column between (R8014), and s5's height ran through t2 in
+           this placement by hand, which the Map no longer draws; s4's (331) is a gap of column 1 (310-340) */
+        crowd.edges.push({ from: "s4", to: "z", kind: "input" });
         // the shot's case, its first gutter as the photo shows it (probe 08 investigation--map-types-faces, measured sizes)
         const shot = { at: { a: n(12, 300), b: n(12, 366), c: n(12, 432, 60), d: n(12, 504), e: n(12, 570, 160), f: n(12, 742), p: n(c1, 300), q: n(c1, 366, 120), r: n(c1, 498), s: n(c1, 564), k: n(c1, 630), z: n(c2, 450) },
             edges: [["a", "p"], ["b", "p"], ["c", "q"], ["d", "q"], ["e", "q"], ["a", "r"], ["c", "r"], ["d", "s"], ["f", "s"], ["e", "p"], ["p", "z"], ["q", "z"], ["r", "z"], ["s", "z"]].map(([from, to]) => ({ from, to, kind: "input" })).concat([{ from: "k", to: "q", kind: "refutes" }]) };
@@ -25572,6 +25575,71 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ manual: ["as the layout", g.pitch - g.nodeH], kind: ["as the layout", g.pitch - g.nodeH], room: ["as the layout", g.pitch - g.nodeH],
             state: ["as the layout", g.pitch - g.nodeH], uncrossed: "d-y,d-x" }),
             "{each sort: [the drawn order against the layout's column, the gap between the two]; uncrossed: the drawn order}");
+    }],
+    ["R8014 - no line passes through a node (line P of 1.2.120; the owner, 21.11.2026: \"Linie w planerze - niech omijaja nodes. Proponuje by nodes robily miejsce dla tych linii (rozsuwaly sie)\"; case-view.mjs `mapPlace`, `routeEdges`): on a crowded case laid out and placed as the Map does it - ten Remnants, five deductions on them, two deductions on deductions and on Remnants two columns back, a counter, and the solution on deductions and a Remnant three columns back - under each sort, at the least sizes and with every third node 140 px tall, no stretch of any route (read back from its path) runs through a node's box other than its own two ends, nor along one nearer than 5 px; and every node still stands clear of its column's others", async () => {
+        /*
+         * Line P, 21.11.2026. Pure. Red at e515907d: a line that skips a column ran its last stretch at the target's height
+         * across the column between, through the nodes standing there (the owner's screenshot of 21.11).
+         */
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const traces = Array.from({ length: 10 }, (_, i) => ({ key: `S.R8014${i}`, type: "prep", name: `t${i}`, tiedToCrime: true }));
+        const T = i => `S.R8014${i}`;
+        const rows = {
+            d1: { kind: "deduction", label: "d1", inputs: [T(0), T(1)] }, d2: { kind: "deduction", label: "d2", inputs: [T(2), T(7)] },
+            d3: { kind: "deduction", label: "d3", inputs: [T(3), T(9)] }, d4: { kind: "deduction", label: "d4", inputs: [T(4), T(5)] },
+            d5: { kind: "deduction", label: "d5", inputs: [T(6), T(8), T(1)] },
+            e1: { kind: "deduction", label: "e1", inputs: ["d1", T(9)] }, e2: { kind: "deduction", label: "e2", inputs: ["d4", "d5", T(0)] },
+            k1: { kind: "counter", label: "k1", refutes: ["d2"] },
+            s: { kind: "solution", label: "s", inputs: ["e1", "e2", "d3", T(5)] }
+        };
+        const graph = S.graphOf({ chapter: 6, traces, rows });
+        const segsOf = d => {
+            const out = [];
+            let x = 0, y = 0;
+            for (const c of String(d).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") [x, y] = v;
+                else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; }
+                else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+            }
+            return out;
+        };
+        const read = (sort, tall) => {
+            const layout = layoutCase(graph, { sort });
+            const ids = Object.keys(layout.positions);
+            const sizes = tall ? new Map(ids.filter((_, i) => i % 3 === 0).map(id => [id, { w: g.nodeW, h: 140 }])) : null;
+            const at = V.mapPlace(layout, g, sizes, { edges: graph.edges }).at;
+            const routes = V.routeEdges(graph.edges, at, g);
+            const through = [], grazing = [];
+            for (const e of graph.edges) {
+                for (const s of segsOf(routes.get(`${e.from}>${e.to}`) ?? "")) {
+                    for (const [id, p] of Object.entries(at)) {
+                        if (id === e.from || id === e.to) continue;
+                        const [x0, x1, y0, y1] = [p.x, p.x + p.w, p.y, p.y + p.h];
+                        const hit = s.h ? s.y > y0 + 0.5 && s.y < y1 - 0.5 && Math.min(s.b, x1) - Math.max(s.a, x0) > 0.5
+                            : s.x > x0 + 0.5 && s.x < x1 - 0.5 && Math.min(s.b, y1) - Math.max(s.a, y0) > 0.5;
+                        if (hit) through.push(`${e.from}>${e.to} ${id}`);
+                        // and clear of it: a stretch along a box nearer than 5 px (the lane keeps 6)
+                        const near = s.h ? Math.min(Math.abs(s.y - y0), Math.abs(s.y - y1)) < 5 && Math.min(s.b, x1) - Math.max(s.a, x0) > 0.5
+                            : Math.min(Math.abs(s.x - x0), Math.abs(s.x - x1)) < 5 && Math.min(s.b, y1) - Math.max(s.a, y0) > 0.5;
+                        if (near && !hit) grazing.push(`${e.from}>${e.to} ${id}`);
+                    }
+                }
+            }
+            const byX = new Map();
+            for (const p of Object.values(at)) (byX.get(p.x) ?? byX.set(p.x, []).get(p.x)).push(p);
+            const clear = [...byX.values()].every(list => list.sort((p, q) => p.y - q.y).every((p, i) => i === 0 || p.y >= list[i - 1].y + list[i - 1].h));
+            return { through: through.length, grazing: grazing.length, clear, ...(through.length || grazing.length ? { first: [...through, ...grazing].slice(0, 3) } : {}) };
+        };
+        const result = {};
+        for (const sort of ["kind", "manual", "uncrossed"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, grazing: 0, clear: true }]));
+        equal(JSON.stringify({ result, edges: graph.edges.length }), JSON.stringify({ result: want, edges: 21 }),
+            "{each sort, at the least sizes and with every third node 140 px: through - route stretches through a node not their own end, grazing - along one nearer than 5 px (the first three of either named), clear - every node clear of its column's others; edges: the case's lines}");
     }],
     ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*

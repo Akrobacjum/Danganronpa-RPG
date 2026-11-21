@@ -273,6 +273,14 @@ const DROP_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
 const SEED_MOVE = SEED_TYPES + `
     globalThis.__probe08case.meta = CS.caseMetaOf(CS.caseRows(ch).meta);
     await CS.setCaseMeta(ch, { sort: "kind" });`;
+/* 1.2.120 line P (the owner: "Linie w planerze - niech omijaja nodes"): the typed case with a deduction resting on a
+   deduction and on two Remnants, and the solution resting on it and on a Remnant, so lines skip one column and two; for
+   audit/case-map-sweep.mjs's through read and its shots. Dropped after. */
+const SEED_LANES = SEED_TYPES + `
+    const placedEv = CS.caseGraph(ch).nodes.filter(n => n.evidence && !n.planned).map(n => n.id);
+    await CS.setCaseNode(ch, "probe08-e1", { kind: "deduction", label: "The display case was opened with the spare key", inputs: ["probe08-d4", placedEv[2], placedEv[placedEv.length - 1]].filter(Boolean) });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-e1", placedEv[5]].filter(Boolean) });
+    globalThis.__probe08case.ids.push("probe08-e1");`;
 const DROP_MOVE = `{
         const m = globalThis.__probe08case?.meta;
         if (m) await (await import(\`\${repoUrl}/scripts/case-schema.mjs\`)).setCaseMeta(globalThis.__probe08case.ch, { sort: m.sort ?? null, manual: m.manual ?? {} });
@@ -402,6 +410,7 @@ export const WINDOWS = [
     { id: "investigation--map-types-faces", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "investigation--map-crowd", module: "investigation.mjs", before: SEED_CROWD, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "investigation--map-modes", module: "investigation.mjs", before: SEED_MODES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
+    { id: "investigation--map-lanes", module: "investigation.mjs", before: SEED_LANES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "investigation--map-move", module: "investigation.mjs", before: SEED_MOVE, after: DROP_MOVE, perTab: false, click: '[data-drpg-node="probe08-d1"]', call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "investigation--map-moved", module: "investigation.mjs", before: SEED_MOVE, after: DROP_MOVE, perTab: false,
         click: ['[data-drpg-node="probe08-d1"]', '.drpg-case-edit[data-drpg-edit="probe08-d1"] [data-drpg-case-move="1"]'], call: "m.openInvestigationDashboard({ allOpen: false })" },
