@@ -1113,7 +1113,7 @@ const SUITE_FILE = /^test[s](-[\w-]+)?\.mjs$/; // "[s]": R22 reads a name before
  * again. Now a name the suite's own files alone name (tests.mjs, tests-*.mjs: `SUITE_FILE`), that is not itself one of
  * them and that the server does not serve, is a fixture: left out of the list and named apart (`fixtures`). A name any
  * other file imports is reported whatever the server says, as before. `cache` is the fetch's (`fileSizes` asks for
- * "reload"). Answers `{ scripts: Map name -> { ok, chars }, fixtures }`; R8119 reads it on a served tree of its own.
+ * "reload"). Answers `{ scripts: Map name -> { ok, chars }, fixtures }`; R8550 reads it on a served tree of its own.
  */
 export async function crawlScripts({ cache = undefined } = {}) {
     const scripts = new Map();

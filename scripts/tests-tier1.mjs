@@ -65933,7 +65933,7 @@ const INVARIANTS = [
             plain: "? caught you.? looks away.", title: ["?"], cut: false, cutQ: true, plainOutside: false, inside: true, untouched: true
         }), "{plain, title: the escaped names cut in the text and the attribute; cut, cutQ: on a card cut by reader, outside the mask; plainOutside: a plain card through wordsFor; inside: a reader with no mask gets the words as written; untouched: words holding no name come back byte for byte}");
     }],
-    ["R8119 - fileSizes reads each script once and leaves out a name only the suite's own fixtures quote, and still reports a module file that did not arrive (1.2.123; the audit of 1.2.118, CORE-28: diagnostics.mjs `crawlScripts`, `loadedFiles`, `fileSizes`)", async () => {
+    ["R8550 - fileSizes reads each script once and leaves out a name only the suite's own fixtures quote, and still reports a module file that did not arrive (1.2.123; the audit of 1.2.118, CORE-28: diagnostics.mjs `crawlScripts`, `loadedFiles`, `fileSizes`)", async () => {
         /* Red at 8516ae4b: the crawl followed `import z from "./ghost.mjs"` quoted in a suite file, so the list held a
            file no server holds and fileSizes printed it "DID NOT ARRIVE"; and every script was fetched by the crawl and
            again by fileSizes. A served tree of its own stands in for the server while this runs (`fetch` put back after):
