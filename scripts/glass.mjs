@@ -2715,7 +2715,9 @@ function curtainSibling(j, id, cls, extra = "") {
    docs/dev/ui123/pane-keep.mjs): every pane a recut moved took new numbers - the phase recut 3, 2 and 8 at 1366x768,
    1600x900 and 1920x1080, the layout 5 and 9 at 1600x900 and 1920x1080 (none moved at 1366x768) - and 2, 0, 2, 1 and
    4 of them changed stained for plain or back: at 1920x1080's layout a stained pane moved 0.6 px lost its colour and
-   its streaks. With the carry, 0 of the same 32 took new numbers. Those are the
+   its streaks. The owner's own move, the Projects tray folded, moved 3, 3 and 4 panes at the three sizes (the tray's
+   and the top pane beside it), each with new numbers; at 1366x768 that top pane lost its stain for a player. The look
+   stayed until the next recut, as the owner saw it. With the carry, 0 of the same took new numbers. Those are the
    owner's tiles that lost their pink streaks and their blue texture at a move. The art layers of the room and voice
    tiles (the first lead) stayed seated over the curtain in every animation frame of the four turns at 1600x900, GM, and
    their texture within 1 % of rest at nine frozen moments of three turns at 1600x900 and 1920x1080 (a scratch probe,
