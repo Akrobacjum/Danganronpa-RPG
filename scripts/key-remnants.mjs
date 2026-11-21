@@ -352,6 +352,45 @@ async function keepSeasonKeyPlan() {
     } catch (err) {
         error(`Season reset: could not trim the kept Key Remnant plan to chapter ${keptChapter}`, err);
     }
+    try {
+        const trimmed = await keepOnlyCaseChapter(keptChapter);
+        if (trimmed) log(`Season reset: the case schema and the Logic Dive sets are kept for chapter ${keptChapter} only, without last season's marks (${trimmed} row(s)).`);
+    } catch (err) {
+        error(`Season reset: could not trim the kept case schema to chapter ${keptChapter}`, err);
+    }
+}
+
+/*
+ * THE CASE SCHEMA AND THE DIVE SETS ARE KEPT AS THE PLAN IS (the audit's CASE-52, 1.2.122). They joined the reset's
+ * group `keyPlan` after its keep hook was written (E97, E73), and a kept group writes no cut, so every chapter's rows
+ * rode into the new season with last season's marks: a chapter's meta row is read by its number alone (case-schema.mjs
+ * `caseMetaOf`), so its planned Autopsies read as sent (`autopsySent`), its question at a body as asked (`askedAt`), its
+ * realization as run (`run`, `made`), and a planned Truth Bullet as given (`given`). Now the kept chapter's rows alone
+ * stay, those marks taken off them, and a Logic Dive set of another chapter goes, one of the kept chapter loses when
+ * and how it was last played. On the primary, as `keepOnlyKeyPlanChapter`. Answers how many rows it dropped or wrote.
+ * Red at 21bf5d18 (tier 2 "1.2.122 CASE-52").
+ */
+const CASE_MARKS = Object.freeze(["autopsySent", "askedAt", "run", "made", "given"]);
+const DIVE_MARKS = Object.freeze(["usedAt", "endedAt", "stoppedAt", "outcome"]);
+
+export async function keepOnlyCaseChapter(chapter) {
+    if (!game.user.isGM) return 0;
+    const { caseSchemaStore, diveSetStore } = await import("./gm-stores.mjs");
+    let n = 0;
+    const trim = async (store, keep, marks) => {
+        const drop = [];
+        for (const [key, row] of Object.entries(store.entries() ?? {})) {
+            if (!keep(key, row)) { drop.push(key); continue; }
+            if (!row || typeof row !== "object" || !marks.some(m => Object.hasOwn(row, m))) continue;
+            // A field the store merges is taken off by writing it null (gm-store.mjs `writeFields`), which each reader reads as none.
+            await store.patch(key, Object.fromEntries(marks.filter(m => Object.hasOwn(row, m)).map(m => [m, null])));
+            n++;
+        }
+        if (drop.length) { await store.dropMany(drop); n += drop.length; }
+    };
+    await trim(caseSchemaStore, key => Number(String(key).split(":")[0]) === Number(chapter), CASE_MARKS);
+    await trim(diveSetStore, (key, row) => Number(row?.chapter) === Number(chapter), DIVE_MARKS);
+    return n;
 }
 
 registerSeasonState({ group: "keyPlan", clear: clearSeasonKeyPlan, keep: keepSeasonKeyPlan });

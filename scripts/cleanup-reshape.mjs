@@ -10,7 +10,7 @@
 import { CLEANUP, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { cleanupAttemptStore } from "./gm-stores.mjs";
-import { remnantById, sceneOfRemnant, tieState, remnantData, removeRemnant } from "./remnants.mjs";
+import { remnantById, sceneOfRemnant, tieState, remnantData, removeRemnant, rowMarksOf } from "./remnants.mjs";
 import { heldCopiesOf, bulletsOf, secretOf } from "./truth-bullets.mjs";
 import { whisperToOwner as whisperToOwnerPlain, plural, whisperToGms, log, cardHead, esc } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
@@ -134,7 +134,13 @@ export function recreationDataFor(token) {
         // How old it is: a trace put back is not a fresh one (E03 third review).
         placedAt: d.placedAt ?? (token.document ?? token)._stats?.createdTime ?? null,
         // What a player was to be shown, re-applied after re-placing.
-        public: d.public ?? null
+        public: d.public ?? null,
+        /* AND AS FOUND AS IT STOOD (the audit's CASE-31, 1.2.122): `placeRemnant` makes a trace hidden with `foundAt`
+           null, so a Reroll put a found trace back hidden and unfound - its finders lost it from their maps (a hidden
+           token is Foundry's, visibility.mjs), and its row lost the find and the GM's words and band marks. Kept here,
+           written back by `undoLastCleanup` once the row is live, and the token shown again where it was. */
+        hidden: Boolean(d.hidden),
+        marks: rowMarksOf(token)
     };
 }
 

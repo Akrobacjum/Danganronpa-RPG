@@ -953,7 +953,12 @@ async function promptPendingBodies() {
             },
             rejectClose: false
         });
-        if (answer !== "announce" || !pendingBodyStore.has(row.key)) continue;
+        if (answer !== "announce") continue;
+        // Announced meanwhile by another road (the discovery window's own), the row dropped: said, not silent (REFR-39).
+        if (!pendingBodyStore.has(row.key)) {
+            ui.notifications.info(game.i18n.format("DRPG.Chapter.pendingGone", { name: body?.name ?? "?" }));
+            continue;
+        }
         const scene = (lies?.room ? lies.scene : null) ?? game.scenes.get(row.sceneId ?? "") ?? null;
         const done = await discoverBody({ room, victim: body ?? null, scene, by: "witnesses" });
         if (done) announced++;

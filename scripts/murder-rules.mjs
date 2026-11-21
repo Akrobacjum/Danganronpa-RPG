@@ -520,6 +520,14 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
     const killer = game.actors.get(killerId);
     const victim = game.actors.get(victimId);
     if (!killer || !victim) return null;
+    /* NOT ON THE DEAD (the audit's REFR-37, 1.2.122): the murder window reads the living once, and a death recorded while
+       it stood (the Students list's Kill, another GM, a Despair Call) left that student in both lists; Open the incident
+       then wrote a fresh incident and sent the opening roll for them. Refused here, on every road, as the GMs know it. */
+    const dead = [killer, victim].find(a => isDeadForGm(a));
+    if (dead) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: dead.name }));
+        return null;
+    }
 
     /*
      * ONE PERSON ON BOTH SIDES.
@@ -901,6 +909,11 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
     }
 
     await tellGms(def[band]);
+    /* THE ROLL IS ANSWERED (the audit's CASE-57 and CTRL-30, 1.2.122): the stage stays the opening by the owner's rule,
+       and nothing recorded that the roll was made, so the tracker went on waiting for it and offered to ask again - a
+       second roll, whose miss sprang the trap the victim had noticed. `endedBy: "noticed"` (the cast's, the GMs'; no
+       body ending, `leftABody`) is what the tracker's bar and footer read now. Against the stage as it was read. */
+    await writeState({ endedBy: "noticed" }, { expect: { stage: "openingRoll", openedAt: state.openedAt } });
 
     // The struggle to notice leaves its own trace. Stage 4's only Remnant, and
     // it belongs to the victim's roll rather than the killer's - see the note on
@@ -2457,6 +2470,27 @@ function isSpent(actor) {
  */
 let spentAsked = null;
 
+/**
+ * A QUESTION GOES WITH ITS INCIDENT (the audit's REFR-39, 1.2.122; `killerFell`'s rule of E68 T6, made one helper):
+ * `drpgConfirm(options)` about the incident `state`, closed unanswered - null, as a closed window answers - once the
+ * world's half says the running incident is not that one (`openedAt`) or, with `stage`, not at that stage. Heard on the
+ * incident setting's update, which every client hears whichever GM wrote it. The two killers' question here and the
+ * tracker's End the murder (murder-ui.mjs) ask through it; its yes no longer runs on an incident that moved on.
+ */
+export async function askWhileIncident(state, stage, options) {
+    const asked = () => { const now = murderState(); return Boolean(now?.active) && now.openedAt === state?.openedAt && (!stage || now.stage === stage); };
+    let question = null;
+    const shut = dialog => { if (dialog && !asked()) dialog.close()?.catch?.(err => debug("Could not close the question of an incident that moved on", err)); };
+    const watch = Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) shut(question); });
+    try {
+        const render = options?.render;
+        const answer = await drpgConfirm({ ...options, render: (event, dialog) => { question = dialog; render?.(event, dialog); shut(dialog); } });
+        return asked() ? answer : null;
+    } finally {
+        Hooks.off("updateSetting", watch);
+    }
+}
+
 async function checkVictimSpent(done = null, killed = null) {
     if (!game.user.isGM) return false;
 
@@ -2481,7 +2515,8 @@ async function checkVictimSpent(done = null, killed = null) {
         const names = killerIds(state)
             .map(id => game.actors.get(id)?.name).filter(Boolean)
             .map(n => foundry.utils.escapeHTML(n)).join(" & ");
-        const now = await drpgConfirm({
+        // Closed unanswered once the incident is no longer this one in its fight (the audit's REFR-39, `askWhileIncident`).
+        const now = await askWhileIncident(state, "incident", {
             classes: ["drpg-panel"],
             title: game.i18n.localize("DRPG.Murder.ranOutTitle"),
             body: `<div>

@@ -2148,7 +2148,7 @@ async function undoLastCleanup(actor, tokenId) {
     if (receipt.erased) {
         try {
             const { placeRemnant } = await import("./remnants.mjs");
-            const { public: pub, ...data } = receipt.erased;
+            const { public: pub, hidden: wasHidden = true, marks = {}, ...data } = receipt.erased;
             data.tiedToCrime = receiptTie(actor.id, "erased", data.tiedToCrime);
             // Under the id it had (`recreationDataFor`).
             const back = await placeRemnant(data, { keepId: true });
@@ -2159,7 +2159,9 @@ async function undoLastCleanup(actor, tokenId) {
             // or not (`removalRefusal`, asked by reroll.mjs `traceKept`).
             if (back) {
                 const { setRemnantSecret } = await import("./remnants.mjs");
-                await setRemnantSecret(back, { restored: true });
+                await setRemnantSecret(back, { restored: true, ...marks });
+                // Shown again where it stood shown (CASE-31, `recreationDataFor`): after the row is live.
+                if (game.user.isGM && !wasHidden && back.hidden) await back.update({ hidden: false });
             }
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up erased", err);

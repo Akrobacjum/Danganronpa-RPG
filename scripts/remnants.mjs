@@ -1224,6 +1224,22 @@ export async function setRemnantSecretById(sceneId, tokenId, patch = {}) {
 }
 
 /**
+ * A trace's found state and the GM's marks on its row (the audit's CASE-31, 1.2.122): what an erase's receipt keeps
+ * (cleanup-reshape.mjs `recreationDataFor`) so a Reroll puts it back as found as it stood - `foundAt`, `foundVia`,
+ * `incidentFound`, the GM's words (`gmEdited`) and band (`gmBand`, `gmBandAt`), each only where the row holds it.
+ * GM-side; `{}` for a trace with no row.
+ */
+export function rowMarksOf(trace) {
+    const key = trace ? keyOf(trace) : null;
+    const row = key ? readRemnantLedger()[key] : null;
+    const out = {};
+    for (const field of ["foundAt", "foundVia", "incidentFound", "gmEdited", "gmBand", "gmBandAt"]) {
+        if (row?.[field] !== undefined && row[field] !== null && row[field] !== false) out[field] = row[field];
+    }
+    return out;
+}
+
+/**
  * Record or amend what a trace is. Only the fields named are stamped; the others
  * keep whatever any GM wrote last. `opts` are the store's (gm-store.mjs,
  * `patch`): `ifLive`, `weak`, `fillOnly`.

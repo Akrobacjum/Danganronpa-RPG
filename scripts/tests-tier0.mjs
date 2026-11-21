@@ -8892,6 +8892,8 @@ const REGRESSIONS = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
+            // 1.2.122 line MURDER (the audit's CASE-31): an erased trace put back shown as it stood.
+            ["cleanup.mjs", "undoLastCleanup", "back", "the trace token an erase's Reroll put back, shown again as it stood"],
             // E92 C6: the player's own User document, its "Spectator talk" switch.
             ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
