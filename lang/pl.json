@@ -4223,7 +4223,8 @@
         "experience": "Experience {label} +{n}",
         "despairShield": "Następny rzut z Despair nie daje Monokumie pierwszego punktu Despair",
         "eclipseCrossing": "Przejścia w Eclipse +{n}",
-        "ultimateBoost": "Następne Ultimate: druga kość przewagi"
+        "ultimateBoost": "Następne Ultimate: druga kość przewagi",
+        "takeFailed": "{name}: nie udało się zdjąć efektu „{line}”. Zostaje i zejdzie przy następnej porze dnia."
       },
       "until": {
         "timeOfDay": "do końca pory dnia",

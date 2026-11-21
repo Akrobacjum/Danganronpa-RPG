@@ -103863,6 +103863,78 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ open: [true, true], bystander: false, victim: true, ticked: true, kept: true }),
             "{open: [the victim chosen, the box ticked] as drawn; bystander, victim: the box after choosing each; ticked: after the GM's own tick on the bystander; kept: the box on the bystander again after the victim} - the kept box follows the choice until the GM sets it");
     }],
+    ["1.2.122 CORE-34 - a stronger next Ultimate used up on a GM who is not the primary is told to the character's owner from that GM (scripts/timed-effects.mjs `boostUltimate`, `timedOwnersToTell`; the audit's CORE-34, 1.2.122 line WORLD): with a first GM standing in ahead of this one, the owners an ordinary row's end would be told from here are none, and those `boostUltimate` tells are the character's player", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's CORE-34 (domain-core-e-utils-clock-4): `boostUltimate` runs on whichever
+         * GM arms the Ultimate and told the owners only on the primary, and nothing resends the copy when the primary merges
+         * the change. This GM is made no primary by a stand-in full GM whose id sorts first (`standInUser`, as the migration's
+         * tests stand one in). The packet itself is not read: tier 2 holds every store's sending (`gmStoresQuiet`), so what is
+         * read is whom this browser addresses (`timedOwnersToTell`) and that `boostUltimate` addresses them so; the copy's
+         * arrival on a player's page is not measured headless. Red at 21bf5d18: no `timedOwnersToTell`, the owners told by
+         * the primary alone.
+         */
+        const T = await import("./timed-effects.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { player, actor } = await playerInRoom();
+        must(typeof T.timedOwnersToTell === "function", "timed-effects.mjs has no timedOwnersToTell: the owners are told by the primary alone");
+        const FIRST = standInUser({ name: "SUITE 1.2.122 CORE-34 first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const read = {};
+        game.users.set(FIRST.id, FIRST);
+        try {
+            read.primary = isPrimaryGm();
+            read.ordinary = T.timedOwnersToTell(actor);
+            read.boost = T.timedOwnersToTell(actor, { anyGm: true }).includes(player.id);
+        } finally {
+            game.users.delete(FIRST.id);
+        }
+        const src = fnSource(stripComments(new Map(await otherSources()).get("timed-effects.mjs") ?? ""), "boostUltimate");
+        read.boostTells = /tellOwners\(actor,\s*\{\s*anyGm:\s*true\s*\}\)/.test(src);
+        equal(stableJson(read), stableJson({ primary: false, ordinary: [], boost: true, boostTells: true }),
+            "{primary: this GM with the stand-in first; ordinary: whom a row's end tells from here; boost: whether boostUltimate's road addresses the player; boostTells: boostUltimate tells so} - the owner hears of the boost from the GM that used it");
+    }],
+    ["1.2.122 CORE-46 - a timed effect whose take-back throws keeps its row and stops no other row's end: at a time of day's end, the first character's +1 whose sheet write fails stays listed and on the sheet, the GM is warned, and the second character's +1 is taken back and its row dropped (scripts/timed-effects.mjs `endTimedEffect`, `endTimedEffects`; the audit's CORE-46, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's CORE-46 (domain-core-e-utils-clock-2): the take ran in `try` and the
+         * row was dropped in `finally`, and the throw left the loop. Driven: two students each given +1 Body until the time
+         * of day ends (`giveTimed`, on this GM); the first one's sheet write made to fail (its `update` throws, on this page
+         * only); the boundary run with a clock of another time of day (`endTimedEffects({ clock })`). Read: each one's rows
+         * and Body, and the warnings. Put back: the update, both rows ended, the Body. Red at 21bf5d18: the first row was
+         * dropped with its +1 on the sheet, and the throw left the second one's row standing.
+         */
+        const T = await import("./timed-effects.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const [first, second] = cast(2);
+        const body = a => Number(a.system?.traits?.[TRAITS.body?.dh ?? "strength"]?.value ?? 0);
+        must(TRAITS.body, "config.mjs TRAITS has no body");
+        const was = [body(first), body(second)];
+        const warned = [];
+        const ownWarn = ui.notifications.warn;
+        const ownUpdate = Object.getOwnPropertyDescriptor(first, "update");
+        const clock = getClock() ?? {};
+        const later = { ...clock, timeOfDay: clock.timeOfDay === "night" ? "morning" : "night" };
+        const read = {};
+        try {
+            for (const a of [first, second]) await T.giveTimed(a, { kind: "traitBonus", n: 1, trait: "body", until: "timeOfDay" });
+            await settle();
+            read.given = [body(first) - was[0], body(second) - was[1]];
+            first.update = async () => { throw new Error("SUITE 1.2.122 CORE-46: this sheet write fails"); };
+            ui.notifications.warn = (msg, ...rest) => { warned.push(String(msg)); return ownWarn.call(ui.notifications, msg, ...rest); };
+            let threw = false;
+            try { await T.endTimedEffects({ clock: later }); } catch { threw = true; }
+            await settle();
+            read.after = { threw, first: [T.timedEffectsOf(first.id).length, body(first) - was[0]], second: [T.timedEffectsOf(second.id).length, body(second) - was[1]],
+                warned: warned.some(w => w.includes(first.name)) };
+        } finally {
+            ui.notifications.warn = ownWarn;
+            if (ownUpdate) Object.defineProperty(first, "update", ownUpdate); else delete first.update;
+            for (const a of [first, second]) for (const row of T.timedEffectsOf(a.id)) await T.endTimedEffect(row.id);
+            await settle();
+            for (const [a, v] of [[first, was[0]], [second, was[1]]]) if (body(a) !== v) await a.update({ [`system.traits.${TRAITS.body.dh}.value`]: v });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ given: [1, 1], after: { threw: false, first: [1, 1], second: [0, 0], warned: true } }),
+            "{given: each one's Body above what it was; after: whether the boundary threw, [rows, Body above] of the one whose write failed and of the other, the GM warned} - one failed take-back keeps its row and holds no other");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a

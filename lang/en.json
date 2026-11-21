@@ -3950,7 +3950,8 @@
         "experience": "Experience {label} +{n}",
         "despairShield": "Next roll with Despair adds no Despair to the Monokuma's pool",
         "eclipseCrossing": "Eclipse crossings +{n}",
-        "ultimateBoost": "Next Ultimate: a second die of advantage"
+        "ultimateBoost": "Next Ultimate: a second die of advantage",
+        "takeFailed": "{name}: {line} could not be taken off. It stays and is tried again at the next time of day."
       },
       "until": {
         "timeOfDay": "until the time of day ends",
