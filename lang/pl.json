@@ -2427,7 +2427,7 @@
           "filterNotDoneTooltip": "Pokazuje tylko prośby, których nie wykonano, każdą z powodem.",
           "moreFiltersTooltip": "Pokazuje tylko powiadomienia wybranego tu rodzaju zamiast filtrów obok.",
           "markAllReadTooltip": "Zdejmuje oznaczenie nieprzeczytanych ze wszystkich powiadomień i zeruje licznik na przycisku historii.",
-          "showNewNoticesTooltip": "W trakcie czytania przyszły nowe powiadomienia. Ten przycisk dodaje je na górę listy.",
+          "showNewNoticesTooltip": "W trakcie czytania na górze listy pojawiły się nowe powiadomienia. Ten przycisk przewija do nich.",
           "chapterFoldTooltip": "Pokazuje albo ukrywa powiadomienia z tego wcześniejszego rozdziału. Te z bieżącego są zawsze widoczne.",
           "noticeLineTooltip": "Rozwija albo zwija całe powiadomienie, tak jak wyglądała jego karta.",
           "openConversationTooltip": "Otwiera w komunikatorze wątek, z którego przyszło to powiadomienie.",

@@ -2337,7 +2337,7 @@
           "filterNotDoneTooltip": "Shows only the requests that were not carried out, each with its reason.",
           "moreFiltersTooltip": "Shows only the notices of the kind you pick here, in place of the chips beside it.",
           "markAllReadTooltip": "Takes the unread mark off every notice and clears the count on the history's button.",
-          "showNewNoticesTooltip": "New notices came while you were reading. This adds them to the top of the list.",
+          "showNewNoticesTooltip": "New notices came in above while you were reading. This takes you up to them.",
           "chapterFoldTooltip": "Shows or hides this earlier chapter's notices. The current chapter's always stay open.",
           "noticeLineTooltip": "Opens or folds the whole notice, as its card showed it.",
           "openConversationTooltip": "Opens the messenger thread this notice came from.",
