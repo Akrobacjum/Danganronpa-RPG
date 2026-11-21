@@ -1043,7 +1043,9 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const writer = game.users?.get(userId ?? "");
     if (!was || !writer || (writer.isGM && options?.[PAID_AS_PLAYER] !== true)) return;
     const tickets = ticketsOf(actor.id);
-    const paid = (pay, size = 1) => tickets.push({ at: Date.now(), pay, kinds: [], size });
+    // `form`: what took the payment, a Burst (`grant`) or the actions, written on the roll's record once a draw takes it
+    // (`drawnPayment`; the audit's ROLL-25, 1.2.122).
+    const paid = (pay, size = 1, form = pay) => tickets.push({ at: Date.now(), pay, kinds: [], size, form });
     const undo = (pay, n) => {
         for (let i = tickets.length - 1; i >= 0 && n > 0; i--) {
             if (tickets[i].pay === pay && !tickets[i].kinds.length) { tickets.splice(i, 1); n--; }
@@ -1052,7 +1054,7 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const rise = Math.max(0, now.action - was.action) + Math.max(0, now.grant - was.grant);
     if (rise) undo("action", rise);
     // The payment's size, so a draw of a price above one reads it (`ticketCovers`): what this write took down.
-    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now));
+    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now), now.grant < was.grant ? "grant" : "action");
     if (now.hope < was.hope) paid("hope", was.hope - now.hope);
     else if (now.hope > was.hope) undo("hope", now.hope - was.hope);
     if (now.stress > was.stress) paid("stress");
@@ -1188,8 +1190,19 @@ async function drawRefusal(actor, key, context) {
     const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;
     if (handed) ticket.kinds.push(handed.cover);
     ticket.kinds.push(key);
+    drawnPayment.set(`${actor.id}:${key}`, ticket.form ?? ticket.pay ?? null);
     return null;
 }
+
+/*
+ * WHAT PAID FOR A DRAWN ROLL, ON ITS RECORD (the audit's ROLL-25, 1.2.122 line DESP). A Reroll of a Work gives back or
+ * takes back the critical's action, and it read what paid (`burst`) and whether the critical's action came back
+ * (`refunded`) off the roller's bookmark, claims a second roll.bookmark inside the minute may rewrite. The ticket a
+ * draw takes says what this GM saw pay - the actions (`action`) or a Burst (`grant`), or a step of a price chain - and
+ * that is written on the record as `paid` (`drawOnGm`, after the throw), for reroll.mjs `settleActionRefund` to read.
+ * A record a GM drew for itself has none: no ticket, and the bookmark is that GM's own.
+ */
+const drawnPayment = new Map();
 
 /*
  * A TAKE'S ROLLS NAME THEIR BODY, AND THE FIRST OF EACH COUNTS (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie", E68
@@ -1310,6 +1323,7 @@ export async function drawOnGm(packet, sender, { requestId = null } = {}) {
     if (lock) drawing.add(lock);
     try {
         if (!await marksOpen()) return { refused: "the GMs' marks of the characters are not open on this GM's browser" };
+        if (lock) drawnPayment.delete(lock);
         const why = actor && !sender?.isGM ? await drawRefusal(actor, key, contextSent(packet.context)) : null;
         if (why) return { refused: why };
         const { murderState } = await import("./murder.mjs");
@@ -1321,9 +1335,11 @@ export async function drawOnGm(packet, sender, { requestId = null } = {}) {
             await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
         }
         if (out?.reply) keepTrip("drew", { at: Date.now(), written, answered: performance.now() - arrived });
+        const form = lock ? drawnPayment.get(lock) : null;
+        if (out?.reply?.rollId && typeof form === "string" && rollStore.get(out.reply.rollId)) await rollStore.patch(out.reply.rollId, { paid: form });
         return out;
     } finally {
-        if (lock) drawing.delete(lock);
+        if (lock) { drawing.delete(lock); drawnPayment.delete(lock); }
     }
 }
 

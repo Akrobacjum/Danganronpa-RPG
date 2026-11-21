@@ -32613,6 +32613,24 @@ const INVARIANTS = [
         equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
             "[the target held to the room again after the GM's card; before the action is paid]");
     }],
+    ["R8384 - Tail Someone gives the action back when the primary refuses it because the target left the room, and on no other refusal (1.2.122 line DESP; the audit's REFR-20): action-tail.mjs `performTail` hands the receipt of `spendAction` to `abort` on the bridge's code notThere alone, after the ask", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. R8382's second look stands before the price; two drawn rolls then pass before the
+         * primary reads the room, and a target who walked out meanwhile was refused there with the action lost. Read off the
+         * source: after `requestTailStart`, one branch on the code notThere that gives back the receipt (`abort(actor, paid)`)
+         * before the refusal's plain `return null`, and no other `abort` after the ask (any other refusal keeps the action
+         * spent, ROLL-05). Whether the refund stands on the primary is the audit's credit (sheet-audit.mjs), not driven here:
+         * no headless road throws Tail's two rolls through its window. Red at a9f9f379: no branch.
+         */
+        const src = fnSource(stripComments((await moduleSources()).get("action-tail.mjs") ?? ""), "performTail");
+        const asked = src.search(/await requestTailStart\(/);
+        must(asked > 0, "performTail asks no tail.start - this would measure nothing");
+        const back = src.search(/if \(!res\.ok && res\.refused && res\.reason === "notThere"\) \{\s*await abort\(actor, paid\);/);
+        const plain = src.search(/if \(!res\.ok \|\| res\.value\?\.refused\) return null;/);
+        const aborts = [...src.matchAll(/\babort\(/g)].filter(m => m.index > asked).length;
+        equal(stableJson([back > asked, back > 0 && plain > back, aborts]), stableJson([true, true, 1]),
+            "[a branch on notThere gives the receipt back; before the plain refusal; one abort after the ask]");
+    }],
     ["R8383 - on the primary, an actor's flag write below full Gamemaster that touches no Dice So Nice flag schedules no dice-look put-back (1.2.122 line DESP; the audit's ROLL-30): dice-sync.mjs `onActorWritten` returns before `afterSwitchesHeld` for a write neither touching the look nor a creation", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. A nit of cost: every player's or Assistant's flag write of any actor reached
@@ -64184,7 +64202,10 @@ const INVARIANTS = [
         const rows = fnSource(src.get("action-facilities.mjs") ?? "", "facilityRows");
         must(run && rows, "handleFacilityUse or facilityRows was not read");
         equal(stableJson({
-            judged: /const limit = offer\.source === "project" \? offer\.facility\.limit \?\? "timeOfDay" : "timeOfDay";/.test(run) && /if \(usedUp\(facilityUseStore\.get\(offer\.key\), limit\)\)/.test(run),
+            // CHANGED ON PURPOSE BY 1.2.122 (the audit's STG-39): the row is read once (`held`), and the row the draw of this very
+            // roll wrote (roll-draw.mjs `closeFacilityAtDraw`) is this use's own; any other row is judged by the limit as before.
+            judged: /const limit = offer\.source === "project" \? offer\.facility\.limit \?\? "timeOfDay" : "timeOfDay";/.test(run)
+                && /const held = facilityUseStore\.get\(offer\.key\);/.test(run) && /if \(!own && usedUp\(held, limit\)\)/.test(run),
             today: /limit === "day" \? "that room action has been used already today"/.test(run),
             told: /if \(offer\.source === "project"\) tellUsesOf\(actor\);/.test(run),
             greyed: /usedUp\(useRowOf\(projectActionKey\(project\.id, actor\.id\)\), facility\.limit\)/.test(rows)

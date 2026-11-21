@@ -57,10 +57,11 @@ export async function openAdvancementFor(actor) {
     /* WHAT STANDS, AND TAKING IT BACK (E10 C6; audit S03-17). The GM's sheet showed no offer
        and this menu had no way back from one: an offer made by mistake stood until it was
        spent. Each standing offer is a third choice here, oldest first; its button says what it does. */
-    const standing = standingOffers(actor).map(offer => {
+    const standingRows = () => standingOffers(actor).map(offer => {
         const label = game.i18n.format("DRPG.Advance.takeBack", { kind: advanceKindName(offer.kind) });
         return { value: `take:${offer.id}`, icon: "fa-rotate-left", label, confirm: label };
     });
+    const standing = standingRows();
 
     /*
      * WHO PICKS (N-2, Dawid 20.09), IN THE SAME WINDOW (E101; the owner's yes of 12.11.2026 to the GM screens' review).
@@ -77,6 +78,14 @@ export async function openAdvancementFor(actor) {
             { value: "player", icon: "fa-paper-plane", label: game.i18n.localize("DRPG.Advance.who.player"), hint: game.i18n.localize("DRPG.Advance.who.playerHint") }
         ].map((row, i) => choiceRowHtml(row, { checked: i === 0, name: "who" })).join("")}</div>` : "";
 
+    const kindRows = [
+        { value: "standard", icon: "fa-arrow-up",
+          label: advanceKindName("standard"),
+          hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
+        { value: "reinforced", icon: "fa-shield-halved",
+          label: advanceKindName("reinforced"),
+          hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") }
+    ];
     const picked = await chooseVariant({
         actor,
         // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
@@ -90,15 +99,9 @@ export async function openAdvancementFor(actor) {
            - an offer to the player, or the GM's picks. One menu, so no Next; R4105 reads Grant. */
         confirm: game.i18n.localize("DRPG.Advance.grant"),
         extra: whoRows,
-        options: [
-            { value: "standard", icon: "fa-arrow-up",
-              label: advanceKindName("standard"),
-              hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
-            { value: "reinforced", icon: "fa-shield-halved",
-              label: advanceKindName("reinforced"),
-              hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") },
-            ...standing
-        ]
+        options: [...kindRows, ...standing],
+        // The take-back rows follow the offers while the menu stands (the audit's CTRL-21, 1.2.122; action-menus.mjs `live`).
+        live: { rows: () => [...kindRows, ...standingRows()], watch: { stores: [offerStore] } }
     });
 
     if (!picked) return null;

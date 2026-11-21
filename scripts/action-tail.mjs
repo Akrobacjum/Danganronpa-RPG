@@ -45,6 +45,11 @@ export async function performTail(actor, options = {}) {
         return null;
     }
     const traits = [...rule.traits];
+    /* THE LIST FOLLOWS THE ROOM (the audit's REFR-20, 1.2.122). The targets were read once, at the window's opening: a
+       student who walked out stood on the list, one who walked in was not on it. The select is rebuilt from
+       `tailTargets` on every token write (live.mjs `keepLive`). */
+    const whoSelect = list => `<span class="drpg-tail-who"><select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.tailWhoTooltip")}>${list
+        .map(a => `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select></span>`;
     const picked = options.target ? { targetId: options.target, proposed: traits.includes(options.proposed) ? options.proposed : null, note: "" }
         : await actionWindow({
             title: label,
@@ -53,7 +58,7 @@ export async function performTail(actor, options = {}) {
             ask: `<form>
                 <p>${esc(game.i18n.format("DRPG.Infiltrate.tail.prompt", { n: rule.unseen.threshold }))}</p>
                 <label>${esc(game.i18n.localize("DRPG.Infiltrate.tail.who"))}
-                    <select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.tailWhoTooltip")}>${targets.map(a => `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select></label>
+                    ${whoSelect(targets)}</label>
                 ${traitFieldHtml(actor, traits, { propose: true })}
             </form>`,
             footer: {
@@ -64,11 +69,23 @@ export async function performTail(actor, options = {}) {
                 },
                 close: "cancel"
             },
-            rejectClose: false
+            rejectClose: false,
+            live: {
+                region: ".drpg-tail-who",
+                // The student picked is carried by the rebuild (live.mjs `capture`, a changed select); one who left is
+                // carried too and so picks nothing, and Roll says they are gone.
+                build: () => whoSelect(tailTargets(actor)),
+                watch: { tokens: true }
+            }
         });
     if (!picked || picked === "cancel") return null;
-    const target = targets.find(a => a.id === picked.targetId) ?? null;
-    if (!target) return null;
+    // The list as the room holds it now (the select may name a student who came in after the window opened).
+    const target = tailTargets(actor).find(a => a.id === picked.targetId) ?? null;
+    if (!target) {
+        const was = targets.find(a => a.id === picked.targetId);
+        if (was) ui.notifications.warn(game.i18n.format("DRPG.Infiltrate.tail.gone", { name: nameAsSeen(was) }));
+        return null;
+    }
 
     // The effect's statistic: the player proposes, a GM picks (E68's card); nothing is paid before the answer.
     const { traitFor } = await import("./trait-ruling.mjs");
@@ -100,6 +117,17 @@ export async function performTail(actor, options = {}) {
         unseenTotal: shadow.total, unseenCritical: Boolean(shadow.isCritical),
         rollId: rollInHand(actor)?.messageId ?? null, unseenRollId: shadow.raw?.message?.id ?? shadow.raw?.message?._id ?? null
     });
+    /* A TARGET WHO LEFT AFTER THE LAST LOOK COSTS NOTHING EITHER (the audit's REFR-20, 1.2.122). Between the look above
+       and the GMs' reading of the room go two drawn rolls; a target who walked out then was refused there ("notThere")
+       and the action was lost. That refusal alone gives it back, as the look above would have kept it: the receipt
+       `spendAction` handed back, judged on the primary against the payment it saw (sheet-audit.mjs, a refund's credit),
+       so a free Tail gives nothing back. The rolls stand as thrown. Any other refusal keeps the action spent, as a roll
+       that landed does (`spentAfterRoll`, ROLL-05). */
+    if (!res.ok && res.refused && res.reason === "notThere") {
+        await abort(actor, paid);
+        if (paid) ui.notifications.info(game.i18n.format("DRPG.Infiltrate.tail.actionBack", { name: nameAsSeen(target) }));
+        return null;
+    }
     if (!res.ok || res.value?.refused) return null;
     const seen = res.value?.seen === true;
     // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.

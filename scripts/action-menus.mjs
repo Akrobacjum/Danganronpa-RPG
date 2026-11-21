@@ -166,7 +166,7 @@ export function readRequestField(root) {
 
 export async function chooseVariant({
     actor, title, intro = "", prompt = "", options = [], traits = null,
-    extra = "", confirm = null, traitNote = "", showShut = false, columns = true
+    extra = "", confirm = null, traitNote = "", showShut = false, columns = true, live = null
 } = {}) {
     const usable = options.filter(o => !o.disabled);
     // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
@@ -189,7 +189,29 @@ export async function chooseVariant({
     // `hidden`: the left column is as tall as its tallest block, whatever is picked (the rule of 10.11).
     const detailsOf = o => (o.details && !o.disabled
         ? `<div class="drpg-choice-details${columns && o.value !== first ? ` ${UNPICKED}` : ""}" data-drpg-for="${esc(o.value)}">${o.details}</div>` : "");
-    const rows = options.map(o => `${choiceRowHtml(o, { checked: o.value === first })}${columns ? "" : detailsOf(o)}`).join("");
+    const rowsOf = (list, checked) => list.map(o => `${choiceRowHtml(o, { checked: o.value === checked })}${columns ? "" : detailsOf(o)}`).join("");
+    const rows = rowsOf(options, first);
+    /* ROWS THAT FOLLOW WHAT THEY LIST (the audit's CTRL-21, 1.2.122). `live`: `{ rows(), watch }` - the window's row list
+       rebuilt from `rows()` on `watch` (live.mjs `keepLive`), the row checked kept where it still stands, else the first
+       usable. Level Up's take-back rows were drawn once: an offer spent or taken back meanwhile stood on the menu. A
+       one-column window's alone (`columns: false`): an action's columns hold the rows' details beside them. */
+    let checkedNow = first, drawn = null;
+    const liveRows = live && !columns && typeof live.rows === "function" ? {
+        region: ".drpg-choice-list",
+        build: () => {
+            const list = live.rows();
+            const keep = list.some(o => o.value === checkedNow && !o.disabled) ? checkedNow : list.find(o => !o.disabled)?.value ?? null;
+            checkedNow = keep;
+            options.splice(0, options.length, ...list);
+            return `<div class="drpg-choice-list">${rowsOf(list, keep)}</div>`;
+        },
+        // The confirm button says the row checked after the rebuild (a row gone takes its own word with it).
+        after: () => {
+            const button = drawn?.element?.querySelector('footer button[data-action="ok"]');
+            if (button) (button.querySelector("span") ?? button).textContent = confirmFor(checkedNow);
+        },
+        watch: live.watch ?? {}
+    } : null;
     const beside = columns ? options.map(detailsOf).join("") : "";
     // A row's fact lines (`facts`: the crisis menu's, `crisisDetails`) go into the window's Details (E49 A8.1), one layer
     // a row in one stack: into the briefing's own box where the intro drew one (`DETAILS_ROWS`), else a Details of their own.
@@ -237,8 +259,13 @@ export async function chooseVariant({
         prompt: true,
         ...(columns ? { brief, ask: form }
             : { body: `${intro}${form}` }),
+        ...(liveRows ? { live: liveRows } : {}),
         render: (event, dialog) => {
-            if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
+            if (liveRows) {
+                drawn = dialog;
+                dialog.element?.addEventListener("change", e => { if (e.target?.name === "variant") checkedNow = e.target.value; });
+            }
+            if (liveRows || options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
             if (columns) {
                 holdFields(dialog);
                 syncDetails(dialog, first);
@@ -255,7 +282,7 @@ export async function chooseVariant({
                 callback: (e, b, d) => {
                     const form = d.element.querySelector("form");
                     return {
-                        value: form.querySelector('input[name="variant"]:checked')?.value ?? first,
+                        value: form.querySelector('input[name="variant"]:checked')?.value ?? (liveRows ? checkedNow : first),
                         trait: traits?.length ? readTraitField(d.element, traits) : null,
                         form
                     };

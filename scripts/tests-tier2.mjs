@@ -5740,6 +5740,55 @@ const SCENARIOS = [
         }
     }],
 
+    ["1.2.122 DESP-26 - a Monocub's Hope is read and written on the GM as the GMs hold it, not as a console's write the audit has not put back: its price's check, the price and its refund (scripts/monocub.mjs `cubHopeHeld`, `hopeHeld`, `spendCubHope`, `refundCubHope`, `cubAbilityRefusalOnGm`; sheet-audit.mjs `meansWrite`; the audit's DESP-26, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's DESP-26 (suspected, now measured): the Monocub's roads read the sheet's
+         * Hope off the document on the GM and wrote it back less the price as a GM's value, where a console's raised Hope
+         * not yet put back stands - the price passed on it, and the GM's write of it became the mark. As "a Reroll's roll
+         * step ... moves the Hope the GMs hold" forges one: a Monocub of the cast at 1 Hope the GMs hold (no purse), its sheet
+         * then written 5 with the audit's aside. Read: the Hope the price's check reads (`cubHopeHeld`), then the sheet's and
+         * the mark's Hope after a price of 1 (`spendCubHope`), after the forged 5 again and its refund (`refundCubHope`).
+         * Put back: the flag, the row, the Hope. Red at a9f9f379: no `cubHopeHeld`.
+         */
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const HOPE = "system.resources.hope.value", marked = () => S.sheetMarkStore.get(cub.id)?.resources?.hope?.value ?? NaN;
+        const sheet = () => foundry.utils.getProperty(cub._source, HOPE);
+        const hopeWas = sheet();
+        const rowWas = foundry.utils.deepClone(S.cubStore.get(cub.id) ?? null);
+        must(Number(cub.system.resources.hope.max) >= 5, `${cub.name}'s Hope cannot reach 5 - this would measure less`);
+        must(typeof M.cubHopeHeld === "function", "monocub.mjs reads no Hope as the GMs hold it (no cubHopeHeld) - this would measure nothing");
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await trustedWrite(cub, { [HOPE]: 1 }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            must(marked() === 1, `the GMs keep no mark of ${cub.name}'s Hope at 1 - this would measure nothing`);
+            await cub.update({ [HOPE]: 5 }, { [AUDIT_ASIDE]: true });
+            read.check = [await M.cubHopeHeld(cub), M.cubHopeTotal(cub)];
+            const paid = await M.spendCubHope(cub, 1);
+            await sheetAuditIdle();
+            read.price = [paid?.sheet ?? null, sheet(), marked()];
+            await cub.update({ [HOPE]: 5 }, { [AUDIT_ASIDE]: true });
+            await M.refundCubHope(cub, { purse: 0, sheet: 1 });
+            await sheetAuditIdle();
+            read.refund = [sheet(), marked()];
+        } finally {
+            await sheetAuditIdle();
+            await trustedWrite(cub, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ check: [1, 5], price: [1, 0, 0], refund: [1, 1] }),
+            "{the price's check: [as the GMs hold it, off the document]; after a price of 1: [from the sheet, the sheet's Hope, the mark's]; after the forged 5 again and a refund of 1: [the sheet's, the mark's]}");
+    }],
     ["a Reroll of a roll whose message is gone is refused before the Hope is paid", async () => {
         /*
          * E08+E28 C4a, 03.10.2026; audit S02-47. With its bookmarked message gone, the Reroll
@@ -22447,6 +22496,61 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ unspent: { said: true, facts: {} }, spent: { said: false }, refund: 0 }),
             "{a Search whose token the GMs never spent: the never-ran line said, the replay's facts; one whose token was spent: the line; a Work's critical claimed unrefunded, rerolled into a critical: the actions after}");
+    }],
+    ["1.2.122 ROLL-25 - a Reroll that loses a Work's critical takes back what the primary saw pay, not what the bookmark claims: a player's roll paid by a Burst gives back the Burst though its bookmark claims an action, and a GM's own free Work takes back nothing (scripts/roll-draw.mjs `drawnPayment`, the record's `paid`; reroll.mjs `settleActionRefund`; the audit's ROLL-25, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. ROLL-25's rest: `burst`, what paid, was the roller's claim, and a free Work's critical
+         * (a GM's `performAction` with `free`, which gave nothing back) was counted as refunded, so a Reroll that lost it took
+         * an action. A drawn message and the GMs' record of it (`recordFor`) as a critical Work, for a student holding 2
+         * actions and 1 Burst: (1) the record a player's, `paid: "grant"`, the bookmark claiming an action paid and no refund;
+         * (2) the record this GM's own, no `paid`, the bookmark claiming no refund. Each settled for a Reroll that lost the
+         * critical. Read: the student's actions and Bursts after each, and what each answered. And the draw's own road, on a
+         * player's draw paid by a Burst: the record's `paid`. Put back: the records, the message, the actions and Bursts.
+         * Red at a9f9f379: (1) an action taken, the Burst kept; (2) an action taken.
+         */
+        const [actor] = cast(1);
+        const R = await import("./reroll.mjs");
+        const A = await import("./actions.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = game.users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
+        must(player, "no player - this would measure nothing");
+        const message = await ChatMessage.create({ content: "<p>SUITE ROLL-25</p>", author: game.user.id, whisper: [game.user.id] });
+        must(message, "no message to draw on - this would measure nothing");
+        const was = { actions: A.actionsLeft(actor), grants: A.freeActionsLeft(actor) };
+        const budget = async () => {
+            await trustedWrite(actor, { "system.resources.actions.value": 2, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 1 }, { reason: "gmRuling" });
+            await settle();
+        };
+        const backs = [];
+        const read = {};
+        try {
+            const rec = await recordFor(message, player, actor, "project", { total: 20, isCritical: true });
+            backs.push(rec.putBack);
+            await message.update({ [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: rec.rollId });
+            await rollStore.patch(rec.rollId, { paid: "grant", userId: player.id });
+            await budget();
+            const out1 = await R.settleActionRefund(actor, { actionKey: "project", messageId: message.id, refunded: false, burst: false }, false, []);
+            await settle();
+            read.burst = [out1, A.actionsLeft(actor), A.freeActionsLeft(actor)];
+            await rollStore.patch(rec.rollId, { userId: game.user.id, paid: null });
+            await budget();
+            const out2 = await R.settleActionRefund(actor, { actionKey: "project", messageId: message.id, refunded: false, burst: false }, false, []);
+            await settle();
+            read.free = [out2, A.actionsLeft(actor), A.freeActionsLeft(actor)];
+        } finally {
+            for (const put of backs) await put();
+            await game.messages.get(message.id)?.delete();
+            await trustedWrite(actor, { "system.resources.actions.value": was.actions, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: was.grants }, { reason: "gmRuling" });
+            await settle();
+        }
+        // The draw's road, off the source: the ticket's form is kept at the draw and written on the record as `paid`.
+        const src = stripComments((await moduleSources()).get("roll-draw.mjs") ?? "");
+        read.road = [/paid\("action", paymentSize\(was, now\), now\.grant < was\.grant \? "grant" : "action"\)/.test(src),
+            /drawnPayment\.set\(`\$\{actor\.id\}:\$\{key\}`, ticket\.form \?\? ticket\.pay \?\? null\)/.test(src),
+            /await rollStore\.patch\(out\.reply\.rollId, \{ paid: form \}\)/.test(src)];
+        equal(stableJson(read), stableJson({ burst: [false, 2, 0], free: [false, 2, 1], road: [true, true, true] }),
+            "{a player's critical paid by a Burst, the claim an action: [answered, actions, Bursts] after the loss; a GM's own free Work: the same; the draw's road [the form kept on the ticket, taken at the draw, written on the record]}");
     }],
     ["1.2.122 CTRL-26 - a Reroll of an action a GM rules on ends the first card it replaced: the open call card of that character posted since the replaced roll loses its buttons and says a Reroll replaced it, while another character's open card and a card from before the roll stand (scripts/reroll.mjs `endReplacedRuling`, `settleGmRuling`; call-gm.mjs `settleCall`; the audit's CTRL-26, 1.2.122 line DESP)", async () => {
         /*
@@ -62097,6 +62201,120 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "(the experience on the sheet and in the GMs' mark; the offers; the reasons told; the GM's apply; the advances gained)");
     }],
 
+    ["1.2.122 REFR-20 - Tail Someone's list of whom to follow follows the room while its window stands: a student who walks out leaves the list, one who walks in joins it, and the window closed pays nothing (scripts/action-tail.mjs `performTail`'s `live`; the audit's REFR-20, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's REFR-20: the targets were read once, at the window's opening. The tailer
+         * and one student stood alone in a room (`aloneTogether`), the window opened on this GM (`__dialogWindows`); then the
+         * student walked into another room, and a third walked in. Read: the select's students after each, and the tailer's
+         * actions once the window is closed. Put back: the window, the tokens. Red at a9f9f379: the list stayed as opened.
+         */
+        needs(env.dialogs(), "the window is drawn and read");
+        needs(world.atLeast("studentTokensOnScreen", 3), "a third student walks in");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfActor } = await import("./movement.mjs");
+        const { performTail } = await import("./action-tail.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const scene = canvas?.scene;
+        const onScreen = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monocub)
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && scene?.tokens?.some(t => t.actorId === a.id));
+        const [tailer, target, third] = onScreen;
+        must(third, "fewer than three students with a token on the scene on screen - this would measure nothing");
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const stood = await aloneTogether(tailer, target);
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('.drpg-action-window select[name="who"]')) ?? null;
+        const listed = () => [...(el()?.querySelectorAll('select[name="who"] option') ?? [])].map(o => o.value).sort();
+        const actionsWas = resourceValue(tailer, "actions");
+        let opening = null;
+        const read = {};
+        try {
+            opening = performTail(tailer);
+            await until(() => el(), 3000);
+            read.opened = stableJson(listed()) === stableJson([target.id]);
+            const elsewhere = allRooms(scene).find(r => r !== stood.room && othersInNamedRoom(r).length === 0)
+                ?? allRooms(scene).find(r => r !== stood.room);
+            must(elsewhere, "no second room on the scene on screen - this would measure nothing");
+            const targetToken = scene.tokens.find(t => t.actorId === target.id);
+            await targetToken.update(positionIn(elsewhere, targetToken), { ...PLACE });
+            await settle();
+            must(roomOfActor(target) !== stood.room, "the target did not walk out - this would measure nothing");
+            await until(() => listed().length === 0, 1500);
+            read.left = listed();
+            await thirdToken.update(positionIn(stood.room, thirdToken), { ...PLACE });
+            await settle();
+            await until(() => listed().length === 1, 1500);
+            read.came = stableJson(listed()) === stableJson([third.id]);
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('select[name="who"]') && e.classList?.contains("drpg-action-window")) await app.close().catch(() => {});
+            }
+            read.closed = (await opening?.catch?.(() => "threw")) ?? null;
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, { ...PLACE });
+            await stood.back();
+        }
+        read.paid = actionsWas - resourceValue(tailer, "actions");
+        equal(stableJson(read), stableJson({ opened: true, left: [], came: true, closed: null, paid: 0 }),
+            "{the list at the opening names the one student there; after that student left; after the third came in; what closing the window answers; the actions it cost}");
+    }],
+    ["1.2.122 CTRL-21 - Level Up's menu follows the offers while it stands: an offer taken off the store takes its Take back row with it, a new one adds its row, and the confirm says the row checked (scripts/level-up.mjs `openAdvancementFor`; action-menus.mjs `chooseVariant`'s `live`; the audit's CTRL-21, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-21: the menu listed the standing offers as they were at the open;
+         * one spent or taken back meanwhile stood on it, and its press did nothing (said since 1.2.122's first round,
+         * DRPG.Advance.takeBackGone). The menu drawn on this GM (`__dialogWindows`) for a student with one offer standing;
+         * then that offer dropped from the store, and another written. Read: the take-back rows the window holds after each,
+         * and the confirm's words with the second offer's row checked. Put back: the window, the offers.
+         * Red at a9f9f379: the dropped offer's row stood, the new one had none.
+         */
+        needs(env.dialogs(), "the menu is drawn and read");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const [student] = cast(1);
+        const rowWas = foundry.utils.deepClone(S.offerStore.get(student.id) ?? null);
+        const offer = id => ({ id, kind: "standard", extra: 0, deferred: 0, at: Date.now() });
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('input[name="variant"][value="standard"]')) ?? null;
+        const takes = () => [...(el()?.querySelectorAll('input[name="variant"]') ?? [])].map(i => i.value).filter(v => v.startsWith("take:")).sort();
+        let opening = null;
+        const read = {};
+        try {
+            await S.offerStore.patch(student.id, { offers: [offer("SUITEc21a")] });
+            await settle();
+            opening = L.openAdvancementFor(student);
+            await until(() => el(), 3000);
+            read.opened = takes();
+            await S.offerStore.patch(student.id, { offers: [] });
+            await settle();
+            await until(() => takes().length === 0, 1500);
+            read.dropped = takes();
+            await S.offerStore.patch(student.id, { offers: [offer("SUITEc21b")] });
+            await settle();
+            await until(() => takes().length === 1, 1500);
+            read.added = takes();
+            const radio = el()?.querySelector('input[name="variant"][value="take:SUITEc21b"]');
+            if (radio) { radio.checked = true; radio.dispatchEvent(new Event("change", { bubbles: true })); }
+            await settle();
+            read.confirm = (el()?.querySelector('footer button[data-action="ok"]')?.textContent ?? "").trim()
+                === game.i18n.format("DRPG.Advance.takeBack", { kind: L.advanceKindName?.("standard") ?? "" });
+            // The checked row's offer dropped: the first row is checked again, and the confirm says its word.
+            await S.offerStore.patch(student.id, { offers: [] });
+            await settle();
+            await until(() => takes().length === 0, 1500);
+            read.back = (el()?.querySelector('footer button[data-action="ok"]')?.textContent ?? "").trim() === game.i18n.localize("DRPG.Advance.grant");
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('input[name="variant"][value="standard"]')) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            if (rowWas) await S.offerStore.patch(student.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ opened: ["take:SUITEc21a"], dropped: [], added: ["take:SUITEc21b"], confirm: true, back: true }),
+            "{the take-back rows: at the open; after the offer was dropped; after another was written; the confirm with that row checked says its Take back; and Grant once that row's offer went}");
+    }],
     ["1.2.122 DESP-24 - Level Up on a GM: the GM's own picks with a new experience left unnamed are refused before anything is written; a Take back pressed after the offer went says so; and a change of a student's offers draws that student's open sheet again on every GM, and no other sheet (scripts/level-up.mjs `openAdvancement`, `takeBackOffer`, `registerLevelUpSheets`; the audit's DESP-24, CTRL-21 and STG-14, 1.2.122 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. DESP-24: the blank-name check was the player's road only; on the GM's the apply

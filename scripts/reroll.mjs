@@ -375,7 +375,11 @@ async function claimedOn(actor, bookmark) {
     const { drawnRecordOf } = await import("./roll-draw.mjs");
     const record = drawnRecordOf(game.messages.get(bookmark.messageId ?? ""));
     const first = record?.versions?.[0] ?? record ?? bookmark;
-    return { actorId: actor.id, withFear: Boolean(first.withFear), isCritical: Boolean(first.isCritical), at: record?.at ?? bookmark.at ?? null };
+    // `paid` and `byGm`: what the primary saw pay for a player's draw (roll-draw.mjs `drawnPayment`), and whether a GM
+    // drew the roll for itself (then the bookmark is that GM's own). Both null where no record is held.
+    const byGm = record ? Boolean(game.users?.get(record.userId ?? "")?.isGM) : null;
+    return { actorId: actor.id, withFear: Boolean(first.withFear), isCritical: Boolean(first.isCritical), at: record?.at ?? bookmark.at ?? null,
+        paid: typeof record?.paid === "string" ? record.paid : null, byGm };
 }
 
 /**
@@ -2128,15 +2132,23 @@ export async function settleActionRefund(actor, bookmark, shouldRefund, done) {
     /* Not on the roller's claim alone (the audit's ROLL-25, 1.2.122): `refunded` is a claim a second roll.bookmark inside
        the minute may rewrite, and a console that resent it false after a critical's refund got a second action from a
        Reroll that landed another. A first throw the GMs hold as a critical (`claimedOn`: the draw's own record) counts as
-       refunded whatever the claim says. Not held: a free Work's critical, which gives nothing back, is then counted as
-       refunded too - a Reroll that loses it takes back an action (or says it is owed) - and `burst`, what paid, is still
-       the claim (not measured: no GM fact of the payment's form is read here). */
+       refunded whatever the claim says.
+       WHAT PAID, AS THE PRIMARY SAW IT (ROLL-25's rest, 1.2.122). A player's draw names on its record what paid for it
+       (`first.paid`, roll-draw.mjs `drawnPayment`): the actions or a Burst. Then the critical's action came back exactly
+       when the first throw was a critical, and what comes back or is taken back is what paid - neither read off the
+       claim. A roll a GM drew for itself (`first.byGm`) keeps its bookmark, which is that GM's own: a GM's free Work
+       (`performAction` with `free`) paid nothing, so its critical gave nothing back and a Reroll that loses it takes
+       nothing. A player's record with no `paid` (drawn before 1.2.122) is read as before. */
     const first = await claimedOn(actor, bookmark);
-    const wasRefunded = Boolean(bookmark.refunded) || first.isCritical === true;
+    const paidSeen = first.byGm === false && (first.paid === "action" || first.paid === "grant") ? first.paid : null;
+    const wasRefunded = paidSeen ? first.isCritical === true
+        : first.byGm === true ? Boolean(bookmark.refunded)
+            : Boolean(bookmark.refunded) || first.isCritical === true;
     if (wasRefunded === shouldRefund) return wasRefunded;
 
     const { refundAction, takeBackRefund } = await import("./actions.mjs");
-    const receipt = bookmark.burst ? { grant: true, amount: 1 } : { grant: false, amount: 1 };
+    const burst = paidSeen ? paidSeen === "grant" : Boolean(bookmark.burst);
+    const receipt = burst ? { grant: true, amount: 1 } : { grant: false, amount: 1 };
 
     if (shouldRefund) {
         await refundAction(actor, 1, receipt);
