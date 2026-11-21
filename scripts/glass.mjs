@@ -21,7 +21,8 @@
  * painting, the turn and the lifecycle.
  */
 
-import { SETTINGS, getSetting, shortScreen, keyboardUp, BREAKPOINTS } from "./settings.mjs";
+import { shortScreen, keyboardUp, BREAKPOINTS } from "./settings.mjs";
+import { isStainedGlass } from "./look.mjs";
 import { narrowLayout, COLUMN_SEL } from "./narrow.mjs";
 import { log, AV_LIFT_EVENT } from "./utils.mjs";
 import { inFoundryWindow } from "./foundry-windows.mjs";
@@ -2183,7 +2184,8 @@ const REDUCED = () => document.body.classList.contains("drpg-reduced-motion") ||
 /** The pulse is switchable on its own: the glass can stay and stop breathing. */
 const pulseOn = () => !document.body.classList.contains("drpg-no-pulse");
 
-function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; } }
+// The one reading of the theme (look.mjs `isStainedGlass`; DOC-16, 1.2.122).
+function themeOn() { return isStainedGlass(); }
 /*
  * A SCREEN CAN BE TOO SMALL FOR GLASS, AND THIS IS WHERE THE CURTAIN ADMITS IT.
  *

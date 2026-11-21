@@ -57895,6 +57895,17 @@ const INVARIANTS = [
             half: [["font-size", "8px"], ["line-height", "10px"], ["padding-top", "2px"], ["border-top-width", "0.5px"], ["font-family", "Signika"], ["box-shadow", "rgba(0, 0, 0, 0.5) 0px 1px 3px 0px"]],
             one: face }), "{half, one: the face at zoom 0.5 and 1} - the floating face is the one the screen showed");
     }],
+    ["R8507 - whether Stained Glass is on is read in one place: of motion.mjs, glass.mjs, look.mjs, death-fade.mjs and private-rolls.mjs only look.mjs compares the theme's setting, and motion.mjs `glassOn` answers what look.mjs `isStainedGlass` answers (the audit's DOC-16, 1.2.122 line WORLD)", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's DOC-16 (old-1.2.42-tasks obs2): five readings with two fallbacks - the
+           setting or false, the setting or the body class. Read in the source, comments stripped; and the two exported
+           readers asked on this page. Red at 21bf5d18: all five compared the setting themselves. */
+        const src = new Map(await otherSources());
+        const files = ["motion.mjs", "glass.mjs", "look.mjs", "death-fade.mjs", "private-rolls.mjs"];
+        const comparing = files.filter(f => /theme\)\s*===\s*"stainedGlass"/.test(stripComments(src.get(f) ?? "")));
+        const M = await import("./motion.mjs"), L = await import("./look.mjs");
+        equal(stableJson({ comparing, agree: M.glassOn() === L.isStainedGlass() }), stableJson({ comparing: ["look.mjs"], agree: true }),
+            "{comparing: the files that compare the theme's setting themselves; agree: glassOn and isStainedGlass answer alike} - one reading of the theme");
+    }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*
          * E105, 13.11.2026. Red at 58e0fd06: the whole sequence was one fixed host at 99980, over every window - the

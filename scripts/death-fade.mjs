@@ -28,6 +28,7 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
+import { isStainedGlass } from "./look.mjs";
 import { count } from "./perf-counters.mjs";
 
 /** The body class of the rest state (stained-glass.css, monokuma-legacy.css). */
@@ -131,12 +132,9 @@ export function restsBare(user = game.user, actors = game.actors) {
  * THE DRAWING
  * ------------------------------------------------------------------------------------------------------------------ */
 
+// The one reading of the theme (look.mjs `isStainedGlass`; DOC-16, 1.2.122).
 function stainedGlass() {
-    try {
-        return getSetting(SETTINGS.theme) === "stainedGlass";
-    } catch {
-        return false;
-    }
+    return isStainedGlass();
 }
 
 function sequencesOn() {

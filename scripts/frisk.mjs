@@ -416,7 +416,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
        18.10.2026). `friskPerson` asks the one gate first (`personActionRefusal`: the target walked out, an Eclipse or a
        Class Trial began, the asker now knows the target dead), and an unseen Frisk so refused kept its action spent
        while a Steal, a Plant and an open Frisk refused the same way gave it back. As a Palm's (palm.mjs). */
-    await (await import("./palm.mjs")).handBackIfRefusedBeforeRolls(actor, paid, res);
+    await (await import("./palm.mjs")).handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
     // The hand keeps the key it was thrown as (`rummage`), here and in the GMs' row: it names the Reroll's replay (the
     // design's step 11, reroll.mjs `settleRummage`), so no context renames it (the review's er-cor-5).
     await A.noteRollContext(actor, { direction: "frisk", mode, room, victimId: victim.id, seen, success });

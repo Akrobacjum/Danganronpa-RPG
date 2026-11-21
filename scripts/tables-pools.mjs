@@ -753,6 +753,13 @@ export function roomTableNames(base, category, tier) {
     return [`${base} - Tier ${tier}`, ...roomPluralsOf(category).map(plural => `${base} - ${plural}`), base];
 }
 
+/** The suffix after "<base> - " that makes `name` one of the room `base`'s tables at any tier (`isRoomTableOf`), or null
+    for the flat table itself and any other name. Item tables' Rename carries a room's split tables by it (1.2.122, CORE-33). */
+export function roomTableSuffix(base, name) {
+    if (!base || name === base || !isRoomTableOf(base, name, Math.max(...ITEM_TIERS))) return null;
+    return String(name).slice(base.length + 3);
+}
+
 /**
  * Is this table one of the room's? The flat table, or the room's name and a suffix this module reads: " - Tier N" for
  * a tier the roll reaches (no higher), or " - " and the plural of a category a Search draws, an alias included (S08-45's
@@ -765,13 +772,6 @@ export function roomTableNames(base, category, tier) {
  * "Truth Bullets are not searched for, and neither are bedroom keys"; `pickableCategories`; `drawItem`'s spare, which
  * skips the Truth Bullet). Only the categories the pools hold (`ITEM_POOLS`) are a room table's suffix now.
  */
-/** The suffix after "<base> - " that makes `name` one of the room `base`'s tables at any tier (`isRoomTableOf`), or null
-    for the flat table itself and any other name. Item tables' Rename carries a room's split tables by it (1.2.122, CORE-33). */
-export function roomTableSuffix(base, name) {
-    if (!base || name === base || !isRoomTableOf(base, name, Math.max(...ITEM_TIERS))) return null;
-    return String(name).slice(base.length + 3);
-}
-
 function isRoomTableOf(base, name, tier) {
     if (name === base) return true;
     if (!String(name ?? "").startsWith(`${base} - `)) return false;

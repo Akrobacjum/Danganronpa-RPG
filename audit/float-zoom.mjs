@@ -13,6 +13,7 @@
  * that it floats, its screen width does not move, and its font size is 16 times the zoom (within 0.5 px). Exit 1 when one
  * does not. Read on 21.11.2026: 8, 16 and 32 px; at 21bf5d18, 16, 16 and 16.
  */
+/* global document, getComputedStyle */ // read inside the page (`page.evaluate`), not in Node
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
