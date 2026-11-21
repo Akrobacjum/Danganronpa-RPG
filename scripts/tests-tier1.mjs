@@ -57748,6 +57748,26 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ seen: "dayEnd", hidden: null, asks: true }),
             "{seen, hidden: what plays after Evening to Night on a page that sees the clock and on one where it is hidden; asks: onClockHeard's default reads clockHiddenHere} - a bystander is not shown the move the incident hides");
     }],
+    ["R8501 - Split evenly deals the living and leaves the dead their pool (scripts/assignments.mjs `dealPools`, `autoAssign`; the audit's CASE-44, 1.2.122 line WORLD): nine students, three dead (two of them in the first pool's seats), one set to no Monokuma, two pools: the five living are dealt three and two, in their order, a dead student keeps the pool they had, a dead one with none is dealt after the living, and one set to no Monokuma keeps that; `autoAssign` deals through it", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's CASE-44 (domain-case-g-death-chapter-3): the deal ran over every student,
+           the dead in it, while the checklist weighs the living alone (season-setup.mjs `despairSplitCounts`). Stand-ins: the
+           students are { id } objects, death a set handed in as `dead`. Red at 21bf5d18: there was no deal to read - autoAssign
+           dealt every student in turn, so with the dead in alternate seats one pool held two living students more. */
+        const A = await import("./assignments.mjs");
+        must(typeof A.dealPools === "function", "assignments.mjs has no dealPools: autoAssign deals every student, the dead too");
+        const ids = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"];
+        const all = ids.map(id => ({ id }));
+        const gms = [{ id: "gmA" }, { id: "gmB" }];
+        const gone = new Set(["s1", "s3", "s9"]);
+        const { map, dealt } = A.dealPools(all, gms, { s1: "gmA", s3: "gmA", s8: A.NO_MONOKUMA }, { dead: a => gone.has(a.id) });
+        const living = ids.filter(id => !gone.has(id) && map[id] !== A.NO_MONOKUMA);
+        const per = Object.fromEntries(gms.map(g => [g.id, living.filter(id => map[id] === g.id).length]));
+        const src = fnSource(stripComments(new Map(await otherSources()).get("assignments.mjs") ?? ""), "autoAssign");
+        equal(stableJson({ map, dealt, per, through: /dealPools\(/.test(src) }),
+            stableJson({ map: { s2: "gmA", s4: "gmB", s5: "gmA", s6: "gmB", s7: "gmA", s8: A.NO_MONOKUMA, s1: "gmA", s3: "gmA", s9: "gmB" },
+                dealt: 5, per: { gmA: 3, gmB: 2 }, through: true }),
+            "{map: each student's pool; dealt: the living dealt; per: the living in each pool; through: autoAssign deals by dealPools} - the split weighs the living, as the checklist does");
+    }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*
          * E105, 13.11.2026. Red at 58e0fd06: the whole sequence was one fixed host at 99980, over every window - the
