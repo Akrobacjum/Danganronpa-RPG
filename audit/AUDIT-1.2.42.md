@@ -4562,6 +4562,60 @@ Skierowanie po sprawdzeniu (koordynator, około 06:54Z; ROUTING.md):
 - r120-F-6: R1 - przeczytałem `refresh-120` d3153c04: czekanie pudełka na fokus jest poprawione (`whileEditing`), ale okno dalej nie słucha zmiany Mastermind;
 - r120-P-4, H-1, H-2, H-3, H-7, F-4: 1.2.122.
 
+### 18.7 Sprawdzenie wydania 1.2.121 (D-A10, 21.11.2026)
+
+1.2.121 wydano 21.11.2026 o 09:35Z (`v1.2.121`, tag na `1eee4d62`, PR #71). Sprawdzam drzewo wydane wobec `03ee8de9` (1.2.120). W wydaniu weszły:
+- `major` po 1.2.119: linie M1, M2, K, R1, R2;
+- linia I: wydanie bierze zielony przebieg CI tego samego drzewa;
+- poprawki po 18.6: `press-121`, `fog-121`.
+
+Surowe wyniki: `audit/findings-1.2.118/recheck-121.json`.
+
+**Przebieg na wydanym drzewie (H)**, harness z `1eee4d62`, jeden proces naraz:
+- tiery 0-1: 1 851 testów, 1 836 zaliczonych, 0 niezaliczonych, 16 pominiętych;
+- wybrane testy tieru 2 (14 fragmentów nazw linii): 147 zaliczonych, 0 niezaliczonych;
+- sonda 44 (okno Mastermind jest już na liście sondy 08): 68 z 68 regionów zwraca sam region;
+- sonda 43: w toku w chwili pisania, dopiszę ją.
+
+**Jak czytano.** Czterech czytających:
+- M: maska i zasłona;
+- K: reguły;
+- R: odświeżanie, czyli R1, R2 i `press-121`;
+- F: `fog-121`, `infra-120`, notatki i reszta zakresu.
+
+Potem drugi czytający dla każdego toru:
+- M: 9 pozycji, 8 utrzymanych, 1 osłabiona;
+- K i F: 28 pozycji, 21 utrzymanych, 2 osłabione, 5 obalonych - wszystkie na korzyść kodu;
+- R: 22 pozycje, wszystkie utrzymane.
+
+r121-R-1, R-2, R-3 i r120-P-1 obaj czytający sterowali w Chromium prawdziwą klawiaturą i myszą (klasa C).
+
+**Co wydanie zamknęło** (prośby z ROUTING.md):
+
+| Prośba | Stan na `1eee4d62` |
+| --- | --- |
+| CORE-20 i N119-4 (drugi GM), N119-2 (Ghost Bet), N119-3 (Bounty), N119-1 (karta akcji pokoju), DOC-01, STG-03 i N119-5, COMM-20 | zrobione (M: 7 z 8 próśb; testy mierzą część twierdzeń) |
+| CASE-16 według D-A9 | w części: r121-K-1 niżej |
+| CASE-17, CASE-18, STG-01; `watchDie` usuwane z każdej kopii | zrobione |
+| UI-17, REFR-05 na każdym oknie, REFR-01, Close historii powiadomień, REFR-03, REFR-04, N119-7 | zrobione |
+| r120-P-1 (przepadające naciśnięcie), P-2, P-3 | zrobione; P-1 zmierzone w Chromium. Jedyny strażnik to `audit/live-press.mjs`, którego nie uruchamia CI, skrypt npm ani lokalna bramka (r121-R-6) |
+| r120-F-1 (mgła po spóźnionym końcu), r120-F-2 | zrobione; sekwencję odtworzono na obu wersjach `fog.mjs` |
+| reszta REFR-02; kandydaci grupy C sondy 42 w Room setup i liście kontrolnej | niezrobione (1.2.122) |
+| r120-F-6 (okno Mastermind) | w części: linia Hope śledzi zmianę, wybór i Apply nie (r121-R-4, r121-F-1) |
+| linia I: ponowne użycie zielonego CI | trzyma się (inne drzewo, czerwony, anulowany, trwający przebieg i inny workflow są odrzucane); pierwsze wydanie tak zrobione |
+
+Każde okno `keepLive` (20 regionów) przerysowuje się teraz od razu przy fokusie i przy polu wyboru. Wstrzymują tylko trwające naciśnięcie i kompozycja IME.
+
+**Nowe wady wydania.** Zestawienie z plikiem i linią na `1eee4d62` jest w `recheck-121.json`: 27 pozycji, 2 `major`, 11 `minor`, 14 `nit`. Najważniejsze:
+- **r121-M-1, `major`** (`action-listen.mjs:228`): Listen i jego Reroll nazywają i liczą zabójcę zawoalowanego na otwarcie. Wynik idzie szeptem do słuchającego. Stoi od E112 (1.2.116). Kandydat z weryfikacji 1.2.119, którego nie przeniosłem na listę N119, więc nie dostała go żadna linia - mój błąd. Zaproponowałem `blocker` (ta sama klasa co COMM-19 i MAP-16). Poprawione na `desp-122` f652fafc; wejdzie w 1.2.122.
+- **r121-R-1, `major`, regresja, zmierzone w Chromium** (`live.mjs:228`): przerysowanie pod piszącym GM-em wywołuje `change` i `blur` zastępowanego pola, więc okno, które zapisuje przy zmianie, zapisuje pół wpisanego tekstu. Karta Remnantu u GM-a zapisała 11 urywków przy ruchach tokenów (na `03ee8de9` raz, przy wyjściu z pola). Zakładka Effects zapisuje urywek ścieżki jako własny plik. Planer robił to już na 1.2.120.
+- r121-R-2, `minor`, regresja (`room-setup.mjs:779-789`): liczba żetonów wpisana przez przerysowanie kończy się złą wartością. Liczby są ograniczone do 0-10, więc 10 wpisane na 3 daje 8; Backspace, przerysowanie i 1 daje 0. Na `03ee8de9` każda wartość lądowała, jak wpisana.
+- r121-R-3, `minor`, regresja (`live.mjs:200-207`): każde przerysowanie zamyka otwartą listę pola wyboru, otwartą myszą albo klawiszem Alt+Down.
+- r121-R-5, `minor`, regresja (`room-setup.mjs:1068-1080`): Apply w Room setup przypina zamek startowy do zamka wymuszonego w czasie, gdy okno stało otwarte.
+- r121-K-1, `minor`, osłabione (`murder-rules.mjs:4416`): trzeci, któremu nie wyszła Escape Together, przy masce albo pułapce dostaje pełną kartę z liczbą do pobicia. Ponieważ obrona ma limit 1, przecieka jeden bit: czy Leg zabójcy to +1 albo więcej.
+- r121-M-2 (`facilities-gm.mjs:162`), M-3 (`secret.mjs:520`), M-4 (`sheet-actions.mjs:1014`), `minor`: odpowiedź akcji pokoju nazywa zamaskowany cel; drugi GM nie słyszy ujawnienia; karta ofiary liczy zawoalowanego zabójcę.
+- r121-R-7, `minor` (`season-setup.mjs:1008-1012`): przerysowanie wiersza listy kontrolnej sezonu bez przytrzymania naciśnięcia, więc kliknięcie może przepaść.
+
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
 > Część II to zapis z 12.09.2026 i dopisków etapów. Stan każdej jej pozycji na 1.2.118 jest w części I (tabela "Gdzie jest każda kategoria" na górze). Nic tu nie jest przenumerowane ani skrócone.
