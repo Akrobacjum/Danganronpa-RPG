@@ -9566,7 +9566,8 @@ const INVARIANTS = [
         equal(stableJson({
             row: row ? [row.lives, row.blank?.(), row.atEntry?.({}, {})] : null,
             blank: Object.hasOwn(T.trialProgress(0), "summaryShown"), whitelisted: T.RECORD_FIELDS.includes("summaryShown"),
-            reads: /trialProgress\(\)\??\.summaryShown/.test(show), writes: /setTrialProgress\(\{\s*summaryShown:/.test(show),
+            reads: /trialProgress\(\)\??\.summaryShown/.test(show), // since 1.2.122 (STG-76) the write is the primary's claim step, `summaryClaim`, which writes `summaryShown` once
+            writes: /setTrialProgress\(\{\s*summaryClaim:/.test(show),
             store: /caseTickStore|:summary`/.test(show), sound: /caseBoard:/.test(show) && !/sfx:\s*"caseSummary"/.test(show),
             event: SFX_EVENTS.caseSummary ? [SFX_EVENTS.caseSummary.category, Boolean(SFX_EVENTS.caseSummary.label), Boolean(SFX_EVENTS.caseSummary.hint)] : null
         }), stableJson({ row: ["trial", null, null], blank: true, whitelisted: true, reads: true, writes: true, store: false, sound: true, event: ["incident", true, true] }),
@@ -64497,6 +64498,20 @@ const INVARIANTS = [
         equal(stableJson({ steps, texts, said: said === game.i18n.localize("DRPG.Floor.next.closingChoice") }),
             stableJson({ steps: ["endClosing", "closingChoice", "endClosing", "closingChoice"], texts: [[true, true], [true, true]], said: true }),
             "{steps: the next step in the Closing's [volunteers, choice, speech, decision]; texts: [EN, PL] the step's text and lead; said: the Next line's text}");
+    }],
+    ["R8149 - one esc in the module, null-safe (1.2.122, DOC-13): no script outside the suite binds `esc` to the bare foundry.utils.escapeHTML, so `esc` means utils.mjs's `esc` - String(value ?? \"\") escaped - in every file, as 1.2.13 asked (messenger.mjs's `esc`, a string escaped once, binds no function and is not counted); and that `esc` turns null and undefined into nothing", async () => {
+        /* Red at d8c145bd: 18 such bindings in 9 files (the line's first commit took 7 out of 5 files). Counted over every
+           script the module serves, comments stripped. */
+        const { esc } = await import("./utils.mjs");
+        const bare = [];
+        for (const [file, text] of await otherSources()) {
+            const n = (stripComments(text).match(/\bconst esc = foundry\.utils\.escapeHTML\b(?!\s*\()/g) ?? []).length;
+            if (n) bare.push(`${file.replace(/^.*\//, "")}:${n}`);
+        }
+        const read = (await otherSources()).length;
+        must(read > 100, "the sources read hold almost no files - this would measure nothing");
+        equal(stableJson({ bare, nulls: [esc(null), esc(undefined), esc("<b>")] }), stableJson({ bare: [], nulls: ["", "", "&lt;b&gt;"] }),
+            "{bare: files binding esc to the bare escapeHTML (file:count); nulls: utils.mjs esc of null, undefined and markup}");
     }],
 ];
 

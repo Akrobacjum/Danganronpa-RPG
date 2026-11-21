@@ -105356,7 +105356,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const R = await import("./rooms.mjs");
         const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
         const box = document.createElement("form");
-        let hall = null, other = null;
+        let hall = null, other = null, castWas = null;
         const read = {};
         try {
             await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: null, zones: null });
@@ -105377,16 +105377,29 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.followed = await until(() => trial.value === hall.id, 3000);
             read.drawnNow = trial.dataset.drawn === hall.id;
             read.kept = school.value === other.id;
+            // The cast's ticks (the rest of REFR-73): another GM's cast written while the part stands moves a tick this GM
+            // left alone, and leaves one this GM changed.
+            const boxes = [...box.querySelectorAll('[data-drpg-cast] input[type="checkbox"][name^="cast:"]')];
+            must(boxes.length >= 2, "the hall's cast box draws fewer than two students - this would measure nothing");
+            const [left, changed] = boxes;
+            changed.checked = !changed.checked;
+            const changedTo = changed.checked;
+            const id = b => b.name.slice("cast:".length);
+            castWas = { [id(left)]: null, [id(changed)]: null };
+            const leftTo = !left.defaultChecked;
+            await S.saveTrialCast(hall, { [id(left)]: leftTo, [id(changed)]: !changedTo });
+            read.cast = [await until(() => left.checked === leftTo && left.defaultChecked === leftTo, 3000), changed.checked === changedTo];
         } finally {
             box.remove();
+            if (hall && castWas) await S.saveTrialCast(hall, castWas).catch(() => {});
             await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
             R.forgetSceneRoles();
             if (hall) await hall.delete().catch(() => {});
             if (other) await other.delete().catch(() => {});
             await settle();
         }
-        equal(stableJson(read), stableJson({ drawn: "", followed: true, drawnNow: true, kept: true }),
-            "{drawn: the hall select as drawn; followed: the hall linked meanwhile; drawnNow: its drawn value moved with it; kept: the school this GM changed}");
+        equal(stableJson(read), stableJson({ drawn: "", followed: true, drawnNow: true, kept: true, cast: [true, true] }),
+            "{drawn: the hall select as drawn; followed: the hall linked meanwhile; drawnNow: its drawn value moved with it; kept: the school this GM changed; cast: [a tick left alone follows another GM's cast, a tick changed here kept]}");
     }],
     ["1.2.122 CTRL-02 - the case schema in the trial console unfolds the evidence not tied to the murder, and hears a trace placed while it stands (scripts/case-trial.mjs `liveSchema`; the audit's CTRL-02, STG-16, REFR-69): with a trace of this chapter tied to nothing, 'Not tied to the murder: N' stands folded; its press unfolds it - the trace's node drawn - and a second press folds it again; a second trace placed meanwhile is counted on the folded line", async () => {
         /* Drawn on this GM: the console before a trial, its schema slot, two traces of the suite's own. Red at 21bf5d18: the
@@ -105475,6 +105488,42 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ before: true, marked: true, back: true }),
             "{before: the student named among the recipients; marked: gone once marked not in the class; back: named again once unmarked}");
+    }],
+    ["1.2.122 STG-76 - the case summary goes out once a trial, however many GMs press Send (scripts/case-summary.mjs `showCaseSummary`; trial-progress.mjs `summaryClaimStep`; the audit's STG-76): two Sends at once, each past its own check of the record, post one card; the record's summaryShown is the one Send's time; the primary's claim step writes nothing over a summary already out", async () => {
+        /* On this primary GM, over a planted record (a verdict given, no summary out), the preview answered Send twice
+           (the harness's DialogV2 queue). Red at d8c145bd: both Sends passed their check and both posted - two cards. The
+           record and the chat are put back. */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const CS = await import("./case-summary.mjs");
+        const P = await import("./trial-progress.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const raw = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const clock = foundry.utils.deepClone(getClock());
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...raw, chapter: getClock().chapter, verdictApplied: true, summaryShown: null,
+                verdict: { correct: true } });
+            await settle();
+            must(trialProgress().verdictApplied === true && trialProgress().summaryShown === null, "the planted record reads no verdict - this would measure nothing");
+            globalThis.__dialogAnswers.push("send", "send");
+            await Promise.all([CS.showCaseSummary(), CS.showCaseSummary()]);
+            await settle();
+            const cards = game.messages.contents.filter(m => !had.has(m.id) && m.getFlag(MODULE_ID, "caseSummary") === true);
+            read.cards = cards.length;
+            read.stamp = cards.length === 1 && Number(trialProgress().summaryShown) === Number(cards[0].getFlag(MODULE_ID, "caseBoard")?.at);
+            read.step = typeof P.summaryClaimStep === "function" ? [P.summaryClaimStep(5)({ summaryShown: 3 }), P.summaryClaimStep(5)({ summaryShown: null })] : "no summaryClaimStep";
+        } finally {
+            globalThis.__dialogAnswers.length = 0;
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, raw).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, stamp: true, step: [null, { summaryShown: 5 }] }),
+            "{cards: summary cards posted by two Sends; stamp: the record's time the card's; step: the claim over [a summary out, none]}");
     }],
     ["1.2.121 CASE-17 - the GM scores a Tamper's fresh scene with the bodies its roller's player may know, on the scoring's own road (scripts/cleanup.mjs `resolveCleanup`, `cleanupVerdict`, `unfoundBodyIn`; sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.121 line K): with a body of this chapter in the GMs' deaths that the roller's player may not know, an investigator's bare-handed Tamper of an Evident trace on a total one under the number their own browser shows is a miss - the trace stands - and the threshold read off the stand-in the scoring hands `cleanupDc` is the one read off the document", async () => {
         /*

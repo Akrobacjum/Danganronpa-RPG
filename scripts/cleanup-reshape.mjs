@@ -428,7 +428,6 @@ async function reshapeTrace(token, data, {
  * named ("Band: Hidden").
  */
 export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false, copies = 0 } = {}) {
-    const esc = foundry.utils.escapeHTML;
     const becomes = CLEANUP.transformAction?.becomes ?? "resolution";
     const was = `${data.visibilityLabel} ${data.typeLabel}`;
     const now = `${REMNANT_VISIBILITY_LABELS[softer ?? data.visibility]

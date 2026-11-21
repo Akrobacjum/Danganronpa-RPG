@@ -816,7 +816,6 @@ export async function tellBreach(made) {
     const M = await import("./movement.mjs");
     const { ROOM_OWNER_FLAG } = await import("./config.mjs");
     const { room: beyond, from } = made.forced;
-    const esc = foundry.utils.escapeHTML;
     const where = actor => {
         const place = M.locateActor(actor, { sceneId: scene.id });
         return place?.scene?.id === scene.id ? place.room ?? null : null;

@@ -1551,7 +1551,7 @@ export function wireScenesTab(root, block = () => {}) {
     });
     wirePicture();
     redraw();
-    followRoles(root, { school, trial, zoneSelects, redraw });
+    followRoles(root, { school, trial, zoneSelects, redraw, castBox, hall: () => scene(trial) });
 }
 
 /**
@@ -1559,10 +1559,12 @@ export function wireScenesTab(root, block = () => {}) {
  * GM's link of the school or the hall, or of the hall's zones, while this Season setup stands: a select this GM has not
  * changed (its value still the one it was drawn with, `dataset.drawn`) takes the new link and is drawn with it - Apply
  * then compares against it and writes nothing back - and one this GM changed is kept as typed. A scene or a region made,
- * changed or deleted redraws the report. The hooks go when the window does. Not followed: the cast's ticks (a GM's own
- * work in the cast box is kept as it stands).
+ * changed or deleted redraws the report. The cast's ticks follow another GM's cast (the store `trialCast`): a tick this
+ * GM has not changed (`checked` still its `defaultChecked`) takes the cast's value as its drawn one, so Apply writes
+ * nothing back for it; one this GM changed is kept. A student added to the world meanwhile is not drawn until the window
+ * opens again. The hooks go when the window does.
  */
-function followRoles(root, { school, trial, zoneSelects, redraw }) {
+function followRoles(root, { school, trial, zoneSelects, redraw, castBox = null, hall = () => null }) {
     const hooks = [];
     const off = () => { for (const [name, id] of hooks.splice(0)) Hooks.off(name, id); };
     const alive = () => {
@@ -1601,6 +1603,24 @@ function followRoles(root, { school, trial, zoneSelects, redraw }) {
         redraw();
     };
     const report = () => { if (alive()) redraw(); };
+    const cast = () => {
+        if (!alive() || !castBox) return;
+        const scene = hall();
+        if (!scene || castBox.querySelector("[data-drpg-cast]")?.dataset.drpgCast !== scene.id) return;
+        const stored = readTrialCast(scene);
+        const byId = new Map(readCastActors().map(actor => [actor.id, actor]));
+        for (const input of castBox.querySelectorAll('input[type="checkbox"][name^="cast:"]')) {
+            if (input.checked !== input.defaultChecked) continue;
+            const id = input.name.slice("cast:".length);
+            const actor = byId.get(id);
+            if (!actor) continue;
+            const now = id in stored ? stored[id] : defaultReveal(actor);
+            input.defaultChecked = now;
+            input.checked = now;
+        }
+    };
+    const castSetting = `${MODULE_ID}.${trialCastStore.spec.key}`;
+    hooks.push(["clientSettingChanged", Hooks.on("clientSettingChanged", key => { if (key === castSetting) cast(); })]);
     for (const name of ["updateSetting", "createSetting"]) {
         hooks.push([name, Hooks.on(name, setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.sceneRoles}`) follow(); })]);
     }

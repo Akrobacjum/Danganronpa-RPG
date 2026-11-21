@@ -1188,7 +1188,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialRecord,
         answer: "reply",
         claims: {
-            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (trial-progress.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; or a press on the Findings, `findingsOp`, applied there to the list as the primary's step finds it (trial-progress.mjs applyFindingOp); a GM's request only"
+            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (trial-progress.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; or a press on the Findings, `findingsOp`, applied there to the list as the primary's step finds it (trial-progress.mjs applyFindingOp); or the case summary's claim, `summaryClaim`, written there only when no summary is out (summaryClaimStep); a GM's request only"
         }
     },
     /*

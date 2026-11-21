@@ -92,7 +92,12 @@ export async function showCaseSummary() {
     if (answer !== "send") return null;
     if (trialProgress()?.summaryShown) return null;
     const at = Date.now();
-    await setTrialProgress({ summaryShown: at });
+    // Claimed on the primary (trial-progress.mjs `summaryClaimStep`, STG-76): only the GM whose claim wrote the record posts.
+    const claimed = await setTrialProgress({ summaryClaim: at });
+    if (Number(claimed?.summaryShown) !== at) {
+        ui.notifications.info(L("DRPG.CaseSummary.already"));
+        return null;
+    }
     await ChatMessage.create({
         // On the chat kit (chat-card.mjs `chatCard`, E49 B5a's one road for a card): the title in the card's head
         content: chatCard({ glyph: "scale-balanced", title: game.i18n.format("DRPG.CaseSummary.title", { chapter }), body: html }),

@@ -51,7 +51,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
 import { isMonocubCorpse } from "./spectator.mjs";
-import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
+import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow, esc } from "./utils.mjs";
 import { cubStore, cubCopy, cubTargetStore, bountyStore, projectWorkStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
@@ -1080,7 +1080,6 @@ export function cubTiersHtml(row) {
  * a tier (`scoreMeddle`), so it says the critical and no tier. `tooltip` is the roll's own markup.
  */
 export function cubCardHtml(row, { choice, formula = "", tooltip = "", total = 0, isCritical = false } = {}) {
-    const esc = foundry.utils.escapeHTML;
     const label = `${row.label} - ${game.i18n.localize(`DRPG.Monocub.${choice}`)}`;
     const tiers = row.thresholds ?? [];
     const needed = tiers.length
@@ -1478,7 +1477,6 @@ export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle, redeem: redeem
  */
 async function scoreTinker(actor, target, choice, total, isCritical, row, paid = null) {
     const help = choice === "help";
-    const esc = foundry.utils.escapeHTML;
     const P = await import("./projects.mjs");
     let said;
     if (resolveThreshold(total, row.thresholds)) {
@@ -1528,7 +1526,6 @@ async function redeemHope(actor) {
 async function postHopeAsk(actor) {
     const { callGm } = await import("./gm-bridge.mjs");
     const owner = ownerOf(actor);
-    const esc = foundry.utils.escapeHTML;
     const give = n => ({ action: "cubGiveHope", label: game.i18n.format("DRPG.Monocub.askGive", { n }), data: { actor: actor.id, n } });
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.Monocub.askTitle"),
@@ -1583,7 +1580,6 @@ const bribesShown = new Set();
 export async function openBribeOffer(actor, bribeId, offer) {
     if (!actor || game.user?.isGM || !actor.isOwner || bribesShown.has(bribeId)) return null;
     bribesShown.add(bribeId);
-    const esc = foundry.utils.escapeHTML;
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Monocub.bribeTitle"),
         classes: ["drpg-panel", "drpg-cub-bribe"],
@@ -1647,7 +1643,6 @@ export async function offerBribeOnGm({ actorId, cubId } = {}, sender = null) {
         }
         const bribeId = foundry.utils.randomID();
         await patchCubRow(cub.id, { bribes: { ...open, [bribeId]: { from: payer.id, fromName: payer.name, cost, at: serverNow() } } });
-        const esc = foundry.utils.escapeHTML;
         await whisperToOwner(payer, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeOffered", { name: cub.name, cost }))}</p>`, { veiled: true });
         await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeOfferedCub", { name: payer.name, cost }))}</p>`, { veiled: true });
         log(`${payer.name} offered the Monocub ${cub.name} a Bribe of ${cost} Hope.`);
@@ -1667,7 +1662,6 @@ export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = 
         delete open[bribeId];
         await patchCubRow(cub.id, { bribes: Object.keys(open).length ? open : null });
         const payer = game.actors.get(offer.from);
-        const esc = foundry.utils.escapeHTML;
         const tell = async key => {
             if (payer) await whisperToOwner(payer, `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, { name: cub.name, cost: offer.cost }))}</p>`, { veiled: true });
         };
@@ -1826,7 +1820,6 @@ function tellEveryCub() {
  * read the Bounty as free; despair.mjs `despairRowOf` draws the debt on a GM's bar).
  */
 async function tellBounty(key, data, gmOnly = "", { masked = false } = {}) {
-    const esc = foundry.utils.escapeHTML;
     const text = `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, data))}</p>`;
     // A Bounty put on a student behind a mask names them "?" to the Monocubs' players ("A MASKED STUDENT'S BET", above).
     const theirs = masked ? `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, { ...data, name: MASK_NAME }))}</p>` : text;
