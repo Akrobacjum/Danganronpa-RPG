@@ -57198,6 +57198,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, id) => !S.bodyHeardStore.has(id),
                 back: id => S.bodyHeardStore.get(id)?.deathId === "SUITE113DEATH000"
             },
+            // A hidden stash, through its store (1.2.122, CORE-25): in a room of the scene on screen no region is named, so
+            // no stash list draws it and no player is told of a stash there.
+            hiddenStashes: {
+                seed: async () => {
+                    const key = `${canvas.scene?.id}|${holder.id}|SUITE 1.2.122 backed-up room`;
+                    await S.hiddenStashStore.patch(key, { sceneId: canvas.scene?.id, actorId: holder.id, room: "SUITE 1.2.122 backed-up room" });
+                    return key;
+                },
+                gone: (report, id) => !S.hiddenStashStore.has(id),
+                back: id => S.hiddenStashStore.get(id)?.room === "SUITE 1.2.122 backed-up room"
+            },
             // A room action's timed effect, through its store (Q-E93-3, 12.11.2026): a crossing for a day no clock here is on.
             timedEffects: {
                 seed: async () => {
