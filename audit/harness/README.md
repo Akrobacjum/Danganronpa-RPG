@@ -514,13 +514,14 @@ roll at a table.
   that client's copy render nothing. From v13/v14 notes as remembered, not v14's source: LIVE-E45-01. Until C3a no
   document had `apps` and nothing rendered on a write. There are still no Daggerheart sheets: scenario 71's sheet is a
   stand-in whose own render builds the root again and calls the module's hook.
-- **`[data-action]` is dispatched by DialogV2 alone** (13.11.2026; docs/dev/gaps/SURVEY-close-action.md). The shim's
+- **`[data-action]` is dispatched by DialogV2, and "close" by ApplicationV2 too** (13.11.2026; docs/dev/gaps/SURVEY-close-action.md; the line claude/refresh-120, 21.11.2026). The shim's
   DialogV2 takes a footer press on "close" as Foundry's own close, the wait answering null (`_onSubmit`, R4673), and
   answers null for a default Close it is not drawn to press (`DialogV2.wait`, 00-boot's last check) - v14's
-  close-before-DialogV2 as the module assumes it, still open as LIVE-E21-06. The shim's ApplicationV2 dispatches no
-  `[data-action]` at all, so a DrpgApp window's footer Close (the notice history, notice-history-app.mjs) does nothing
-  when clicked headless: a test that clicked it and waited for the window to go would wait out its time. No test clicks
-  one today (scenario 73 reads that button and does not press it); the gap is left as it is.
+  close-before-DialogV2 as the module assumes it, still open as LIVE-E21-06. The shim's ApplicationV2 dispatches one
+  `[data-action]`, "close", a press with the main button closing the window, as v13's `#onClickAction` does from memory
+  (not read off v14's source); every other action of a DrpgApp window is its own listener's. Until 21.11.2026 it
+  dispatched none, so the notice history's footer Close did nothing headless - probe 42's dead control on the audit of
+  1.2.118 - and tier 1's R7973 now presses it.
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
   nothing out. A suite test that needs one of these asks the environment first
   and is counted as skipped (`needs`, `scripts/tests-kit.mjs`).

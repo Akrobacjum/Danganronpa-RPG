@@ -1718,9 +1718,13 @@ export async function manageClassTrial() {
              * Through `live.refresh()` rather than a painter of its own, so the
              * clock, the vote line and the gate note come from one builder and
              * cannot disagree. That is the FORCED rebuild path, which is right
-             * while this region is a read-out: the day somebody puts a field in
-             * this console, this tick has to stop forcing or it will rebuild under
-             * the GM's cursor.
+             * while this region is a read-out. Since the line claude/refresh-120
+             * (21.11.2026) a rebuild, forced or not, carries what was typed and
+             * gives the focus and the caret back (live.mjs), and the tick keeps the
+             * focus on the bar's button the GM is on (tier 2's "every second and on
+             * a pool's change ..."); but a forced one does not wait for an IME's
+             * composition, so the day somebody puts a text field in this console,
+             * this tick should ask through the region's own debounce instead.
              */
             /*
              * THE BAR'S BUTTONS, BY DELEGATION (E70 C1). The bar is drawn inside the live region, which the tick below

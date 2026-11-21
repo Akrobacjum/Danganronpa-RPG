@@ -31,10 +31,18 @@
  *
  * Hence the two rules below, and they are the whole design:
  *
- *   1. NEVER REDRAW UNDER THE CURSOR. If focus is inside the region, the
- *      rebuild waits until focus leaves. Not "preserve the caret" - wait. A
- *      caret restored to character 14 of a field whose text changed underneath
- *      it is a subtler kind of wrong.
+ *   1. NEVER REDRAW UNDER THE CURSOR - NOR WAIT FOR IT. Until 1.2.119, with
+ *      the focus in a text field of the region, the rebuild waited until focus
+ *      left. The owner's rule of 20.11.2026 ("Zawsze odswiezamy okna od razu
+ *      przy zmianie"), for every window since the line claude/refresh-120
+ *      ("R1 niech leci od razu wszystkie okna", 21.11.2026): the region is
+ *      rebuilt at once, what was typed carried and the focus and caret given
+ *      back (`whileEditing`, on unless a region says `false`). A select, a button or a box
+ *      never holds it (the line claude/refresh-120, 21.11.2026: a select left
+ *      focused after its pick held the Sound window's Music rows, UI-17), and
+ *      whatever had the focus gets it back after the rebuild. A press of the
+ *      pointer inside the region holds it until it is let go, and so does an
+ *      IME's composition.
  *
  *   2. CARRY EVERYTHING THAT IS NOT PRINTED. Scroll positions, open `<details>`
  *      and the value of any field the user has touched are read off the old
@@ -100,18 +108,25 @@ const living = new Set();
  * @param {Function}[options.after]  Run after a successful rebuild, with the new
  *                                   element - for anything the region needs that
  *                                   markup alone cannot carry.
- * @param {boolean} [options.whileEditing] Rebuild with the focus in a field of
- *                                   the region, typed in or not, and give that
- *                                   field the focus and its caret back
- *                                   (`keptFocus`); a select, a nameless field and
- *                                   an IME's composition still hold it.
+ * @param {boolean} [options.whileEditing] Rebuild with the focus in a text field
+ *                                   of the region, typed in or not, named or
+ *                                   not: what was typed is carried, and the
+ *                                   field gets the focus and its caret back
+ *                                   (`focusOf`). An IME's composition still
+ *                                   holds it. On by default since the line
+ *                                   claude/refresh-120 (the owner, 21.11.2026:
+ *                                   "R1 niech leci od razu wszystkie okna");
+ *                                   `false` makes a focused text field hold the
+ *                                   rebuild until focus leaves, as every region
+ *                                   did before 1.2.119. A focused select, button
+ *                                   or box holds it in neither case.
  * @returns {Function} Stop listening. Idempotent; also called automatically
  *                     when the window closes or the region goes away.
  */
-export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null, whileEditing = false } = {}) {
+export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null, whileEditing = true } = {}) {
     if (!app || typeof build !== "function" || !region) return () => {};
 
-    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0, watch, build };
+    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0, watch, build, whileEditing, wake: null };
     living.add(record);
 
     let stopped = false;
@@ -172,16 +187,26 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
 
         /* A FOCUS IN A FIELD DOES NOT HOLD THE REBUILD (the line claude/plan-119, 20.11.2026; the owner of that day: "by
            okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)", and "Zawsze odswiezamy okna od razu przy
-           zmianie"). With `whileEditing` the region is rebuilt with the focus in one of its fields: what was typed is
+           zmianie"). With `whileEditing` the region is rebuilt with the focus in one of its text fields: what was typed is
            carried (RULE 2, `capture` and `restore`), a field another GM changed meanwhile keeps the typed text and is
-           marked, and the field with the same name gets the focus back with its caret where it was. The case dashboard asks
-           it: with every node open on its Map (owner-116) a GM's focus sits in a field most of the time, and the Map stayed
-           as it was drawn until the focus left the region. A select (its list may be open under the pointer), a field with
-           no name and an IME's composition hold it as before. */
-        const keep = !force && whileEditing && !composing && isEditing(element) ? keptFocus(element) : null;
+           marked, and the same field gets the focus back with its caret where it was (`focusOf`). The case dashboard asked
+           it first: with every node open on its Map (owner-116) a GM's focus sits in a field most of the time, and the Map
+           stayed as it was drawn until the focus left the region. Every region since the line claude/refresh-120 (the
+           owner, 21.11.2026: "R1 niech leci od razu wszystkie okna"): the default, a region that cannot follow it saying
+           `whileEditing: false`; R7974 wakes every region of the windows it opens with a field focused. An IME's
+           composition holds it as before.
+           A SELECT HOLDS NOTHING, IN ANY REGION (the line claude/refresh-120, 21.11.2026; UI-17, REFR-05). Until this line a
+           select counted as typing, and with `whileEditing` it still held, for its list may be open under the pointer:
+           a select left focused after its pick - the Sound window's Music rows save on `change` - held its whole region
+           until the GM clicked elsewhere, and so did a field with no name, which had nothing to be found by again. A list
+           opened by the pointer is held by the press (RULE 1 for a hand, above) until it is let go; the pick is carried as
+           a dirty field; and whatever had the focus in the region, a select, a box or a field with no name, gets it back
+           after the rebuild, found by its key (`focusKey`). R7970. A list opened from the keyboard (Alt+Down) is not held,
+           and whether a browser's own select list sends the page its `pointerup` is not measured headless: a table's. */
+        const typing = isEditing(element);
 
-        // RULE 1. The GM is typing in here; come back when they are not.
-        if (!force && !keep && isEditing(element)) {
+        // RULE 1. The GM is typing in here, and the region did not ask to be redrawn under them; come back when they are not.
+        if (!force && typing && (!whileEditing || composing)) {
             pending = true;
             record.deferred++;
             debug(`live: ${region} deferred - focus is inside it`);
@@ -190,6 +215,9 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
 
         const startedAt = now();
         try {
+            /* Read before the old nodes go: what had the focus in the region (none when the focus is outside it, as it is
+               on a rebuild answered by `focusout`). */
+            const keep = focusOf(element);
             const carried = capture(element);
             const next = toElement(build());
             if (!next) return;
@@ -199,7 +227,6 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             restore(next, carried);
             record.refreshes++;
             if (after) after(next);
-            if (keep) giveFocusBack(next, keep);
 
             /*
              * AND THE NEW NODES ARE DRESSED (LAT-14, 20.09).
@@ -221,6 +248,10 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
              * DOM.
              */
             Hooks.callAll("drpgWindowUpdated", next);
+            /* The focus last, on the dressed nodes: chrome.mjs wraps a select in its glyph's box (`dressSelect`, a
+               `replaceWith`), and a select given the focus before that lost it again - the Music rows' select, measured on
+               the harness (UI-17's tier-2 test, 21.11.2026). Found on the dressed tree, as it was read on the old one. */
+            if (keep) giveFocusBack(next, keep);
             // From the capture through the dressing: what one rebuild of the region cost this browser.
             sample(`live.${region}`, now() - startedAt);
         } catch (err) {
@@ -232,6 +263,8 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
     };
 
     const schedule = foundry.utils.debounce(rebuild, delay);
+    // A rebuild by the road a watched event takes, the focus rule and all (`liveRegions`, for the suite).
+    record.wake = () => schedule();
 
     const listeners = listenFor(watch, schedule);
 
@@ -415,9 +448,11 @@ function listenFor(watch, schedule) {
 /**
  * Is the person looking at this window in the middle of using it?
  *
- * Focus inside a text field, a select being chosen from, or something
- * contenteditable - all three are reasons to leave the DOM alone. A focused
- * BUTTON is not: a button keeps focus after it is pressed, and a window whose
+ * Focus inside a text field, a text area or something contenteditable - all
+ * three are reasons to leave the DOM alone, unless the region asks for
+ * `whileEditing`. A select is not, since the line claude/refresh-120 (UI-17):
+ * it keeps focus after its pick as a button does, and a list open under the
+ * pointer is held by the press. A focused BUTTON is not: a button keeps focus after it is pressed, and a window whose
  * buttons freeze it the moment anybody clicks one is the stale window again
  * with extra steps.
  *
@@ -433,35 +468,56 @@ function listenFor(watch, schedule) {
 const PRESSED_INPUTS = new Set(["checkbox", "radio", "button", "submit", "reset", "color", "file", "range", "image"]);
 
 /**
- * The focused field of `element` to give the focus back to after a rebuild (`keepLive`'s `whileEditing`): `{ name, start,
- * end }`, or null - for a select, or a field with no name to find it by. What was typed in it is carried by `capture` and
- * `restore` (RULE 2), and a field another GM changed meanwhile keeps the typed text and is marked (`drpg-moved-under`).
- * A select holds the rebuild: its list may be open under the pointer, and a select drawn anew shuts it.
+ * What has the focus in `element`, to give it back after a rebuild: `{ key, start, end }`, or null when the focus is not
+ * inside the region (or is on the region itself). Any element - a text field, a select, a box, a button, an entry's
+ * `summary` - found again by `focusKey`. What was typed in a field is carried by `capture` and `restore` (RULE 2), and a
+ * field another GM changed meanwhile keeps the typed text and is marked (`drpg-moved-under`).
  */
-function keptFocus(element) {
+function focusOf(element) {
     const active = document.activeElement;
-    if (!active || !element.contains(active) || active.tagName === "SELECT") return null;
-    const name = active.getAttribute?.("name");
-    if (!name) return null;
+    if (!active || active === element || !element.contains(active)) return null;
     let start = null, end = null;
     try { start = active.selectionStart ?? null; end = active.selectionEnd ?? null; } catch { /* a type with no caret */ }
-    return { name, start, end };
+    return { key: focusKey(active, element, keysOf(element)), start, end };
 }
 
-/** The focus given back to the field named as before the rebuild, its caret where it was (`keptFocus`). */
-function giveFocusBack(element, { name, start, end }) {
-    const field = element.querySelector(`[name="${CSS.escape(name)}"]`);
-    if (!field) return;
+/**
+ * A key for the focused element that survives a rebuild of its region: `keyFor`'s while it has a name, a `data-drpg-key`
+ * or an id of its own; otherwise its path under the nearest ancestor that has one of the last two, so a `summary` or a
+ * button of a list's entry is found under its entry wherever the entry moved (the notice history draws a new entry above
+ * the one the reader was on). Only the region's own positional path when no ancestor has either.
+ */
+function focusKey(node, root, named) {
+    const own = keyFor(node, root, named);
+    if (!own.startsWith("p:")) return own;
+    const path = [];
+    for (let at = node; at && at !== root; at = at.parentElement) {
+        const parent = at.parentElement;
+        if (at !== node && (at.dataset?.drpgKey || at.id)) return `a:${keyFor(at, root, named)}>${path.join("/")}`;
+        if (!parent) break;
+        path.unshift([...parent.children].indexOf(at));
+    }
+    return own;
+}
+
+/** The focus given back to the element that had it before the rebuild, its caret where it was (`focusOf`). */
+function giveFocusBack(element, { key, start, end }) {
+    const named = keysOf(element);
+    const field = [...element.querySelectorAll("*")].find(node => focusKey(node, element, named) === key);
+    if (!field || typeof field.focus !== "function") return;
     field.focus({ preventScroll: true });
     try { if (start !== null && end !== null) field.setSelectionRange(start, end); } catch { /* a type with no caret */ }
 }
 
+/** Is the focus in a field of the region that takes a caret - text, a text area, something contenteditable? A select,
+ * a box, a button or a slider is pressed or picked, never typed in (`PRESSED_INPUTS`; a select since the line
+ * claude/refresh-120, UI-17). */
 function isEditing(element) {
     const active = document.activeElement;
     if (!active || !element.contains(active)) return false;
     const tag = active.tagName;
     if (tag === "INPUT") return !PRESSED_INPUTS.has(String(active.type ?? "").toLowerCase());
-    if (tag === "TEXTAREA" || tag === "SELECT") return true;
+    if (tag === "TEXTAREA") return true;
     return active.isContentEditable === true;
 }
 
@@ -985,11 +1041,13 @@ export function closeOpen(className) {
 
 /**
  * The regions kept live on one window (every window, with none named): each one's selector, what wakes it and its
- * build. For R1317, which builds every region that names `watch.settings` once with `game.settings.get` counted, and
+ * build, whether it is rebuilt under a focused field, `wake` (a rebuild asked as a watched event asks it) and its counts.
+ * For R7974, which wakes every region of every window it opens with a field focused, and R1317, which builds every region that names `watch.settings` once with `game.settings.get` counted, and
  * holds what it read to what it declared (E44 C2b): a region held to its keys must name every key it prints.
  */
 export function liveRegions(app = null) {
-    return [...living].filter(r => !app || r.app === app).map(r => ({ region: r.region, watch: r.watch, build: r.build }));
+    return [...living].filter(r => !app || r.app === app).map(r => ({ region: r.region, watch: r.watch, build: r.build,
+        whileEditing: r.whileEditing, wake: r.wake, refreshes: () => r.refreshes, deferred: () => r.deferred }));
 }
 
 /** What is currently keeping itself true. For the diagnostics window. */

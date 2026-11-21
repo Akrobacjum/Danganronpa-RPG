@@ -31717,8 +31717,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * ruling, and the GM's next Save wrote that back over it. Three halves, on one fixture
          * in a chapter of its own that nobody has planned:
          *   - the ruling lands while the window stands open, and the row shows it;
-         *   - a Save that changed nothing, pressed while a redraw is held off (a select focused
-         *     in the window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
+         *   - a Save that changed nothing, pressed while a redraw is held off (a press of the pointer
+         *     inside the region not let go yet, live.mjs RULE 1 for a hand) over a write the window
+         *     has not drawn, writes nothing:
          *     no ledger write, nothing refused, and no Key plan row for the chapter - which
          *     every Save used to fill in by scale, making the chapter a planned one;
          *   - a name the GM typed before a second ruling is marked, refused at Save and told
@@ -31772,16 +31773,23 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(win.field(`text.${key}`)?.value, "SUITE reshaped words", "the open dashboard still shows the words the ruling replaced");
 
             /* ---- a Save that changed nothing writes nothing, even over a write it has not drawn ---- */
-            /* The redraw held off by a focused select (live.mjs RULE 1): since the line claude/plan-119 (20.11.2026) a focused
-               text field no longer holds the dashboard's redraw (`whileEditing`), and a select still does. */
-            win.field(`vis.${key}`).focus();
+            /* The redraw held off by a press inside the region that is not let go yet (live.mjs RULE 1 for a hand): since the
+               line claude/plan-119 (20.11.2026) a focused text field no longer holds the dashboard's redraw (`whileEditing`),
+               and since the line claude/refresh-120 (21.11.2026; UI-17) neither does a focused select, which held it here
+               until then (a13d89fa). A press is what still holds a region - for the click it ends in - and the one way left
+               for a window to stand on a write it has not drawn. The press is let go after the Save, which reads the form
+               at its click. */
+            const Pointer = globalThis.PointerEvent ?? MouseEvent;
+            const pressed = win.field(`vis.${key}`);
+            pressed.dispatchEvent(new Pointer("pointerdown", { bubbles: true, cancelable: true }));
             await remnants.setRemnantPublic(token, { name: "SUITE another GM's name" });
             await gmStoresIdle();
             await wait(300);
             must(win.field(`name.${key}`)?.value === "SUITE reshaped",
-                "the window redrew with focus inside it, so this half has no stale window to measure");
+                "the window redrew under a press not let go, so this half has no stale window to measure");
             ledgerWrites = 0;
             await win.save();
+            window.dispatchEvent(new Pointer("pointerup", { bubbles: true }));
             await gmStoresIdle();
             equal(ledgerWrites, 0, "a Save that changed nothing wrote to the ledger");
             equal(remnants.remnantData(token).public?.name, "SUITE another GM's name",
@@ -106272,6 +106280,194 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
     }],
 
+    ["UI-17 - the Sound window's Music rows draw another GM's mapping at once while a row's select keeps the focus after its pick (the line claude/refresh-120, 21.11.2026; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): the other row shows the playlist mapped, and the select picked in keeps its playlist and the focus", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118, UI-17 (re-checked on 1.2.119). A row's select
+         * saves on `change` and keeps the focus after it; live.mjs counted a focused select as typing, so the rows held
+         * their redraw - its own save's echo and another GM's mapping alike - until the GM clicked elsewhere. As the GM,
+         * E50-T1's fixture: a playlist, the Sound window opened, one free state picked (its `change`, saved) with the select
+         * left focused, then a second free state written straight into the setting (the second GM's stand-in). The map and
+         * the playlist are put back as E50-T1 puts them back. Red on e515907d: the second row still "Not set".
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 2, `only ${keys.length} music states are free to map here`);
+        const [k1, k2] = keys;
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        let playlist = null, answer = null, read = null;
+        try {
+            playlist = await Playlist.create({ name: "Suite UI-17 fixture" });
+            must(playlist, "the fixture playlist was not made");
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector(`select[name="state:${k2}"]`), 6000), "the Sound window did not open with its Music rows");
+            const select = key => root().querySelector(`select[name="state:${key}"]`);
+            select(k1).focus();
+            select(k1).value = playlist.id;
+            select(k1).dispatchEvent(new Event("change", { bubbles: true }));
+            must(await until(() => map()[k1] === playlist.id, 3000), "the first row's pick was not saved");
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            await until(() => select(k2)?.value === playlist.id, 2000);
+            read = { other: select(k2)?.value === playlist.id, picked: select(k1)?.value === playlist.id, focus: document.activeElement === select(k1) };
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            await wait(800);
+            if (stableJson(map()) !== stableJson(mapBefore)) await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ other: true, picked: true, focus: true }),
+            "[the row another GM mapped shows its playlist; the row picked in keeps its playlist; the focus on the select picked in]");
+    }],
+    ["every second and on a pool's change, a window with the focus in it is drawn again with the focus kept (the line claude/refresh-120, 21.11.2026; REFR-05; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and \"R1 niech leci od razu wszystkie okna\"): the Mastermind's Hope box shows the Mastermind's new Hope while its amount is typed in, the amount and the focus kept; the trial console's tick, every second while a floor is open, keeps the focus on the bar's button the GM is on", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118's REFR-05 residue: the Hope box (mastermind.mjs
+         * `openMastermindDialog`, the region `.drpg-mm-live`) waited for the focus to leave it. Here a Mastermind is named
+         * (the GM store's own write, put back), the window opened, the amount typed, and the Mastermind's Hope written
+         * (an actor's write, which the region watches): the box reads the new Hope with the typed amount and the focus
+         * still in it. Then the trial console (trial-floor-ui.mjs `manageClassTrial`), whose region is drawn again by a
+         * forced refresh every second while a floor is open: the focus on one of the bar's buttons, read after three
+         * seconds of ticks. The console holds no field (read 21.11.2026), so the button is what a GM holds there. Red on
+         * e515907d: the Hope box still read the old Hope, and the tick dropped the focus. Red at 8473eed9 too, on the
+         * Hope box alone: its build returned the box's inside, so its first redraw left the Hope line where the box stood
+         * and the region was gone (mastermind.mjs, fixed in the same commit as this test). A select's list open under a
+         * tick is not measured: jsdom draws no list (a table's).
+         */
+        const MM = await import("./mastermind.mjs");
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        needs(env.dialogs(), "the two windows are drawn and their fields focused");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [who] = cast(1);
+        const wasActor = MM.mastermindActor()?.id ?? null, wasLair = MM.mastermindLair();
+        const hopeWas = who.system?.resources?.hope?.value ?? 0;
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const read = {};
+        let opening = null;
+        try {
+            await MM.setMastermind(who);
+            await settle();
+            opening = Promise.resolve().then(() => MM.openMastermindDialog()).catch(() => null);
+            must(await until(() => appOf("drpg-window-mastermind")?.element?.querySelector(".drpg-mm-live [name=amount]"), 6000), "the Mastermind's window did not open on its Hope box");
+            const box = () => appOf("drpg-window-mastermind").element.querySelector(".drpg-mm-live");
+            const amount = box().querySelector("[name=amount]");
+            amount.focus();
+            amount.value = "3";
+            const next = Math.max(0, Math.min(6, hopeWas === 2 ? 4 : 2));
+            await who.update({ "system.resources.hope.value": next });
+            await until(() => box()?.querySelector("p.notes")?.textContent.includes(String(next)), 2000);
+            const field = box()?.querySelector("[name=amount]");
+            read.hope = { shows: game.i18n.format("DRPG.Mastermind.hopeReadout", { held: next }) === box()?.querySelector("p.notes")?.textContent.trim(),
+                value: field?.value === "3", focus: Boolean(field) && document.activeElement === field, redrawn: field !== amount };
+            appOf("drpg-window-mastermind")?.close();
+            await Promise.race([opening, wait(3000)]);
+
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            await setClock({ ...clock, phase: "classTrial" });
+            await F.startFloor({ seconds: 300 });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            must(await until(() => appOf("drpg-window-trial")?.element?.querySelector(".drpg-trial-console [data-drpg-bar]"), 6000), "the trial console did not open on a floor with its bar");
+            const app = appOf("drpg-window-trial");
+            const button = app.element.querySelector(".drpg-trial-console [data-drpg-bar]:not([disabled])");
+            must(button, "the console's bar has no button to stand on");
+            const bar = button.dataset.drpgBar;
+            button.focus();
+            // The ticks counted as the region's element replaced, read every 100 ms.
+            let ticks = 0, last = app.element.querySelector(".drpg-trial-console");
+            for (let t = 0; t < 32; t++) {
+                await wait(100);
+                const now = app.element.querySelector(".drpg-trial-console");
+                if (now && now !== last) { ticks++; last = now; }
+            }
+            const now = document.activeElement;
+            read.tick = { ticks: ticks >= 2, focus: Boolean(now?.matches?.(`.drpg-trial-console [data-drpg-bar="${bar}"]`)), redrawn: now !== button };
+        } finally {
+            appOf("drpg-window-mastermind")?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            await who.update({ "system.resources.hope.value": hopeWas });
+            if (wasActor) await MM.setMastermind(game.actors.get(wasActor), { room: wasLair });
+            else await MM.clearMastermind();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ hope: { focus: true, redrawn: true, shows: true, value: true }, tick: { focus: true, redrawn: true, ticks: true } }),
+            "[the Hope box: the focus on the amount; drawn again; the new Hope read; the amount typed kept] [the console's tick: the focus on the bar's button; drawn again; two ticks or more in 3.2 s]");
+    }],
+    ["the case dashboard draws at once, with a trace's name being typed in its Table, a trace's words changed elsewhere and an item given to a student - the Remnants tab's row and the Who has what tab - the typed name, the focus and the caret kept (the line claude/refresh-120, 21.11.2026; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\" and his reading of 21.11: the dashboard did not follow until Save)", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026. The dashboard is one live region (`.drpg-case-live`, every tab of the
+         * Table and the Map), redrawn under a focused field since 1.2.119; the owner read on 21.11 that the dashboard did
+         * not follow until Save (its column sort is line P's). Here, without Save: the Table opened, a fixture trace's
+         * name being typed (the caret at 4), then its words written as another GM's ruling writes them
+         * (`setRemnantPublic`, a GM store write) and a tool given to a student (an item write): both shown at once - the
+         * row's words, the student's row on Who has what - with the typed name, its focus and caret still there. The
+         * trace and the tool are taken away after.
+         */
+        const remnants = await import("./remnants.mjs");
+        const INV = await import("./inventory.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const scene = canvas.scene;
+        const [who] = cast(1);
+        let token = null, win = null, tool = null;
+        const read = {};
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - refresh-120 the dashboard follows" });
+            must(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE R120 as drawn", playerText: "SUITE R120 words as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+            win = await drawnCaseWindow();
+            must(win.field(`name.${key}`)?.value === "SUITE R120 as drawn", "the dashboard does not list the fixture trace as drawn");
+            const name = win.field(`name.${key}`);
+            name.focus();
+            name.value = "SUITE R120 typed";
+            name.setSelectionRange(4, 4);
+            await remnants.setRemnantPublic(token, { playerText: "SUITE R120 words changed elsewhere" });
+            await gmStoresIdle();
+            read.words = Boolean(await until(() => win.field(`text.${key}`)?.value === "SUITE R120 words changed elsewhere", 3000));
+            tool = await INV.grantItem(who, { name: "SUITE R120 tool", category: "tool", tier: 1, override: true, quiet: true });
+            must(tool, "the fixture tool was not given");
+            const who_ = () => win.app?.element?.querySelector('[data-drpg-part="who"]')?.textContent ?? "";
+            read.who = Boolean(await until(() => who_().includes("SUITE R120 tool"), 3000));
+            const now = win.field(`name.${key}`);
+            read.typed = { value: now?.value === "SUITE R120 typed", focus: Boolean(now) && document.activeElement === now, caret: now?.selectionStart === 4, redrawn: now !== name };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (tool) await tool.delete().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ typed: { caret: true, focus: true, redrawn: true, value: true }, who: true, words: true }),
+            "[the name being typed: its caret, its focus, the row drawn again, the typed name] [Who has what lists the tool given] [the row shows the words changed elsewhere]");
+    }],
     ["the Mastermind's Give Hope box stays whole when it is drawn again (1.2.120, 21.11.2026; found by the line claude/refresh-120): with the window open, a write to the Mastermind's sheet redraws the box with the new Hope, and the pool's select, the amount and Give are still in it - and the next write redraws it again", async () => {
         /*
          * 21.11.2026. mastermind.mjs `openMastermindDialog` keeps the box live (`.drpg-mm-live`, watching actors), and
@@ -106318,6 +106514,56 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const whole = { amount: true, box: true, donor: true, give: true, hope: true };
         equal(stableJson(read), stableJson({ first: whole, second: whole }),
             "[after each write to the Mastermind's Hope: the box there, its pool select, its amount, its Give, the Hope written]");
+    }],
+    ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
+        /*
+         * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy
+         * zmianie": a row's select pressed with the pointer, focused and picked (its `change`, saved), with no release
+         * dispatched - as a browser's own select list may never hand the page its `pointerup` - then a second row
+         * written straight into the setting (another GM's stand-in). Added to the line claude/refresh-120 at the
+         * coordinator's ask; the map and the playlist are put back as E50-T1 puts them back. Red on e515907d, on
+         * claude/refresh-120 at aa3c5de9 (the press held the region: no release within 3 s of HOLD_MAX_MS's 5) and on
+         * 1.2.120 (03ee8de9: the pick ended the press, live.mjs `onChange`, and the focused select then held it); green
+         * once both stand - the pick ends the press, and a focused select holds nothing (`isEditing`).
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 2, `only ${keys.length} music states are free to map here`);
+        const [k1, k2] = keys;
+        let playlist = null, answer = null;
+        const read = {};
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        try {
+            playlist = await Playlist.create({ name: "Suite P120 sound fixture" });
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("select[name^='state:']"), 6000), "the Sound window did not open with its Music tab");
+            root().querySelector('nav.drpg-tabs [data-drpg-tab-key="music"]')?.click();
+            const select = key => root().querySelector(`select[name="state:${key}"]`);
+            const first = select(k1);
+            first.dispatchEvent(new (globalThis.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true }));
+            first.focus(); first.value = playlist.id;
+            first.dispatchEvent(new Event("change", { bubbles: true }));
+            read.written = Boolean(await until(() => map()[k1] === playlist.id, 3000));
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            read.other = Boolean(await until(() => select(k2)?.value === playlist.id, 3000));
+            read.focus = document.activeElement?.getAttribute?.("name") === `state:${k1}`;
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await setSetting(SETTINGS.musicMap, mapBefore); await wait(800);
+            if (stableJson(map()) !== stableJson(mapBefore)) await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ written: true, other: true, focus: true }),
+            "[the row picked with the pointer written to the map; the other GM's row drawn on the open window within 3 s; the focus still on the row picked]");
     }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*

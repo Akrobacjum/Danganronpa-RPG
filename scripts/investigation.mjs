@@ -2478,9 +2478,11 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
              *
              * NOT IN `wireCase`, AND THAT IS THE POINT. The footer sits outside
              * `.drpg-case-live`, so a rebuild never replaces these nodes - and
-             * `keepLive` DEFERS a rebuild while focus is inside the region, so
-             * hanging the paint on `after` would leave the button lit for as long
-             * as somebody was mid-sentence when the Eclipse started. `keepFresh` is
+             * `keepLive` DEFERRED a rebuild while focus was inside the region, so
+             * hanging the paint on `after` would have left the button lit for as long
+             * as somebody was mid-sentence when the Eclipse started. (Since 1.2.119
+             * the region asks `whileEditing`, and a press inside it still defers a
+             * rebuild until it is let go; a node outside it needs neither.) `keepFresh` is
              * the subscription for exactly this shape: a node nobody edits, written
              * in place, with no focus rule.
              *

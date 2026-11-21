@@ -1382,7 +1382,9 @@ const INVARIANTS = [
         document.body.appendChild(host);
 
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        /* `whileEditing: false`: the rule as every region kept it until the line claude/refresh-120 made the redraw under a
+           focused field the default (21.11.2026; R7970, R7974); a region that cannot follow the owner's rule still says so. */
+        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] } });
 
         try {
             const field = host.querySelector("input[name=f]");
@@ -41787,7 +41789,8 @@ const INVARIANTS = [
         host.innerHTML = build();
         document.body.appendChild(host);
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-r1315", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        // `whileEditing: false` (the default since the line claude/refresh-120 is true): the text field's hold is the opt-out's.
+        const stop = keepLive(app, { region: ".drpg-t-r1315", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] } });
         const region = () => host.querySelector(".drpg-t-r1315");
         /* Focus one field, ask a redraw of this region alone (LIVE_PROBE), read whether it ran; then let focus go, so a
            held redraw is answered before the next field is tried. */
@@ -41908,6 +41911,227 @@ const INVARIANTS = [
             stop();
             host.remove();
         }
+    }],
+
+    ["R7970 - live.mjs on an artificial region (the line claude/refresh-120; UI-17, REFR-05; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): a focused select holds no rebuild, with `whileEditing` or without - its pick is kept and it has the focus again after it; with `whileEditing` a focused text field with no name, typed in, is rebuilt at once with its text, focus and caret kept; without `whileEditing` a focused text field still holds the rebuild until focus leaves", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118, UI-17 (live.mjs `isEditing` counted every focused
+         * SELECT as typing, so a select left focused after its pick held the Sound window's Music rows until the GM
+         * clicked elsewhere) and REFR-05's residue (the focus was given back only to a named field that was not a select,
+         * so with `whileEditing` either one still held the region). Driven on a region of its own, woken by LIVE_PROBE,
+         * once with `whileEditing` and once without. The last clause is the old rule kept for a region that does not
+         * ask (a region's API is unchanged): it is the control that the probe redraws nothing it should not.
+         */
+        const { keepLive } = await import("./live.mjs");
+        const run = async whileEditing => {
+            let built = 0;
+            const build = () => {
+                built++;
+                return `<div class="drpg-t-r7970"><p>build ${built}</p>
+                    <select name="pick"><option value="a" selected>a</option><option value="b">b</option></select>
+                    <div><select><option value="x" selected>x</option><option value="y">y</option></select></div>
+                    <div><input type="text" value="drawn"></div>
+                </div>`;
+            };
+            const host = document.createElement("div");
+            host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+            host.innerHTML = build();
+            document.body.appendChild(host);
+            const app = { element: host, options: { window: { title: "test" } } };
+            const stop = keepLive(app, { region: ".drpg-t-r7970", build, delay: 0, whileEditing, watch: { hooks: [LIVE_PROBE] } });
+            const region = () => host.querySelector(".drpg-t-r7970");
+            const leave = async () => {
+                document.activeElement?.blur?.();
+                host.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+                await wait(140);
+            };
+            /* One field focused and changed as a person would, a redraw asked, and what followed read. */
+            const press = async (selector, value, caret = null) => {
+                const field = region().querySelector(selector);
+                field.focus();
+                field.value = value;
+                if (caret !== null) field.setSelectionRange(caret, caret);
+                const focused = document.activeElement === field;
+                const before = built;
+                Hooks.callAll(LIVE_PROBE);
+                await wait(140);
+                const now = region().querySelector(selector);
+                const read = {
+                    focused, rebuilt: built > before, value: now?.value ?? null, focus: document.activeElement === now && now !== field,
+                    caret: caret === null ? null : now?.selectionStart ?? null
+                };
+                await leave();
+                return read;
+            };
+            try {
+                return {
+                    namedSelect: await press('select[name="pick"]', "b"),
+                    namelessSelect: await press(".drpg-t-r7970 > div > select", "y"),
+                    namelessText: await press('input[type="text"]', "half typed", 4)
+                };
+            } finally {
+                stop();
+                host.remove();
+            }
+        };
+        const read = { whileEditing: await run(true), without: await run(false) };
+        must(Object.values(read).every(r => Object.values(r).every(f => f.focused)), `focus could not be put in every field: ${JSON.stringify(read)}`);
+        const strip = r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, { rebuilt: v.rebuilt, value: v.value, focus: v.focus, caret: v.caret }]));
+        equal(JSON.stringify({ whileEditing: strip(read.whileEditing), without: strip(read.without) }), JSON.stringify({
+            whileEditing: {
+                namedSelect: { rebuilt: true, value: "b", focus: true, caret: null },
+                namelessSelect: { rebuilt: true, value: "y", focus: true, caret: null },
+                namelessText: { rebuilt: true, value: "half typed", focus: true, caret: 4 }
+            },
+            without: {
+                namedSelect: { rebuilt: true, value: "b", focus: true, caret: null },
+                namelessSelect: { rebuilt: true, value: "y", focus: true, caret: null },
+                namelessText: { rebuilt: false, value: "half typed", focus: false, caret: 4 }
+            }
+        }), "[per region, with whileEditing and without, per field focused and changed: rebuilt at once, its value after, focus on the new node, its caret]");
+    }],
+
+    ["R7973 - the notice history draws a change at once, wherever the reader is (the line claude/refresh-120; REFR-01; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): with the list scrolled and an entry's line focused, a new notice is listed at once - the pill shown to take the reader up to it - the scroll and the focus stay on the entry the reader was on; a change to the drawn entries (read) is drawn at once with the focus in the list; the footer's Close closes the window", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118, REFR-01 (re-checked on 1.2.119): `changed`
+         * held a new entry behind "Show new notices" while the list was scrolled or held the focus, and a change to the
+         * drawn entries until the focus left the list. Under the history's hold (R294's, nothing written), as the GM: two
+         * notices, the window opened, the list scrolled by 40 px and the older entry's line focused, then a third notice
+         * recorded and the unread ones read. The pill now means "new above where you are". Where the reader's place is
+         * kept on a laid-out screen (the entry they were on held where it stood, `dressList`) needs a layout: here the
+         * scroll is read as the number carried, a table's otherwise. Close: probe 42's dead control on the audit of
+         * 1.2.118 (group C, "notices-player"), the footer's `data-action="close"`, ApplicationV2's own action.
+         */
+        const NH = await import("./notice-history.mjs");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const { openNotices } = await import("./notice-history-app.mjs");
+        let win = null, read = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const older = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 older", text: "R7973 older words", html: "", state: "unread" });
+            NH.recordNotice({ source: "mine", kind: "info", title: "R7973 newer", text: "R7973 newer words", html: "", state: "unread" });
+            win = await openNotices();
+            const root = win?.element ?? null;
+            must(root !== null, "the window did not open");
+            const list = () => root.querySelector(".drpg-notices-list");
+            const entry = id => list()?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
+            must(entry(older), "the window does not list the suite's older notice - there is nothing to stand on");
+            list().scrollTop = 40;
+            const scrolled = list().scrollTop;
+            entry(older).querySelector("summary").focus();
+            must(document.activeElement === entry(older).querySelector("summary"), "the focus could not be put on the older entry's line");
+            const fresh = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 fresh", text: "R7973 fresh words", html: "", state: "unread" });
+            await wait(300);
+            const pill = root.querySelector(".drpg-notices-new");
+            read = {
+                fresh: Boolean(entry(fresh)), pill: pill ? !pill.hidden : null,
+                scroll: list().scrollTop === scrolled, focus: document.activeElement === entry(older)?.querySelector("summary")
+            };
+            const unread = () => list().querySelectorAll("details.drpg-notice-entry.is-unread").length;
+            read.unreadBefore = unread() > 0;
+            NH.markNoticesRead();
+            await wait(300);
+            read.unreadAfter = unread();
+            read.focusAfter = document.activeElement === entry(older)?.querySelector("summary");
+            root.querySelector('footer.drpg-kit-footer [data-action="close"]')?.click();
+            await wait(300);
+            read.closed = !win.rendered && !root.isConnected;
+        } finally {
+            if (win?.rendered) await win.close();
+            await NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify(read), JSON.stringify({ fresh: true, pill: true, scroll: true, focus: true, unreadBefore: true, unreadAfter: 0, focusAfter: true, closed: true }),
+            "[a new notice listed at once; the pill shown; the scroll kept; the focus on the older entry's line; unread entries before; unread entries after reading; the focus kept; Close closed the window]");
+    }],
+    ["R7974 - every live region of the windows a GM opens with nothing staged is redrawn at once with the focus in it (the line claude/refresh-120; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and, 21.11.2026, \"R1 niech leci od razu wszystkie okna\"): the GM panel, Sound, Students, the item manager, the incident tracker, the trial console with its case schema, the vote, Investigation and the notice history - per region, its first field focused (a text field before a select, a select before a box, else a button), a value put in it that is not saved, the region woken as a watched event wakes it: drawn again, the focus on the same field, its value and caret kept", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026: keepLive's `whileEditing` is the default, so no region waits for the
+         * focus to leave it. Each window opened by its own opener as the GM, each of its regions (live.mjs `liveRegions`)
+         * driven through `wake` - the debounce a watched event goes through, the focus rule and all - with nothing
+         * written: a typed value, a select's pick and a box ticked with no `change` save nothing. That the build reads
+         * the world anew is each region's own (the windows' tests, UI-17's tier 2 among them); this holds that a field
+         * focused never stands between a change and the window. Read on 21.11.2026: none of these regions holds a text
+         * field, the Students table holds selects and a box, the Sound window's rows selects. NOT OPENED HERE, each
+         * needing a world write tier 1 may not make or a sheet the harness does not render: the readiness round's window
+         * (an open round), the objection log (an Objection presented), a project token's card and a Remnant's card (a
+         * token's sheet), a Call's window (a Call bought); the Mastermind's Hope box, drawn only while a Mastermind is
+         * named, and the trial console's tick, which runs only while a floor is open - both tier 2's "every second and on a
+         * pool's debt ...". A region on a tab that is not showing is shown first, by its tab.
+         */
+        needs(env.dialogs(), "the windows are drawn and their regions driven");
+        must(game.user.isGM, "these windows are a GM's");
+        const L = await import("./live.mjs");
+        const [student] = studentActors();
+        must(student, "the harness world holds a student - the item manager opens on one");
+        const OPENERS = [
+            ["gm-panel", "drpg-window-panel", () => import("./gm-panel.mjs").then(m => m.openGmPanel())],
+            ["sound", "drpg-window-sound", () => import("./sound-panel.mjs").then(m => m.openSoundDialog())],
+            ["students", "drpg-window-alive", () => import("./gm-students.mjs").then(m => m.openWhoIsAliveDialog())],
+            ["items", "drpg-window-items", () => import("./gm-items.mjs").then(m => m.openItemManager(student))],
+            ["incident", "drpg-window-incident", () => import("./murder-ui.mjs").then(m => m.openIncidentTracker())],
+            ["trial", "drpg-window-trial", () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()),
+                app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live")],
+            ["vote", "drpg-window-vote", () => import("./trial-floor-ui.mjs").then(m => m.openVoteDialog())],
+            ["case", "drpg-window-case", () => import("./investigation.mjs").then(m => m.openInvestigationDashboard())],
+            ["notices", "drpg-window-notices", () => import("./notice-history-app.mjs").then(m => m.openNotices())]
+        ];
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const TEXT = 'input[type="text"], input[type="number"], input[type="search"], input:not([type]), textarea';
+        const probe = async (app, r) => {
+            const region = () => app.element?.querySelector(r.region) ?? null;
+            const pane = region()?.closest("[data-drpg-pane]");
+            if (pane?.hidden) app.element.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${CSS.escape(pane.dataset.drpgPane)}"]`)?.click();
+            const el = region();
+            if (!el) return { field: "no region" };
+            const usable = [...el.querySelectorAll('input:not([type="hidden"]), textarea, select, button, summary')]
+                .filter(n => !n.disabled && !n.closest("[hidden]"));
+            const target = usable.find(n => n.matches(TEXT)) ?? usable.find(n => n.matches("select"))
+                ?? usable.find(n => n.matches("input")) ?? usable[0] ?? null;
+            const kind = !target ? "none" : target.matches(TEXT) ? "text" : target.localName === "select" ? "select" : target.localName === "input" ? target.type : target.localName;
+            let want = null, caret = null;
+            if (target) {
+                target.focus();
+                if (document.activeElement !== target) return { field: kind, focused: false };
+                if (kind === "text") { target.value = `${target.value}R7974`; caret = 2; target.setSelectionRange(caret, caret); want = target.value; }
+                else if (kind === "select") { const other = [...target.options].find(o => o.value !== target.value && !o.disabled); if (other) target.value = other.value; want = target.value; }
+                else if (kind === "checkbox") { target.checked = !target.checked; want = target.checked; }
+            }
+            const before = r.refreshes();
+            r.wake();
+            await wait(450);
+            const now = region(), active = document.activeElement;
+            // `now` found at all: a build that returns something else than the region's own element loses the region (the Hope box did).
+            const read = { field: kind, rebuilt: Boolean(now) && r.refreshes() > before && now !== el };
+            if (target) {
+                read.focus = Boolean(now?.contains(active)) && active.localName === target.localName && (active.getAttribute("name") ?? "") === (target.getAttribute("name") ?? "");
+                if (want !== null) read.value = (kind === "checkbox" ? active.checked : active.value) === want;
+                if (caret !== null) read.caret = active.selectionStart === caret;
+            }
+            active?.blur?.();
+            return read;
+        };
+        const read = {};
+        for (const [label, cls, open, settled = () => true] of OPENERS) {
+            const was = appOf(cls);
+            must(!was, `the ${label} window is open - close it: this test opens its own`);
+            const opening = Promise.resolve().then(open).catch(err => `threw: ${err.message}`);
+            try {
+                const opened = await until(() => appOf(cls) && settled(appOf(cls)), 6000);
+                if (!opened) { read[label] = `did not open: ${await Promise.race([opening, wait(50).then(() => "pending")])}`; continue; }
+                await wait(300);
+                const app = appOf(cls);
+                const regions = L.liveRegions(app);
+                if (!regions.length) { read[label] = "no live region"; continue; }
+                for (const r of regions) read[`${label} ${r.region}`] = await probe(app, r);
+            } finally {
+                await appOf(cls)?.close?.();
+                await Promise.race([opening, wait(3000)]);
+            }
+        }
+        const good = r => typeof r === "object" && r.rebuilt === true && r.focus !== false && r.value !== false && r.caret !== false && r.focused !== false;
+        must(Object.keys(read).length >= 12, `only ${Object.keys(read).length} regions were read: ${stableJson(read)}`);
+        equal(stableJson(Object.fromEntries(Object.entries(read).filter(([, r]) => !good(r)))), "{}",
+            `[the regions not drawn again at once with their field's focus, value and caret kept, of ${Object.keys(read).length} read: ${stableJson(read)}]`);
     }],
 
     ["R8012 - live.mjs on an artificial region: a select picked with the pointer redraws at once through its own `refresh()`, and a forced `refresh()` asked during a press stays forced when the press is let go (line P of 1.2.120; the owner, 21.11.2026: \"dziala dopiero po save, czyli okno investigation nie odswieza sie dalej poprawnie\"): a `change` inside the region ends the press; a forced redraw wanted under a press runs at its release though a select of the region holds the focus", async () => {

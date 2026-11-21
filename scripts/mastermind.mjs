@@ -697,6 +697,9 @@ export async function openMastermindDialog() {
             const wireGive = () => wireMastermindGive(dialog, current);
             wireGive();
 
+            /* The Hope box is redrawn at once with a field focused in it (the line claude/refresh-120, 21.11.2026; REFR-05;
+               the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): the amount typed is carried and has the focus
+               back (live.mjs `whileEditing`). Until then it waited for the focus to leave the box. R7972. */
             keepLive(dialog, {
                 region: ".drpg-mm-live",
                 /* The region's own element, wrapper and all (live.mjs replaces the region with the build's first element):
@@ -706,6 +709,7 @@ export async function openMastermindDialog() {
                 build: () => `<div class="drpg-mm-live">${hopeBox()}</div>`,
                 // A pool's debt changes with no actor's write (E05 C12): its store's hook.
                 watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
+                whileEditing: true,
                 after: wireGive
             });
         },

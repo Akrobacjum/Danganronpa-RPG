@@ -1622,6 +1622,17 @@ export function buildApplications(ctx) {
                 this.element.id = this.id;
                 // The frame's pointerdown raises its window, in the capture phase (above, THE WINDOWS' ORDER).
                 if (this.hasFrame) this.element.addEventListener("pointerdown", () => this.bringToFront(), { capture: true });
+                /* ApplicationV2's own "close" action (the line claude/refresh-120, 21.11.2026): a press on an element with
+                   `data-action="close"` in the window closes it, as v13's `#onClickAction` does (`case "close"`, a press with
+                   the main button) - from memory, not read off v14's source, as DialogV2's below (LIVE-E21-06). Until this
+                   line only DialogV2 answered it here, so a DrpgApp's footer Close - the notice history's - did nothing
+                   headless (probe 42's dead control on the audit of 1.2.118). DialogV2 keeps its own road (`_onSubmit`). */
+                if (!(this instanceof DialogV2)) this.element.addEventListener("click", event => {
+                    const target = event.target?.closest?.("[data-action]");
+                    if (target?.dataset?.action !== "close" || !this.element?.contains(target) || (event.button ?? 0) !== 0) return;
+                    event.stopPropagation();
+                    this.close();
+                });
                 this.element.classList.add("application", ...(this.options.classes ?? []));
                 if (this.element.tagName === "DIALOG") this.element.setAttribute("open", "");
                 // Foundry registers every rendered application here, and removes it on close.

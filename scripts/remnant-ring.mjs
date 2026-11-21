@@ -247,12 +247,16 @@ function showRemnantCard(app, element) {
     /* IN STEP WHILE IT IS OPEN (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R2; R7177), as a project's card is
        (projects-map.mjs `showProjectCard`): a player's card reads their own Truth Bullet, which an Analyze updates; a
        GM's the ledger (`remnantStore`) and the trace's token flags. It was written once, so an Analyze left the "?" and
-       the old words on an open card. A GM typing in it is not redrawn under the hand (live.mjs's focus rule). */
+       the old words on an open card. A GM typing in it is redrawn at once all the same (the line claude/refresh-120,
+       21.11.2026; REFR-05; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): what they typed is carried and
+       the field has the focus and its caret back (live.mjs `whileEditing`). Until then the card waited for the focus to
+       leave it. R7972. */
     liveRemnantCards.get(app)?.();
     liveRemnantCards.set(app, keepLive(app, {
         region: ".drpg-remnant-card",
         build: () => draw() ?? "",
         watch: { items: true, tokens: true, stores: [remnantStore] },
+        whileEditing: true,
         after: next => { if (game.user.isGM) wireCardEditing(next, token ?? actor); }
     }));
     // The window is sized for a stat block and this is a card.

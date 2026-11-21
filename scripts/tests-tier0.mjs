@@ -26871,6 +26871,34 @@ const REGRESSIONS = [
         ok(/\beclipse\b/.test(rule), `the Spectators' room rule does not ask the Eclipse: ${rule}`);
     }],
 
+    ["R7972 - every window's live region is redrawn with a field focused (the line claude/refresh-120; REFR-05, UI-17; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and, 21.11.2026, \"R1 niech leci od razu wszystkie okna\"): live.mjs `keepLive` defaults `whileEditing` to true, and no `keepLive(` call in scripts/ passes `whileEditing: false` but the ones named here with their reason - none today; at least 20 calls read", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118's REFR-05 residue, re-checked on 1.2.119: the
+         * case dashboard's region was the only `whileEditing` caller, and the Remnant card and the Hope box waited for the
+         * focus to leave them. The owner then asked for every window at once, so it is keepLive's default. What it does is
+         * R7970's, on a region of its own, and R7974's on every region of the windows it opens; this reads the default off
+         * live.mjs and every call's own options, cut from `keepLive(` to the call's first 1200 characters. Red on
+         * e515907d: the default false.
+         */
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
+        const signature = bodyOf(live, "export function keepLive(", { until: ") {" });
+        ok(/whileEditing = true\b/.test(signature), `keepLive does not default whileEditing to true: ${signature.slice(0, 200)}`);
+        /* A region that cannot follow the rule, by its file and selector, with the reading that says why. None today. */
+        const ALLOWED = {};
+        const calls = [], off = [];
+        for (const [file, text] of await otherSources()) {
+            if (file === "live.mjs") continue;
+            const code = stripComments(text);
+            for (const m of code.matchAll(/\bkeepLive\(/g)) {
+                const call = code.slice(m.index, m.index + 1200);
+                const region = /region:\s*("[^"]*"|`[^`]*`|[\w.]+)/.exec(call)?.[1] ?? "?";
+                calls.push(`${file} ${region}`);
+                if (/\bwhileEditing:\s*false\b/.test(call) && !ALLOWED[`${file} ${region}`]) off.push(`${file} ${region}`);
+            }
+        }
+        must(calls.length >= 20, `only ${calls.length} keepLive calls were read - this would measure too little`);
+        equal(JSON.stringify(off), "[]", `of ${calls.length} keepLive calls, these keep a focused field's hold without a reason named here`);
+    }],
     ["R7741 - every put-back of a token's spot writes through movement.mjs `putBackWrite`, which sends it with diff: false (the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
         /* TEXT GUARD: a put-back written while a newer move is in flight lost a coordinate to the writer's diff (76 D on the
            D4 shim); `putBackWrite` sends every coordinate it names, and since 19.11.2026 waits for the move in flight where the
