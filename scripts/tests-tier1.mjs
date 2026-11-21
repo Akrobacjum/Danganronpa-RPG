@@ -59965,11 +59965,10 @@ const INVARIANTS = [
          * 13.11.2026): action-tail.mjs 1 (Tail Someone's targets, after `othersInRoom`) and facilities-gm.mjs 1 (a room
          * action's "for those present", after `occupantsOf`), classified in CENSUS.md. Merged with r112 (1.2.112,
          * 13.11.2026): gm-team-dialog.mjs 2 (E101's `despairFlowMarkup`), classified in CENSUS.md. E56 part 2 (14.11.2026):
-         * monokuma.mjs 9 -> 8, E92 C1's `ownSpectator` removed (nothing called it); its CENSUS.md row says so. 1.2.122 line
-         * MURDER (21.11.2026): mask-gm.mjs 1 (`veilActorsList`, the audit's CASE-45), classified in CENSUS.md.
+         * monokuma.mjs 9 -> 8, E92 C1's `ownSpectator` removed (nothing called it); its CENSUS.md row says so.
          */
         const CENSUS = { "action-tail.mjs": 1, "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1, "facilities-gm.mjs": 1,
-            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "mask-gm.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
+            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
             "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 2, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
@@ -60354,31 +60353,6 @@ const INVARIANTS = [
         ];
         equal(stableJson(read), stableJson([true, true, false, false, false, false]),
             "[Hope, critical, Despair, a failure, a trap, self-inflicted] - whether the opening hides the killer");
-    }],
-    ["R8220 - while a killer stands behind a \"?\", a player's Actors list draws every student it does not own with the same \"?\" picture (scripts/mask-gm.mjs `veilActorsList`; the audit's CASE-45, 1.2.122 line MURDER): one masked student among three, a player owning one of the others: both entries they do not own wear the \"?\", their own keeps its face; for a GM, a Spectator, or with no mask standing nothing changes", async () => {
-        /* 21.11.2026, 1.2.122 line MURDER. The audit's CASE-45: the mask writes MASK_IMG onto the killer's Actor (E112 item
-           2b), so in every player's Actors list exactly one student wore the "?" beside their name. Stand-ins: a list root
-           drawn as Foundry's (`li[data-entry-id] img.thumbnail`), three students, users as plain objects; nothing written.
-           Red at 21bf5d18: mask-gm.mjs had no veilActorsList. */
-        const K = await import("./mask-gm.mjs");
-        ok(typeof K.veilActorsList === "function", "mask-gm.mjs has no veilActorsList: the Actors list names the masked killer");
-        if (typeof K.veilActorsList !== "function") return;
-        const player = { id: "u1", isGM: false }, gm = { id: "g", isGM: true };
-        const student = (id, img, owner = null) => ({ id, type: "character", img, testUserPermission: (u, level) => level === "OWNER" && u.id === owner });
-        const actors = [student("aMasked", K.MASK_IMG), student("aOther", "o.png"), student("aOwn", "own.png", "u1")];
-        const draw = list => {
-            const root = document.createElement("ol");
-            root.innerHTML = list.map(a => `<li class="directory-item entry" data-entry-id="${a.id}"><img class="thumbnail" src="${a.img}"><a>${a.id}</a></li>`).join("");
-            return root;
-        };
-        const pics = root => [...root.querySelectorAll("img")].map(i => i.getAttribute("src"));
-        const asPlayer = draw(actors), asGm = draw(actors), asSpectator = draw(actors);
-        const bare = [student("aOther", "o.png"), student("aOwn", "own.png", "u1")], noMask = draw(bare);
-        const n = [K.veilActorsList(asPlayer, { user: player, actors, spectator: false }), K.veilActorsList(asGm, { user: gm, actors, spectator: false }),
-            K.veilActorsList(asSpectator, { user: player, actors, spectator: true }), K.veilActorsList(noMask, { user: player, actors: bare, spectator: false })];
-        equal(stableJson({ n, player: pics(asPlayer), gm: pics(asGm), spectator: pics(asSpectator), noMask: pics(noMask) }), stableJson({
-            n: [1, 0, 0, 0], player: [K.MASK_IMG, K.MASK_IMG, "own.png"], gm: [K.MASK_IMG, "o.png", "own.png"], spectator: [K.MASK_IMG, "o.png", "own.png"], noMask: ["o.png", "own.png"]
-        }), "{pictures changed for a player, a GM, a Spectator, with no mask; each list's pictures after} - the masked student's entry looks like every other");
     }],
     ["R8221 - the pickers' veil and the voice tile's veil are one predicate, and their answers never differ (scripts/mask-gm.mjs `veilHidesHere`, `veiledFromHere`, `userVeiledFromHere`; visibility.mjs `voiceVeiledHere`; 1.2.122 line MURDER, a known gap since 1.2.119): on stand-in scenes - a veiled token this browser hides, a veiled one it shows, a token not veiled, a token on a second scene - asked of each student and of the one player owning it, as a player's browser and as a GM's, the two answer alike; `voiceVeiledHere` walks no tokens of its own", async () => {
         /* 21.11.2026, 1.2.122 line MURDER. `veiledFromHere` (an actor, mask-gm.mjs) and `voiceVeiledHere` (a user,

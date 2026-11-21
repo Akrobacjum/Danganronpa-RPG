@@ -279,9 +279,13 @@ function enterMovesOn(dialog) {
 /**
  * A player's sentence, made safe to store and print.
  *
- * THIS IS THE ONLY FREE TEXT A PLAYER WRITES INTO THE WORLD in this module, so
- * it is the only place that needs this, and it is worth being exact about what
- * each step is for rather than reaching for a general-purpose "sanitise".
+ * A RESHAPE'S WORDS ARE THE PLAYER'S FREE TEXT THAT REACHES A TRACE'S PUBLIC
+ * NAME AND DESCRIPTION, so they are cleaned here, and it is worth being exact
+ * about what each step is for rather than reaching for a general-purpose
+ * "sanitise". Not the only free text a player writes: a player's Remnant
+ * packet's `note` and `subject` are kept in the ledger cut to 400 and 80
+ * characters without this (remnants.mjs `placeRemnant`), and escaped where the
+ * GMs' cards print them (the audit's D20 of 1.2.122; this said "the only").
  *
  *   tags stripped   - the value ends up in a token's `name` and in a chat card.
  *                     Foundry escapes most of those paths and this module escapes

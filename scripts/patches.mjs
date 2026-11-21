@@ -860,17 +860,6 @@ export const PATCHES = [
         road: "a picture window (ImagePopout) opens on this browser",
         fallback: "none: the room picture's window shows Foundry's share control and any a module adds"
     }, () => (typeof foundry.applications?.apps?.ImagePopout === "function" ? true : null)),
-    hookRow({
-        id: "hook-actor-directory-render",
-        target: "renderActorDirectory",
-        owner: "foundry",
-        file: "mask-gm.mjs",
-        symbol: "registerMasks",
-        why: "While a killer stands behind a \"?\", a player's Actors list draws every student it does not own with the same \"?\" (the audit's CASE-45, 1.2.122).",
-        when: "always",
-        road: "the Actors list is drawn on a player's browser",
-        fallback: "none: in a player's Actors list the masked student's entry alone wears the mask's question mark beside their name"
-    }, () => (typeof foundry.applications?.sidebar?.tabs?.ActorDirectory === "function" ? true : null)),
 
     /* ---- Setting entries and flags (E52 C3, E52-10): read from enforced.mjs's ENFORCED and FOUNDRY_WRITES ---- */
     ...heldRows(),

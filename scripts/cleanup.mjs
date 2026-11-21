@@ -15,11 +15,13 @@
  * simply nothing that called any of it. This is the missing half.
  *
  * WHY THE SCORING RUNS ON THE GM'S CLIENT. Same reason as Observe (see
- * observe.mjs): the threshold comes from how visible the trace is, which is a
- * flag on a hidden token - and Foundry ships every token to every client, so the
- * killer's own browser physically holds the answer. Their client picks a target
- * and throws the dice; the number travels here, and the verdict, the deletion
- * and the new trace are all produced on this side.
+ * observe.mjs): the threshold comes from how visible the trace is, which is the
+ * band in the GMs' ledger (remnants.mjs, since the answer key left the tokens) -
+ * no player's browser holds it. Their client picks a target; the roll is drawn on
+ * the primary GM and its result read off the GMs' record of it (the bridge row's
+ * `rolled`, `cleanup` kind), and the verdict, the deletion and the new trace are
+ * all produced on this side (the audit's D9 of 1.2.122: this said a token's flag
+ * and a number that travels).
  *
  * WHAT IS NOT AUTOMATED. Whether the killer is standing in the right room, and
  * whether Stage 6 has gone on long enough - both the GM's, as everywhere else in
@@ -42,9 +44,11 @@
  *              an incident trace you watched being made (ACT-02, see
  *              `cleanupRefusal`). A killer in their own Stage 6 may wipe
  *              anything in the room, including traces nobody has found yet.
- *   WHAT IT    `PRICE_CHAINS.tamper` on both roads: an action, or a Sanity mark
- *   COSTS.     when there is no action. The killer on their own night skips
- *              the action step (`tamperPriceSkip`, D3) and pays the mark.
+ *   WHAT IT    `PRICE_CHAINS.tamper` on both roads, cut by `tamperPriceSkip`:
+ *   COSTS.     anybody's Tamper is one action, and with none left there is no
+ *              Tamper (E64: the Sanity step skipped); the killer on their own
+ *              night skips the action step (D3) and pays the mark (the audit's
+ *              D10 of 1.2.122: this said "or a Sanity mark" for everyone).
  *
  * The concealment roll happens on BOTH routes, and it is the one thing that can
  * still cost Sanity outside Stage 6. That is not the tile's price being
@@ -328,8 +332,9 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
      * price; and a reshaped trace's category said that somebody had reworked it. Off Stage 6
      * a trace this character holds a copy of is labelled by that copy's name, which is theirs
      * already, and by nothing of the ledger (`DRPG.Tamper.yourCopy`). One they watched being
-     * made keeps its label: only the running incident's own traces reach this list that way,
-     * and its category is the incident they stood in. Stage 6's whole room keeps the whole
+     * made keeps its label: what reaches this list that way is every Incident Remnant in the
+     * room for a seat of the running incident (`watched`), an earlier incident's in the same room included
+     * (the audit's D11 of 1.2.122; `cleanupRefusal` reads the same), and its category is an incident's. Stage 6's whole room keeps the whole
      * label - the guide opens the killer's eyes to their own scene.
      */
     const copies = unfiltered ? null : copyNamesOf(actor);
@@ -571,8 +576,9 @@ async function cleanupTrait(actor, key, viaAction) {
 /**
  * Attempt to erase one trace.
  *
- * Costs Tamper's price chain (T-1): an action, or a Sanity mark when there is no
- * action. The killer on their own night starts at the mark, as the guide has it:
+ * Costs Tamper's price chain (T-1) as `tamperPriceSkip` cuts it: one action, and
+ * since E64 no Sanity step for anybody but the killer on their own night, who
+ * starts at the mark, as the guide has it:
  * Stage 6 is not part of the day's economy, and a killer with nothing left to
  * give simply cannot keep scrubbing. Refused before the dice when the chain
  * cannot be paid, so nobody rolls for something they cannot pay for.
@@ -611,8 +617,8 @@ export async function attemptCleanup(actor, tokenId, {
      *
      * Tamper used to cost an action AND a Sanity mark - the action here, the mark
      * on the GM's side - which made the tile more expensive than the stage rule
-     * it was standing in for. It is a chain now: an action, or a Sanity mark when
-     * there is no action, and the killer on their own night starts at the mark.
+     * it was standing in for. It is a chain now: an action (with none left, no
+     * Tamper since E64, `tamperPriceSkip`), and the killer on their own night starts at the mark.
      *
      * THE ORDER IS THE RULE. Refused before the dice, because an action that
      * takes a price it cannot take either forgives it silently or breaks somebody
@@ -850,10 +856,12 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
 }
 
     /*
-     * G-20: THE CRITICAL'S SECOND OPTION.
+     * G-20: THE CRITICAL'S SECOND OPTION. Asked in `resolveEraseRoad` below
+     * (its `rewrite`), not here: this note stands above the transform road, which
+     * is the other one (the audit's D13 of 1.2.122).
      *
      * Checked before the removal rather than instead of it, and every clause
-     * here is load-bearing:
+     * there is load-bearing:
      *
      *   the outcome must allow it   - `mayTransform`, so the permission lives
      *                                 in the rules table with everything else
@@ -863,8 +871,10 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
      *                                 the GM placed to make the case solvable
      *                                 into whatever the killer fancied.
      *
-     * Reinforced traces never get here: they are refused above, before the
-     * Sanity is spent, and a critical does not lift that.
+     * Reinforced traces never get there: `cleanupRefusal` refuses them before
+     * the GM's side charges anything, and what the roller's browser paid before
+     * the dice comes back with the refusal (`refundRefused`); a critical does not
+     * lift that.
      */
     /*
      * THE TRANSFORM ROAD'S OWN VERDICT (Z5).
@@ -1220,7 +1230,8 @@ export async function resolveCleanup({
 
     // THE SERVER-SIDE PRICE - see the long note in `resolveStageSix`. A client
     // that paid the chain and says which step is not charged again; a packet with
-    // no claim pays the Sanity here, as every packet used to.
+    // no claim pays here (`chargeUnclaimed`): an action through Tamper's door, the
+    // Sanity only on Stage 6's own road (the audit's D12 of 1.2.122).
     let paidStep = validPrice(price, { viaAction });
     const free = replayFree || await consumeFreeCleanup(actor);
     receipt.free = free;
@@ -1781,8 +1792,8 @@ export async function resolveStageSix({
      *
      * IT KEEPS THE PRICE, where the two refusals below give it back (E09 fix
      * r2-G3, 08.10.2026; review round 2 sec S2-3). No sheet sends this packet:
-     * the Tamper tile offers the trail alone (action-rolls.mjs, `attemptStageSix`
-     * with `viaAction`), and Move the body is Stage 6's own panel's, which never
+     * the Tamper tile offers the trail alone (action-tamper.mjs since E41 C4,
+     * `attemptStageSix` with `viaAction`), and Move the body is Stage 6's own panel's, which never
      * claims the tile's door - so one that arrives was written by hand, and what
      * it paid on the way, if anything, is not an honest killer's.
      */
@@ -1838,9 +1849,10 @@ export async function resolveStageSix({
      * A legitimate client has already paid the chain and says which step, so
      * charging here would be the second price this commit exists to delete. But
      * `requestCleanup`'s socket branch checks only that the sender owns the actor,
-     * so a forged packet can simply omit the step - and then the Sanity is taken
-     * here, exactly as it was before. One price per attempt, and the GM decides
-     * which when the claim is missing.
+     * so a forged packet can simply omit the step - and then the price is taken
+     * here (`chargeUnclaimed`: the Sanity on this road, an action through Tamper's
+     * door). One price per attempt, and the GM decides which when the claim is
+     * missing (the audit's D12 of 1.2.122).
      */
     let paidStep = validPrice(price, { viaAction });
     const free = await consumeFreeCleanup(actor);
@@ -2536,8 +2548,9 @@ async function spendStress(actor) {
  * this attempt is the one a critical Finishing blow paid for, and if it is, spent - the first
  * attempt that reaches its price, hit or miss, and no other. Asked where each attempt pays
  * (`resolveCleanup`, both roads, and `resolveStageSix`), after every refusal, so a refused
- * attempt keeps it. GM-side: the grant is in the GMs' cast (murder.mjs `freeCleanup`, held
- * null in every player's copy).
+ * attempt keeps it. GM-side: the grant is in the GMs' cast (murder.mjs `freeCleanup`), and since
+ * fix r2-G3 the killers' copies hold it too (incident-store.mjs `castCopyFor`), which `tamperQuote`
+ * reads; every other player's copy holds it null (the audit's D7 of 1.2.122).
  */
 async function consumeFreeCleanup(actor) {
     if (!game.user.isGM || !actor) return false;
@@ -2621,9 +2634,9 @@ async function report(actor, data, {
         ${summary ? `<ul>${summary}</ul>` : ""}
         ${charged
             // What was really taken, rather than which door the attempt came
-            // through: since T-1 the two no longer decide each other (a killer
-            // pays Sanity from the tile, and an investigator in Stage 6's window
-            // pays an action).
+            // through: since T-1 the two no longer decide each other (the killer
+            // on their night pays Sanity, from the tile or Stage 6's window, which
+            // takes nobody else; anyone else pays an action from the tile).
             ? `<p><small>${paidLine(charged)}</small></p>`
             : free ? "" : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
                 n: RESOLUTION_STRESS_COST })}</small></p>`}`,

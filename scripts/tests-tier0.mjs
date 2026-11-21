@@ -26855,7 +26855,8 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const over = fnSource(stripComments(sources.get("overflow.mjs") ?? ""), "announceOverflow");
         ok(/murderState\(\)/.test(over) && /incidentAudienceIds\(/.test(over) && /veiled:\s*true/.test(over), "announceOverflow posts a darkening to the whole table while an incident runs");
-        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipse");
+        // The end's body is `endEclipseNow` since 1.2.122 (`endEclipse` lets go of the lights' dice around it, r121-K-3).
+        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipseNow");
         ok(/murderState\(\)/.test(end) && /DRPG\.Eclipse\.ended/.test(bodyOf(end, "if (advance)", { until: "} else {" })), "endEclipse tells the bystanders nothing of the lights coming back while an incident runs");
     }],
     ["R7182 - the third of an incident was there, for the discovery as for its sound (E59 C-115, CHAINS.md B-M4; Q-115-9, the coordinator's word: GM 13.4's rule, \"that body's own killers or the third of its incident (they were there)\"): body.mjs `inThatDeath` read the running incident's third alone, gone at the close, and the discovery's witnesses (`checkBodyFound`'s `involved`) never left the third out; the close (murder-rules.mjs `closeIncident`) keeps the third and whoever walked out of the incident on the victim's death row (its `keepThoseThere`, the row's `there`), `inThatDeath` reads the row and the running incident's `departed` too, and `involved` asks `inThatDeath` of the body lying here", async () => {

@@ -6,10 +6,12 @@
  * opening roll succeeds with Hope, or is a critical (`opensMask`), hides its killer until they reveal themselves or the
  * time of day ends:
  *
- *   - THE "?" TOKEN. The primary GM rewrites the killer's tokens on every place scene (`maskPatch`): the name "?", the
- *     texture Foundry's mystery man, no ring, no name or bars drawn, and one flag, `masked: true`, which says that this
+ *   - THE "?" TOKEN. The primary GM rewrites the killer's tokens on every scene, the trial hall's included (`tokensOf`,
+ *     `maskPatch`): the name "?", the module's own "?" picture (`MASK_IMG`, icons/mask-unknown.svg since 1.2.116), no ring, no name or bars drawn, and one flag, `masked: true`, which says that this
  *     token is hidden and nothing about whose it is. What it looked like is kept in the GMs' store `masks` alone
  *     (gm-stores.mjs `maskStore`), never in a flag or a world setting, and written back at the end (`restorePatch`).
+ *     The Actor's portrait wears the same "?" since E112 item 2b, kept on the row and written back (`portraitOf`,
+ *     `portraitBack`; the audit's D271 of 1.2.122: this header did not say so).
  *     A GM's browser, and a Spectator's (the coordinator's default: a Spectator sees through it, as it sees secret
  *     projects), draws the character's own name over the "?" (`drawMaskName`), from the documents it already holds.
  *   - THE VOICE. The killer is sent to a silent room of their own (voice.mjs `maskedRow`; the coordinator's answer of
@@ -34,7 +36,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion, markFired } from "./utils.mjs";
+import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
 import { count } from "./perf-counters.mjs";
 
@@ -74,7 +76,7 @@ export function lookOf(token) {
  * The patch that masks a token. Pure (R6029). THE RING'S SUBJECT TOO (owner-115 item 1b, 14.11.2026; the coordinator's road
  * (a)): a v14 token's dynamic ring draws its own subject texture (`ring.subject.texture`, fvtt-types 14.370
  * client/documents/token.d.mts RingSubjectSchema, null for the token's own picture), which the patch left, so a ring put
- * back on by anyone kept the killer's art. It wears the mystery man as well, and gets its own back (R7402).
+ * back on by anyone kept the killer's art. It wears the mask's "?" (`MASK_IMG`) as well, and gets its own back (R7402).
  */
 export function maskPatch() {
     return { name: MASK_NAME, "texture.src": MASK_IMG, "ring.enabled": false, "ring.subject.texture": MASK_IMG, displayName: DISPLAY_NONE,
@@ -773,39 +775,8 @@ export function seenHere(actors, options = {}) {
 let spectatorViewerOf = () => false;
 const isSpectatorViewer = () => spectatorViewerOf();
 
-/**
- * THE ACTORS LIST LOOKS ALIKE WHILE A MASK STANDS (the audit's CASE-45, 1.2.122). The mask writes its "?" onto the
- * killer's Actor (E112 item 2b, for the sheet, the voice tile, a roll's header and the boards), and every player sees
- * every student in Foundry's Actors list under "Keep character sheets anonymous" - so exactly one entry wore the "?"
- * beside its own name. On a player's browser that is no Spectator, while any student wears the "?", every other
- * student's entry this user does not own is drawn with the same "?" picture, the masked one among them; a GM and a
- * Spectator see the list as it is. Only the drawn list: no document is written. Answers how many pictures it changed
- * (R8220). Red at 21bf5d18: there was no such pass, the masked student's entry alone wore the "?".
- */
-export function veilActorsList(root, { user = game.user, actors = game.actors, spectator = isSpectatorViewer() } = {}) {
-    if (!root?.querySelectorAll || !user || user.isGM || spectator) return 0;
-    const students = [...(actors ?? [])].filter(a => a?.type === "character");
-    if (!students.some(a => a.img === MASK_IMG)) return 0;
-    let n = 0;
-    for (const actor of students) {
-        if (actor.testUserPermission?.(user, "OWNER")) continue;
-        for (const img of root.querySelectorAll(`[data-entry-id="${CSS.escape(actor.id)}"] img`)) {
-            if (img.getAttribute("src") === MASK_IMG) continue;
-            img.setAttribute("src", MASK_IMG);
-            if (img.dataset?.src) img.dataset.src = MASK_IMG;
-            n++;
-        }
-    }
-    return n;
-}
-
 /** At ready: the primary's end at a new time of day, the GMs' and Spectators' names, the killer's question. */
 export function registerMasks() {
-    // The Actors list (the audit's CASE-45): every entry alike on a player's browser while a mask stands.
-    Hooks.on("renderActorDirectory", (app, element) => {
-        markFired("renderActorDirectory");
-        try { veilActorsList(element instanceof HTMLElement ? element : element?.[0]); } catch (err) { error("Could not draw the Actors list behind the mask", err); }
-    });
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) masksAtNewTimeOfDay().catch(err => error("The masks could not end with the time of day", err));
     });

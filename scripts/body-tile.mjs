@@ -171,7 +171,11 @@ export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = a 
         via: "token", doc: place.tokenDoc ?? null };
 }
 
-/** The room `actor`'s body lies in (`bodyPlaceOf`'s), or null. The one reader of "the body's room" (E72 amend[16]). */
+/**
+ * The room `actor`'s body lies in (`bodyPlaceOf`'s), or null (E72 amend[16]). Called by no module code today - the suite
+ * and scenario 78 read it; body.mjs, frisk.mjs's road and this file's followers read `bodyPlaceOf` (the audit's D48 of
+ * 1.2.122: this called it "the one reader").
+ */
 export function bodyRoomOf(actor, options = {}) {
     return bodyPlaceOf(actor, options)?.room ?? null;
 }

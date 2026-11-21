@@ -46,7 +46,8 @@
  * `node tools/moved-only.mjs` proves line by line. Above it are murder-ui.mjs,
  * which reads five of its names (`openMurder`, `rollOpening`, `passTurn`,
  * `endMurder`, `openingInvited`), and murder.mjs, which re-exports the
- * thirty-one names of this file it exported before, so importers keep importing
+ * names of this file it exported then (thirty-two, counted on 21.11.2026:
+ * `openingProposalFor`, E68 C9 0f9a9a53, came after 1.2.70), so importers keep importing
  * murder.mjs; nothing here imports either back: R161 counts an `export ... from`
  * as an edge, and the import would close a cycle. Below it are
  * incident-store.mjs, config.mjs, monokuma.mjs, settings.mjs, gm-stores.mjs,
@@ -234,7 +235,9 @@ function isFreeTake(def, side, state) {
  * WINDOW AND THE JUDGE (E51 C1; the owner's amendment of 14.10): the menu's "Beat N" (`availableCrisisActions`), the
  * `dc` `takeCrisisAction` hands the roll window, read at the roll and not when the menu opened, and the GM's
  * `applyCrisisAction`, which scores the total against it on the GM's own state - the window's number is what the
- * player is told, never what is judged.
+ * player is told, never what is judged. One reading on one state: a copy of the cast that names no killer (a mask, a
+ * trap) reads a lower number than the GM's, and says a hidden defence is added (`crisisDefenseHidden`, 1.2.121's
+ * CASE-16; the audit's D1 of 1.2.122).
  */
 export function crisisThreshold(key, state = murderState(), { traitOf } = {}) {
     const def = CRISIS_ACTIONS[key];
@@ -1971,7 +1974,7 @@ async function applyCrisisAction({
     // The third party's decisions are "automatyczny, darmowy wybór" - free in
     // the guide's own words - so they are exempt from the Sanity a resolution
     // action normally costs, exactly as they are exempt from the check for it
-    // in `takeCrisisAction`.
+    // in `crisisRefusal` (since E03; `takeCrisisAction` asks it there).
     if (def.kind === "resolution" && !def.noRoll) await spendStress(actor, done);
 
     // Before the card is written, so "they run out" is on the same card as the
@@ -3099,7 +3102,7 @@ async function spendStress(actor, done) {
      *
      * This branch used to be `return` - the action went through and cost
      * nothing, which was the quiet half of the same deadlock the guard in
-     * `takeCrisisAction` describes: a victim on an empty stress track got their
+     * `crisisRefusal` describes (moved there from `takeCrisisAction` by E03): a victim on an empty stress track got their
      * way out free, and the incident lost the one currency that was still
      * moving it towards an ending.
      *
@@ -4481,13 +4484,20 @@ async function announceCrisis(actor, def, { key = null, success, band, total, th
     return { card, hiddenCopy };
 }
 
-/** Whether `userId`'s own copy of the cast hides the defence of crisis row `key` (`crisisDefenseHidden`): never a GM's. */
+/**
+ * Whether `userId`'s own copy of the cast hides the defence of crisis row `key` (`crisisDefenseHidden`): never a GM's.
+ * THE COPY'S OWN SEATS, NOT THE GMS' (the auditor's r121-K-1, 1.2.122): the copy was laid over the GMs' state, so a
+ * reader whose copy holds no seat at all - a third whose Escape Together failed has left (`thirdLeaves`) before the
+ * card is written, and is sent it as its actor (`also`) - read the GMs' killer and was sent the full line, the killer's
+ * Leg in it, in a trap or behind a mask. The ids are the copy's alone now: a seat the copy does not name is hidden.
+ * Red at 749b35b5 (tier 2 "1.2.122 r121-K-1"): the third's card held the threshold.
+ */
 function defenseHiddenFor(userId, key, state) {
     const user = game.users.get(userId);
     if (!user || user.isGM) return false;
     const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const copy = castFor(userId, readCast(), world);
-    return crisisDefenseHidden(key, { ...state, ...world, ...copy, active: true, stage: "incident" });
+    const copy = castFor(userId, readCast(), world) ?? {};
+    return crisisDefenseHidden(key, { ...state, ...world, ...copy, killerId: copy.killerId ?? null, victimId: copy.victimId ?? null, active: true, stage: "incident" });
 }
 
 /**

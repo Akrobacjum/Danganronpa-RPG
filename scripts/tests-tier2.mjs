@@ -9010,10 +9010,79 @@ const SCENARIOS = [
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
             await settle();
         }
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(r => r.text());
-        const maps = /if \(applied === "gone"\) return settled\("DRPG\.Cleanup\.reshapeSettledGone"\);/.test(fnSource(src.replace(/\r\n/g, "\n"), "ruleApproveReshape"));
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText);
+        const maps = /if \(applied === "gone"\) return settled\("DRPG\.Cleanup\.reshapeSettledGone"\);/.test(fnSource(src, "ruleApproveReshape"));
         equal(stableJson([answers, whispers, maps, game.i18n.localize("DRPG.Cleanup.reshapeSettledGone") !== "DRPG.Cleanup.reshapeSettledGone"]), stableJson([["gone"], 1, true, true]),
             "[the ruling's answer for a Remnant gone, the whispers to the roller, the card settling on it, its sentence]");
+    }],
+    ["1.2.122 r121-K-1 - a third whose Escape Together fails in a trap is not sent the killer's Leg (scripts/murder-rules.mjs `announceCrisis`, `defenseHiddenFor`; the auditor's r121-K-1 of 1.2.121, 1.2.122 line MURDER): the third's card says the total, the number shown with the hidden defence and the miss, with no threshold; the GMs' copy keeps the full line", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The auditor's r121-K-1: the third left the incident (`thirdLeaves`) before the
+         * card, and `defenseHiddenFor` laid their empty copy over the GMs' state, so it read the killer and sent them the
+         * full "total < threshold" - in a trap, the hidden builder's Leg (the defence's cap is 1: one bit). A trap is
+         * opened, its opening missed, a third walks in and fails Escape Together on 1; the words this GM sends are read
+         * (`wordsSent`). Put back: the incident, the clock. Red at 749b35b5: the third was sent "1 < <threshold>".
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a trap's builder, its victim and a third, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim, third] = livingStudents().filter(player);
+        const clock = getClock();
+        const read = {};
+        try {
+            await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            await M.thirdPartyEnters(third);
+            await settle();
+            must(M.murderState()?.thirdId === third.id, `the third did not walk in: ${stableJson(M.murderState())}`);
+            const words = await wordsSent(async () => {
+                await M.resolveCrisisAction({ actorId: third.id, key: "sharedEscape", total: 1, isCritical: false, withHope: true });
+                await settle();
+            });
+            const text = w => w.html.replace(/<[^>]+>/g, " ").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
+            const toThird = words.filter(w => w.to.includes(player(third).id)).map(text);
+            read.sent = toThird.length > 0;
+            read.threshold = toThird.some(t => /(≥|<|>=)\s*\d+/.test(t));
+        } finally {
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ sent: true, threshold: false }), "{the third's player sent the card, a line with a threshold on it}");
+    }],
+    ["1.2.122 r121-K-3 - the watches' dice held at the Eclipse's end are let go when the end throws before the lights (scripts/eclipse.mjs `endEclipse`; watch-gm.mjs `holdForTheLights`, `heldAtTheLights`, `releaseTheLights`; the auditor's r121-K-3 of 1.2.121, 1.2.122 line MURDER): an Eclipse whose end fails at the clock's write leaves no die held", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The auditor's r121-K-3: the dice are held as the Eclipse ends and let go in the
+         * judgement's `finally`; a throw between the two left them held, so a murder opened later at no lights read this
+         * Eclipse's watches. An Eclipse is set on the clock; the setting's write of the clock is made to throw once for the
+         * end's own write (`eclipse: false`); `endEclipse({ advance: false })` is called. Read: what `heldAtTheLights` says
+         * after. Put back: the settings' write, the clock. Red at 749b35b5: 0 - a die held.
+         */
+        needs(env.primaryGm(), "the Eclipse is ended on the primary GM");
+        const E = await import("./eclipse.mjs");
+        const W = await import("./watch-gm.mjs");
+        const [student] = cast(1);
+        const clock = getClock();
+        const set = game.settings.set;
+        let threw = null, held = "unread";
+        try {
+            await setClock({ ...clock, eclipse: true });
+            await settle();
+            game.settings.set = function (scope, key, value, ...rest) {
+                if (key === SETTINGS.clock && value?.eclipse === false) { game.settings.set = set; throw new Error("SUITE 1.2.122 r121-K-3 the clock's write fails"); }
+                return set.call(this, scope, key, value, ...rest);
+            };
+            try { await E.endEclipse({ advance: false }); } catch (err) { threw = String(err?.message ?? err); }
+            game.settings.set = set;
+            held = W.heldAtTheLights(student.id);
+        } finally {
+            game.settings.set = set;
+            W.releaseTheLights();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson([Boolean(threw), held]), stableJson([true, null]), `[the end threw, the die held for a murder opened after it]: ${threw}`);
     }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
@@ -43034,7 +43103,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson([[null, true], [null, true], [true, false, true, true, true], [true, [0, 0], true], null]),
+        // The last: "gone" since 1.2.122 (the audit's CTRL-55), the answer a reshape card settles on; null until then.
+        equal(stableJson(read), stableJson([[null, true], [null, true], [true, false, true, true, true], [true, [0, 0], true], "gone"]),
             "a reshape's ruling ran for a player, on a reinforced trace or on none, wrote unbounded words, or a decline moved "
                 + "the resources ([the console's answer, the name unchanged], [on a reinforced trace], [approved, markup in the name, "
                 + "the name and the description within their limits, the name the proposal's], [declined, Sanity and actions moved, "
@@ -48039,7 +48109,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const ghost = await cleanup.applyReshapeRuling({
                 actorId: who.id, tokenId: id, name: "Ghost", text: "Nothing."
             });
-            ok(!ghost, "the approval claimed to relabel a trace that no longer exists");
+            // "gone" since 1.2.122 (the audit's CTRL-55): the card settles on it, and nothing is relabelled.
+            ok(ghost === "gone", "the approval claimed to relabel a trace that no longer exists, or did not say it is gone");
 
             // ---- a card from dice a Reroll replaced rules on nothing -------
             // (review of stage D) Card #1 is raised, a Reroll replays the attempt

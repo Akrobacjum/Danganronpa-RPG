@@ -30,7 +30,8 @@
  * WHERE IT SITS. Moved out of murder.mjs by E34 (1.2.70) in two commits, C7a and
  * C7b, a pure move that `node tools/moved-only.mjs` proves line by line. Above it
  * are murder-rules.mjs and murder-ui.mjs, which read it, and murder.mjs, which
- * re-exports the thirty-three names of this file it exported before, so importers
+ * re-exports this file's names it exported then (thirty-four, counted on 21.11.2026:
+ * `clockHiddenHere`, f7ac1e9d, came after 1.2.70, against the facade rule), so importers
  * keep importing murder.mjs; nothing here imports any of the three back: R161
  * counts an `export ... from` as an edge, and the import would close a cycle.
  * Below it are config.mjs, monokuma.mjs, settings.mjs, gm-stores.mjs,

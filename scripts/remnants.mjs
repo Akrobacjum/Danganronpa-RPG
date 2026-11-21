@@ -185,8 +185,8 @@ const TINTS = {
  * word is the ledger's own DC lookup key (`observeDc`'s `OBSERVE_TYPE_ALIAS`),
  * and a player told "Obvious" or "Hidden" for their own trace could compare
  * it against later finds and back out what type each one really was - the
- * same leak `difficultyTag` exists to close on the finder's side of the same
- * question.
+ * leak the difficulty band once carried on the finder's side, which went with
+ * `difficultyTag` (the block above; the audit's D19 of 1.2.122).
  *
  * @param {{isCritical?: boolean, withHope?: boolean}} roll
  * @param {*} placed  What `dropRemnant`/`placeRemnant`/`retuneRemnant`
@@ -636,8 +636,9 @@ export function traceRowOf(data = {}, { x, y, level = null, id = null, sceneId =
             itemIdentity,
             sourceActor, sourceName, room, chapter, day, timeOfDay,
             epoch,
-            // Kept for the GM's own screens, which used to read it off the
-            // token's name - see `label` in `placeRemnant`.
+            // Worded once, at the placing (see `label` in `placeRemnant`), and read by no
+            // screen today: `remnantData` does not hand it on (the audit's D18 of 1.2.122;
+            // the migration's fill of it apart). Kept so a row says what it was placed as.
             label,
             // WHEN, in real time, so a Reroll can be held to a trace it
             // could have made (`removalRefusal`, bridge-guards.mjs, asked by
@@ -1107,10 +1108,9 @@ export async function adoptQuestionMark(actor = findRemnantActor()) {
 }
 
 /* ==========================================================================
- * QUERYING
+ * QUERYING - everything recorded on a Remnant, as a plain object, is `remnantData`, below the ledger's section (the
+ * audit's D17 of 1.2.122: a doc comment stood here alone over a section header).
  * ========================================================================== */
-
-/** Everything recorded on a Remnant, as a plain object. */
 
 /* ==========================================================================
  * WHAT A REMNANT REALLY IS

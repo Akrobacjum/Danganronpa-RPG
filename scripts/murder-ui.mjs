@@ -589,11 +589,11 @@ function incidentSignature(now) {
     return now ? [now.stage, now.selfInflicted].join("|") : null;
 }
 
-/** The footer, by stage: re-ask the opening roll, pass the turn, end the incident, close. */
-/*
- * THE FOOTER BY ROLE (E21 C2a, E22; the owner's Q-E21-1 b): Pass the turn the primary and the default; the re-ask
- * secondary; End the murder destructive - it asks first, and is never the default; Close, since the tracker answers
- * nothing (E21 rule 3).
+/**
+ * The footer, by stage: Silence now, re-ask the opening roll and Pass the turn as ways on (secondary), End the murder
+ * destructive - it asks first, and is never the default - and Close the default, since the tracker answers nothing (E21
+ * rule 3). Pass was the primary and the default until E22 C3b, which made Close the default (the note at the return
+ * below; the audit's D5 of 1.2.122: this header still named the older footer).
  */
 export function incidentButtons(state, { silence = false } = {}) {
     const list = [

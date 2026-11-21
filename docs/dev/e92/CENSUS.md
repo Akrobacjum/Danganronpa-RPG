@@ -28,7 +28,6 @@ ones.
 | --- | --- | --- |
 | action-tail.mjs `tailTargets` (E69, merged 13.11) | whom a character may tail in its room | leave it out, already: it filters movement.mjs `othersInRoom`, which counts no Spectator present (`countsAsPresent`, C1); the tier-2 test "E92+E93" holds it |
 | anonymity.mjs:468 `myCharacter` | this account's own character | character here |
-| mask-gm.mjs `veilActorsList` (1.2.122 line MURDER, the audit's CASE-45, 21.11.2026) | every character's entry in a player's Actors list drawn with the mask's "?" while a mask stands, a Spectator's too, so no entry stands out | character here |
 | camera-view.mjs:235, 239 | a GM's Monokuma; a player's own character for the camera | character here |
 | cleanup.mjs:3049 | a refund log line | character here |
 | config.mjs:231 | a comment | - |
