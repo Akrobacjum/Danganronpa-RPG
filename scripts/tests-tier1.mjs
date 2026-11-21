@@ -17627,6 +17627,22 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true]), "the push-to-talk line did not follow the binding ([the old key at the build, the new one after the bindings' write])");
     }],
 
+    ["R8274 - after the vote has opened, a floor opened again before the verdict plays its own music, an Objection's and a debate's too, and the vote's comes back when it ends (music-states.mjs `voteMusicPlays`; 1.2.122, the audit's STG-95)", async () => {
+        /*
+         * The audit of 1.2.118 (STG-95): voteMusicPlays held from the vote's first opening to the verdict, and its row
+         * stands after the modes' own rows and before trial.objection and trial.debate - so a mode with its own playlist
+         * played it, while a reopened debate or an Objection played the vote's. Pure over what is handed in: a record
+         * whose vote opened, a Class Trial's clock, the vote mapped; no floor, a debate, an Objection. Red at 21bf5d18:
+         * true for all three.
+         */
+        const S = await import("./music-states.mjs");
+        const record = { chapter: 3, voteOpenedAt: 1, verdictApplied: false };
+        const clock = { phase: "classTrial", chapter: 3 };
+        const mapped = key => key === "trial.vote";
+        const read = [null, { mode: "nonstopDebate" }, { mode: "objection" }].map(floor => S.voteMusicPlays(record, clock, { mapped, floor }));
+        equal(stableJson(read), stableJson([true, false, false]), "the vote's music played over a floor opened after it ([no floor, a debate, an Objection])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
