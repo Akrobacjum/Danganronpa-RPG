@@ -67094,6 +67094,25 @@ const INVARIANTS = [
         stableJson({ answers: [true, false], watched: true, kitchen: false, student: true, write: true, again: null }),
         "{answers: a Spectator's card redrawn, a student's left; watched: drawn as this browser's card; kitchen: the words gone; student: left as posted; write: the primary's words; again: none for its own card}");
     }],
+    ["R8630 - a pane the curtain moves keeps its glass (the owner at the table, 21.11.2026, OWNER-123-CURTAIN: tiles lost their colour or texture at a move; 1.2.123 line UI): glass.mjs `carryPaneLook` hands a pane of the new cut the `hsh` and `lum` of the old pane it is, moved, and none to a pane the recut made or cut down; `paintGlass` reads them before its centre's hash, and the curtain's recut calls it before it replaces its panes", async () => {
+        /* Red at 19e0f39c: no `carryPaneLook`, and `paintGlass` took every pane's tint, stain and pulse from a hash of its
+           box's centre, so a pane moved 0.6 px could lose its stain (docs/dev/ui123/pane-keep.mjs, Chromium: every moved
+           pane took new numbers at 1366x768, 1600x900 and 1920x1080, GM and player). */
+        const G = await import("./glass.mjs");
+        must(typeof G.carryPaneLook === "function", "glass.mjs has no carryPaneLook - a pane a recut moves draws a new colour and maybe no texture");
+        const sq = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+        const prev = [{ poly: sq(0, 0, 100, 100), hsh: 0.9, lum: 0.3 }, { poly: sq(100, 0, 200, 100), hsh: 0.1, lum: 0.7 }];
+        const next = [{ poly: sq(0.6, 0, 100.6, 100) }, { poly: sq(130, 0, 230, 100) }, { poly: sq(0, 100, 200, 200) }, { poly: sq(0, 0, 40, 100) }];
+        const kept = G.carryPaneLook(next, prev);
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("glass.mjs") ?? "");
+        must(src.length > 50000, "glass.mjs read as nothing - this would measure nothing");
+        equal(stableJson({ kept, seeds: next.map(p => [p.seed ?? null, p.lumSeed ?? null]),
+            reads: [/const hsh = p\.seed \?\? hash\(/.test(src), /const lum = p\.lumSeed \?\? hash\(/.test(src), /p\.hsh = hsh; p\.lum = lum;/.test(src)],
+            recut: /if \(!same\) \{ carryPaneLook\(panes, job\.panes\); job\.panes = panes;/.test(src) }),
+        stableJson({ kept: 2, seeds: [[0.9, 0.3], [0.1, 0.7], [null, null], [null, null]], reads: [true, true, true], recut: true }),
+        "{kept: two panes moved; seeds: moved 0.6 px, moved 30 px, a new pane, a pane cut to 0.4 of the old; reads: paintGlass's two numbers and the lum kept; recut: carried before the panes are replaced}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */
