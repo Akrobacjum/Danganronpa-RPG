@@ -26578,6 +26578,9 @@ const REGRESSIONS = [
         const names = W.windowNames(sites);
         must(names.length >= 150, `only ${names.length} window(s) read in scripts/ - this would measure too little`);
         ok(names.includes("notice-history-app.mjs NoticeHistoryApp") && names.includes("trial-floor-ui.mjs confirmReveal"), `the census misses the notice history or the Reveal question (R1044): ${names.slice(0, 8).join(", ")} ...`);
+        // A window opened through a conditional callee, `(columns ? actionWindow : drpgWindow)({` (1.2.122, the audit's CTRL-65).
+        const callee = ["call-gm.mjs askForRequest", "action-menus.mjs chooseVariant", "action-menus.mjs promptForNote"].filter(name => !names.includes(name));
+        equal(JSON.stringify(callee), "[]", "the census misses a window opened through a conditional callee");
         const r = W.rootRule(sites);
         equal(r.read.length, names.length, "the rule did not judge every window it read");
         const stale = W.ROOT_OUTSIDE.filter(o => !sites.some(s => s.label === o.label && o.kind.test(s.kind))).map(o => o.label);
