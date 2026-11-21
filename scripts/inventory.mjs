@@ -1370,6 +1370,19 @@ export function registerInventoryLimits() {
         }));
         return false;
     });
+    /* THE GEAR SHAPE ON FOUNDRY'S OWN CREATE (1.2.122 line ITEMS; the audit's ITEM-04). D4 (13.09.2026) chose to
+       ready a Gear on every way in, and each module road ends on `keepGearShape` (`grantItem`, `retrieve`); a drop from
+       a compendium, the sidebar or another sheet is Foundry's create, which the hook above held to the slots alone, so
+       two Gear could stand stowed for good (tier 2 "1.2.122 ITEM-04", red at 21bf5d18). Run on the browser that made
+       the item and only for a create no module road stamped (`drpgAutomated`, resource-guard.mjs `SYSTEM_WRITE`): a
+       module road asks the shape itself, and two asks of one arrival at once are not measured here (read in the code). */
+    Hooks.on("createItem", (item, options, userId) => {
+        if (userId !== game.user?.id || options?.drpgAutomated) return;
+        const actor = item?.parent;
+        if (!actor || actor.type !== "character" || isStashed(item)) return;
+        if (!item.getFlag(MODULE_ID, ITEM_FLAGS.category)) return;
+        keepGearShape(actor, item).catch(err => error("Could not hold a dropped item to the Gear shape", err));
+    });
 }
 
 /**
@@ -1393,7 +1406,8 @@ export function carriedInCategory(actor, category) {
  *
  * Trap 69: four screens put a limit in front of somebody - the sheet's rows,
  * this summary, the item manager and the refusal message - and with a shared
- * budget all four have to say "2/3 Gear" rather than three separate "1/1"s. A
+ * budget all four have to say "2/2 Gear" (the shared limit is 2 since D10c, config.mjs LIMIT_GROUPS.gear) rather
+ * than three separate "1/1"s. A
  * player who reads "Murder Weapons 1/1" beside an empty slot has been told two
  * contradictory things by the same window.
  */
@@ -1408,7 +1422,7 @@ export function capacityLabel(category) {
  * A short inventory summary for the GM.
  *
  * Grouped categories are folded into one entry, because that is what they are:
- * "Gear: 2/3" rather than three counters that each look nearly full.
+ * "Gear: 2/2" rather than three counters that each look nearly full.
  */
 export function inventorySummary(actor) {
     const seen = new Set();

@@ -107175,6 +107175,54 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[removed: no stash, no row] [hidden: a field `concealed` on the region, a GM reads it hidden, the region lists the student, the store's row] "
                 + "[lifted: refused with the entry kept, or taken off with the row in the store - hidden to a GM either way] [open: a GM reads it open, the region lists the student, the store's row]");
     }],
+    ["1.2.122 ITEM-04 - a Gear dragged onto a sheet beside one stowed, with an empty hand, is held to the Gear shape as the module's own roads are: one of the two goes into the hand, and the owner's other stowed piece is left", async () => {
+        /*
+         * The audit's ITEM-04 (1.2.118's unrouted list, B; verify: weakened): D4 (13.09.2026) chose "auto-ready on every
+         * way in", and every module road ends on inventory.mjs `keepGearShape`, but a drop from a compendium, the
+         * sidebar or another sheet is Foundry's own create, which only `preCreateItem` saw, and that counts the slots
+         * alone - so two Gear could stand stowed for good. One student, their Gear put in a stash, one Tool granted
+         * stowed (an empty hand); then a second Tool made by a plain create with none of the module's marks, as a drop
+         * makes it. Read: how many of the group stand stowed, and whether either is in a hand. Red at 21bf5d18: two
+         * stowed, none held.
+         */
+        const INV = await import("./inventory.mjs");
+        const { isEquipped, stowedInGroup } = await import("./use-items.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [actor] = cast(1);
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        must(group, "a Tool shares no group of slots - the shape this reads is not there");
+        const inGroup = i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === group;
+        const NAMES = ["SUITE 1.2.122 ITEM-04 a granted Tool", "SUITE 1.2.122 ITEM-04 a dropped Tool"];
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const stowed = [];
+        let read = null;
+        try {
+            for (const i of actor.items.filter(i => inGroup(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const one = await INV.grantItem(actor, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(one && stowedInGroup(actor, group).length === 1 && !isEquipped(one) && INV.canCarry(actor, "tool").ok,
+                "the student does not hold exactly one stowed Gear with a slot free - this would measure nothing");
+            const data = one.toObject();
+            delete data._id;
+            data.name = NAMES[1];
+            await actor.createEmbeddedDocuments("Item", [data]);
+            await settle();
+            await sheetAuditIdle();
+            const both = actor.items.filter(i => NAMES.includes(i.name));
+            read = [both.length, stowedInGroup(actor, group).length, both.filter(i => isEquipped(i)).length];
+        } finally {
+            for (const i of actor.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([2, 1, 1]),
+            "a Gear made by a plain create beside one stowed left two stowed and none held ([the two Tools, stowed of the group, held])");
+    }],
+
     ["1.2.122 REFR-52 - the use question's preview follows the table while it stands: a healing kit's line reads what it would heal, and a Health mark healed elsewhere redraws it to restore nothing, with no reopen", async () => {
         /*
          * 21.11.2026, 1.2.122 line ITEMS; MAP's REFR-52 for use-items.mjs (`confirmUse`, its line computed once at the open).
