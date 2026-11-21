@@ -41434,6 +41434,21 @@ const INVARIANTS = [
             "[a visit before the sabotage; the same for an insider; no visit; no visit, insider; a visit after it]");
     }],
 
+    ["R8300 - a portrait may be the module's own mask, the \"?\" a masked student wears, and no other SVG (1.2.122 line ITEMS; the audit's STG-100): vault-store.mjs `safePortrait` answers mask-gm.mjs `MASK_IMG` for that path, with or without its leading slash, where `safeRoomImage` still refuses it, refuses another SVG of the module's folder, and answers what `safeRoomImage` answers for a picture", async () => {
+        const V = await import("./vault-store.mjs");
+        const { MASK_IMG } = await import("./mask-gm.mjs");
+        const other = `modules/${MODULE_ID}/icons/not-the-mask.svg`;
+        const picture = `modules/${MODULE_ID}/icons/R8300.webp`;
+        const read = {
+            mask: typeof V.safePortrait === "function" ? V.safePortrait(MASK_IMG) : "no safePortrait",
+            slash: typeof V.safePortrait === "function" ? V.safePortrait(`/${MASK_IMG}`) : "no safePortrait",
+            roomFilter: V.safeRoomImage(MASK_IMG),
+            otherSvg: typeof V.safePortrait === "function" ? V.safePortrait(other) : "no safePortrait",
+            picture: typeof V.safePortrait === "function" ? V.safePortrait(picture) === V.safeRoomImage(picture) && V.safeRoomImage(picture) !== null : "no safePortrait"
+        };
+        equal(JSON.stringify(read), JSON.stringify({ mask: MASK_IMG, slash: MASK_IMG, roomFilter: null, otherSvg: null, picture: true }),
+            "the mask's path was refused or another SVG passed ([the mask] [with a slash] [the room filter on the mask] [another SVG] [a picture as the room filter answers it])");
+    }],
     ["R5644 - the Projects tray draws a player's rows as last seen (PV): projects-tray.mjs `hideUndiscovered` takes out the row of a project made after the player's last visit and keeps the others; `paintProgress` writes the snapshot's numbers into a row's tag and bar, \"?\" and an empty bar for a project this browser never saw, and leaves a live row as drawn", async () => {
         const T = await import("./projects-tray.mjs");
         const user = { id: "R5644u", isGM: false };
