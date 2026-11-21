@@ -80,3 +80,4 @@ Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, t
 - 1.2.122: the rest of the audit (minors and nits).
 - 1.2.123: L1 with E39, E40, E43, E53, E58, E83.
 - OWN-119-4 is new to this audit's findings. The re-check's batch 04 (`recheck-119.json`, MAP-19) read 2c87b5b9 as changing `ledgerRooms` (fog.mjs:1527) to count students' rows only; whether that or 09c3a3f8 stops the GM's fog from refreshing was not read by the audit.
+- (owner, ~03:15Z) The map shifted by one is confirmed. New owner ask OWN-119-5 for 1.2.120, line H (claude/tokenhud-120, R8050-8069): Foundry's Token HUD - remove combat, target, movement action, assign status, both bar inputs and elevation; keep visibility, sort, lock and configure; restyle to the module's icons and look ("dalej oryginalne ikony foundry ... nie pasuje do reszty modulu"). 1.2.120 = P + H (+ F if ready). A feature ask, not an audit finding; the 1.2.120 re-check will hold H to this list.
