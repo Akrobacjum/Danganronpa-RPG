@@ -365,7 +365,7 @@
       },
       "documentLanguage": {
         "name": "Język dokumentów",
-        "hint": "Język linii z Tierem przyznanego przedmiotu, jeden dla wszystkich; inne nazwy, na przykład klucza do sypialni, są w języku GM-a, który je zapisuje. Okna i karty zostają w języku każdej przeglądarki. Ustawia go pierwsze uruchomienie przez głównego GM-a."
+        "hint": "Język, w którym moduł zapisuje dokumenty tego świata, jeden dla wszystkich: teksty przedmiotów, klucze do sypialni, Truth Bullety zabrane z ciała, tokeny projektów. Okna i karty zostają w języku każdej przeglądarki. Ustawia go pierwsze uruchomienie przez głównego GM-a."
       },
       "moveAudit": {
         "name": "Token gracza przesunięty przez ścianę",

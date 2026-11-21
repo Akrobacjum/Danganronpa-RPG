@@ -365,7 +365,7 @@
       },
       "documentLanguage": {
         "name": "Document language",
-        "hint": "The language of a granted item's tier line, one for everyone; other names, such as a bedroom key's, are in the writing GM's language. Windows and cards follow each browser's Language. The primary GM's first start sets it."
+        "hint": "The language the module writes this world's documents in, one for everyone: item texts, bedroom keys, Truth Bullets from a body, project tokens. Windows and cards follow each browser's Language. Set at the primary GM's first start."
       },
       "moveAudit": {
         "name": "When a player's token moves through a wall",
