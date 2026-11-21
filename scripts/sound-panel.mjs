@@ -441,25 +441,31 @@ export async function openSoundDialog() {
              * with the old playlist - true only until it was read. The rows are a region of their own, woken by the
              * map's key alone: another key of the module, the Effects tab's `sfxMap` among them, redraws nothing here
              * (the Effects tab's own region follows `sfxMap`, below).
-             * A select being chosen from holds the redraw (rule 1); a dirty select and a row's save marker are
-             * carried across (rule 2); `after` wires the new selects, whose answer finds its marker in the window.
+             * A select being chosen from with the pointer holds the redraw until the press is let go (rule 1); a select
+             * left focused after its pick holds nothing (UI-17, the line claude/refresh-120, 21.11.2026: until then it
+             * held the rows until the GM clicked elsewhere) and has the focus again after the redraw; a dirty select and
+             * a row's save marker are carried across (rule 2); `after` wires the new selects, whose answer finds its
+             * marker in the window. R7971.
              */
             keepLive(dialog, {
                 region: ".drpg-music-map",
                 build: musicMapBody,
                 watch: { settings: [SETTINGS.musicMap] },
+                whileEditing: true,
                 after: next => wireMusicMap(next, dialog.element)
             });
             /*
              * THE EFFECTS ROWS FOLLOW THE MAP (1.2.119; the owner's standing rule: "Zawsze odswiezamy okna od razu przy
              * zmianie"): a file added or removed on a row - by this GM, or another GM with the window open - redraws the
-             * table in place, its open lists kept (sfx.mjs `openFileLists`), a box being typed in holding the redraw (rule
-             * 1). Until then the tab followed nothing and a row's chip kept its old count until the window was opened again.
+             * table in place, its open lists kept (sfx.mjs `openFileLists`). Until then the tab followed nothing and a row's
+             * chip kept its old count until the window was opened again. Since the line claude/refresh-120 (21.11.2026) a
+             * box being typed in no longer holds the redraw (`whileEditing`): what was typed is carried, with the focus.
              */
             keepLive(dialog, {
                 region: "[data-drpg-sfx-region]",
                 build: soundEffectsRegion,
                 watch: { settings: [SETTINGS.sfxMap] },
+                whileEditing: true,
                 after: next => wireSoundRows(next)
             });
         },

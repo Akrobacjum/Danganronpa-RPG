@@ -26717,6 +26717,31 @@ const REGRESSIONS = [
         ok(/\beclipse\b/.test(rule), `the Spectators' room rule does not ask the Eclipse: ${rule}`);
     }],
 
+    ["R7972 - the windows of the line claude/refresh-120 ask to be redrawn with a field focused (REFR-05, UI-17; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): the keepLive regions of a GM's Remnant card, the Mastermind's Hope box, the Sound window's Music and Effects rows and the notice history's list each pass `whileEditing: true`, and so does the case dashboard's (1.2.119)", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118's REFR-05 residue, re-checked on 1.2.119: the
+         * case dashboard's region was the only `whileEditing` caller, and the Remnant card and the Hope box waited for the
+         * focus to leave them. What `whileEditing` does is R7970's, driven on a region of its own; this reads, per window,
+         * that its region asks for it - the region's own `keepLive(...)` call, cut from its `region:` to the call's end.
+         * Red on e515907d: only the dashboard's. The notice history's list is R7973's too, driven.
+         */
+        const SITES = [
+            ["investigation.mjs", 'region: ".drpg-case-live"'],
+            ["remnant-ring.mjs", 'region: ".drpg-remnant-card"'],
+            ["mastermind.mjs", 'region: ".drpg-mm-live"'],
+            ["sound-panel.mjs", 'region: ".drpg-music-map"'],
+            ["sound-panel.mjs", 'region: "[data-drpg-sfx-region]"'],
+            ["notice-history-app.mjs", 'region: ".drpg-notices-list"']
+        ];
+        const read = {};
+        for (const [file, marker] of SITES) {
+            const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+            const call = bodyOf(src, marker, { until: "})" });
+            read[`${file} ${marker.slice(9, -1)}`] = /\bwhileEditing: true\b/.test(call);
+        }
+        equal(JSON.stringify(read), JSON.stringify(Object.fromEntries(Object.keys(read).map(k => [k, true]))),
+            "[per window's live region: its keepLive call passes whileEditing: true]");
+    }],
     ["R7741 - every put-back of a token's spot writes through movement.mjs `putBackWrite`, which sends it with diff: false (the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
         /* TEXT GUARD: a put-back written while a newer move is in flight lost a coordinate to the writer's diff (76 D on the
            D4 shim); `putBackWrite` sends every coordinate it names, and since 19.11.2026 waits for the move in flight where the

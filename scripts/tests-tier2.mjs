@@ -31336,8 +31336,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * ruling, and the GM's next Save wrote that back over it. Three halves, on one fixture
          * in a chapter of its own that nobody has planned:
          *   - the ruling lands while the window stands open, and the row shows it;
-         *   - a Save that changed nothing, pressed while a redraw is held off (a select focused
-         *     in the window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
+         *   - a Save that changed nothing, pressed while a redraw is held off (a press of the pointer
+         *     inside the region not let go yet, live.mjs RULE 1 for a hand) over a write the window
+         *     has not drawn, writes nothing:
          *     no ledger write, nothing refused, and no Key plan row for the chapter - which
          *     every Save used to fill in by scale, making the chapter a planned one;
          *   - a name the GM typed before a second ruling is marked, refused at Save and told
@@ -31391,16 +31392,23 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(win.field(`text.${key}`)?.value, "SUITE reshaped words", "the open dashboard still shows the words the ruling replaced");
 
             /* ---- a Save that changed nothing writes nothing, even over a write it has not drawn ---- */
-            /* The redraw held off by a focused select (live.mjs RULE 1): since the line claude/plan-119 (20.11.2026) a focused
-               text field no longer holds the dashboard's redraw (`whileEditing`), and a select still does. */
-            win.field(`vis.${key}`).focus();
+            /* The redraw held off by a press inside the region that is not let go yet (live.mjs RULE 1 for a hand): since the
+               line claude/plan-119 (20.11.2026) a focused text field no longer holds the dashboard's redraw (`whileEditing`),
+               and since the line claude/refresh-120 (21.11.2026; UI-17) neither does a focused select, which held it here
+               until then (a13d89fa). A press is what still holds a region - for the click it ends in - and the one way left
+               for a window to stand on a write it has not drawn. The press is let go after the Save, which reads the form
+               at its click. */
+            const Pointer = globalThis.PointerEvent ?? MouseEvent;
+            const pressed = win.field(`vis.${key}`);
+            pressed.dispatchEvent(new Pointer("pointerdown", { bubbles: true, cancelable: true }));
             await remnants.setRemnantPublic(token, { name: "SUITE another GM's name" });
             await gmStoresIdle();
             await wait(300);
             must(win.field(`name.${key}`)?.value === "SUITE reshaped",
-                "the window redrew with focus inside it, so this half has no stale window to measure");
+                "the window redrew under a press not let go, so this half has no stale window to measure");
             ledgerWrites = 0;
             await win.save();
+            window.dispatchEvent(new Pointer("pointerup", { bubbles: true }));
             await gmStoresIdle();
             equal(ledgerWrites, 0, "a Save that changed nothing wrote to the ledger");
             equal(remnants.remnantData(token).public?.name, "SUITE another GM's name",
@@ -105392,6 +105400,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
     }],
 
+    ["UI-17 - the Sound window's Music rows draw another GM's mapping at once while a row's select keeps the focus after its pick (the line claude/refresh-120, 21.11.2026; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): the other row shows the playlist mapped, and the select picked in keeps its playlist and the focus", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118, UI-17 (re-checked on 1.2.119). A row's select
+         * saves on `change` and keeps the focus after it; live.mjs counted a focused select as typing, so the rows held
+         * their redraw - its own save's echo and another GM's mapping alike - until the GM clicked elsewhere. As the GM,
+         * E50-T1's fixture: a playlist, the Sound window opened, one free state picked (its `change`, saved) with the select
+         * left focused, then a second free state written straight into the setting (the second GM's stand-in). The map and
+         * the playlist are put back as E50-T1 puts them back. Red on e515907d: the second row still "Not set".
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 2, `only ${keys.length} music states are free to map here`);
+        const [k1, k2] = keys;
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        let playlist = null, answer = null, read = null;
+        try {
+            playlist = await Playlist.create({ name: "Suite UI-17 fixture" });
+            must(playlist, "the fixture playlist was not made");
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector(`select[name="state:${k2}"]`), 6000), "the Sound window did not open with its Music rows");
+            const select = key => root().querySelector(`select[name="state:${key}"]`);
+            select(k1).focus();
+            select(k1).value = playlist.id;
+            select(k1).dispatchEvent(new Event("change", { bubbles: true }));
+            must(await until(() => map()[k1] === playlist.id, 3000), "the first row's pick was not saved");
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            await until(() => select(k2)?.value === playlist.id, 2000);
+            read = { other: select(k2)?.value === playlist.id, picked: select(k1)?.value === playlist.id, focus: document.activeElement === select(k1) };
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            await wait(800);
+            if (stableJson(map()) !== stableJson(mapBefore)) await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ other: true, picked: true, focus: true }),
+            "[the row another GM mapped shows its playlist; the row picked in keeps its playlist; the focus on the select picked in]");
+    }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*
          * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction
