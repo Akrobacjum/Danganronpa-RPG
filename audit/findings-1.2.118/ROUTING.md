@@ -119,3 +119,9 @@ Base: 21bf5d18 (the 1.2.121 assembly). They take the minor and nit findings stil
 | STG | claude/stg-122 | R8460-8499 | records; the four "E120 - " tier-2 names that shipped in 1.2.121 |
 | WORLD | claude/world-122 | R8500-8539 | the small files |
 The audit's check of 1.2.121 will give a file:line per finding so it can be routed to these lines by file. Note for the lines: of the open findings in `recheck-119.json`, 246 are "open-unchanged" - their files did not change by 1.2.119 and they were not re-read then; a line should re-read each on its own base before fixing it.
+
+## After the check of 1.2.121 (coordinator, 21.11.2026 ~10:10Z)
+- v1.2.121 published 09:35:15Z, tag at main 1eee4d62 (PR #71); release.yml run 44890152504 reused green CI run 44886414447 on the same tree (line I's first use). The audit's check: AUDIT 18.7, `recheck-121.json`.
+- r121-M-1 (Listen naming the veiled killer) fixed on claude/desp-122 f652fafc (tier 2 "1.2.122 r121-M-1" red first, 5 mutants killed; `performListen` held by a source read); ships with 1.2.122 (the owner chose no early release). r121-K-1 -> MURDER.
+- Lane M, optional follow-ups for 1.2.122 (else 1.2.123): M-2 -> MAP, M-3 -> CORE, M-4 -> UI, M-5 -> DESP, M-6 -> COMM. M-7 done on stg-122 17941a84 (the four tests renamed "1.2.121").
+- The owner's default for the rest of the 1.2.121 findings: 1.2.122 ships when its lines are in; what a line does not close goes to 1.2.123.
