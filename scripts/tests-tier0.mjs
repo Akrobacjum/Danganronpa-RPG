@@ -27118,7 +27118,7 @@ const REGRESSIONS = [
         equal(JSON.stringify([read.unnoted, read.stale]), "[[],[]]", "a bare write of a student's guarded flag does not tell the GMs' audit first, or a NOT_NOTED row names nothing [unnoted, stale]");
     }],
 
-    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
+    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31; the check of 1.2.121: r121-R-8): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
         /*
          * 1.2.122 line TEXT, 21.11.2026. One row a finding; each is the reading the finding made at its file:line on
          * 21bf5d18, turned into the words the text must (or must not) hold. They are words, not behaviour: what each
@@ -27169,6 +27169,9 @@ const REGRESSIONS = [
             ["TEXT-37", () => at("pl", "DRPG.Mastermind.lair.lock").length <= 2 * at("en", "DRPG.Mastermind.lair.lock").length],
             // explain.mjs shows the paragraph to whoever clicks, GM included: no "you" spoken to the class.
             ["TEXT-38", () => !/one of you|Get it right/.test(at("en", "DRPG.Explain.phase.classTrial")) && !/z was|Trafcie|pomylcie/.test(at("pl", "DRPG.Explain.phase.classTrial"))],
+            // notice-history-app.mjs `changed` draws new entries at once since 1.2.120; the pill only scrolls up to them
+            // (the auditor's check of 1.2.121, r121-R-8)
+            ["r121-R-8", () => !/adds them/.test(at("en", "DRPG.Tips.Sweep.More.showNewNoticesTooltip")) && !/dodaje je/.test(at("pl", "DRPG.Tips.Sweep.More.showNewNoticesTooltip"))],
             // hud.mjs: the roster on the left is gone; the Students window lists each student's actions.
             ["UI-31", () => ["en", "pl"].every(c => at(c, "DRPG.Hud.stillToActTooltip").includes(at(c, "DRPG.Panel.whoIsAlive")))
                 && !/on the left/.test(at("en", "DRPG.Hud.stillToActTooltip")) && !/po lewej/.test(at("pl", "DRPG.Hud.stillToActTooltip"))]
