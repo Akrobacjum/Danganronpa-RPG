@@ -798,7 +798,7 @@ function readTrial({ inFinalTrial, mastermindActor, pendingVoters, voteBar, tria
         // The Closing's choice and decision are the GM's row, not the bar's Skip (E70 C8).
         view.barNext = running && view.restrictive && !(view.floor?.mode === FLOOR_MODES.closing && barRefusal("skip", view.floor)) ? "skip" : null;
         // A zone mode's lead is its own (E73): no Objection or rebuttal holds that floor.
-        view.lead = view.barNext && !["endRound", "endClosing", "endZone"].includes(view.next) ? "now" : view.next;
+        view.lead = view.barNext && !["endRound", "endClosing", "closingChoice", "endZone"].includes(view.next) ? "now" : view.next;
         return view;
 }
 
@@ -850,6 +850,8 @@ const TRIAL_LEADS = {
     closeDebate: "DRPG.Floor.lead.closeDebate",
     endRound: "DRPG.Floor.lead.round",
     endClosing: "DRPG.Floor.lead.closing",
+    // 1.2.122 (CASE-62): the Closing waits on the GM's choice of its speaker, or on the decision after an Objection.
+    closingChoice: "DRPG.Floor.lead.closingChoice",
     // E73: a zone mode running, and Scrum Debate next after a split Straw Poll.
     endZone: "DRPG.Floor.lead.zones",
     scrum: "DRPG.Floor.lead.scrum",

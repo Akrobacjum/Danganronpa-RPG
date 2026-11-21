@@ -1578,6 +1578,7 @@
         "closeDebate": "The debate is open. Close it when the room has argued it out.",
         "endRound": "A round holds the floor. End the round once every speaker has had their turn.",
         "endClosing": "The Closing Argument holds the floor. End it, then send the ballots.",
+        "closingChoice": "The Closing Argument waits on you: confirm or pick its speaker, or decide who continues after the Objection.",
         "vote": "The ballots are out. When they are back, Close and count in The vote.",
         "verdict": "The vote is counted. Deliver the verdict.",
         "finishVerdict": "The verdict stopped before every step was done. Finish the verdict.",
@@ -1644,6 +1645,7 @@
         "sentenceWaits": "The sentence is carried out when the trial ends.",
         "round": "A round holds the floor, and its speakers take turns. Skip moves to the next speaker, and End this mode ends the round.",
         "closing": "The Closing Argument holds the floor: confirm or pick its speaker, and after an Objection decide who continues. End the Closing Argument ends it; the vote is the next step.",
+        "closingChoice": "The table waits on you: confirm or pick the Closing Argument's speaker in its row below, or, after an Objection, decide who continues. End the Closing Argument ends it; the vote is the next step.",
         "zones": "A zone mode holds the floor: everyone answers by where their token stands. Count now and Skip on the bar bring the count forward; End this mode ends it.",
         "scrum": "The Straw Poll split the class. A Scrum Debate from Hall zones lets the two camps argue it out; the debate and the vote are still open to you."
       },
