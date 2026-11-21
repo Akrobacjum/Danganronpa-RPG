@@ -32483,6 +32483,141 @@ const INVARIANTS = [
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 
+    ["R8030 - a dissolve whose end throws still lets the fog redraw (1.2.120 line F; the owner's report of 21.11.2026, \"Mgla u GMa nie odswieza sie wcale\"): fog.mjs `swapInFog` on a fake ticker, its clean-up throwing, leaves no dissolve busy and runs the repaint queued behind it; one whose end never comes is let go after its bound", async () => {
+        /*
+         * 1.2.120 line F, 21.11.2026. Every repaint that arrives while a dissolve runs is queued behind it
+         * (`queueBehindDissolve`), and only the dissolve's end lets it go (`releaseDissolve`). That release was the last
+         * line of the end (`done`), which runs under the watchdog: a throw on the way - a sprite or a texture that would
+         * not be destroyed - was caught and logged there ("an effect failed to clean itself up"), `busy` stayed true, and
+         * every repaint after it returned at its first line. The fog then changed for nothing - no room found, no tick
+         * on the Fog tab, no reset - until a reload or a change of scene. The same in the catch of `startDissolve`,
+         * where `finish()` came before the release. Headless the fog is never rendered (no canvas), so no dissolve runs
+         * and no scenario reaches this: it is the module's own dissolve on the fake ticker R1003 uses. The real canvas is
+         * LIVE-F120-01. Red on e515907d (1.2.119), measured: A [true, true, 0] (queued, still busy, the queued repaint not
+         * run). B and C are the fix's other two parts, each red with that part taken out: B [true, 0], C [true, true, true].
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.swapInFog === "function" && typeof F.queueBehindDissolve === "function", "fog.mjs hands out no swapInFog or queueBehindDissolve to run");
+        class Node {
+            constructor(texture = null) { this.children = []; this.destroyed = false; this.visible = true; this.renderable = true; this.alpha = 1; this.texture = texture;
+                this.position = { set: () => {} }; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            removeChild(n) { this.children = this.children.filter(c => c !== n); n.parent = null; return n; }
+            destroy() { this.destroyed = true; this.parent?.removeChild(this); for (const c of [...this.children]) c.destroy(); this.children = []; }
+        }
+        class Graphics extends Node { clear() { return this; } beginFill() { return this; } drawRect() { return this; } endFill() { return this; } }
+        const texture = label => ({ label, destroyed: false, destroy() { this.destroyed = true; } });
+        let clock = 1000;
+        const run = ({ throwOnDrop = false, throwOnRender = false } = {}) => {
+            const state = { generation: 0, busy: false, queued: false, previous: null };
+            const anims = [];
+            let repaints = 0, mixes = 0;
+            const container = new Node();
+            const io = {
+                state,
+                PIXI: { Container: Node, Sprite: Node, Graphics, BLEND_MODES: { ERASE: 9, ADD: 1 }, RenderTexture: { create: () => texture(`mix${mixes++}`) } },
+                animate: (attributes, options) => {
+                    let resolve;
+                    const anim = new Promise(r => { resolve = r; });
+                    anim.finish = () => { attributes[0].parent.t = 1; options.ontick(); resolve(true); anim.done?.(); };
+                    anims.push(anim);
+                    return anim;
+                },
+                // The real watchdog's catch (fog-reveal.mjs `watchdog`): a throw in the clean-up is logged, nothing more.
+                watchdog: (anim, ms, cleanUp) => { let once = false; anim.done = () => { if (once) return; once = true; try { cleanUp(); } catch { /* logged */ } }; },
+                renderer: () => ({ render: () => { if (throwOnRender) throw new Error("no renderer"); } }),
+                layer: () => container,
+                ensureRaster: () => {},
+                dropSprite: sprite => {
+                    if (throwOnDrop) throw new Error("a sprite that would not be destroyed");
+                    if (sprite && !sprite.destroyed) sprite.destroy();
+                },
+                showing: () => {},
+                motionOff: () => false,
+                fadeMs: () => 180,
+                now: () => clock,
+                repaint: () => { repaints += 1; }
+            };
+            const rect = { x: 0, y: 0, width: 400, height: 300 };
+            const swap = name => F.swapInFog(container, texture(name), texture(`${name}-mask`), rect, io);
+            return { state, anims, io, swap, repaints: () => repaints };
+        };
+
+        // A: a dissolve A -> B, a repaint queued behind it, and its end throws as it drops the old sprites.
+        const a = run({ throwOnDrop: true });
+        a.swap("A");
+        a.swap("B");
+        const queuedA = F.queueBehindDissolve(a.io);
+        a.anims[0]?.finish();
+        equal(JSON.stringify([queuedA, a.state.busy, a.repaints()]), JSON.stringify([true, false, 1]),
+            "[whether the repaint was queued, whether a dissolve is still busy after its end threw, the queued repaints run]");
+
+        // B: the dissolve cannot start (the renderer throws) and the outright swap's `finish` throws too.
+        const b = run({ throwOnRender: true });
+        b.swap("C");
+        b.io.dropSprite = () => { throw new Error("a sprite that would not be destroyed"); };
+        // The throw goes on to the caller (`repaintFog`'s catch logs it); what is read is the state it leaves.
+        try { b.swap("D"); } catch { /* read below */ }
+        equal(JSON.stringify([b.state.busy, b.anims.length]), JSON.stringify([false, 0]),
+            "[whether a dissolve is busy after one that could not start, the dissolves run]");
+
+        // C: a dissolve whose end never comes (no tick, no watchdog): a repaint asked past its bound is not queued.
+        const c = run();
+        c.io.watchdog = () => {};
+        c.swap("E");
+        c.swap("F");
+        const early = F.queueBehindDissolve(c.io);
+        clock += 10000;
+        const late = F.queueBehindDissolve(c.io);
+        equal(JSON.stringify([early, late, c.state.busy]), JSON.stringify([true, false, false]),
+            "[queued while the dissolve is young, queued 10 s on, whether a dissolve is still busy]");
+    }],
+
+    ["R8031 - a write the browser could not store still tells what draws it (1.2.120 line F; the owner's report of 21.11.2026, \"Mgla u GMa nie odswieza sie wcale\", cured by Reset the season): gm-store.mjs over a storage that refuses every write hands its `changed` the store's key and the value memory holds, for a GM's store and for a player's copy", async () => {
+        /*
+         * 1.2.120 line F, 21.11.2026. A store's readers are redrawn by its client setting's `onChange` (settings.mjs: the
+         * discovery store's and the fog copy's run `onWorldChange` of the fog), and Foundry runs that only once the value
+         * is in localStorage. With the origin full the store took every write in memory and nothing on screen heard of
+         * it: the GM's fog stood as drawn for every room found, ticked or reset, through any F5, until something freed the
+         * room - the season's reset empties the stores. Headless on 25231254, gm's localStorage refusing the discovery
+         * key (scenario 97 L): the record took the tick, the untick and the walk, gm's drawn fog none. Red there, measured:
+         * [[], {"Gym": true}] (memory took the write, nobody heard it). The copy's half, each part of the fix taken out
+         * alone: no `changed` after its failed write [null, [], {"Gym": true}]; no catch ["R8031 full", [], ...]. The real `changed` calls the registered setting's
+         * `onChange` (gm-store.mjs's env); scenario 97 L reads it through the fog.
+         */
+        const G = await import("./gm-store.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const heard = [];
+        const engineOf = gm => {
+            const flushes = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => gm ? "R8031GM" : "R8031P", isGM: () => gm, isPrimary: () => gm, worldId: () => "R8031WORLD",
+                activeGmIds: () => [], primaryGmId: () => "R8031GM", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: () => null, write: async () => { const e = new Error("R8031 full"); e.name = "QuotaExceededError"; throw e; } },
+                changed: (key, value) => heard.push([gm ? "gm" : "player", key, value]),
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: quiet, notify: () => {}, text: key => key
+            });
+            return { eng, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+        const gm = engineOf(true);
+        const store = gm.eng.define({ name: "r8031", key: "r8031Key", kind: "ledger", sync: false, backup: false });
+        await store.patch("SCENE/ACTOR", { Gym: true });
+        await gm.settle();
+        const onGm = heard.filter(([who]) => who === "gm").map(([, key, value]) => [key, value?.worlds?.R8031WORLD?.e?.["SCENE/ACTOR"] ?? null]);
+        equal(JSON.stringify([onGm, store.get("SCENE/ACTOR")]), JSON.stringify([[["r8031Key", { Gym: true }]], { Gym: true }]),
+            "[what the store's readers heard of a write that could not be stored (key, the cells), what memory holds]");
+
+        const player = engineOf(false);
+        const copy = player.eng.defineCopy({ name: "r8031copy", key: "r8031Copy", fallback: null });
+        let threw = null;
+        try { await copy.receive({ Gym: true }, 5_000_000 - 10); } catch (err) { threw = err?.message ?? String(err); }
+        const onPlayer = heard.filter(([who]) => who === "player").map(([, key]) => key);
+        equal(JSON.stringify([threw, onPlayer, copy.read()]), JSON.stringify([null, ["r8031Copy"], { Gym: true }]),
+            "[whether taking the copy threw, what its readers heard, what the copy reads]");
+    }],
+
     ["R1023 - one table says what each mode of the floor allows (E70 C1, S18-79): trial-floor.mjs `modeAllows(floor, kind, actorId)` answers, on every floor of today's three modes and with none, what `maySpeak`, `floorRefusal` and `targetRefusal` answered at 1.2.89, and those three answer it still", async () => {
         /*
          * E70 C1, 27.10.2026; E70-03 (amend 4 (e)). `maySpeak`, `floorRefusal` and `targetRefusal` each spelled the
