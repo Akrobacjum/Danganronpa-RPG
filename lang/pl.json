@@ -2885,6 +2885,8 @@
       "reshapeRulingGone": "Tego Remnantu już nie ma, więc nie ma czego zmieniać. Gracz dostaje o tym wiadomość.",
       "reshapeUnsent": "Karta ze zmianą Remnantu nie została wysłana, więc na Remnancie nic nie zapisano. Jeśli był to krytyk przy Erase a Trace, Remnant jest już wymazany; w przeciwnym razie rozstrzygnij zmianę na głos i, jeśli się zgadzasz, zmień Remnant ręcznie.",
       "reshapeUnsentPlayer": "Twoja wersja Remnantu nie dotarła do GM-a i nic na nim nie zapisano. Opowiedz ją przy stole.",
+      "reshapeSettledGone": "Remnant już zniknął, więc nic nie zostało przekształcone.",
+      "reshapeDeclinedGone": "{name} odrzuca przekształcenie. Remnant, nad którym pracujesz, już zniknął.",
       "reshapeVoided": "Cofnięte przez Reroll albo zastąpione późniejszą próbą, zanim {name} rozstrzygnął.",
       "reshapeTakenBack": "Reroll albo późniejsza próba zajęła miejsce tej, więc ta karta już o niczym nie rozstrzyga.",
       "alreadyRuled": "Ta zmiana Remnantu jest już rozstrzygnięta ({name}).",

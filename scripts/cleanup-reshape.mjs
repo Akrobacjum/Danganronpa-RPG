@@ -635,11 +635,14 @@ export async function applyReshapeRuling({ actorId, tokenId, attempt = "" } = {}
      * below leave the proposal to be ruled on again.
      */
     const claim = data && !data.reinforced ? claimRuling(actorId, tokenId, attempt, by, "approve") : null;
+    /* A TRACE GONE SETTLES THE CARD (the audit's CTRL-55, 1.2.122): this answered null, which leaves a card open to be
+       answered, so Approve could never settle it and whispered the roller again at every press. It answers "gone" now,
+       which the card settles on (messenger-app.mjs `ruleApproveReshape`), and the roller is told once. */
     if (!data) {
         tell("warn", "DRPG.Cleanup.reshapeRulingGone");
         if (actor) await whisperToOwner(actor, `<p>${
             game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
-        return null;
+        return "gone";
     }
 
     /*
@@ -729,7 +732,8 @@ export async function declineReshapeRuling({ actorId, tokenId = null, attempt = 
      * hand-back already ran when the dice landed. Whether it erases is the row's
      * `erases` since E09 C10, not the button's.
      */
-    let said = "DRPG.Cleanup.reshapeDeclined";
+    // A Remnant gone meanwhile is said as gone, not as reading as before (the audit's CTRL-55, 1.2.122).
+    let said = findRemnantToken(tokenId) ? "DRPG.Cleanup.reshapeDeclined" : "DRPG.Cleanup.reshapeDeclinedGone";
     if (claim.proposal.erases) {
         const token = findRemnantToken(tokenId);
         const data = token ? remnantData(token) : null;

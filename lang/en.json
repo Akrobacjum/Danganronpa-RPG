@@ -2725,6 +2725,8 @@
       "reshapeNeedsBoth": "Write both a name and a description. The window opens again with what you wrote.",
       "reshapeNothingSaid": "The reshape was missing a name or a description, so the Remnant reads as it did and the attempt is spent.",
       "reshapeUnnamed": "something else",
+      "reshapeSettledGone": "The Remnant was already gone, so nothing was reshaped.",
+      "reshapeDeclinedGone": "{name} refused the reshape. The Remnant you were working on is already gone.",
       "reshapeVoided": "Taken back by a Reroll or replaced by a later attempt before {name} ruled on it.",
       "reshapeTakenBack": "A Reroll or a later attempt took this one's place, so this card no longer rules on anything.",
       "alreadyRuled": "{name} has already ruled on this reshape.",

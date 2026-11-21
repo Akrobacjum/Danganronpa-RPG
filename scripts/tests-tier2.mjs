@@ -8954,6 +8954,67 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ meta: ["kind", null, null, 0, 0], given: null, otherChapter: false, sets: [true, null, null, false] }),
             "{the kept meta row [sort, run, asked, Autopsies sent, made], the bullet's given, another chapter's row, the dive sets [kept, its last play, its outcome, another chapter's]}");
     }],
+    ["1.2.122 REFR-65 - Body found's 'Whose body?' shows a death recorded while the window stands (scripts/body.mjs `openBodyDiscoveryDialog`, `bodyCandidates`; the audit's REFR-65, 1.2.122 line MURDER): the window drawn, a student's death kept by the GMs, and the list holds them", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's REFR-65: the list was read once before the window opened. The window
+         * is drawn here (`__dialogWindows`); a student is made dead as the GMs keep a death (`deathStore`). Read: the
+         * student among the select's options before and after. Put back: the window, the death's row. Red at 21bf5d18:
+         * not after. Whether Chromium keeps a select open across the redraw is not measured here.
+         */
+        needs(env.dialogs(), "the window is drawn here");
+        needs(env.primaryGm(), "Body found is the primary GM's");
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const [student] = cast(1);
+        must(!deathStore.has(student.id), "the fixture student is dead already");
+        const title = game.i18n.localize("DRPG.Chapter.bodyTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const listed = () => [...(drawn()?.element?.querySelectorAll('select[name="victim"] option') ?? [])].some(o => o.value === student.id);
+        const read = {};
+        try {
+            const run = Promise.resolve().then(() => openBodyDiscoveryDialog()).catch(() => null);
+            read.drawn = await until(() => Boolean(drawn()), 6000);
+            read.before = listed();
+            await deathStore.patch(student.id, { chapter: getClock().chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            await settle();
+            read.after = await until(() => listed(), 3000);
+            if (drawn()) await drawn().close();
+            await Promise.race([run, wait(2000)]);
+        } finally {
+            if (drawn()) await drawn().close();
+            if (deathStore.has(student.id)) await deathStore.drop(student.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, before: false, after: true }), "{the window drawn, the student listed before the death, after it}");
+    }],
+    ["1.2.122 CTRL-55 - Approve on a reshape card whose Remnant is gone settles the card, and its words say the Remnant is gone (scripts/cleanup-reshape.mjs `applyReshapeRuling`, `ruleReshape`; messenger-app.mjs `ruleApproveReshape`; the audit's CTRL-55, 1.2.122 line MURDER): the ruling on a trace no scene holds answers \"gone\", which the card settles on with its own sentence, and the roller is whispered once", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's CTRL-55: the ruling answered null for a Remnant gone, and the card
+         * settles only on true or false, so Approve stayed and whispered the roller again at every press. The primary's
+         * ruling is called as the bridge calls it (`ruleReshape`) for a trace id no scene holds; the card's
+         * mapping is read off messenger-app.mjs. Read: the two answers, the whispers to the roller's player, the mapping.
+         * Put back: the cards. Red at 21bf5d18: null, and no sentence for it.
+         */
+        const CR = await import("./cleanup-reshape.mjs");
+        const [who] = cast(1);
+        const owner = game.users.find(u => !u.isGM && who.testUserPermission?.(u, "OWNER")) ?? null;
+        must(owner, "the fixture student has no player of their own");
+        const seen = new Set(game.messages.map(m => m.id));
+        const answers = [];
+        let whispers = 0;
+        try {
+            answers.push((await CR.ruleReshape({ actorId: who.id, tokenId: "SUITE122GONE0000", attempt: "SUITE", verdict: "approve" }, game.user.id))?.value ?? null);
+            await settle();
+            whispers = game.messages.filter(m => !seen.has(m.id) && m.whisper?.includes(owner.id)).length;
+        } finally {
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(r => r.text());
+        const maps = /if \(applied === "gone"\) return settled\("DRPG\.Cleanup\.reshapeSettledGone"\);/.test(fnSource(src.replace(/\r\n/g, "\n"), "ruleApproveReshape"));
+        equal(stableJson([answers, whispers, maps, game.i18n.localize("DRPG.Cleanup.reshapeSettledGone") !== "DRPG.Cleanup.reshapeSettledGone"]), stableJson([["gone"], 1, true, true]),
+            "[the ruling's answer for a Remnant gone, the whispers to the roller, the card settling on it, its sentence]");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told

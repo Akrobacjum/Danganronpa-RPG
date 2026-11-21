@@ -15,6 +15,7 @@ import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log, error, isPrimaryGm, hiddenByGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
 import { drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
+import { keepLive } from "./live.mjs";
 import { pendingBodyStore, deathStore, bodyHeardStore } from "./gm-stores.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { sceneOfRoom, placeScenes, roomNames } from "./rooms.mjs";
@@ -1192,12 +1193,15 @@ export async function openBodyDiscoveryDialog() {
     // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them. One this chapter has announced says so (E11 fix
     // r1-G2): `runDiscovery` refuses it a second time.
-    const dead = bodyCandidates(studentActors());
-    const victims = dead.map(a => {
+    const victimsNow = () => bodyCandidates(studentActors()).map(a => {
         const name = foundry.utils.escapeHTML(a.name);
         const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format("DRPG.Chapter.victimAnnounced", { name }) : name;
         return `<option value="${a.id}"${chosenVictim && a.id === chosenVictim ? " selected" : ""}>${label}</option>`;
     }).join("");
+    const victimsField = () => `<span class="drpg-body-victims"><select name="victim"${tipAttr("DRPG.Tips.Sweep.Trial.bodyVictimTooltip")}>
+                    <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
+                    ${victimsNow()}
+                </select></span>`;
     /* THE NOTE SAYS WHAT THIS PRESS DOES NOW (E11 C4, 1.2.73; audit S13-27). One note said "the
        phase stays Daily Life ... until you start the Investigation" in every phase - from the
        Investigation's own footer too - and promised the doubtful Prep traces, which a world with
@@ -1217,10 +1221,7 @@ export async function openBodyDiscoveryDialog() {
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
                 <select name="room"${tipAttr("DRPG.Tips.Sweep.Trial.bodyRoomTooltip")}>${emptyOption("DRPG.Chapter.chooseOne", { selected: !roomOptions.includes(" selected") })}${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
-                <select name="victim"${tipAttr("DRPG.Tips.Sweep.Trial.bodyVictimTooltip")}>
-                    <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
-                    ${victims}
-                </select></label>
+                ${victimsField()}</label>
             <p class="notes">${notes.join(" ")}</p>
         </form>`,
         // A body announced to the table is not taken back (E22 rule 4): destructive, Cancel the default and first under Enter.
@@ -1236,7 +1237,14 @@ export async function openBodyDiscoveryDialog() {
             close: "cancel",
             default: "cancel"
         },
-        render: (event, dialog) => chooseFirst(dialog, "room"),
+        /* "WHOSE BODY?" FOLLOWS THE DEATHS (the audit's REFR-65, 1.2.122; the owner's "Zawsze odswiezamy okna od razu przy
+           zmianie"): the list was read once, so a death recorded while the window stood was not in it, and one announced
+           meanwhile was not marked. The select is redrawn on an actor's write and on the GMs' deaths (`deathStore`),
+           keepLive carrying the student picked. Which room? and the notes stay as drawn. */
+        render: (event, dialog) => {
+            chooseFirst(dialog, "room");
+            keepLive(dialog, { region: ".drpg-body-victims", build: victimsField, watch: { actors: true, stores: [deathStore, bodyHeardStore] } });
+        },
         rejectClose: false
     });
 
