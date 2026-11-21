@@ -45,8 +45,8 @@ export function registerMessengerUi() {
     Hooks.on("drpgMessengerRead", () => renderLauncher());
     /* A card that changed: a settled ask no longer counts for the GM that posted it (messenger.mjs `threadStatsOf`, E50
        C2), and a settle reaches a browser as this hook alone - new words through `updateSecret` (secret.mjs `remember`),
-       or a document's update - so the badge is drawn again here (E50 fix FG2; the end review's F2, 87 B1). An open
-       roster keeps the rows it was drawn with, as it does for a message or a read. */
+       or a document's update - so the badge is drawn again here (E50 fix FG2; the end review's F2, 87 B1). Since 1.2.122
+       an open roster's rows follow too, as they do for a message or a read (`refreshRoster`, the audit's REFR-15). */
     Hooks.on("drpgMessengerEdited", () => renderLauncher());
     Hooks.on("drpgMessengerDeleted", onMessengerDeleted);
     /* The page shown again (another tab, a minimised browser): the frontmost messenger window reads what came while it
@@ -1565,27 +1565,44 @@ function savePosition(playerUserId, position) {
  * corner cannot be broken by either one changing shape.
  * ========================================================================== */
 
+/*
+ * ONE BUTTON, REDRAWN IN PLACE (1.2.122, the audit's COMM-34). Every thread event - a message, a read, an edited card,
+ * a deletion, each card's words landing after a return - took the launcher off the page and built a new one, so a
+ * keyboard user's focus on it went back to the page and a hover tooltip went with the node. It is made once now, and
+ * a later call writes only its tooltip, its name and its badge, each when it changed; the open roster's rows follow
+ * the same call (`refreshRoster`, REFR-15). The count is still one `threadStats` pass a call (messenger.mjs).
+ */
 export function renderLauncher() {
     try {
-        document.getElementById(LAUNCHER_ID)?.remove();
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.id = LAUNCHER_ID;
+        let button = document.getElementById(LAUNCHER_ID);
+        const made = !button;
+        if (made) {
+            button = document.createElement("button");
+            button.type = "button";
+            button.id = LAUNCHER_ID;
+            button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
+        }
         // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
         markLanguage(button);
-        button.dataset.tooltip = launcherTooltip();
-        button.setAttribute("aria-label", launcherTooltip());
-        button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
+        const tip = launcherTooltip();
+        if (button.dataset.tooltip !== tip) button.dataset.tooltip = tip;
+        if (button.getAttribute("aria-label") !== tip) button.setAttribute("aria-label", tip);
 
         // One count of every thread (messenger.mjs `threadStats`, E50 C2): a GM's every player's, a player's own.
         const unread = totalUnread();
+        let badge = button.querySelector(".drpg-messenger-badge");
         if (unread > 0) {
-            const badge = document.createElement("span");
-            badge.className = "drpg-messenger-badge";
-            badge.textContent = unread > 99 ? "99+" : String(unread);
-            button.append(badge);
-        }
+            if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "drpg-messenger-badge";
+                button.append(badge);
+            }
+            const count = unread > 99 ? "99+" : String(unread);
+            if (badge.textContent !== count) badge.textContent = count;
+        } else badge?.remove();
+
+        refreshRoster();
+        if (!made) return;
 
         button.addEventListener("click", event => {
             event.preventDefault();
@@ -1606,6 +1623,22 @@ export function renderLauncher() {
 
 function launcherTooltip() {
     return game.i18n.localize("DRPG.Messenger.launcherTooltip");
+}
+
+/**
+ * The GM's open roster drawn again from the threads as they stand (1.2.122, the audit's REFR-15): a message, a read or
+ * a settled ask while it stood open changed the launcher's badge and not the row's preview or badge. Its list is
+ * replaced in place, the focus kept on the row it was on; a roster on its way out is left alone.
+ */
+function refreshRoster() {
+    const panel = document.getElementById("drpg-messenger-roster");
+    const list = panel?.querySelector("ul");
+    if (!panel || !list || panel.classList.contains("leaving")) return;
+    const focused = document.activeElement?.closest?.(".drpg-messenger-roster-row")?.dataset.drpgUser ?? null;
+    const stats = threadStats();
+    const rows = threadUsers().sort((a, b) => a.name.localeCompare(b.name)).map(user => rosterRow(user, stats));
+    list.replaceChildren(...rows);
+    if (focused) rows.find(li => li.dataset.drpgUser === focused)?.focus();
 }
 
 function toggleRoster(anchor) {
@@ -1700,6 +1733,10 @@ function buildRoster(anchor) {
 function rosterRow(user, stats = threadStats()) {
     const li = document.createElement("li");
     li.className = "drpg-messenger-roster-row";
+    li.dataset.drpgUser = user.id;
+    // A keyboard's control (1.2.122, the audit's CTRL-63): Tab reaches the row, Enter or Space opens it as a click does.
+    li.setAttribute("role", "button");
+    li.tabIndex = 0;
 
     const row = stats.get(user.id);
     const last = row?.last ?? null;
@@ -1730,6 +1767,11 @@ function rosterRow(user, stats = threadStats()) {
         const panel = li.closest("#drpg-messenger-roster");
         if (panel) closeRoster(panel);
         openMessenger(user.id);
+    });
+    li.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        li.click();
     });
 
     return li;

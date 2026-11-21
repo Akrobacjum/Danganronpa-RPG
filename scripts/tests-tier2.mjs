@@ -54049,6 +54049,65 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the note box after Chat and back, the dot before a note, the dot after one written meanwhile, the line names a renamed GM])");
     }],
 
+    ["1.2.122 REFR-15 COMM-34 CTRL-63 - the messenger's launcher is one button kept and redrawn in place, the GM's open roster follows a thread's new message, and a roster row opens its conversation from the keyboard (messenger-app.mjs `renderLauncher`, `refreshRoster`, `rosterRow`; the audit's REFR-15, COMM-34, CTRL-63)", async () => {
+        /*
+         * The audit of 1.2.118: every thread event took the launcher off the page and built it again (COMM-34), so a
+         * keyboard user's focus on it was thrown back to the page; the open roster kept the rows it was drawn with
+         * (REFR-15); a row was an li with a click listener alone, which Tab never reached (CTRL-63). On a GM's page: the
+         * launcher drawn and focused, the roster opened from it; a message posted into a player's thread; then the
+         * launcher's node and the focus, the player's row's preview, and the row's role, tab stop and Enter. Red at
+         * 21bf5d18: a new launcher node, the focus lost, the old preview, no role or tab stop, Enter opened nothing.
+         */
+        needs(world.atLeast("playerAccounts", 1), "the roster lists a player's thread");
+        must(game.user.isGM, "the roster is a GM's");
+        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        const A = await import("./messenger-app.mjs");
+        const { sendMessage } = await import("./messenger.mjs");
+        const [one] = game.users.filter(u => !u.isGM);
+        const earlier = A.DrpgMessengerApp.instances.get(one.id) ?? null;
+        const kept = [SETTINGS.messengerLastRead, SETTINGS.messengerWindowPositions]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const TEXT = `SUITE REFR-15 ${foundry.utils.randomID(6)}`;
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        let read = null;
+        try {
+            if (earlier) await earlier.close();
+            A.renderLauncher();
+            const launcher = document.getElementById("drpg-messenger-launcher");
+            launcher.focus();
+            launcher.click();
+            await until(() => document.getElementById("drpg-messenger-roster"), 1000);
+            await settle();
+            await sendMessage(one.id, TEXT);
+            await settle();
+            await until(() => false, 100);
+            const now = document.getElementById("drpg-messenger-launcher");
+            const rowOf = () => [...document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")]
+                .find(li => li.textContent.includes(one.name));
+            const row = rowOf();
+            const preview = row?.querySelector(".drpg-messenger-roster-preview")?.textContent ?? "";
+            const keys = [row?.getAttribute("role") ?? null, row?.tabIndex ?? null];
+            const stillFocused = document.activeElement === launcher;
+            row?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            await settle();
+            await until(() => A.DrpgMessengerApp.instances.get(one.id)?.rendered, 1000);
+            read = [now === launcher, stillFocused, preview.includes(TEXT), ...keys,
+                Boolean(A.DrpgMessengerApp.instances.get(one.id)?.rendered)];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            await A.DrpgMessengerApp.instances.get(one.id)?.close();
+            for (const panel of document.querySelectorAll("#drpg-messenger-roster")) panel.remove();
+            for (const id of made) await game.messages.get(id)?.delete();
+            for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
+            A.renderLauncher();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, "button", 0, true]),
+            "the launcher was built again or lost the focus, the open roster kept an old row, or a row is not a keyboard's control "
+            + "([the same launcher node, the focus still on it, the row's preview shows the new message, the row's role, its tabIndex, Enter opened the conversation])");
+    }],
+
     ["the case health check names a secret project and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
         /*
          * E05 fix r1-G4, 27.09.2026; reviews M4 = S1-m5, M6 = S1-m6. A GM browser that lost its
