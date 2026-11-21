@@ -341,7 +341,11 @@ function wireSoundDialog(root, { wireKitTabs, wireSoundPanel, dialog = null }) {
     wireSoundPanel(root);
     wireSoundPlay(root);
     wireMusicMap(root, root);
-    // The two world switches (E101 item 7): written as they are touched, like the map's rows; a refusal puts the switch back.
+    wireSoundSwitches(root);
+}
+
+/** The two world switches (E101 item 7): written as they are touched, like the map's rows; a refusal puts the switch back. */
+function wireSoundSwitches(root) {
     for (const input of root.querySelectorAll("[data-drpg-sound-setting] input[role='switch']")) {
         const key = input.closest("[data-drpg-sound-setting]").dataset.drpgSoundSetting;
         input.addEventListener("change", () => {
@@ -452,10 +456,13 @@ export async function openSoundDialog() {
              * a row's save marker are carried across (rule 2); `after` wires the new selects, whose answer finds its
              * marker in the window. R7971.
              */
+            /* And the world's playlists (1.2.122, the audit's REFR-25): a playlist made, renamed or deleted in the sidebar with
+               the window open was offered by no select, kept its old name or stayed selectable until the window was opened
+               again, while the Play tab beside it followed the same six hooks. */
             keepLive(dialog, {
                 region: ".drpg-music-map",
                 build: musicMapBody,
-                watch: { settings: [SETTINGS.musicMap] },
+                watch: { settings: [SETTINGS.musicMap], hooks: ["createPlaylist", "deletePlaylist", "updatePlaylist"] },
                 whileEditing: true,
                 after: next => wireMusicMap(next, dialog.element)
             });
@@ -466,6 +473,16 @@ export async function openSoundDialog() {
              * chip kept its old count until the window was opened again. Since the line claude/refresh-120 (21.11.2026) a
              * box being typed in no longer holds the redraw (`whileEditing`): what was typed is carried, with the focus.
              */
+            /* The two world switches follow another GM (1.2.122, the audit's REFR-25): each its own region, woken by its own
+               setting, its listener put back on the new switch. */
+            for (const key of ["musicEnabled", "sfxVary"]) {
+                keepLive(dialog, {
+                    region: `[data-drpg-sound-setting="${key}"]`,
+                    build: () => soundSettingSwitch(key),
+                    watch: { settings: [SETTINGS[key]] },
+                    after: next => wireSoundSwitches(next)
+                });
+            }
             keepLive(dialog, {
                 region: "[data-drpg-sfx-region]",
                 build: soundEffectsRegion,

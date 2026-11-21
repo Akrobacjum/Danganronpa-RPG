@@ -88857,6 +88857,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
             + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]; [the map after the test's own restore]");
     }],
+    ["1.2.122 REFR-25 - the Sound window's Music rows follow the world's playlists, and its two switches follow another GM's write (sound-panel.mjs `openSoundDialog`'s regions, `wireSoundSwitches`; the audit's REFR-25)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-25, the residue its 1.2.119 check left): the Music rows' region was woken by the map
+         * alone, so a playlist made, renamed or deleted in the sidebar with the window open was offered by no select until
+         * the window was opened again; the two switches had no region, so another GM's write of either was not drawn. The
+         * Sound window opened as E50-T1 opens it; a playlist made, then renamed; each switch's setting written as another
+         * GM's write would arrive, then put back. Red at 21bf5d18: the new playlist in no select, both switches as drawn.
+         */
+        needs(env.dialogs(), "the Sound window is drawn");
+        must(game.user.isGM, "the Sound window is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const was = { musicEnabled: getSetting(SETTINGS.musicEnabled) === true, sfxVary: getSetting(SETTINGS.sfxVary) === true };
+        let playlist = null, answer = null;
+        const read = {};
+        try {
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("select[name^='state:']"), 6000), "the Sound window did not open with its Music tab");
+            const offered = name => [...root().querySelectorAll("select[name^='state:'] option")].some(o => o.textContent.includes(name));
+            playlist = await Playlist.create({ name: "SUITE REFR-25 made meanwhile" });
+            read.made = Boolean(await until(() => offered("SUITE REFR-25 made meanwhile"), 3000));
+            await playlist.update({ name: "SUITE REFR-25 renamed" });
+            read.renamed = Boolean(await until(() => offered("SUITE REFR-25 renamed") && !offered("SUITE REFR-25 made meanwhile"), 3000));
+            const switchOf = key => root().querySelector(`[data-drpg-sound-setting="${key}"] input[role='switch']`);
+            read.switches = {};
+            for (const key of ["musicEnabled", "sfxVary"]) {
+                must(switchOf(key), `the ${key} switch is not drawn - this would measure nothing`);
+                await setSetting(SETTINGS[key], !was[key]);
+                const followed = Boolean(await until(() => switchOf(key)?.checked === !was[key], 3000));
+                // The redrawn switch still saves as it is flipped: its listener is put back on the new node.
+                const input = switchOf(key);
+                input.checked = was[key];
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+                const saved = Boolean(await until(() => (getSetting(SETTINGS[key]) === true) === was[key], 3000));
+                read.switches[key] = [followed, saved];
+                await setSetting(SETTINGS[key], was[key]);
+            }
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            for (const key of ["musicEnabled", "sfxVary"]) if ((getSetting(SETTINGS[key]) === true) !== was[key]) await setSetting(SETTINGS[key], was[key]);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ made: true, renamed: true, switches: { musicEnabled: [true, true], sfxVary: [true, true] } }),
+            "the Sound window did not follow a playlist made or renamed, or a switch another GM wrote ({made, renamed, switches: per key [drawn as written, the redrawn switch saves]})");
+    }],
     ["E101-T7 - the Sound window's two switches save as they are flipped: Music follows the game state on the Music tab and Vary the sounds on the Effects tab write their world settings with no Apply, and the window stays open (E101 item 7; R4050)", async () => {
         /*
          * E101 item 7, 12.11.2026 (the owner's yes to the GM screens' review, #8). As the GM: the Sound window opened, each
