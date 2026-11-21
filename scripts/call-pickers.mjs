@@ -15,9 +15,9 @@
  *
  * WHERE IT SITS. Moved out of call-effects.mjs by E34 (1.2.70), a pure move that
  * `node tools/moved-only.mjs` proves line by line. The file above it is
- * call-effects.mjs, which re-exports `pickTarget` - the one name here another
- * file reads (sheet.mjs, through that facade) - so importers keep importing
- * call-effects.mjs, and nothing here imports it back: R161 counts an
+ * call-effects.mjs, which re-exports `pickTarget` - the one name here the facade
+ * hands on (sheet.mjs reads it through it) - so those importers keep importing
+ * call-effects.mjs; the window's builders are imported directly (below), and nothing here imports the facade back: R161 counts an
  * `export ... from` as an edge, and the import would close a cycle. Below it are
  * config.mjs and utils.mjs, statically, and since E51's fix round live.mjs
  * (`alreadyOpen`, `keepLive`, which import config.mjs and utils.mjs alone), and since E72 ui-columns.mjs (`choiceRowHtml`,
@@ -26,8 +26,8 @@
  * through (movement, projects, chapter, monokuma, monocub) stay lazy `import()`s,
  * as they were. The `DialogV2` alias came along, because nothing left in
  * call-effects.mjs opens a window through it; since E51 C2 `callWindow` is its
- * one reader. calls.mjs, monocub.mjs and sheet.mjs import `callWindow` and
- * `callHeader` from here directly: neither is a name of the facade, and this
+ * one reader. calls.mjs and monocub.mjs import `callWindow`, `callHeader` and the
+ * rest from here directly, as call-effects.mjs does (grep, 1.2.122): neither is a name of the facade, and this
  * file imports none of them back statically, so no cycle closes (R161).
  */
 

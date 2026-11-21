@@ -468,8 +468,10 @@ export const ROOM_PREFIX = "drpg-";
  *
  * Since E62 C3b (13.11.2026, the owner's Q-C3b-5) the dead talk in the Spectators' room (`SPECTATOR_ROOM`) and
  * nothing names a room of this shape any more; `deadRoomFor`, which built it, had no caller from then on and went in
- * E56 part 2 (14.11.2026). What stays is the reader below: whether `room` is a dead account's own room, whoever's, as
- * a row written before C3b may still name one.
+ * E56 part 2 (14.11.2026). What stays is the reader below: whether `room` is a dead account's own room, whoever's.
+ * No row a running world holds names one - `desired` and the voice ledger are this page's memory alone, kept across
+ * no reload - so it answers false for every row today; it stays a guard, not a road (1.2.122, the audit's comment
+ * sweep: this said a row written before C3b may still name one).
  */
 export function isDeadRoom(room) {
     return typeof room === "string" && room.startsWith(`${ROOM_PREFIX}dead-`);
@@ -829,8 +831,9 @@ export function voiceDrop() {
 /**
  * The room the primary GM last sent this browser, read-only (E78 C2, 13.10.2026): `undefined` while nobody has
  * said, `null` for the main room. `micHold` reads it to know an Eclipse room from the facts this browser already
- * holds. No new writer: `desired` is still written only by `onVoiceSocket`, behind its primary-GM check, and by
- * `applyBreakout`, which that socket and a GM's own `applyLocally` reach.
+ * holds. No new writer: `desired` is still written by `onVoiceSocket`, behind its primary-GM check, by
+ * `applyBreakout`, which that socket and a GM's own `applyLocally` reach, and by `forgetDesiredRoom` (to undefined),
+ * which voice.mjs `resetAllVoice` calls with regional voice off.
  */
 export function desiredRoom() {
     return desired;

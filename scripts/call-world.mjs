@@ -20,9 +20,10 @@
  * imports them from here - which is why `sealRoom` and `restrict` are exported
  * now - and it re-exports the eleven names of this file it exported before, so
  * every other importer keeps importing call-effects.mjs. Nothing here imports it
- * back (R161 would see the cycle). Below it are config.mjs, settings.mjs and
- * utils.mjs, statically, and rooms.mjs, the leaf every room is read through
- * (E12 C2a). movement.mjs imports `isSealed` and `isChained` from the
+ * back (R161 would see the cycle). Below it are config.mjs, settings.mjs,
+ * utils.mjs, rooms.mjs (the leaf every room is read through, E12 C2a) and
+ * season-reset.mjs (its season state's registration), statically; the bridge's
+ * ask for `call.world` (1.2.122, COMM-26) is a lazy `import()`. movement.mjs imports `isSealed` and `isChained` from the
  * facade statically, so a static import of movement.mjs here would close a cycle
  * (movement -> call-effects -> call-world); it stays a lazy `import()`, as do the
  * others, which a pure move does not touch. `isCallSilenced` sits here (renamed
@@ -573,7 +574,7 @@ export async function gatherEveryone(room, onScene = null, { held = null, box = 
        token" with no token on screen. `pan: false` above is the teleport's own camera, which
        would move only this GM's. Told after the moves, so a client that pans finds its token
        where it now stands; each client pans to its own (`panToGathered`). Lazily, as the rest:
-       this file imports only config.mjs, settings.mjs and utils.mjs statically (the header).
+       this file imports only config.mjs, settings.mjs, utils.mjs, rooms.mjs and season-reset.mjs statically (the header).
        Tier 2 "the gather tells each client where its token went"; scenario 65 B1b. */
     const { broadcast, SYNC } = await import("./sync.mjs");
     broadcast(SYNC.gather, { room, scene: scene.id, tokenIds: tokens.map(t => t.id) });

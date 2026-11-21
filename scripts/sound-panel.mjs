@@ -38,7 +38,6 @@ import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
  * GM SCREEN
  * ========================================================================== */
 
-/** Map each state to one of the world's playlists. */
 /*
  * A PLAYER GETS THE SLIDERS AND NOTHING ELSE.
  *
@@ -48,9 +47,14 @@ import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
  * browser, they change nothing anybody else hears, and a GM setting them
  * for a player would be setting them wrong.
  *
- * So the same window opens for everybody and simply has less in it. Not a
- * second, player-shaped window: two windows about the same two sliders is
- * how the two drift apart.
+ * What the code does (read 21.11.2026): a player is given a window of its
+ * own, this one, with the two sliders alone; the GM's Sound window is built
+ * below. The sliders are drawn in a third place too, the settings window's
+ * Sound section (settings-window.mjs, through sfx.mjs `volumeSliders` and
+ * `wireVolumeSliders`), which is the one the launcher by the chat opens; this
+ * window is reached only by `game.drpg.soundDialog`. What keeps the copies
+ * from drifting apart is that every one reads `volumeSliders` and saves through
+ * the same writer, not that there is one window.
  */
 async function openPlayerSoundDialog({ drpgWindow, soundSlidersHtml, wireSoundPanel }) {
     await drpgWindow({

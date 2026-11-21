@@ -916,15 +916,15 @@ async function askItemEffect(item) {
     }).then(r => (r && r !== "cancel" ? r : null));
 }
 
-/** What each button on a ruling card does. GM side, by construction. */
-    // A Hope Call that needed the GM's say-so (COMM-04). The verdict goes back
-    // to the asking client over the packet the old dialog used; the player's
-    // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
-    // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
-    // r2-H4): one it could not keep leaves the card open. The primary writes
-    // "Approved" on the card once the player's browser has the yes (E18 C1). The
-    // card pressed goes with it: the primary keeps a yes only for the ask held on
-    // that card (call-gm.mjs `yesOnPrimary`, fix early-C2-G2).
+// A Hope Call that needed the GM's say-so (COMM-04). The verdict goes back
+// to the asking client over the packet the old dialog used; the player's
+// own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
+// Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
+// r2-H4): one it could not keep closes the card with "The player was no longer waiting." (`askNotHeld`, 1.2.122),
+// or leaves it open where the bridge said why. The primary writes
+// "Approved" on the card once the player's browser has the yes (E18 C1). The
+// card pressed goes with it: the primary keeps a yes only for the ask held on
+// that card (call-gm.mjs `yesOnPrimary`, fix early-C2-G2).
 async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
@@ -933,14 +933,14 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
-    // A Dynamic action: the difficulty editor is the old dialog, opened from
-    // the card by whichever GM picks it up; "Refuse" tells the player so. The
-    // difficulty is kept in the card's meta, where the GM who places the action's
-    // trace reads its band (bridge-runs-records.mjs `dynamicRulingOf`, E08+E28 C15). The
-    // ruling goes by the primary, which keeps it in the meta and takes the card's
-    // buttons off as it sends it on, and writes the card's line once the player's
-    // browser has it (E18 C1; call-gm.mjs `keepRuling`, fix early-C1-G1) - for
-    // the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
+// A Dynamic action: the difficulty editor is the old dialog, opened from
+// the card by whichever GM picks it up; "Refuse" tells the player so. The
+// difficulty is kept in the card's meta, where the GM who places the action's
+// trace reads its band (bridge-runs-records.mjs `dynamicRulingOf`, E08+E28 C15). The
+// ruling goes by the primary, which keeps it in the meta and takes the card's
+// buttons off as it sends it on, and writes the card's line once the player's
+// browser has it (E18 C1; call-gm.mjs `keepRuling`, fix early-C1-G1) - for
+// the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
@@ -982,15 +982,15 @@ function rulingThread(actor, message) {
     return ownerOf(actor);
 }
 
-    // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
-    // list is read again from this GM's config for the definition the card names, and a
-    // trait not on it is refused here: the button's data is the card's, and the card is
-    // a document. The pick goes to the asker alone and is kept in the card's meta. A project
-    // stored without a statistic is given this one before the answer leaves (C11d), so the
-    // roll it is for is the last that asks. Since E68 C1 (DA18) the card may answer a proposal:
-    // "Approve" and each "Change to" are this one action, and the list's guard holds both - a
-    // "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
-    // `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
+// The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
+// list is read again from this GM's config for the definition the card names, and a
+// trait not on it is refused here: the button's data is the card's, and the card is
+// a document. The pick goes to the asker alone and is kept in the card's meta. A project
+// stored without a statistic is given this one before the answer leaves (C11d), so the
+// roll it is for is the last that asks. Since E68 C1 (DA18) the card may answer a proposal:
+// "Approve" and each "Change to" are this one action, and the list's guard holds both - a
+// "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
+// `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
 async function rulePickTrait(action, data) {
     // The valve's press (E68 C2; call-gm.mjs `askTraitByCard`): no card's button carries `auto`, only the primary's own call.
     const auto = data.auto === "1";
@@ -1009,16 +1009,16 @@ async function rulePickTrait(action, data) {
         ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how, ...(auto ? { auto: true } : {}) } };
 }
 
-    // Refuse: the action is not taken, and nothing was spent for it.
+// Refuse: the action is not taken, and nothing was spent for it.
 async function ruleRefuseTrait(action, data) {
     const { answerTraitRuling } = await import("./gm-bridge.mjs");
     if (!answerTraitRuling(data.rid, data.asker, false)) return null;
     return settled("DRPG.Bridge.settledDeclined");
 }
 
-    // A Tier 0 item used creatively (ITEM-07). The ruling used to be a console
-    // call - `game.drpg.grantItemEffect(...)` - and so was never made: the
-    // "seemingly useless item" stayed in the bag holding a usable slot.
+// A Tier 0 item used creatively (ITEM-07). The ruling used to be a console
+// call - `game.drpg.grantItemEffect(...)` - and so was never made: the
+// "seemingly useless item" stayed in the bag holding a usable slot.
 async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = null) {
     const actor = game.actors.get(data.by);
     const item = actor?.items?.get(data.item);
@@ -1048,11 +1048,11 @@ async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = n
     return done ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
-    // The two halves of the direct-murder gate. The declaration is already
-    // parked and the action already spent; what these decide is whether it is
-    // allowed to become an incident when the lights come up - and, since E68 C9, on which
-    // statistic its opening rolls: each Allow and Change to names one (`data.trait`), which
-    // `ruleOnParkedMurder` reads against the killer's list.
+// The two halves of the direct-murder gate. The declaration is already
+// parked and the action already spent; what these decide is whether it is
+// allowed to become an incident when the lights come up - and, since E68 C9, on which
+// statistic its opening rolls: each Allow and Change to names one (`data.trait`), which
+// `ruleOnParkedMurder` reads against the killer's list.
 async function ruleApproveMurderOrRefuseMurder(action, data) {
     const { ruleOnParkedMurder } = await import("./eclipse.mjs");
     const ruled = await ruleOnParkedMurder(data.killer, action === "approveMurder", action === "approveMurder" ? data.trait ?? null : null);

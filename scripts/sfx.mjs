@@ -472,10 +472,13 @@ const LAUNCHER_ID = "drpg-sound-launcher";
 /**
  * A second circle above the chat one (Dawid, 28.08).
  *
- * THE PLAYER NEEDS A DOOR, AND THIS IS THE ONLY ONE THEY HAVE. The GM reaches
- * the Sound panel from the tile in their own panel; a player has no panel, and
- * the two volumes are THEIR settings - the one part of that window that is not
- * the GM's business. Left without a way in, the sliders would exist for nobody.
+ * THE PLAYER NEEDS A DOOR, AND THIS IS THE ONE THEY HAVE. It opens this
+ * browser's settings window (look.mjs `openLookDialog`, below; E49 A1d), whose
+ * Sound section holds the two volumes - THEIR settings, the one part of the
+ * sound that is not the GM's business. The GM reaches the Sound window from the
+ * tile in their own panel; a player reaches the Sound window's player form
+ * (sound-panel.mjs `openPlayerSoundDialog`) by no control, only through
+ * `game.drpg.soundDialog` (api.mjs), read 21.11.2026.
  *
  * Deliberately not a menu in Foundry's own settings, which was the cheap
  * option: volume is something you reach for while a sound is playing, and a
@@ -513,7 +516,7 @@ export function renderSoundLauncher() {
                 const { openLookDialog } = await import("./look.mjs");
                 await openLookDialog();
             } catch (err) {
-                error("Could not open the Sound panel", err);
+                error("Could not open the settings window", err);
             }
         });
 
@@ -552,7 +555,7 @@ export function volumeSliders() {
     }));
 }
 
-/** The two sliders. The whole of the window for a player - see `openSoundDialog`. */
+/** The two sliders: the GM's Sound window above its tabs (classic theme), and the whole of the player's form reached by `game.drpg.soundDialog` (`openSoundDialog`). */
 export function soundSlidersHtml() {
     const rows = volumeSliders().map(({ key, label, hint, position }) => `
         <label class="drpg-sound-slider" data-drpg-slider="${key}">

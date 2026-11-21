@@ -3,9 +3,10 @@
  * ---------------------------------------------------------------------------
  * Search, Work on Project, Sabotage, a refused room crossing, a DM's reply, a
  * Despair Call, the time of day - all of it used to be a line in the sidebar
- * somebody had to notice. This is where all of it surfaces instead: a floating
- * card in the middle of the screen, purple for an ordinary update, red for
- * something that was refused, gold for evidence.
+ * somebody had to notice. This is where all of it surfaces instead: a card in
+ * the notice tile's corner (`hostFor`; only sticky evidence and an Objection,
+ * and a card that asks `popupCentre`, take the middle of the screen), purple for
+ * an ordinary update, red for something that was refused, gold for evidence.
  *
  * Every player gets them. A GM gets the ones addressed to the table or to them
  * - see the whisper rule in `onCreateChatMessage` below; the records of what
@@ -22,8 +23,10 @@
  *
  * Two ways something ends up here:
  *   showPopup()              called directly, when the caller wants a title or
- *                            a sticky card - `report()` in action-rolls.mjs,
- *                            the messenger, the Class Trial's evidence card.
+ *                            a sticky card - the messenger, the Class Trial's
+ *                            evidence card. (An action's `report`, in
+ *                            action-report.mjs since E41 C3, whispers its card
+ *                            and leaves it to the catch-all below.)
  *   the createChatMessage    anything posted through `announce`,
  *   catch-all hook           `whisperToGms` or `whisperToOwner` in utils.mjs,
  *                            all of which stamp `MESSAGE_FLAG`. The accent
@@ -1221,8 +1224,11 @@ function withoutRulingButtons(html) {
 }
 
 /**
- * Every module message surfaces in the middle of the screen, for everybody it
- * was addressed to - GMs included.
+ * Every module message surfaces as a notice, for everybody it was addressed to -
+ * GMs included, for the cards the rule below keeps for a GM (an announcement, a
+ * card for the GM to answer, a GM's insisted card). The corner tile holds it
+ * (`hostFor`), not the middle of the screen, unless it is sticky evidence, an
+ * Objection or a centre card.
  *
  * The old rule was "players only, whispers only". That left the GM reading a
  * sidebar for the half of this module that talks to them exclusively - every

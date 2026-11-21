@@ -287,7 +287,7 @@ function gainFor(key) {
  * up a stream every time.
  *
  * Everything that does NOT vary still goes through `AudioHelper.play` exactly as
- * before. This is a second path for eleven events, not a replacement for forty.
+ * before. This is a second path for the thirteen events that carry `vary: true` (config.mjs, since E110), not a replacement for forty.
  */
 export const decoded = new Set();
 
@@ -329,7 +329,7 @@ export const lastGains = new Map();
  * tone made half a second of deafness. Dawid found it at the table and read it
  * exactly right: "prawdopodobnie przez długość klipów".
  *
- * It bit precisely the eleven events that carry `vary: true` - window open and
+ * It bit precisely the events that carry `vary: true` (eleven then; thirteen since E110) - window open and
  * close, every button press, chat, a room entered, a crossing refused, an action
  * spent - which are the sounds a player hears most and the ones two of which
  * genuinely happen at once. Everything else already overlapped: Foundry's own
@@ -659,8 +659,9 @@ function fire(key, force, only = null) {
      * Only when this event bends AND the browser has been clicked: `load()`
      * waits on `game.audio.unlock` and would never settle otherwise, which is
      * the one way a decoration could hang the thing it decorates. A locked
-     * browser falls through to the ordinary path, which drops the sound and
-     * counts it - the behaviour rule 4 already describes.
+     * browser has already returned above unless the play is forced; a forced one
+     * falls through to the ordinary path, which hands the file to Foundry's
+     * AudioHelper (rule 4: it queues it) and counts nothing.
      */
     if (rate !== null && !game.audio?.locked) {
         return playOwned(src, varied, rate)
@@ -786,7 +787,8 @@ export function soundFromMessage(message) {
  * ========================================================================== */
 
 /**
- * Play one event now, ignoring the cooldown, the yield and the autoplay lock.
+ * Play one event now, ignoring the cooldown and the yield. Not the autoplay lock: on a browser not yet clicked it
+ * refuses before it asks, and says why (below).
  *
  *     game.drpg.testSfx("death")
  *

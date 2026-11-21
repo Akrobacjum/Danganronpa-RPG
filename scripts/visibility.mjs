@@ -612,8 +612,11 @@ export function tokenShownTo(tokenDoc, viewer) {
     if (viewer.lair && viewer.rooms.has(viewer.lair)) return null;
 
     const room = roomOfToken(tokenDoc);
-    // A scene with no regions at all: leave Foundry's own logic alone
-    // rather than hiding the entire cast.
+    // Neither the viewer's characters nor this token stand in a room: leave
+    // Foundry's own logic alone. That covers a scene with no regions at all,
+    // which would otherwise hide the entire cast, and also two students both
+    // outside every room on a scene that has them (a corridor), who see each
+    // other by Foundry's sight. `roomChangeTokens` relies on that wider reading.
     if (!viewer.rooms.size && !room) return null;
     return room && viewer.rooms.has(room) ? "room" : "hide";
 }
@@ -1130,10 +1133,14 @@ export function applyAll() {
          * What the flag actually does is give Foundry back the tokens this
          * module has hidden. `hide()` writes `visible = false` onto seven
          * display objects by hand, and the only thing in here that reverses it
-         * is `show()` - which returns early for a token the viewer does not own
-         * (see its own note). So nothing in this module ever restores somebody
-         * else's token; Foundry's own visibility pass is what does, and this is
-         * how it is asked to run. Take the line out and an Eclipse ending, the
+         * is `show()`, which returns early only for a token with `hidden` set
+         * (see its own note). It is called for the tokens whose verdict is
+         * "show": the viewer's own, and since E112v a veiled token of the
+         * killers' side for a viewer on that side (`tokenShownTo`'s veil branch),
+         * which need not be the viewer's (read 21.11.2026). Every other token
+         * this module hid - one whose verdict is not "show" any more - is given
+         * back by Foundry's own visibility pass, and this is how it is asked to
+         * run. Take the line out and an Eclipse ending, the
          * clock moving, a Truth Bullet arriving and the lair opening all leave
          * other people's tokens stranded invisible - and no test anywhere would
          * catch it, because the harness has no canvas.

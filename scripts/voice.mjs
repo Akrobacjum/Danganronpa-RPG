@@ -1903,8 +1903,8 @@ function broadcastAllowed(user) {
 /**
  * One person's claim on their account's voice: the room, the strength of the
  * claim and why, decided from what the caller hands in (E13 C4, 12.10.2026).
- * `voiceTargets` asks it once per character and, during an Eclipse or the Class
- * Trial, once per connected account that has no character. It reads no document
+ * `voiceTargets` asks it once per character and once per connected account that has no character, in every phase
+ * since E19 C4 (`placeVoices`: outside an Eclipse and the trial such an account's room is the main room). It reads no document
  * itself, so R117 asks it the trial's question for each kind of person a trial
  * holds - the living in two rooms, the dead, a Monocub, Monokuma, an account with
  * no character - without a world to write. `silenced` and `locate` are asked only
@@ -1956,9 +1956,11 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // room. The main room is LiveKit's own, so nothing has to be named or
         // made for the trial: a client that connects mid-trial starts there
         // anyway (`userConnected` above). The dead keep their seat but not their
-        // voice: "the dead listen but do not speak" is the table's rule, not
-        // this file's - D8 puts it in the handbooks and beside Start the Class
-        // Trial (E13 C6, C9).
+        // voice, and since E70 C5 that is this file's too: the trial blocks the
+        // dead's microphones (`settleTrialVoices`, `deadForTrial`). The one room
+        // also gives way to a Scrum Debate's camp rooms and to the Spectators'
+        // room (`placeVoices`), which this claim does not decide (1.2.122, the
+        // audit's comment sweep: this said the rule was the table's alone).
         //
         // After the Eclipse, not before it, though neither road meets the other
         // any more: `startEclipse` refuses in a trial (E13 fix r1-F3) and
@@ -2490,7 +2492,12 @@ export function liveKitConnectionSettings() {
  * microphone.
  *
  * So this runs the same decision the reconcile loop runs, on the same inputs,
- * and prints it instead of applying it. It works with A/V switched off, with
+ * and prints it instead of applying it - on the primary. On another GM the rooms
+ * the primary keeps for a doorway's gap are not this browser's (`voiceTargets`
+ * starts that map empty there), so a student in a gap is printed in the main room
+ * the primary keeps them out of; and on the primary the plan's own pass prunes
+ * those kept rooms as a pass does. "This client runs the assignment loop: no" is
+ * the plan's line that says which. It works with A/V switched off, with
  * the regional-voice setting off, and with nobody else connected - which turns
  * most of "test the voice chat" into something one person can do in a minute.
  *
@@ -2498,8 +2505,11 @@ export function liveKitConnectionSettings() {
  * second client, and the answer is in `diagnoseVoice()` on that client.
  *
  * `targets` is `voiceTargets()`'s answer unless handed in (E19 fix r1-G1), so R833 reads the plan of a table of rows
- * without a death written into the world. A row is grouped and named by where it sends its account (`placeName`):
- * the dead channel is its own group, never "(main room)".
+ * without a death written into the world. A row is grouped and named by where it sends its account (`placeName`, by
+ * its target since 1.2.122: a masked killer's silent room, a Scrum camp's room, the room a listener listens into). The
+ * dead are sent the Spectators' room since E62 C3b (`voiceClaim` writes SPECTATOR_ROOM as a dead claim's target), so
+ * they stand in its group beside the talking Spectators; "(Spectators' room)" (`deadGroup`) is placeName's word for a
+ * dead claim whose target is not that room, which no row of `voiceClaim` writes today.
  */
 export async function voicePlan({ toChat = false, targets } = {}) {
     if (!game.user.isGM) {

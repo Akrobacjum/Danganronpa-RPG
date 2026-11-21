@@ -489,8 +489,10 @@ async function apply() {
 
     const state = currentState();
     const next = state ? playlistFor(state) : null;
-    // What left the map in the change this apply follows, if it follows one (`scheduleMapRefresh`): taken here so
-    // that an apply that returns below does not hand it to a later one.
+    // What left the map in the change this apply follows, if it follows one (`scheduleMapRefresh`): taken here, so
+    // an apply that returns below has used it up and does not hand it to a later one. The two returns above it - the
+    // switch off, and a GM's track the moved state does not take over (`cueGivesWay`) - leave it in the set, and
+    // the next apply that gets this far takes it.
     const left = [...leftForApply];
     leftForApply.clear();
     // The same state on the same playlist: nothing to do. The playlist is asked too since E50 C3, because the map
@@ -791,10 +793,11 @@ async function resumeHeld(ids = []) {
 /**
  * This playlist is no longer holding for anything.
  *
- * Set to false rather than deleted. Deleting a key here means `-=held`, and in
- * this Foundry that quietly does nothing unless the update is a forced
- * replacement - a flag that cannot be cleared is worse than a flag that reads
- * `false`.
+ * Set to false rather than deleted. Deleting a key here would mean `-=held`:
+ * on Foundry 14.370 that does delete, but writes v14's deprecation warning
+ * (LIVE-E30-01, read on the owner's sandbox 16.11.2026), and R152 fails any
+ * update in the module spelt that way. `false` reads the same as no flag to
+ * every reader here (`getFlag(...)` is tested for truth), so nothing is lost.
  */
 async function clearHeld(playlist) {
     if (!playlist?.getFlag?.(MODULE_ID, HELD_FLAG)) return;

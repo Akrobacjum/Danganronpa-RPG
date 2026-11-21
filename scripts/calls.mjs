@@ -842,7 +842,9 @@ async function showWaitingCard(call) {
 }
 
 /**
- * The GM's ruling on a Call that needs one. Runs on a GM's client only.
+ * The GM's ruling on a Call that needs one, for a purchase on the GM's own side. Runs on a GM's client only. A
+ * player's Call is ruled by card since COMM-04 (call-gm.mjs `askHopeCallByCard`); this window serves a Call bought on
+ * a GM's browser (`spendHopeCall`'s GM road), and answers null where one is already open (below).
  *
  * WHAT THE GM IS BEING ASKED is not "is this allowed" in the abstract - it is
  * the handbook's own gate: does the experience, or the talent, GENUINELY apply

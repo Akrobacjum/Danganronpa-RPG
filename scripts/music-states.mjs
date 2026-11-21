@@ -132,11 +132,20 @@ const ownStateRows = () => Object.entries(OWN_LABELS).map(([key, label]) => ({
  * deliberately a plain list rather than a set of nested conditions: the first
  * one that applies wins, and reading the list is reading the rule.
  *
- *   paused    the game is stopped. Nothing is happening in the fiction at all.
- *   eclipse   the placement window - mechanical, everybody is moving tokens.
- *   trial     the Class Trial.
- *   search    the Investigation phase.
- *   <time>    the fallback: whichever of the five times of day it is.
+ *   murder     first in the list and never the world's answer (`test` is
+ *              false): it is here for the Sound panel and `playlistFor`.
+ *   paused     the game is stopped. Nothing is happening in the fiction at all.
+ *   eclipse    the placement window - mechanical, everybody is moving tokens.
+ *   trial.*    the Class Trial: the nine rows of the modes' own states (E110,
+ *              each only while its playlist is mapped), then the vote, the
+ *              Objection, the Nonstop Debate and the discussion.
+ *   bodyFound  a body announced, silence unless mapped.
+ *   search     the Investigation phase.
+ *   time.*     the fallback: whichever of the five times of day it is.
+ *
+ * 1 + 2 + 9 + 4 + 1 + 1 + 5 = 23 rows, counted off the list below on
+ * 21.11.2026; the GM handbook's section 17 lists the same order, with the
+ * murder row beside the table rather than in it.
  */
 export const MUSIC_STATES = [
     /*
@@ -189,8 +198,10 @@ export const MUSIC_STATES = [
      * which is what it is - and it means the trial's loudest cue plays for its
      * whole length instead of a third of it.
      *
-     * Still no fourth playlist. A mode does not need music of its own to be
-     * handled; it needs to be in the right entry.
+     * Since E110 the rebuttal does have a state of its own, `trial.rebuttal`,
+     * one of the nine own-mode rows (`OWN_LABELS`), which applies only while
+     * a playlist is mapped to it; unmapped, the rebuttal falls to the
+     * Objection's row, as this note describes.
      *
      * `trial.discussion` is the trial WITHOUT an open floor - the phase set,
      * everybody in the room, nobody holding anything. It is last of the three
