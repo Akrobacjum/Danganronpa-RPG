@@ -882,7 +882,11 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
             await updateSecret(earlier, callCardHtml(actor, call));
             cardId = earlier.id;
         } else {
-            await callGm(actor, { ...call, onPosted: message => { cardId = message?.id ?? null; } });
+            /* IN THE ASKER'S THREAD (the line INVEST of 1.2.123; the auditor's r122-D-4): this card is posted on the primary
+               GM since 1.2.122, and a GM's post that names no thread goes to the first owner (call-gm.mjs `threadOf`), so a
+               co-owner's sweep of an empty room was ruled in the other owner's thread. The row keeps the asker (`by`), as
+               the primary's other questions pass theirs (tier 2 "1.2.123 r122-D-4"). */
+            await callGm(actor, { ...call, thread: entry.by ?? null, onPosted: message => { cardId = message?.id ?? null; } });
         }
         entry.result = { success: false, bulletId: null, projectId: null, stress: 0, ruled: true, cardId };
         await keepResult(rolls, roll, key, entry);
@@ -910,7 +914,8 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
        here until its result is written, with what the find is scored on; `recoverDescribing` finishes such a row when a
        primary GM's stores open, as a window closed unanswered. */
     if (success) {
-        entry.describing = { at: Date.now(), total, isCritical: Boolean(isCritical), rollId, by };
+        // `gm`: whose window it is (the line INVEST of 1.2.123): a GM who leaves without a reload is finished for (below)
+        entry.describing = { at: Date.now(), total, isCritical: Boolean(isCritical), rollId, by, gm: game.user?.id ?? null };
         await writePending();
     }
     const item = success ? await createFind(actor, entry, isCritical, { ask: !recovering.has(key) }) : null;
@@ -1313,22 +1318,45 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
     let shown = null, timer = null, timedOut = false;
     /* THE OTHER GMs ARE TOLD THE FIND WAITS HERE (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the
        window opens on this browser alone, and a second GM never learned a player was waiting on it. */
-    if (activeGmIds().some(id => id !== game.user?.id)) {
+    /* TO THE OTHER GMs ONLY (the line INVEST of 1.2.123; the auditor's r122-D-6): `whisperToGms` whispers every GM, so the
+       GM whose screen it is was told the find waits on their own screen. */
+    const others = activeGmIds().filter(id => id !== game.user?.id);
+    if (others.length) {
         void whisperToGms({ body: `<p>${game.i18n.format("DRPG.Observe.describeWaiting", {
             actor: foundry.utils.escapeHTML(actor?.name ?? "?"), room: foundry.utils.escapeHTML(entry.room ?? "?"),
-            gm: foundry.utils.escapeHTML(game.user.name ?? "") })}</p>` }).catch(() => {});
+            gm: foundry.utils.escapeHTML(game.user.name ?? "") })}</p>` }, { whisper: others }).catch(() => {});
     }
-    const clock = new Promise(resolve => {
+    /* THE CLOCK COUNTS FROM THE LAST KEYSTROKE, AND WHAT WAS TYPED GOES OUT (the line INVEST of 1.2.123; the auditor's
+       r122-D-2): 1.2.122's clock was one `waitMs` from the window's opening, reset by nothing, and its end answered null -
+       so a GM writing for more than three minutes had the window shut under them and the words typed dropped, the toast
+       telling them to add words already written. Every input in the window starts the clock again, and at its end the
+       window's fields are read as its button reads them; the prefilled name and no words only where nothing was typed
+       (tier 2 "1.2.122 CASE-37", "1.2.123 r122-D-2"). */
+    const readForm = f => ({
+        name: f.name.value.trim(),
+        playerText: f.playerText.value.trim(),
+        analyzedText: f.analyzedText.value.trim(),
+        critHint: f.critHint?.value.trim() ?? ""
+    });
+    let typed = false, ring = null;
+    const start = () => {
+        clearTimeout(timer);
         timer = setTimeout(() => {
             timedOut = true;
-            resolve(null);
+            const f = typed ? shown?.element?.querySelector?.("form") : null;
+            ring?.(f ? readForm(f) : null);
             Promise.resolve(shown?.close?.()).catch(() => {});
         }, waitMs);
-    });
+    };
+    const clock = new Promise(resolve => { ring = resolve; start(); });
 
     // On the kit's frame (E21 C5a): one answer, the primary.
     const asked = drpgWindow({
-        render: (event, dialog) => { shown = dialog; if (timedOut) Promise.resolve(dialog?.close?.()).catch(() => {}); },
+        render: (event, dialog) => {
+            shown = dialog;
+            if (timedOut) Promise.resolve(dialog?.close?.()).catch(() => {});
+            dialog?.element?.addEventListener?.("input", () => { typed = true; if (!timedOut) start(); });
+        },
         title: game.i18n.localize("DRPG.Observe.describeTitle"),
         classes: ["drpg-panel"],
         prompt: true,
@@ -1412,13 +1440,7 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"),
                 callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    return {
-                        name: f.name.value.trim(),
-                        playerText: f.playerText.value.trim(),
-                        analyzedText: f.analyzedText.value.trim(),
-                        critHint: f.critHint?.value.trim() ?? ""
-                    };
+                    return readForm(d.element.querySelector("form"));
                 }
             }
         },
@@ -1428,7 +1450,10 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
     }).catch(() => null);
     const answer = await Promise.race([asked, clock]);
     clearTimeout(timer);
-    if (timedOut) ui.notifications?.warn?.(game.i18n.format("DRPG.Observe.describeTimedOut", { actor: actor?.name ?? "", name: fallbackName ?? "" }), { permanent: true });
+    if (timedOut) {
+        const key = answer ? "DRPG.Observe.describeTimedOutTyped" : "DRPG.Observe.describeTimedOut";
+        ui.notifications?.warn?.(game.i18n.format(key, { actor: actor?.name ?? "", name: answer?.name || fallbackName || "" }), { permanent: true });
+    }
     return answer;
 }
 
@@ -1464,12 +1489,13 @@ export function pendingShape(key) {
  * Registered at the primary's hydration (`registerObserveRecovery`); exported for the suite.
  */
 const recovering = new Set();
-export async function recoverDescribing() {
-    if (!game.user?.isGM || !isPrimaryGm()) return 0;
+export async function recoverDescribing({ gm = null, leaving = null } = {}) {
+    if (!game.user?.isGM || !isPrimaryGm({ leaving })) return 0;
     readPending();
     let n = 0;
     for (const [key, entry] of [...pending]) {
         if (!entry?.describing || entry.result) continue;
+        if (gm && entry.describing.gm !== gm) continue;
         const { total, isCritical, rollId = null, by = null } = entry.describing;
         const actor = game.actors.get(entry.actorId);
         recovering.add(key);
@@ -1488,8 +1514,18 @@ export async function recoverDescribing() {
 }
 
 /** At the primary's hydration, the finds a reload left waiting (`recoverDescribing`); not while the suite holds the stores. */
+/* AND WHEN THE GM WHOSE WINDOW IT IS LEAVES (the line INVEST of 1.2.123; the auditor's CASE-37 rest, recheck of 1.2.122):
+   a reload is finished at the hydration, but a GM who closed their browser and did not come back left the row marked, and
+   no other GM's hydration came to finish it - the player held a spent action and no card. The primary, at a GM's
+   disconnection, finishes the rows that GM's window held (`describing.gm`); a row of its own window stands. A row marked
+   before 1.2.123 names no GM and waits for a hydration as before (tier 2 "1.2.123 CASE-37 rest"). */
+export function onGmLeft(user, connected) {
+    if (connected || !user?.isGM || user.id === game.user?.id || gmStoresQuiet()) return null;
+    return recoverDescribing({ gm: user.id, leaving: user.id });
+}
 export function registerObserveRecovery() {
     onGmStoresHydrated(() => { if (!gmStoresQuiet()) void recoverDescribing(); });
+    Hooks.on("userConnected", (user, connected) => { void onGmLeft(user, connected); });
 }
 
 /** Forget every pending target. A console tool for a stuck declaration. */
