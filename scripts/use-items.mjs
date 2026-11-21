@@ -548,7 +548,7 @@ export async function useItem(actor, item, { again = null, held = item } = {}) {
     const pointless = !Object.keys(preview).length;
 
     if (!again && (pointless || !asked)) {
-        const go = await confirmUse(item, preview, pointless);
+        const go = await confirmUse(item, preview, pointless, { actor, amounts });
         if (!go) return null;
     }
 
@@ -619,6 +619,11 @@ async function useCreatively(actor, item) {
 
 /** Which of the two this particular item is being used for. */
 async function askWhichResource(item, effect) {
+    // The one preview a row with a Hope bonus gets (tier 3's until 15.10.2026): under the darkening it must
+    // not promise the Hope `restore` will skip (review of CALL-05).
+    const bonusNote = () => (overflowBlocksHope()
+        ? game.i18n.localize("DRPG.Overflow.noHopeNow")
+        : game.i18n.format("DRPG.Items.choiceBonus", { n: effect.bonus?.hope ?? 0 }));
     const rows = effect.choose.map((key, i) => `
         <label class="drpg-choice">
             <input type="radio" name="what" value="${key}"${i === 0 ? " checked" : ""}>
@@ -636,12 +641,13 @@ async function askWhichResource(item, effect) {
         body: `<form>
             <p>${game.i18n.localize("DRPG.Items.usePrompt")}</p>
             <div class="drpg-choice-list">${rows}</div>
-            ${effect.bonus?.hope ? `<p class="notes">${overflowBlocksHope()
-                // The one preview a row with a Hope bonus gets (tier 3's until 15.10.2026): under the darkening it must
-                // not promise the Hope `restore` will skip (review of CALL-05).
-                ? game.i18n.localize("DRPG.Overflow.noHopeNow")
-                : game.i18n.format("DRPG.Items.choiceBonus", { n: effect.bonus.hope })}</p>` : ""}
+            ${effect.bonus?.hope ? `<p class="notes" data-drpg-use-bonus>${bonusNote()}</p>` : ""}
         </form>`,
+        // The Hope note follows the darkening (REFR-52), the radio picked kept: only the note is written.
+        render: (event, dialog) => keepPreviewLive(dialog, root => {
+            const note = root.querySelector("[data-drpg-use-bonus]");
+            if (note && note.textContent !== bonusNote()) note.textContent = bonusNote();
+        }),
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Items.useConfirm"), tooltip: tipText("DRPG.Tips.Actions.useItTooltip"),
@@ -685,10 +691,31 @@ function wouldRestore(actor, amounts) {
     return out;
 }
 
-/** "This will restore X, and the item is gone." */
-async function confirmUse(item, preview, pointless) {
-    const summary = describe(preview);
+/** The preview's line: what the use would restore, or that it would restore nothing. */
+function previewLine(preview, pointless) {
+    return `<p data-drpg-use-preview${pointless ? ' class="drpg-warning"' : ""}>${
+        pointless
+            ? game.i18n.localize("DRPG.Items.wouldRestoreNothing")
+            : game.i18n.format("DRPG.Items.wouldRestore", { what: describe(preview) })
+    }</p>`;
+}
 
+/*
+ * THE PREVIEW FOLLOWS THE TABLE WHILE THE QUESTION STANDS (1.2.122 line ITEMS; MAP's REFR-52, as MAP's Rifle window; the
+ * owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). The line was computed once, at the open: a Health mark
+ * healed or taken meanwhile, or the darkening that blocks Hope beginning or ending, left the question promising what the
+ * use would not do. Drawn again from the character and the Overflow as they are now (`wouldRestore`, the use's own
+ * arithmetic); the which-resource window's Hope note the same way. A radio picked there is not drawn again.
+ */
+function keepPreviewLive(dialog, run) {
+    import("./live.mjs").then(({ keepFresh }) => keepFresh(dialog, {
+        run,
+        watch: { actors: true, settings: ["overflow", "overflowRules"], hooks: ["drpgOverflowChanged"] }
+    })).catch(err => error("The use's preview could not follow the table", err));
+}
+
+/** "This will restore X, and the item is gone." */
+async function confirmUse(item, preview, pointless, { actor = null, amounts = null } = {}) {
     // A question on the kit's frame (E21 C5a): using it is what the player pressed for, so yes is the primary.
     return drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
@@ -697,11 +724,17 @@ async function confirmUse(item, preview, pointless) {
         body: `<p>${game.i18n.format("DRPG.Items.confirmUse", {
             item: foundry.utils.escapeHTML(item.name)
         })}</p>
-        <p${pointless ? ' class="drpg-warning"' : ""}>${
-            pointless
-                ? game.i18n.localize("DRPG.Items.wouldRestoreNothing")
-                : game.i18n.format("DRPG.Items.wouldRestore", { what: summary })
-        }</p>`,
+        ${previewLine(preview, pointless)}`,
+        render: (event, dialog) => {
+            if (!actor || !amounts) return;
+            keepPreviewLive(dialog, root => {
+                const line = root.querySelector("[data-drpg-use-preview]");
+                if (!line) return;
+                const now = wouldRestore(actor, amounts);
+                const html = previewLine(now, !Object.keys(now).length);
+                if (line.outerHTML !== html) line.outerHTML = html;
+            });
+        },
         rejectClose: false
     });
 }

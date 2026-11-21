@@ -107175,6 +107175,47 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[removed: no stash, no row] [hidden: a field `concealed` on the region, a GM reads it hidden, the region lists the student, the store's row] "
                 + "[lifted: refused with the entry kept, or taken off with the row in the store - hidden to a GM either way] [open: a GM reads it open, the region lists the student, the store's row]");
     }],
+    ["1.2.122 REFR-52 - the use question's preview follows the table while it stands: a healing kit's line reads what it would heal, and a Health mark healed elsewhere redraws it to restore nothing, with no reopen", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; MAP's REFR-52 for use-items.mjs (`confirmUse`, its line computed once at the open).
+         * A student with one Health mark (put back) is given a Tier 1 healing kit (deleted at the end) and uses it: the
+         * question stands with "would restore 1 Health"; the mark is then healed by a GM's write, and the line must read that
+         * the use would restore nothing, the window still open. Answered Cancel. Red on 21bf5d18: the line kept its promise.
+         */
+        needs(env.dialogs(), "the use question is drawn and read while it stands");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [actor] = cast(1);
+        const HP = "system.resources.hitPoints.value";
+        const putBack = sheetAsFound(actor, [HP]);
+        const had = new Set(actor.items.map(i => i.id));
+        // The question by its first line (DRPG.Items.confirmUse), the preview its second paragraph: read so on 21bf5d18 too.
+        const asks = el => el?.textContent?.includes(game.i18n.format("DRPG.Items.confirmUse", { item: "Suite 122 kit" }));
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && asks(a.element));
+        const line = () => [...(app()?.element?.querySelectorAll(".window-content p, form p, p") ?? [])]
+            .find(p => !asks(p) && p.textContent.trim())?.textContent?.trim() ?? null;
+        const read = {};
+        let using = null;
+        try {
+            await trustedWrite(actor, { [HP]: 1 }, { reason: "gmRuling" });
+            const kit = await INV.grantItem(actor, { name: "Suite 122 kit", category: "usable", tier: 1, goal: "healing", quiet: true });
+            must(kit, "no kit was granted - this would measure nothing");
+            using = Promise.resolve().then(() => U.useItem(actor, actor.items.get(kit.id) ?? kit)).catch(() => null);
+            must(await until(() => line(), 6000), "the use question did not open with its preview");
+            read.promises = line() !== game.i18n.localize("DRPG.Items.wouldRestoreNothing");
+            await trustedWrite(actor, { [HP]: 0 }, { reason: "gmRuling" });
+            read.redrawn = Boolean(await until(() => line() === game.i18n.localize("DRPG.Items.wouldRestoreNothing"), 3000));
+        } finally {
+            app()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            if (using) await Promise.race([using, wait(3000)]);
+            app()?.close();
+            for (const item of actor.items.filter(i => !had.has(i.id))) await item.delete();
+            await putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ promises: true, redrawn: true }), "[the line promised a Health mark at the open] [the line reads nothing to restore after the mark was healed]");
+    }],
     ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
         /*
          * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy
