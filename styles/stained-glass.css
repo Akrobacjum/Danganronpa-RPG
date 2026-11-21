@@ -387,6 +387,18 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(h3, .drpg-gmp
 body.drpg-theme-stained-glass .application.sheet.actor .drpg-action-gm {
     font-size: var(--drpg-sg-floor) !important;
 }
+/* AND THE INVESTIGATION MAP'S TEXTS THE LIST ABOVE DOES NOT NAME (line INVEST of 1.2.122; the owner's Map texts left
+   from 1.2.120: "the Chapter label, the 100% zoom label, the legend and an open node's Name and Note fields drawn too
+   small"). The list above names spans, labels and buttons, so on the Map the counts, the fields' labels and the selects
+   stood at the 21 px floor while the overview's chapter (a strong), the zoom read-out (an output), the legend (list
+   items), a slot's heading (an h5) and difficulty (a strong) and the text a GM types in a node (inputs and text areas)
+   kept the base rungs: 13, 13, 11, 13, 13 and 13.3 px (audit/case-map-sweep.mjs `sizes`, Chromium, en, 1366x768 and
+   1920x1080). Here they take the floor as well; no `!important`, as nothing else sizes them under the glass. It costs
+   the graph 24 px of height at 1366x768 (972x295 to 972x271: the legend takes a line more). */
+body.drpg-theme-stained-glass .application.drpg-window-case :is(.drpg-case-overview > summary strong, .drpg-case-zoom, .drpg-case-legend-item,
+    .drpg-case-edit h5, .drpg-case-edit-field > strong, .drpg-case-edit :is(input[type="text"], textarea)) {
+    font-size: var(--drpg-sg-floor);
+}
 /* THE COST GOES WITH THE NAME, and this line is why the tile read backwards for two rounds.
    The cost was pinned to the floor here, when the round was about making every label the same
    size; the name was pinned a rung UNDER the floor later, when a round was about fitting

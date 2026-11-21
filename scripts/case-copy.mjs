@@ -261,8 +261,13 @@ export function registerCaseCopy() {
 async function copyAtLoad() {
     try {
         const files = filesPrivate();
+        /* THE FILES OPEN TO PLAYERS: NOTHING READ, AND EVERY GM TOLD (line INVEST of 1.2.122; audit 1.2.118 E111-2 and
+           domain-case-f-planner-stores 5). Not read on purpose: a player who may upload can have written the file, and a
+           restore of it would be a player's write into the GMs' stores. Until this line only the primary was told, and
+           the text said only that no copy is written; it now says that none is read either, and that a copy written
+           before stays in the world's folder, within a player's reach, to be deleted by hand (Q-E111-5's default). */
         if (files) {
-            if (isPrimaryGm()) tellRefused(files);
+            tellRefused(files);
             state.last = files;
             return;
         }

@@ -65,7 +65,7 @@ export function caseSummaryHtml(payload, { esc = s => String(s ?? "").replace(/[
 export async function showCaseSummary() {
     if (!game.user?.isGM) return null;
     const { MODULE_ID } = await import("./config.mjs");
-    const { esc } = await import("./utils.mjs");
+    const { esc, error } = await import("./utils.mjs");
     const { drpgWindow, tipText } = await import("./ui-kit.mjs");
     const { caseGraph, caseTicks } = await import("./case-schema.mjs");
     const { findersByAnyRemnant } = await import("./investigation.mjs");
@@ -92,8 +92,12 @@ export async function showCaseSummary() {
     if (answer !== "send") return null;
     if (trialProgress()?.summaryShown) return null;
     const at = Date.now();
-    await setTrialProgress({ summaryShown: at });
-    await ChatMessage.create({
+    /* THE CARD FIRST, THEN THE MARK (line INVEST of 1.2.122; audit 1.2.118 domain-case-f-planner-stores 9): the mark was
+       written before the card and the create's answer was not read, so a card that was not made - a dropped socket,
+       another module's preCreateChatMessage turning it down - still read as sent: a second press said so, Replay found
+       nothing and the GM was told "Summary sent.". Now the mark stands for a card: with none, nothing is marked and the
+       GM is told to press Send again. Tier 2 "1.2.122 CASE-73". */
+    const card = await ChatMessage.create({
         // On the chat kit (chat-card.mjs `chatCard`, E49 B5a's one road for a card): the title in the card's head
         content: chatCard({ glyph: "scale-balanced", title: game.i18n.format("DRPG.CaseSummary.title", { chapter }), body: html }),
         speaker: { alias: L("DRPG.CaseSummary.speaker") },
@@ -101,7 +105,15 @@ export async function showCaseSummary() {
            whose words the card is, and the time that names it once; the card's sound is the board's since, so the card
            carries no `sfx` */
         flags: { [MODULE_ID]: { caseSummary: true, caseBoard: { at, ...payload } } }
+    }).catch(err => {
+        error("The case summary's card could not be made", err);
+        return null;
     });
+    if (!card) {
+        ui.notifications.error(L("DRPG.CaseSummary.notSent"));
+        return null;
+    }
+    await setTrialProgress({ summaryShown: at });
     // Said to the GM who sent it (the needsCode line, R6908): the console awaited this and dropped the line, so no GM read it.
     const sent = L("DRPG.CaseSummary.sent");
     ui.notifications.info(sent);

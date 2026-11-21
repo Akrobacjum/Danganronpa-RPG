@@ -695,7 +695,8 @@ function tickTrialOf(row, trial) {
     if (row?.trial !== undefined && row?.trial !== null) return row.trial;
     return trial !== null && Number(row?.at) >= Number(trial) ? trial : null;
 }
-function trialStamp(chapter) {
+/** The chapter's current trial's stamp (`trialStartedAt`), or null; case-hints.mjs reads it for the Present cards. */
+export function trialStamp(chapter) {
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
         return stored.chapter === chapter ? (stored.trialStartedAt ?? null) : null;

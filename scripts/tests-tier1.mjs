@@ -28245,6 +28245,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseKeyCells"],
             ["DRPG.Tips.Case.whichRemnantTooltip","investigation.mjs","caseKeyCells"],
             ["DRPG.Tips.Case.placeTooltip","investigation.mjs","caseKeyCells"],
+            // line INVEST of 1.2.122 (audit 1.2.118 controls-03, finding 11): a Place past the opening roll's limit says why
+            ["DRPG.Tips.Case.placeOverLimitTooltip","investigation.mjs","caseKeyCells"],
             ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","caseFinalPanel"],
             ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","caseFinalPanel"],
             ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseFinalPanel"],

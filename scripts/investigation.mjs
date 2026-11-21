@@ -42,7 +42,7 @@ import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX,
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml, mapPlace, MAP_GEOMETRY } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
-import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore } from "./gm-stores.mjs";
+import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore, bulletStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 
 import { roomRegions, ROOM_FLAG } from "./rooms.mjs";
@@ -205,7 +205,17 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
         rejectClose: false
     });
 
-    if (!result || result === "cancel" || !result.room) return null;
+    if (!result || result === "cancel") return null;
+    /* CREATE ON "- PICK A ROOM -" IS REFUSED, AND SAID (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding 4):
+       until then the window closed with nothing placed and nothing said, and what was typed went with it. Now the GM is
+       told no room was picked and the window comes back with every field as typed, still on "- pick a room -". Tier 2
+       "1.2.122 CTRL-16". */
+    if (!result.room) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Investigation.newTraceNoRoom"));
+        return openNewTrace({ room: null, sceneId, type: result.type, name: result.name, text: result.text, tied: result.tied,
+            author: result.author, vis: result.visibility, reinforced: result.reinforced, analysis: result.analysis, note: result.note,
+            img, askRoom: true });
+    }
     if (!REMNANT_TYPES[result.type]) {
         ui.notifications.warn(game.i18n.localize("DRPG.Investigation.newTraceBadType"));
         return null;
@@ -410,20 +420,19 @@ function readTracesAs(list, reading) {
          * sets the filter by hand, every time, to the one answer the module
          * already knows.
          *
-         * Resolved HERE rather than at the declaration because it needs the
-         * list: if this chapter has left no traces yet, the current chapter is
-         * not among the select's options, and a filter pointing at an option
-         * that does not exist would show an empty table with nothing selected.
-         * So it falls back to every chapter, which is where it started.
+         * THE RUNNING CHAPTER EVEN WITH NO REMNANT OF ITS OWN (line INVEST of
+         * 1.2.122; audit 1.2.118 controls-03, finding 7). Until then a chapter
+         * that had left no trace resolved to "" - the GM's own pick of every
+         * chapter - because its option was not drawn, so one look at the Table
+         * set the Map to every chapter's Remnants and nothing could name the
+         * running chapter again. Its option is drawn always now
+         * (`caseTraceFilters`), so the filter resolves to it, and the Table
+         * says 0 of N until it leaves one. Tier 2 "1.2.122 CTRL-18".
          *
          * Once only. After this the field holds a string, and a GM who widens
          * it to every chapter keeps that for as long as the window is open.
          */
-        if (reading.chapter === null) {
-            const here = String(getClock().chapter);
-            reading.chapter = list.some(({ data }) => String(data.chapter ?? "") === here)
-                ? here : "";
-        }
+        if (reading.chapter === null) reading.chapter = String(getClock().chapter);
 
         const kept = list.filter(({ data }) =>
             (!reading.player || data.sourceActor === reading.player)
@@ -726,6 +735,8 @@ function caseTraceFilters(traces, shown, reading) {
             chapters.add(String(data.chapter));
         }
     }
+    // the running chapter's option, drawn always (`readTracesAs`, line INVEST of 1.2.122)
+    if (Number.isInteger(getClock().chapter)) chapters.add(String(getClock().chapter));
     const option = (value, label, chosen) =>
         `<option value="${esc(value)}"${value === chosen ? " selected" : ""}>${
             esc(label)}</option>`;
@@ -890,7 +901,10 @@ function caseKeyCells({ plan, status, placed, limit }) {
                     aria("DRPG.Investigation.plannedRoom")} data-drpg-scene-drawn="${esc(shows.scene ?? "")}"><option value="">${
                     esc(game.i18n.localize("DRPG.Investigation.noRoomYet"))}</option>${placeRoomOptions({ room: shows.room, sceneId: shows.scene })}</select></label>`}
                 ${here ? "" : keyPlanExtras(i, shows, aria)}
-                ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${tipAttr("DRPG.Tips.Case.placeTooltip", null, { title: true })}${
+                ${/* PAST THE LIMIT, THE BUTTON SAYS WHY (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding 11): on the Map
+                    the limit's line and its override stand in the chapter's overview, drawn closed, and the grey Place
+                    carried the tooltip of one that places. Tier 2 "1.2.122 CTRL-50". */ ""}
+                ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${(overLimit ? tipAttr("DRPG.Tips.Case.placeOverLimitTooltip", null, { title: true }) : tipAttr("DRPG.Tips.Case.placeTooltip", null, { title: true }))}${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
                     overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}`
         };
@@ -974,7 +988,28 @@ function caseKeyPanel({ plan, status, placed, limit }) {
  * (`placeFinalFromDashboard` runs on any Save whose `finalRoom` is set, read in the code), so a field that always
  * held a room would place a Final on every Save of a trace or a Key row. Exported for R358.
  */
+/*
+ * THE FINAL TRUTH FORM'S WORDS, KEPT UNTIL THEY ARE PLACED (line INVEST of 1.2.122; audit 1.2.118
+ * domain-case-c-investigation 5). "Not now" on the close's question says "Your words are kept", and they were in no store:
+ * the window that came back drew the form empty. The form is no record (its Save places a token, `placeFinalFromDashboard`),
+ * so what it held at a close, or at a Save that placed nothing, is kept here, in this browser, until it is placed - and
+ * drawn into the form the next time it is drawn, on the Table or the Map. A reload forgets it. Tier 2 "1.2.122 CASE-36".
+ */
+let finalDraft = null;
+
+/** The Final Truth form's fields of `final` (`readDashboardForm`'s), or null when it holds nothing a GM typed or picked. */
+function finalDraftOf(final) {
+    const draft = { room: final?.finalRoom ?? "", sceneId: final?.finalSceneId ?? "", vis: final?.finalVis || "evident", author: final?.finalAuthor ?? "",
+        name: final?.finalName ?? "", text: final?.finalText ?? "", analysis: final?.finalAnalysis ?? "", note: final?.finalNote ?? "" };
+    return draft.room || draft.author || draft.name || draft.text || draft.analysis || draft.note || draft.vis !== "evident" ? draft : null;
+}
+
 export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter }) {
+    const draft = finalDraft;
+    if (draft) {
+        roomOptions = placeRoomOptions({ room: draft.room || null, sceneId: draft.sceneId || null });
+        visOptions = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === draft.vis ? " selected" : ""}>${esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
+    }
     return `
         <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
         ${(() => {
@@ -1009,20 +1044,20 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
         <label>${game.i18n.localize("DRPG.Investigation.visibility")}
             <select name="finalVis"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${visOptions}</select></label>
         <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
-            <select name="finalAuthor"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(null, studentActors())}</select></label>
+            <select name="finalAuthor"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(draft?.author || null, studentActors())}</select></label>
         <label>${game.i18n.localize("DRPG.Investigation.traceName")}
-            <input type="text" name="finalName" value=""${tipAttr("DRPG.Tips.Case.nameTooltip")}
+            <input type="text" name="finalName" value="${esc(draft?.name ?? "")}"${tipAttr("DRPG.Tips.Case.nameTooltip")}
                 placeholder="${esc(game.i18n.localize("DRPG.Remnant.finalSubject"))}" /></label>
         <label>${game.i18n.localize("DRPG.Investigation.traceText")}
-            <input type="text" name="finalText" value=""${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")}
+            <input type="text" name="finalText" value="${esc(draft?.text ?? "")}"${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")}
                 placeholder="${esc(game.i18n.localize(
                     "DRPG.Investigation.notePlaceholder"))}" /></label>
         <label>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}
-            <input type="text" name="finalAnalysis" value=""${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")}
+            <input type="text" name="finalAnalysis" value="${esc(draft?.analysis ?? "")}"${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")}
                 placeholder="${esc(game.i18n.localize(
                     "DRPG.TruthBullet.analyzedTextPlaceholder"))}" /></label>
         <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
-            <input type="text" name="finalNote"
+            <input type="text" name="finalNote" value="${esc(draft?.note ?? "")}"
                 placeholder="${game.i18n.localize(
                     "DRPG.Investigation.finalNotePlaceholder")}" /></label>
         <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>`;
@@ -1063,7 +1098,12 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
        showing not only how many they have found and analysed but which ones"; Q-E98-5's default). Until E98 the counts
        stood above the tabs on every tab; now they are the tab's first table, each student's Truth Bullets and items by
        name under it, the same list the Map's summary shows. */
-    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="table"><form>
+    /* NO FORM OF ITS OWN (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding 10): the region's fields belong to the
+       window's own form, whose first submit is Save. A <form> here was dropped by the parser at the first render, inside
+       the window's form, and kept by every redraw, which live.mjs parses in a detached div - so after the first redraw the
+       fields stood in a nested form with no submit button and Enter did nothing. The tabs stand in the region itself, as
+       the first render drew them (R3658: nothing above the tabs). Tier 2 "1.2.122 CTRL-49". */
+    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="table">
         ${kitTabs([
             { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"), tooltip: tipText("DRPG.Tips.Sweep.Case.remnantsTabTooltip"),
               html: caseTracesPanel({ traces, shown, finders, reading }) },
@@ -1081,7 +1121,7 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
             { key: "who", label: game.i18n.localize("DRPG.Investigation.whoHasWhat"), tooltip: tipText("DRPG.Tips.Sweep.Case.whoTabTooltip"),
               html: `<div data-drpg-part="who">${caseStudentTable(students)}</div>` }
         ])}
-    </form></div>`;
+    </div>`;
 }
 
 /**
@@ -1193,8 +1233,8 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
     // The case's consistency (E97 C8): warnings on their nodes and in the summary; nothing is refused for them.
     const problems = checkCase(graph, { reach, cycle: layout.cycle ?? [], keyMax: KEY_REMNANTS.prepared });
     const tools = caseToolsHtml({ sort: graph.meta?.sort ?? "kind", sorts: CASE_SORTS, allOpen: reading.allOpen !== false });
-    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="map" data-drpg-chapter="${esc(graph.chapter)}"><form class="drpg-case-form">${
-        caseMapHtml({ graph, layout, finders, authors, reading, editors, summary, tools, reach, problems })}</form></div>`;
+    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="map" data-drpg-chapter="${esc(graph.chapter)}"><div class="drpg-case-form">${
+        caseMapHtml({ graph, layout, finders, authors, reading, editors, summary, tools, reach, problems })}</div></div>`;
 }
 
 /**
@@ -1328,7 +1368,11 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
     /* A PLANNED REMNANT'S FIELDS TOO (13.11.2026): it is evidence on the map, so until then it drew none, and its room,
        its type and its Place on the map were reached only from the GM panel's list (E97 C12's editor, never drawn). */
     for (const node of graph.nodes) if (!node.evidence || (node.planned && ["incident", "autopsy", "final", "bullet"].includes(node.kind))) add(node.id, schemaEditor(graph, node));
-    const slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]));
+    /* THE KEY PLANNER'S CELLS ON THE CHAPTER IT PLANS ALONE (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding
+       3): the cells are built from `keyPlan()`, the running chapter's, and were hung on every drawn chapter's slot nodes,
+       so on chapter 2's Map "Slot 1" carried chapter 3's fields and Place, and what was typed there was written to
+       chapter 3's plan. Another chapter's Key Remnant keeps its Remnant's fields (above). Tier 2 "1.2.122 CTRL-15". */
+    const slotNode = new Map(graph.chapter === plan.chapter ? graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]) : []);
     caseKeyCells({ plan, status, placed, limit }).forEach((c, i) => {
         const id = slotNode.get(i);
         if (!id) return;
@@ -1669,7 +1713,9 @@ function readDashboardForm(d) {
      * been rebuilt since the window opened, so the rows on
      * screen are the ones to walk, not the ones it opened with.
      */
-    const form = d.element.querySelector("form");
+    // the window's own form; the element itself where it has none (the region holds no form of its own since line INVEST
+    // of 1.2.122, so content drawn outside a window - the suite's `withFormAnswered` - has none)
+    const form = d.element.querySelector("form") ?? d.element;
     const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
     return {
         // The Final Key Remnant fields ride the same Save the
@@ -1870,7 +1916,12 @@ function saveFieldsIn(scope) {
 function wireMap(dialog, reading, refresh) {
     const root = dialog.element;
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
-    const fail = key => err => error(game.i18n.localize(`DRPG.CaseMap.failed.${key}`), err);
+    /* A FAILED PRESS IS SAID ON THE SCREEN (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding 8): the sentence,
+       written for the GM in both languages, reached only the console until then, and the press seemed to do nothing. */
+    const fail = key => err => {
+        error(game.i18n.localize(`DRPG.CaseMap.failed.${key}`), err);
+        ui.notifications.error(game.i18n.localize(`DRPG.CaseMap.failed.${key}`));
+    };
     /* A NODE'S FIELDS ARE WRITTEN ON EACH CHANGE (line P of 1.2.120; the owner's rule of 20.11.2026, "Zawsze odswiezamy okna
        od razu przy zmianie", and of 12.11.2026, "Moduly przy edycji nie powinny czekac na save"). With every node open (the
        default since owner-116) no node closes, so until then a tick in "Rests on", a trial mode or a name was written only
@@ -1921,6 +1972,20 @@ function wireMap(dialog, reading, refresh) {
             import("./trial-zones-ui.mjs").then(Z => Z.openDiveSets()).catch(err => error("The Logic Dive sets did not open", err));
         });
     }
+    /* AND AFTER EVERY REDRAW THEY FOLLOW THE FIELDS AS THEY STAND (line INVEST of 1.2.122; audit 1.2.118 controls-03,
+       finding 5): a redraw draws the mode's rows and the "Ticked: n of m" line from the store, and live.mjs then puts a
+       pick or a tick not yet written back by its value, which fires no `change` - so the select read one mode over the
+       rows of another, and the line counted the stored ticks under the GM's. Applied here from the drawn fields, as
+       `wireKeyLimitOverride` applies the Key limit. Tier 2 "1.2.122 CTRL-17". */
+    for (const select of root?.querySelectorAll?.('.drpg-case-edit select[name$=":mode"]') ?? []) {
+        for (const row of select.closest(".drpg-case-edit")?.querySelectorAll("[data-drpg-zone-for]") ?? []) row.hidden = !row.dataset.drpgZoneFor.split(" ").includes(select.value);
+    }
+    for (const list of root?.querySelectorAll?.(".drpg-case-fold-list") ?? []) {
+        const line = list.querySelector(":scope > summary[data-drpg-chosen]");
+        if (!line) continue;
+        const boxes = [...list.querySelectorAll('input[type="checkbox"]')];
+        line.textContent = game.i18n.format("DRPG.CaseMap.chosenOf", { n: boxes.filter(b => b.checked).length, of: boxes.length });
+    }
     wireCaseMap(root, {
         // A pick closes the node open before it, and its fields are written first (the owner, 12.11.2026)
         onPick: id => {
@@ -1932,7 +1997,10 @@ function wireMap(dialog, reading, refresh) {
             if (reading.node !== id) return;
             saveOpenNode(root).then(() => { reading.node = null; reading.focus = id; refresh(); });
         },
-        onFold: () => { reading.fold = !reading.fold; refresh(); },
+        /* THE FOLD WRITES FIRST (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding 12): a folded node is not drawn,
+           so a field typed in it and not yet written had no field to be carried to and went without a word. The open
+           nodes' changed fields are written first, as a pick writes them. Tier 2 "1.2.122 CTRL-11". */
+        onFold: () => { saveOpenNode(root).then(() => { reading.fold = !reading.fold; refresh(); }); },
         // "All open" (owner-116): every node's changed fields written first, then the other drawing, kept on the GM's User
         onView: open => {
             saveOpenNode(root).then(() => {
@@ -1957,10 +2025,13 @@ function wireMap(dialog, reading, refresh) {
         onMove: (id, step) => { reading.focus = id; moveCaseNode(reading, id, step, drawnTops(root)).then(() => refresh(), fail("move")); },
         onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove")),
         // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
-        onCheck: () => { reading.overview = true; refresh(); },
+        /* The check and Place read the case as written (line INVEST of 1.2.122; audit 1.2.118 controls-03, findings 2 and
+           14): the open nodes' changed fields are written first - a field's own `change` writes it too, but a write still
+           going out when the press came was not in what the check or Place read. */
+        onCheck: () => { saveOpenNode(root).then(() => { reading.overview = true; refresh(); }); },
         onPlace: ref => {
             const [chapter, id] = ref.split(":");
-            placeIncident(Number(chapter), id).then(() => refresh(), fail("place"));
+            saveOpenNode(root).then(() => placeIncident(Number(chapter), id)).then(() => refresh(), fail("place"));
         }
     });
     if (reading.focus) {
@@ -1983,9 +2054,14 @@ export async function placeIncident(chapter, id) {
     if (row?.kind !== "incident") return null;
     // the plan's type (13.11.2026); an Incident Remnant is tied to the murder, any other as the GM says in the window
     const type = row.type ?? "incident";
-    // its planned room, said in one line when the scene no longer has it (New Remnant then starts on its first room)
+    // its planned room, said in one line when the scene no longer has it (New Remnant then starts on its first room).
+    /* THE PLAN'S SCENE, NOT THE ONE ON SCREEN (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 7,
+       controls-03 finding 13): New Remnant opens on `row.scene`, and the check read `workingScene()`, so a room planned on
+       another place scene than the one viewed was said to be gone over a window that had it picked. Tier 2 "1.2.122
+       CASE-60". */
     const { allRooms } = await import("./movement.mjs");
-    if (row.room && !allRooms(workingScene()).includes(row.room)) ui.notifications.warn(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room: row.room }));
+    const planScene = (row.scene ? game.scenes.get(row.scene) : null) ?? workingScene();
+    if (row.room && !allRooms(planScene).includes(row.room)) ui.notifications.warn(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room: row.room }));
     // every field it plans (E104); with no room planned, New Remnant asks for one instead of starting on the first
     const token = await openNewTrace({ room: row.room, sceneId: row.scene, type, name: row.label, text: row.text, tied: row.tie ?? "",
         author: row.author || "", vis: row.vis, reinforced: row.reinforced === true, analysis: row.analysis || "", note: row.note || "",
@@ -2113,10 +2189,14 @@ export async function deleteTraceRow(key) {
  * working after that redraw replaces these very selects.
  */
 function wireCaseFilters(dialog, reading, refresh) {
+    /* ...EXCEPT A ROW THE FILTER HIDES (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding 12): a field has to be
+       drawn to be carried, so what was typed in a row the new filter hides went without a word, and came back drawn from
+       the store. The window's changed fields are written first (`saveDrawnForm`, the road a close takes), then the filter
+       redraws. Tier 2 "1.2.122 CTRL-11". */
     for (const control of dialog.element.querySelectorAll("[data-drpg-filter]")) {
         control.addEventListener("change", () => {
             reading[control.dataset.drpgFilter] = control.value;
-            refresh();
+            saveDrawnForm(dialog.element).then(() => refresh());
         });
     }
 }
@@ -2227,11 +2307,13 @@ async function givePlannedBullet(chapter, id, row) {
  * A PLANNED FINAL TRUTH PUT ON THE MAP (E104): by the Final Truth form's own road (mastermind.mjs `placeFinalRemnant`),
  * with every field the plan holds - its room on its scene, visibility, who left it, name, words, analysis and the GM's
  * note - then its picture, as the Table writes it; the plan's row then points at it. With no room planned it asks for
- * one ("- pick a room -" first, which places nothing) instead of guessing. Answers the token, or null.
+ * one ("- pick a room -" first, which "Place it" refuses and asks again) instead of guessing. Answers the token, or null.
  */
 async function placePlannedFinal(chapter, id, row) {
     let room = row.room, scene = row.scene ? game.scenes.get(row.scene) ?? null : null;
-    if (!room) {
+    /* "PLACE IT" ON "- PICK A ROOM -" IS SAID, AND ASKED AGAIN (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding
+       4): until then it closed with nothing placed and nothing said. Cancel or the X still places nothing, in silence. */
+    while (!room) {
         const L = key => game.i18n.localize(key);
         const answer = await drpgWindow({
             title: L("DRPG.CaseMap.finalAskRoomTitle"),
@@ -2244,7 +2326,11 @@ async function placePlannedFinal(chapter, id, row) {
             } }, close: { role: "cancel", action: "cancel" } },
             rejectClose: false
         });
-        if (!answer?.room) return null;
+        if (!answer || typeof answer !== "object") return null;
+        if (!answer.room) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Investigation.newTraceNoRoom"));
+            continue;
+        }
         room = answer.room;
         scene = game.scenes.get(answer.sceneId) ?? null;
     }
@@ -2263,10 +2349,18 @@ async function placePlannedFinal(chapter, id, row) {
  * window's text (`saveDrawnForm`) but does not place a token on the map unasked: where the form's Final Truth Remnant
  * has a room, the GM is asked, "Place it" the default, and it is placed as Save places it. Answers whether it was.
  */
-async function offerFinalOnClose(root) {
+/* ASKED ONLY WHEN THE FORM WAS CHANGED IN THIS WINDOW (line INVEST of 1.2.122): a form drawn from the words kept at an
+   earlier "Not now" (`finalDraft`) and left as drawn keeps them in silence, so the question is not put again at every
+   close; Save still places it. Read before the close's write (`saveDrawnForm`), which takes every changed field as drawn. */
+const FINAL_FIELDS = ["finalRoom", "finalVis", "finalAuthor", "finalName", "finalText", "finalAnalysis", "finalNote"];
+function finalTouched(root) {
+    return FINAL_FIELDS.map(n => root?.querySelector?.(`[name="${n}"]`)).some(f => f && isDirty(f));
+}
+
+async function offerFinalOnClose(root, touched = true) {
     if (!root?.querySelector?.("form")) return false;
     const final = readDashboardForm({ element: root });
-    if (!final.finalRoom) return false;
+    if (!final.finalRoom || !touched) return false;
     const L = key => game.i18n.localize(key);
     const answer = await drpgWindow({
         title: L("DRPG.Investigation.finalAskTitle"),
@@ -2277,8 +2371,7 @@ async function offerFinalOnClose(root) {
         rejectClose: false
     });
     if (answer !== "place") return false;
-    await placeFinalFromDashboard(final);
-    return true;
+    return Boolean(await placeFinalFromDashboard(final));
 }
 
 async function placeFinalFromDashboard(action) {
@@ -2291,6 +2384,7 @@ async function placeFinalFromDashboard(action) {
         ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn",
             { room: action.finalRoom }));
     }
+    return placedFinal ?? null;
 }
 
 /**
@@ -2530,11 +2624,14 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                over. `stores` hears both (live.mjs `listenFor`). */
             /* The Logic Dive sets are heard too (line P of 1.2.120; audit 1.2.118 controls-03, finding 6): a node planning a
                Logic Dive lists them in its set picker, which kept the sets it was drawn with until the window was opened
-               again. */
+               again. And the Truth Bullets' answer keys (line INVEST of 1.2.122; audit 1.2.118 refresh-01-04, finding 2):
+               every "found by", Who has what and the Map's reach read a bullet's key (`secretOf`, the store `bulletStore`),
+               which lands after its item - on a second GM through the GMs' exchange - and is amended by an Analyze; until
+               then the window drew a find of nothing until some other write redrew it. Tier 2 "1.2.122 REFR-42". */
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore], where: CASE_WATCH },
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore, bulletStore], where: CASE_WATCH },
                 /* a focused field nobody typed in does not hold the redraw (live.mjs `whileEditing`; the owner, 20.11.2026, the
                    line claude/plan-119): with every node open on the Map a GM's focus is in a field most of the time */
                 whileEditing: true,
@@ -2556,15 +2653,19 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
        13.11.2026): until then they waited for Save, and every other close dropped them without a word. From the
        planner's review until the owner's answer a Cancel discarded both (4bab7361, da352a81). */
     if (!action || typeof action === "string") {
+        const touched = finalTouched(drawnRoot);
         await saveDrawnForm(drawnRoot);
-        await offerFinalOnClose(drawnRoot);
+        const placedNow = await offerFinalOnClose(drawnRoot, touched);
+        // what the Final Truth form held, kept for the next drawing unless it was placed (`finalDraft`)
+        finalDraft = placedNow || !drawnRoot?.querySelector?.("form") ? null : finalDraftOf(readDashboardForm({ element: drawnRoot }));
     }
     if (!action || action === "close") return null;
 
     const ran = await runDashboardButton(action);
     if (ran) return openInvestigationDashboard({ said: ran.said ?? null });
 
-    if (action.finalRoom) await placeFinalFromDashboard(action);
+    const placedOnSave = action.finalRoom ? await placeFinalFromDashboard(action) : null;
+    finalDraft = placedOnSave ? null : finalDraftOf(action);
 
     // `traces` and `plan` read fresh, for the same reason the callback above does: the window
     // has been standing open and rebuilding itself, so what a row is APPLIED to (which token,

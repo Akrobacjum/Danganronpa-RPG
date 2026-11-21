@@ -25641,10 +25641,78 @@ const REGRESSIONS = [
             return { through: through.length, grazing: grazing.length, clear, ...(through.length || grazing.length ? { first: [...through, ...grazing].slice(0, 3) } : {}) };
         };
         const result = {};
-        for (const sort of ["kind", "manual", "uncrossed"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        // every sort the Map offers (line INVEST of 1.2.122, the audit's r120-P-5: "under each sort" read three of the five)
+        for (const sort of ["kind", "manual", "uncrossed", "room", "state"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
         const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, grazing: 0, clear: true }]));
         equal(JSON.stringify({ result, edges: graph.edges.length }), JSON.stringify({ result: want, edges: 21 }),
             "{each sort, at the least sizes and with every third node 140 px: through - route stretches through a node not their own end, grazing - along one nearer than 5 px (the first three of either named), clear - every node clear of its column's others; edges: the case's lines}");
+    }],
+    ["R8180 - a counter's line back to an earlier column passes through no node (line INVEST of 1.2.122; the audit's r120-P-4; case-view.mjs `routePlan`): a counter refuting a deduction in its own column and one in the column before it - which skips no column - is routed from the counter to the earlier deduction without a stretch through any node's box but its own two ends, under every sort, at the least sizes and with every third node 140 px tall; and each line ends on its target's near side: the right one for the line back, the left one beside it", async () => {
+        /*
+         * Line INVEST of 1.2.122, 22.11.2026. Pure. The case: six Remnants, four deductions on them in the first deduction
+         * column (d1-d4), e1 on d1 and d2 in the next, and k1 refuting d3 and e1 - so k1 stands in e1's column (its deepest
+         * target, case-layout.mjs `depthOf`) and its line to d3 goes back one column. Red at 21bf5d18: a line back turned in
+         * the gutter before its target's column, so its first stretch ran left at the counter's height across that column,
+         * through the deduction standing there (the audit's count: 49 such stretches in 45 of 600 random layouts).
+         */
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const T = i => `S.R8180${i}`;
+        const traces = Array.from({ length: 6 }, (_, i) => ({ key: T(i), type: "prep", name: `t${i}`, tiedToCrime: true }));
+        const rows = {
+            d1: { kind: "deduction", label: "d1", inputs: [T(0)] }, d2: { kind: "deduction", label: "d2", inputs: [T(1)] },
+            d3: { kind: "deduction", label: "d3", inputs: [T(2), T(3)] }, d4: { kind: "deduction", label: "d4", inputs: [T(4), T(5)] },
+            e1: { kind: "deduction", label: "e1", inputs: ["d1", "d2"] },
+            k1: { kind: "counter", label: "k1", refutes: ["d3", "e1"] }
+        };
+        const graph = S.graphOf({ chapter: 6, traces, rows });
+        const segsOf = d => {
+            const out = [];
+            let x = 0, y = 0, end = null;
+            for (const c of String(d).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") [x, y] = v;
+                else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; }
+                else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+                end = { x, y };
+            }
+            return { segs: out, end };
+        };
+        const read = (sort, tall) => {
+            const layout = layoutCase(graph, { sort });
+            const ids = Object.keys(layout.positions);
+            const sizes = tall ? new Map(ids.filter((_, i) => i % 3 === 0).map(id => [id, { w: g.nodeW, h: 140 }])) : null;
+            const at = V.mapPlace(layout, g, sizes, { edges: graph.edges }).at;
+            const routes = V.routeEdges(graph.edges, at, g);
+            const through = [];
+            let atSide = true;
+            for (const e of graph.edges.filter(x => x.from === "k1")) {
+                const { segs, end } = segsOf(routes.get(`${e.from}>${e.to}`) ?? "");
+                const t = at[e.to];
+                // a line back to an earlier column ends on its target's right side, one beside it in its own column on its left
+                const side = t && at.k1 && t.x < at.k1.x ? t.x + t.w : t?.x;
+                if (!end || !t || Math.abs(end.x - side) >= 0.6 || end.y < t.y || end.y > t.y + t.h) atSide = false;
+                for (const sg of segs) {
+                    for (const [id, p] of Object.entries(at)) {
+                        if (id === e.from || id === e.to) continue;
+                        const [x0, x1, y0, y1] = [p.x, p.x + p.w, p.y, p.y + p.h];
+                        const hit = sg.h ? sg.y > y0 + 0.5 && sg.y < y1 - 0.5 && Math.min(sg.b, x1) - Math.max(sg.a, x0) > 0.5
+                            : sg.x > x0 + 0.5 && sg.x < x1 - 0.5 && Math.min(sg.b, y1) - Math.max(sg.a, y0) > 0.5;
+                        if (hit) through.push(`${e.from}>${e.to} ${id}`);
+                    }
+                }
+            }
+            const back = graph.edges.some(e => e.from === "k1" && at[e.to] && at.k1 && at[e.to].x < at.k1.x);
+            return { through: through.length, atSide, back, ...(through.length ? { first: through.slice(0, 3) } : {}) };
+        };
+        const result = {};
+        for (const sort of ["kind", "manual", "uncrossed", "room", "state"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, atSide: true, back: true }]));
+        equal(JSON.stringify(result), JSON.stringify(want),
+            "{each sort, at the least sizes and with every third node 140 px: through - stretches of the counter's two lines through a node not their own end (the first three named); atSide - each line ends on its target's near side (right for the line back, left beside it), inside its height; back - the counter's line to d3 goes back to an earlier column}");
     }],
     ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*
