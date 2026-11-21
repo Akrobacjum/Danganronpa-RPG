@@ -28568,7 +28568,8 @@ const INVARIANTS = [
         must(src.length > 500, "room-setup.mjs read as nothing - this would measure nothing");
         const cells = fnSource(src, "roomCells"), content = fnSource(src, "roomSetupContent");
         // The row's own object, the last `return {` at the function's first indent; a names map above holds keys at the same depth.
-        const returned = [...cells.matchAll(/^ {8}return \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
+        // `const cells = {` since 1.2.122 (line MAP; the audit's MAP-39): the row's object is handed through `cellsOff` for a name no piece can make a room.
+        const returned = [...cells.matchAll(/^ {8}(?:return|const cells =) \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
         const built = [...returned.matchAll(/^ {12}([a-z]+):/gm)].map(m => m[1]).filter(k => k !== "name");
         const tabled = new Set([...content.matchAll(/tableFor\(\[([^\]]*)\]\)/g)].flatMap(m => [...m[1].matchAll(/"([a-z]+)"/g)].map(x => x[1])));
         must(built.length >= 10 && tabled.size >= 10, `read ${built.length} built cell(s) and ${tabled.size} tabled column(s) - this would measure nothing`);
@@ -64492,6 +64493,63 @@ const INVARIANTS = [
         equal(JSON.stringify([off, kept, [calls, most], held, freed]),
             JSON.stringify([[true, true, true, true, true], ["<strong>Stairwell</strong>", "hint", "t", true], [2, 1], [true, false, reason, reason], [false, false, null, null]]),
             "[each control of the row off, [the name, This is a room's hint, a cell's hint kept, the picture no picker], [probes for two paths, the most at once], the held Apply [disabled, an empty data-tooltip, its text tooltip, its label], freed]");
+    }],
+    ["R8345 - a room's picture window is closed when its room's picture changes or goes, and left alone for another room or the same picture (1.2.122 line MAP; scripts/room-tile.mjs `stalePictures`, `refreshRoomTile`, `openRoomImage`; the audit's REFR-60)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's REFR-60. `openRoomImage` opened Foundry's ImagePopout with the path of the
+         * press, and nothing found it again: the GM replaced the Library's picture and the player's window went on showing
+         * the old one. The harness has no ImagePopout, so the rule is read on stand-in popouts (`stalePictures`, pure) and
+         * `refreshRoomTile` held to close what it answers, and `openRoomImage` to keep what it opened (their source).
+         */
+        const T = await import("./room-tile.mjs");
+        const { safeRoomImage } = await import("./vault.mjs");
+        must(typeof T.stalePictures === "function", "room-tile.mjs has no stalePictures - this would measure nothing");
+        const a = safeRoomImage("rooms/library.webp"), b = safeRoomImage("rooms/library-after.webp");
+        must(a && b && a !== b, "the suite's two paths are not pictures safeRoomImage accepts - this would measure nothing");
+        const lib = {}, gym = {}, same = {};
+        const shown = new Map([[lib, { room: "Library", src: a }], [gym, { room: "Gym", src: a }]]);
+        const pick = (view, map = shown) => T.stalePictures(view, map).map(p => (p === lib ? "lib" : p === gym ? "gym" : p === same ? "same" : "?"));
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/room-tile.mjs`).then(lfText));
+        equal(JSON.stringify([pick({ room: "Library", image: "rooms/library-after.webp" }), pick({ room: "Library", image: null }),
+            pick({ room: "Library", image: "rooms/library.webp" }), pick({ room: "Hall", image: null }),
+            /stalePictures\(view, shownPictures\)/.test(fnSource(src, "refreshRoomTile")) && /\.close\?\.\(\)/.test(fnSource(src, "refreshRoomTile")),
+            /shownPictures\.set\(popout, \{ room, src \}\)/.test(fnSource(src, "openRoomImage"))]),
+            JSON.stringify([["lib"], ["lib"], [], [], true, true]),
+            "[the Library's picture changed, removed, the same; the viewer in another room; refreshRoomTile closes what it names; openRoomImage keeps what it opened]");
+    }],
+    ["R8346 - a canvas drawn again over the same standing announces the room quietly, and the owner's charges of one character run one after another (1.2.122 line MAP; scripts/fog.mjs `revealStartingRooms`; movement.mjs `settleRoute`; the audit's MAP-31, MAP-38)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-31: every canvasReady announced the room the lead stands in, and a floor switch
+         * is a full canvas draw on v14 as fog.mjs reads the spike (LIVE-E12-02), so each press of a floor button played the
+         * arrival's sound and hop with nobody moving; the same scene and the same leads' rooms as the last call are now
+         * announced `quiet`. MAP-38: the owner's charge was no step of any key, so two quick drags could both read the free
+         * Move; it is a step of `crossingKey` on the owner's browser too. Both off the source: the harness draws no canvas,
+         * and two drags inside one write's round trip are a hand's at a real table (not measured here).
+         */
+        const [fog, move] = await Promise.all(["fog.mjs", "movement.mjs"].map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const reveal = fnSource(fog, "revealStartingRooms"), settle = fnSource(move, "settleRoute");
+        must(reveal && settle, "fog.mjs has no revealStartingRooms or movement.mjs no settleRoute - this would measure nothing");
+        equal(JSON.stringify([/const quiet = key === startingShown;/.test(reveal) && /startingShown = key;/.test(reveal),
+            /announceRoom\(entered\.room, token\.document\.actor, token\.document\.elevation, \{ quiet \}\)/.test(reveal),
+            /if \(owner\) return serialWrite\(crossingKey\(actor\.id\), \(\) => chargeRoute\(/.test(settle),
+            (settle.match(/chargeRoute\(/g) ?? []).length === (settle.match(/serialWrite\(crossingKey\(actor\.id\), \(\) => chargeRoute\(/g) ?? []).length]),
+            JSON.stringify([true, true, true, true]),
+            "[the starting announcement keyed on the scene and the leads' rooms, a known room announced quiet on the same key, the owner's charge a step of the key, every charge of the route one]");
+    }],
+    ["R8347 - every seam's light blurs by the same screen pixels whatever the zoom: the standing outline's, a ring's baked light and the reveal's line light (1.2.122 line MAP; scripts/fog-reveal.mjs `haloBlur`, `buildRevealLayers`, `seamHalo`; the audit's MAP-29)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-29. E49 B4 (S07-34) held the standing outline's blur to 6 px with a
+         * padding of 14 px; a ring's baked light (`haloBlur`, read by `wearHalo`) and the reveal's line light kept six
+         * seams, a seam being 1 / zoom in scene units handed to a filter that works in screen pixels - 20 px at zoom 0.3.
+         * Read off the source: every BlurFilter the file makes takes `HALO_BLUR_PX` and every padding `HALO_PAD_PX`, and no
+         * blur is built from a seam or a line width. How it looks at a table is LIVE-E49-04.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog-reveal.mjs`).then(lfText));
+        const blurs = [...src.matchAll(/new Blur\(([^,]+), 3\)/g)].map(m => m[1].trim());
+        const pads = [...src.matchAll(/\.padding = ([^;]+);/g)].map(m => m[1].trim());
+        must(blurs.length >= 3, `fog-reveal.mjs makes ${blurs.length} blur(s) - this would measure nothing`);
+        equal(JSON.stringify([[...new Set(blurs)], [...new Set(pads)], /Math\.max\(6,/.test(src)]), JSON.stringify([["HALO_BLUR_PX"], ["HALO_PAD_PX"], false]),
+            "[what every blur is made of, every padding, a blur grown from a seam]");
     }],
 ];
 

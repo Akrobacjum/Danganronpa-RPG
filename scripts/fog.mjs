@@ -4556,10 +4556,18 @@ function revealStartingRooms() {
     if (!fogEnabled()) return;
     const scene = canvas?.scene;
     if (!scene) return;
+    /* A REDRAW OF THE SAME STANDING IS NO ARRIVAL (1.2.122 line MAP; the audit's MAP-31). Every canvasReady runs this, and a
+       floor switch is a full canvas draw on v14 as this file reads the spike (LIVE-E12-02): each press of a floor button
+       played the room-entered sound and, back on the lead's floor, the outline's hop and name, with nobody moving. The
+       scene and the rooms the leads stand in are kept from the last call; the same again is drawn quietly, as a redraw
+       (`announceRoom`'s `quiet`, `standWhereWeStand`'s own). */
+    const leads = (canvas?.tokens?.placeables ?? []).filter(token => leadsHere(token));
+    const key = `${scene.id}|${signatureOf(new Set(leads.map(token => `${token.document?.id}:${roomOfToken(token.document) ?? ""}`)))}`;
+    const quiet = key === startingShown;
+    startingShown = key;
 
-    for (const token of canvas?.tokens?.placeables ?? []) {
+    for (const token of leads) {
         // The tokens the outline follows (`leadsHere`; E51 fix FG2): on a GM's browser another GM's Monokuma is not one.
-        if (!leadsHere(token)) continue;
         const entered = roomEnteredByMe(token.document);
         if (!entered) continue;
         // A room nobody here has seen gets the whole gesture. One already known
@@ -4567,9 +4575,12 @@ function revealStartingRooms() {
         // saying "you are in this one", and it has to be there from the moment
         // the scene appears rather than waiting for a step.
         if (entered.isNew) playDiscoveryAnimation(entered.room, token.document);
-        else announceRoom(entered.room, token.document.actor, token.document.elevation);
+        else announceRoom(entered.room, token.document.actor, token.document.elevation, { quiet });
     }
 }
+
+/** The scene and the leads' rooms the last `revealStartingRooms` announced (MAP-31), or null before the first. */
+let startingShown = null;
 
 /** Signature of a room set, cheap enough to compare on every owned move. */
 let lastMineSignature = "";

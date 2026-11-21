@@ -555,7 +555,23 @@ export async function openRoomImage(path, room) {
     });
     await popout.render({ force: true });
     if (popout.window?.title?.nodeType === 1) popout.window.title.textContent = room;
+    shownPictures.set(popout, { room, src });
     return popout;
+}
+
+/*
+ * THE PICTURE WINDOW FOLLOWS ITS ROOM'S PICTURE (1.2.122 line MAP; the audit's REFR-60; the owner's rule "Zawsze odswiezamy
+ * okna od razu przy zmianie"). It kept the picture it opened with after the GM changed or removed it, while the tile and
+ * the words window followed. Each popout this file opened is kept with its room and picture, and when the tile is drawn
+ * again a popout of the viewer's room whose picture is no longer that room's is closed (`stalePictures`): the tile shows
+ * the new one, a press opens it. A popout of a room the viewer has left is left as it is.
+ */
+const shownPictures = new Map();
+
+/** The popouts of `shown` (`Map(popout, { room, src })`) that no longer show `view`'s room's picture. Pure; for the suite. */
+export function stalePictures(view, shown) {
+    const now = view?.image ? safeRoomImage(view.image) : null;
+    return [...shown].filter(([, seen]) => seen.room === view?.room && seen.src !== now).map(([popout]) => popout);
 }
 
 /**
@@ -719,7 +735,14 @@ export function stripImageControls(app, controls) {
 export function refreshRoomTile() {
     try {
         const view = tileView();
-        if (paintRoomTile(ensureRoomTile(), view)) refreshRoomWindow(view);
+        if (paintRoomTile(ensureRoomTile(), view)) {
+            refreshRoomWindow(view);
+            for (const [popout] of shownPictures) if (!popout.rendered) shownPictures.delete(popout);
+            for (const popout of stalePictures(view, shownPictures)) {
+                shownPictures.delete(popout);
+                Promise.resolve(popout.close?.()).catch(err => error("Could not close a room's old picture", err));
+            }
+        }
     } catch (err) {
         error("Could not paint the room tile", err);
     }

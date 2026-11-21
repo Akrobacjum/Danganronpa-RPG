@@ -2781,8 +2781,14 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
        count beside it; both are steps of `crossingKey(actor.id)` now, and the route's Eclipse crossings are counted in
        this step (`countCrossingInStep`), not in a second one of the key it holds. A route the owner's browser pays stays
        the owner's, as at Base: its count is the primary's step through `eclipse.move`, and its spend the owner's
-       stamped write (design note 20). */
-    if (owner) return chargeRoute(tokenDoc, actor, { before, previous, crossings });
+       stamped write (design note 20), in a step of the same key on the owner's browser (below). */
+    /* THE OWNER'S CHARGES OF ONE CHARACTER, ONE AFTER ANOTHER (1.2.122 line MAP; the audit's MAP-38, MAP-LC3's second
+       half). `takeMove` reads the free Move off this browser's copy and then awaits its write, so a second route settled
+       here before the first spend came back read the free Move unused and took it again: two drops in quick succession
+       both said "That was your Free Move". A step of the character's key on this browser too; the primary's steps of the
+       key are the primary's, and nothing the owner's charge calls asks the key on the owner's browser. Whether a hand
+       lands the second drop inside one write's round trip at a table is not read (the audit's own question). */
+    if (owner) return serialWrite(crossingKey(actor.id), () => chargeRoute(tokenDoc, actor, { before, previous, crossings }));
     return serialWrite(crossingKey(actor.id), () => chargeRoute(tokenDoc, actor, { before, previous, crossings }, {
         record: async (who, to) => {
             const { countCrossingInStep } = await import("./eclipse.mjs");

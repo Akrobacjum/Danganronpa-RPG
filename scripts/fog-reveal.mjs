@@ -360,12 +360,13 @@ export function buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, 
             lineHalo = new PIXI.Graphics();
             lineHalo.name = REVEAL_LINE_HALO;
             lineHalo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
-            /* The room border's own bloom, to the number: a blur six times the core, in
-               screen pixels, so the light weighs the same at any zoom. */
+            /* The room border's own bloom, in screen pixels, so the light weighs the same at any zoom: the standing
+               outline's 6 px and 14 px (`HALO_BLUR_PX`, S07-34; 1.2.122 line MAP, the audit's MAP-29). It was six seams,
+               and a seam is 1 / zoom in scene units handed to a filter that works in screen pixels: 20 px at zoom 0.3. */
             const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
             if (Blur) {
-                const filter = new Blur(Math.max(6, lineWidth * 6), 3);
-                filter.padding = Math.max(14, lineWidth * 14);
+                const filter = new Blur(HALO_BLUR_PX, 3);
+                filter.padding = HALO_PAD_PX;
                 lineHalo.filters = [filter];
             }
             lineCore = new PIXI.Graphics();
@@ -959,12 +960,17 @@ export function ringHalo(w, h, colour) {
     };
 }
 
-/** The live halo's blur, as the rings and `seamHalo` make it: six times the seam, never under 6, padding 14 seams. */
-function haloBlur(seam) {
+/**
+ * The live halo's blur, as `seamHalo` makes it: 6 px, padding 14 px, whatever the zoom (1.2.122 line MAP; the audit's
+ * MAP-29). It was six seams, never under 6, padding 14 seams - a seam being 1 / zoom in scene units, so a ring baked at
+ * zoom 0.3 carried a light three times as wide as the room border beside it, which S07-34 had held at 6 px. The bake
+ * runs in screen pixels at the zoom struck. How it looks: LIVE-E49-04, a table's.
+ */
+function haloBlur() {
     const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
     if (!Blur) return null;
-    const filter = new Blur(Math.max(6, seam * 6), 3);
-    filter.padding = seam * 14;
+    const filter = new Blur(HALO_BLUR_PX, 3);
+    filter.padding = HALO_PAD_PX;
     return filter;
 }
 
@@ -1102,7 +1108,7 @@ export function wearHalo(sprite, { seen, key, seamFactor = 1, shape, blur = halo
         const g = new PIXI.Graphics();
         g.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
         shape.draw(g, seam);
-        const filter = blur ? haloBlur(seam) : null;
+        const filter = blur ? haloBlur() : null;
         if (filter) g.filters = [filter];
         const baked = bakeTexture(g, struck, shape.bounds(seam), (filter ? filter.padding : 0) + 2, renderer);
         g.destroy();
