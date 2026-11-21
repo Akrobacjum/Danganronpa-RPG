@@ -8035,6 +8035,53 @@ const SCENARIOS = [
                 stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
     }],
 
+    ["1.2.120 CASE-16 - a crisis card tells no seat the value of a defence its copy could not see: in a trap the victim's Self-Defense card says the total, the number the victim was shown with \"+ a hidden defense\" and the hit, with no threshold, while the GMs' copy keeps the full line (scripts/murder-rules.mjs `announceCrisis`, `crisisDefenseHidden`; incident-store.mjs `castFor`; the audit's CASE-16, the owner's answer of 21.11.2026, option 1, through the coordinator)", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line K. The audit's CASE-16: the card printed "total < threshold" with the GM's full number
+         * to every seat, so a victim whose copy holds no killer read the hidden builder's Body off the difference from the
+         * "18 + a hidden defense" the menu and the roll window showed (R7950). A trap is opened on two students with
+         * players, its opening missed so the trap closes (as "the time of day in an incident is veiled" opens one), and the
+         * victim's Self-Defense resolved on 30 as the bridge resolves it; the packets this GM sends are read (`wordsSent`).
+         * Read: whether the victim's player was sent any "<" or ">=" line with a number, whether they were sent the hidden
+         * line, and whether a card on the log for the GMs holds the full one. Put back: the incident, the clock. Red at e515907d: the victim was
+         * sent "30 >= <the GM's threshold>".
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent the card");
+        const M = await import("./murder.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const read = {};
+        try {
+            await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            const state = M.murderState();
+            must(state?.stage === "incident" && state.indirect && state.turnSide === "victim", `the trap is not at its victim's turn: ${stableJson(state)}`);
+            const threshold = (await import("./murder-rules.mjs")).crisisThreshold("selfDefence", state);
+            const shown = CRISIS_ACTIONS.selfDefence.threshold;
+            const { contentOf } = await import("./secret.mjs");
+            const seenIds = new Set(game.messages.map(m => m.id));
+            const words = await wordsSent(async () => {
+                await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 30, isCritical: false, withHope: true });
+                await settle();
+            });
+            const text = w => w.html.replace(/<[^>]+>/g, " ").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
+            const toVictim = words.filter(w => w.to.includes(player(victim).id)).map(text);
+            // This GM's own card is not a packet it sends: read off the log, as written for the GMs.
+            const toGm = game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.some(id => game.users.get(id)?.isGM))
+                .map(m => text({ html: contentOf(m) ?? "" }));
+            read.victim = [toVictim.some(t => /(≥|<|>=)\s*\d+/.test(t)), toVictim.some(t => t.includes(game.i18n.format("DRPG.Murder.scoreHidden.hit", { total: 30, n: shown })))];
+            read.gm = toGm.some(t => t.includes(`30 ≥ ${threshold}`));
+        } finally {
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ victim: [false, true], gm: true }),
+            "{victim: [a line with a threshold sent to the victim's player, the hidden line sent]; gm: the full line sent to a GM} - the card keeps the hidden defence's value from the seat that could not see it");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told
@@ -78216,10 +78263,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => answer);
             read.describing = [await offered(trace.id), stableJson((await pick())?.held ?? null)];
             const again = await resolve(keys[0]);
-            const rest = await Promise.all(keys.slice(1).map(resolve));
+            /* The other pick's find waits for the first one's describe window since 1.2.120 (observe.mjs `createFind`,
+               `describingTraces`; the audit's CASE-18): awaited before the answer, as it was until then, it never ends. */
+            const later = Promise.all(keys.slice(1).map(resolve));
+            await settle();
             answer(null);
             await first;
             first = null;
+            const rest = await later;
             await settle();
             read.again = again?.refused ?? null;
             read.rest = rest.map(r => Boolean(r?.success));
@@ -78252,6 +78303,112 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + `resolve's refusal; the bullets; the picker's options as the candidates, and the options the held trace took) - their successes ${stableJson(read.rest)}`);
     }],
 
+    ["1.2.120 CASE-18 - two students' finds of one undescribed trace ask the GM once: the second waits for the first window's answer and takes its words, so neither the trace nor the first copy loses them and both copies carry one name (scripts/observe.mjs `createFind`, `describeFind`; remnants.mjs `setRemnantPublicById`; the audit's CASE-18, 1.2.120 line K): with the first describe window held open, the second student's Observe of the same trace opens no second window; the first answered, both Truth Bullets and the trace's record read its name and words; the same with the first window closed unanswered asks the second", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line K. The audit's CASE-18 (domain-case-c-investigation-1, re-read on v1.2.119): `createFind`
+         * read the trace's public record once, before the GM's describe window, so a second student's find resolved while
+         * the window stood read the same empty record and opened a second window prefilled with the fallback; confirmed
+         * untouched it wrote the fallback name and two empty boxes over the first answer, and closed it minted the second
+         * copy from the stale read. Driven as H84-02 drives one character's two finds: a trace placed where a connected
+         * player's character stands, a second player's character stood beside it, each one's pick of the trace
+         * (`pickObserveTarget`) resolved on a success (`resolveObserve`), every window of the GM's caught (`DialogV2.wait`);
+         * the first held open until the second's resolve has had its turn, then answered with a name and words; a second
+         * window, if one opened, confirmed as drawn. Read: the windows asked while the first stood, the trace's record and
+         * both bullets' names and words. Then a second trace, the first window closed unanswered: the second find asks.
+         * Put back: the bullets, the traces, the token. Red at e515907d: two windows; the record and both bullets read the
+         * fallback name with no words.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the Observe is a connected player's");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const second = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !a.getFlag(MODULE_ID, FLAGS.monocub)
+            && game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")) && where.scene.tokens.some(t => t.actorId === a.id));
+        must(second, "no second player's character with a token on the scene - this would measure nothing");
+        const secondUser = game.users.find(u => !u.isGM && second.testUserPermission(u, "OWNER"));
+        const token = where.scene.tokens.find(t => t.actorId === second.id);
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const had = new Map([actor, second].map(a => [a.id, new Set(a.items.map(i => i.id))]));
+        const sanity = [actor, second].map(a => a.system.resources.stress.value);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const windows = [];
+        D.wait = cfg => new Promise(resolve => { windows.push({ html: cfg?.content?.outerHTML ?? String(cfg?.content ?? ""), resolve }); });
+        const prefill = html => ({ name: (html.match(/name="name"[^>]*value="([^"]*)"/) ?? [])[1] ?? "", playerText: "", analyzedText: "", critHint: "" });
+        const WORDS = { name: "SUITE 1.2.120 CASE-18 a bloody knife", playerText: "SUITE 1.2.120 CASE-18 its blade is wet", analyzedText: "", critHint: "" };
+        const copyOf = (a, traceId) => a.items.filter(i => !had.get(a.id).has(i.id) && bullets.secretOf(i.uuid)?.remnantId === traceId)
+            .map(i => [i.name, String(i.getFlag(MODULE_ID, "playerText") ?? "")]);
+        const traces = [];
+        const read = {};
+        let pending = [];
+        try {
+            await token.update(positionIn(where.room, token), { ...PLACE });
+            await settle();
+            const twoFinds = async (answerFirst) => {
+                const trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                    x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace two students find" });
+                must(trace, "the trace was not placed");
+                traces.push(trace);
+                const pick = (a, u) => observe.pickObserveTarget({ actorId: a.id, room: where.room, tokenId: trace.id, userId: u.id });
+                const [p1, p2] = [await pick(actor, player), await pick(second, secondUser)];
+                must(p1?.ok && p2?.ok, `the two picks of the trace were not both written - this would measure nothing: ${stableJson([p1, p2])}`);
+                const at = windows.length;
+                const resolve = (a, key) => observe.resolveObserve({ key, total: 30, isCritical: false, actorId: a.id, senderIsGm: true });
+                const first = resolve(actor, p1.key);
+                pending = [first];
+                await until(() => windows.length > at);
+                const later = resolve(second, p2.key);
+                pending.push(later);
+                await settle();
+                const whileOpen = windows.length - at;
+                windows[at].resolve(answerFirst);
+                await first;
+                await until(() => windows.length > at + 1, 1500).catch(() => null);
+                const asked = windows.length - at;
+                for (const w of windows.slice(at + 1)) w.resolve(prefill(w.html));
+                await later;
+                pending = [];
+                await settle();
+                const pub = remnants.remnantPublicById(where.scene.id, trace.id);
+                return { whileOpen, asked, record: [pub?.name ?? null, pub?.playerText ?? null], bullets: [copyOf(actor, trace.id), copyOf(second, trace.id)] };
+            };
+            read.answered = await twoFinds(WORDS);
+            read.closed = await twoFinds(null);
+        } finally {
+            for (const w of windows) w.resolve(null);
+            for (const p of pending) await p.catch?.(() => null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            for (const [i, a] of [actor, second].entries()) {
+                for (const item of [...a.items]) {
+                    if (had.get(a.id).has(item.id)) continue;
+                    const uuid = item.uuid;
+                    await item.delete();
+                    await bullets.dropSecret?.(uuid);
+                }
+                if (a.system.resources.stress.value !== sanity[i]) {
+                    const { trustedWrite } = await import("./resource-guard.mjs");
+                    await trustedWrite(a, { "system.resources.stress.value": sanity[i] }, { reason: "gmRuling" });
+                }
+            }
+            for (const trace of traces) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            if (where.scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
+            await settle();
+        }
+        const fallback = read.closed.record[0];
+        equal(stableJson(read), stableJson({
+            answered: { whileOpen: 1, asked: 1, record: [WORDS.name, WORDS.playerText], bullets: [[[WORDS.name, WORDS.playerText]], [[WORDS.name, WORDS.playerText]]] },
+            closed: { whileOpen: 1, asked: 2, record: [fallback, ""], bullets: [[[fallback, ""]], [[fallback, ""]]] }
+        }), "{answered / closed: whileOpen - the windows asked while the first stood; asked - in all; record - the trace's [name, words]; bullets - each finder's [name, words]} - one trace is described once, and a second finder takes the first finder's words");
+    }],
     ["a transfer whose giver's piece cannot be taken off tells the GMs once, in its mode's words: a hand-over's, a body's that says nothing of a hand-over, a steal's of a stack whose count stays (E35-T5)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S08-38's second half, E35-10. The harm: the taker has the copy and the giver
@@ -103318,6 +103475,80 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{gm: the GM's die at a watch of 18, 17, a critical, one not at its post, none; victimSide; packets: [the invitation's keys at 18, its hindrance, its keys at 17, the watch's words found in either]; cards: [a card with its words went, the same at 18 and 17]; window: [the claim's dice armed, the window's hindrance source, its sentence, the claim after]} - the watch's die on the killer's opening");
         ok(game.i18n.localize("DRPG.RollDialog.forcedByHindrance") !== "DRPG.RollDialog.forcedByHindrance", "the window's sentence for a hindrance die has no text");
     }],
+    ["1.2.120 STG-01 - a watch of 18 or more keeps its hindrance die for a Direct Murder declared on the watcher in the dark and opened at the lights, after the watch is over (scripts/watch-gm.mjs `openingHindrance`, `holdForTheLights`, `heldAtTheLights`, `endWatches`; eclipse.mjs `endEclipse`; murder-rules.mjs `openMurder`; roll-draw.mjs `situationReading`; the audit's STG-01, 1.2.120 line K): the Eclipse runs, the victim's watch stands at its post, a declaration allowed in the dark is judged as the Eclipse ends; the incident opens with the watch dropped, and the opening's invitation and the GM's draw of the killer's roll each read one hindrance die, which no copy of the cast holds", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line K. The audit's STG-01 (first-session/stages-21.json E74-3, re-read on v1.2.119): a watch
+         * has a post from the Eclipse's start and is dropped at its end (`endWatches`, on the hook the clock's write
+         * fires), while a murder declared in that Eclipse is opened only after (eclipse.mjs `endEclipse`, "LAST, and
+         * after the clock has moved"), and the killer's roll is drawn later still, at the press - so the die the notes
+         * promise was read off a watch already gone. Driven: two fixture students stood alone in one room
+         * (`aloneTogether`), the clock at noon, the Eclipse opened (`startEclipse`), the victim's watch written as
+         * `startWatches` leaves one (19, its post the room), the declaration parked as the dark's allowed card leaves it
+         * (`approved`, the statistic), the Eclipse ended without advancing (a take-back, as the other tests here end
+         * theirs), and the watch's end let run (`endWatches`, which the hook runs too). The invitations are caught at the
+         * socket and not sent, as E74-T10 catches them. Read: the watch gone, the incident, the invitation's die, the
+         * GM's draw of the killer's roll (`expectedFor`), and the victim's copy of the cast. Put back: the Eclipse, the
+         * incident, the rows, the clock, the tokens, the cards. Red at e515907d: the GM's draw read 0, no die.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const W = await import("./watch-gm.mjs");
+        const { castFor } = await import("./incident-store.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { expectedFor } = await import("./roll-draw.mjs");
+        const [killer, victim] = cast(2);
+        must(!M.murderState(), "an incident was already running when this test started");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission?.(u, "OWNER")) ?? null;
+        const clock = getClock() ?? {};
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const sent = [];
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, ...rest) {
+            if (packet?.action === "murder.openingAsk") { sent.push(foundry.utils.deepClone(packet)); return true; }
+            return send.call(this, event, packet, ...rest);
+        };
+        const read = {};
+        let stood = null;
+        try {
+            stood = await aloneTogether(killer, victim);
+            await setClock({ timeOfDay: "noon" });
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            must(E.isEclipse() && id, "the Eclipse did not open");
+            await S.watchStore.patch(victim.id, { actorId: victim.id, total: 19, critical: false, post: stood.room, sceneId: canvas?.scene?.id ?? null,
+                entered: 0, left: 0, at: Date.now(), userId: owner(victim)?.id ?? null });
+            read.inTheDark = W.openingHindrance("killer", { victimId: victim.id });
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE 1.2.120 STG-01 declared in the dark", at: Date.now(),
+                approved: true, trait: "body", eclipse: id, betrayal: null });
+            await E.endEclipse({ advance: false });
+            await settle();
+            if (S.watchStore.get(victim.id)) await W.endWatches();
+            await settle();
+            const state = M.murderState();
+            read.opened = [state?.killerId === killer.id, state?.victimId === victim.id, state?.stage ?? null];
+            read.watch = S.watchStore.get(victim.id) ?? null;
+            read.invited = sent.map(p => p.hindrance ?? 0);
+            read.drawn = state ? (await expectedFor(killer, { actionKey: "murderOpening", context: { side: "killer" } })).read?.situation ?? null : null;
+            const victimUser = owner(victim);
+            const copy = victimUser ? castFor(victimUser.id, incidentCast(), state) : {};
+            read.copy = Object.keys(copy).filter(k => /hindrance/i.test(k) && copy[k] !== null);
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            for (const a of [killer, victim]) if (S.watchStore.get(a.id)) await S.watchStore.drop(a.id);
+            await c3Incident(clock);
+            if (stood) await stood.back();
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ inTheDark: 1, opened: [true, true, "openingRoll"], watch: null, invited: read.invited.length ? read.invited.map(() => 1) : [], drawn: -1, copy: [] }),
+            "{inTheDark: the die while the watch stands; opened: [killer, victim, stage]; watch: the row after the Eclipse; invited: each invitation's die; drawn: the GM's draw of the killer's opening; copy: the victim's copy's fields of it} - the watch's die stays with the murder declared on the watcher in the dark");
+    }],
     ["E74-T11 - Pick the Lock's open is a pass for the picker alone, kept until the picker leaves the room it opens (scripts/lockpick-gm.mjs, movement.mjs `holdsPass`, doors-gm.mjs `pickLock`, infiltrate-reroll.mjs; E74 C4; DA9 as the plan has it, the owner 12.11.2026 \"Wole zgodnie z planem\"): an open at 15 moves nobody and gives the picker a pass to that room, in the copy of the picker's player alone; the picker's walk in through the locked door is let through and another student's is refused doorLocked; the picker's settled crossing in keeps it, the one out ends it and the door is locked to them again; a new time of day takes a pass not yet used and leaves one in use; a seal's pass lets the picker past it; a Reroll below 15 takes back a pass not yet used, and leaves one used", async () => {
         /*
          * E74, 12.11.2026 (the owner's answer to DA9, through the coordinator). Called on this GM as the run of `door.pick`
@@ -104718,7 +104949,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * `deathsFor` with `knowsOfDeath`). A player who may not know of the body saw the higher number while the GM scored the
          * lower, so a roll between the two came back a hit and told them a body lies unfound. Here, on the GM: a row of the
          * deaths store for one fixture student, this chapter, naming a second student's player as knowing it; a third student's
-         * player names no row. Read through the scoring's own road, `cleanupDc(visibility, actor)`, for the knower and the
+         * player names no row. Read through the scoring's reading, `cleanupDc(visibility, actor)` with the document (the scoring
+         * itself hands in sheet-audit.mjs `actorAsHeld`'s stand-in: "1.2.120 CASE-17" below drives it), for the knower and the
          * other, and what the other's copy would hold (`deathsFor`). No incident runs and no body is found (read). The row is
          * dropped after. Red at 12a7e309: both thresholds took the -3.
          */
@@ -104756,6 +104988,71 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(C.cleaningTier(knower) === C.cleaningTier(other), "the two fixture students hold cleaning tools of different tiers - their thresholds would differ anyway");
         equal(stableJson(read), stableJson({ thresholds: [C.atLeastFloor(full - bonus), full], bonus: [bonus, 0, bonus], otherCopy: false, otherOwnReading: 0 }),
             "{thresholds: [the knower's, the other's]; bonus: [the knower's, the other's, with no roller]; otherCopy: the body in the other's copy; otherOwnReading: the other's copy's reading} - the GM's fresh scene follows what the roller may know");
+    }],
+    ["1.2.120 CASE-17 - the GM scores a Tamper's fresh scene with the bodies its roller's player may know, on the scoring's own road (scripts/cleanup.mjs `resolveCleanup`, `cleanupVerdict`, `unfoundBodyIn`; sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.120 line K): with a body of this chapter in the GMs' deaths that the roller's player may not know, an investigator's bare-handed Tamper of an Evident trace on a total one under the number their own browser shows is a miss - the trace stands - and the threshold read off the stand-in the scoring hands `cleanupDc` is the one read off the document", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line K. The audit's CASE-17 (domain-case-b-traces-1, re-read on v1.2.119): `resolveCleanup`
+         * scores with `cleanupVerdict(held, ...)`, `held` the stand-in of sheet-audit.mjs `actorHeldNow` (id, name, type and
+         * items, no `testUserPermission`), so cleanup.mjs `unfoundBodyIn` found no player of it and counted the GMs' whole
+         * deaths store - the 1.2.110 V3 filter skipped on the one road that scores. The V3 test above reads `cleanupDc`
+         * with the document; this one drives `resolveCleanup` itself, as 7109's investigator test does (a Truth Bullet of
+         * the trace held, `viaAction`, the step "action"), on a total of the full number less one: the window says 15,
+         * the miss is the promise. Then the two readings of `cleanupDc` side by side. No incident runs and no body is
+         * found (read). Put back: the death's row, the trace, the bullet, the cards. Red at e515907d: the trace was erased
+         * on 14, and the stand-in's threshold read 12.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const CL = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const { deathStore, usedToolStore } = await import("./gm-stores.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const { actorAsHeld } = await import("./sheet-audit.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { createTruthBullet } = await import("./truth-bullets.mjs");
+        const [dead, knower, who] = cast(3);
+        const ownerOf = actor => game.users.find(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+        const [knowerUser, whoUser] = [ownerOf(knower), ownerOf(who)];
+        must(knowerUser && whoUser && knowerUser.id !== whoUser.id && !dead.testUserPermission?.(whoUser, "OWNER"),
+            "two fixture students with players of their own, neither owning the dead - this would measure nothing");
+        must(!murderState()?.active && !bodyDiscovery(), "an incident runs or a body is found - the fresh scene would not stand on the body alone");
+        must(!(CLEANUP.freshScene?.until ?? []).includes(getClock().phase), "the clock stands in a phase with no fresh scene - this would measure nothing");
+        const bonus = Number(CLEANUP.freshScene?.bonus) || 0;
+        must(bonus > 0 && CL.cleaningTier(who) === 0, "no fresh-scene bonus, or the roller holds a Cleaning Tool - the number below would not be 15");
+        must(!deathStore.has(dead.id), "the fixture student is already dead in the GMs' store");
+        const full = CL.atLeastFloor(CLEANUP.dc.evident);
+        must(CL.atLeastFloor(full - bonus) < full, "the floor eats the fresh scene's bonus - a miss and a hit would read alike");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const read = {};
+        let trace = null, bullet = null;
+        try {
+            await deathStore.patch(dead.id, { chapter: getClock().chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [knowerUser.id] });
+            await settle();
+            const held = await actorAsHeld(who);
+            read.dc = { document: CL.cleanupDc("evident", who), held: CL.cleanupDc("evident", held), knower: CL.cleanupDc("evident", await actorAsHeld(knower)) };
+            trace = await placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE 1.2.120 CASE-17 a trace an investigator Tampers" });
+            must(trace, "the fixture's trace was not placed");
+            bullet = await createTruthBullet(who, { name: "SUITE 1.2.120 CASE-17 the trace found", realType: "neutral", visibility: "obvious",
+                remnantId: trace.id, sceneId: scene.id });
+            must(bullet, "the fixture's trace was not copied onto a Truth Bullet");
+            await settle();
+            await CL.resolveCleanup({ actorId: who.id, tokenId: trace.id, total: full - 1, isCritical: false, withHope: true, viaAction: true, price: "action" });
+            await settle();
+            read.standing = Boolean(scene.tokens.get(trace.id));
+        } finally {
+            if (deathStore.has(dead.id)) await deathStore.drop(dead.id);
+            if (usedToolStore?.has(who.id)) await usedToolStore.drop(who.id);
+            for (const doc of [bullet, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ dc: { document: full, held: full, knower: CL.atLeastFloor(full - bonus) }, standing: true }),
+            "{dc: the GM's number for the roller off the document, off the stand-in the scoring hands in, and for the knower; standing: the trace after a total one under the roller's number} - the scoring road counts only the bodies the roller's player may know");
     }],
     ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima and each change is the GM's to confirm: a pick taken back hands out a statistic point on an offer limited to statistics, a past Head, Body or Leg point gets its rise, a change left unticked stays; the world is asked once; a pick of another option on that offer is refused", async () => {
         /*

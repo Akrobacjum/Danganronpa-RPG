@@ -105,7 +105,7 @@ const emptySides = v => none(v) || Object.values(v).every(side => !side || !Obje
  * (`?? []`, `?? null`, `?? false`), so absent passes where the default does. A field of
  * the merged state that is in neither this table nor `KEPT` fails as unknown: the next
  * field an incident gains is declared here in the commit that adds it (C9, C10, C11c,
- * C13 and C17 do, with `freshIncidentState`; E72 C8 `silencedDead`).
+ * C13 and C17 do, with `freshIncidentState`; E72 C8 `silencedDead`; 1.2.120 `watchDie`).
  */
 const FRESH = Object.freeze({
     active: v => v === true,
@@ -129,6 +129,9 @@ const FRESH = Object.freeze({
     drainStopped: v => !v,
     // The opening's statistic (E32+E07 C11c): the one the open picked, or none - the GM is asked after.
     openingTrait: (v, m) => (v ?? null) === m.openingTrait,
+    // The watch's die kept at the lights (1.2.120, STG-01): none for an incident opened anywhere else, and at the lights
+    // 0 or 1 (the grid keeps no watch, so 0: XI07, a betrayal declared in the Eclipse, read 0 on 21.11.2026).
+    watchDie: v => none(v) || v === 0 || v === 1,
     // Per side, the action a Hope miss earned a second try at (E32+E07 C9): none yet.
     advantageNext: v => none(v) || (none(v.victim) && none(v.killer)),
     freeResolution: none,
@@ -1289,7 +1292,7 @@ async function assertIncidentInvariants(run) {
         const copied = [...FIGHT_FIELDS, "departed"];
         const afterFight = m.kind === "trap" && killerSide;
         const withheld = [...(afterFight ? [...FIGHT_FIELDS, ...(none(copy.thirdId) ? ["thirdId", "thirdSide"] : [])] : ["keyRemnants"]),
-            "departed", "lastCrisis", "openingTrait", ...(killerSide ? [] : ["freeCleanup"]), "recent"];
+            "departed", "lastCrisis", "openingTrait", "watchDie", ...(killerSide ? [] : ["freeCleanup"]), "recent"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
         const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);

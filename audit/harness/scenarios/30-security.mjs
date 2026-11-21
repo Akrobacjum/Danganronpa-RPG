@@ -3025,6 +3025,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * this chapter the GMs keep and p1 may not know (Botan's, no row naming p1): p1's own browser reads its default (no
      * arguments) and the GM scores Aiko's threshold; the two must be one number. Read only where the fresh scene can stand
      * on the body alone (no incident, no body found, a phase with a fresh scene). Red at 12a7e309: the GM 9, p1 12.
+     * And the GM's number read off the stand-in the scoring itself hands `cleanupDc` (cleanup.mjs `resolveCleanup` through
+     * sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.120 line K): read off the document alone, this check passed
+     * while the scoring counted the whole store (this check's `held` not run at e515907d; tier 2 "1.2.120 CASE-17" read
+     * the stand-in's Evident at 12 there, the document's at 15).
      */
     const freshPlant = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const { CLEANUP } = await import("${repoUrl}/scripts/config.mjs");
@@ -3041,12 +3045,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return { bonus: C.freshSceneBonus(), dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")) };`);
     const freshOnGm = await gm.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
-        const read = { dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")), whole: C.freshSceneBonus() };
+        const { actorHeldNow } = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const read = { dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")), whole: C.freshSceneBonus(),
+            held: C.cleanupDc("subtle", actorHeldNow(game.actors.get("${ids.aiko}"))) };
         await S.deathStore.drop("${ids.botan}");
         return read;`, { timeout: 30000 });
     await settle(300);
     check("SECURITY: a Tamper's threshold on the GM is the one its roller's own browser shows - no body the roller may not know lowers it",
-        freshPlant.open && freshOnGm.whole > 0 && freshOnP1.bonus === 0 && freshOnP1.dc === freshOnGm.dc,
+        freshPlant.open && freshOnGm.whole > 0 && freshOnP1.bonus === 0 && freshOnP1.dc === freshOnGm.dc && freshOnP1.dc === freshOnGm.held,
         JSON.stringify({ freshPlant, freshOnP1, freshOnGm }));
 
     /*
