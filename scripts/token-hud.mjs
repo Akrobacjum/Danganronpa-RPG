@@ -23,7 +23,7 @@
  *     death.mjs). What it costs a GM - Daggerheart's own conditions by hand from the HUD - was asked of the coordinator
  *     with this default (21.11.2026); an effect can still be added on the sheet.
  *   - the movement palette: v14's movement actions (walk, fly, ...); the module's moves are judged by rooms, never by it.
- *   - target: Daggerheart's attacks read the user's targets, which the canvas still sets (T, or a double right-click);
+ *   - target: Daggerheart's rolls against a target read the user's targets, which the canvas still sets (T, or a double right-click);
  *     the module's own rolls read none (private-rolls.mjs clears a roll's `system.targets`).
  *   - combat: no rule of the module runs on Foundry's combat; the trial and the Eclipse are its own.
  *
