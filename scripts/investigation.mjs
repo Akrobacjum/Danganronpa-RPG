@@ -36,7 +36,6 @@ import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import { plural, wirePortraitPickers, log, workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
 import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan, pruneDroppedRefs, cutRemnantRefs } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";

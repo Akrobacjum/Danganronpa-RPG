@@ -38,7 +38,6 @@ import {
     forcedDeletion, wirePortraitPickers, listOf
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { alreadyOpen, keepFresh, keepLive, isDirty, RAISED } from "./live.mjs";
 import { roomActions } from "./facilities.mjs";
 import {

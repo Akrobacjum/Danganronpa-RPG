@@ -27,8 +27,6 @@ import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box, tipAttr, 
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-
 /* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
    `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
    destructive ones on the left, the primary on the right and first in the tree, so Enter presses it (the kit's header). The
