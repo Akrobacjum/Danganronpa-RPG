@@ -186,6 +186,17 @@ function soundPlayPane() {
             </fieldset>`;
 }
 
+/**
+ * The Music tab's box saying the world has no playlist to map yet, in a region of its own that is always drawn - empty
+ * once one other than the cue playlist exists - so `openSoundDialog` keeps it live on the playlist hooks (1.2.122, the
+ * rest of the audit's REFR-25): drawn once, a first playlist made with the window open left it saying there was none.
+ */
+export function musicEmptyBox(playlists) {
+    const offered = playlists.filter(p => !isCuePlaylist(p));
+    return `<div class="drpg-music-empty" data-drpg-music-empty>${offered.length ? "" : box("info", `<p class="notes">${
+        game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}</div>`;
+}
+
 /** The mapping tab: the intro, the notes, and the state-to-playlist table. A world with no playlists is told so in
  *  the kit's information box (E22 fix G1; the end review's SCREENS m2): it was a warning's red bar, and nothing is
  *  wrong - there is only nothing to map yet (D11, E22-07). */
@@ -194,12 +205,10 @@ export function soundPlaylistsPane(playlists) {
        of intro and four paragraphs of notes, three over the table and one under it (1595 px of body at 3c952c67, glass,
        1366x768). The intro is one sentence now, and the four notes - which state wins, the trial's, the incident's and
        the fades - are a closed `details` above the table, in their order. */
-    const offered = playlists.filter(p => !isCuePlaylist(p));
     return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
             ${soundSettingSwitch("musicEnabled")}
-            ${offered.length ? "" : box("info", `<p class="notes">${
-                game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}
+            ${musicEmptyBox(playlists)}
             <details class="drpg-sound-order">
                 <summary>${game.i18n.localize("DRPG.Music.howOrder")}</summary>
                 <p class="drpg-help">${game.i18n.localize("DRPG.Music.orderNote")}</p>
@@ -471,6 +480,12 @@ export async function openSoundDialog() {
                 watch: { settings: [SETTINGS.musicMap], hooks: ["createPlaylist", "deletePlaylist", "updatePlaylist"] },
                 whileEditing: true,
                 after: next => wireMusicMap(next, dialog.element)
+            });
+            // The box saying there is no playlist yet follows the same three hooks (1.2.122, the rest of REFR-25).
+            keepLive(dialog, {
+                region: '[data-drpg-music-empty]',
+                build: () => musicEmptyBox(sortedPlaylists()),
+                watch: { settings: [], hooks: ["createPlaylist", "deletePlaylist", "updatePlaylist"] }
             });
             /*
              * THE EFFECTS ROWS FOLLOW THE MAP (1.2.119; the owner's standing rule: "Zawsze odswiezamy okna od razu przy

@@ -2991,6 +2991,8 @@ body.drpg-theme-monokuma-legacy .application.drpg-ui:is(.drpg-window-give, .drpg
    select was cut to its column); the select's words do not ("- nie ustawiono -" broke in two, Legacy, Polish) */
 .application.drpg-window-sound [data-drpg-pane="effects"] .drpg-data-table-box > table.drpg-data-table { table-layout: fixed; width: 100%; }
 .application.drpg-window-sound [data-drpg-pane="music"] .drpg-data-table-box > table.drpg-data-table td.drpg-data-col-music-when { white-space: normal; }
+/* the Music tab's "no playlists yet" region stands drawn and empty once there is one (sound-panel.mjs `musicEmptyBox`, 1.2.122) */
+.application.drpg-window-sound .drpg-music-empty:empty { display: none; }
 .application.drpg-window-sound table.drpg-data-table td { vertical-align: top; }
 /* under Legacy the cells keep the room the hand tables gave them (3 px by 6, danganronpa.css `.drpg-vault-table`) */
 body:not(.drpg-theme-stained-glass) .application.drpg-window-sound .drpg-data-table-box > table.drpg-data-table :is(th, td) { padding: 3px 6px; }

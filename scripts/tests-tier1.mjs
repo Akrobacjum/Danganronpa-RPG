@@ -17835,6 +17835,63 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true, 2]), "a ruling on an ask nobody holds came back silent ([Approve settled, Refuse settled, notices])");
     }],
 
+    ["R8282 - the Music tab's \"no playlists yet\" box follows the world's playlists while the Sound window is open: it is a region of its own, always drawn (empty once a playlist other than the cue one exists), kept by its own `keepLive` woken by the playlist hooks (sound-panel.mjs `musicEmptyBox`, `openSoundDialog`; 1.2.122, the rest of the audit's REFR-25)", async () => {
+        /*
+         * The audit of 1.2.118, REFR-25's rest (the unrouted list of 1.2.122, section A): the box was drawn in the Music
+         * pane outside every region, so a first playlist made in the sidebar with the window open left the box saying
+         * there was none, beside a select that offered it. Read here: the box's builder on no playlist, on the cue
+         * playlist alone and on one other (a stand-in document, nothing written), and the window's source for the
+         * region's `keepLive`. Red at d4d1ddec: no `musicEmptyBox`.
+         */
+        const P = await import("./sound-panel.mjs");
+        must(typeof P.musicEmptyBox === "function", "sound-panel.mjs exports no musicEmptyBox");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const box = list => {
+            const t = document.createElement("template");
+            t.innerHTML = P.musicEmptyBox(list).trim();
+            const el = t.content.firstElementChild;
+            return [el?.matches("[data-drpg-music-empty]") ?? false, Boolean(el?.querySelector(".notes"))];
+        };
+        const src = stripComments((await moduleSources()).get("sound-panel.mjs") ?? "");
+        const open = fnSource(src, "openSoundDialog");
+        const call = bodyOf(open, "region: '[data-drpg-music-empty]'", { until: "});" });
+        const pane = fnSource(src, "soundPlaylistsPane");
+        equal(stableJson({
+            none: box([]), cueAlone: box([{ id: "x", name: SITUATIONAL_PLAYLIST }]), other: box([{ id: "y", name: "SUITE R8282" }]),
+            hooks: ["createPlaylist", "deletePlaylist", "updatePlaylist"].map(h => call.includes(`"${h}"`)),
+            inPane: pane.includes("musicEmptyBox(")
+        }), stableJson({ none: [true, true], cueAlone: [true, true], other: [true, false], hooks: [true, true, true], inPane: true }),
+            "the box did not follow the playlists ({none, cueAlone, other: [the region drawn, the box in it]; hooks: the region woken by each; inPane: the pane draws it})");
+    }],
+
+    ["R8283 - a message whose sender's clock runs behind the reader's last read stamp still arrives unread: the read stamp keeps the ids it read within `READ_SKEW_MS` under its newest message, a message under the stamp and inside that window that it did not read counts, one older than the window does not, a stamp of a number reads as before, and a thread whose stamp already holds every message has nothing to mark (messenger.mjs `readEntryOf`, `threadStatsOf`, `markThreadRead`; 1.2.122, the rest of the audit's COMM-15)", async () => {
+        /*
+         * The audit of 1.2.118, COMM-15's rest (the unrouted list of 1.2.122, section B): since COMM-15 the read stamp is
+         * the newest message's own `timestamp`, and the rule is `timestamp >` that stamp - so a message from a sender
+         * whose clock runs behind the newest one's writer was stamped under it and arrived read, never on the badge.
+         * Whether v14 stamps `timestamp` on the server, which would end the question, is not read (COMM-LC7). A stand-in
+         * thread here, nothing written. Red at d4d1ddec: no `readEntryOf`.
+         */
+        const M = await import("./messenger.mjs");
+        must(typeof M.readEntryOf === "function" && Number.isFinite(M.READ_SKEW_MS), "messenger.mjs exports no readEntryOf or READ_SKEW_MS");
+        const T = "R8283Player00001", ME = "R8283GmUser00001", HER = T;
+        const card = (id, timestamp, author) => ({ id, timestamp, author: { id: author, isGM: author === ME }, flags: { [MODULE_ID]: { thread: T, kind: "dm" } } });
+        const at = 10_000_000;
+        const world = [card("R8283Card0000001", at - 1000, HER), card("R8283Card0000002", at, HER)];
+        const entry = M.readEntryOf(world, T, null);
+        const unread = (list, map) => M.threadStatsOf(list, { me: ME, readMap: { [T]: map }, isGM: true }).get(T)?.unread ?? null;
+        const late = [...world, card("R8283Card0000003", at - 500, HER)];
+        const old = [...world, card("R8283Card0000004", at - M.READ_SKEW_MS - 1, HER)];
+        equal(stableJson({
+            entry: entry && { at: entry.at, ids: [...entry.ids].sort() },
+            afterRead: unread(world, entry), late: unread(late, entry), old: unread(old, entry), number: unread(late, at),
+            nothingNew: M.readEntryOf(world, T, entry), lateMarked: (() => { const e = M.readEntryOf(late, T, entry); return e && [e.at, e.ids.includes("R8283Card0000003")]; })()
+        }), stableJson({
+            entry: { at, ids: ["R8283Card0000001", "R8283Card0000002"] },
+            afterRead: 0, late: 1, old: 0, number: 0, nothingNew: null, lateMarked: [at, true]
+        }), "a late-stamped message arrived read, or the stamp did not keep what it read ({entry; afterRead, late, old, number: the thread's unread; nothingNew: a second read's entry; lateMarked: [its stamp, the late message in it]})");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
