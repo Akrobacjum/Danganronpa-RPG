@@ -2057,7 +2057,7 @@
   {"id": "s12.r12.f3", "unit": "s12.r12", "place": "12. The Class Trial > The hall's zones, line 936", "kind": "rule", "text": "Straw Poll: everybody presents evidence.", "keywords": ["everybody"]},
   {"id": "s12.r13.f1", "unit": "s12.r13", "place": "12. The Class Trial > The hall's zones, line 937", "kind": "rule", "text": "Logic Dive: the majority answers each question.", "keywords": ["the majority answers each question"]},
   {"id": "s12.r13.f2", "unit": "s12.r13", "place": "12. The Class Trial > The hall's zones, line 937", "kind": "rule", "text": "Logic Dive: a wrong answer or a tie ends the set.", "keywords": ["a wrong answer or a tie ends the set"]},
-  {"id": "s12.r13.f3", "unit": "s12.r13", "place": "12. The Class Trial > The hall's zones, line 937", "kind": "rule", "text": "Logic Dive: the right answer is not shown.", "keywords": ["the right answer is not shown"]},
+  {"id": "s12.r13.f3", "unit": "s12.r13", "place": "12. The Class Trial > The hall's zones, line 937", "kind": "rule", "text": "Logic Dive: after a wrong answer, the other one of the two was right.", "keywords": ["the other one of the two was right"]},
   {"id": "s12.r13.f4", "unit": "s12.r13", "place": "12. The Class Trial > The hall's zones, line 937", "kind": "rule", "text": "Logic Dive: a set answered right to its end is solved.", "keywords": ["solved"]},
   {"id": "s12.r13.f5", "unit": "s12.r13", "place": "12. The Class Trial > The hall's zones, line 937", "kind": "rule", "text": "Logic Dive: a solved set can give a Finding.", "keywords": ["can give a Finding"]},
   {"id": "s12.r13.f6", "unit": "s12.r13", "place": "12. The Class Trial > The hall's zones, line 937", "kind": "rule", "text": "Logic Dive: everybody presents evidence.", "keywords": ["everybody"]},

@@ -27,7 +27,7 @@ ones.
 | File:line (at 59d1935) | What it is | Class |
 | --- | --- | --- |
 | action-tail.mjs `tailTargets` (E69, merged 13.11) | whom a character may tail in its room | leave it out, already: it filters movement.mjs `othersInRoom`, which counts no Spectator present (`countsAsPresent`, C1); the tier-2 test "E92+E93" holds it |
-| anonymity.mjs:468 `myCharacter` | this account's own character | character here |
+| anonymity.mjs:468 `myCharacter` (removed in 1.2.122, CASE-50: it asks monokuma.mjs `chooseOwnStudent` over `ownedStudents`, which leaves the Spectator out) | this account's own character | - (gone) |
 | camera-view.mjs:235, 239 | a GM's Monokuma; a player's own character for the camera | character here |
 | cleanup.mjs:3049 | a refund log line | character here |
 | config.mjs:231 | a comment | - |

@@ -1593,7 +1593,8 @@
       "pick": {
         "body": "Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.",
         "side": "{zone}: {answer}",
-        "done": "Twoja strona to {zone}."
+        "done": "Twoja strona to {zone}.",
+        "dismissed": "Nie stoisz w żadnej strefie. To okno wróci za {seconds} s."
       },
       "findings": {
         "title": "Findings",
@@ -1607,6 +1608,8 @@
         "add": "Dodaj Finding",
         "text": "Finding",
         "save": "Zapisz",
+        "empty": "Najpierw wpisz treść Findingu.",
+        "unchanged": "Ten Finding ma już tę treść.",
         "added": "GM dodaje Finding: {text}",
         "edited": "GM zmienia Finding z „{was}” na „{text}”.",
         "deleted": "GM usuwa Finding z listy: {text}",
@@ -3834,7 +3837,9 @@
         "thesisLabel": "Jedno krótkie zdanie za twoją strefą",
         "thesisPost": "Wystaw tezę",
         "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
-        "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe."
+        "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe.",
+        "left": "Pozostały czas: {seconds} s.",
+        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję."
       },
       "claim": {
         "body": "Podsumujesz sprawę w Closing Argument? Na zgłoszenie masz {seconds} s. Potem jedna zgłoszona osoba zostaje wylosowana, a GM ją zatwierdza albo wybiera kogoś innego.",
@@ -9409,6 +9414,8 @@
     "CaseSummary": {
       "show": "Pokaż podsumowanie",
       "shown": "Podsumowanie wysłane",
+      "afterVerdict": "Podsumowanie wysyła się po werdykcie.",
+      "noneInFinal": "Final Trial nie ma podsumowania sprawy.",
       "previewTitle": "Podsumowanie sprawy",
       "intro": "Gracze dostaną tylko to: co znaleźli, zaznaczone wnioski i kontry, a rozwiązanie, jeśli zagłosowali dobrze.",
       "send": "Wyślij wszystkim",

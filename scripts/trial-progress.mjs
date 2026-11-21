@@ -227,7 +227,7 @@ export async function executionLines() {
  * card without the name is asked in STATUS (default: the name, as an ordinary trial's card).
  */
 async function postExecutionCard(executed) {
-    const esc = foundry.utils.escapeHTML;
+
     try {
         await announce({
             flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },
@@ -493,6 +493,11 @@ export const TRIAL_PROGRESS_KEY = "trial.progress";
  */
 export function setTrialProgress(patch = {}) {
     if (!game.user.isGM) return Promise.resolve(null);
+    // A Finding's press, applied to the list as the step finds it (`findingsStep`), on the primary.
+    if (patch?.findingsOp && typeof patch !== "function") {
+        if (isPrimaryGm()) return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(findingsStep(patch.findingsOp)));
+        return askRecord("patch", { patch: { findingsOp: patch.findingsOp } }, () => recordOnPrimary("patch", { patch: { findingsOp: patch.findingsOp } }));
+    }
     if (typeof patch !== "function" && !isPrimaryGm()) return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
     return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
 }
@@ -514,6 +519,37 @@ export function setTrialProgress(patch = {}) {
 const RECORD_KEPT = new Set(["chapter", "mutedDead", "objections", "closing"]);
 export const RECORD_FIELDS = Object.freeze(Object.keys(trialProgress(0)).filter(key => !RECORD_KEPT.has(key)));
 
+/**
+ * A FINDING'S PRESS IS AN OPERATION, NOT A LIST (1.2.122, CASE-48). The Findings window's Add, Edit, Delete and
+ * "Monokuma confirms" wrote the whole list it had read, as an object patch, so a Finding a zone mode's end added in
+ * between (trial-zones.mjs `afterZoneStep`, a function patch of the primary's) was written over, its card already posted.
+ * `op` is `{ act: "add", row }`, `{ act: "edit", id, text }`, `{ act: "delete", id }` or `{ act: "confirm", id }`; this is
+ * the list `op` makes of `list`, which the primary's step reads as it finds it. Another GM's press travels as
+ * `{ findingsOp }` in the record's patch ("trial.record", held below by `recordOnPrimary`).
+ */
+export function applyFindingOp(list, op) {
+    const rows = Array.isArray(list) ? list : [];
+    const id = String(op?.id ?? "");
+    const words = String(op?.text ?? "").trim().slice(0, (Number(TRIAL.modes?.zones?.answerLength) || 80) * 3);
+    switch (op?.act) {
+        case "add": {
+            const row = op.row && typeof op.row === "object" ? op.row : null;
+            const text = String(row?.text ?? "").trim().slice(0, (Number(TRIAL.modes?.zones?.answerLength) || 80) * 3);
+            if (!row || !text || !String(row.id ?? "") || rows.some(f => f.id === row.id)) return rows;
+            return [...rows, { id: String(row.id), text, question: null, mode: null, at: Number(row.at) || Date.now(), confirmed: false, edited: true }];
+        }
+        case "edit": return words ? rows.map(f => (f.id === id ? { ...f, text: words, edited: true } : f)) : rows;
+        case "delete": return rows.filter(f => f.id !== id);
+        case "confirm": return rows.map(f => (f.id === id ? { ...f, confirmed: true } : f));
+        default: return rows;
+    }
+}
+
+/** The record's step of a Finding's press: the list as the step finds it, with `op` applied. */
+export function findingsStep(op) {
+    return record => ({ findings: applyFindingOp(record?.findings, op) });
+}
+
 /** A record patch of another GM, held to the record's own fields; null when it names none. */
 export function recordPatchOf(patch) {
     if (!patch || typeof patch !== "object" || Array.isArray(patch)) return null;
@@ -527,7 +563,7 @@ async function askRecord(op, fields, local) {
     if (res.ok) return res.value ?? null;
     if (op === "patch" && !res.refused) {
         warn(`The primary GM did not answer a write of the trial's record; written here: ${Object.keys(fields.patch ?? {}).join(", ")}`);
-        return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(fields.patch));
+        return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(fields.patch?.findingsOp ? findingsStep(fields.patch.findingsOp) : fields.patch));
     }
     return null;
 }
@@ -540,6 +576,7 @@ async function askRecord(op, fields, local) {
 export async function recordOnPrimary(op, { patch = null, seconds = TRIAL.speakSeconds, chapter = null } = {}) {
     if (!game.user.isGM || !isPrimaryGm()) return null;
     if (op === "patch") {
+        if (patch?.findingsOp) return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(findingsStep(patch.findingsOp)));
         const held = recordPatchOf(patch);
         return held ? serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(held)) : null;
     }

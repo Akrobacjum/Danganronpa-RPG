@@ -1546,7 +1546,8 @@
       "pick": {
         "body": "You have no token in the trial hall. Pick the side you stand on.",
         "side": "{zone}: {answer}",
-        "done": "You stand in {zone}."
+        "done": "You stand in {zone}.",
+        "dismissed": "You stand in neither zone. This window comes back in {seconds} s."
       },
       "findings": {
         "title": "Findings",
@@ -1560,6 +1561,8 @@
         "add": "Add a Finding",
         "text": "Finding",
         "save": "Save",
+        "empty": "Type the Finding's words first.",
+        "unchanged": "These are the words it already has.",
         "added": "The GM adds a Finding: {text}",
         "edited": "The GM changes a Finding from “{was}” to “{text}”.",
         "deleted": "The GM takes a Finding off the list: {text}",
@@ -3571,7 +3574,9 @@
         "thesisLabel": "One short line for your zone",
         "thesisPost": "Post thesis",
         "closingPassEarly": "Pass in your first {seconds} s hands the choice back to the GM; after that it ends the Closing Argument.",
-        "closingPass": "Pass ends the Closing Argument, as Done does."
+        "closingPass": "Pass ends the Closing Argument, as Done does.",
+        "left": "On the clock: {seconds} s.",
+        "keepNote": "Keep speaking hides this window. It comes back in {seconds} s, with Done and Pass."
       },
       "claim": {
         "body": "Will you sum up the case in the Closing Argument? You have {seconds} s to volunteer. One volunteer is drawn, and the GM confirms them or picks someone else.",
@@ -7557,6 +7562,8 @@
     "CaseSummary": {
       "show": "Show summary",
       "shown": "Summary sent",
+      "afterVerdict": "The summary is sent after the verdict.",
+      "noneInFinal": "A Final Trial has no case summary.",
       "previewTitle": "The case's summary",
       "intro": "Players get only this: what they found, the ticked deductions and counters, and the solution if they voted right.",
       "send": "Send to everyone",

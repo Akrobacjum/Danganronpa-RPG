@@ -25,7 +25,10 @@
  *               the game where somebody TAKES the floor from everybody else,
  *               and it is bought by putting a Truth Bullet on the table.
  *   rebuttal    the objector AND the person they aimed at, for two minutes.
- *               Nobody else. Then it returns to open debate by itself.
+ *               Nobody else. Then the floor closes (not back to the open debate:
+ *               "A REBUTTAL ENDS THE FLOOR", below), and the console offers
+ *               Open the debate again; inside a round, the round goes on at its
+ *               next speaker (floor-machine.mjs).
  *
  * SILENCE WAS ENFORCED SOCIALLY, AND SINCE E110 C2 (14.11.2026) IT IS FOUNDRY'S
  * MICROPHONE BLOCK TOO. The owner: "Tryby class trial ... niech wycisza
@@ -71,7 +74,11 @@ let ticker = null;
 // Whether this browser drew a zone mode's floor last (E73 C2): the drawing is taken down once it ends.
 let zoneDrawn = false;
 
-/** The three modes, spelled out once so nothing else has to spell them (floor-machine.mjs `MODES`, since E70 C1). */
+/**
+ * The floor's modes - the debate with its Objection and rebuttal, Testimony, the Panic Round, the Closing Argument and the
+ * three zone modes, nine in all - spelled out once so nothing else has to spell them (floor-machine.mjs `MODES`, since E70
+ * C1). The three of the header are the first three, as Q14 left them.
+ */
 export const FLOOR_MODES = MODES;
 
 /*
@@ -154,6 +161,11 @@ export function modeCensus(modes = MODES, starts = MODE_STARTS, actions = []) {
 export function floorFamily(floor = trialFloor()) {
     // The Closing's exchange is the Closing's (E70 C8): its footer, End the Closing Argument, stands through it.
     if (floor && closingOf(floor)) return "closing";
+    /* And a round's exchange is the round's (1.2.122, CASE-40): an Objection raised in a Testimony keeps the round on its
+       floor, and read as the debate's it closed and reopened the console at its start and its end, made Close Debate the
+       footer's step - which wrote the empty floor and dropped the rest of the round under "The debate is closed" - while
+       the bar's End this mode in the same state goes on at the next speaker. */
+    if (floor && floor.round && MODE_RULES[floor.mode]?.family === "debate") return "round";
     return floor ? (MODE_RULES[floor.mode]?.family ?? floor.mode) : "none";
 }
 
@@ -578,6 +590,34 @@ async function closingCtx(floor) {
     };
 }
 
+/** The machine's event of a GM's Closing op (`FLOOR_OPS`' closing rows), or null for any other op. */
+const CLOSING_EVENTS = Object.freeze({
+    closing: () => ({ type: "closing" }),
+    closingConfirm: () => ({ type: "confirm" }),
+    closingPick: ({ actorId } = {}) => ({ type: "pick", actorId: actorId || null }),
+    closingContinue: ({ actorId } = {}) => ({ type: "continue", actorId: actorId || null }),
+    closingResume: () => ({ type: "resume" })
+});
+
+/**
+ * WHY A GM'S CLOSING CALL WAS NOT CARRIED OUT, on whichever GM asks (1.2.122; CTRL-04, CASE-41): the machine's key for
+ * the op on the floor as this browser reads it - `closing.absent` ("That player is not connected: pick someone else."),
+ * `noDrawn`, `noChoice`, `notParticipant`, `noDecision`, `notInExchange`, `voteOpen`, `nothingToResume` - or null. Asked by
+ * trial-modes.mjs `closingCall` after the primary refused (never before: this browser's copy of the volunteers may be
+ * older than the primary's), so the GM reads the reason the machine gave rather than "The Closing Argument did not change."
+ */
+export async function closingStepRefusal(op, args = {}) {
+    const make = CLOSING_EVENTS[op];
+    if (!make) return null;
+    const floor = trialFloor();
+    try {
+        return nextFloor(floor, make(args), await closingCtx(floor))?.refused ?? null;
+    } catch (err) {
+        error("Could not read why the Closing Argument did not change", err);
+        return null;
+    }
+}
+
 /**
  * A STEP OF THE CLOSING ARGUMENT, in a step of `SEIZE_KEY` on the primary (E70 C8; E70-50 to E70-57): the GM's start,
  * Confirm, pick, decision and Resume (`FLOOR_OPS`), a volunteer's count (trial-modes.mjs `volunteerOnPrimary`), the vote's
@@ -931,8 +971,8 @@ export function floorRefusal(floor = trialFloor()) {
      *                         happen at all.
      */
     if (!modeAllows(floor, "object")) {
-        // A mode with no Objection at all (Panic Round, E70 C7) says so by its name.
-        if (isRoundMode(floor.mode)) return game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`) });
+        // A mode with no Objection at all (Panic Round, E70 C7; the zone modes since 1.2.122, CTRL-36) says so by its name.
+        if (isRoundMode(floor.mode) || MODE_RULES[floor.mode]?.family === "zones") return game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`) });
         // The Closing while nobody speaks in it (E70 C8): the volunteers, the GM's choice, the GM's decision.
         if (floor.mode === MODES.closing) return game.i18n.localize("DRPG.Trial.objectionClosingNobody");
         return game.i18n.localize("DRPG.Trial.objectionDuringObjection");
@@ -1512,6 +1552,19 @@ function overruledState(floor) {
 }
 
 /**
+ * WHAT AN OVERRULE AFTER ITS EXCHANGE OFFERS (`overruleInStep`): the debate again with the seconds it had when the
+ * Objection cut in - the newest debate under it, TR31's rest - or null. Only over a debate (1.2.122, CASE-42): an
+ * Objection raised in a Testimony's turn or the Closing's speech had no debate under it (`debateLeft` null), and the
+ * offer read the speaker's seconds as a debate's, so "Open the debate again" became the trial's next step for a debate
+ * that never ran. A receipt that names no `mode` (older than the field) keeps the offer as before. Exported for R8146.
+ */
+export function againOffer(receipt) {
+    const r = receipt ?? null;
+    const underDebate = (r?.debateLeft !== null && r?.debateLeft !== undefined) || !r?.mode || r.mode === MODES.debate;
+    return underDebate ? { seconds: Number(r?.debateLeft ?? r?.leftAtObjection) || 0 } : null;
+}
+
+/**
  * `overruleObjection`'s judgement and writes, in a step of `SEIZE_KEY` on the primary: the floor back (during the
  * exchange), the receipt marked overruled and, after the exchange, the offer of the debate again - one write of the
  * record - then the card and the table told (trial.mjs `markOverruled`). Its answer is the floor written, or
@@ -1537,7 +1590,8 @@ export async function overruleInStep({ messageId = null } = {}) {
             const change = { objections };
             // The debate's time when the Objection cut in (the newest debate under it, TR31's rest) - offered only
             // with no floor: a debate the GM already opened again is the debate.
-            if (!judged.during && !floor) change.againAfterOverrule = { messageId: id, seconds: Number(judged.receipt?.debateLeft ?? judged.receipt?.leftAtObjection) || 0 };
+            const offer = !judged.during && !floor ? againOffer(judged.receipt) : null;
+            if (offer) change.againAfterOverrule = { messageId: id, ...offer };
             return change;
         });
     }

@@ -6,8 +6,9 @@
  *
  *   YOUR TURN. When the round's speaker is this player's own student, a window "Your turn - {seconds} s" with Done
  *   (the turn is over) and Pass (the next speaker's turn). It closes itself when the round moves on - its seconds run
- *   out, the GM skips it, an Objection cuts in - and opens again for the next turn this player has. `alreadyOpen` keeps
- *   it one. The sound is sfx.mjs `yourTurn`, for the speaker's player alone.
+ *   out, the GM skips it, an Objection cuts in - and opens again for the next turn this player has; closed by Keep
+ *   speaking, it comes back `KEEP_SPEAKING_MS` later in the same turn (1.2.122). Its seconds are those left, kept true
+ *   while it stands. `alreadyOpen` keeps it one. The sound is sfx.mjs `yourTurn`, for the speaker's player alone.
  *
  *   A TURN RUN OUT. Every participant's browser counts the turn from the floor's stamp on the server's clock
  *   (trial-floor.mjs `msLeft`) and, once it reads zero, calls the turn over once for that step. The primary's
@@ -37,6 +38,29 @@ let calledOver = null;
 let promptedFor = null;
 let claimedFor = null;
 const CLAIM_CLASS = "drpg-closing-claim";
+
+/**
+ * How long Keep speaking (or the X, or Escape) hides Your turn before it comes back with Done and Pass (1.2.122; CTRL-03,
+ * CASE-38). Until 1.2.122 the window came once a turn: the default answer took Done and Pass away for the rest of it, and
+ * nothing else on the speaker's screen ends a turn.
+ */
+export const KEEP_SPEAKING_MS = 20000;
+
+/** The seconds a prompt shows: those left on the floor's clock, whole, never below zero (CASE-64, REFR-66). */
+function leftNow(secondsLeft, floor) {
+    return Math.max(Math.round(Number(secondsLeft(floor)) || 0), 0);
+}
+
+/**
+ * A prompt's seconds kept true while it stands (REFR-66): each `[data-drpg-left]` of its body, and its title where the
+ * window's title is an element (v14's; the harness's is a string). A GM's +30 s or -30 s moves the floor's start, and
+ * the number on the window follows it.
+ */
+function paintLeft(dialog, seconds, titleKey = null) {
+    for (const el of dialog?.element?.querySelectorAll?.("[data-drpg-left]") ?? []) el.textContent = String(seconds);
+    const title = dialog?.window?.title;
+    if (titleKey && title && typeof title === "object" && "textContent" in title) title.textContent = game.i18n.format(titleKey, { seconds });
+}
 
 /** A Scrum Debate's turn on `floor` (E110 C3): its zone in the `speak` phase, or null. */
 function scrumTurn(floor) {
@@ -149,12 +173,12 @@ async function promptClaim(floor) {
         classes: ["drpg-panel", CLAIM_CLASS],
         // The trial's prompts are kept above the sheet (stacking.mjs; E23 C5a).
         prompt: true,
-        body: `<p>${game.i18n.format("DRPG.Trial.claim.body", { seconds: Math.max(secondsLeft(floor), 0) })}</p>`,
+        body: `<p>${game.i18n.format("DRPG.Trial.claim.body", { seconds: `<span data-drpg-left>${leftNow(secondsLeft, floor)}</span>` })}</p>`,
         footer: claimFooter(),
         render: (event, dialog) => {
             const watch = setInterval(() => {
                 if (!dialog.element?.isConnected) return void clearInterval(watch);
-                if (still()) return;
+                if (still()) return void paintLeft(dialog, leftNow(secondsLeft, trialFloor()));
                 clearInterval(watch);
                 dialog.close();
             }, 500);
@@ -180,28 +204,36 @@ async function promptTurn(floor) {
     // The Closing's speaker may hold less than the whole stretch (the rest after an exchange), and is told what Pass does.
     const closing = closingIn(floor, "speak");
     const { secondsLeft } = await import("./trial-floor.mjs");
-    // A Scrum turn's seconds can be a fraction (300 / turns, zone-machine.mjs `scrumTurnSeconds`): whole on the title.
-    const seconds = closing ? Math.max(secondsLeft(floor), 0) : Math.round(Number(floor.seconds) || 0);
+    /* The seconds left on the turn's clock, whole (a Scrum turn's can be a fraction, zone-machine.mjs `scrumTurnSeconds`),
+       in every mode (1.2.122, CASE-64): a round's speaker given back the rest of a turn after an Objection was shown the
+       whole turn's length, the Closing's alone the rest. Kept true while the window stands (`paintLeft`, REFR-66). */
+    const seconds = leftNow(secondsLeft, floor);
     // The early Pass's seconds are the window floor-machine.mjs gives it (E66 fix r1 F9; STATUS Open 26).
     const passLine = closing ? `<p class="notes">${Number(closing.resignUntil) > 0
         ? game.i18n.format("DRPG.Trial.turn.closingPassEarly", { seconds: TRIAL.modes.closing.passWindowSeconds })
         : game.i18n.localize("DRPG.Trial.turn.closingPass")}</p>` : "";
+    let closedByFloor = false;
     const choice = await drpgWindow({
         title: game.i18n.format("DRPG.Trial.turn.title", { seconds }),
         classes: ["drpg-panel", WINDOW_CLASS],
         prompt: true,
-        body: `<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>${passLine}`,
+        body: `<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>${passLine}
+            <p class="drpg-turn-left">${game.i18n.format("DRPG.Trial.turn.left", { seconds: `<span data-drpg-left>${seconds}</span>` })}</p>
+            <p class="notes">${game.i18n.format("DRPG.Trial.turn.keepNote", { seconds: Math.round(KEEP_SPEAKING_MS / 1000) })}</p>`,
         /* NOTHING ENDS ON ENTER (E70 fix p2-G3; the review's E70P2-R12): Done was the default, so a speaker clearing the
            window with Enter or Space while talking ended their own turn - and Back is refused in a round, and in the
            Closing it ended the whole Closing Argument. "Keep speaking" is the default and closes the window alone; the
-           turn runs on its clock, the GM's bar still skips it. As the volunteers' window's "Not me". */
+           turn runs on its clock, the GM's bar still skips it. As the volunteers' window's "Not me". Since 1.2.122 the
+           window comes back `KEEP_SPEAKING_MS` later while the turn is still this speaker's, so Done and Pass stay in
+           reach (CTRL-03); the window says so. */
         footer: turnFooter({ thesis: Boolean(scrumTurn(floor)) }),
         // Closed as soon as the floor is no longer this turn: the round moved on without the speaker's press.
         render: (event, dialog) => {
             const watch = setInterval(() => {
                 if (!dialog.element?.isConnected) return void clearInterval(watch);
-                if (turnKey(trialFloor()) === key) return;
+                if (turnKey(trialFloor()) === key) return void paintLeft(dialog, leftNow(secondsLeft, trialFloor()), "DRPG.Trial.turn.title");
                 clearInterval(watch);
+                closedByFloor = true;
                 dialog.close();
             }, 500);
         },
@@ -214,7 +246,14 @@ async function promptTurn(floor) {
         if (turnKey(trialFloor()) === key) promptedFor = null;
         return;
     }
-    if (choice !== "done" && choice !== "pass") return;
+    if (choice !== "done" && choice !== "pass") {
+        // Keep speaking, the X or Escape: hidden for a while, then offered again while the turn is still this speaker's.
+        if (closedByFloor || turnKey(trialFloor()) !== key) return;
+        setTimeout(() => {
+            if (turnKey(trialFloor()) === key && promptedFor === key) promptedFor = null;
+        }, KEEP_SPEAKING_MS);
+        return;
+    }
     if (turnKey(trialFloor()) !== key) return;
     const { requestTurn } = await import("./gm-bridge.mjs");
     await requestTurn({ actorId: actor.id, kind: choice, step });
@@ -273,7 +312,12 @@ async function renderTrialPrompt() {
 /** The hooks: the floor's setting written, and the page ready. */
 export function registerTrialPrompt() {
     Hooks.once("ready", () => { renderTrialPrompt(); });
-    Hooks.on("updateSetting", setting => {
-        if (setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) renderTrialPrompt();
-    });
+    /* Both hooks (1.2.122, CTRL-05): a world setting's first write makes its document, and Foundry fires createSetting for
+       it, not updateSetting (gm-store.mjs and trial-scene.mjs hear both for the same reason); in a world whose floor was
+       never written, the first mode started opened no prompt and called no turn over on any player. */
+    for (const hook of ["updateSetting", "createSetting"]) {
+        Hooks.on(hook, setting => {
+            if (setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) renderTrialPrompt();
+        });
+    }
 }

@@ -39,7 +39,7 @@ import { seasonEpoch } from "./settings.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import {
-    whisperToOwner, whisperToGms, isPrimaryGm, primaryGmId, ownerIdsOf, forcedDeletion, log, warn, error, plural
+    whisperToOwner, whisperToGms, isPrimaryGm, primaryGmId, ownerIdsOf, forcedDeletion, log, warn, error, plural, esc
 } from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
 import { bulletStore, bulletRefCopy, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
@@ -393,7 +393,7 @@ export function hasReading(item) {
  *   callers are the ones holding the item and its flags.
  */
 export function bulletDescription(playerText, analyzedText = "") {
-    const esc = foundry.utils.escapeHTML;
+
     const first = playerText ? `<p>${esc(playerText)}</p>` : "";
     if (!analyzedText) return first;
     return `${first}<p class="drpg-bullet-analysis"><strong>${
@@ -1014,18 +1014,28 @@ export async function propagateVerdicts(remnantTokenIds, { faint = null, tiedToC
     if (!game.user.isGM || !ids.size || !Object.keys(secret).length) return 0;
 
     const secrets = {}, identified = [];
+    /* A COPY THAT SHOWED ITS KIND ONLY BECAUSE THE KIND IS SELF-EVIDENT (1.2.122, CASE-35). A Key or a Final shows its
+       kind from pickup with `analyzed` false, so it reads as identified; retyped to a kind that is read on Analyze (a Prep,
+       a Cleanup), the copy was written the new kind - the answer handed to its holder, no longer analysable, and read as
+       "read" by every road that asks `hasReading`. Such a copy falls back to what an unread copy of the new kind shows,
+       Neutral, and keeps its Analyze; nothing else is written onto it. A copy analysed, or one that showed a kind that
+       is not self-evident (a critical Observe's), takes the new kind as before. */
+    const fallBack = `flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`;
+    const unread = held => !held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)
+        && READ_ON_ANALYZE.includes(held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral");
     // The copies the answer key lists (`copiesInKey`), not the sheets' (E09 fix r1-G4).
     for (const { item, held } of copiesInKey(row => ids.has(row.remnantId))) {
         secrets[item.uuid] = { ...secret };
-        if (isIdentified(held)) identified.push(item);
+        if (!isIdentified(held)) continue;
+        identified.push([item, type && !READ_ON_ANALYZE.includes(type) && unread(held) ? { [fallBack]: "neutral" } : shown]);
     }
     if (!Object.keys(secrets).length) return 0;
     // `ifLive`: it amends rows this GM holds (the pass above found them), and never starts one.
     await bulletStore.patchMany(secrets, { ifLive: true });
-    for (const item of identified) {
+    for (const [item, patch] of identified) {
         try {
             // `FROM_REMNANT`, as `propagateRemnantPublic`'s: the trace talking, not a GM editing the bullet.
-            await item.update(shown, { [FROM_REMNANT]: true });
+            await item.update(patch, { [FROM_REMNANT]: true });
         } catch (err) {
             error(`Could not move the trace's verdicts onto "${item.name}"`, err);
         }
@@ -1404,12 +1414,27 @@ function refreshGuard(item, touched = null) {
 async function revertPlayerBulletEdit(item, touched, author) {
     const guard = guards.get(item.uuid) ?? null;
     const patch = {};
+    /* A GUARDED FLAG THE BULLET HAD NOT IS PUT BACK AS NO KEY (1.2.122, STG-103). The copy records each flag as
+       `getFlag(...) ?? null`, so a player's write of a flag the bullet never had - `remnantRef`, or the module's flags
+       whole - was put back as that flag set to null, and world-secrets.mjs names a null `remnantRef` on an Item as a
+       world secret (`checkState`, the canary). A flag the copy holds as null is deleted instead: every reader reads an
+       absent flag and a null one alike (`?? null`). With no ForcedDeletion in this Foundry, it is unset after the write. */
+    const flagPrefix = `flags.${MODULE_ID}.`;
+    const unset = [];
+    const deletion = forcedDeletion();
     for (const path of touched) {
-        if (guard && path in guard) patch[path] = guard[path];
+        if (!guard || !(path in guard)) continue;
+        if (guard[path] === null && path.startsWith(flagPrefix)) {
+            if (deletion) patch[path] = deletion;
+            else unset.push(path.slice(flagPrefix.length));
+        } else patch[path] = guard[path];
     }
-    const missed = touched.filter(path => !(path in patch));
+    const missed = touched.filter(path => !(path in patch) && !unset.includes(path.slice(flagPrefix.length)));
     if (Object.keys(patch).length) {
         await item.update(patch, { [NOT_AN_EDIT]: true });
+    }
+    for (const key of unset) {
+        if (item.getFlag(MODULE_ID, key) !== undefined) await item.unsetFlag(MODULE_ID, key);
     }
     warn(`${author?.name ?? "A player"} edited the Truth Bullet "${item.name}" (${touched.join(", ")}): ${
         missed.length ? `no record to restore ${missed.join(", ")}` : "put back"}.`);

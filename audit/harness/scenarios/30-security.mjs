@@ -5674,7 +5674,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const had = b ? Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent" : "no bullet";
         if (had === null) await b.unsetFlag("${MOD}", "remnantRef");
         return { had, now: b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet" };`);
-    note("the bullet's remnantRef left by the put-right, taken off (E40 C3)", JSON.stringify(leftover));
+    /* Since 1.2.122 (STG-103) the put-back deletes a guarded flag the copy holds as null (truth-bullets.mjs
+       `revertPlayerBulletEdit`), so the bullet ends the phase with no `remnantRef` at all; the unset above stays as the
+       cleanup it was, and finds nothing to take off. */
+    check("SECURITY: a player's write of a guarded flag the bullet never had is put back as no key, not as null (1.2.122, STG-103)",
+        leftover.had === "absent" && leftover.now === "absent", JSON.stringify(leftover));
 
     /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).
