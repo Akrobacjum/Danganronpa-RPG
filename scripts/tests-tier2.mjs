@@ -67768,7 +67768,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const warned = [];
         const letter = id => ({ [a.id]: "A", [b.id]: "B", [c.id]: "C" })[id] ?? id;
         const stored = (scene, room) => scene.regions.filter(r => r.name === room)
-            .map(r => { const list = r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes); return Array.isArray(list) ? list.map(e => `${letter(e.actorId)}${e.concealed ? " hidden" : ""}`).sort() : null; });
+            /* A stored list, read with the hidden stashes the GMs' store holds since 1.2.122 (the audit's CORE-25: a hidden
+               stash is no entry of the region), as `stashesIn` answers them; null where the region stores no list. */
+            .map(r => { const list = r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes); return Array.isArray(list) ? V.stashesIn(room, scene).map(e => `${letter(e.actorId)}${e.concealed ? " hidden" : ""}`).sort() : null; });
         const msgsBefore = new Set(game.messages.contents.map(m => m.id));
         const made = [];
         const stash = async (actor, room, name) => {
@@ -98438,7 +98440,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     doors: await applyWith([`locked:${ROOM}`, el => { el.checked = true; }]),
                     search: await applyWith([`nosearch:${ROOM}`, el => { el.checked = true; }]),
                     rest: await applyWith([`short:${ROOM}`, el => { el.checked = true; }]),
-                    stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "hidden"; }]),
+                    // An open stash's cell (1.2.122, CORE-25: a hidden one is the GMs' store's, and writes no region).
+                    stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "open"; }]),
                     description: await applyWith([`desc:${ROOM}`, el => { el.value = "E46-T1 words"; }]),
                     fog: await applyWith([`fog:${ROOM}:${a.id}`, el => { el.checked = !el.checked; }]),
                     passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}])
