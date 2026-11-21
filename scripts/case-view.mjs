@@ -529,8 +529,10 @@ export function lightEdges(canvas, id = null) {
    middle and fit. The zoom is clamped to CAMERA_LIMITS and the pan keeps a margin of the graph in view. ---- */
 
 /** The zoom's bounds and one step of the buttons and keys: a quarter of the size at the least (the whole of a
- *  sixty-Remnant chapter in the view's box at 1366x768), twice at the most. */
-export const CAMERA_LIMITS = Object.freeze({ min: 0.25, max: 2, step: 1.25, margin: 48 });
+ *  sixty-Remnant chapter in the view's box at 1366x768), twice at the most. `fitMin`: how far Fit to view may go past
+ *  `min` to show a case wider than that (the owner, 21.11.2026: "niech fit to view w planerze zagadki przekracza
+ *  maksymalne oddalenie (aktualnie 25%) - niech je ignoruje"); under 5% a node is a dot. R8542. */
+export const CAMERA_LIMITS = Object.freeze({ min: 0.25, max: 2, step: 1.25, margin: 48, fitMin: 0.05 });
 
 /** `z` held to the limits (a value that is no number reads 1). Pure. */
 export function clampZoom(z, limits = CAMERA_LIMITS) {
@@ -561,17 +563,25 @@ export function zoomAt(cam, factor, px, py, limits = CAMERA_LIMITS) {
 }
 
 /** The camera that shows the whole content (`{ w, h }`) in the box (`{ w, h }`), centred, at most at 1 (fit never
- *  enlarges a small case) and never under the limit. Pure. */
+ *  enlarges a small case) and down to `fitMin`, past the zoom's `min` (R8542). Pure. */
 export function fitCamera(content, box, limits = CAMERA_LIMITS) {
     if (!(content?.w > 0) || !(content?.h > 0) || !(box?.w > 0) || !(box?.h > 0)) return { x: 0, y: 0, z: 1 };
-    const z = clampZoom(Math.min(1, box.w / content.w, box.h / content.h), limits);
+    const z = clampZoom(Math.min(1, box.w / content.w, box.h / content.h), { ...limits, min: limits.fitMin ?? limits.min });
     return { x: Math.round((box.w - content.w * z) / 2), y: Math.round(Math.max(0, (box.h - content.h * z) / 2)), z };
+}
+
+/** The zoom's floor in the window: the lower of `min` and the zoom Fit to view takes for this content in this box, so
+ *  a step out or the wheel stops at the fit and never pulls a fitted view back up to `min`; `min` where either size is
+ *  not laid out (R8542). Pure. */
+export function zoomFloor(content, box, limits = CAMERA_LIMITS) {
+    if (!(content?.w > 0) || !(content?.h > 0) || !(box?.w > 0) || !(box?.h > 0)) return limits.min;
+    return Math.min(limits.min, fitCamera(content, box, limits).z);
 }
 
 /** The camera moved the least so `rect` (`{ x, y, w, h }`, in the graph's unscaled pixels) is in the box, its top left
  *  corner first when it is larger than the box. Pure. */
-export function revealCamera(cam, rect, box, edge = 8) {
-    const z = clampZoom(cam?.z);
+export function revealCamera(cam, rect, box, edge = 8, limits = CAMERA_LIMITS) {
+    const z = clampZoom(cam?.z, limits);
     let { x, y } = { x: Number(cam?.x) || 0, y: Number(cam?.y) || 0 };
     const left = rect.x * z + x, top = rect.y * z + y, right = left + rect.w * z, bottom = top + rect.h * z;
     if (right > box.w - edge) x -= right - (box.w - edge);
@@ -583,7 +593,7 @@ export function revealCamera(cam, rect, box, edge = 8) {
 }
 
 /** The canvas's transform for a camera. Pure. */
-export const cameraTransform = cam => `translate(${Math.round(Number(cam?.x) || 0)}px, ${Math.round(Number(cam?.y) || 0)}px) scale(${clampZoom(cam?.z)})`;
+export const cameraTransform = (cam, limits = CAMERA_LIMITS) => `translate(${Math.round(Number(cam?.x) || 0)}px, ${Math.round(Number(cam?.y) || 0)}px) scale(${clampZoom(cam?.z, limits)})`;
 
 /* ---- WHAT A BROWSER DOES WITH THE DRAWN MAP ---- */
 
@@ -700,13 +710,16 @@ const boxSize = el => ({ w: el?.clientWidth || 0, h: el?.clientHeight || 0 });
  */
 export function wireCaseCamera(graph, { get = () => null, set = () => {}, still = () => false, onZoom = () => {} } = {}) {
     const canvas = () => graph?.querySelector?.(":scope > .drpg-case-canvas");
+    // The floor is this case's fit when that is under `min` (R8542): read at each move, the case and the window may change.
+    const limitsNow = () => ({ ...CAMERA_LIMITS, min: zoomFloor(canvasSize(canvas()), boxSize(graph)) });
     const apply = (cam, { ease = false } = {}) => {
         const c = canvas();
-        const held = clampCamera(cam, canvasSize(c), boxSize(graph));
+        const limits = limitsNow();
+        const held = clampCamera(cam, canvasSize(c), boxSize(graph), limits);
         set(held);
         if (c) {
             c.classList.toggle("is-easing", Boolean(ease) && !still());
-            c.style.transform = cameraTransform(held);
+            c.style.transform = cameraTransform(held, limits);
         }
         if (graph) { graph.scrollLeft = 0; graph.scrollTop = 0; }
         onZoom(held);
@@ -716,7 +729,7 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
     const middle = () => { const b = boxSize(graph); return [b.w / 2, b.h / 2]; };
     const zoomBy = (factor, px, py, opts) => {
         const [mx, my] = middle();
-        return apply(zoomAt(now(), factor, px ?? mx, py ?? my), opts);
+        return apply(zoomAt(now(), factor, px ?? mx, py ?? my, limitsNow()), opts);
     };
     const fit = () => apply(fitCamera(canvasSize(canvas()), boxSize(graph)), { ease: true });
     /* `els` one element or several (an open node's face and its fields): their union brought into view. */
@@ -725,14 +738,15 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
         const list = (Array.isArray(els) ? els : [els]).filter(el => el && c?.contains?.(el));
         if (!c || !list.length) return;
         const cam = now();
-        const z = clampZoom(cam.z);
+        const limits = limitsNow();
+        const z = clampZoom(cam.z, limits);
         const cr = c.getBoundingClientRect?.();
         const rs = list.map(el => el.getBoundingClientRect?.()).filter(r => r && (r.width || r.height));
         if (!cr || !rs.length) return;
         const left = Math.min(...rs.map(r => r.left)), top = Math.min(...rs.map(r => r.top));
         const right = Math.max(...rs.map(r => r.right)), bottom = Math.max(...rs.map(r => r.bottom));
         const rect = { x: (left - cr.left) / z, y: (top - cr.top) / z, w: (right - left) / z, h: (bottom - top) / z };
-        const next = revealCamera(cam, rect, boxSize(graph));
+        const next = revealCamera(cam, rect, boxSize(graph), 8, limits);
         if (next.x !== Math.round(cam.x) || next.y !== Math.round(cam.y)) apply(next);
     };
     if (!graph || graph.dataset.drpgCamera) return { apply, zoomBy, fit, reveal };

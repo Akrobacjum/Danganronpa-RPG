@@ -529,7 +529,8 @@ export function cameraHtml(zoom = 1, legend = "") {
         + `<button type="button" class="drpg-case-cam" data-drpg-case-camera="fit"${tipAttr("DRPG.Tips.Sweep.Case.fitViewTooltip")}>${esc(L("DRPG.CaseMap.zoomFit"))}</button></div>`;
 }
 
-const clampZoomOf = z => Math.min(CAMERA_LIMITS.max, Math.max(CAMERA_LIMITS.min, Number(z) || 1));
+// Down to `fitMin`: a view fitted past 25% reads its own percent (R8542).
+const clampZoomOf = z => Math.min(CAMERA_LIMITS.max, Math.max(CAMERA_LIMITS.fitMin, Number(z) || 1));
 
 /** Motion reduced on this browser: the module's class (the client setting or the system's, motion.mjs) or the system's
  *  own query where the class is not stamped yet. */

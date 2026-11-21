@@ -27645,6 +27645,38 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(wrong), "[]", "[what the text still says beyond what holds]");
     }],
+    ["R8542 - Fit to view shows the whole case however far it must zoom out (the owner, 21.11.2026: \"niech fit to view w planerze zagadki przekracza maksymalne oddalenie (aktualnie 25%) - niech je ignoruje\"; case-view.mjs `fitCamera`, `zoomFloor`, `wireCaseCamera`): a case wider than the view at 25% fits at its own zoom, down to CAMERA_LIMITS.fitMin (5%); the zoom's floor in the window is the lower of 25% and that fit, so a step out or the wheel stops at the fit and does not pull the view back to 25%, and a step in from it zooms in; a case that fits at 25% or more keeps 25% as the floor; the toolbar's readout shows the zoom as it is", async () => {
+        /*
+         * 1.2.122, the assembly, 21.11.2026. Until here `fitCamera` clamped its zoom to CAMERA_LIMITS.min (0.25), and so
+         * did every apply, so a case of more than four views' width showed in part after Fit to view. Pure over handed
+         * sizes, and the window's road read in wireCaseCamera's source (tier 0 lays nothing out). Red at 6ad57066: no
+         * `zoomFloor`, and the fit of an 8000 px case in a 1000 px view read 0.25.
+         */
+        const V = await import("./case-view.mjs");
+        must(typeof V.fitCamera === "function" && V.CAMERA_LIMITS, "case-view.mjs has no fitCamera or CAMERA_LIMITS - this would measure nothing");
+        const lim = V.CAMERA_LIMITS;
+        const wide = { w: 8000, h: 2000 }, box = { w: 1000, h: 400 }, small = { w: 2000, h: 800 };
+        const floor = typeof V.zoomFloor === "function" ? V.zoomFloor(wide, box) : null;
+        const held = floor === null ? null : { ...lim, min: floor };
+        const src = stripComments((await moduleSources()).get("case-view.mjs") ?? "");
+        const wire = fnSource(src, "wireCaseCamera") ?? "";
+        const map = stripComments((await moduleSources()).get("case-map.mjs") ?? "");
+        equal(JSON.stringify({
+            fitMin: lim.fitMin, fit: V.fitCamera(wide, box).z, tiny: V.fitCamera({ w: 100000, h: 100 }, box).z,
+            floor, smallFloor: typeof V.zoomFloor === "function" ? V.zoomFloor(small, box) : null,
+            unknownFloor: typeof V.zoomFloor === "function" ? V.zoomFloor({ w: 0, h: 0 }, box) : null,
+            outAtFit: held ? V.zoomAt({ x: 0, y: 0, z: floor }, 1 / lim.step, 500, 200, held).z : null,
+            inFromFit: held ? Math.round(V.zoomAt({ x: 0, y: 0, z: floor }, lim.step, 500, 200, held).z * 10000) / 10000 : null,
+            keptByApply: held ? V.clampCamera({ x: 0, y: 0, z: floor }, wide, box, held).z : null,
+            transform: held ? V.cameraTransform({ x: 0, y: 0, z: floor }, held) : null,
+            road: [/zoomFloor\(/.test(wire), /fitCamera\(canvasSize\(canvas\(\)\), boxSize\(graph\)\)/.test(wire),
+                /zoomAt\(now\(\), factor, [^;]*limitsNow\(\)\)/.test(wire), /clampCamera\(cam, canvasSize\(c\), boxSize\(graph\), limits\)/.test(wire),
+                /cameraTransform\(held, limits\)/.test(wire)],
+            readout: /CAMERA_LIMITS\.fitMin/.test(map.match(/const clampZoomOf = [^;]+;/)?.[0] ?? "")
+        }), JSON.stringify({ fitMin: 0.05, fit: 0.125, tiny: 0.05, floor: 0.125, smallFloor: 0.25, unknownFloor: 0.25, outAtFit: 0.125,
+            inFromFit: 0.1563, keptByApply: 0.125, transform: "translate(0px, 0px) scale(0.125)", road: [true, true, true, true, true], readout: true }),
+            "{fitMin; fit: an 8000x2000 case in a 1000x400 view; tiny: one past the 5% floor; floor: the window's floor for it; smallFloor: a case that fits at 40%; unknownFloor: sizes not laid out; outAtFit, inFromFit: a step out and in from the fit; keptByApply: the clamp of the fit; transform; road: [wireCaseCamera asks the floor, fits the canvas to the box, zooms (buttons, keys, wheel) to the floor, clamps each apply to it, draws it]; readout: the toolbar's percent reads below 25%}");
+    }],
 ];
 
 
