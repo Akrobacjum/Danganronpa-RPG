@@ -311,10 +311,21 @@ export async function rifleStashDialog(actor) {
      * A single stash keeps its old shape exactly: one group, and a heading the
      * player can ignore.
      */
-    const options = stocked.map(entry =>
+    const options = list => list.map(entry =>
         `<optgroup label="${esc(entry.owner.name)}">${entry.items.map(i =>
             `<option value="${entry.owner.id}:${i.id}">${describe(i)}</option>`
         ).join("")}</optgroup>`).join("");
+    /* THE LIST FOLLOWS THE STASHES (1.2.122 line MAP; the audit's REFR-52, the owner's rule "Zawsze odswiezamy okna od razu
+       przy zmianie"). It was drawn once: a thing another student took a moment before stayed offered, and its press was
+       refused. Redrawn on every item, character and room change from the stashes open here now; the pick is carried by
+       `keepLive` itself, as a changed field's value is (live.mjs); a stash emptied meanwhile leaves the words that it is
+       empty. The press is judged on the primary as before (`stealFromVault`). */
+    const pickHtml = () => {
+        const now = openStashesHere(actor).filter(entry => entry.items.length);
+        if (!now.length) return `<div class="drpg-rifle-pick"><p class="notes">${esc(game.i18n.format("DRPG.Vault.stashEmpty", { who: listOf(stashes.map(entry => entry.owner.name)) }))}</p></div>`;
+        return `<div class="drpg-rifle-pick"><label>${game.i18n.localize("DRPG.Items.whichItem")}
+                <select name="item">${options(now)}</select></label></div>`;
+    };
 
     // On the kit's frame (E21 C5a).
     const picked = await drpgWindow({
@@ -325,17 +336,21 @@ export async function rifleStashDialog(actor) {
                 who: esc(listOf(stocked.map(entry => entry.owner.name))),
                 room: esc(room)
             })}</p>
-            <label>${game.i18n.localize("DRPG.Items.whichItem")}
-                <select name="item">${options}</select></label>
+            ${pickHtml()}
             <p class="notes">${game.i18n.localize("DRPG.Vault.rifleNote")}</p>
         </form>`,
         footer: {
             primary: {
                 action: "take", label: game.i18n.localize("DRPG.Vault.take"),
-                callback: (e, b, d) => d.element.querySelector("[name=item]").value
+                callback: (e, b, d) => d.element.querySelector("[name=item]")?.value ?? null
             },
             close: "cancel"
         },
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-rifle-pick",
+            build: pickHtml,
+            watch: { actors: true, items: true, hooks: ["createRegion", "updateRegion", "deleteRegion"] }
+        }),
         rejectClose: false
     });
 

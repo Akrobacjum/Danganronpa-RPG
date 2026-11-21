@@ -64619,6 +64619,23 @@ const INVARIANTS = [
         equal(JSON.stringify([b.state.busy, b.drawn().filter(l => l.startsWith("mix"))]), JSON.stringify([false, []]),
             "[whether a dissolve is busy after an old sprite's drop threw, the mixes the layer still draws]");
     }],
+    ["R8349 - on a GM the outline is taken down against its own Monokuma's rooms, the rooms it is drawn for, and on a player against its own characters' (1.2.122 line MAP; scripts/fog.mjs `repaintFog`, `leadRoomsHere`, `leadsHere`; the audit's MAP-33, the mutant R8343 let through)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. R8343 held the outline's two fades to `leadRooms` and `leadRoomsHere` to its lead,
+         * and a mutant that set `leadRooms` to `mine` on a GM as well (every Monokuma's rooms, MAP-33's bug) passed it. This
+         * reads the choice itself, off `repaintFog`'s source (tier 1 paints no canvas): on a GM `leadRoomsHere()` with its
+         * default lead, `leadsHere` - the GM's own Monokuma, the token `revealStartingRooms` and `standWhereWeStand` draw
+         * the outline for - and on a player `mine`, which `leadsHere` answers the same there; and both fades read it.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        const repaint = fnSource(src, "repaintFog"), lead = fnSource(src, "leadRoomsHere"), leads = fnSource(src, "leadsHere");
+        must(repaint && lead && leads, "fog.mjs has no repaintFog, leadRoomsHere or leadsHere - this would measure nothing");
+        const chose = repaint.match(/const leadRooms = ([^;]+);/)?.[1] ?? null;
+        equal(JSON.stringify([chose, /^export function leadRoomsHere\(tokens = [^,]+, lead = leadsHere\)/.test(lead),
+            /if \(!gm\) return true;/.test(leads), (repaint.match(/!leadRooms\.has\(roomOutline\.room\)\) fadeRoomOutline\(\)/g) ?? []).length]),
+            JSON.stringify(["game.user.isGM ? leadRoomsHere() : mine", true, true, 2]),
+            "[what leadRooms is, leadRoomsHere's default lead leadsHere, leadsHere answering every own token on a player, the fades reading leadRooms]");
+    }],
 ];
 
 /**
