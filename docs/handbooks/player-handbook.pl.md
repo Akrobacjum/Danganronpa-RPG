@@ -721,7 +721,7 @@ Ta część mówi, co graczowi wolno wiedzieć o morderstwie. Dopóki nikt nie z
 
 Gdy rzut wymienia więcej niż jedną statystykę, proponujesz jedną: wybierasz ją w oknie pod wyborami i, jeśli chcesz, dopisujesz linijkę o tym, jak twoja postać to robi. GM zatwierdza twoją propozycję, zmienia ją na inną statystykę z listy albo odmawia, na karcie w twoim wątku. Dopóki GM nie odpowie, nic nie płacisz, a odmowa nic nie kosztuje.
 
-Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Zrezygnuj*; w walce rezygnacja znowu otwiera menu kryzysowe. Okno rzutu otwiera się wtedy z tym, co ustalił GM, i nie możesz tego zmienić. Z uzbrojonym Hope Callem Resolve wybierasz statystykę w oknie rzutu i nikogo nie pytasz. W Daily Life GM może przepuszczać propozycje do Search i do projektu bez kliknięcia; karta mówi wtedy *Zatwierdzone automatycznie.*
+Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Pas*; w walce rezygnacja znowu otwiera menu kryzysowe. Okno rzutu otwiera się wtedy z tym, co ustalił GM, i nie możesz tego zmienić. Z uzbrojonym Hope Callem Resolve wybierasz statystykę w oknie rzutu i nikogo nie pytasz. W Daily Life GM może przepuszczać propozycje do Search i do projektu bez kliknięcia; karta mówi wtedy *Zatwierdzone automatycznie.*
 
 ### Rzut otwarcia
 

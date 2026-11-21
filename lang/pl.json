@@ -5137,7 +5137,7 @@
       "changedTitle": "GM zmienił statystykę",
       "changedBody": "Proponujesz {proposed}, a GM zmienia to na {stat}. Płacisz dopiero wtedy, gdy rzucisz; jeśli zrezygnujesz, nic nie tracisz.",
       "rollIt": "Rzuć: {stat}",
-      "pass": "Zrezygnuj",
+      "pass": "Pas",
       "passedLine": "Rezygnuję z rzutu na {stat}.",
       "autoApproved": "Zatwierdzone automatycznie.",
       "proposeLabel": "Którą statystykę proponujesz?",
