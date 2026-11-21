@@ -271,14 +271,7 @@ game. Each room has 3 search tokens per time of day, which you can change.
 browser console can read it, so the module keeps what it can out of world data.
 What an ordinary trace really is, who the Mastermind is, who is in a running
 murder and how people voted stay on the GMs' browsers and are sent only to the
-people who may see them, and private messages reach only their readers. Since
-1.2.115 the GMs' browsers also keep a copy of the whole case, the Key Remnant
-plan in it, in a file in the world's folder on the Foundry server, so a GM who
-opens the world alone on another computer finds the case there. The file is not
-encrypted and is in no world data: only accounts that may browse or upload files
-can find it, which the module keeps off players' roles, its name cannot be
-guessed, and Foundry's server is taken to hand it to anyone who has its exact
-address (not yet read on a real server: LIVE-E111-02). The
+people who may see them, and private messages reach only their readers. The
 rest is hidden on screen rather than locked away. Rolls are whispered, so other
 players never see them, but like every chat message they reach every browser.
 Another student's sheet shows their name, face, Ultimate, Health, Sanity and
@@ -287,8 +280,7 @@ inventory. Every character's items, with their names, still reach every
 browser; a Frisk lists another student's pockets only to the searcher and the
 GMs. <!-- leak:foundry-actor-items --> Where the Remnants lie, the Key Remnants
 among them, and where every token goes during an Eclipse are world data; the
-Key Remnant plan and a murder declared in the dark stay with the GMs (the plan
-also in the case's file above). <!-- leak:S17-64 --> A
+Key Remnant plan and a murder declared in the dark stay on the GMs' browsers. <!-- leak:S17-64 --> A
 token the GM hides is hidden from view only: Foundry sends every token, with its
 name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know
@@ -328,9 +320,8 @@ draws. For a GM who has not met this module before, that is:
   mark, so a console can tell whose they are;
 - every scene's regions, walls and their flags. So a room whose only way in is a
   secret passage is seen, and so are Foundry's own secret doors, which a console
-  can also open (the GM's browser shuts them again), and which rooms are
-  barricaded; the module's secret passages, and who knows them, are not, nor who
-  barricaded a room or how strongly;
+  can also open (the GM's browser shuts them again); the module's secret
+  passages, and who knows them, are not;
 - every character's sheet: its traits, Hope and other resources, and its items
   with their names, whoever carries them. So a Monocub's move paid from its
   purse is seen as actions spent and no Hope; who paid, and what the purse
