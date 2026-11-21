@@ -799,7 +799,7 @@ Your side of the same table is behind the **Crisis actions** tile:
 
 Finishing Blow is a resolution action too: 1 Sanity, or 1 Health once your Sanity is gone.
 
-An action aimed at the other side needs 1 more when that side is strong: Strike, Attack with a Weapon, and Pin Them Down when the victim's Body is +1 or better, Keep Your Distance when the victim's Leg is; Self-Defense and Role Reversal when the killer's Body is, Survive and Escape Together when the killer's Leg is. The tile says so ("Beat 16 (+1 for the victim's Body)"). The opening rolls never change this way.
+An action aimed at the other side needs 1 more when that side is strong: Strike, Attack with a Weapon, and Pin Them Down when the victim's Body is +1 or better, Keep Your Distance when the victim's Leg is; Self-Defense and Role Reversal when the killer's Body is, Survive and Escape Together when the killer's Leg is. The tile says so ("Beat 16 (+1 for the victim's Body)"). When you cannot know who the killer is (behind a "?", or in a trap), the tile and the roll window say "Beat 18 + a hidden defense": the GM judges with the killer's statistic in it. The opening rolls never change this way.
 
 Then comes the **clean-up**. Your **Tamper** tile now lists every Remnant in the room you are standing in, yours and everybody else's. At your own scene an attempt costs no action, only **1 Sanity**. Erasing, reshaping, and the Misleading Trail roll Shadow, and nobody is asked.
 

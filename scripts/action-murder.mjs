@@ -102,7 +102,7 @@ export async function openCrisisMenu(actor) {
         intro: `<div class="drpg-briefing-block"><p>${game.i18n.localize("DRPG.Murder.crisisBrief")}</p></div>`,
         prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
         confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
-        options: options.map(({ key, def, threshold, defense, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
+        options: options.map(({ key, def, threshold, defense, defenseHidden, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
             value: key,
             icon: def.icon ?? "fa-burst",
             label: def.label,
@@ -115,11 +115,7 @@ export async function openCrisisMenu(actor) {
                 ? game.i18n.localize("DRPG.Murder.noRollItWorks")
                 : threshold === null || threshold === undefined
                     ? game.i18n.localize("DRPG.Murder.noRollNeeded")
-                    // With the other side's defence in it (E64; DA6/DA23): "Beat 16 (+1 for the victim's Body)".
-                    : defense > 0 && def.defense
-                        ? game.i18n.format(`DRPG.Murder.thresholdDefended.${def.defense.side}`, {
-                            n: threshold, d: defense, trait: TRAITS[def.defense.trait]?.label ?? def.defense.trait })
-                        : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
+                    : crisisThresholdLine({ def, threshold, defense, defenseHidden })}${
                 // The row's one sentence (E68 C13; the owner's Q5 of round M): `short`, its full hint first in the details.
                 def.short ? ` - ${proseOf(def, "short")}` : def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
@@ -194,6 +190,21 @@ export function crisisFacts(def, { free, youPick, traits }) {
         if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(proseOf(def, "failure")) }));
     }
     return facts;
+}
+
+/**
+ * The number a crisis row asks, as its menu line says it (E64; DA6/DA23): "Beat 16 (+1 for the victim's Body)" with the
+ * other side's defence in it, "Beat 15" with none, and "Beat 18 + a hidden defense" where the defence is added and this
+ * browser cannot see it (murder-rules.mjs `crisisDefenseHidden`, CASE-16) - no value and no name, so the number shown is
+ * never presented as the whole. Pure but for the words; exported for R7950.
+ */
+export function crisisThresholdLine({ def, threshold, defense = 0, defenseHidden = false } = {}) {
+    if (defenseHidden) return game.i18n.format("DRPG.Murder.thresholdHidden", { n: threshold });
+    if (defense > 0 && def?.defense) {
+        return game.i18n.format(`DRPG.Murder.thresholdDefended.${def.defense.side}`, {
+            n: threshold, d: defense, trait: TRAITS[def.defense.trait]?.label ?? def.defense.trait });
+    }
+    return game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold });
 }
 
 /**

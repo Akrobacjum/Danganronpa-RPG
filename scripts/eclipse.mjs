@@ -417,6 +417,15 @@ export async function endEclipse({ advance = true } = {}) {
         error("Could not take the offers of the betrayals declared during the Eclipse", err);
     }
 
+    /* AND THE WATCHES' DICE, READ WHILE THE POSTS STAND (1.2.120 line K; the audit's STG-01): the clock's write below drops
+       every watch (watch-gm.mjs `endWatches`), and a murder declared on a watcher in this Eclipse opens after it. Kept for
+       `openMurder` until the lights have judged (`releaseTheLights`, below). */
+    try {
+        await (await import("./watch-gm.mjs")).holdForTheLights();
+    } catch (err) {
+        error("Could not read the watches' dice for the murders the lights will judge", err);
+    }
+
     log("Eclipse ended.");
 
     /* THE OPENING'S VEIL FROM THE START OF THE TIME OF DAY (E112; the owner's answer (4)): the killers the lights below will
@@ -535,6 +544,12 @@ export async function endEclipse({ advance = true } = {}) {
             await (await import("./mask-gm.mjs")).lightsJudged();
         } catch (err) {
             error("Could not settle the opening's veil after the lights", err);
+        }
+        // The watches' dice were for these openings alone (STG-01): an incident opened later reads no watch of this Eclipse.
+        try {
+            (await import("./watch-gm.mjs")).releaseTheLights();
+        } catch (err) {
+            error("Could not let go of the watches' dice after the lights", err);
         }
     }
     return true;

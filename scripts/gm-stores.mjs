@@ -367,6 +367,11 @@ export const INCIDENT_FIGHT = Object.freeze([
  * absent player - on any GM's browser - roll it again rather than ask again. The GMs' alone:
  * the roller is sent it with the invitation, and every player's copy holds it null.
  *
+ * `watchDie` (1.2.120 line K, 21.11.2026; the audit's STG-01): the hindrance die the victim's watch puts on the killer's
+ * opening, read while the watch stood and kept from the lights that opened the incident (watch-gm.mjs `heldAtTheLights`),
+ * null for an incident opened anywhere else. The GMs' alone: the roller is sent the die with the invitation, never its
+ * cause, and every player's copy holds it null.
+ *
  * `freeCleanup` (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): the actor id of
  * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
  * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
@@ -391,7 +396,7 @@ export const INCIDENT_FIGHT = Object.freeze([
  * read out of the incident by `readCast` and `castCopyFor`.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "watchDie", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT,
     /* A GM's "Silence now" (E72 C8; the plan's A9 of 11.10): `{ [actorId]: true }` for a dead student whose voice leaves
        the room before the body is found (voice.mjs `deathVoiceGone`). Split, so two GMs silencing two students both stay;

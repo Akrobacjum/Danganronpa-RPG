@@ -61196,6 +61196,55 @@ const INVARIANTS = [
             openings: [[true, false], [true, false], [true, false]]
         }), "{cap; rows [key, side, trait]; Strike at the victim's Body 2, 1, 0, -1; Keep Your Distance at Leg 3; Self-Defense at the killer's Body 1; Survive at the killer's Leg 2; Leave a Clue, no defence; openings [read their own threshold, read a defence]}");
     }],
+    ["R7950 - a defended crisis row whose defender this browser's copy does not name says a hidden defence is added, and the number it shows is never presented as the whole (1.2.120 line K; the audit's CASE-16; the owner's call open, the coordinator's default of 21.11.2026: the GM judges with the full number, the victim and the third are shown the number they can know and told plainly that a hidden defence is added, no value and no name): murder-rules.mjs `availableCrisisActions` marks the killer-defended rows `defenseHidden` on a copy that holds no killer (a mask, a trap) and on no other, `crisisDc` hands the roll window a number with the same words, action-murder.mjs `crisisThresholdLine` draws the menu's row, and the GM's `crisisThreshold` still adds the defence", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line K. The audit's CASE-16 (domain-case-a-incident-1, re-read on v1.2.119 in recheck-119.json):
+         * a victim's (or a third's) copy of the cast holds `killerId: null` while a mask stands and in every trap
+         * (incident-store.mjs `castCopyFor`), so `crisisDefense` read 0 there while the GM's judgement added the killer's
+         * Body or Leg: the menu and the roll window said "Beat 18" and the card said "18 < 19". Asked of the pure readings
+         * on two states built here - the GMs' (the killer named) and a copy of it with the killer nulled, as `castCopyFor`
+         * nulls it - for a fixture student as the victim and another as the third, the killer a stand-in id with a Body
+         * and a Leg of 1 for the GM's reading (`traitOf`). Nothing is written. Red at e515907d: no `defenseHidden` on the
+         * rows, no `crisisDc`, no `crisisThresholdLine`.
+         */
+        const C = await import("./config.mjs");
+        const R = await import("./murder-rules.mjs");
+        const A = await import("./action-murder.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [victim, third] = cast(2);
+        must(victim && third && victim.id !== third.id, "two fixture students, the victim and the third - this would measure nothing");
+        const gm = { active: true, stage: "incident", indirect: false, killerId: "zK7950", killerTurnId: "zK7950", victimId: victim.id,
+            thirdId: third.id, thirdSide: null, turnSide: "victim", unlocked: ["survive", "roleReversal"] };
+        const copy = { ...gm, killerId: null, killerTurnId: null };
+        const killerSide = key => C.CRISIS_ACTIONS[key]?.defense?.side === "killer";
+        const keys = Object.keys(C.CRISIS_ACTIONS).filter(killerSide).sort();
+        must(keys.length >= 3, `fewer than three rows the killer's statistic defends (${keys.join(", ")}) - this would measure nothing`);
+        const rows = (actor, state) => Object.fromEntries(R.availableCrisisActions(actor, state).filter(r => killerSide(r.key))
+            .map(r => [r.key, [r.threshold, r.defense, r.defenseHidden ?? null]]));
+        const line = r => (typeof A.crisisThresholdLine === "function" ? A.crisisThresholdLine(r) : null);
+        const dc = (key, state) => (typeof R.crisisDc === "function" ? R.crisisDc(key, state) : null);
+        const base = key => C.CRISIS_ACTIONS[key].threshold;
+        const read = {
+            copy: { ...rows(victim, copy), ...rows(third, copy) },
+            gm: { ...rows(victim, gm), ...rows(third, gm) },
+            judged: Object.fromEntries(keys.map(key => [key, R.crisisThreshold(key, gm, { traitOf: () => 1 })])),
+            dc: Object.fromEntries(keys.map(key => [key, [dc(key, copy), dc(key, gm)]])),
+            line: Object.fromEntries(keys.map(key => [key, line({ def: C.CRISIS_ACTIONS[key], threshold: base(key), defense: 0, defenseHidden: true })]))
+        };
+        const hidden = n => game.i18n.format("DRPG.Murder.thresholdHidden", { n });
+        const beatHidden = n => game.i18n.format("DRPG.Murder.dcHidden", { n });
+        equal(stableJson(read), stableJson({
+            copy: Object.fromEntries(keys.map(key => [key, [base(key), 0, true]])),
+            gm: Object.fromEntries(keys.map(key => [key, [base(key), 0, false]])),
+            judged: Object.fromEntries(keys.map(key => [key, base(key) + 1])),
+            dc: Object.fromEntries(keys.map(key => [key, [beatHidden(base(key)), base(key)]])),
+            line: Object.fromEntries(keys.map(key => [key, hidden(base(key))]))
+        }), "{copy / gm: per killer-defended row [threshold, defence, defenseHidden] on the victim's and the third's menu; judged: the GM's number with a Body and a Leg of 1; dc: the roll window's [on the copy, on the GMs' state]; line: the menu's row for a hidden defence} - the number a copy with no killer shows says a hidden defence is added, and the GM still judges with it");
+        ok(hidden(1) !== "DRPG.Murder.thresholdHidden" && beatHidden(1) !== "DRPG.Murder.dcHidden", "the hidden defence's words have no text");
+        const named = keys.flatMap(key => [C.TRAITS[C.CRISIS_ACTIONS[key].defense.trait]?.label]).filter(Boolean);
+        ok(!Object.values(read.line).some(text => named.some(label => String(text ?? "").includes(label))),
+            `the menu's line for a hidden defence names the statistic: ${stableJson(read.line)}`);
+    }],
     ["R3962 - a Loaded Die that did not hold gives its Call back on both roads (E64, D052; the owner's default, confirmed 12.11.2026): call-effects.mjs `giveBackLoadedDie` arms the entry again on a GM under a new nonce, keeping its `by`, and whispers \"loadedDieBack\"; action-pipeline.mjs `throwDice` calls it for a roll this browser threw whose die did not hold, and roll-draw.mjs `throwDrawn` for a drawn roll whose die did not hold, after its spend, and records and answers `loaded` as held", async () => {
         /*
          * E64, 12.11.2026. The GM's own road is measured in tier 2 ("E64 D052 - ..."): red before this commit. The drawn road
