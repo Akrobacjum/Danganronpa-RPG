@@ -22495,6 +22495,47 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ cards: { early: [true, false], first: [false, true], another: [true, false], ended: 1 }, order: true }),
             "{each card [its buttons stand, it says a Reroll replaced it]: the student's before the roll, the student's after it, another's after it; how many were ended; the re-ask ends the first before posting its own}");
     }],
+    ["1.2.122 ROLL-21 - a roller who reloads while the GM draws their roll can still read its card: the wait is kept for the reload, and the drawn message that carries its nonce is read here and kept, after a second reload too (scripts/private-rolls.mjs `awaitDrawn`, `refillReadable`, `keepAwaitedHere`; the audit's ROLL-21, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's ROLL-21: the wait (`drawsAwaited`) was memory, and the id was kept
+         * only by `playBack` at the answer, on the browser that asked; a reload between the GM's message and the answer
+         * lost both, and the card stayed hidden on the roller's browser for good. On this browser, standing in the roller's:
+         * a draw waited on (`awaitDrawn`), the GM's drawn message carrying its nonce, then a reload stood in
+         * (`refillReadable`, which empties the page's memory as a reload does), then a second. Read: the message's id in
+         * this browser's kept ids after each, and whether it reads it. Put back: the wait, the message, the client
+         * setting. Red at f94dd4e6: the id never kept.
+         */
+        const P = await import("./private-rolls.mjs");
+        const stored = clientStored();
+        const nonce = `R122R21${foundry.utils.randomID(10)}`;
+        const keyOf = () => `${game.world?.id ?? ""}.${game.user?.id ?? ""}`;
+        const kept = id => (getSetting(SETTINGS.readableRolls)?.[keyOf()] ?? []).includes(id);
+        let stop = null, message = null;
+        const read = {};
+        try {
+            stop = P.awaitDrawn(nonce);
+            await settle();
+            message = await ChatMessage.create({ content: "<p>SUITE ROLL-21 drawn</p>", author: game.user.id, whisper: [game.user.id],
+                rolls: [{ class: "DualityRoll", formula: "1d12 + 1d12", total: 9, evaluated: true, options: { [P.ROLL_NONCE]: nonce } }],
+                flags: { [MODULE_ID]: { drawn: true } } });
+            await settle();
+            must(P.isDrawnRoll(message) && P.rollNonceOf(message) === nonce, "the message is not a drawn roll carrying the nonce - this would measure nothing");
+            P.refillReadable();
+            await settle();
+            read.first = [kept(message.id), P.isReadableHere(message)];
+            P.refillReadable();
+            await settle();
+            read.second = [kept(message.id), P.isReadableHere(message)];
+        } finally {
+            stop?.();
+            await message?.delete();
+            putBackStored(stored);
+            P.refillReadable();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [true, true], second: [true, true] }),
+            "{after a reload stood in: [the drawn message's id kept, readable here]; after a second}");
+    }],
     ["Grant all grants each stamped roll once", async () => {
         /*
          * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is

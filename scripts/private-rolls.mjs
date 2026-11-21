@@ -72,6 +72,8 @@ export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
     // Whose roll it is, told to the primary GM as the message exists (E06 fix r1-G2).
     Hooks.on("createChatMessage", reportClaimedRoll);
+    // A drawn roll this browser waited on before a reload, arriving after it (ROLL-21, `keepAwaitedHere`).
+    Hooks.on("createChatMessage", message => { if (!game.user?.isGM) keepAwaitedHere(message); });
     // `renderChatMessageHTML` and nothing else.
     //
     // The deprecated `renderChatMessage` was registered alongside it as a
@@ -1581,6 +1583,8 @@ async function keepReadable(messageId) {
  */
 export function refillReadable() {
     readableHere.clear();
+    // What a reload leaves (a page's memory empty at `ready` anyway): the waits too, read back below from what was kept.
+    drawsAwaited.clear();
     let ids = [];
     try {
         const kept = getSetting(SETTINGS.readableRolls)?.[readableKey()];
@@ -1589,14 +1593,61 @@ export function refillReadable() {
         debug("Could not read the drawn rolls this browser kept", err);
     }
     for (const id of ids.slice(-READABLE_KEPT)) readableHere.add(id);
+    // The waits kept for a reload (ROLL-21): waited on again, and a drawn message that came for one meanwhile kept.
+    try {
+        const now = Date.now();
+        for (const [nonce, at] of Object.entries(getSetting(SETTINGS.readableRolls)?.[noncesKey()] ?? {})) {
+            if (now - Number(at) < AWAIT_KEPT_MS) drawsAwaited.add(nonce);
+        }
+        for (const message of game.messages?.contents ?? []) keepAwaitedHere(message);
+    } catch (err) {
+        debug("Could not read the drawn rolls' waits this browser kept", err);
+    }
     return readableHere.size;
 }
 
-/** This browser waits on the GM to draw the roll carrying `nonce`; answers the call that stops waiting. */
+/**
+ * This browser waits on the GM to draw the roll carrying `nonce`; answers the call that stops waiting.
+ *
+ * KEPT FOR A RELOAD (the audit's ROLL-21, 1.2.122). A roller who reloaded while the GM drew their statistic from the
+ * sheet lost both roads to its card: the wait (`drawsAwaited`, memory) and the answer that keeps its id (`playBack`'s
+ * `readHere` with `keep`, which runs only on the browser that asked). The GM settled it, and the card stayed hidden on
+ * the roller's own browser for good. So the nonce is kept beside the readable ids (`readableRolls`, under this world and
+ * user's `.nonces`), stamped, until the wait ends; after a reload `refillReadable` waits on those not older than
+ * `AWAIT_KEPT_MS` again, and a drawn message carrying one is this browser's to read and kept (`keepAwaitedHere`).
+ */
 export function awaitDrawn(nonce) {
     if (typeof nonce !== "string" || !nonce) return () => {};
     drawsAwaited.add(nonce);
-    return () => drawsAwaited.delete(nonce);
+    void keepAwaited(nonce, true);
+    return () => {
+        drawsAwaited.delete(nonce);
+        void keepAwaited(nonce, false);
+    };
+}
+
+/** How long a wait kept for a reload is waited on again: a draw's longest wait, the GM's audit's included, and more. */
+const AWAIT_KEPT_MS = 10 * 60 * 1000;
+const noncesKey = () => `${readableKey()}.nonces`;
+
+async function keepAwaited(nonce, on) {
+    try {
+        const all = { ...(getSetting(SETTINGS.readableRolls) ?? {}) };
+        const now = Date.now();
+        const kept = Object.fromEntries(Object.entries(all[noncesKey()] ?? {}).filter(([n, at]) => n !== nonce && now - Number(at) < AWAIT_KEPT_MS));
+        if (on) kept[nonce] = now;
+        all[noncesKey()] = kept;
+        await game.settings.set(MODULE_ID, SETTINGS.readableRolls, all);
+    } catch (err) {
+        debug("Could not keep a drawn roll's wait for a reload", err);
+    }
+}
+
+/** A drawn message carrying a nonce this browser waited on before a reload: read here, and kept. Answers whether it was. */
+export function keepAwaitedHere(message) {
+    if (!message?.id || !isDrawnRoll(message) || !drawsAwaited.has(rollNonceOf(message) ?? "")) return false;
+    readHere(message.id, { keep: true });
+    return true;
 }
 
 /** May this browser read this message by `readableHere`'s rule - beside core's, which the patch asks after it? */
