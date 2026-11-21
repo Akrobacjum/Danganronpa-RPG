@@ -33411,7 +33411,7 @@ const INVARIANTS = [
         equal(stableJson([back > asked, back > 0 && plain > back, aborts]), stableJson([true, true, 1]),
             "[a branch on notThere gives the receipt back; before the plain refusal; one abort after the ask]");
     }],
-    ["R8385 - Tail Someone's notThere refund is no Hope generator (1.2.123 line DESP; the audit's r122-F-2): action-tail.mjs `rollsEarnedHope` answers true for a roll with Hope and for a critical, false for rolls with Despair alone, and `performTail` gives the action back only where it answers false", async () => {
+    ["R8580 - Tail Someone's notThere refund is no Hope generator (1.2.123 line DESP; the audit's r122-F-2): action-tail.mjs `rollsEarnedHope` answers true for a roll with Hope and for a critical, false for rolls with Despair alone, and `performTail` gives the action back only where it answers false", async () => {
         /*
          * 21.11.2026, 1.2.123 line DESP. The refund came after both drawn rolls had paid out their Hope, so two players who
          * agreed (one steps out while the other rolls) repeated Tail for its Hope at no action. The rule, measured on
