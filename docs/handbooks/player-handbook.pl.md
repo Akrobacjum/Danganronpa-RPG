@@ -218,6 +218,7 @@ Gdy nikt nie mówi, kafelek mówi jednym słowem, w jakim stanie jest twój gło
 | **Łączenie** | dołączasz, przechodzisz do innego kanału albo połączenie wraca |
 | **Rozłączono** | głos się zerwał; karta **Głos rozłączony** mówi wtedy, że trwa ponowne łączenie, a gdy pomoże tylko przeładowanie, każe nacisnąć F5 |
 | **Eclipse** | trwa Eclipse |
+| **Ukrycie** | stoisz za „?” po otwarciu morderstwa: nie ma cię w głosie, dopóki się nie ujawnisz albo nie zmieni się pora dnia (nie w Class Trial) |
 | **Zablokowano** | GM zablokował twój mikrofon |
 | **Osobne okno** | głos działa w osobnym oknie |
 
@@ -854,7 +855,7 @@ Za każdym razem, gdy twoja postać wchodzi do pokoju, w którym leży ciało, s
 - Każdy żyjący uczeń dostaje bez rzutu **Autopsy Truth Bullet** z godziną odkrycia, przyczyną śmierci i tym, co pokazuje ciało.
 - Remnanty na mapie badasz przez **Observe**, to, co zbierzesz, przez **Analyze**, a kopię dajesz osobom w twoim pokoju przez **Podziel się kopią**. Remnanty powiązane ze zbrodnią są pokazywane pierwsze.
 - GM-owie przygotowali do tej sprawy **Key Remnanty**: nigdy więcej niż 5 i nigdy mniej niż 3, a im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej (rozdział 10); sprawa pułapki ma ich 5. Razem zawężają podejrzanych do grupy od 2 do 4 osób; trop zawęża krąg, ale nigdy nie wskazuje nazwiska.
-- **Ciało** można przeszukać i nie kosztuje to akcji: otwórz arkusz zmarłego ucznia i wciśnij **Take from the Body** pod tym, co miał przy sobie. Okno pokazuje jego rzeczy obok opisu akcji; zaznacz, co bierzesz, i wciśnij **Weź**.
+- **Ciało** można przeszukać i nie kosztuje to akcji: otwórz arkusz zmarłego ucznia i wciśnij **Take from the Body** pod tym, co miał przy sobie (jeśli GM wyłączył *Anonimowe arkusze postaci*, arkusz otwiera się cały, a przycisk stoi na górze jego ekwipunku). Okno pokazuje jego rzeczy obok opisu akcji; zaznacz, co bierzesz, i wciśnij **Weź**.
 - Każde zabranie to jeden rzut na **Hand**: przy każdym zabraniu liczy się tylko pierwszy rzut, a gdy zabranie zostanie odrzucone, bo wyszedłeś z pokoju, jego rzut czeka na następną próbę. Im niższy wynik, tym łatwiej znaleźć Remnant, który zostawiasz: poniżej 12 jest Evident, od 12 do 17 Subtle, od 18 albo przy krytyku Hidden.
 - Dostajesz samą rzecz i Truth Bullet, który zapisuje, co wziąłeś i od kogo. Na ciele zostaje jeden Remnant mówiący, że ktoś przeszukał kieszenie, ile by rzeczy z niego wyszło; kolejne zabrania mogą ten Remnant uczynić łatwiejszym do znalezienia, nigdy trudniejszym.
 - Gdy w pokoju jest ktoś jeszcze, nawet ktoś, kogo twój ekran nie pokazuje, rzucasz też **Shadow** przeciw 16, żeby nikt nie zauważył. Pudło mówi pozostałym w pokoju i GM-om, że przeszukałeś kieszenie ciała, a przy Despair także, co zabrałeś. Rzut na Shadow nie kosztuje Sanity.
